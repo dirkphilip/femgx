@@ -39,6 +39,7 @@ describe("check-demo-import-boundary", () => {
   it("accepts explicit package entry imports", () => {
     const root = makeDemo({
       "ordinary.ts": 'import { createScene } from "../src/entries/root";\n',
+      "glb.ts": 'import { importGlb } from "../src/entries/io/glb";\n',
     });
     expect(runCheck(root).status).toBe(0);
   });
@@ -83,7 +84,7 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/structured-fe.ts",
       "demo/benchmark/memory.ts",
       "demo/benchmark/model.ts",
-      "demo/fixture/performance-fixture.ts",
+      "demo/fixtures/performance-fixture.ts",
     ];
     const script = readFileSync(SCRIPT_PATH, "utf8");
     const exemptionBlock = script.match(
@@ -100,7 +101,7 @@ describe("check-demo-import-boundary", () => {
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',
       "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
-      "fixture/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
+      "fixtures/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
     });
     const result = runCheck(root);
     expect(result.status).toBe(0);

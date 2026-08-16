@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { HEX20_SHAPE } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/heterogeneous-element-mesh";
+import { elementPart } from "../../src/geometry/element-part";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";

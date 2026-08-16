@@ -33,7 +33,7 @@ presentation and interaction policy only.
 **Demo-only policy (stays in `demo/`):**
 
 - DOM control wiring, the workbench controller, context menu, visibility
-  panel, inspection text, deterministic model fixtures (`demo/fixture/`),
+  panel, inspection text, deterministic model fixtures (`demo/fixtures/`),
   fixture/model selection, modifier-key target policy, and the demo-private
   two-pane viewport slots that share one authoritative `Scene`
   (`demo/workbench/`). The two-pane mode must not become a public viewport
@@ -95,7 +95,7 @@ model normal host usage:
 - `demo/benchmark/structured-fe.ts`
 - `demo/benchmark/memory.ts`
 - `demo/benchmark/model.ts`
-- `demo/fixture/performance-fixture.ts`
+- `demo/fixtures/performance-fixture.ts`
 
 These exemptions are intentionally narrow. Packed runtime slots, renderer records,
 capacities, and other benchmark internals remain non-public; ordinary demo code

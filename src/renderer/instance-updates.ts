@@ -8,8 +8,8 @@ import {
   INSTANCE_STRIDE,
   type DrawResources,
   type InstanceUpdate,
-} from "./resources/gpu-draw";
-import { defaultStyle } from "./resources/gpu-support";
+} from "./resources/draw-resources";
+import { defaultStyle } from "./resources/foundation";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
 
 /** Per-part record updates plus the parts whose overlay membership changed. */

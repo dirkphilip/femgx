@@ -18,14 +18,14 @@ export {
   type ModelResultField,
   type ModelSet,
   type ModelSetKind,
-} from "../io/model";
-export { createModelBuilder, type FemModelBuilder } from "../io/build";
-export { createElementModelFromFemModel } from "../io/element-model";
+} from "../io/fem-model";
+export { createModelBuilder, type FemModelBuilder } from "../io/model-builder";
+export { createElementModelFromFemModel } from "../io/conversions/element-model";
 export {
   createResultFieldFromModelResult,
   type ModelResultFieldConversionOptions,
-} from "../io/result-field";
-export { parseVtk } from "../io/vtk";
-export { writeVtk } from "../io/vtk-write";
-export type { ParseOptions, ParseResult } from "../io/session";
-export { validateModel } from "../io/validate";
+} from "../io/conversions/result-field";
+export { parseVtk } from "../io/vtk/parser";
+export { writeVtk } from "../io/vtk/writer";
+export type { ParseOptions, ParseResult } from "../io/vtk/parser-session";
+export { validateModel } from "../io/model-validation";

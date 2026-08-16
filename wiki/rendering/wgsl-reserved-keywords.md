@@ -13,9 +13,9 @@ While calling [Device].CreateRenderPipeline([RenderPipelineDescriptor]).
 
 ## Gotcha
 
-- The unit tests in `test/renderer/gpu-shaders.test.ts` only parse the shaders
+- The unit tests in `test/renderer/shaders/scene.test.ts` only parse the shaders
   with `wgsl_reflect`, which does **not** enforce reserved keywords, so a
-  regression like `var match = ...` in `src/renderer/gpu-shaders.ts` passes
+  regression like `var match = ...` in `src/renderer/shaders/scene.ts` passes
   lint, typecheck, and unit tests.
 - Reflection also does not establish every address-space-specific layout rule.
   In particular, a fixed-size scalar array such as `array<u32, 3>` has a

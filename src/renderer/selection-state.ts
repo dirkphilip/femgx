@@ -6,15 +6,15 @@ import {
   writeNodeSelectionOrder,
   writeSelectionOrder,
   type DrawResources,
-} from "./resources/gpu-draw";
+} from "./resources/draw-resources";
 import {
   buildNodeOrder,
   buildNodeSelectionOrder,
   buildSelectionOrder,
   type InstanceLayout,
 } from "./runtime-state";
-import { buildSelectionDrawCalls } from "./selection-draw-ranges";
-import type { GpuBundle } from "./gpu-recovery";
+import { buildSelectionDrawCalls } from "./selection/draw-ranges";
+import type { GpuBundle } from "./recovery";
 
 /** Mutable selection-only mirrors owned by the renderer attachment. */
 export interface SelectionState {

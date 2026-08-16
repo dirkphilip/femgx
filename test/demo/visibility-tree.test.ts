@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
+import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import { assemblyName } from "../../demo/workbench/state/visibility-tree";
 
 describe("assemblyName", () => {

@@ -3,8 +3,8 @@ import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
 import { createElement, type Element } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { editElementModel } from "../../src/elements/model-edit";
-import { createElementModelFromFemModel } from "../../src/io/element-model";
-import { FEMGX_FORMAT_VERSION, type FemModel } from "../../src/io/model";
+import { createElementModelFromFemModel } from "../../src/io/conversions/element-model";
+import { FEMGX_FORMAT_VERSION, type FemModel } from "../../src/io/fem-model";
 import {
   HEX8_SHAPE,
   LINE_SHAPE,
@@ -28,27 +28,27 @@ import {
   type TriangleGeometry,
 } from "../../src/entries/root";
 import { resolvePick, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
-import { buildMeshEdgeData } from "../../src/renderer/edges/gpu-edge";
-import { createPickRegionTargetResolver } from "../../src/renderer/picking/gpu-pick-region-resolve";
-import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/picking/gpu-pick-ids";
-import { expandSurfaceGeometry } from "../../src/renderer/resources/gpu-surface-geometry";
+import { buildMeshEdgeData } from "../../src/renderer/edges/mesh-edge";
+import { createPickRegionTargetResolver } from "../../src/renderer/picking/region-resolver";
+import { buildPrimitiveFaceBodyPickData } from "../../src/renderer/picking/ids";
+import { expandSurfaceGeometry } from "../../src/renderer/resources/surface-geometry";
 import {
   collectEmphasisUpdates,
   encodeEmphasisRecord,
-} from "../../src/renderer/resources/gpu-elements";
+} from "../../src/renderer/resources/element-resources";
 import {
   buildHighlightTable,
   type HighlightTableEntry,
-} from "../../src/renderer/selection/gpu-highlight-table";
-import { collectDenseElementSelections } from "../../src/renderer/selection/gpu-element-selection";
+} from "../../src/renderer/selection/highlight-table";
+import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import { defaultStyle } from "../../src/renderer/resources/gpu-support";
+import { defaultStyle } from "../../src/renderer/resources/foundation";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createSceneRuntime } from "../../src/entries/runtime";
 import { SceneNavigationBoundsCache, sceneWorldBounds } from "../../src/viewport/scene-bounds";
 import { displayedPartBounds } from "../../src/viewport/geometry-bounds";
-import { buildFaceSubsetIndices } from "../../src/renderer/selection/gpu-face-subset";
+import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
 import {
   BENCH_BODY_COUNT,
   BENCH_BODY_ELEMENT_COUNT,

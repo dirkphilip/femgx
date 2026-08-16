@@ -2,7 +2,7 @@
 export * from "./entries/root";
 export * from "./entries/model";
 export * from "./entries/io";
-export * from "./entries/io-glb";
+export * from "./entries/io/glb";
 export * from "./entries/camera";
 export * from "./entries/runtime";
 export * from "./entries/platform";
@@ -19,7 +19,7 @@ export {
 export { emphasizedFaceRefs, resolveFaceStyle } from "./interaction/faces";
 export { emphasizedEdgeRefs, resolveEdgeStyle } from "./interaction/edges";
 export { emphasizedNodeRefs, resolveNodeStyle } from "./interaction/nodes";
-export { WebGpuPickReadbackError } from "./renderer/picking/gpu-pick";
+export { WebGpuPickReadbackError } from "./renderer/picking/pick";
 export {
   selectedTargetCount,
   selectedTargetSummary,

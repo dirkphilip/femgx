@@ -5,7 +5,7 @@ import type { Assembly, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import type { AssemblyId } from "../../src/scene/types";
-import { createPlanarGridGeometry } from "../../demo/fixture/planar-grid";
+import { createPlanarGridGeometry } from "../../demo/fixtures/planar-grid";
 
 /**
  * Deterministic benchmark model sizes. These are fixed so measurements stay

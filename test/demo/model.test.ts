@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGalleryPreset, createBoltedPlatePreset } from "../../demo/fixture/presets";
+import { createGalleryPreset, createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import {
   createExampleModel,
   createImportedModel,

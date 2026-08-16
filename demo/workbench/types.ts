@@ -1,5 +1,5 @@
 import type { FemViewport, InteractionState } from "../../src/entries/root";
-import type { GlbSceneImport } from "../../src/entries/io-glb";
+import type { GlbSceneImport } from "../../src/entries/io/glb";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";
 import type { WorkbenchModel } from "./models/model";

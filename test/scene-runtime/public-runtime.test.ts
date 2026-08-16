@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBoltedPlateFixture } from "../../demo/fixture/bolted-plate";
+import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import { identity } from "../../src/math/mat4";
 import { createSceneRuntime } from "../../src/index";
 

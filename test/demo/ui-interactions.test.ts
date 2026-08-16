@@ -1,8 +1,8 @@
 import { tick, mount, unmount } from "svelte";
 import { afterEach, describe, expect, it } from "vitest";
 import { createInteractionState, createSceneRuntime } from "../../src/index";
-import { createBoltedPlatePreset } from "../../demo/fixture/presets";
-import { createResultsPreset } from "../../demo/fixture/results-preset";
+import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
+import { createResultsPreset } from "../../demo/fixtures/results-preset";
 import { createExampleModel } from "../../demo/workbench/models/model";
 import type { WorkbenchController } from "../../demo/workbench/controllers/controller";
 import type {

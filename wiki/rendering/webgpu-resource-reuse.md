@@ -9,7 +9,7 @@ synchronization constraints the renderer relies on. See
 Per-frame allocations were removed from `src/renderer/`:
 
 - **Instance bind groups** — `drawBatches` stores one `GPUBindGroup` per
-  `BatchResource` (`src/renderer/gpu-draw.ts`) and reuses it for every frame and
+  `BatchResource` (`src/renderer/resources/draw-resources.ts`) and reuses it for every frame and
   every pass (color + pick) that draws the same per-part instance buffer. A new
   bind group is created only when the instance buffer grows (a new
   `BatchResource` replaces the old one), never per frame. Bind groups are not
@@ -21,7 +21,7 @@ Per-frame allocations were removed from `src/renderer/`:
   `resize` keeps the targets; the next render lazily replaces them if the size
   changed. Pick targets stay single-sampled.
 - **Pick readback** — `readPickPixel` borrows a `GPUBuffer` from
-  `PickReadbackPool` (`src/renderer/gpu-pick.ts`) instead of allocating and
+  `PickReadbackPool` (`src/renderer/picking/pick.ts`) instead of allocating and
   destroying one per pick. Buffers reserve five 256-byte lanes: four satisfy
   the texture-copy `bytesPerRow` alignment and the fifth receives the scalar
   depth extracted by compute. They are reused across picks and resizes.

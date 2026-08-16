@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createResultsPreset } from "../../demo/fixture/results-preset";
-import { createBoltedPlatePreset } from "../../demo/fixture/presets";
+import { createResultsPreset } from "../../demo/fixtures/results-preset";
+import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { createExampleModel } from "../../demo/workbench/models/model";
 import { setResultField } from "../../demo/workbench/results/result-actions";
 import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";

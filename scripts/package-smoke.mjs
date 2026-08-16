@@ -68,8 +68,8 @@ function main() {
       ...publicEntries.flatMap((entry) => [
         `dist/${entry}.js`,
         `dist/${entry}.cjs`,
-        `dist/${entry === "io/glb" ? "io/glb" : entry}.d.ts`,
-        `dist/cjs/${entry === "io/glb" ? "io/glb" : entry}.d.cts`,
+        `dist/entries/${entry}.d.ts`,
+        `dist/cjs/entries/${entry}.d.cts`,
       ]),
     ];
     for (const artifact of expectedArtifacts) {
@@ -158,10 +158,7 @@ function main() {
       ...Object.fromEntries(
         publicEntries.map((entry) => [
           `./${entry}`,
-          [
-            `dist/${entry === "io/glb" ? "io/glb" : entry}.d.ts`,
-            `dist/cjs/${entry === "io/glb" ? "io/glb" : entry}.d.cts`,
-          ],
+          [`dist/entries/${entry}.d.ts`, `dist/cjs/entries/${entry}.d.cts`],
         ]),
       ),
     };

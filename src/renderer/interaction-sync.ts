@@ -5,13 +5,13 @@ import { readInteractionState, type InteractionStateData } from "../interaction/
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { EmphasisUpdates } from "./resources/gpu-elements";
-import { collectEmphasisUpdates } from "./resources/gpu-elements";
-import { syncElementHighlights } from "./selection/gpu-highlight-storage";
-import { syncInstanceEmphasisAdmission } from "./selection/gpu-instance-emphasis";
-import { collectDenseElementSelections } from "./selection/gpu-element-selection";
-import { defaultStyle } from "./resources/gpu-support";
-import type { GpuBundle } from "./gpu-recovery";
+import type { EmphasisUpdates } from "./resources/element-resources";
+import { collectEmphasisUpdates } from "./resources/element-resources";
+import { syncElementHighlights } from "./selection/highlight-storage";
+import { syncInstanceEmphasisAdmission } from "./selection/instance-emphasis";
+import { collectDenseElementSelections } from "./selection/element-selection";
+import { defaultStyle } from "./resources/foundation";
+import type { GpuBundle } from "./recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
 
 const THEME_KEYS = [

@@ -14,7 +14,7 @@ import {
 } from "../../src/index";
 import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../demo/workbench/selection/through-box-selection";
-import { createPlanarGridGeometry } from "../../demo/fixture/planar-grid";
+import { createPlanarGridGeometry } from "../../demo/fixtures/planar-grid";
 import { describe, expect, it } from "vitest";
 
 const selectionRect = {

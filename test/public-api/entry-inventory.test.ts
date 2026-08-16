@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as root from "../../src/entries/root";
 import * as model from "../../src/entries/model";
 import * as io from "../../src/entries/io";
-import * as glb from "../../src/entries/io-glb";
+import * as glb from "../../src/entries/io/glb";
 import * as camera from "../../src/entries/camera";
 import * as runtime from "../../src/entries/runtime";
 import * as platform from "../../src/entries/platform";

@@ -17,7 +17,7 @@ range; revisit it when the lint toolchain supports a newer compiler.
   entry declarations used by the exports map.
 
 `vite-plugin-dts` is configured with two out dirs (`dist` and `dist/cjs`, the
-latter with `moduleFormat: "cjs"`). Demo fixtures live under `demo/fixture/`
+latter with `moduleFormat: "cjs"`). Demo fixtures live under `demo/fixtures/`
 and are outside the library entry, so they never ship.
 
 ### Declaration extension rewriting
@@ -39,12 +39,12 @@ by `scripts/package-smoke.mjs` under `bundler`, `nodenext`, and `node10`.
 ```json
 "exports": {
   ".": { "import": { "types": "./dist/entries/root.d.ts", "default": "./dist/femgx.js" }, "require": { "types": "./dist/cjs/entries/root.d.cts", "default": "./dist/femgx.cjs" } },
-  "./model": { "import": { "types": "./dist/model.d.ts", "default": "./dist/model.js" }, "require": { "types": "./dist/cjs/model.d.cts", "default": "./dist/model.cjs" } },
-  "./io": { "import": { "types": "./dist/io.d.ts", "default": "./dist/io.js" }, "require": { "types": "./dist/cjs/io.d.cts", "default": "./dist/io.cjs" } },
-  "./io/glb": { "import": { "types": "./dist/io/glb.d.ts", "default": "./dist/io/glb.js" }, "require": { "types": "./dist/cjs/io/glb.d.cts", "default": "./dist/io/glb.cjs" } },
-  "./camera": { "import": { "types": "./dist/camera.d.ts", "default": "./dist/camera.js" }, "require": { "types": "./dist/cjs/camera.d.cts", "default": "./dist/camera.cjs" } },
-  "./runtime": { "import": { "types": "./dist/runtime.d.ts", "default": "./dist/runtime.js" }, "require": { "types": "./dist/cjs/runtime.d.cts", "default": "./dist/runtime.cjs" } },
-  "./platform": { "import": { "types": "./dist/platform.d.ts", "default": "./dist/platform.js" }, "require": { "types": "./dist/cjs/platform.d.cts", "default": "./dist/platform.cjs" } },
+  "./model": { "import": { "types": "./dist/entries/model.d.ts", "default": "./dist/model.js" }, "require": { "types": "./dist/cjs/entries/model.d.cts", "default": "./dist/model.cjs" } },
+  "./io": { "import": { "types": "./dist/entries/io.d.ts", "default": "./dist/io.js" }, "require": { "types": "./dist/cjs/entries/io.d.cts", "default": "./dist/io.cjs" } },
+  "./io/glb": { "import": { "types": "./dist/entries/io/glb.d.ts", "default": "./dist/io/glb.js" }, "require": { "types": "./dist/cjs/entries/io/glb.d.cts", "default": "./dist/io/glb.cjs" } },
+  "./camera": { "import": { "types": "./dist/entries/camera.d.ts", "default": "./dist/camera.js" }, "require": { "types": "./dist/cjs/entries/camera.d.cts", "default": "./dist/camera.cjs" } },
+  "./runtime": { "import": { "types": "./dist/entries/runtime.d.ts", "default": "./dist/runtime.js" }, "require": { "types": "./dist/cjs/entries/runtime.d.cts", "default": "./dist/runtime.cjs" } },
+  "./platform": { "import": { "types": "./dist/entries/platform.d.ts", "default": "./dist/platform.js" }, "require": { "types": "./dist/cjs/entries/platform.d.cts", "default": "./dist/platform.cjs" } },
   "./package.json": "./package.json"
 }
 ```

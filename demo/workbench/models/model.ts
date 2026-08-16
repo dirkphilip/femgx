@@ -10,7 +10,7 @@ import {
 } from "../../../src/entries/root";
 import type { ElementModel } from "../../../src/entries/model";
 import type { Issue } from "../../../src/entries/io";
-import type { ModelPreset } from "../../fixture/presets";
+import type { ModelPreset } from "../../fixtures/presets";
 import { sceneBounds } from "../../scene-bounds";
 import {
   createBenchmarkCase,

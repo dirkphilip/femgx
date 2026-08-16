@@ -9,9 +9,9 @@ import {
   patchInstances,
   writeDrawOrder,
   type DrawCall,
-} from "./resources/gpu-draw";
-import type { GpuBundle } from "./gpu-recovery";
-import type { GpuCostAccumulator } from "./core/gpu-cost";
+} from "./resources/draw-resources";
+import type { GpuBundle } from "./recovery";
+import type { GpuCostAccumulator } from "./diagnostics/cost";
 import {
   collectInstanceUpdates,
   instanceRecordsChanged,
@@ -37,9 +37,9 @@ import {
   type SelectionState,
 } from "./selection-state";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
-import { changedPartDefinitions, reconcilePartResources } from "./part-resources";
+import { changedPartDefinitions, reconcilePartResources } from "./resources/part-resources";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { syncEdgeEmphasisFlags } from "./edge-emphasis-sync";
+import { syncEdgeEmphasisFlags } from "./edges/emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;

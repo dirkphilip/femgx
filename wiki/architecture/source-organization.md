@@ -32,22 +32,26 @@ canonical description.
   and renderer-independent pick target types. It may depend on scene,
   geometry, elements, and math.
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].
-- `src/renderer/` — WebGPU renderer split into focused modules:
-  `gpu-renderer.ts` (thin orchestrator and public API),
-  `gpu-pipelines.ts` (layouts/pipelines/camera resources),
-  `gpu-draw.ts` (per-part geometry, slot-stable record buffers, draw-order
-  buffers, draw submission),
-  `gpu-pick.ts` (pick targets and readback), `gpu-shaders.ts` (WGSL strings),
-  `gpu-support.ts` (shared GPU helpers), `gpu-recovery.ts` (device-loss tracking
-  and resource re-creation), and `runtime-state.ts` (CPU bridge from packed
-  runtime slots to part-local storage).
+- `src/io/` — VTK legacy interchange and the narrow GLB display-scene importer.
+  Shared model contracts and validation live at the IO root; VTK parser/writer
+  modules live under `io/vtk/`, GLB importer modules under `io/glb/`, and
+  interchange-to-runtime conversions under `io/conversions/`.
+- `src/renderer/` — WebGPU renderer split by responsibility: `frame/` owns
+  command encoding and frame resources, `resources/` owns reusable GPU buffers,
+  `diagnostics/` owns validation and cost reporting, `overlays/` owns the
+  origin triad and orbit pivot, `orientation-glyphs/` owns authored glyph
+  rendering, and `picking/`, `edges/`, `selection/`, and `shaders/` own their
+  respective interaction and WGSL contracts. `gpu-renderer.ts` remains the
+  thin viewport boundary, while `renderer-core.ts` orchestrates implementation
+  modules and `recovery.ts` owns supported-path device re-creation.
 - `src/viewport/` — canonical host-facing ownership of scene runtime, fitted
   camera, renderer, controls, resize, interaction synchronization, the pure
   `changedInstanceSlots` orchestration helper, and teardown.
 
-`test/` mirrors `src/` for product subsystem ownership, with deliberate
-repository-level suites under `test/demo`, `test/public-api`, `test/runtime`,
-and `test/scripts`.
+`test/` mirrors `src/` for product subsystem ownership, with renderer tests
+grouped under matching responsibility folders and deliberate repository-level
+suites under `test/demo`, `test/public-api`, `test/scene-runtime`, and
+`test/scripts`.
 
 ## Conventions
 
@@ -85,8 +89,8 @@ and `test/scripts`.
   validation queries used by renderer code; `part-validation.ts` remains an
   implementation module.
 - `results/deform.ts` owns the plain CPU `DeformationState`; GPU buffers and
-  synchronization remain private to `renderer/gpu-deform.ts`.
-- `io/result-field.ts` is the one narrow IO-to-results boundary: it converts
+  synchronization remain private to `renderer/frame/deformation.ts`.
+- `io/conversions/result-field.ts` is the one narrow IO-to-results boundary: it converts
   explicit interchange result identities into authored fields without moving
   interchange types or adding a result registry.
 - `renderer/gpu-renderer.ts` is the viewport's renderer boundary. The viewport

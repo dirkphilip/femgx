@@ -7,7 +7,7 @@ import {
 } from "../../src/index";
 import { createInteractionState, setTargetsSelected } from "../../src/index";
 import type { Part, PartId } from "../../src/geometry/part";
-import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/gpu-elements";
+import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";

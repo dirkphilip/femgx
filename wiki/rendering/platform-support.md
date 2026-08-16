@@ -60,7 +60,7 @@ interaction picking uses the renderer's GPU pick readback path.)
 
 A failed GPU pick readback is reported as a precise pick-path failure, never as
 a CPU-only/missing-WebGPU condition: `readPickPixel`
-(`src/renderer/gpu-pick.ts`) throws a typed `WebGpuPickReadbackError` when the
+(`src/renderer/picking/pick.ts`) throws a typed `WebGpuPickReadbackError` when the
 asynchronous readback (`copy + mapAsync`) fails after rendering already
 succeeded. Callers of the GPU picking path can branch on that type instead of
 mislabeling the environment; a successful render is never rejected because an
@@ -69,18 +69,18 @@ unrelated optional probe failed.
 ### High-DPI mobile canvas and readback coordinates
 
 Pick coordinates are converted from CSS client space to device pixels
-(`pickPixelCoordinates` in `src/renderer/gpu-pick.ts`) so taps align with what
+(`pickPixelCoordinates` in `src/renderer/picking/pick.ts`) so taps align with what
 is drawn even when the CSS size differs from the device-pixel backing size
 (`devicePixelRatio > 1`). The renderer sizes the backing store from the CSS
 size and `devicePixelRatio` (`GpuRenderer.resize`). Focused tests
-(`test/renderer/gpu-pick.test.ts`) cover high-DPI mobile canvas/readback
+(`test/renderer/picking/pick.test.ts`) cover high-DPI mobile canvas/readback
 coordinates, and the e2e lane asserts the canvas backing size and GPU pick
 coordinates stay consistent on a high-DPI phone (`e2e/demo/mobile.spec.ts`).
 
 ## Device loss and recovery
 
 Device lifetime is centralized in `GpuDeviceLifecycle`
-(`src/renderer/gpu-recovery.ts`):
+(`src/renderer/recovery.ts`):
 
 - The renderer subscribes to `GPUDevice.lost` via `watchDeviceLoss`
   (`src/platform/device.ts`). On loss it sets `renderer.lost = true` and fires
@@ -115,8 +115,8 @@ fallback and no canvas replacement.
 
 Tests drive the full loss → blocked-render → recovery → re-upload cycle and
 deterministic concurrent/destroyed/replacement-loss interleavings against
-mocked devices (`test/platform/*`, `test/renderer/gpu-recovery.test.ts`,
-`test/renderer/gpu-renderer.test.ts`, `test/viewport/fem-viewport.test.ts`).
+mocked devices (`test/platform/*`, `test/renderer/recovery.test.ts`,
+`test/renderer/integration/gpu-renderer.test.ts`, `test/viewport/fem-viewport.test.ts`).
 
 ## Browser support
 

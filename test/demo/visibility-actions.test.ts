@@ -16,7 +16,7 @@ import {
   type Scene,
   type SceneRuntime,
 } from "../../src/index";
-import { createBoltedPlatePreset } from "../../demo/fixture/presets";
+import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { WorkbenchVisibilityActions } from "../../demo/workbench/state/visibility-actions";
 
 describe("WorkbenchVisibilityActions", () => {

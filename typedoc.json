@@ -4,7 +4,7 @@
     "src/entries/root.ts",
     "src/entries/model.ts",
     "src/entries/io.ts",
-    "src/entries/io-glb.ts",
+    "src/entries/io/glb.ts",
     "src/entries/camera.ts",
     "src/entries/runtime.ts",
     "src/entries/platform.ts"
