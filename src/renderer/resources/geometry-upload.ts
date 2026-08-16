@@ -80,22 +80,52 @@ export function buildPartEdgeResources(
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   resultTail: ResultColorTail,
 ): NonNullable<PartResource["edge"]> | undefined {
-  const subsetIndices = getSubsetIndices(geometry);
+  const upload = buildEdgeResourceData(device, part, geometry, resultTail);
+  if (upload === undefined) return undefined;
+  return upload;
+}
+
+/** Builds the wider authored-edge pick geometry on first edge-granularity use. */
+export function buildPartEdgePickResources(
+  device: GPUDevice,
+  part: Part,
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+): PartEdgePickResource | undefined {
+  const upload = buildEdgeResourceData(device, part, geometry);
+  if (upload === undefined) return undefined;
+  return {
+    vertexBuffer: upload.edgeVertexBuffer,
+    indexBuffer: upload.edgeIndexBuffer,
+    nodePickIdsBuffer: upload.edgeNodePickIdsBuffer,
+    topologyBuffer: upload.edgeTopologyBuffer,
+    indexCount: upload.edgeIndexCount,
+    edgeKeys: upload.edgeKeys ?? [],
+  };
+}
+
+function buildEdgeResourceData(
+  device: GPUDevice,
+  part: Part,
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+  resultTail?: ResultColorTail,
+) {
   const edgeData = buildMeshEdgeData(
     geometry,
-    subsetIndices ?? geometry.indices,
+    getSubsetIndices(geometry) ?? geometry.indices,
     part.elements ?? [],
     part.blocks ?? [],
   );
+  if (resultTail === undefined && (edgeData.edgeKeys?.length ?? 0) === 0) return undefined;
   const expanded = expandMeshEdgeData(edgeData, geometry.nodePickIds);
-  const edgeWithResults = appendResultColorTail(expanded.positions, resultTail);
-  const edgeVertexBuffer = createBuffer(
+  const edgeWithResults =
+    resultTail === undefined ? undefined : appendResultColorTail(expanded.positions, resultTail);
+  const vertexBuffer = createBuffer(
     device,
-    edgeWithResults.data,
+    edgeWithResults?.data ?? expanded.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   return {
-    edgeVertexBuffer,
+    edgeVertexBuffer: vertexBuffer,
     edgeIndexBuffer: createIndexBuffer(device, expanded.indices),
     edgeNodePickIdsBuffer: createBuffer(device, expanded.nodePickIds, GPUBufferUsage.STORAGE),
     edgeTopologyBuffer: createTopologyBuffer(
@@ -107,42 +137,7 @@ export function buildPartEdgeResources(
     edgeIndexCount: expanded.indices.length,
     edgeKeys: edgeData.edgeKeys,
     edgeNodeIds: edgeData.edgeNodeIds,
-    resultColorBinding: { buffer: edgeVertexBuffer, offset: edgeWithResults.offset },
-  };
-}
-
-/** Builds the wider authored-edge pick geometry on first edge-granularity use. */
-export function buildPartEdgePickResources(
-  device: GPUDevice,
-  part: Part,
-  geometry: Extract<Geometry, { primitive: "triangles" }>,
-): PartEdgePickResource | undefined {
-  const subsetIndices = getSubsetIndices(geometry);
-  const edgeData = buildMeshEdgeData(
-    geometry,
-    subsetIndices ?? geometry.indices,
-    part.elements ?? [],
-    part.blocks ?? [],
-  );
-  if (edgeData.edgeKeys === undefined || edgeData.edgeKeys.length === 0) return undefined;
-  const expanded = expandMeshEdgeData(edgeData, geometry.nodePickIds);
-  const topology = { ...edgeData, ...expanded };
-  return {
-    vertexBuffer: createBuffer(
-      device,
-      expanded.positions,
-      GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-    ),
-    indexBuffer: createBuffer(device, expanded.indices, GPUBufferUsage.INDEX),
-    nodePickIdsBuffer: createBuffer(device, expanded.nodePickIds, GPUBufferUsage.STORAGE),
-    topologyBuffer: createTopologyBuffer(
-      device,
-      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? [], part.blocks ?? []),
-      topology,
-      { primitiveIds: [], edgeIds: expanded.edgeIds, blockIds: edgeData.blockIds },
-    ),
-    indexCount: expanded.indices.length,
-    edgeKeys: edgeData.edgeKeys,
+    resultColorBinding: { buffer: vertexBuffer, offset: edgeWithResults?.offset ?? 0 },
   };
 }
 
