@@ -204,7 +204,7 @@ rather than CPU material clones.
 ```ts
 const hit = await viewport.pick(x, y);
 if (hit?.kind === "face") {
-  console.log(hit.partId, hit.instanceId, hit.faceId, hit.normal, hit.worldPosition);
+  console.log(hit.partId, hit.instanceId, hit.key, hit.normal, hit.worldPosition);
 }
 const target = hit === undefined ? undefined : interactionTargetFromHit(hit, "face");
 ```
@@ -272,18 +272,6 @@ decision and stable public ownership contract.
 Advanced APIs must not become a reason to expose runtime slots, GPU record
 layouts, storage capacities, or parallel renderer abstractions as new default
 concepts.
-
-## Current gaps under review
-
-The following are intentionally not implied by today's API and are tracked as
-separate proposals:
-
-- Batched interaction invalidation remains tracked in
-  [#234](https://github.com/dirkphilip/femgx/issues/234).
-
-These proposals must still pass the product decision gate before adding public
-surface. `test/public-api/entry-inventory.test.ts` maintains the exhaustive
-export inventory.
 
 ## Review checklist for API changes
 
