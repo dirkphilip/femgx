@@ -21,6 +21,7 @@ interface WorkbenchCommandOwner {
   readonly menu: WorkbenchMenu;
   readonly interactionController: WorkbenchInteraction;
   setProjection(): void;
+  setCatalogMode(mode: "ordinary" | "performance"): void;
   setBackground(value: string): void;
   setEdges(): void;
   setNodes(): void;
@@ -55,6 +56,7 @@ interface WorkbenchCommandOwner {
 export function createWorkbenchCommands(owner: WorkbenchCommandOwner): WorkbenchCommands {
   return {
     setProjection: owner.setProjection.bind(owner),
+    setCatalogMode: owner.setCatalogMode.bind(owner),
     setBackground: owner.setBackground.bind(owner),
     toggleEdges: owner.setEdges.bind(owner),
     toggleNodes: owner.setNodes.bind(owner),

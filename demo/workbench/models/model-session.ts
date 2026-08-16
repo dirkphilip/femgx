@@ -11,7 +11,7 @@ import type { WorkbenchPresentation } from "../viewport/presentation";
 
 interface WorkbenchModelSessionOptions {
   readonly presentation: WorkbenchPresentation;
-  readonly examples: readonly WorkbenchModel[];
+  readonly getModels: () => readonly WorkbenchModel[];
   readonly importer: typeof importGlb;
   readonly getModel: () => WorkbenchModel;
   readonly isDisposed: () => boolean;
@@ -28,7 +28,7 @@ export class WorkbenchModelSession {
   }
 
   setModel(id: string): void {
-    const model = this.options.examples.find((candidate) => candidate.id === id);
+    const model = this.options.getModels().find((candidate) => candidate.id === id);
     if (model === undefined) return;
     const generation = ++this.generation;
     if (model.id === this.options.getModel().id) {
@@ -39,6 +39,12 @@ export class WorkbenchModelSession {
     } else {
       this.options.activate(model);
     }
+  }
+
+  /** Invalidates a pending deferred build when the visible catalog changes. */
+  cancel(): void {
+    this.generation += 1;
+    this.options.presentation.setLoading(false, { allowModelSelection: true });
   }
 
   async openModel(file: File): Promise<void> {

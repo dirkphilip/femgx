@@ -6,10 +6,9 @@ import {
   type InteractionGranularity,
 } from "../../src/entries/root";
 import { createModelPresets } from "../fixtures/presets";
-import { workbenchBenchmarkSpecs } from "../benchmark/model";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controllers/controller";
-import { createExampleModel, createLazyBenchmarkModel, type WorkbenchModel } from "./models/model";
+import { createExampleModel, type WorkbenchModel } from "./models/model";
 import { errorMessage } from "./models/model";
 import { selectTarget, targetKey } from "./selection/pick";
 import type { WorkbenchResultPlaybackActions } from "./results/result-playback";
@@ -79,10 +78,7 @@ function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
   const presets = createModelPresets(
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
-  return [
-    ...presets.map(createExampleModel),
-    ...workbenchBenchmarkSpecs(isPerformanceLabOptIn()).map(createLazyBenchmarkModel),
-  ];
+  return presets.map(createExampleModel);
 }
 
 function reportRendererFailure(
@@ -232,17 +228,6 @@ async function probePickKeys(
           metaKey: false,
         });
   return { pickKey: targetKey(hit), hoveredKey: targetKey(hovered) };
-}
-
-function isPerformanceLabOptIn(): boolean {
-  const environment: unknown = globalThis;
-  if (typeof environment !== "object" || environment === null || !("location" in environment)) {
-    return false;
-  }
-  const location = environment.location;
-  if (typeof location !== "object" || location === null || !("search" in location)) return false;
-  const search = location.search;
-  return typeof search === "string" && new URLSearchParams(search).get("performanceLab") === "1";
 }
 
 function contentInset(scene: HTMLElement, canvas: HTMLCanvasElement) {

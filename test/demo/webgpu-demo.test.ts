@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
     private currentViewport;
 
     constructor(options: WorkbenchOptions) {
+      mocks.receivedPresets = options.presets;
       this.currentViewport = options.viewport;
       this.model = options.presets[0];
     }
@@ -45,6 +46,7 @@ const mocks = vi.hoisted(() => {
     FakeWorkbenchController,
     createFemViewport: vi.fn(),
     runWebGpuBenchmark: vi.fn(() => Promise.resolve({ schemaVersion: 2 })),
+    receivedPresets: [] as readonly { readonly id: string }[],
   };
 });
 
@@ -172,6 +174,16 @@ afterEach(() => {
 });
 
 describe("startWebGpuDemo", () => {
+  it("starts ordinary mode without benchmark catalog entries", async () => {
+    const viewport = fakeViewport();
+    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+
+    await startWebGpuDemo(startOptions(fakeCanvas()));
+
+    expect(mocks.receivedPresets).toHaveLength(7);
+    expect(mocks.receivedPresets.some((model) => model.id === "unique-250k")).toBe(false);
+  });
+
   it("starts through the public FEM viewport", async () => {
     const viewport = fakeViewport();
     mocks.createFemViewport.mockResolvedValue(viewport.viewport);
