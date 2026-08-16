@@ -2,28 +2,31 @@
 
 Issue #719 asked whether the existing one-plane clip could grow exact finite-element
 cut surfaces without weakening instancing, identity, or the disabled-cost
-contract. This note records the investigation result. No production source,
-public API, demo control, or product-scope change is part of this decision.
+contract. Issue #958 approved and delivered that bounded behavior after the
+product priority changed. This note records the durable implementation contract
+and the evidence that led to it; no new public API or demo-only section manager
+is introduced.
 
 ## Baseline
 
-`FemViewport.setSectionPlane` currently clips the existing displayed geometry in
-the fragment stages. The validated plane is retained as four floats and written
-to the existing section uniform. Opaque, transparent, edge, node, selection,
-orientation, and GPU-pick fragments share the same positive-half-space test.
-The current path therefore has these measured cost properties:
+`FemViewport.setSectionPlane` clips existing displayed geometry in the fragment
+stages and, when active, adds internal generated caps for supported solid FE
+occurrences. The validated plane is retained as four floats and written to the
+existing section uniform. Opaque, transparent, edge, node, selection,
+orientation, and GPU-pick fragments share the same positive-half-space test;
+cap triangles use that same world-space rule. The cost contract is:
 
-| State | New passes/draws/targets/readback | CPU geometry work |   Section uniform |
-| ----- | --------------------------------: | ----------------: | ----------------: |
-| Off   |                                 0 |                 0 | 1 write, 16 bytes |
-| On    |                                 0 |                 0 | 1 write, 16 bytes |
+| State               |                                 New passes/draws/targets/readback |                       CPU geometry work |   Section uniform |
+| ------------------- | ----------------------------------------------------------------: | --------------------------------------: | ----------------: |
+| Off                 |                                                                 0 |                                       0 | 1 write, 16 bytes |
+| On, unchanged frame | existing scene submission plus retained cap draws; no cap rebuild |                             0 cap build | 1 write, 16 bytes |
+| On, invalidated     |                1 existing scene submission plus bounded cap draws | active occurrence scan/build and upload | 1 write, 16 bytes |
 
-The active state adds the fragment predicate to the existing scene passes; it
-does not add a pass, allocation, or readback. Its only existing upload is the
-same 16-byte section-uniform write shown in the table. Hidden occurrences are
-already absent from the draw lists, so the clip predicate does not visit them.
-The write is retained in both states because the current frame contract rewrites
-all small uniforms every frame.
+The active state keeps the existing scene passes and adds only reusable cap
+triangle draws; it adds no cap-specific pass, readback, or ordinary instancing
+change. Hidden occurrences are absent from both ordinary and cap draw lists. The
+write is retained in both states because the current frame contract rewrites all
+small uniforms every frame.
 
 ## Candidate ownerships
 
@@ -78,21 +81,30 @@ geometry pipeline described above.
 
 ## Recommendation
 
-**Defer exact FE section-cut surfaces.** Keep the current clip-only plane as the
-supported behavior and do not open an implementation issue yet. It preserves
-the current disabled-cost contract, instancing, occurrence-scoped identity,
-deformation, results, and picking with no new owner or resource family.
+**Approve the bounded exact-cap path delivered in #958.** Keep the existing
+positive-half-space clip as the visibility rule and build one deterministic
+polygon per intersected supported solid element occurrence from canonical
+authored face-edge topology. Store the generated polygon as an internal,
+occurrence-scoped synthetic draw record; retain the original part/instance and
+element ids for interaction resolution, and leave face/node/edge ids absent.
 
-If product priority changes, open a separate implementation issue only after
-the product-scope contract is updated. That issue should require, at minimum:
+The builder covers Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20, including
+active nodal deformation and occurrence transforms. Tangent-only and zero-area
+contacts emit no triangles. Nodal result colors interpolate endpoint values;
+elemental result colors and all resolved style/visibility layers come from the
+owning element. A cap is included in the ordinary four-attachment pick pass and
+resolves to its owning element occurrence without fabricating a face, node, or
+edge.
 
-- an active-only bounded capacity model for output polygons and uploads;
-- explicit face/element ownership and no fabricated interaction identities;
-- consistent occurrence transforms, authored nodal deformation, scalar result
-  interpolation, body/visibility/section state, and recovery invalidation;
-- Tet4/Tet10, Wedge6, Pyramid5, Hex8, and Hex20 seam and winding tests;
-- disabled and active measurements that include construction, upload, and the
-  real WebGPU frame, not only the lower-bound scans reported here.
+The cap state is active-only and invalidation-driven. Section Off performs no cap
+scan, allocation, upload, draw, or pick work. An unchanged active frame reuses
+the retained cap parts and buffers. Plane, scene/runtime transform, visibility,
+interaction, result, deformation, and device-recovery changes rebuild from
+authoritative state; recovery retains the plane and rebuilds the active records.
+Multiple planes, CSG, hatching, slice export, CAD/GLB capping, and generalized
+geometry queries remain explicitly out of scope.
 
-The existing real-Chrome section-clipping coverage remains valid for the
-current contract; this investigation intentionally adds no exact-cut behavior.
+The existing real-Chrome controls continue to exercise the supported
+section-volume preset. CPU goldens cover topology/winding/interpolation and
+renderer tests cover active-only resource reuse, picking ownership, invalidation,
+and recovery.

@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer, readGpuCostSnapshot } from "../../../src/renderer/gpu-renderer";
 import { createPart } from "../../../src/geometry/part";
+import { createElement } from "../../../src/elements/element";
+import { createElementModel } from "../../../src/elements/model";
+import { TET4_SHAPE } from "../../../src/elements/shapes";
+import { elementPart } from "../../../src/geometry/element-part";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import {
   createInteractionState,
@@ -92,6 +96,23 @@ function buildPointScene(): Scene {
       id: 1,
       name: "root",
       placements: [{ kind: "part", partId: 1, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+}
+
+function buildSectionScene(): Scene {
+  const model = createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+    [createElement(7, TET4_SHAPE, [0, 1, 2, 3])],
+  );
+  const part = elementPart(1, model);
+  return createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [{ kind: "part", partId: part.id, transform: identity() }],
     })
     .withRoot(1)
     .build();
@@ -849,6 +870,55 @@ describe("WebGPU renderer", () => {
         ? undefined
         : Array.from(new Float32Array(recoveredSectionPlane.bytes.buffer)),
     ).toEqual([0, 0, 1, -0.25]);
+    renderer.destroy();
+  });
+
+  it("renders bounded exact caps only while an active plane intersects a solid", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpus = installFreshDeviceNavigator();
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const gpu = gpus[0];
+    if (gpu === undefined) throw new Error("missing initial fake device");
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.drawCalls.filter((call) => call.indexCount === 3).length).toBeGreaterThan(0);
+    const activeBuffers = gpu.buffers.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.buffers.length).toBe(activeBuffers);
+
+    gpu.lose("unknown", "section-cap recovery");
+    await gpu.lost;
+    await renderer.recover();
+    const recovered = gpus[1];
+    if (recovered === undefined) throw new Error("missing recovered fake device");
+    renderer.render(runtime, camera, scene.parts);
+    expect(recovered.drawCalls.some((call) => call.indexCount === 3)).toBe(true);
+
+    renderer.setSectionPlane(undefined);
+    const offStart = recovered.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(
+      recovered.drawCalls.slice(offStart).filter((call) => call.indexCount === 3),
+    ).toHaveLength(0);
+    renderer.destroy();
+  });
+
+  it("maps cap fragments to the owning element without fabricated node identity", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice({
+      pickValue: 1,
+      elementPickValue: 8,
+      nodePickValue: 99,
+      ndcDepth: 0.5,
+    });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(createPackedSceneRuntime(scene), camera, scene.parts);
+    await expect(renderer.pick(2, 2)).resolves.toMatchObject({ kind: "element", elementId: 7 });
     renderer.destroy();
   });
 

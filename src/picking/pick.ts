@@ -108,7 +108,20 @@ function deepestHit(
 ): PickHit {
   const geometry = part === undefined ? undefined : geometryForHit(part, ids);
   if (part !== undefined && ids.nodePickId > 0) {
-    if (!validNodeId(part, ids.nodePickId - 1)) return instanceHit(instance, worldPosition);
+    if (!validNodeId(part, ids.nodePickId - 1)) {
+      const elementId = ids.elementPickId - 1;
+      if (part.elements?.some((element) => element.id === elementId)) {
+        return {
+          kind: "element",
+          partId: instance.partId,
+          instanceId: instance.instanceId,
+          elementId,
+          ...bodyFields(part, elementId),
+          worldPosition,
+        };
+      }
+      return instanceHit(instance, worldPosition);
+    }
     return nodeHit(instance, part, ids, worldPosition);
   }
   if (part !== undefined && geometry?.primitive === "triangles" && ids.facePickId > 0) {

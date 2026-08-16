@@ -37,7 +37,7 @@
 - [[rendering/selection-occlusion|Selection through occlusion]] — renderer-owned
   visible and weighted-ghost selection presentation.
 - [[rendering/section-cut-investigation|Exact FE section-cut investigation]] —
-  measured ownership comparison and the defer recommendation for exact cut
+  approved bounded topology-cap contract, ownership comparison, and measurements
   surfaces.
 - [[data/vector-field-visualization|Authored elemental orientation visualization]]
   — bounded Core-now depth, instancing, and interaction semantics for authored glyphs.

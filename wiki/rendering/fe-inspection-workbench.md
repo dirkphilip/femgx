@@ -70,12 +70,16 @@ controller, so camera and interaction behavior is stable
 - `FemViewport.setSectionPlane({ normal, distance })` keeps the world-space
   positive half-space `dot(normal, worldPosition) + distance >= 0`. The viewport
   validates and normalizes one finite non-zero normal; `clearSectionPlane()`
-  restores the unclipped scene.
+  restores the unclipped scene. While active, supported solid FE occurrences
+  (Tet4/Tet10/Wedge6/Pyramid5/Hex8/Hex20) also show an exact filled cap built
+  from authored topology; tangent contacts remain clip-only.
 - The same frame uniform is consumed by opaque, weighted-transparent, edge,
   node-overlay, selection, and GPU-pick fragments. It uses deformed world
   positions and is retained across scene attachment, resize, and supported
-  device recovery. The renderer-owned origin triad, orientation gizmo, and
-  orbit pivot remain presentation cues outside the clipping contract.
+  device recovery. Cap triangles reuse the owning element's style/results and
+  resolve cap picks to that element without creating face/node/edge identity.
+  The renderer-owned origin triad, orientation gizmo, and orbit pivot remain
+  presentation cues outside the clipping contract.
 - The demo's Off / Keep +X / Keep +Y / Keep +Z controls derive the offset range
   from complete placed-scene bounds and apply the state to both viewport panes.
 
