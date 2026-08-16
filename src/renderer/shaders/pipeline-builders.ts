@@ -1,9 +1,5 @@
-import {
-  colorFragmentShader,
-  edgeFragmentShader,
-  edgeVertexShader,
-  triangleColorFragmentShader,
-} from "./scene";
+import { colorFragmentShader, edgeFragmentShader, triangleColorFragmentShader } from "./scene";
+import { edgeVertexShader } from "./edge";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,
@@ -399,7 +395,7 @@ async function createEdgePipelines(
           },
         ],
       },
-      primitive: { topology: "line-list", cullMode: "none" },
+      primitive: { topology: "triangle-list", cullMode: "none" },
       depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare },
       multisample: { count: COLOR_SAMPLE_COUNT },
     });

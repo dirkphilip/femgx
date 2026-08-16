@@ -843,14 +843,14 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-0", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-17", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-17", indexCount: 18, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-18",
-      indexCount: 6,
+      indexCount: 18,
       instanceCount: 3,
     });
 
@@ -858,7 +858,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 6,
+      indexCount: 18,
       instanceCount: 3,
     });
 
@@ -962,7 +962,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 6,
+      indexCount: 18,
       instanceCount: 2,
     });
 
@@ -971,7 +971,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-17",
-      indexCount: 6,
+      indexCount: 18,
       instanceCount: 3,
     });
 

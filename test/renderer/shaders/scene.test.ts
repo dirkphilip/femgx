@@ -14,11 +14,11 @@ import { DEFORMATION_UNIFORM_SIZE } from "../../../src/renderer/frame/deformatio
 import {
   colorFragmentShader,
   edgeFragmentShader,
-  edgeVertexShader,
   surfaceLightingFunction,
   triangleColorFragmentShader,
   vertexOutput,
 } from "../../../src/renderer/shaders/scene";
+import { edgeVertexShader } from "../../../src/renderer/shaders/edge";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,
@@ -570,9 +570,11 @@ describe("GPU deformation shader contract", () => {
     expect(edgeVertexShader).toMatch(/output\.emissive = 0\.0/);
   });
 
-  it("displaces expanded edge endpoints through their draw index", () => {
+  it("expands visible authored edges in screen space", () => {
     expect(edgeVertexShader).toMatch(/let topologyIndex = edgeId\(vertexIndex\)/);
-    expect(edgeVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+    expect(edgeVertexShader).toContain("lineExpandedPosition(");
+    expect(edgeVertexShader).toContain("instance.lineWidth * camera.devicePixelRatio");
+    expect(edgeVertexShader).toContain("vertexIndex % 4u");
     expect(edgeVertexShader).toMatch(/topologyOwnersVisible\(slot, topologyIndex\)/);
   });
 
@@ -586,7 +588,7 @@ describe("GPU deformation shader contract", () => {
     expect(edgePickFragmentShader).toContain("return packPickId(edgePickId)");
   });
 
-  it("expands authored lines in screen space while preserving the line-list edge shader", () => {
+  it("expands authored line primitives in screen space", () => {
     expect(lineVertexShader).toContain("lineExpandedPosition(");
     expect(lineVertexShader).toContain("instance.lineWidth * camera.devicePixelRatio");
     expect(lineSelectionVertexShader).toContain("primitiveSelectionVisible");
@@ -599,8 +601,9 @@ describe("GPU deformation shader contract", () => {
   it("keeps overlay vertices at their model depth", () => {
     expect(edgeVertexShader).not.toMatch(/clip\.z\s*-/);
     expect(edgeVertexShader).toContain(
-      "output.position = camera.viewProjection * instance.transform",
+      "let lineClipA = camera.viewProjection * instance.transform",
     );
+    expect(edgeVertexShader).toContain("return vec4<f32>(clip.xy + ndcOffset * clip.w");
   });
 
   it("resolves coplanar line depth by one depth24 unit after rasterization", () => {
