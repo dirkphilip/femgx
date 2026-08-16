@@ -181,16 +181,13 @@
       id="hide-selected"
       data-testid="hide-selected"
       type="button"
-      disabled={(snapshot?.hierarchy.selectedCount ?? 0) === 0 ||
-        snapshot?.toolbar.selectionGranularity === "edge"}
-      aria-label={snapshot?.toolbar.selectionGranularity === "edge"
-        ? "Hide selected elements unavailable for edge selection"
-        : `Hide selected ${snapshot?.hierarchy.selectedCount === 1 ? "element" : "elements"}`}
-      title={snapshot?.toolbar.selectionGranularity === "edge"
-        ? "Hide selected is available for element selection, not authored edge selection."
-        : snapshot?.hierarchy.selectedCount === 0
-          ? "Select one or more elements to hide."
-          : `Hide ${snapshot?.hierarchy.selectedCount} selected elements.`}
+      disabled={(snapshot?.hierarchy.hideSelectedElementCount ?? 0) === 0}
+      aria-label={(snapshot?.hierarchy.hideSelectedElementCount ?? 0) === 0
+        ? "Hide selected elements unavailable"
+        : `Hide selected ${snapshot?.hierarchy.hideSelectedElementCount === 1 ? "element" : "elements"}`}
+      title={(snapshot?.hierarchy.hideSelectedElementCount ?? 0) === 0
+        ? "Select one or more visible elements to hide."
+        : `Hide ${snapshot?.hierarchy.hideSelectedElementCount} selected visible element${snapshot?.hierarchy.hideSelectedElementCount === 1 ? "" : "s"}.`}
       onclick={() => controller?.commands.hideSelected()}>Hide selected</button
     >
     <button

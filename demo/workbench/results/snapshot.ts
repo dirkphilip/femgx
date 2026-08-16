@@ -123,6 +123,7 @@ export interface WorkbenchSnapshot {
     readonly occurrenceCount: number;
     readonly visibleInstances: number;
     readonly selectedCount: number;
+    readonly hideSelectedElementCount: number;
     readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
     readonly visibility: WorkbenchVisibilitySnapshot;
   };

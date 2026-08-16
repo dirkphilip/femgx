@@ -8,6 +8,7 @@ import {
 } from "./result-controls";
 import { sectionRange } from "../section-controls";
 import { hasVisibleSelection } from "../selection/selection";
+import { visibleSelectedElementTargets } from "../state/visibility-actions";
 import { emptyResultLegend } from "./result-legend";
 import type {
   WorkbenchResultField,
@@ -45,6 +46,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
       occurrenceCount: input.runtime.occurrenceCount,
       visibleInstances: input.runtime.visibleCount,
       selectedCount: selectedTargetSummary(input.interaction).count,
+      hideSelectedElementCount: visibleSelectedElementTargets(input.interaction).length,
       elementDetail:
         input.elementDetail === undefined ? undefined : Object.freeze({ ...input.elementDetail }),
       visibility,
