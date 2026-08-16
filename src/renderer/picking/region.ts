@@ -76,6 +76,9 @@ export async function pickEdgeTargetsFromRegion(
   if (bounds === undefined || instanceTexture === undefined || edgeTexture === undefined) return [];
   const found = new Map<number, Set<number>>();
   for (const tile of regionTiles(bounds, 2)) {
+    if (options.pick.texture !== instanceTexture || options.pick.edgeTexture !== edgeTexture) {
+      throw regionTargetsChangedError();
+    }
     await readEdgeRegionTile(options, instanceTexture, edgeTexture, tile, found);
   }
   const targets = createPickRegionTargetCollector();
@@ -111,9 +114,29 @@ export async function pickTargetsFromRegion(
   const attachments = attachmentsFor(options.granularity);
   const identities: RawIdentities = new Map();
   for (const tile of regionTiles(bounds, attachments.length)) {
+    assertRegionTexturesCurrent(options.pick, textures);
     await readRegionTile(options, textures, tile, attachments, identities);
   }
   return resolveTargets(identityValues(identities), options);
+}
+
+function assertRegionTexturesCurrent(pick: PickTargets, snapshot: RegionTextures): void {
+  // A later tile must use the same snapshot as earlier tiles; reject a reset
+  // instead of mixing old and new frame identities into one selection.
+  if (
+    pick.texture !== snapshot.instance ||
+    pick.elementTexture !== snapshot.element ||
+    pick.faceTexture !== snapshot.face ||
+    pick.nodeTexture !== snapshot.node
+  ) {
+    throw regionTargetsChangedError();
+  }
+}
+
+function regionTargetsChangedError(): WebGpuPickReadbackError {
+  return new WebGpuPickReadbackError(
+    "WebGPU pick targets changed during region readback; retry the selection",
+  );
 }
 
 function assertGranularity(value: InteractionGranularity): void {
