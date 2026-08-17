@@ -1,6 +1,7 @@
 import { transformPoint } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
-import { bodyIdForElement, type Geometry, type Part } from "../geometry/part";
+import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-semantic-index";
+import type { FaceTessellation, Geometry, Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
 import type { Instance } from "../scene/types";
 import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
@@ -54,9 +55,8 @@ export function resolveEdgePickHit(
 ): EdgePickHit | undefined {
   const instance = resolvePick(context.instances, instancePickId - 1);
   const part = instance === undefined ? undefined : context.parts.get(instance.partId);
-  const edge = part?.geometries
-    .flatMap((geometry) => geometry.edges ?? [])
-    .find((candidate) => candidate.key === edgeKey);
+  const semantic = part === undefined ? undefined : getPartSemanticIndex(part);
+  const edge = semantic?.edges.get(edgeKey);
   if (instance === undefined || edge === undefined) return undefined;
   const first = edge.nodeIds[0];
   const last = edge.nodeIds[edge.nodeIds.length - 1];
@@ -106,30 +106,31 @@ function deepestHit(
   ids: ResolvedPickIds,
   worldPosition: Vec3,
 ): PickHit {
-  const geometry = part === undefined ? undefined : geometryForHit(part, ids);
-  if (part !== undefined && ids.nodePickId > 0) {
-    if (!validNodeId(part, ids.nodePickId - 1)) {
-      const elementId = ids.elementPickId - 1;
-      if (part.elements?.some((element) => element.id === elementId)) {
+  const semantic = part === undefined ? undefined : getPartSemanticIndex(part);
+  const triangleGeometry = part?.geometries.find((geometry) => geometry.primitive === "triangles");
+  if (part !== undefined && semantic !== undefined && ids.nodePickId > 0) {
+    if (!validNodeId(semantic, ids.nodePickId - 1)) {
+      const elementId = elementIdFromPick(semantic, ids.elementPickId);
+      if (elementId !== undefined) {
         return {
           kind: "element",
           partId: instance.partId,
           instanceId: instance.instanceId,
           elementId,
-          ...bodyFields(part, elementId),
+          ...bodyFields(semantic, elementId),
           worldPosition,
         };
       }
       return instanceHit(instance, worldPosition);
     }
-    return nodeHit(instance, part, ids, worldPosition);
+    return nodeHit(instance, part, semantic, ids, worldPosition);
   }
-  if (part !== undefined && geometry?.primitive === "triangles" && ids.facePickId > 0) {
-    return faceHit(instance, part, geometry, ids, worldPosition);
+  if (part !== undefined && triangleGeometry?.primitive === "triangles" && ids.facePickId > 0) {
+    return faceHit(instance, part, triangleGeometry, ids, worldPosition);
   }
   if (ids.elementPickId > 0) {
-    const elementId = ids.elementPickId - 1;
-    if (!part?.elements?.some((element) => element.id === elementId)) {
+    const elementId = elementIdFromPick(semantic, ids.elementPickId);
+    if (elementId === undefined) {
       return instanceHit(instance, worldPosition);
     }
     return {
@@ -137,7 +138,7 @@ function deepestHit(
       partId: instance.partId,
       instanceId: instance.instanceId,
       elementId,
-      ...bodyFields(part, elementId),
+      ...bodyFields(semantic, elementId),
       worldPosition,
     };
   }
@@ -155,28 +156,30 @@ function instanceHit(instance: Instance, worldPosition: Vec3): PickHit {
   };
 }
 
-function validNodeId(part: Part, nodeId: number): boolean {
-  const nodeCount = (part.nodePositions?.length ?? 0) / 3;
-  return Number.isInteger(nodeId) && nodeId >= 0 && nodeId < nodeCount;
+function validNodeId(semantic: PartSemanticIndex, nodeId: number): boolean {
+  return Number.isInteger(nodeId) && nodeId >= 0 && nodeId < semantic.nodeCount;
 }
 
 function nodeHit(
   instance: Instance,
   part: Part,
+  semantic: PartSemanticIndex,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
 ): NodePickHit {
   const nodeId = ids.nodePickId - 1;
   const localPosition = nodePosition(part.nodePositions, nodeId);
-  const elementId = elementIdFromPick(part, ids.elementPickId);
-  const adjacency = partAdjacency(part, nodeId);
+  const elementId = elementIdFromPick(semantic, ids.elementPickId);
+  const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
+  const faces = triangles?.primitive === "triangles" ? triangles.faces : undefined;
+  const adjacency = indexedPartAdjacency(semantic, faces, nodeId);
   return {
     kind: "node",
     partId: instance.partId,
     instanceId: instance.instanceId,
     ...(elementId === undefined ? {} : { elementId }),
     nodeId,
-    ...(elementId === undefined ? {} : bodyFields(part, elementId)),
+    ...(elementId === undefined ? {} : bodyFields(semantic, elementId)),
     localPosition,
     worldPosition,
     neighborElementIds: adjacency.neighborElementIds,
@@ -184,10 +187,13 @@ function nodeHit(
   };
 }
 
-function elementIdFromPick(part: Part, elementPickId: number): number | undefined {
+function elementIdFromPick(
+  semantic: PartSemanticIndex | undefined,
+  elementPickId: number,
+): number | undefined {
   if (elementPickId <= 0) return undefined;
   const elementId = elementPickId - 1;
-  return part.elements?.some((element) => element.id === elementId) ? elementId : undefined;
+  return semantic?.elements.has(elementId) === true ? elementId : undefined;
 }
 
 function faceHit(
@@ -202,6 +208,7 @@ function faceHit(
   if (face === undefined) {
     throw new Error(`Part ${instance.partId} has no face descriptor ${faceId}`);
   }
+  const semantic = getPartSemanticIndex(part);
   const worldPoints = face.nodeIds.map((nodeId) =>
     transformPoint(instance.worldTransform, ...nodePosition(part.nodePositions, nodeId)),
   );
@@ -210,7 +217,7 @@ function faceHit(
     partId: instance.partId,
     instanceId: instance.instanceId,
     elementId: face.elementId,
-    ...bodyFields(part, face.elementId, face.bodyId),
+    ...bodyFields(semantic, face.elementId, face.bodyId),
     faceIndex: face.faceIndex,
     key: face.key,
     nodeIds: face.nodeIds,
@@ -221,12 +228,11 @@ function faceHit(
 }
 
 function bodyFields(
-  source: Part | undefined,
+  semantic: PartSemanticIndex | undefined,
   elementId: number,
   explicitBodyId?: number,
 ): { readonly bodyId?: number } {
-  const bodyId =
-    explicitBodyId ?? (source === undefined ? undefined : bodyIdForElement(source, elementId));
+  const bodyId = explicitBodyId ?? semantic?.bodyByElement.get(elementId);
   return bodyId === undefined ? {} : { bodyId };
 }
 
@@ -256,40 +262,24 @@ export function geometryAdjacency(
   };
 }
 
-function geometryForHit(part: Part, ids: ResolvedPickIds): Geometry | undefined {
-  if (ids.nodePickId > 0) {
-    const nodeGeometry = part.geometries.find((geometry) =>
-      geometry.nodePickIds?.some((pickId) => pickId === ids.nodePickId),
-    );
-    if (nodeGeometry !== undefined) return nodeGeometry;
-  }
-  if (ids.facePickId > 0) {
-    const triangle = part.geometries.find((geometry) => geometry.primitive === "triangles");
-    if (triangle !== undefined) return triangle;
-  }
-  const elementId = ids.elementPickId - 1;
-  return part.elements?.some((element) => element.id === elementId)
-    ? part.geometries.find((geometry) =>
-        part.elements?.some(
-          (element) =>
-            element.id === elementId &&
-            element.primitiveRanges.some((range) => range.primitive === geometry.primitive),
-        ),
-      )
-    : undefined;
-}
-
-function partAdjacency(
-  part: Part,
+function indexedPartAdjacency(
+  semantic: PartSemanticIndex,
+  faces: readonly FaceTessellation[] | undefined,
   nodeId: number,
 ): { readonly neighborElementIds: readonly number[]; readonly neighborNodeIds: readonly number[] } {
+  if (faces === undefined) {
+    return { neighborElementIds: [], neighborNodeIds: [] };
+  }
   const elementIds = new Set<number>();
   const nodeIds = new Set<number>();
-  for (const geometry of part.geometries) {
-    if (geometry.primitive === "triangles") {
-      const adjacency = geometryAdjacency(geometry, nodeId);
-      for (const elementId of adjacency.neighborElementIds) elementIds.add(elementId);
-      for (const neighborNodeId of adjacency.neighborNodeIds) nodeIds.add(neighborNodeId);
+  const start = semantic.nodeTriangleFaceOffsets[nodeId] ?? 0;
+  const end = semantic.nodeTriangleFaceOffsets[nodeId + 1] ?? start;
+  for (let index = start; index < end; index += 1) {
+    const face = faces[semantic.nodeTriangleFaceIds[index] ?? 0];
+    if (face === undefined) continue;
+    elementIds.add(face.elementId);
+    for (const other of face.nodeIds) {
+      if (other !== nodeId) nodeIds.add(other);
     }
   }
   return {

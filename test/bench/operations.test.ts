@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createResultField } from "../../src/results/fields";
+import type { Part } from "../../src/geometry/part";
 import { createScalarColorMap } from "../../src/results/mapping";
 import { identity } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -29,6 +30,7 @@ import {
   type OperationSpec,
 } from "./operation-report";
 import { highWaterHighlightHoverOperation } from "./highlight-operation";
+import { pickResolutionOperations } from "./pick-operation";
 
 const TET4_ELEMENT_COUNT = 131_712;
 const BODY_ELEMENT_COUNT = 16_384;
@@ -39,8 +41,7 @@ const tet4Case = buildTet4Case();
 const tet4Runtime = createPackedSceneRuntime(tet4Case.scene);
 const tet4Layout = buildInstanceLayout(tet4Runtime);
 const tet4InstanceId = firstInstanceId(tet4Runtime);
-const tet4Part = [...tet4Case.scene.parts.values()][0];
-if (tet4Part === undefined) throw new Error("Tet4 operation fixture has no part");
+const tet4Part = requirePart([...tet4Case.scene.parts.values()][0]);
 const tet4Targets = (tet4Part.elements ?? []).map((element) => ({
   kind: "element" as const,
   instanceId: tet4InstanceId,
@@ -69,7 +70,7 @@ describe("local CPU operation baseline", () => {
   it("emits one structured operation report", () => {
     const report = buildOperationsReport(operationSpecs());
     expect(report.schemaVersion).toBe(2);
-    expect(report.operations).toHaveLength(12);
+    expect(report.operations).toHaveLength(14);
     expect(typeof report.gitDirty).toBe("boolean");
     expect(
       report.operations.filter((operation) =>
@@ -93,6 +94,9 @@ describe("local CPU operation baseline", () => {
       },
     });
     expect(highlightOperation?.workload.details).not.toHaveProperty("retainedSparseTableSlots");
+    expect(
+      report.operations.filter((operation) => operation.name.startsWith("pick-")),
+    ).toHaveLength(2);
     for (const operation of report.operations) {
       expect(operation.timingsMs.p50).toBeGreaterThanOrEqual(0);
       expect(operation.timingsMs.p95).toBeGreaterThanOrEqual(operation.timingsMs.p50);
@@ -150,6 +154,7 @@ function operationSpecs(): readonly OperationSpec[] {
       workloadCount: 1,
       run: updateElementalResultInteraction(activeElementalResultFixture),
     },
+    ...pickResolutionOperations({ part: tet4Part, instanceId: tet4InstanceId }),
     highWaterHighlightHoverOperation(),
     {
       name: "scene-runtime-rebuild",
@@ -270,6 +275,11 @@ function buildElementalResultSnapshot(fixture: ElementalResultFixture): () => vo
 function requireInstanceId(instanceId: string | undefined): string {
   if (instanceId === undefined) throw new Error("Operation fixture has no instance");
   return instanceId;
+}
+
+function requirePart(part: Part | undefined): Part {
+  if (part === undefined) throw new Error("Operation fixture has no part");
+  return part;
 }
 
 function requireElementalResultFixture(
