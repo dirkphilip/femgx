@@ -42,6 +42,13 @@ buffers. The canonical live facade is `viewport.runtime`; reacquire that
 property after `setScene()` or `updateScene()`, because structural replacement
 installs a new runtime snapshot.
 
+`Scene.visiblePartIds` and `Scene.visibleAssemblyIds` are the authored initial
+visibility sets. `addPart` and `addAssembly` add new definitions to those sets
+by default; the sets are read-only snapshots once `build()` returns. After a
+scene enters a viewport, use `setPartVisible` or `setAssemblyVisible` for
+definition-wide live changes, and `setInstanceVisible` or
+`setAssemblyOccurrenceVisible` when only one expanded placement should change.
+
 ## Choose the entry point
 
 Import the narrowest public entry point that owns the domain. This keeps the
@@ -357,6 +364,23 @@ const disposeInteraction = installViewportInteraction({
   applyInteraction: ({ defaultInteraction }) => defaultInteraction,
 });
 ```
+
+The generated member reference uses the same target-state recipe for custom
+bindings:
+
+```text
+point pick → interactionTargetFromHit → setTargetHovered / setTargetHighlighted
+           → setInteraction
+point click → interactionTargetFromHit → setTargetSelected → setInteraction
+box complete → pickRegion(rect) OR boxSelectionFrustum(camera, rect) + Through query
+             → setTargetsSelected → setInteraction
+```
+
+`setTargetsSelected` and `setTargetsHighlighted` perform one duplicate-safe
+immutable transition across mixed target kinds. `Viewport.batch` is different:
+it coalesces viewport invalidation and visibility synchronization around several
+synchronous viewport calls; it does not make several interaction helper calls
+into one immutable state transition.
 
 Candidate resolvers are generation-safe: results from an older pointer,
 gesture, viewport, or policy are discarded. The installer keeps box selection

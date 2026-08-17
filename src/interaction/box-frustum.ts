@@ -13,6 +13,9 @@ export interface FrustumPlane {
 
 /**
  * Named planes of a camera-aligned box-selection frustum.
+ * These are six inward-facing world-space planes for the complete camera
+ * depth range, not a raster-occlusion result. Test authoritative placed FE
+ * geometry against them for Through element selection.
  * @category Interaction and picking
  */
 export interface BoxSelectionFrustum {
@@ -27,7 +30,9 @@ export interface BoxSelectionFrustum {
 /**
  * Derives the normalized world-space frustum for a screen-space selection box.
  * The returned planes face inward: points inside or on every plane satisfy
- * `dot(plane.normal, point) + plane.distance >= 0`.
+ * `dot(plane.normal, point) + plane.distance >= 0`. The rectangle is in
+ * canvas CSS pixels and is clamped to the camera viewport; it must have
+ * positive area. The result is a pure query and does not inspect GPU state.
  * @category Interaction and picking
  */
 export function boxSelectionFrustum(camera: Camera, rect: BoxSelectionRect): BoxSelectionFrustum {
