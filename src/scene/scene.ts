@@ -14,10 +14,23 @@ import type { AssemblyId } from "./types";
  * @category Start here
  */
 export interface Scene {
+  /** Registered root assembly definition expanded into the scene. */
   readonly rootAssemblyId: AssemblyId;
+  /** Immutable registry of reusable part definitions keyed by {@link Part.id}. */
   readonly parts: ReadonlyMap<PartId, Part>;
+  /** Immutable registry of reusable assembly definitions keyed by assembly id. */
   readonly assemblies: ReadonlyMap<AssemblyId, Assembly>;
+  /**
+   * Authored initial visibility for part definitions. Every part added through
+   * {@link SceneBuilder.addPart} starts in this set; the set is a snapshot and
+   * is not the live visibility state after a scene enters a {@link Viewport}.
+   */
   readonly visiblePartIds: ReadonlySet<PartId>;
+  /**
+   * Authored initial visibility for assembly definitions. Every assembly added
+   * through {@link SceneBuilder.addAssembly} starts in this set; use the
+   * viewport visibility setters for live occurrence or definition changes.
+   */
   readonly visibleAssemblyIds: ReadonlySet<AssemblyId>;
 }
 
@@ -33,9 +46,16 @@ export interface Scene {
 export interface SceneBuilder {
   /** Selects the registered root assembly that expands into the scene. */
   withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
-  /** Registers one reusable {@link Part} definition by its stable id. */
+  /**
+   * Registers one reusable {@link Part} definition by its stable id. Newly
+   * registered parts are visible by default in the built scene.
+   */
   addPart(part: Part): SceneBuilder;
-  /** Registers one named assembly definition and validates its placements at build time. */
+  /**
+   * Registers one named assembly definition and validates its placements at
+   * build time. Newly registered assemblies are visible by default in the
+   * built scene.
+   */
   addAssembly(assembly: NamedAssembly): SceneBuilder;
   /** Hides every occurrence of a registered part definition. */
   hidePart(partId: PartId): SceneBuilder;

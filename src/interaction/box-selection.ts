@@ -33,6 +33,10 @@ export type BoxSelectionCancelReason =
 
 /**
  * Lifecycle events emitted while one primary-pointer drag defines a box.
+ * Coordinates are canvas-local CSS pixels. A `complete` event is the handoff
+ * point for {@link Viewport.pickRegion} or a host-side
+ * {@link boxSelectionFrustum} query; it reports the normalized rectangle and
+ * captured modifiers, but never changes interaction state itself.
  * @category Interaction and picking
  */
 export type BoxSelectionEvent =
@@ -54,6 +58,7 @@ export type BoxSelectionEvent =
  * @category Interaction and picking
  */
 export interface BoxSelectionOptions {
+  /** Canvas whose primary-pointer lifecycle is observed. */
   readonly canvas: HTMLCanvasElement;
   /** Enables touch drags when the host has routed touch away from camera navigation. */
   readonly touchEnabled?: () => boolean;

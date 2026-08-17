@@ -65,6 +65,11 @@ export type ViewportInteractionApplyResult =
  * selection.
  */
 export interface ViewportInteractionOptions {
+  /**
+   * Existing viewport primitives used by the installer. The host owns this
+   * object and remains responsible for destroying the viewport after disposing
+   * the binding.
+   */
   readonly viewport: {
     readonly camera: Camera;
     readonly interaction: InteractionState;
@@ -78,12 +83,17 @@ export interface ViewportInteractionOptions {
     /** Installs the next immutable interaction snapshot. */
     setInteraction(interaction: InteractionState): void;
   };
+  /** Canvas receiving the installer's point and composed box listeners. */
   readonly canvas: HTMLCanvasElement;
   /** Reads the active target granularity when each pointer operation starts. */
   readonly granularity: () => InteractionGranularity;
   /** Returns the host's current touch routing decision (default: navigate). */
   readonly touchMode?: () => ViewportInteractionTouchMode;
-  /** Replaces point candidate discovery for hover and click. */
+  /**
+   * Replaces point candidate discovery for hover and click. It runs after the
+   * pointer coordinates are converted to canvas CSS pixels and before the
+   * default immutable hover or selection transition is built.
+   */
   readonly resolvePoint?: (request: {
     readonly phase: "hover" | "click";
     readonly x: number;
@@ -92,14 +102,22 @@ export interface ViewportInteractionOptions {
     readonly modifiers: ViewportInteractionModifiers;
     readonly event: PointerEvent | MouseEvent;
   }) => Promise<InteractionTarget | undefined>;
-  /** Replaces visible-region candidate discovery for a completed box. */
+  /**
+   * Replaces visible-region candidate discovery for a completed box. It runs
+   * after {@link boxSelectionFrustum} derives the six world-space planes and
+   * may use those planes for an authoritative Through query.
+   */
   readonly resolveRegion?: (request: {
     readonly rect: BoxSelectionRect;
     readonly event: ViewportInteractionBoxEvent;
     readonly granularity: InteractionGranularity;
     readonly frustum: BoxSelectionFrustum;
   }) => Promise<readonly InteractionTarget[]>;
-  /** Replaces or suppresses the default immutable interaction transition. */
+  /**
+   * Replaces or suppresses the default immutable interaction transition. The
+   * callback runs after candidate discovery; return `undefined` to leave the
+   * viewport unchanged, or return a state (possibly asynchronously) to install.
+   */
   readonly applyInteraction?: (
     request: ViewportInteractionApplyRequest,
   ) => ViewportInteractionApplyResult;
