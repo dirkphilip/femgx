@@ -18,8 +18,9 @@ use fixed device-scoped empty bindings while inactive
   `EMISSIVE_BYTE_OFFSET` in `src/renderer/resources/instance-storage.ts` and mirrored by the
   `Instance` struct in `src/renderer/shaders/scene.ts`. The buffer is indexed by
   the **part-local slot** (`runtime-state.ts` maps global instance slots to
-  part-local slots once at attach), so slot `N` always lives at byte `N * 96`
-  and never moves.
+  part-local slots at attach). A surviving placement keeps its local slot across
+  a host scene revision; a new or rebound placement takes a free local slot and
+  source holes stay out of the draw order until that part storage is released.
 - **Draw-order buffer** (`binding 1`): the compacted list of that part's visible
   part-local slots in ascending draw order. The vertex shader reads
   `instances[drawOrder[instanceIndex]]`, so hidden slots are never drawn and the
@@ -57,6 +58,18 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Steady-state `render(runtime, camera, parts)` reuses cached buffers and issues
   zero instance writes.
 
+`render(runtime, camera, parts)` also accepts a new packed runtime from
+`FemViewport.updateScene(scene)`. The attachment matches stable `InstanceId`
+values, retains local slots for surviving placements, patches only changed
+transforms/styles or source/destination part records, and rebuilds orders/calls
+only for parts whose membership or draw order changed. Rebinding one placement
+to an already uploaded part therefore does not rewrite unrelated part storage;
+destination capacity may grow, while a part with no remaining placements
+releases its instance sidecars immediately. Geometry resources remain keyed by
+the authoritative part object: unchanged objects retain their GPU resource
+identity, changed definitions are destroyed and uploaded on demand, and no
+historical variant cache is kept.
+
 ## Part geometry ownership
 
 The reusable surface upload keeps the authoritative expanded draw positions in
@@ -80,13 +93,14 @@ part, and leaving presentation enabled never implies exact edge-pick residency.
 
 - Visibility is expressed entirely by the draw-order buffer; hiding/showing
   never rewrites record buffers.
-- `attach` rebuilds packed instance/layout state for each runtime identity, but
-  retains geometry and optional per-part resources for unchanged `Part` object
-  identities. A changed or removed part releases its cached resources through
-  `RendererAttachment` in `src/renderer/attachment.ts`; per-placement instance
-  and order buffers are replaceable. Transform, visibility, interaction,
-  deformation, and highlight changes within the attached runtime remain
-  subrange-oriented.
+- `attach` reconciles packed instance/layout state for each runtime identity by
+  stable placement identity. It retains geometry and optional per-part
+  resources for unchanged `Part` object identities, preserves unaffected
+  placement storage, and releases placement buffers when a part loses its last
+  occurrence. A changed part definition releases its cached geometry through
+  `RendererAttachment` in `src/renderer/attachment.ts`; the next draw uploads
+  only that current definition. Transform, visibility, interaction,
+  deformation, and highlight changes remain subrange-oriented.
 - Style/transform/visibility updates are explicit: the app applies a runtime
   delta (or interaction change) and passes the affected slots. The renderer
   does not rescan the whole scene per frame.

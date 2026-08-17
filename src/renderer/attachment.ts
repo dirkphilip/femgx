@@ -1,47 +1,36 @@
 import type { Part } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
-import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
-import {
-  destroyInstanceResources,
-  patchInstances,
-  writeDrawOrder,
-  type DrawCall,
-} from "./resources/draw-resources";
+import { patchInstances, type DrawCall } from "./resources/draw-resources";
 import type { GpuBundle } from "./recovery";
 import type { GpuCostAccumulator } from "./diagnostics/cost";
+import { collectInstanceUpdates, instanceRecordsChanged } from "./instance-updates";
 import {
-  collectInstanceUpdates,
-  instanceRecordsChanged,
-  type InstanceStyleFlags,
-} from "./instance-updates";
-import {
-  buildDrawOrder,
   buildInstanceLayout,
-  buildInstanceSnapshot,
+  type PreviousInstanceLayout,
   type InstanceLayout,
 } from "./runtime-state";
 import {
-  interactionAffectedSlots,
-  interactionDirtyParts,
-  hasHiddenInteractionIds,
-  partsForSlots,
-  syncInteractionEmphasis,
-  type InteractionElementSyncOptions,
-} from "./interaction-sync";
+  applyFullAttachment,
+  applyIncrementalAttachment,
+  rebuildAttachmentOrders,
+  type AttachmentState,
+  type AttachmentFlagState,
+} from "./attachment/reconciliation";
+import { writeNodeOrders, type SelectionState } from "./selection-state";
 import {
-  syncSelectionState,
-  syncVisibleSelectionOrders,
-  writeNodeOrders,
-  type SelectionState,
-} from "./selection-state";
-import { rebuildEdgeOrders, rebuildTransparentOrders } from "./attachment-orders";
+  rebuildEdgeOrders as rebuildEdgeOrdersForParts,
+  rebuildTransparentOrders as rebuildTransparentOrdersForParts,
+} from "./attachment-orders";
 import { changedPartDefinitions, reconcilePartResources } from "./resources/part-resources";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { syncEdgeEmphasisFlags } from "./edges/emphasis-sync";
 import { rebuildAttachmentCalls } from "./attachment-calls";
+import {
+  syncAttachmentInteraction,
+  type AttachmentInteractionState,
+} from "./attachment/interaction";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -51,9 +40,9 @@ type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionI
  * layout, compacted draw/edge calls, pick snapshot, and edge-flag mirror, kept
  * in sync with per-part GPU storage.
  *
- * `attach` performs one full geometry/layout upload for each runtime identity.
- * Transform, visibility, interaction, deformation, and highlight changes after
- * attachment remain incremental subrange updates.
+ * `attach` preserves per-part placement storage across runtime revisions by
+ * stable occurrence identity. Transform, visibility, interaction, deformation,
+ * and highlight changes remain incremental subrange updates.
  */
 export class RendererAttachment {
   public runtime: PackedSceneRuntime | undefined;
@@ -99,8 +88,13 @@ export class RendererAttachment {
     ) {
       return false;
     }
-    const layout = buildInstanceLayout(runtime);
-    this.fullAttach(runtime, layout, bundle);
+    const previous =
+      this.runtime === undefined || this.layout === undefined
+        ? undefined
+        : ({ runtime: this.runtime, layout: this.layout } satisfies PreviousInstanceLayout);
+    const layout = buildInstanceLayout(runtime, previous);
+    if (previous === undefined) this.fullAttach(runtime, layout, bundle);
+    else this.incrementalAttach(runtime, layout, previous, bundle);
     return true;
   }
 
@@ -130,10 +124,23 @@ export class RendererAttachment {
       patchInstances(bundle.draw, partId, partUpdates);
     }
     if (edgeChanged.size > 0) {
-      this.rebuildEdgeOrders(runtime, layout, edgeChanged, bundle);
+      rebuildEdgeOrdersForParts({
+        runtime,
+        layout,
+        parts: edgeChanged,
+        flags: this.edgeFlags,
+        emphasisFlags: this.edgeEmphasisFlags,
+        draw: bundle.draw,
+      });
     }
     if (transparentChanged.size > 0) {
-      this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
+      rebuildTransparentOrdersForParts(
+        runtime,
+        layout,
+        transparentChanged,
+        this.transparentFlags,
+        bundle.draw,
+      );
     }
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
@@ -165,7 +172,6 @@ export class RendererAttachment {
     parts: ReadonlyMap<PartId, Part>,
     changedInstanceIds?: readonly number[],
   ): boolean {
-    const previousInteraction = this.interactionBeforeLastInstanceUpdate ?? this.interactionState;
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
@@ -174,126 +180,34 @@ export class RendererAttachment {
       changedInstanceIds === undefined || attached
         ? Array.from({ length: runtime.instanceCount }, (_, slot) => slot)
         : changedInstanceIds;
-    return this.syncInteractionElements({
-      runtime,
-      layout,
-      interaction,
-      previousInteraction,
-      parts,
-      bundle,
-      attached,
-      fullSync,
-      changedSlots,
-    });
-  }
-
-  private syncInteractionElements(options: InteractionElementSyncOptions): boolean {
-    const {
-      runtime,
-      layout,
-      interaction,
-      previousInteraction,
-      parts,
-      bundle,
-      attached,
-      fullSync,
-      changedSlots,
-    } = options;
-    const interactionSlots = interactionAffectedSlots(
-      runtime,
-      previousInteraction,
-      interaction,
-      changedSlots,
-      fullSync,
-    );
-    bundle.draw.cost.cpu("instance-scan", interactionSlots.length);
-    const affectedParts = partsForSlots(runtime, layout, interactionSlots, fullSync);
-    const interactionData = readInteractionState(interaction);
-    const dirtyParts = interactionDirtyParts(
-      runtime,
-      layout,
-      previousInteraction,
-      interaction,
-      fullSync,
-    );
-    const hiddenBodyIds = interactionData.hiddenBodyIds;
-    const hiddenElementIds = interactionData.hiddenElementIds;
-    const [previousBodyIds, previousElementIds] = this.appliedHiddenIds;
-    const bodyVisibilityChanged = previousBodyIds !== hiddenBodyIds;
-    const elementVisibilityChanged = previousElementIds !== hiddenElementIds;
-    this.appliedHiddenIds = [hiddenBodyIds, hiddenElementIds];
-    this.usesExteriorFaceSubsets = !hasHiddenInteractionIds(this.appliedHiddenIds);
-    const { transparentChanged, selectionChanged, edgeChanged } = this.syncInteractionBuffers({
-      runtime,
-      layout,
-      interaction,
-      parts,
-      bundle,
-      changedSlots: interactionSlots,
-      affectedParts,
-      selectionParts: dirtyParts.selectionParts,
-      nodeParts: dirtyParts.nodeParts,
-      fullSync,
-    });
-    if (transparentChanged.size > 0) {
-      this.rebuildTransparentOrders(runtime, layout, transparentChanged, bundle);
-    }
-    if (transparentChanged.size > 0 || selectionChanged || edgeChanged.size > 0) {
-      this.rebuildCalls(bundle.draw.cost);
-    }
-    this.interactionState = interaction;
-    this.interactionBeforeLastInstanceUpdate = undefined;
-    return attached || bodyVisibilityChanged || elementVisibilityChanged;
-  }
-
-  private syncInteractionBuffers(options: {
-    readonly runtime: PackedSceneRuntime;
-    readonly layout: InstanceLayout;
-    readonly interaction: InteractionState;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly bundle: GpuBundle;
-    readonly changedSlots: readonly number[];
-    readonly affectedParts: ReadonlySet<PartId>;
-    readonly selectionParts: ReadonlySet<PartId>;
-    readonly nodeParts: ReadonlySet<PartId>;
-    readonly fullSync: boolean;
-  }): {
-    transparentChanged: ReadonlySet<PartId>;
-    selectionChanged: boolean;
-    edgeChanged: ReadonlySet<PartId>;
-  } {
-    const transparentChanged = syncInteractionEmphasis({
-      runtime: options.runtime,
-      layout: options.layout,
-      interaction: options.interaction,
-      parts: options.parts,
-      bundle: options.bundle,
-      currentFlags: this.transparentFlags,
+    const state: AttachmentInteractionState = {
+      interaction: this.interactionState,
+      beforeLastInstanceUpdate: this.interactionBeforeLastInstanceUpdate,
+      appliedHiddenIds: this.appliedHiddenIds,
+      usesExteriorFaceSubsets: this.usesExteriorFaceSubsets,
+      transparentFlags: this.transparentFlags,
+      edgeFlags: this.edgeFlags,
+      edgeEmphasisFlags: this.edgeEmphasisFlags,
       slotByInstanceId: this.slotByInstanceId,
-      changedSlots: options.changedSlots,
-      affectedParts: options.affectedParts,
-    });
-    const selectionChanged = syncSelectionState({
-      runtime: options.runtime,
-      layout: options.layout,
-      interaction: options.interaction,
-      parts: options.parts,
       selection: this.selection,
-      bundle: options.bundle,
-      selectionParts: options.selectionParts,
-      nodeParts: options.nodeParts,
-      changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
+    };
+    const result = syncAttachmentInteraction({
+      state,
+      runtime,
+      layout,
+      interaction,
+      parts,
+      bundle,
+      attached,
+      fullSync,
+      changedSlots,
     });
-    const edgeChanged = syncEdgeEmphasisFlags(
-      options.layout,
-      options.bundle,
-      options.affectedParts,
-      this.edgeEmphasisFlags,
-    );
-    if (edgeChanged.size > 0) {
-      this.rebuildEdgeOrders(options.runtime, options.layout, edgeChanged, options.bundle);
-    }
-    return { transparentChanged, selectionChanged, edgeChanged };
+    this.interactionState = state.interaction;
+    this.interactionBeforeLastInstanceUpdate = state.beforeLastInstanceUpdate;
+    this.appliedHiddenIds = state.appliedHiddenIds;
+    this.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
+    if (result.calls !== undefined) Object.assign(this, result.calls);
+    return result.changed;
   }
 
   public updateVisibility(
@@ -323,43 +237,72 @@ export class RendererAttachment {
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
-    destroyInstanceResources(bundle.draw);
-    const snapshot = buildInstanceSnapshot(runtime);
-    this.instances = snapshot.instances;
-    this.slotByInstanceId = snapshot.slotByInstanceId;
-    this.edgeFlags = new Array<boolean>(runtime.instanceCount).fill(false);
-    this.edgeEmphasisFlags = new Array<boolean>(runtime.instanceCount).fill(false);
-    this.nodeFlags.length = runtime.instanceCount;
-    this.nodeFlags.fill(false);
-    this.transparentFlags = new Array<boolean>(runtime.instanceCount).fill(false);
-    this.selection.selectedNodeFlags.length = runtime.instanceCount;
-    this.selection.selectedNodeFlags.fill(false);
+    const state = this.attachmentState();
+    Object.assign(this, applyFullAttachment({ runtime, layout, state, draw: bundle.draw }));
+    this.instances = state.instances;
+    this.slotByInstanceId = state.slotByInstanceId;
     this.appliedHiddenIds = [undefined, undefined];
-    const allSlots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
-    bundle.draw.cost.cpu("instance-scan", allSlots.length);
-    const { updates } = collectInstanceUpdates(
-      runtime,
-      layout,
-      createInteractionState(),
-      this.styleFlags(),
-      allSlots,
-    );
-    for (const [partId, partUpdates] of updates) {
-      patchInstances(bundle.draw, partId, partUpdates);
-    }
-    for (const partId of layout.partOrder) {
-      writeDrawOrder(bundle.draw, partId, buildDrawOrder(layout, runtime, partId));
-    }
-    rebuildTransparentOrders(
-      runtime,
-      layout,
-      new Set(layout.partOrder),
-      this.transparentFlags,
-      bundle.draw,
-    );
     this.runtime = runtime;
     this.layout = layout;
-    this.rebuildCalls(bundle.draw.cost);
+  }
+
+  private incrementalAttach(
+    runtime: PackedSceneRuntime,
+    layout: InstanceLayout,
+    previous: PreviousInstanceLayout,
+    bundle: GpuBundle,
+  ): void {
+    const state: AttachmentState = this.attachmentState();
+    const affectedParts = applyIncrementalAttachment({
+      previous,
+      runtime,
+      layout,
+      interaction: this.interactionState,
+      state,
+      draw: bundle.draw,
+    });
+    this.instances = state.instances;
+    this.slotByInstanceId = state.slotByInstanceId;
+    this.runtime = runtime;
+    this.layout = layout;
+    if (affectedParts.size > 0) {
+      this.applyAttachmentOrders(runtime, layout, affectedParts, bundle);
+    }
+  }
+
+  private attachmentState(): AttachmentState {
+    return {
+      flags: {
+        edgeFlags: this.edgeFlags,
+        edgeEmphasisFlags: this.edgeEmphasisFlags,
+        nodeFlags: this.nodeFlags,
+        transparentFlags: this.transparentFlags,
+        selectedNodeFlags: this.selection.selectedNodeFlags,
+      },
+      instances: this.instances,
+      slotByInstanceId: this.slotByInstanceId,
+    };
+  }
+
+  private applyAttachmentOrders(
+    runtime: PackedSceneRuntime,
+    layout: InstanceLayout,
+    parts: ReadonlySet<PartId>,
+    bundle: GpuBundle,
+  ): void {
+    Object.assign(
+      this,
+      rebuildAttachmentOrders({
+        runtime,
+        layout,
+        parts,
+        flags: this.styleFlags(),
+        interaction: this.interactionState,
+        partDefinitions: this.attachedParts,
+        selection: this.selection,
+        bundle,
+      }),
+    );
   }
 
   private rebuildVisibleOrders(
@@ -375,53 +318,17 @@ export class RendererAttachment {
       if (partId !== undefined) affected.add(partId);
     }
     const rebuild = affected.size > 0 ? affected : new Set(layout.partOrder);
-    for (const partId of rebuild) {
-      bundle.draw.cost.cpu("order-rebuild", 1);
-      const order = buildDrawOrder(layout, runtime, partId);
-      writeDrawOrder(bundle.draw, partId, order);
-      layout.partVisibleCounts.set(partId, order.length);
-    }
-    this.rebuildEdgeOrders(runtime, layout, rebuild, bundle);
-    this.rebuildTransparentOrders(runtime, layout, rebuild, bundle);
-    const parts = this.attachedParts;
-    writeNodeOrders({ runtime, layout, parts, selection: this.selection, bundle }, rebuild);
-    const selection = { parts: rebuild, partDefinitions: parts };
-    syncVisibleSelectionOrders(runtime, layout, this.interactionState, bundle, selection);
-    layout.visibleCount = runtime.visibleCount;
-    this.rebuildCalls(bundle.draw.cost);
+    this.applyAttachmentOrders(runtime, layout, rebuild, bundle);
   }
 
-  private styleFlags(): InstanceStyleFlags {
+  private styleFlags(): AttachmentFlagState {
     return {
       edgeFlags: this.edgeFlags,
+      edgeEmphasisFlags: this.edgeEmphasisFlags,
       nodeFlags: this.nodeFlags,
       transparentFlags: this.transparentFlags,
+      selectedNodeFlags: this.selection.selectedNodeFlags,
     };
-  }
-
-  private rebuildTransparentOrders(
-    runtime: PackedSceneRuntime,
-    layout: InstanceLayout,
-    parts: ReadonlySet<PartId>,
-    bundle: GpuBundle,
-  ): void {
-    rebuildTransparentOrders(runtime, layout, parts, this.transparentFlags, bundle.draw);
-  }
-
-  private rebuildEdgeOrders(
-    runtime: PackedSceneRuntime,
-    layout: InstanceLayout,
-    parts: ReadonlySet<PartId>,
-    bundle: GpuBundle,
-  ): void {
-    rebuildEdgeOrders({
-      runtime,
-      layout,
-      parts,
-      flags: this.edgeFlags,
-      emphasisFlags: this.edgeEmphasisFlags,
-      draw: bundle.draw,
-    });
   }
 
   private rebuildCalls(cost: GpuCostAccumulator): void {

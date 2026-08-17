@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWebGpuRenderer, readGpuCostSnapshot } from "../../../src/renderer/gpu-renderer";
+import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
+import { RendererAttachment } from "../../../src/renderer/attachment";
+import { uploadPart } from "../../../src/renderer/resources/draw-resources";
 import { createPart } from "../../../src/geometry/part";
 import { createElement } from "../../../src/elements/element";
 import { createElementModel } from "../../../src/elements/model";
@@ -96,6 +99,27 @@ function buildPointScene(): Scene {
       id: 1,
       name: "root",
       placements: [{ kind: "part", partId: 1, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+}
+
+function buildVariantScene(
+  parts: readonly ReturnType<typeof createPart>[],
+  bindings: readonly { readonly placementId: string; readonly partId: number }[],
+): Scene {
+  const builder = createScene();
+  for (const part of parts) builder.addPart(part);
+  return builder
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: bindings.map(({ placementId, partId }, index) => ({
+        kind: "part" as const,
+        placementId,
+        partId,
+        transform: translation(index, 0, 0),
+      })),
     })
     .withRoot(1)
     .build();
@@ -281,6 +305,83 @@ const camera: Camera = {
 };
 
 describe("WebGPU renderer", () => {
+  it("reconciles host variant rebinds without touching unrelated placement storage", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    const attachment = new RendererAttachment();
+    const parts = [
+      createPart(1, {
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+            indices: new Uint32Array([0, 1, 2]),
+            primitive: "triangles" as const,
+          },
+        ],
+      }),
+      createPart(2, {
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 0, 1, 0, -1, 0, 0]),
+            indices: new Uint32Array([0, 1, 2]),
+            primitive: "triangles" as const,
+          },
+        ],
+      }),
+      createPart(3, {
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 0, -1, 0, 1, 1, 0]),
+            indices: new Uint32Array([0, 1, 2]),
+            primitive: "triangles" as const,
+          },
+        ],
+      }),
+    ] as const;
+    try {
+      const initial = buildVariantScene(parts, [
+        { placementId: "move", partId: 1 },
+        { placementId: "keep", partId: 2 },
+        { placementId: "other", partId: 3 },
+      ]);
+      const initialRuntime = createPackedSceneRuntime(initial);
+      attachment.prepareParts(initial.parts, bundle);
+      attachment.attach(initialRuntime, bundle);
+      uploadPart(bundle.draw, parts[1]);
+      uploadPart(bundle.draw, parts[2]);
+      const stablePartResource = bundle.draw.primitiveParts.get(2)?.get("triangles");
+      const stableStorage = bundle.draw.storages.get(3);
+      const stableWrites = gpu.writes.filter((write) => write.buffer === stableStorage?.buffer);
+      const initialInstanceScan = bundle.draw.cost.snapshot().cpu["instance-scan"];
+
+      const replacement = buildVariantScene(parts, [
+        { placementId: "move", partId: 2 },
+        { placementId: "keep", partId: 2 },
+        { placementId: "other", partId: 3 },
+      ]);
+      const replacementRuntime = createPackedSceneRuntime(replacement);
+      attachment.prepareParts(replacement.parts, bundle);
+      attachment.attach(replacementRuntime, bundle);
+
+      expect(bundle.draw.primitiveParts.get(2)?.get("triangles")).toBe(stablePartResource);
+      expect(bundle.draw.storages.get(3)).toBe(stableStorage);
+      expect(gpu.writes.filter((write) => write.buffer === stableStorage?.buffer)).toHaveLength(
+        stableWrites.length,
+      );
+      expect(bundle.draw.storages.has(1)).toBe(false);
+      expect(attachment.slotByInstanceId.get("1/keep")).toBe(1);
+      expect(attachment.slotByInstanceId.get("1/other")).toBe(2);
+      expect(attachment.calls).toEqual([
+        { partId: 2, instanceCount: 2 },
+        { partId: 3, instanceCount: 1 },
+      ]);
+      expect(bundle.draw.cost.snapshot().cpu["instance-scan"] - initialInstanceScan).toBe(1);
+    } finally {
+      destroyGpuBundle(bundle);
+    }
+  });
+
   it("reports unavailable WebGPU clearly", async () => {
     Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
     await expect(createWebGpuRenderer({ canvas: fakeCanvas() })).rejects.toThrow(
