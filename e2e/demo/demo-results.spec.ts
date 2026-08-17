@@ -27,9 +27,9 @@ test("cycles the canonical static results preset through base, colored, and defo
   const canvas = page.getByTestId("view-canvas");
   await expect(canvas).toHaveAttribute("data-model", "results");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
-  await expect(page.getByTestId("result-legend")).toContainText("Demo temperature · Snapshot 1");
-  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
-  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Demo stress");
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Elemental · Unit MPa");
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Range 10 – 80");
 
   const resultField = page.getByTestId("result-field");
   const deformationField = page.getByTestId("deformation-field");
@@ -56,6 +56,12 @@ test("steps and plays authored result snapshots from the Analysis inspector", as
   const next = page.getByTestId("result-playback-next");
   const previous = page.getByTestId("result-playback-previous");
   const play = page.getByTestId("result-playback-play");
+  const scalarField = page.getByTestId("result-field");
+  const deformationField = page.getByTestId("deformation-field");
+  await expect(scalarField).toHaveValue("demo-stress");
+  await expect(deformationField).toHaveValue("demo-displacement");
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Demo stress");
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Elemental · Unit MPa");
   await expect(position).toContainText("Snapshot 1");
   await expect(previous).toBeDisabled();
   await expect(next).toBeEnabled();
@@ -63,7 +69,13 @@ test("steps and plays authored result snapshots from the Analysis inspector", as
 
   await next.click();
   await expect(position).toContainText("Snapshot 2");
+  await expect(scalarField).toHaveValue("demo-temperature-snapshot-1");
+  await expect(deformationField).toHaveValue("demo-displacement-snapshot-1");
+  await expect(page.getByTestId("result-playback-owner")).toContainText(
+    "Demo temperature · Snapshot 2 · Nodal · Unit C · Snapshot 2",
+  );
   await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
+  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
   await page.getByTestId("result-playback-rate").selectOption("2");
   await play.click();
   await expect(play).toHaveText("Pause");
@@ -74,11 +86,52 @@ test("steps and plays authored result snapshots from the Analysis inspector", as
   await expect(position).toContainText("Snapshot 4");
   await expect(page.getByTestId("result-legend")).toContainText("Demo temperature · Snapshot 4");
 
-  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 100");
+  await play.click();
+  await expect(position).toContainText("Snapshot 1");
+  await expect(play).toHaveText("Play", { timeout: 4000 });
+  await expect(position).toContainText("Snapshot 4");
+  await expect(scalarField).toHaveValue("demo-temperature-snapshot-3");
+  await scalarField.selectOption("demo-stress");
+  await expect(scalarField).toHaveValue("demo-stress");
+  await expect(page.getByTestId("result-playback-owner")).toHaveCount(0);
+  await expect(page.getByTestId("result-legend-scalar")).toContainText("Demo stress");
+
+  await expect(page.getByTestId("result-legend")).toContainText("Range 10 – 80");
   await page.setViewportSize({ width: 390, height: 844 });
   const playBox = await play.boundingBox();
   if (playBox === null) throw new Error("mobile playback control has no bounds");
   expect(playBox.height).toBeGreaterThanOrEqual(44);
+});
+
+test("keeps playback ownership independent across active viewports", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
+
+  const primary = page.getByTestId("view-canvas");
+  const scalarField = page.getByTestId("result-field");
+  await expect(scalarField).toHaveValue("demo-stress");
+
+  await openCommandPanel(page, "view");
+  await page.getByTestId("viewport-toggle").click();
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await waitForRenderer(page, secondary);
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
+  await openCommandPanel(page, "analysis");
+  await page.getByTestId("result-playback-next").click();
+  await expect(scalarField).toHaveValue("demo-temperature-snapshot-1");
+  await expect(page.getByTestId("result-playback-owner")).toContainText("Snapshot 2");
+
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await expect(scalarField).toHaveValue("demo-stress");
+  await expect(page.getByTestId("result-playback-owner")).toHaveCount(0);
+  await expect(primary).toHaveAttribute("data-results", "deformed");
+
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
+  await expect(scalarField).toHaveValue("demo-temperature-snapshot-1");
+  await expect(page.getByTestId("result-playback-owner")).toContainText("Snapshot 2");
+  await expect(secondary).toHaveAttribute("data-results", "deformed");
 });
 
 test("switches the native Results story between elemental and nodal scalar fields", async ({

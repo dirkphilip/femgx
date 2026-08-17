@@ -253,14 +253,18 @@ describe("demo orientation result controls", () => {
 
     actions.resetForModel(model);
     expect(actions.snapshot()).toMatchObject({
-      active: true,
+      active: false,
       index: 0,
       count: 4,
       time: 0,
       range: { min: 10, max: 100 },
+      scalar: {
+        name: "Demo temperature · Snapshot 1",
+        location: "nodal",
+        unit: "C",
+      },
     });
-    expect(actions.currentStep()?.snapshot.scalar.location).toBe("nodal");
-    expect(actions.currentStep()?.snapshot.scalar.name).toBe("Demo temperature · Snapshot 1");
+    expect(actions.currentStep()).toBeUndefined();
     actions.setIndex("2");
     expect(actions.snapshot()).toMatchObject({ active: true, index: 2, time: 2 });
     expect(owner.resultMode).toBe("deformed");
@@ -306,7 +310,7 @@ describe("demo orientation result controls", () => {
       actions.setIndex("2");
       actions.togglePlaying();
       actions.resetForModel(model);
-      expect(actions.snapshot()).toMatchObject({ playing: false, index: 0, active: true });
+      expect(actions.snapshot()).toMatchObject({ playing: false, index: 0, active: false });
       vi.advanceTimersByTime(3000);
       expect(actions.snapshot()).toMatchObject({ playing: false, index: 0 });
     } finally {

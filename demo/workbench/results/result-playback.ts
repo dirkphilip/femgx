@@ -7,6 +7,8 @@ import type { WorkbenchShowState } from "../state/show-state";
 export interface WorkbenchResultPlaybackSnapshot {
   readonly label: string;
   readonly range: Readonly<{ min: number; max: number }>;
+  readonly scalar: WorkbenchResultPlaybackField;
+  readonly deformation: WorkbenchResultPlaybackField;
   readonly index: number;
   readonly count: number;
   readonly time: number;
@@ -16,6 +18,13 @@ export interface WorkbenchResultPlaybackSnapshot {
   readonly rate: number;
   readonly hasPrevious: boolean;
   readonly hasNext: boolean;
+}
+
+export interface WorkbenchResultPlaybackField {
+  readonly id: string;
+  readonly name: string;
+  readonly location: "nodal" | "elemental";
+  readonly unit: string;
 }
 
 export interface WorkbenchResultPlaybackStep {
@@ -126,6 +135,8 @@ function playbackSnapshot(owner: ResultPlaybackOwner): WorkbenchResultPlaybackSn
   return Object.freeze({
     label: source.label,
     range: Object.freeze({ ...source.range }),
+    scalar: playbackField(step.scalar),
+    deformation: playbackField(step.deformation),
     index: owner.resultPlaybackIndex,
     count: source.steps.length,
     time: step.time,
@@ -138,11 +149,22 @@ function playbackSnapshot(owner: ResultPlaybackOwner): WorkbenchResultPlaybackSn
   });
 }
 
-function resetForModel(owner: ResultPlaybackOwner, model: WorkbenchModel): void {
+function resetForModel(owner: ResultPlaybackOwner, _model: WorkbenchModel): void {
   clearTimer(owner);
   owner.resultPlaybackIndex = 0;
   owner.resultPlaybackPlaying = false;
-  owner.resultPlaybackActive = model.resultSequence !== undefined;
+  owner.resultPlaybackActive = false;
+}
+
+function playbackField(
+  field: AuthoredResultSnapshot["scalar"] | AuthoredResultSnapshot["deformation"],
+): WorkbenchResultPlaybackField {
+  return Object.freeze({
+    id: field.id,
+    name: field.name,
+    location: field.location,
+    unit: field.unit,
+  });
 }
 
 function disable(owner: ResultPlaybackOwner): void {

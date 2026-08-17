@@ -8,6 +8,7 @@
   } from "../results/result-controls";
   import type { WorkbenchController } from "../controllers/controller";
   import type { WorkbenchResultField, WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchResultPlaybackField } from "../results/result-playback";
   import type { SectionAxis } from "../section-controls";
 
   let {
@@ -96,6 +97,10 @@
 
   function fieldLabel(field: WorkbenchResultField): string {
     return `${field.name} · ${field.location === "nodal" ? "Nodal" : "Elemental"}`;
+  }
+
+  function playbackFieldLabel(field: WorkbenchResultPlaybackField, stepLabel: string): string {
+    return `${field.name} · ${field.location === "nodal" ? "Nodal" : "Elemental"} · Unit ${field.unit} · ${stepLabel}`;
   }
 
   function formatOffset(value: number): string {
@@ -245,6 +250,16 @@
     hidden={!hasScalarFields()}
   >
     <h3 id="scalar-heading">Scalar</h3>
+    {#if snapshot?.analysis.playback?.active}
+      {@const playback = snapshot.analysis.playback}
+      <span
+        id="result-playback-owner"
+        class="result-playback-position"
+        data-testid="result-playback-owner"
+        aria-live="polite"
+        >Playback active · {playbackFieldLabel(playback.scalar, playback.stepLabel)}</span
+      >
+    {/if}
     <label for="result-field">
       <span>Field</span>
       <select
@@ -254,6 +269,12 @@
         value={snapshot?.analysis.scalarFieldId ?? BASE_RESULT_VALUE}
         onchange={setResultField}
       >
+        {#if snapshot?.analysis.playback?.active}
+          {@const playback = snapshot.analysis.playback}
+          <option value={playback.scalar.id} disabled>
+            {playbackFieldLabel(playback.scalar, playback.stepLabel)}
+          </option>
+        {/if}
         <option value={BASE_RESULT_VALUE}>Base</option>
         {#each snapshot?.analysis.scalarFields ?? [] as field (field.id)}
           <option value={field.id}>{fieldLabel(field)}</option>
@@ -280,6 +301,12 @@
         value={snapshot?.analysis.deformationFieldId ?? DEFORMATION_OFF_VALUE}
         onchange={setDeformationField}
       >
+        {#if snapshot?.analysis.playback?.active}
+          {@const playback = snapshot.analysis.playback}
+          <option value={playback.deformation.id} disabled>
+            {playbackFieldLabel(playback.deformation, playback.stepLabel)}
+          </option>
+        {/if}
         <option value={DEFORMATION_OFF_VALUE}>Off</option>
         {#each snapshot?.analysis.deformationFields ?? [] as field (field.id)}
           <option value={field.id}>{field.name}</option>
