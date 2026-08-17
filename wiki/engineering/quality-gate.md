@@ -49,6 +49,34 @@ checks cycles, root-barrel imports, renderer and geometry boundaries, and the
 explicit subsystem DAG. Type-only imports are included because they still
 encode ownership and can create declaration-build cycles.
 
+`npm run lint:markdown` validates local Markdown links, Foam links, and heading
+anchors across the repository. It also accepts links to tracked test
+directories, which keeps the conformance matrix useful without requiring a
+synthetic index file for every suite.
+
+`npm run lint:styles` runs Stylelint's recommended correctness rules over CSS
+and Svelte component styles. Svelte files use the HTML-aware PostCSS parser;
+intentional workbench compatibility fallbacks and state-selector ordering are
+the only disabled rules.
+
+`npm run lint:wgsl` builds the exact shader-module descriptors captured by the
+fake initial renderer bundle and validates their composed WGSL offline with
+Naga. This catches shader syntax and semantic validation failures without a
+GPU or a browser.
+
+`npm run lint:package` builds the package and runs Publint in strict mode with
+packing disabled. The CI package smoke test runs the same metadata check after
+its build, then remains the owner of packed-tarball consumer validation and
+declaration-resolution checks. It is separate from aggregate `npm run lint` so
+the static lint shard does not rebuild the package before the runtime shard.
+
+`npm run lint:dead-code` runs Knip across the repository entry graph. It rejects
+orphaned files, unused or unlisted dependencies, unresolved imports, and missing
+binaries. Export findings are intentionally excluded: package-facade exports are
+consumer API even when repository code does not call them, and their ownership
+is enforced by the explicit entries, public API tests, documentation gate, and
+package smoke test.
+
 The folder-structure lint limits each non-root source directory to 25 direct
 source entries combined: source files and child directories containing source
 count together. Generated, dependency, and other excluded directories remain

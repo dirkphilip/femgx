@@ -7,10 +7,10 @@ const repositoryRoot = process.argv[2]
   : resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workflowsDirectory = join(repositoryRoot, ".github", "workflows");
 const externalActionPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/iu;
-const usesLinePattern = /^\s*(?:-\s*)?uses\s*:\s*(.*?)\s*$/u;
+const usesLinePattern = /^(?:-\s*)?uses\s*:(.*)$/u;
 
 function actionReference(line) {
-  const match = usesLinePattern.exec(line);
+  const match = usesLinePattern.exec(line.trim());
   if (!match) {
     return undefined;
   }

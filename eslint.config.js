@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import svelte from "eslint-plugin-svelte";
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
+import regexp from "eslint-plugin-regexp";
 
 export default tseslint.config(
   {
@@ -21,6 +22,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...svelte.configs["flat/recommended"],
+  regexp.configs["flat/recommended"],
   jsdoc.configs["flat/recommended-typescript-flavor"],
   {
     languageOptions: {
@@ -59,6 +61,13 @@ export default tseslint.config(
       "jsdoc/require-returns": "off",
       "max-depth": ["error", 4],
       "max-params": ["error", 5],
+      // Keep the regexp preset focused on correctness and accidental pattern
+      // behavior; the style/optimization rules are too noisy for scripts.
+      "regexp/no-dupe-characters-character-class": "off",
+      "regexp/prefer-w": "off",
+      "regexp/no-contradiction-with-assertion": "off",
+      "regexp/no-useless-non-capturing-group": "off",
+      "regexp/optimal-quantifier-concatenation": "off",
     },
   },
   {
