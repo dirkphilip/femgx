@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => {
       this.model = options.presets[0];
     }
 
+    readonly commands = {
+      meshTet4(): void {},
+    };
+
     get camera() {
       return this.currentViewport.view.camera;
     }

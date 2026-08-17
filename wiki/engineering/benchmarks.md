@@ -536,7 +536,10 @@ ordinary model catalog and a discoverable **Performance Lab** switch. The switch
 reveals the deterministic capacity cases from `demo/benchmark/model.ts` and the
 shared `demo/fixtures/planar-grid.ts` generator as lazy entries; ordinary startup
 creates no benchmark geometry or capacity work, and a case builds only after it
-is selected. The benchmark owns reproducible cost breakdowns, while diagnostics
+is selected. The workbench can mesh a cubic Tet4 solid on demand
+(`?tet4=<cells>` or the Cells control) through the same dense worker and
+canonical reconstruction used by the fixed Tet4 cases. Dynamic sizes remain
+outside the fixed `npm run bench:webgpu` matrix. The benchmark owns reproducible cost breakdowns, while diagnostics
 may still consume the retained `Performance · 2.10M triangles` fixture directly.
 The catalogs and benchmark are subject to [[requirements/demo-fixtures|the same
 fixture contract]]; issue #526 remains the work tracker until the migration is

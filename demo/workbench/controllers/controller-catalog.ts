@@ -1,4 +1,5 @@
-import { benchmarkCaseSpecs } from "../../benchmark/model";
+import { benchmarkCaseSpecs, denseTet4BenchmarkSpec } from "../../benchmark/model";
+import { parseTet4Cells } from "../../benchmark/dense-tet4";
 import { createLazyBenchmarkModel, type WorkbenchModel } from "../models/model";
 import { WorkbenchModelCatalog, type WorkbenchCatalogMode } from "../models/model-catalog";
 import type { WorkbenchModelSession } from "../models/model-session";
@@ -13,7 +14,7 @@ export function createWorkbenchModelCatalog(
   );
 }
 
-interface CatalogModeOwner {
+export interface CatalogModeOwner {
   readonly catalog: WorkbenchModelCatalog;
   readonly modelSession: Pick<WorkbenchModelSession, "cancel" | "setModel">;
   models: readonly WorkbenchModel[];
@@ -47,4 +48,18 @@ export function setCatalogModeForOwner(owner: CatalogModeOwner, mode: WorkbenchC
   owner.models = owner.catalog.models;
   if (rememberedId === "") owner.render();
   else setModelForOwner(owner, rememberedId);
+}
+
+/** Enters Performance Lab and lazily meshes a cubic Tet4 solid of the given cell count. */
+export function meshTet4ForOwner(owner: CatalogModeOwner, cells: number): void {
+  const valid = parseTet4Cells(String(cells));
+  if (valid === undefined) return;
+  const spec = denseTet4BenchmarkSpec(valid);
+  owner.catalog.ensurePerformanceModel(createLazyBenchmarkModel(spec));
+  if (owner.catalog.mode !== "performance") {
+    owner.modelSession.cancel();
+    owner.catalog.setMode("performance");
+  }
+  owner.models = owner.catalog.models;
+  setModelForOwner(owner, spec.id);
 }

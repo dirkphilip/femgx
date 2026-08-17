@@ -34,6 +34,8 @@ controller, so camera and interaction behavior is stable
   [issue #526](https://github.com/dirkphilip/femgx/issues/526).
   Performance Lab names and diagnostics identify the FE family, unique element
   count, submitted element occurrences, and unique/submitted triangle units.
+  A cubic Tet4 solid can be meshed on demand from the Performance Lab Cells
+  control or `?tet4=<cells>` through the demo-owned dense worker path.
 
 ## GPU picking
 
