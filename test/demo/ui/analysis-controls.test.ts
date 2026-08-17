@@ -197,6 +197,18 @@ describe("workbench analysis-controls", () => {
     const playback = {
       label: "Authored load snapshots",
       range: { min: 10, max: 100 },
+      scalar: {
+        id: "demo-temperature-snapshot-0",
+        name: "Demo temperature · Snapshot 1",
+        location: "nodal",
+        unit: "C",
+      },
+      deformation: {
+        id: "demo-displacement-snapshot-0",
+        name: "Demo displacement snapshot",
+        location: "nodal",
+        unit: "mm",
+      },
       index: 0,
       count: 4,
       time: 0,
@@ -215,6 +227,18 @@ describe("workbench analysis-controls", () => {
     await tick();
 
     expect(element(target, "#result-playback-controls")).not.toBeNull();
+    expect((element(target, "#result-field") as HTMLSelectElement).value).toBe(
+      "demo-temperature-snapshot-0",
+    );
+    expect((element(target, "#result-field") as HTMLSelectElement).selectedOptions[0]?.text).toBe(
+      "Demo temperature · Snapshot 1 · Nodal · Unit C · Snapshot 1",
+    );
+    expect((element(target, "#deformation-field") as HTMLSelectElement).value).toBe(
+      "demo-displacement-snapshot-0",
+    );
+    expect(element(target, "#result-playback-owner").textContent).toContain(
+      "Demo temperature · Snapshot 1 · Nodal · Unit C · Snapshot 1",
+    );
     expect(button(target, '[data-testid="result-playback-previous"]').disabled).toBe(true);
     expect(button(target, '[data-testid="result-playback-next"]').disabled).toBe(false);
     await input(target, "#result-playback-index", "1");

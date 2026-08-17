@@ -78,6 +78,8 @@ function createToolbarSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot
 
 function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot["analysis"] {
   const deformation = input.model.results?.deformation?.field;
+  const playback = input.resultPlayback;
+  const playbackActive = playback?.active === true;
   const scalarFields = resultScalarFieldsForModel(input.model).map(resultField);
   const deformationFields = deformation === undefined ? [] : [resultField(deformation)];
   const vectorFields = resultVectorFieldsForModel(input.model).map((field) =>
@@ -92,13 +94,18 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
     resultControlsVisible,
     resultMode: input.resultMode,
     scalarFields: Object.freeze(scalarFields),
-    scalarFieldId: displayedScalarFieldId(input.resultMode, input.scalarFieldId),
+    scalarFieldId: playbackActive
+      ? playback.scalar.id
+      : displayedScalarFieldId(input.resultMode, input.scalarFieldId),
     deformationFields: Object.freeze(deformationFields),
-    deformationFieldId:
-      input.resultMode === "deformed" && deformation !== undefined
+    deformationFieldId: playbackActive
+      ? playback.deformation.id
+      : input.resultMode === "deformed" && deformation !== undefined
         ? deformation.id
         : DEFORMATION_OFF_VALUE,
-    deformationDisabled: input.resultMode === "base" || deformation === undefined,
+    deformationDisabled: playbackActive
+      ? false
+      : input.resultMode === "base" || deformation === undefined,
     deformationScale: input.deformationScale,
     vector: Object.freeze({ ...input.vectorDisplay, fieldId: vectorFieldId }),
     vectorFields: Object.freeze(vectorFields),
@@ -106,7 +113,7 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
     sectionAxis: input.sectionAxis,
     sectionOffset: input.sectionOffset,
     sectionRange: sectionRange(input.model.bounds, input.sectionAxis),
-    playback: input.resultPlayback,
+    playback,
   });
 }
 

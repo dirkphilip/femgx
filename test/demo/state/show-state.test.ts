@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel } from "../../../demo/workbench/models/model";
 import {
@@ -9,6 +10,19 @@ import {
 } from "../../../demo/workbench/state/show-state";
 
 describe("workbench viewport show state", () => {
+  it("starts authored playback available but inactive for every model slot", () => {
+    const model = createExampleModel(createResultsPreset());
+    const state = createWorkbenchShowState(model);
+
+    expect(state.resultPlaybackIndex).toBe(0);
+    expect(state.resultPlaybackPlaying).toBe(false);
+    expect(state.resultPlaybackActive).toBe(false);
+
+    const states = new Map([["primary" as const, state]]);
+    resetShowStatesForModel(states, new Map(), model);
+    expect(states.get("primary")?.resultPlaybackActive).toBe(false);
+  });
+
   it("clones the active presentation once without sharing mutable controls", () => {
     const model = createExampleModel(createBoltedPlatePreset());
     const primary = createWorkbenchShowState(model);

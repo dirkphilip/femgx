@@ -183,7 +183,7 @@ export function createWorkbenchShowState(model: WorkbenchModel): WorkbenchShowSt
     resultPlaybackIndex: 0,
     resultPlaybackRate: 1,
     resultPlaybackPlaying: false,
-    resultPlaybackActive: model.resultSequence !== undefined,
+    resultPlaybackActive: false,
     resultPlaybackTimer: undefined,
   };
 }
