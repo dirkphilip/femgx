@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createInteractionState,
   hoveredTarget,
@@ -14,7 +14,6 @@ import {
   type PickHit,
 } from "../../src/entries/root";
 import { WorkbenchBoxPreview } from "../../demo/workbench/selection/box-preview";
-import { installWorkbenchPaneBindings } from "../../demo/workbench/interaction/listeners";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction/interaction";
 import type { BoxSelectionResolver } from "../../demo/workbench/selection/box-selection-resolver";
 import { selectedKeys } from "../../demo/workbench/selection/selection";
@@ -179,90 +178,6 @@ describe("WorkbenchBoxPreview", () => {
     expect(overlay.hidden).toBe(true);
     expect(overlay.style.left).toBe("");
     expect(preview.isActive()).toBe(false);
-  });
-});
-
-describe("workbench hover suppression", () => {
-  const originalWindow = (globalThis as { readonly window?: unknown }).window;
-  let windowElement: FakeElement;
-
-  function bindingHarness(): {
-    readonly canvas: FakeElement;
-    readonly hover: ReturnType<typeof vi.fn>;
-    readonly clearHover: ReturnType<typeof vi.fn>;
-    readonly setDragging: (value: boolean) => void;
-  } {
-    const canvas = new FakeElement();
-    const hover = vi.fn(() => Promise.resolve());
-    const clearHover = vi.fn();
-    let dragging = false;
-    const interaction = {
-      hover,
-      pointerDown: vi.fn(),
-      pointerCancel: vi.fn(),
-      pointerUp: vi.fn(),
-      clearHover,
-      click: vi.fn(),
-      contextMenu: vi.fn(),
-    } as unknown as WorkbenchInteraction;
-    installWorkbenchPaneBindings({
-      pane: {
-        id: "primary",
-        scene: canvas as unknown as HTMLElement,
-        canvas: canvas as unknown as HTMLCanvasElement,
-        boxSelectionOverlay: new FakeElement() as unknown as HTMLElement,
-      },
-      signal: new AbortController().signal,
-      interaction,
-      dragging: () => dragging,
-      touchInteractionMode: () => "navigate",
-      setActive: vi.fn(),
-    });
-    return {
-      canvas,
-      hover,
-      clearHover,
-      setDragging: (value) => {
-        dragging = value;
-      },
-    };
-  }
-
-  beforeEach(() => {
-    windowElement = new FakeElement();
-    (globalThis as { window?: unknown }).window = windowElement;
-  });
-
-  afterEach(() => {
-    if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
-    else (globalThis as { window?: unknown }).window = originalWindow;
-    vi.clearAllMocks();
-  });
-
-  it("skips asynchronous hover while a pointer gesture is active", () => {
-    const { canvas, hover, setDragging } = bindingHarness();
-
-    const move = { clientX: 50, clientY: 50 } as PointerEvent;
-    canvas.dispatch("pointermove", move);
-    expect(hover).toHaveBeenCalledTimes(1);
-
-    setDragging(true);
-    canvas.dispatch("pointermove", move);
-    expect(hover).toHaveBeenCalledTimes(1);
-
-    setDragging(false);
-    canvas.dispatch("pointermove", move);
-    expect(hover).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not invalidate pending selection when touch contact leaves", () => {
-    const { canvas, clearHover } = bindingHarness();
-
-    canvas.dispatch("pointerleave", { pointerType: "touch" });
-    expect(clearHover).not.toHaveBeenCalled();
-
-    canvas.dispatch("pointerleave", { pointerType: "mouse" });
-    expect(clearHover).toHaveBeenCalledOnce();
   });
 });
 

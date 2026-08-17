@@ -4,17 +4,15 @@ import {
   type InteractionState,
   type PartId,
   type PickHit,
+  type ViewportInteractionOptions,
 } from "../../../src/entries/root";
 import { clientToCanvasCss } from "../../../src/entries/camera";
-import { selectedTargetCount } from "../../../src/interaction/selection-queries";
-import type { BoxSelectionEvent, InteractionTarget } from "../../../src/entries/root";
+import type { BoxSelectionEvent } from "../../../src/entries/root";
 import { describePick } from "../selection/inspect";
 import {
-  validateBoxSelectionTargets,
   visibleSurfaceBoxSelectionResolver,
   type BoxSelectionRequest,
   type BoxSelectionResolver,
-  BoxSelectionResolverContractError,
 } from "../selection/box-selection-resolver";
 import {
   exactTarget,
@@ -29,9 +27,15 @@ import {
   toggleHighlight,
   toggleElementSelection,
   replaceTargets,
-  toggleTargets,
   toggleSelection,
 } from "../selection/selection";
+import {
+  applyViewportInteraction as applyDefaultViewportInteraction,
+  reportViewportInteractionError,
+  resolveViewportPoint as resolveDefaultViewportPoint,
+  resolveViewportRegion as resolveDefaultViewportRegion,
+} from "./viewport-binding";
+import { WorkbenchBoxSelectionController } from "./box-selection-controller";
 import { contextMenuSelectionOptions, type WorkbenchMenu } from "./menu";
 import {
   mergeModifiers,
@@ -72,25 +76,24 @@ export interface WorkbenchInteractionOptions {
 /** Owns async pick ordering, hover state, click selection, and context targets. */
 export class WorkbenchInteraction {
   private generation = 0;
-  private boxGeneration = 0;
   private disposed = false;
   private downPosition: { readonly x: number; readonly y: number } | undefined;
   private downModifiers: PointerModifiers | undefined;
   private skipNextClick = false;
   private hoverPick: HoverPick | undefined;
   private target: SelectTarget | undefined;
-  private boxSelectionActive = false;
-  private queuedBoxSelection:
-    { readonly request: BoxSelectionRequest; readonly resolver: BoxSelectionResolver } | undefined;
-  private boxSelectionResolver: BoxSelectionResolver;
-  private boxSelectionDrain: Promise<void> | undefined;
-  private boxSelectionQueriesStarted = 0;
-  private boxSelectionQueriesInFlight = 0;
-  private boxSelectionMaxInFlight = 0;
+  private readonly boxSelection: WorkbenchBoxSelectionController;
 
   constructor(private readonly options: WorkbenchInteractionOptions) {
-    this.boxSelectionResolver =
-      options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport);
+    this.boxSelection = new WorkbenchBoxSelectionController({
+      getInteraction: options.getInteraction,
+      setInteraction: options.setInteraction,
+      render: options.render,
+      selectionFeedback: options.selectionFeedback,
+      isDisposed: () => this.disposed,
+      resolver:
+        options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport),
+    });
   }
 
   get contextTarget(): SelectTarget | undefined {
@@ -118,7 +121,7 @@ export class WorkbenchInteraction {
   }
 
   async hover(event: PointerEvent): Promise<void> {
-    if (this.boxSelectionActive || this.queuedBoxSelection !== undefined) return;
+    if (this.boxSelection.isActive()) return;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -267,9 +270,24 @@ export class WorkbenchInteraction {
 
   /** Replaces candidate discovery and invalidates work captured for the old resolver. */
   setBoxSelectionResolver(resolver: BoxSelectionResolver): void {
-    if (this.boxSelectionResolver === resolver) return;
-    this.boxSelectionResolver = resolver;
-    this.invalidatePendingQuery();
+    this.boxSelection.setResolver(resolver);
+  }
+
+  viewportInteractionOptions(): Pick<
+    ViewportInteractionOptions,
+    "resolvePoint" | "resolveRegion" | "applyInteraction" | "onError"
+  > {
+    return {
+      resolvePoint: (request) => resolveDefaultViewportPoint(this.options, request),
+      resolveRegion: ({ event, granularity }) =>
+        resolveDefaultViewportRegion(this.boxSelection.resolver(), event, granularity),
+      applyInteraction: (request) => {
+        applyDefaultViewportInteraction(this.options, request);
+      },
+      onError: (error, phase) => {
+        reportViewportInteractionError(this.options, error, phase);
+      },
+    };
   }
 
   destroy(): void {
@@ -321,16 +339,9 @@ export class WorkbenchInteraction {
       this.downModifiers = undefined;
       this.skipNextClick = true;
     }
-    this.queuedBoxSelection = {
-      request: { event, granularity: this.options.selectionGranularity() },
-      resolver: this.boxSelectionResolver,
-    };
+    const request = { event, granularity: this.options.selectionGranularity() };
     this.generation += 1;
-    this.boxGeneration += 1;
-    if (this.boxSelectionDrain === undefined) {
-      this.boxSelectionDrain = this.drainBoxSelections();
-    }
-    await this.boxSelectionDrain;
+    await this.boxSelection.queue(request);
   }
 
   getBoxSelectionStats(): {
@@ -339,81 +350,12 @@ export class WorkbenchInteraction {
     readonly started: number;
     readonly maxActive: number;
   } {
-    return {
-      active: this.boxSelectionActive,
-      queued: this.queuedBoxSelection !== undefined,
-      started: this.boxSelectionQueriesStarted,
-      maxActive: this.boxSelectionMaxInFlight,
-    };
+    return this.boxSelection.stats();
   }
 
   private invalidatePendingQuery(): void {
-    this.queuedBoxSelection = undefined;
+    this.boxSelection.invalidate();
     this.generation += 1;
-    this.boxGeneration += 1;
-  }
-
-  private async drainBoxSelections(): Promise<void> {
-    this.boxSelectionQueriesStarted += 1;
-    this.boxSelectionQueriesInFlight += 1;
-    this.boxSelectionMaxInFlight = Math.max(
-      this.boxSelectionMaxInFlight,
-      this.boxSelectionQueriesInFlight,
-    );
-    this.boxSelectionActive = true;
-    try {
-      while (!this.disposed && this.queuedBoxSelection !== undefined) {
-        const queued = this.queuedBoxSelection;
-        this.queuedBoxSelection = undefined;
-        const generation = this.boxGeneration;
-        let targets: readonly InteractionTarget[];
-        try {
-          targets = validateBoxSelectionTargets(
-            await queued.resolver(queued.request),
-            queued.request.granularity,
-          );
-        } catch (error: unknown) {
-          if (this.isCurrentBoxQuery(generation)) {
-            this.options.selectionFeedback?.(
-              error instanceof BoxSelectionResolverContractError
-                ? `Box selection failed: ${error.message}`
-                : "Box selection failed: GPU pick readback could not be completed",
-            );
-          }
-          continue;
-        }
-        if (!this.isCurrentBoxQuery(generation)) continue;
-        this.applyBoxSelection(queued.request, targets);
-      }
-    } finally {
-      this.boxSelectionQueriesInFlight -= 1;
-      this.boxSelectionActive = this.boxSelectionQueriesInFlight > 0;
-      this.boxSelectionDrain = undefined;
-    }
-  }
-
-  private applyBoxSelection(
-    request: BoxSelectionRequest,
-    targets: readonly InteractionTarget[],
-  ): void {
-    const selectable = selectableTargets(targets);
-    const granularity = request.granularity;
-    const current = this.options.getInteraction();
-    const next =
-      request.event.modifiers.control || request.event.modifiers.meta
-        ? toggleTargets(current, selectable)
-        : replaceTargets(current, selectable);
-    const selectedCount = selectedTargetCount(next, granularity);
-    this.options.selectionFeedback?.(
-      `Box selection: ${selectedCount} ${selectionNoun(granularity, selectedCount)}`,
-    );
-    if (next === current) return;
-    this.options.setInteraction(next);
-    this.options.render();
-  }
-
-  private isCurrentBoxQuery(generation: number): boolean {
-    return !this.disposed && generation === this.boxGeneration;
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {
@@ -424,13 +366,4 @@ export class WorkbenchInteraction {
     );
     this.options.setInspection(text, hit !== undefined);
   }
-}
-
-function selectableTargets(targets: readonly InteractionTarget[]): SelectTarget[] {
-  return [...targets];
-}
-
-function selectionNoun(granularity: SelectionGranularity, count: number): string {
-  const noun = granularity === "element" ? "FE element" : granularity;
-  return `${noun}${count === 1 ? "" : "s"}`;
 }

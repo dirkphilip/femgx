@@ -31,6 +31,7 @@ describe("public package entries", () => {
       "hoveredTarget",
       "identity",
       "installBoxSelection",
+      "installViewportInteraction",
       "interactionTargetFromHit",
       "isBodyEmphasized",
       "isBodyVisible",

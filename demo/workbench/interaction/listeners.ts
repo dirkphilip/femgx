@@ -1,14 +1,11 @@
 import type { WorkbenchPane } from "../viewport/view";
 import type { WorkbenchInteraction } from "./interaction";
-import type { TouchInteractionMode } from "../types";
 
-/** Pane-local pointer and asynchronous inspection bindings. */
+/** Pane-local activation and context-menu bindings. */
 export interface WorkbenchPaneBindingOptions {
   readonly pane: WorkbenchPane;
   readonly signal: AbortSignal;
   readonly interaction: WorkbenchInteraction;
-  readonly dragging: () => boolean;
-  readonly touchInteractionMode: () => TouchInteractionMode;
   readonly setActive: () => void;
 }
 
@@ -21,40 +18,7 @@ export function installWorkbenchPaneBindings(options: WorkbenchPaneBindingOption
   };
   pane.scene.addEventListener("pointerenter", options.setActive, { signal });
   pane.scene.addEventListener("focusin", options.setActive, { signal });
-  pane.canvas.addEventListener(
-    "pointerdown",
-    (event) => {
-      if (event.pointerType === "touch" && options.touchInteractionMode() !== "navigate") {
-        event.preventDefault();
-      }
-    },
-    { capture: true, signal },
-  );
   pane.canvas.addEventListener("pointerdown", activate, { signal });
-  pane.canvas.addEventListener("pointerdown", interaction.pointerDown.bind(interaction), {
-    signal,
-  });
-  pane.canvas.addEventListener("pointercancel", interaction.pointerCancel.bind(interaction), {
-    signal,
-  });
-  pane.canvas.addEventListener(
-    "pointerleave",
-    (event) => {
-      if (event.pointerType !== "touch") interaction.clearHover(true);
-    },
-    { signal },
-  );
-  pane.canvas.addEventListener("pointerup", interaction.pointerUp.bind(interaction), { signal });
-  pane.canvas.addEventListener(
-    "pointermove",
-    (event) => {
-      if (!options.dragging()) void interaction.hover(event);
-    },
-    { signal },
-  );
-  pane.canvas.addEventListener("click", (event) => void interaction.click(event), {
-    signal,
-  });
   pane.canvas.addEventListener("contextmenu", (event) => void interaction.contextMenu(event), {
     signal,
   });

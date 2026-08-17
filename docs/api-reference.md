@@ -309,6 +309,60 @@ WebGPU device, creates the fitted camera and standard controls, synchronizes
 canvas resizing, and submits frames. The host owns DOM event wiring and decides
 what a physical hit means for its UI.
 
+### Opt into default hover, click, and box selection
+
+Hosts that want the ordinary interaction policy can install one explicit,
+disposable binding around the existing viewport primitives:
+
+```ts
+import { installViewportInteraction } from "femgx";
+
+const disposeInteraction = installViewportInteraction({
+  viewport,
+  canvas,
+  granularity: () => "element",
+  onError: (error, phase) => {
+    console.error(`Viewport ${phase} interaction failed`, error);
+  },
+});
+
+// Plain clicks replace selection; Control/Meta clicks toggle it.
+// Hover replaces the one hovered target. Box selection uses pickRegion.
+
+const disposeViewport = (): void => {
+  disposeInteraction();
+  viewport.destroy();
+};
+```
+
+The installer has an explicit disposer and adds point listeners only to the
+provided canvas; its composed box lifecycle also listens for Escape to cancel
+an active drag. Touch remains routed to camera navigation unless `touchMode`
+returns `"hover"` or `"box-select"`. A host can replace region discovery with
+an authoritative through-query and still receive the computed frustum and
+resolved candidates:
+
+```ts
+const disposeInteraction = installViewportInteraction({
+  viewport,
+  canvas,
+  granularity: () => "element",
+  resolveRegion: ({ event, frustum, granularity }) =>
+    hostThroughQuery({ rect: event.rect, frustum, granularity }),
+  onBoxSelection: ({ event, frustum, targets }) => {
+    console.log("completed box", event.rect, frustum, targets);
+  },
+  // Return undefined here to suppress the default mutation, or return a
+  // host-authored InteractionState to replace it.
+  applyInteraction: ({ defaultInteraction }) => defaultInteraction,
+});
+```
+
+Candidate resolvers are generation-safe: results from an older pointer,
+gesture, viewport, or policy are discarded. The installer keeps box selection
+renderer-independent and adds no GPU pass or readback path beyond the
+viewport's existing `pick` and `pickRegion` operations.
+
 Here is a complete click-to-select loop. `pick` returns physical information;
 `interactionTargetFromHit` maps it to a stable host-facing identity, and the
 immutable interaction transition is installed with `setInteraction`. The
