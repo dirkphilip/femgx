@@ -1,0 +1,119 @@
+import { expect, it, describe } from "vitest";
+import {
+  MAX_PART_ID,
+  identity,
+  translation,
+  createPackedSceneRuntime,
+  createScene,
+  buildDrawOrder,
+  buildInstanceLayout,
+  part,
+} from "./support";
+
+describe("renderer runtime state", () => {
+  it("keeps the largest part id addressable through GPU draw derivation", () => {
+    const scene = createScene()
+      .addPart(part(MAX_PART_ID))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: MAX_PART_ID, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    expect(layout.partOrder).toEqual([MAX_PART_ID]);
+    expect(buildDrawOrder(layout, runtime, MAX_PART_ID)).toEqual(new Uint32Array([0]));
+  });
+
+  it("maps stable slots to part-local slots and counts visible instances", () => {
+    const scene = createScene()
+      .addPart(part(1))
+      .addPart(part(2))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
+          { kind: "part", partId: 2, transform: translation(0, 0, 0) },
+          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    expect(layout.instanceCount).toBe(3);
+    expect(layout.partOrder).toEqual([1, 2]);
+    expect(Array.from(layout.slotPartLocal)).toEqual([0, 0, 1]);
+    expect(Array.from(layout.partSlots.get(1) ?? [])).toEqual([0, 2]);
+    expect(Array.from(layout.partSlots.get(2) ?? [])).toEqual([1]);
+    expect(layout.partVisibleCounts.get(1)).toBe(2);
+    expect(layout.partVisibleCounts.get(2)).toBe(1);
+    expect(layout.visibleCount).toBe(3);
+  });
+
+  it("retains part-local slots for surviving placements across a part rebind", () => {
+    const first = createScene()
+      .addPart(part(1))
+      .addPart(part(2))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", placementId: "move", partId: 1, transform: identity() },
+          { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+          { kind: "part", placementId: "other", partId: 2, transform: translation(2, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const firstRuntime = createPackedSceneRuntime(first);
+    const firstLayout = buildInstanceLayout(firstRuntime);
+    const second = createScene()
+      .addPart(part(1))
+      .addPart(part(2))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", placementId: "move", partId: 2, transform: identity() },
+          { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+          { kind: "part", placementId: "other", partId: 2, transform: translation(2, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const secondRuntime = createPackedSceneRuntime(second);
+    const secondLayout = buildInstanceLayout(secondRuntime, {
+      runtime: firstRuntime,
+      layout: firstLayout,
+    });
+
+    expect(Array.from(secondLayout.slotPartLocal)).toEqual([1, 1, 0]);
+    expect(Array.from(secondLayout.partSlots.get(1) ?? [])).toEqual([1]);
+    expect(Array.from(secondLayout.partSlots.get(2) ?? [])).toEqual([0, 2]);
+  });
+
+  it("derives compacted draw order from the visibility bits", () => {
+    const scene = createScene()
+      .addPart(part(1))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identity() },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 1, 2]);
+    runtime.setInstanceVisible(1, false);
+    expect(Array.from(buildDrawOrder(layout, runtime, 1))).toEqual([0, 2]);
+  });
+});
