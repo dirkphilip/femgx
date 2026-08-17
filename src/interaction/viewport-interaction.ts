@@ -43,6 +43,8 @@ export type {
  * interaction state from `applyInteraction`; returning `undefined` suppresses
  * the default policy. A completed-box callback receives the normalized CSS
  * rectangle, six inward frustum planes, captured granularity, and candidates.
+ * Region queries are serialized: while one is pending, only the newest
+ * completed box is retained for the next query.
  * @category Interaction and picking
  */
 export function installViewportInteraction(options: ViewportInteractionOptions): () => void {
@@ -56,6 +58,9 @@ class ViewportInteraction {
   private disposed = false;
   private boxActive = false;
   private skipNextClick = false;
+  private boxQueryActive = false;
+  private queuedBox:
+    { readonly event: ViewportInteractionBoxEvent; readonly generation: number } | undefined;
 
   constructor(private readonly options: ViewportInteractionOptions) {
     this.boxDisposer = installBoxSelection({
@@ -76,6 +81,7 @@ class ViewportInteraction {
     this.boxDisposer();
     this.disposed = true;
     this.generation += 1;
+    this.queuedBox = undefined;
     this.abortController.abort();
   };
 
@@ -133,7 +139,7 @@ class ViewportInteraction {
     this.reportBoxEvent(event);
     if (!isCompletedBoxEvent(event)) return;
     this.skipNextClick = true;
-    void this.resolveBox(event);
+    this.resolveBox(event);
   };
 
   private async resolvePoint(
@@ -186,8 +192,30 @@ class ViewportInteraction {
     );
   }
 
-  private async resolveBox(event: ViewportInteractionBoxEvent): Promise<void> {
+  private resolveBox(event: ViewportInteractionBoxEvent): void {
     const generation = ++this.generation;
+    if (this.boxQueryActive) {
+      this.queuedBox = { event, generation };
+      return;
+    }
+    void this.runBoxQuery(event, generation);
+  }
+
+  private async runBoxQuery(event: ViewportInteractionBoxEvent, generation: number): Promise<void> {
+    this.boxQueryActive = true;
+    try {
+      await this.queryBox(event, generation);
+    } finally {
+      this.boxQueryActive = false;
+      const queued = this.queuedBox;
+      this.queuedBox = undefined;
+      if (queued !== undefined && this.isCurrent(queued.generation)) {
+        void this.runBoxQuery(queued.event, queued.generation);
+      }
+    }
+  }
+
+  private async queryBox(event: ViewportInteractionBoxEvent, generation: number): Promise<void> {
     const granularity = this.options.granularity();
     let frustum: BoxSelectionFrustum;
     let targets: readonly InteractionTarget[];
