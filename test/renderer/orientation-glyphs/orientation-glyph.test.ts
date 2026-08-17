@@ -90,6 +90,11 @@ describe("orientation glyph data", () => {
     expect(orientationGlyphVertexShader).toContain("max(width, 0.75 * camera.devicePixelRatio)");
   });
 
+  it("exposes the renderer-owned RGB triad mode", () => {
+    expect(orientationGlyphVertexShader).toContain("glyphParams.mode == 2u");
+    expect(orientationGlyphVertexShader).toContain("output.triad");
+  });
+
   it("packs anchors, directions, deltas, and ownership into aligned records", () => {
     const records = {
       elementIds: new Uint32Array([7]),

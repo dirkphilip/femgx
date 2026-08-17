@@ -162,6 +162,7 @@ export interface WorkbenchResultField {
 export interface WorkbenchVectorField {
   readonly id: string;
   readonly name: string;
+  readonly shape: "vector" | "frame";
 }
 
 export interface SectionRange {

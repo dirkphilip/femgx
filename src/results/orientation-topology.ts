@@ -1,5 +1,4 @@
 import type { ElementTessellation, Part } from "../geometry/part";
-import type { VectorField } from "./fields";
 
 /** Topology-derived data shared by all orientation fields on one part. */
 export interface OrientationTopologyElement {
@@ -44,7 +43,7 @@ export function getOrientationTopology(part: Part): OrientationPartTopology {
 /** Resolves one element's unique authored-node anchor and local reference size. */
 export function resolveOrientationAnchor(
   part: Part,
-  field: VectorField<"elemental">,
+  field: { readonly id: string },
   element: OrientationTopologyElement,
   nodePositions: Float32Array,
 ): {
@@ -84,7 +83,7 @@ export function resolveOrientationAnchor(
 
 function collectAnchorStats(
   part: Part,
-  field: VectorField<"elemental">,
+  field: { readonly id: string },
   element: OrientationTopologyElement,
   nodePositions: Float32Array,
 ): AnchorStats {

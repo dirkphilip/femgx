@@ -27,6 +27,7 @@ import type {
 
 export type {
   ViewportDeformationConfig,
+  ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
   ViewportResultField,

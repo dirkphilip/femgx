@@ -1,6 +1,7 @@
 import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
 import {
+  resolveElementalFrameRecords,
   resolveElementalOrientationRecords,
   type ElementalOrientationRecords,
 } from "../results/orientation-records";
@@ -8,6 +9,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type {
   ViewportDeformationConfig,
+  ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
   ViewportResultField,
@@ -43,7 +45,7 @@ export function validateResultsConfig(config: ViewportResultsConfig): void {
 
 /** Resolves elemental vectors and their renderer-owned per-part records. */
 export function resolveVectors(
-  config: ViewportElementVectorConfig | undefined,
+  config: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined,
   scene: Scene,
   runtime: PackedSceneRuntime,
   deformation: DeformationState | undefined,
@@ -53,14 +55,29 @@ export function resolveVectors(
   for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
+    if (config.glyph === "triad" && partId !== config.field.partId) continue;
+    const displacements = deformation?.displacements.get(partId);
     records.set(
       partId,
-      resolveElementalOrientationRecords(
-        part,
-        config.field,
-        deformation?.displacements.get(partId),
-      ),
+      config.glyph === "triad"
+        ? resolveElementalFrameRecords(part, config.field, displacements)
+        : resolveElementalOrientationRecords(part, config.field, displacements),
     );
+  }
+  const lengthScale = config.lengthScale ?? 1;
+  const widthPixels = config.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS;
+  if (config.glyph === "triad") {
+    return {
+      state: {
+        config,
+        field: config.field,
+        glyph: "triad",
+        transform: "direction",
+        lengthScale,
+        widthPixels,
+      },
+      records,
+    };
   }
   return {
     state: {
@@ -68,8 +85,8 @@ export function resolveVectors(
       field: config.field,
       glyph: config.glyph,
       transform: config.transform,
-      lengthScale: config.lengthScale ?? 1,
-      widthPixels: config.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS,
+      lengthScale,
+      widthPixels,
     },
     records,
   };
@@ -98,8 +115,13 @@ function validateDeformationConfig(value: unknown): void {
 }
 
 function validateVectorConfig(value: unknown): void {
-  if (
-    !isRecord(value) ||
+  if (!isRecord(value)) {
+    throw new Error("Viewport vectors role requires an elemental vector or frame field");
+  }
+  if (value["glyph"] === "triad") {
+    if (!isElementFrameField(value["field"]))
+      throw new Error("Viewport triad role requires an elemental frame field");
+  } else if (
     !isElementalVectorField(value["field"]) ||
     (value["glyph"] !== "arrow" && value["glyph"] !== "axis") ||
     (value["transform"] !== "direction" && value["transform"] !== "normal")
@@ -143,6 +165,10 @@ function isNodalVectorField(value: unknown): value is ViewportDeformationConfig[
 
 function isElementalVectorField(value: unknown): value is ViewportElementVectorConfig["field"] {
   return isRecord(value) && value["shape"] === "vector" && value["location"] === "elemental";
+}
+
+function isElementFrameField(value: unknown): boolean {
+  return isRecord(value) && value["shape"] === "frame" && value["location"] === "elemental";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

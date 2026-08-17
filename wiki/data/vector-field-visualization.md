@@ -9,7 +9,8 @@ the viewport results API by issue #670.
 Finite-element users should be able to inspect authored per-element normals and
 fiber/material directions in the same instanced scene used for scalar coloring,
 nodal deformation, selection, and visibility. The existing
-`VectorField<"elemental">` is the data source. `Viewport` owns the
+`VectorField<"elemental">` and explicit `ElementFrameField` are the data
+sources. `Viewport` owns the
 presentation role and its atomic result transition; `Part`, `Scene`, and
 `SceneRuntime` continue to own geometry, authoring, and compiled scene data,
 not glyph state.
@@ -34,6 +35,11 @@ composes these roles atomically; `clearResults()` is the empty transition.
   fractional values are allowed); the renderer applies device-pixel-ratio
   scaling exactly once. Head shape, hidden alpha, and arbitrary glyph meshes
   remain renderer-owned.
+- `ElementFrameField` identifies its owning reusable part and stores nine floats
+  per dense part-local element row as
+  X/Y/Z axes. A complete finite row renders three positive renderer-owned RGB
+  lines with `glyph: "triad"`; any non-finite component omits the row. A frame
+  is shared by all occurrences of its reusable part, and is not a pick target.
 
 ## Placement, anchors, and deformation
 
@@ -70,8 +76,9 @@ This direction does not add magnitude plots, derived mechanics, stress or
 principal values, nodal/face/integration-point glyphs, tensors, smoothing,
 averaging, extrapolation, interpolation, streamlines, particles, playback,
 automatic sampling/decimation, glyph picking, glyph bounds, export, solver
-specific UI, a second scene graph, a result manager, or a generalized styling
-system.
+specific UI, a second scene graph, a result manager, a generalized styling
+system, applied forces/loads, occurrence-specific field overrides, or custom
+glyph plugins.
 
 The implementation sequence was documented in #665 and was intentionally
 dependency ordered: #666 recorded this contract, #667 owns CPU records and

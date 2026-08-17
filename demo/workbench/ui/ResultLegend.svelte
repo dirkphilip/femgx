@@ -77,11 +77,17 @@
         >{vectorGlyphLabel(orientation.glyph)} · {vectorTransformLabel(orientation.transform)} · Scale
         {formatNumber(orientation.lengthScale)} · Width {formatNumber(orientation.widthPixels)} CSS px</span
       >
-      <span>Arrow preserves sign at the element anchor; Axis is centered and sign-invariant</span>
-      <span
-        >Spatial direction follows occurrence transforms; Surface normal uses inverse-transpose</span
-      >
-      <span>Authored vectors normalized for display · Magnitude not displayed</span>
+      {#if orientation.glyph === "triad"}
+        <span>RGB lines show the authored positive X/Y/Z axes at each element anchor</span>
+        <span>Complete part-local frames follow every occurrence of the reusable part</span>
+        <span>Frame axes normalized for display · Not pick targets</span>
+      {:else}
+        <span>Arrow preserves sign at the element anchor; Axis is centered and sign-invariant</span>
+        <span
+          >Spatial direction follows occurrence transforms; Surface normal uses inverse-transpose</span
+        >
+        <span>Authored vectors normalized for display · Magnitude not displayed</span>
+      {/if}
       <span>Faded fragments are behind opaque model geometry</span>
     </div>
   {/if}

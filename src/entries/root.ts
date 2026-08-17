@@ -47,6 +47,7 @@ export type { OrientationGizmoOptions } from "../viewport/orientation-gizmo";
 export type { SectionPlane } from "../math/section-plane";
 export type {
   ViewportDeformationConfig,
+  ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
   ViewportResultField,
@@ -124,11 +125,16 @@ export type {
   PickHit,
 } from "../picking/types";
 export {
+  FRAME_COMPONENT_COUNT,
+  createElementFrameField,
   FIELD_COMPONENT_COUNT,
   createResultField,
+  frameAt,
   scalarAt,
   vectorAt,
   type AnyResultField,
+  type ElementFrameField,
+  type ElementFrameFieldOptions,
   type FieldLocation,
   type FieldShape,
   type ResultField,

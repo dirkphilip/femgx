@@ -107,7 +107,9 @@ function resultState(field: ViewportScalarState["field"]): ViewportResultsState 
   };
 }
 
-function vectorResultState(field: ViewportElementVectorState["field"]): ViewportResultsState {
+function vectorResultState(
+  field: Extract<ViewportElementVectorState, { readonly glyph: "arrow" | "axis" }>["field"],
+): ViewportResultsState {
   const vectors: ViewportElementVectorState = {
     config: { field, glyph: "arrow", transform: "normal" },
     field,

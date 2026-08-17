@@ -169,7 +169,7 @@ decision and stable public lifecycle contract.
 ### Elemental orientation results
 
 The public results boundary supports authored scalar coloring, nodal deformation,
-and one orthogonal elemental vector presentation role. `Viewport` owns all
+and one orthogonal elemental vector or full-frame presentation role. `Viewport` owns all
 roles in the same atomic result replacement; `Part`, `Scene`, and
 `SceneRuntime` do not own glyph state. The vector role's public vocabulary is
 limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`
@@ -186,6 +186,14 @@ viewport.results.set({
 All present roles are validated before the previous state is replaced. Anchors,
 records, GPU resources, and fixed presentation policy stay internal; see
 [[data/vector-field-visualization|Authored elemental orientation visualization]].
+Full orientation uses the explicit `ElementFrameField` format: an owning
+reusable `partId` plus nine dense part-local floats per element row in X/Y/Z
+axis order. It is intentionally not
+a vector-field extension because roll cannot be represented by one direction.
+`glyph: "triad"` draws the renderer-owned non-pickable RGB axes and shares the
+part data across all placements. Applied loads, occurrence-specific overrides,
+and user glyph plugins remain deferred; copying a part is the current host
+workaround for distinct instance values.
 
 ## Design test for new features
 
