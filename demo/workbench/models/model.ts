@@ -18,6 +18,22 @@ import {
   type WebGpuBenchmarkElementFamily,
   type WebGpuBenchmarkSpec,
 } from "../../benchmark/model";
+import { reconstructBenchmarkScene } from "../../benchmark/transfer";
+import { createBenchmarkWorkerLoad } from "../../benchmark/worker-client";
+
+/** Build and transfer measurements retained for the Performance Lab diagnostics. */
+export interface WorkbenchBenchmarkBuildTelemetry {
+  readonly path: "main" | "worker";
+  readonly requestId?: number;
+  readonly generationMs?: number;
+  readonly topologyMs?: number;
+  readonly tessellationMs?: number;
+  readonly transferPreparationMs?: number;
+  readonly transferMs?: number;
+  readonly mainReconstructionMs?: number;
+  readonly transferredBytes?: number;
+  readonly finalRetainedTypedBytes?: number;
+}
 
 export type WorkbenchPerformanceRetentionReason = "reused" | "evicted-over-budget" | "rebuild";
 
@@ -41,8 +57,16 @@ export interface WorkbenchModel {
   readonly estimatedCpuBytes?: number;
   /** Last Performance Lab retention outcome, shown only in development diagnostics. */
   readonly performanceRetentionReason?: WorkbenchPerformanceRetentionReason;
+  /** Internal Performance Lab build accounting, absent for ordinary models. */
+  readonly benchmarkBuildTelemetry?: WorkbenchBenchmarkBuildTelemetry;
   /** Builds an opt-in large model only after the user selects it. */
   readonly deferredLoad?: () => Promise<WorkbenchModel>;
+  /** Cancels a demo-private deferred build owned by a worker. */
+  readonly cancelDeferredLoad?: () => void;
+  /** Subscribes to coarse phase changes from a demo-private deferred build. */
+  readonly subscribeDeferredProgress?: (
+    listener: (phase: "topology" | "tessellation") => void,
+  ) => () => void;
 }
 
 /** Canonical demo data produced by a supported local model importer. */
@@ -92,6 +116,21 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
 /** Returns a selector entry whose bounded benchmark geometry is lazy. */
 export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
   const placeholderScene = createSceneRuntimePlaceholder();
+  const workerLoad = isWorkerBenchmarkSpec(spec)
+    ? createBenchmarkWorkerLoad(spec, (result, transferMs) => {
+        const reconstructionStart = performance.now();
+        const reconstructed = reconstructBenchmarkScene(result.payload);
+        const mainReconstructionMs = performance.now() - reconstructionStart;
+        return createBenchmarkModelFromScene(spec, reconstructed.scene, {
+          path: "worker",
+          requestId: result.requestId,
+          ...result.metrics,
+          transferMs,
+          mainReconstructionMs,
+          finalRetainedTypedBytes: reconstructed.finalRetainedTypedBytes,
+        });
+      })
+    : undefined;
   return {
     id: spec.id,
     name: spec.name,
@@ -103,15 +142,29 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
     bounds: placeholderBounds,
     results: undefined,
     issues: [],
-    deferredLoad: () => Promise.resolve(createBenchmarkModel(spec)),
+    deferredLoad: workerLoad?.load ?? (() => Promise.resolve(createBenchmarkModel(spec))),
+    ...(workerLoad === undefined
+      ? {}
+      : {
+          cancelDeferredLoad: workerLoad.cancel,
+          subscribeDeferredProgress: workerLoad.subscribeProgress,
+        }),
   };
 }
 
 function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
   const benchmarkCase = createBenchmarkCase(spec);
+  return createBenchmarkModelFromScene(spec, benchmarkCase.scene, { path: "main" });
+}
+
+function createBenchmarkModelFromScene(
+  spec: WebGpuBenchmarkSpec,
+  scene: Scene,
+  benchmarkBuildTelemetry: WorkbenchBenchmarkBuildTelemetry,
+): WorkbenchModel {
   const partStyles = new Map<PartId, StyleOverride>();
   const partNames = new Map<PartId, string>();
-  for (const partId of benchmarkCase.scene.parts.keys()) {
+  for (const partId of scene.parts.keys()) {
     partStyles.set(partId, { color: benchmarkColor });
     partNames.set(partId, `${spec.name} · Part ${partId}`);
   }
@@ -119,16 +172,22 @@ function createBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
     id: spec.id,
     name: spec.name,
     source: "example",
-    scene: benchmarkCase.scene,
+    scene,
     elementModels: new Map(),
     partNames,
     partStyles,
-    bounds: sceneBounds(benchmarkCase.scene),
+    bounds: sceneBounds(scene),
     results: undefined,
     issues: [],
-    benchmarkElementFamily: benchmarkCase.elementFamily,
-    estimatedCpuBytes: estimateBenchmarkRetentionBytes(benchmarkCase.scene, spec.kind),
+    benchmarkElementFamily: spec.elementFamily,
+    estimatedCpuBytes: estimateBenchmarkRetentionBytes(scene, spec.kind),
+    benchmarkBuildTelemetry,
   };
+}
+
+/** Returns whether a benchmark belongs on the dense worker path. */
+export function isWorkerBenchmarkSpec(spec: WebGpuBenchmarkSpec): boolean {
+  return spec.id === "fe-tet4-solid-132k" && spec.structuredFamily === "tet4";
 }
 
 function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec["kind"]): number {

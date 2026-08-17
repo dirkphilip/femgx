@@ -148,6 +148,13 @@ does not establish the bottleneck.
   all capacity models or renderer resources.
 - Device recovery recreates only resources required by current authoritative
   state and does not materialize inactive capabilities.
+- The heavy structured Tet4 case uses one lazy demo-owned Worker. Typed geometry,
+  face-neighbor, and exterior-skin buffers transfer to the host; the Worker is
+  terminated before one validated `Part`/`Scene` reconstruction begins. Session
+  generations and Worker termination make catalog changes, replacement loads,
+  and destroy safe against stale completion. Dense transfer evidence is
+  recorded in the Performance Lab diagnostics; runtime compilation and first
+  upload remain separate browser benchmark phases.
 
 ## Acceptance evidence
 

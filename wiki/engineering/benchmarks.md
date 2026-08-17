@@ -16,6 +16,28 @@ ordinary-catalog round trip, selecting another case evicts the prior reference,
 and over-cap cases rebuild when explicitly selected again. The current outcome
 is available only in the development diagnostics HUD.
 
+The over-budget `fe-tet4-solid-132k` case is generated through one lazily
+created demo-owned module Worker. The Worker receives only the deterministic
+benchmark spec and request id, builds a dense typed geometry/topology payload,
+transfers its buffers, and is terminated before the main thread reconstructs
+the validated immutable `Part` and `Scene`. Face neighbors and the exterior
+skin are transferred as compact typed arrays; authored face and edge objects
+are reconstructed once from the grid spec, so the authoritative model does
+not retain a second dense semantic representation. A new selection, catalog
+switch, file open, or controller destroy terminates the active Worker, and the
+session commits only the current request id. Smaller cases retain the simpler
+synchronous deferred path.
+
+The Worker path records generation, topology, tessellation, transfer
+preparation, transfer, reconstruction, transferred bytes, and final retained
+typed bytes in development diagnostics. A full local 28-cell dense build
+measured about 0.25 s for construction, 1.53 s for main-thread reconstruction,
+9.15 MiB transferred, and 6.68 MiB retained typed payload in the focused
+Node/Vitest measurement. The transfer/reconstruction footprint is therefore
+about 1.3× the final retained typed payload; browser/driver memory is outside
+this estimate. The existing opt-in system-Chrome benchmark remains the
+authority for runtime compilation and first-upload measurements.
+
 ## Budget gate (runs in default CI)
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any

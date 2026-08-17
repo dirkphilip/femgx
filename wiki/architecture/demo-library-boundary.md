@@ -85,7 +85,7 @@ selection-summary call sites retain the narrowly scoped
 intentionally internal and absent from the public facades, but the workbench
 needs them for selection feedback and snapshot counts.
 
-Seven benchmark-only files plus the performance fixture are explicit exemptions
+Nine benchmark-only files plus the performance fixture are explicit exemptions
 because they measure or inspect internal GPU/runtime representations rather than
 model normal host usage:
 
@@ -93,8 +93,10 @@ model normal host usage:
 - `demo/benchmark/measurement.ts`
 - `demo/benchmark/selection.ts`
 - `demo/benchmark/structured-fe.ts`
+- `demo/benchmark/tet4-transfer.ts`
 - `demo/benchmark/memory.ts`
 - `demo/benchmark/model.ts`
+- `demo/benchmark/transfer.ts`
 - `demo/fixtures/performance-fixture.ts`
 
 These exemptions are intentionally narrow. Packed runtime slots, renderer records,

@@ -84,8 +84,10 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/measurement.ts",
       "demo/benchmark/selection.ts",
       "demo/benchmark/structured-fe.ts",
+      "demo/benchmark/tet4-transfer.ts",
       "demo/benchmark/memory.ts",
       "demo/benchmark/model.ts",
+      "demo/benchmark/transfer.ts",
       "demo/fixtures/performance-fixture.ts",
     ];
     const script = readFileSync(SCRIPT_PATH, "utf8");

@@ -22,6 +22,8 @@ interface WorkbenchModelSessionOptions {
 export class WorkbenchModelSession {
   private readonly options: WorkbenchModelSessionOptions;
   private generation = 0;
+  private pendingCancel: (() => void) | undefined;
+  private pendingProgressDisposer: (() => void) | undefined;
 
   constructor(options: WorkbenchModelSessionOptions) {
     this.options = options;
@@ -30,11 +32,18 @@ export class WorkbenchModelSession {
   setModel(id: string): void {
     const model = this.options.resolveModel(id);
     if (model === undefined) return;
+    this.cancelPendingBuild();
     const generation = ++this.generation;
     if (model.id === this.options.getModel().id) {
       this.options.presentation.setLoading(false, { allowModelSelection: true });
       this.options.presentation.clearFeedback();
     } else if (model.deferredLoad !== undefined) {
+      this.pendingCancel = model.cancelDeferredLoad;
+      this.pendingProgressDisposer = model.subscribeDeferredProgress?.((phase) => {
+        if (this.isCurrent(generation)) {
+          this.options.presentation.setFeedback(`Building ${model.name} · ${phase}…`);
+        }
+      });
       void this.loadDeferredModel(model, generation);
     } else {
       this.options.activate(model);
@@ -43,11 +52,13 @@ export class WorkbenchModelSession {
 
   /** Invalidates a pending deferred build when the visible catalog changes. */
   cancel(): void {
+    this.cancelPendingBuild();
     this.generation += 1;
     this.options.presentation.setLoading(false, { allowModelSelection: true });
   }
 
   async openModel(file: File): Promise<void> {
+    this.cancelPendingBuild();
     const generation = ++this.generation;
     const previous = this.options.getModel();
     const name = displayFileName(file.name);
@@ -67,6 +78,9 @@ export class WorkbenchModelSession {
       );
     } finally {
       if (generation === this.generation) {
+        this.pendingProgressDisposer?.();
+        this.pendingProgressDisposer = undefined;
+        this.pendingCancel = undefined;
         this.options.presentation.setLoading(false);
       }
     }
@@ -106,6 +120,7 @@ export class WorkbenchModelSession {
       }
     } finally {
       if (generation === this.generation) {
+        this.pendingCancel = undefined;
         this.options.presentation.setLoading(false, { allowModelSelection: true });
       }
     }
@@ -113,6 +128,14 @@ export class WorkbenchModelSession {
 
   private isCurrent(generation: number): boolean {
     return !this.options.isDisposed() && generation === this.generation;
+  }
+
+  private cancelPendingBuild(): void {
+    this.pendingProgressDisposer?.();
+    this.pendingProgressDisposer = undefined;
+    const cancel = this.pendingCancel;
+    this.pendingCancel = undefined;
+    cancel?.();
   }
 }
 
