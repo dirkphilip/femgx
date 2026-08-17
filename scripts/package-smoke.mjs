@@ -31,6 +31,14 @@ function main() {
     runCommand("npm", ["run", "build"], repoRoot, env);
     checkBundleBudgets(repoRoot);
 
+    console.log("Running Publint package metadata validation...");
+    runCommand(
+      join(repoRoot, "node_modules", ".bin", "publint"),
+      ["run", "--strict", "--pack=false"],
+      repoRoot,
+      env,
+    );
+
     // 2. Pack the publishable tarball.
     console.log("Packing package...");
     const packOutput = runCommand(
