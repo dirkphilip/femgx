@@ -1,4 +1,10 @@
-import { createPart, type ElementTessellation, type Part } from "../../src/geometry/part";
+import {
+  createPart,
+  type ElementTessellation,
+  type FaceTessellation,
+  type Part,
+  type TriangleGeometry,
+} from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
 import { ElementShape } from "../../src/elements/shapes";
@@ -102,6 +108,8 @@ function countDenseSemanticAllocations(part: Part): DenseSemanticAllocationCount
     0,
   );
   const nodeCount = (part.nodePositions?.length ?? 0) / 3;
+  const triangles = triangleGeometry?.primitive === "triangles" ? triangleGeometry : undefined;
+  const neighborCsrBytes = denseTetNeighborCsrBytes(elements, triangles, faces);
   return {
     elementDescriptors: elements.length,
     primitiveRangeArrays: elements.reduce(
@@ -138,7 +146,41 @@ function countDenseSemanticAllocations(part: Part): DenseSemanticAllocationCount
       nodeTriangleFaceOffsetsBytes:
         faces.length === 0 ? 0 : (nodeCount + 1) * Uint32Array.BYTES_PER_ELEMENT,
       nodeTriangleFaceIdsBytes: faceNodeReferences * Uint32Array.BYTES_PER_ELEMENT,
+      neighborTriangleFaceOffsetsBytes: neighborCsrBytes.offsetsBytes,
+      neighborTriangleFaceIdsBytes: neighborCsrBytes.idsBytes,
     },
+  };
+}
+
+function denseTetNeighborCsrBytes(
+  elements: readonly ElementTessellation[],
+  triangles: TriangleGeometry | undefined,
+  faces: readonly FaceTessellation[],
+): { readonly offsetsBytes: number; readonly idsBytes: number } {
+  const subset = triangles?.faceSubset;
+  const exteriorSubset =
+    subset !== undefined &&
+    subset.faceIds.every(({ elementId, faceIndex }) => {
+      const face = faces[(elementId - 1) * 4 + faceIndex];
+      return (
+        face?.elementId === elementId &&
+        face.faceIndex === faceIndex &&
+        face.neighborElementId === undefined
+      );
+    });
+  const localNeighbors = faces.every(
+    ({ neighborElementId }) =>
+      neighborElementId === undefined ||
+      (neighborElementId >= 1 && neighborElementId <= elements.length),
+  );
+  if (!exteriorSubset || !localNeighbors) return { offsetsBytes: 0, idsBytes: 0 };
+  const neighborFaceCount = faces.reduce(
+    (count, face) => count + (face.neighborElementId === undefined ? 0 : 1),
+    0,
+  );
+  return {
+    offsetsBytes: (elements.length + 1) * Uint32Array.BYTES_PER_ELEMENT,
+    idsBytes: neighborFaceCount * Uint32Array.BYTES_PER_ELEMENT,
   };
 }
 

@@ -26,7 +26,9 @@ const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
 const element: SelectTarget = { kind: "element", instanceId: "1/0", elementId: 7 };
 
 describe("demo selection policy", () => {
-  it("accepts body as a selectable toolbar granularity", () => {
+  it("accepts every selectable toolbar granularity", () => {
+    expect(parseSelectionGranularity("part")).toBe("part");
+    expect(parseSelectionGranularity("instance")).toBe("instance");
     expect(parseSelectionGranularity("body")).toBe("body");
     expect(parseSelectionGranularity("unknown")).toBeUndefined();
   });
@@ -111,6 +113,8 @@ describe("demo selection policy", () => {
   });
 
   it.each([
+    ["part", { kind: "part", partId: 4 }],
+    ["instance", { kind: "instance", instanceId: "1/0" }],
     ["element", { kind: "element", instanceId: "1/0", elementId: 7 }],
     ["face", { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 1 }],
     ["node", { kind: "node", instanceId: "1/0", nodeId: 3 }],
@@ -141,6 +145,30 @@ describe("demo selection policy", () => {
             normal: [0, 0, 1],
           };
     expect(selectTarget(hit, granularity, modifiersForTest())).toMatchObject(expected);
+  });
+
+  it.each([
+    ["part", { kind: "part", partId: 4 }],
+    ["instance", { kind: "instance", instanceId: "1/0" }],
+  ] as const)("keeps Shift in %s mode at its selected scope", (granularity, expected) => {
+    const hit: PickHit = {
+      kind: "face",
+      partId: 4,
+      instanceId: "1/0",
+      elementId: 7,
+      faceIndex: 1,
+      key: "face-key",
+      nodeIds: [1, 2, 3],
+      neighborElementIds: [],
+      worldPosition: [0, 0, 0],
+      normal: [0, 0, 1],
+    };
+    expect(
+      selectTarget(hit, granularity, {
+        ...modifiersForTest(),
+        shiftKey: true,
+      }),
+    ).toEqual(expected);
   });
 
   it("rejects a face or node hit when the selected mode cannot own it", () => {
