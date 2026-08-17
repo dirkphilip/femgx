@@ -9,6 +9,9 @@ through a single viewport lifecycle. WebGPU is the only rendering backend;
 unsupported environments receive a typed result or clear error, never a CPU
 renderer or compatibility fallback.
 
+**[Read the API reference →](https://dirkphilip.github.io/femgx/api/)** · [See the live
+workbench](https://dirkphilip.github.io/femgx/)
+
 ## Current state
 
 Version 0.1.0 is intentionally unstable but implements the complete canonical
@@ -19,7 +22,7 @@ path:
 - typed FE authoring through `elementPart()` and compact host-reduced facets,
   lines, and points through `surfacePart()`;
 - visibility, hover, highlight, selection, box-region picking, section planes,
-  and stable part/instance/body/block/element/face/node/authored-edge identities;
+  and stable part/instance/body/element/face/node/authored-edge identities;
 - fitted orthographic or perspective cameras, standard mouse/touch controls,
   an optional view cube, and a renderer-owned world-origin X/Y/Z triad;
 - authored nodal or elemental scalar fields, nodal-vector deformation, and
@@ -73,6 +76,9 @@ For direct 0.x import changes, see the
 [entry-point migration map](docs/migration-0.x-entry-points.md).
 For the viewport surface migration, see the
 [capability migration map](docs/migration-0.x-viewport.md).
+
+For a guided first render, start with the
+[five-minute workflow in the API reference](docs/api-reference.md#five-minute-workflow).
 
 ## Canonical workflow
 

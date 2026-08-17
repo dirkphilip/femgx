@@ -11,9 +11,13 @@ export const FIT_FRAME_FRACTION = 0.9;
  * @category Camera and math
  */
 export interface CameraContentInset {
+  /** Top occlusion in CSS pixels. */
   readonly top?: number;
+  /** Right occlusion in CSS pixels. */
   readonly right?: number;
+  /** Bottom occlusion in CSS pixels. */
   readonly bottom?: number;
+  /** Left occlusion in CSS pixels. */
   readonly left?: number;
 }
 

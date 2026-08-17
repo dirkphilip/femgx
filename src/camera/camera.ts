@@ -12,15 +12,25 @@ export type ProjectionMode = "perspective" | "orthographic";
  * @category Camera and math
  */
 export interface Camera {
+  /** Projection mode. */
   readonly mode: ProjectionMode;
+  /** World-space camera position. */
   readonly position: Vec3;
+  /** World-space look-at target. */
   readonly target: Vec3;
+  /** World-space up direction. */
   readonly up: Vec3;
+  /** Vertical field of view in radians for perspective mode. */
   readonly fovY: number;
+  /** Positive near clip distance. */
   readonly near: number;
+  /** Far clip distance greater than `near`. */
   readonly far: number;
+  /** Vertical orthographic span. */
   readonly orthoHeight: number;
+  /** Render viewport width in pixels. */
   readonly width: number;
+  /** Render viewport height in pixels. */
   readonly height: number;
 }
 

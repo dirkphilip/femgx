@@ -7,7 +7,9 @@ import type { BoxSelectionRect } from "./box-selection";
  * @category Interaction and picking
  */
 export interface FrustumPlane {
+  /** Unit inward-facing world-space normal. */
   readonly normal: Vec3;
+  /** Plane offset in `dot(normal, point) + distance >= 0`. */
   readonly distance: number;
 }
 
@@ -19,11 +21,17 @@ export interface FrustumPlane {
  * @category Interaction and picking
  */
 export interface BoxSelectionFrustum {
+  /** Left inward-facing side plane. */
   readonly left: FrustumPlane;
+  /** Right inward-facing side plane. */
   readonly right: FrustumPlane;
+  /** Top inward-facing side plane. */
   readonly top: FrustumPlane;
+  /** Bottom inward-facing side plane. */
   readonly bottom: FrustumPlane;
+  /** Near depth plane. */
   readonly near: FrustumPlane;
+  /** Far depth plane. */
   readonly far: FrustumPlane;
 }
 

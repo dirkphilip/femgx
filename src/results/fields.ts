@@ -28,24 +28,39 @@ export const LOAD_COMPONENT_COUNT = 6;
 export interface NodalLoadField {
   /** Reusable part whose dense node ids index this field. */
   readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Loads are always authored per node. */
   readonly location: "nodal";
+  /** Load rows contain force and moment vectors. */
   readonly shape: "load";
+  /** Number of dense node rows in `values`. */
   readonly count: number;
+  /** Opaque unit label for the force components. */
   readonly forceUnit: string;
+  /** Opaque unit label for the moment components. */
   readonly momentUnit: string;
+  /** Row-major force xyz followed by moment xyz for every node. */
   readonly values: Float32Array;
 }
 
 /** Inputs for {@link createNodalLoadField}. */
 export interface NodalLoadFieldOptions {
+  /** Reusable part whose dense node rows this field addresses. */
   readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Number of dense node rows supplied in `values`. */
   readonly count: number;
+  /** Opaque unit label for the force components. */
   readonly forceUnit: string;
+  /** Opaque unit label for the moment components. */
   readonly momentUnit: string;
+  /** Row-major force xyz and moment xyz, six floats per node row. */
   readonly values: Float32Array;
 }
 
@@ -58,12 +73,19 @@ export interface NodalLoadFieldOptions {
 export interface ElementFrameField {
   /** Reusable part whose dense element ids index this field. */
   readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Frames are always authored per element. */
   readonly location: "elemental";
+  /** Frames contain nine components per element row. */
   readonly shape: "frame";
+  /** Number of dense element rows in `values`. */
   readonly count: number;
+  /** Opaque unit label supplied by the host. */
   readonly unit: string;
+  /** Row-major XYZ axes; any `NaN` marks that element frame as missing. */
   readonly values: Float32Array;
 }
 
@@ -72,11 +94,17 @@ export interface ElementFrameField {
  * @category Results
  */
 export interface ElementFrameFieldOptions {
+  /** Reusable part whose dense element rows this field addresses. */
   readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Number of dense element rows supplied in `values`. */
   readonly count: number;
+  /** Opaque unit label supplied by the host. */
   readonly unit: string;
+  /** Row-major XYZ axes, nine floats per element row. */
   readonly values: Float32Array;
 }
 
@@ -115,7 +143,9 @@ export interface ResultField<S extends FieldShape, L extends FieldLocation> {
   readonly id: string;
   /** Human-readable display name, e.g. "Temperature" or "Authored stress". */
   readonly name: string;
+  /** Whether values are authored at nodes or elements. */
   readonly location: L;
+  /** Scalar or three-component vector values. */
   readonly shape: S;
   /** Number of entities (nodes or elements) the field describes. */
   readonly count: number;
@@ -154,12 +184,19 @@ export type AnyResultField =
  * @category Results
  */
 export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocation> {
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Whether values are authored at nodes or elements. */
   readonly location: L;
+  /** Scalar or three-component vector values. */
   readonly shape: S;
+  /** Number of entities addressed by the field. */
   readonly count: number;
+  /** Opaque unit label supplied by the host. */
   readonly unit: string;
+  /** `count * FIELD_COMPONENT_COUNT[shape]` floats; `NaN` marks missing data. */
   readonly values: Float32Array;
 }
 

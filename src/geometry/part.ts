@@ -44,12 +44,19 @@ export { MAX_PART_ID, validatePartId } from "./id-validation";
  * @category Start here
  */
 export interface Part {
+  /** Internal nominal marker; parts are created by {@link createPart}. */
   readonly [partBrand]: true;
+  /** Stable reusable-part identifier. */
   readonly id: PartId;
+  /** Indexed geometry groups, one group per primitive topology. */
   readonly geometries: readonly Geometry[];
+  /** Optional element-to-primitive ownership table. */
   readonly elements?: readonly ElementTessellation[];
+  /** Optional dense part-local node coordinates for nodal results/deformation. */
   readonly nodePositions?: Float32Array;
+  /** Optional semantic body table with direct element membership. */
   readonly bodies?: readonly GeometryBody[];
+  /** Derived axis-aligned bounds in local part coordinates. */
   readonly bounds: Bounds;
 }
 

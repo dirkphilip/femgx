@@ -18,7 +18,9 @@ export interface FaceSubset {
  * @category Scene and geometry
  */
 export interface GeometryBody {
+  /** Stable body identifier shared with the source element model. */
   readonly id: BodyId;
+  /** Optional host-facing display name. */
   readonly name?: string;
   /** Element ids belonging to this body, in ascending order. */
   readonly elementIds: readonly ElementId[];
@@ -29,11 +31,17 @@ export interface GeometryBody {
  * @category Scene and geometry
  */
 export interface Bounds {
+  /** Minimum x coordinate in local part space. */
   readonly minX: number;
+  /** Minimum y coordinate in local part space. */
   readonly minY: number;
+  /** Minimum z coordinate in local part space. */
   readonly minZ: number;
+  /** Maximum x coordinate in local part space. */
   readonly maxX: number;
+  /** Maximum y coordinate in local part space. */
   readonly maxY: number;
+  /** Maximum z coordinate in local part space. */
   readonly maxZ: number;
 }
 
@@ -44,6 +52,7 @@ export interface Bounds {
  * @category Scene and geometry
  */
 export interface ElementTessellation {
+  /** Stable authored finite-element identifier. */
   readonly id: ElementId;
   /** Every topology-local primitive range owned by this semantic element. */
   readonly primitiveRanges: readonly ElementPrimitiveRange[];
@@ -58,8 +67,11 @@ export interface ElementTessellation {
  * @category Scene and geometry
  */
 export interface ElementPrimitiveRange {
+  /** Primitive topology of the referenced geometry group. */
   readonly primitive: Primitive;
+  /** First logical primitive in that geometry group. */
   readonly primitiveStart: number;
+  /** Number of contiguous logical primitives owned by the element. */
   readonly primitiveCount: number;
 }
 
@@ -138,7 +150,10 @@ interface GeometryBase {
  * @category Scene and geometry
  */
 export interface TriangleGeometry extends GeometryBase {
+  /** Triangle index topology. */
   readonly primitive: "triangles";
+  /** Indexed triangles; three indices per triangle. */
+  readonly indices: Uint32Array;
   /** Optional oriented face descriptors with exact triangle ranges. */
   readonly faces?: readonly FaceTessellation[];
   /** Optional render-time subset of the declared triangle faces. */
@@ -150,7 +165,10 @@ export interface TriangleGeometry extends GeometryBase {
  * @category Scene and geometry
  */
 export interface LineGeometry extends GeometryBase {
+  /** Line-segment index topology. */
   readonly primitive: "lines";
+  /** Indexed line segments; two indices per segment. */
+  readonly indices: Uint32Array;
 }
 
 /**
@@ -158,7 +176,10 @@ export interface LineGeometry extends GeometryBase {
  * @category Scene and geometry
  */
 export interface PointGeometry extends GeometryBase {
+  /** Point index topology. */
   readonly primitive: "points";
+  /** Indexed points; one index per point. */
+  readonly indices: Uint32Array;
 }
 
 /** CPU-side non-triangle geometry descriptors. */

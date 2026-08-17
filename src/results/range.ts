@@ -6,7 +6,9 @@ import type { ResultField } from "./fields";
  * @category Results
  */
 export interface ValueRange {
+  /** Inclusive lower bound. */
   readonly min: number;
+  /** Inclusive upper bound. */
   readonly max: number;
 }
 

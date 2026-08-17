@@ -12,21 +12,28 @@ export interface SurfacePartInput {
   readonly facets?: {
     /** Positive counts are linear; `-6` and `-8` are interleaved quadratic loops. */
     readonly connectivity: ArrayLike<number>;
+    /** One owning element id per facet record. */
     readonly elementIds: ArrayLike<ElementId>;
+    /** One zero-based face index per facet record. */
     readonly faceIndices: ArrayLike<number>;
     /** Aligned count-prefixed records containing zero or one neighbor element id. */
     readonly neighbors?: ArrayLike<number>;
   };
   /** Count-prefixed `2, a, b` or `3, a, mid, b` records. */
   readonly lines?: {
+    /** Count-prefixed line connectivity records. */
     readonly connectivity: ArrayLike<number>;
+    /** One owning element id per line record. */
     readonly elementIds: ArrayLike<ElementId>;
   };
   /** Node indices plus aligned element ownership. */
   readonly points?: {
+    /** Compact node ids for point records. */
     readonly nodeIds: ArrayLike<NodeId>;
+    /** One owning element id per point record. */
     readonly elementIds: ArrayLike<ElementId>;
   };
+  /** Optional direct body ownership groups. */
   readonly bodies?: readonly GeometryBody[];
 }
 

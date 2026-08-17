@@ -8,7 +8,9 @@ import type { InstanceId } from "../scene/types";
  * @category Interaction and picking
  */
 export interface BodyRef {
+  /** Stable expanded instance identifier. */
   readonly instanceId: InstanceId;
+  /** Stable body identifier within that part. */
   readonly bodyId: BodyId;
 }
 
@@ -17,7 +19,9 @@ export interface BodyRef {
  * @category Interaction and picking
  */
 export interface NodeRef {
+  /** Stable expanded instance identifier. */
   readonly instanceId: InstanceId;
+  /** Stable authored node identifier. */
   readonly nodeId: NodeId;
 }
 
@@ -26,13 +30,18 @@ export interface NodeRef {
  * @category Interaction and picking
  */
 export interface FaceRef {
+  /** Stable expanded instance identifier. */
   readonly instanceId: InstanceId;
+  /** Stable authored element identifier. */
   readonly elementId: ElementId;
+  /** Zero-based canonical face index. */
   readonly faceIndex: number;
 }
 
 /** Stable reference to one authored edge occurrence in a placed part. */
 export interface EdgeRef {
+  /** Stable expanded instance identifier. */
   readonly instanceId: InstanceId;
+  /** Canonical authored edge key. */
   readonly key: EdgeKey;
 }

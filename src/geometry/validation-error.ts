@@ -15,6 +15,7 @@ export type GeometryValidationCode =
 
 /** Typed validation error raised for invalid geometry metadata. */
 export class GeometryValidationError extends Error {
+  /** Machine-readable validation code for programmatic handling. */
   readonly code: GeometryValidationCode;
 
   constructor(code: GeometryValidationCode, message: string) {
