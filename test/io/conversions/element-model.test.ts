@@ -4,7 +4,7 @@ import {
   createModelBuilder,
   IoError,
 } from "../../../src/entries/io";
-import { LINE_SHAPE, TET4_SHAPE, TRIANGLE_SHAPE } from "../../../src/entries/model";
+import { ElementShape } from "../../../src/entries/model";
 
 describe("createElementModelFromFemModel", () => {
   it("converts an empty interchange model", () => {
@@ -17,19 +17,19 @@ describe("createElementModelFromFemModel", () => {
   it("converts mixed interchange blocks without partitioning the source", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2, 3, 4], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([11], [0, 1, 2]);
-    builder.openElementShapeBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Tet4);
     builder.appendElements([12], [0, 1, 2, 3]);
-    builder.openElementShapeBlock(LINE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Line);
     builder.appendElements([13], [3, 4]);
 
     const result = createElementModelFromFemModel(builder.build());
 
-    expect(result.elements.map((element) => [element.id, element.shape.family])).toEqual([
-      [11, "triangle"],
-      [12, "tet"],
-      [13, "line"],
+    expect(result.elements.map((element) => [element.id, element.shape])).toEqual([
+      [11, ElementShape.Triangle],
+      [12, ElementShape.Tet4],
+      [13, ElementShape.Line],
     ]);
     expect([...result.nodes]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0]);
   });
@@ -37,7 +37,7 @@ describe("createElementModelFromFemModel", () => {
   it("preserves the largest element id supported by the render model", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([0xffff_fffe], [0, 1, 2]);
 
     const result = createElementModelFromFemModel(builder.build());
@@ -48,7 +48,7 @@ describe("createElementModelFromFemModel", () => {
   it("reports out-of-range connectivity as an interchange diagnostic", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [0, 1, 3]);
 
     expect(() => createElementModelFromFemModel(builder.build())).toThrow(
@@ -72,7 +72,7 @@ describe("createElementModelFromFemModel", () => {
   it("does not slice typed connectivity while converting elements", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 2], [0, 1, 2, 2, 1, 0]);
     const model = builder.build();
     const slice = vi.spyOn(Uint32Array.prototype, "slice").mockImplementation(() => {
@@ -93,7 +93,7 @@ describe("createElementModelFromFemModel", () => {
   it("keeps each converted connectivity collection owned and isolated", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 2], [0, 1, 2, 2, 1, 0]);
     const model = builder.build();
     const result = createElementModelFromFemModel(model);
@@ -113,7 +113,7 @@ describe("createElementModelFromFemModel", () => {
   it("preserves duplicate connectivity rejection at the conversion boundary", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [0, 1, 1]);
 
     expect(() => createElementModelFromFemModel(builder.build())).toThrow(
@@ -124,7 +124,7 @@ describe("createElementModelFromFemModel", () => {
   it("reports non-dense interchange node ids as conversion diagnostics", () => {
     const builder = createModelBuilder();
     builder.appendNodes([10, 20, 30], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [10, 20, 30]);
 
     expect(() => createElementModelFromFemModel(builder.build())).toThrow(
@@ -138,7 +138,7 @@ describe("createElementModelFromFemModel", () => {
   it("preserves all model validation issues in the typed error", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-    builder.openElementShapeBlock(TRIANGLE_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 1], [0, 1, 2, 0, 1, 2]);
 
     try {

@@ -1,11 +1,11 @@
-import { POINT_SHAPE, LINE_SHAPE, LINE3_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import type { GoldenElementConvention } from "./types";
 
 export const pointLineConventions: readonly GoldenElementConvention[] = [
   {
     name: "point",
-    shape: POINT_SHAPE,
+    shape: ElementShape.Point,
     nodeCount: 1,
     corners: [0],
     edges: [],
@@ -18,7 +18,7 @@ export const pointLineConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "line",
-    shape: LINE_SHAPE,
+    shape: ElementShape.Line,
     nodeCount: 2,
     corners: [0, 1],
     edges: [[0, 1]],
@@ -34,7 +34,7 @@ export const pointLineConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "line3",
-    shape: LINE3_SHAPE,
+    shape: ElementShape.Line3,
     nodeCount: 3,
     corners: [0, 1],
     edges: [[0, 1]],

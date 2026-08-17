@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { KeyedTopology } from "../../src/elements/shapes";
+import type { ElementShape, KeyedTopology } from "../../src/elements/shapes";
 
 function topology<K extends "line:1" | "tet:1">(entry: KeyedTopology<K>): KeyedTopology<K> {
   return entry;
@@ -41,3 +41,8 @@ const wrongOrder = topology<"line:1">({
 
 void wrongFamily;
 void wrongOrder;
+
+// @ts-expect-error Only discriminants exposed by ElementShape are supported.
+const unsupportedShape: ElementShape = "wedge:2";
+
+void unsupportedShape;

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { required } from "./assertions";
 import { createModelBuilder } from "../../src/io/model-builder";
 import { IoError } from "../../src/io/diagnostics";
-import { TET4_SHAPE, HEX8_SHAPE } from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 
 describe("createModelBuilder", () => {
   it("builds an empty model with the current format version", () => {
@@ -28,12 +28,15 @@ describe("createModelBuilder", () => {
 
   it("groups elements into shape blocks, closing the open block implicitly", () => {
     const builder = createModelBuilder();
-    builder.openElementShapeBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Tet4);
     builder.appendElements([1], [0, 1, 2, 3]);
-    builder.openElementShapeBlock(HEX8_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Hex8);
     builder.appendElements([2], [0, 1, 2, 3, 4, 5, 6, 7]);
     const model = builder.build();
-    expect(model.elementShapeBlocks.map((block) => block.shape.family)).toEqual(["tet", "hex"]);
+    expect(model.elementShapeBlocks.map((block) => block.shape)).toEqual([
+      ElementShape.Tet4,
+      ElementShape.Hex8,
+    ]);
     expect(model.elementShapeBlocks[0]?.count).toBe(1);
     expect(model.elementShapeBlocks[1]?.count).toBe(1);
     expect(builder.elementCount).toBe(2);
@@ -48,7 +51,7 @@ describe("createModelBuilder", () => {
 
   it("rejects element connectivity that does not match the block shape", () => {
     const builder = createModelBuilder();
-    builder.openElementShapeBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Tet4);
     expect(() => {
       builder.appendElements([1], [0, 1, 2]);
     }).toThrow(IoError);
@@ -136,7 +139,7 @@ describe("createModelBuilder", () => {
   it("builds deterministically: repeated builds are equal", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0], [0, 0, 0]);
-    builder.openElementShapeBlock(TET4_SHAPE);
+    builder.openElementShapeBlock(ElementShape.Tet4);
     builder.appendElements([1], [0, 0, 0, 0]);
     const first = builder.build();
     const second = builder.build();

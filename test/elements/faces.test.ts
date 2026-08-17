@@ -1,17 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { classifyFaces, facesOf, facesOfElement } from "../../src/elements/faces";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  PYRAMID5_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  topologyFor,
-  type ElementFamily,
-  type ElementShape,
-  WEDGE6_SHAPE,
-} from "../../src/elements/shapes";
+import { ElementShape, topologyFor, type ElementFamily } from "../../src/elements/shapes";
 
 const sequentialElement = (id: number, shape: ElementShape) =>
   createElement(
@@ -21,12 +11,12 @@ const sequentialElement = (id: number, shape: ElementShape) =>
   );
 
 const VOLUME_SHAPES: readonly ElementShape[] = [
-  TET4_SHAPE,
-  TET10_SHAPE,
-  WEDGE6_SHAPE,
-  PYRAMID5_SHAPE,
-  HEX8_SHAPE,
-  HEX20_SHAPE,
+  ElementShape.Tet4,
+  ElementShape.Tet10,
+  ElementShape.Wedge6,
+  ElementShape.Pyramid5,
+  ElementShape.Hex8,
+  ElementShape.Hex20,
 ];
 
 const CORNER_COORDS: Record<ElementFamily, ReadonlyArray<readonly [number, number, number]>> = {
@@ -78,7 +68,7 @@ const CORNER_COORDS: Record<ElementFamily, ReadonlyArray<readonly [number, numbe
 
 function coordinatesFor(shape: ElementShape): Map<number, [number, number, number]> {
   const topology = topologyFor(shape);
-  const corners = CORNER_COORDS[shape.family];
+  const corners = CORNER_COORDS[topology.family];
   const coords = new Map<number, [number, number, number]>();
   for (const [position, cornerIndex] of topology.corners.entries()) {
     const corner = corners[cornerIndex];
@@ -154,7 +144,7 @@ function assertOutwardFaces(element: ReturnType<typeof sequentialElement>): void
 
 describe("facesOf", () => {
   it("preserves the element's node identity, not connectivity positions", () => {
-    const element = createElement(1, TET4_SHAPE, [10, 20, 30, 40]);
+    const element = createElement(1, ElementShape.Tet4, [10, 20, 30, 40]);
     expect(facesOf(element).map((face) => face.nodeIds)).toEqual([
       [10, 20, 40],
       [20, 30, 40],
@@ -171,7 +161,7 @@ describe("facesOf", () => {
   });
 
   it("is deterministic across repeated calls", () => {
-    const element = sequentialElement(1, HEX20_SHAPE);
+    const element = sequentialElement(1, ElementShape.Hex20);
     expect(facesOf(element)).toEqual(facesOf(element));
   });
 
@@ -184,7 +174,7 @@ describe("facesOf", () => {
 
 describe("facesOfElement", () => {
   it("pairs every face with a stable element-scoped index", () => {
-    const element = sequentialElement(7, TET4_SHAPE);
+    const element = sequentialElement(7, ElementShape.Tet4);
     const refs = facesOfElement(element);
     expect(refs).toHaveLength(4);
     refs.forEach((ref, index) => {
@@ -197,7 +187,7 @@ describe("facesOfElement", () => {
 
 describe("classifyFaces", () => {
   it("flags every face of a lone Tet4 as boundary", () => {
-    const classified = classifyFaces([sequentialElement(1, TET4_SHAPE)]);
+    const classified = classifyFaces([sequentialElement(1, ElementShape.Tet4)]);
     expect(classified).toHaveLength(4);
     for (const face of classified) {
       expect(face.elementId).toBe(1);
@@ -207,8 +197,8 @@ describe("classifyFaces", () => {
   });
 
   it("marks a face shared by two tets as interior", () => {
-    const a = createElement(1, TET4_SHAPE, [0, 1, 2, 3]);
-    const b = createElement(2, TET4_SHAPE, [0, 1, 2, 4]);
+    const a = createElement(1, ElementShape.Tet4, [0, 1, 2, 3]);
+    const b = createElement(2, ElementShape.Tet4, [0, 1, 2, 4]);
     const classified = classifyFaces([a, b]);
     const shared = classified.filter((face) => face.key === "0,1,2");
     expect(shared).toHaveLength(2);
@@ -220,8 +210,8 @@ describe("classifyFaces", () => {
   });
 
   it("marks a face shared by two hexahedra as interior with reversed windings", () => {
-    const a = createElement(1, HEX8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7]);
-    const b = createElement(2, HEX8_SHAPE, [8, 9, 10, 11, 0, 1, 2, 3]);
+    const a = createElement(1, ElementShape.Hex8, [0, 1, 2, 3, 4, 5, 6, 7]);
+    const b = createElement(2, ElementShape.Hex8, [8, 9, 10, 11, 0, 1, 2, 3]);
     const classified = classifyFaces([a, b]);
     const shared = classified.filter((face) => face.key === "0,1,2,3");
     expect(shared).toHaveLength(2);
@@ -235,8 +225,8 @@ describe("classifyFaces", () => {
   });
 
   it("matches a Wedge6 quadrilateral face with a Pyramid5 base", () => {
-    const wedge = createElement(1, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5]);
-    const pyramid = createElement(2, PYRAMID5_SHAPE, [0, 1, 4, 3, 6]);
+    const wedge = createElement(1, ElementShape.Wedge6, [0, 1, 2, 3, 4, 5]);
+    const pyramid = createElement(2, ElementShape.Pyramid5, [0, 1, 4, 3, 6]);
     const classified = classifyFaces([wedge, pyramid]);
     const shared = classified.filter((face) => face.key === "0,1,3,4");
     expect(shared).toHaveLength(2);
@@ -248,8 +238,8 @@ describe("classifyFaces", () => {
   });
 
   it("marks a quadratic face shared by two Tet10 elements as interior", () => {
-    const a = createElement(1, TET10_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    const b = createElement(2, TET10_SHAPE, [0, 1, 2, 10, 4, 5, 6, 11, 12, 13]);
+    const a = createElement(1, ElementShape.Tet10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const b = createElement(2, ElementShape.Tet10, [0, 1, 2, 10, 4, 5, 6, 11, 12, 13]);
     const classified = classifyFaces([a, b]);
     const shared = classified.filter((face) => face.key === "0,1,2,4,5,6");
     expect(shared).toHaveLength(2);
@@ -262,12 +252,12 @@ describe("classifyFaces", () => {
   it("marks a quadratic face shared by two Hex20 elements as interior", () => {
     const a = createElement(
       1,
-      HEX20_SHAPE,
+      ElementShape.Hex20,
       Array.from({ length: 20 }, (_, index) => index),
     );
     const b = createElement(
       2,
-      HEX20_SHAPE,
+      ElementShape.Hex20,
       [0, 1, 2, 3, 12, 13, 14, 15, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 22, 23],
     );
     const classified = classifyFaces([a, b]);
@@ -280,8 +270,8 @@ describe("classifyFaces", () => {
   });
 
   it("follows the input element order deterministically", () => {
-    const a = createElement(1, TET4_SHAPE, [0, 1, 2, 3]);
-    const b = createElement(2, TET4_SHAPE, [0, 1, 2, 4]);
+    const a = createElement(1, ElementShape.Tet4, [0, 1, 2, 3]);
+    const b = createElement(2, ElementShape.Tet4, [0, 1, 2, 4]);
     const forward = classifyFaces([a, b]);
     const reversed = classifyFaces([b, a]);
     expect(forward.map((face) => face.elementId)).toEqual([1, 1, 1, 1, 2, 2, 2, 2]);

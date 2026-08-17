@@ -1,7 +1,7 @@
 import {
   createElement,
   createElementModel,
-  HEX8_SHAPE,
+  ElementShape,
   type Element,
   type ElementModel,
   type NodeId,
@@ -58,7 +58,7 @@ function gridModel(boxes: readonly BoxCell[]): ElementModel {
           const y = box.minY + j * dy;
           const z = box.minZ + k * dz;
           elements.push(
-            createElement(id, HEX8_SHAPE, [
+            createElement(id, ElementShape.Hex8, [
               builder.node(x, y, z),
               builder.node(x + dx, y, z),
               builder.node(x + dx, y + dy, z),

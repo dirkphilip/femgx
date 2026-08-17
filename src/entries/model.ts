@@ -17,23 +17,10 @@ export {
   type SurfacePartValidationCode,
 } from "../geometry/surface-part";
 export {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  WEDGE6_SHAPE,
+  ElementShape,
   topologyFor,
   type ElementFamily,
   type ElementOrder,
-  type ElementShape,
   type ElementTopology,
 } from "../elements/shapes";
 export {

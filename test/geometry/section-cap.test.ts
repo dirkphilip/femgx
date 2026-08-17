@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  PYRAMID5_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  WEDGE6_SHAPE,
-  type ElementShape,
-} from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import { buildElementSectionCap, type SectionCap } from "../../src/geometry/section-cap";
 import { identity, translation } from "../../src/math/mat4";
@@ -17,8 +9,7 @@ import { GOLDEN_ELEMENT_CONVENTIONS } from "../elements/golden";
 
 function conventionFor(shape: ElementShape) {
   const convention = GOLDEN_ELEMENT_CONVENTIONS.find((candidate) => candidate.shape === shape);
-  if (convention === undefined)
-    throw new Error(`missing golden for ${shape.family}:${shape.order}`);
+  if (convention === undefined) throw new Error(`missing golden for ${shape}`);
   return convention;
 }
 
@@ -40,18 +31,18 @@ function capFor(shape: ElementShape, plane = 0.5): SectionCap {
     plane: { normal: [0, 0, 1], distance: -plane },
     transform: identity(),
   });
-  if (cap === undefined) throw new Error(`expected a cap for ${shape.family}:${shape.order}`);
+  if (cap === undefined) throw new Error(`expected a cap for ${shape}`);
   return cap;
 }
 
 describe("canonical FE section cap builder", () => {
   it.each([
-    ["Tet4", TET4_SHAPE, 3],
-    ["Tet10", TET10_SHAPE, 3],
-    ["Wedge6", WEDGE6_SHAPE, 3],
-    ["Pyramid5", PYRAMID5_SHAPE, 4],
-    ["Hex8", HEX8_SHAPE, 4],
-    ["Hex20", HEX20_SHAPE, 4],
+    ["Tet4", ElementShape.Tet4, 3],
+    ["Tet10", ElementShape.Tet10, 3],
+    ["Wedge6", ElementShape.Wedge6, 3],
+    ["Pyramid5", ElementShape.Pyramid5, 4],
+    ["Hex8", ElementShape.Hex8, 4],
+    ["Hex20", ElementShape.Hex20, 4],
   ] as const)("builds one wound polygon for %s", (_name, shape, vertexCount) => {
     const cap = capFor(shape);
     expect(cap.vertices).toHaveLength(vertexCount);
@@ -71,8 +62,8 @@ describe("canonical FE section cap builder", () => {
   });
 
   it("drops tangent contact and unsupported surface elements", () => {
-    const model = createElementModel(nodesFor(HEX8_SHAPE), [
-      createElement(7, HEX8_SHAPE, idsFor(HEX8_SHAPE)),
+    const model = createElementModel(nodesFor(ElementShape.Hex8), [
+      createElement(7, ElementShape.Hex8, idsFor(ElementShape.Hex8)),
     ]);
     const part = elementPart(1, model);
     const element = part.elements?.[0];
@@ -96,7 +87,7 @@ describe("canonical FE section cap builder", () => {
 
     const surface = createElementModel(
       [0, 0, 0, 1, 0, 0, 0, 1, 0],
-      [createElement(7, { family: "triangle", order: 1 }, [0, 1, 2])],
+      [createElement(7, ElementShape.Triangle, [0, 1, 2])],
     );
     const surfacePart = elementPart(2, surface);
     expect(
@@ -110,8 +101,8 @@ describe("canonical FE section cap builder", () => {
   });
 
   it("applies occurrence transforms and authored nodal deformation before the plane", () => {
-    const model = createElementModel(nodesFor(HEX8_SHAPE), [
-      createElement(7, HEX8_SHAPE, idsFor(HEX8_SHAPE)),
+    const model = createElementModel(nodesFor(ElementShape.Hex8), [
+      createElement(7, ElementShape.Hex8, idsFor(ElementShape.Hex8)),
     ]);
     const part = elementPart(1, model);
     const element = part.elements?.[0];
@@ -122,7 +113,7 @@ describe("canonical FE section cap builder", () => {
       plane: { normal: [1, 0, 0], distance: -2.75 },
       transform: translation(2, 3, 4),
       displacements: new Float32Array(
-        nodesFor(HEX8_SHAPE).map((_, index) => (index % 3 === 0 ? 0.25 : 0)),
+        nodesFor(ElementShape.Hex8).map((_, index) => (index % 3 === 0 ? 0.25 : 0)),
       ),
       deformationScale: 1,
     });
@@ -134,7 +125,7 @@ describe("canonical FE section cap builder", () => {
   });
 
   it("retains endpoint weights for nodal interpolation at edge crossings", () => {
-    const cap = capFor(HEX8_SHAPE);
+    const cap = capFor(ElementShape.Hex8);
     const edge = cap.vertices.find(
       (vertex) =>
         (vertex.nodeA === 0 && vertex.nodeB === 4) || (vertex.nodeA === 4 && vertex.nodeB === 0),

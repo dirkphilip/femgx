@@ -7,14 +7,9 @@
  * mid-edge nodes in canonical edge order. This module is pure CPU-side data
  * with no dependency on the renderer or WebGPU.
  *
- * The topology registry is compiler-exhaustive: `SupportedOrder` declares the
- * interpolation orders each family supports, the registry is checked against
- * the resulting key space with a `satisfies` constraint, and lookups still fail
- * loudly at runtime for anything untyped. Each entry's `family`/`order` is also
- * pinned to the literals encoded in its key, so a value registered under the
- * wrong key fails at compile time. Adding a family to {@link ElementFamily}
- * without declaring its orders and registering every shape fails at compile
- * time, so a topology cannot be missed or mis-keyed silently.
+ * The public `ElementShape` const is the single supported-shape list. Its
+ * primitive values make invalid family/order combinations unrepresentable and
+ * key the compiler-exhaustive topology registry directly.
  */
 
 /**
@@ -31,79 +26,42 @@ export type ElementFamily =
 export type ElementOrder = 0 | 1 | 2;
 
 /**
- * An element shape: a family plus an explicit interpolation order.
+ * Supported finite-element shapes. Each value is a primitive discriminant;
+ * family, interpolation order, node count, and canonical connectivity ordering
+ * are available through {@link topologyFor}.
  * @category Elements and model editing
  */
-export interface ElementShape {
-  readonly family: ElementFamily;
-  readonly order: ElementOrder;
-}
+export const ElementShape = {
+  /** Point: one node. */
+  Point: "point:0",
+  /** Line: two corner nodes, ordered end to end. */
+  Line: "line:1",
+  /** Line3: two corner nodes followed by the mid-edge node. */
+  Line3: "line:2",
+  /** Triangle: three corner nodes in oriented loop order. */
+  Triangle: "triangle:1",
+  /** Tri6: three corners followed by the three perimeter mid-edge nodes. */
+  Tri6: "triangle:2",
+  /** Quad: four corner nodes in oriented loop order. */
+  Quad: "quad:1",
+  /** Quad8: four corners followed by the four perimeter mid-edge nodes. */
+  Quad8: "quad:2",
+  /** Tet4: four corner nodes in the canonical tetrahedron order. */
+  Tet4: "tet:1",
+  /** Tet10: four corners followed by six canonical edge nodes. */
+  Tet10: "tet:2",
+  /** Wedge6: three lower corners followed by three upper corners. */
+  Wedge6: "wedge:1",
+  /** Pyramid5: four base corners followed by the apex. */
+  Pyramid5: "pyramid:1",
+  /** Hex8: four lower corners followed by four upper corners. */
+  Hex8: "hex:1",
+  /** Hex20: eight corners followed by twelve canonical edge nodes. */
+  Hex20: "hex:2",
+} as const;
 
-/**
- * Point element: a single node.
- * @category Elements and model editing
- */
-export const POINT_SHAPE: ElementShape = { family: "point", order: 0 };
-/**
- * Linear line element: two corner nodes.
- * @category Elements and model editing
- */
-export const LINE_SHAPE: ElementShape = { family: "line", order: 1 };
-/**
- * Quadratic line element: two corners plus one mid-edge node.
- * @category Elements and model editing
- */
-export const LINE3_SHAPE: ElementShape = { family: "line", order: 2 };
-/**
- * Linear triangle surface element: three corner nodes.
- * @category Elements and model editing
- */
-export const TRIANGLE_SHAPE: ElementShape = { family: "triangle", order: 1 };
-/**
- * Quadratic triangle (Tri6): three corners plus three mid-edge nodes.
- * @category Elements and model editing
- */
-export const TRI6_SHAPE: ElementShape = { family: "triangle", order: 2 };
-/**
- * Linear quadrilateral surface element: four corner nodes.
- * @category Elements and model editing
- */
-export const QUAD_SHAPE: ElementShape = { family: "quad", order: 1 };
-/**
- * Quadratic quadrilateral (Quad8): four corners plus four mid-edge nodes.
- * @category Elements and model editing
- */
-export const QUAD8_SHAPE: ElementShape = { family: "quad", order: 2 };
-/**
- * Linear tetrahedron (Tet4): four corner nodes.
- * @category Elements and model editing
- */
-export const TET4_SHAPE: ElementShape = { family: "tet", order: 1 };
-/**
- * Quadratic tetrahedron (Tet10): four corners plus six mid-edge nodes.
- * @category Elements and model editing
- */
-export const TET10_SHAPE: ElementShape = { family: "tet", order: 2 };
-/**
- * Linear triangular prism (Wedge6): six corner nodes.
- * @category Elements and model editing
- */
-export const WEDGE6_SHAPE: ElementShape = { family: "wedge", order: 1 };
-/**
- * Linear square pyramid (Pyramid5): five corner nodes.
- * @category Elements and model editing
- */
-export const PYRAMID5_SHAPE: ElementShape = { family: "pyramid", order: 1 };
-/**
- * Linear hexahedron (Hex8): eight corner nodes.
- * @category Elements and model editing
- */
-export const HEX8_SHAPE: ElementShape = { family: "hex", order: 1 };
-/**
- * Quadratic hexahedron (Hex20): eight corners plus twelve mid-edge nodes.
- * @category Elements and model editing
- */
-export const HEX20_SHAPE: ElementShape = { family: "hex", order: 2 };
+/** One of the finite-element shapes supported by {@link ElementShape}. */
+export type ElementShape = (typeof ElementShape)[keyof typeof ElementShape];
 
 /**
  * Canonical node ordering for an element shape.
@@ -187,23 +145,8 @@ const HEX_EDGES: ReadonlyArray<readonly [number, number]> = [
   [3, 7],
 ];
 
-/** The interpolation order(s) each family supports. */
-type SupportedOrder = {
-  point: 0;
-  line: 1 | 2;
-  triangle: 1 | 2;
-  quad: 1 | 2;
-  tet: 1 | 2;
-  wedge: 1;
-  pyramid: 1;
-  hex: 1 | 2;
-};
-
 /** Flat key for one supported shape, e.g. `"tet:2"`. */
-type ShapeKeyOf<F extends ElementFamily> = `${F}:${SupportedOrder[F]}`;
-
-/** Union of the flat keys of every supported shape. */
-export type SupportedShapeKey = { [F in ElementFamily]: ShapeKeyOf<F> }[ElementFamily];
+export type SupportedShapeKey = ElementShape;
 
 /** The element family encoded in a shape key, e.g. `"tet"` in `"tet:2"`. */
 type FamilyOf<K extends SupportedShapeKey> = K extends `${infer F}:${number}` ? F : never;
@@ -339,17 +282,10 @@ const TOPOLOGY_REGISTRY = {
   },
 } satisfies TopologyRegistry;
 
-/** Runtime lookup map so unsupported shapes still fail loudly in `topologyFor`. */
-const TOPOLOGIES: ReadonlyMap<string, ElementTopology> = new Map(Object.entries(TOPOLOGY_REGISTRY));
-
 /**
- * Looks up the canonical topology for a shape, throwing if the shape is unsupported.
+ * Looks up the canonical topology for a supported shape.
  * @category Elements and model editing
  */
 export function topologyFor(shape: ElementShape): ElementTopology {
-  const topology = TOPOLOGIES.get(`${shape.family}:${shape.order}`);
-  if (topology === undefined) {
-    throw new Error(`Unsupported element shape ${shape.family} order ${shape.order}`);
-  }
-  return topology;
+  return TOPOLOGY_REGISTRY[shape];
 }

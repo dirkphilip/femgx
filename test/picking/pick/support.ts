@@ -2,7 +2,7 @@ import { createElement } from "../../../src/elements/element";
 
 import { createElementModel, type ElementModel } from "../../../src/elements/model";
 
-import { LINE_SHAPE, POINT_SHAPE, TET4_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import { elementPart } from "../../../src/geometry/element-part";
 
@@ -35,7 +35,7 @@ export const TET_NODES: readonly number[] = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]
 
 /** Shared core test helper. */
 export function tetModel(): ElementModel {
-  return createElementModel(TET_NODES, [createElement(1, TET4_SHAPE, [0, 1, 2, 3])]);
+  return createElementModel(TET_NODES, [createElement(1, ElementShape.Tet4, [0, 1, 2, 3])]);
 }
 
 /** Shared core test helper. */
@@ -96,7 +96,10 @@ export const context: PickContext = { instances: [instanceAt(0)], parts: new Map
 export const shared = (): ElementModel =>
   createElementModel(
     [...TET_NODES, 0, 0, -1],
-    [createElement(1, TET4_SHAPE, [0, 1, 2, 3]), createElement(2, TET4_SHAPE, [0, 1, 2, 4])],
+    [
+      createElement(1, ElementShape.Tet4, [0, 1, 2, 3]),
+      createElement(2, ElementShape.Tet4, [0, 1, 2, 4]),
+    ],
   );
 
 export const hit: PickHit = {
@@ -117,9 +120,7 @@ export {
   createElement,
   createElementModel,
   type ElementModel,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  TET4_SHAPE,
+  ElementShape,
   elementPart,
   createPart,
   validatePickIds,

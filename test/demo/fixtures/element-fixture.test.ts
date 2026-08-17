@@ -9,6 +9,7 @@ import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { transformPoint, type Bounds, type Part } from "../../../src/entries/root";
 import type { Instance } from "../../../src/scene/types";
+import { ElementShape } from "../../../src/elements/shapes";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
   const runtime = createPackedSceneRuntime(fixture.scene);
@@ -257,10 +258,10 @@ describe("createElementFixture", () => {
     expect(tri6Elements).toHaveLength(1);
     expect(quadElements).toHaveLength(1);
     expect(quad8Elements).toHaveLength(1);
-    expect(triangleElement.shape.family).toBe("triangle");
-    expect(tri6Element.shape).toEqual({ family: "triangle", order: 2 });
-    expect(quadElement.shape.family).toBe("quad");
-    expect(quad8Element.shape).toEqual({ family: "quad", order: 2 });
+    expect(triangleElement.shape).toBe(ElementShape.Triangle);
+    expect(tri6Element.shape).toBe(ElementShape.Tri6);
+    expect(quadElement.shape).toBe(ElementShape.Quad);
+    expect(quad8Element.shape).toBe(ElementShape.Quad8);
     expect(nonZeroNodeIds(triangle)).toEqual([1, 2, 3]);
     expect(nonZeroNodeIds(tri6)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(nonZeroNodeIds(quad)).toEqual([2, 3, 4, 5]);

@@ -13,6 +13,7 @@ import {
   createElementModel,
   elementPart,
   surfacePart,
+  topologyFor,
   type ElementModel,
 } from "../../src/entries/model";
 import {
@@ -351,7 +352,8 @@ function elementsOf(model: ElementModel, family: "point" | "line", order?: numbe
     [...model.nodes],
     model.elements.filter(
       (element) =>
-        element.shape.family === family && (order === undefined || element.shape.order === order),
+        topologyFor(element.shape).family === family &&
+        (order === undefined || topologyFor(element.shape).order === order),
     ),
   );
 }

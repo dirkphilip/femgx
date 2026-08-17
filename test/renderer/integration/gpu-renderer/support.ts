@@ -14,7 +14,7 @@ import { createElement } from "../../../../src/elements/element";
 
 import { createElementModel } from "../../../../src/elements/model";
 
-import { TET4_SHAPE } from "../../../../src/elements/shapes";
+import { ElementShape } from "../../../../src/elements/shapes";
 
 import { elementPart } from "../../../../src/geometry/element-part";
 
@@ -158,7 +158,7 @@ export function buildVariantScene(
 export function buildSectionScene(): Scene {
   const model = createElementModel(
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
-    [createElement(7, TET4_SHAPE, [0, 1, 2, 3])],
+    [createElement(7, ElementShape.Tet4, [0, 1, 2, 3])],
   );
   const part = elementPart(1, model);
   return createScene()
@@ -356,7 +356,7 @@ export {
   createPart,
   createElement,
   createElementModel,
-  TET4_SHAPE,
+  ElementShape,
   elementPart,
   createPackedSceneRuntime,
   createInteractionState,
