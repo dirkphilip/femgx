@@ -112,6 +112,24 @@ test("selects authored bodies through the selection granularity", async ({ page 
   await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);
 });
 
+test("repeats box selection deterministically in both drag directions", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  const drag = async (
+    start: { readonly fx: number; readonly fy: number },
+    end: { readonly fx: number; readonly fy: number },
+  ): Promise<string> => {
+    await primaryBoxDrag(page, canvas, start, end);
+    await page.mouse.up({ button: "left" });
+    await expect.poll(() => dataset(page, "selected"), { timeout: 10_000 }).not.toBe("");
+    return dataset(page, "selected");
+  };
+
+  const forward = await drag({ fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 });
+  expect(await drag({ fx: 0.85, fy: 0.8 }, { fx: 0.15, fy: 0.25 })).toBe(forward);
+  expect(await drag({ fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 })).toBe(forward);
+});
+
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {
   await loadWebGpuPage(page);
   await openCommandPanel(page, "selection");

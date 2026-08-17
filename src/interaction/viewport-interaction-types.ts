@@ -105,7 +105,8 @@ export interface ViewportInteractionOptions {
   /**
    * Replaces visible-region candidate discovery for a completed box. It runs
    * after {@link boxSelectionFrustum} derives the six world-space planes and
-   * may use those planes for an authoritative Through query.
+   * may use those planes for an authoritative Through query. Calls are
+   * serialized, with only the newest completed box queued while one is pending.
    */
   readonly resolveRegion?: (request: {
     readonly rect: BoxSelectionRect;

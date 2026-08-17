@@ -248,6 +248,79 @@ describe("installViewportInteraction", () => {
     disposer();
   });
 
+  it("serializes region queries and keeps only the newest queued box", async () => {
+    let resolveFirst: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const first = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const newest: InteractionTarget = { ...target, elementId: 3 };
+    let resolveNewest: ((targets: readonly InteractionTarget[]) => void) | undefined;
+    const newestResult = new Promise<readonly InteractionTarget[]>((resolve) => {
+      resolveNewest = resolve;
+    });
+    const harness = viewportHarness();
+    harness.pickRegion.mockReturnValueOnce(first).mockReturnValueOnce(newestResult);
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+    });
+    const completeBox = (anchor: [number, number], current: [number, number]): void => {
+      harness.canvas.dispatch(
+        "pointerdown",
+        pointer({ clientX: anchor[0], clientY: anchor[1], buttons: 1 }),
+      );
+      harness.canvas.dispatch(
+        "pointermove",
+        pointer({ clientX: current[0], clientY: current[1], buttons: 1 }),
+      );
+      harness.canvas.dispatch("pointerup", pointer({ clientX: current[0], clientY: current[1] }));
+    };
+
+    completeBox([30, 40], [80, 90]);
+    await vi.waitFor(() => {
+      expect(harness.pickRegion).toHaveBeenCalledOnce();
+    });
+
+    completeBox([40, 50], [90, 95]);
+    completeBox([50, 55], [100, 99]);
+    await settle();
+    expect(harness.pickRegion).toHaveBeenCalledOnce();
+
+    resolveFirst?.([target]);
+    await vi.waitFor(() => {
+      expect(harness.pickRegion).toHaveBeenCalledTimes(2);
+    });
+    resolveNewest?.([newest]);
+    await settle();
+
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([newest]);
+    disposer();
+  });
+
+  it("reports a current region failure without changing interaction state", async () => {
+    const error = new Error("region failed");
+    const errors: Array<{ readonly error: unknown; readonly phase: string }> = [];
+    const harness = viewportHarness();
+    harness.pickRegion.mockRejectedValue(error);
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+      onError: (failure, phase) => errors.push({ error: failure, phase }),
+    });
+
+    harness.canvas.dispatch("pointerdown", pointer({ buttons: 1 }));
+    harness.canvas.dispatch("pointermove", pointer({ clientX: 90, clientY: 95, buttons: 1 }));
+    harness.canvas.dispatch("pointerup", pointer({ clientX: 90, clientY: 95 }));
+    await settle();
+
+    expect(errors).toEqual([{ error, phase: "box" }]);
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+    expect(harness.setInteraction).not.toHaveBeenCalled();
+    disposer();
+  });
+
   it("lets hosts replace discovery and suppress the default mutation", async () => {
     const harness = viewportHarness();
     const errors: unknown[] = [];
