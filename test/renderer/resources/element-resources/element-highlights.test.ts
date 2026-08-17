@@ -234,8 +234,8 @@ describe("writeElementHighlights", () => {
         selection: {
           elementCount: 65,
           occurrences: [
-            { slot: 2, ordinals: [1, 33] },
-            { slot: 5, ordinals: [65] },
+            { slot: 2, words: new Uint32Array([1, 1, 0]) },
+            { slot: 5, words: new Uint32Array([0, 0, 1]) },
           ],
         },
         selectedTheme: {
@@ -268,18 +268,9 @@ describe("writeElementHighlights", () => {
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
-      let iterations = 0;
-      const ordinals = [1, 33];
-      const iterate = ordinals[Symbol.iterator].bind(ordinals);
-      Object.defineProperty(ordinals, Symbol.iterator, {
-        value: () => {
-          iterations += 1;
-          return iterate();
-        },
-      });
       const selection = {
         elementCount: 65,
-        occurrences: [{ slot: 2, ordinals }],
+        occurrences: [{ slot: 2, words: new Uint32Array([1, 1, 0]) }],
       };
 
       writeElementHighlights(gpu.device, storage, [], { selection, slotCapacity: 4 });
@@ -288,7 +279,6 @@ describe("writeElementHighlights", () => {
         slotCapacity: 4,
       });
 
-      expect(iterations).toBe(1);
       const gpuBytes = new Uint8Array(storage.highlight.data.byteLength);
       for (const write of gpu.writes) {
         if (write.buffer === storage.highlight.buffer) gpuBytes.set(write.bytes, write.offset);
@@ -305,7 +295,10 @@ describe("writeElementHighlights", () => {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
       writeElementHighlights(gpu.device, storage, [], {
-        selection: { elementCount: 2, occurrences: [{ slot: 1, ordinals: [2] }] },
+        selection: {
+          elementCount: 2,
+          occurrences: [{ slot: 1, words: new Uint32Array([2]) }],
+        },
         slotCapacity: 4,
       });
       const denseBuffer = storage.highlight.buffer;

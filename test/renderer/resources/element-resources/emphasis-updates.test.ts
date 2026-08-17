@@ -20,35 +20,12 @@ import {
   type ElementTessellation,
   type SemanticTestGeometry,
 } from "./support";
+import { denseSelectionContains } from "../../../../src/renderer/selection/element-selection";
+import { setTargetsSelected } from "../../../../src/interaction/targets";
 
 describe("collectEmphasisUpdates", () => {
   it("chooses dense membership only when it beats sparse selected records", () => {
-    const elements: ElementTessellation[] = Array.from({ length: 1_000 }, (_, index) => ({
-      id: 20_000 + index,
-      primitiveRanges: [{ primitive: "triangles", primitiveStart: index, primitiveCount: 1 }],
-    }));
-    const part = createPart(99, {
-      geometries: [
-        {
-          positions: new Float32Array(3_000),
-          indices: Uint32Array.from({ length: 3_000 }, (_, index) => index % 1_000),
-          primitive: "triangles",
-        },
-      ],
-      elements,
-    });
-    const scene = createScene()
-      .addPart(part)
-      .addAssembly({
-        id: 1,
-        name: "dense-selection",
-        placements: [{ kind: "part", partId: 99, transform: translation(0, 0, 0) }],
-      })
-      .withRoot(1)
-      .build();
-    const runtime = createPackedSceneRuntime(scene);
-    const layout = buildInstanceLayout(runtime);
-    const parts = new Map(scene.parts);
+    const { runtime, layout, parts } = denseSelectionFixture(1_000);
     let sparseInteraction = createInteractionState();
     sparseInteraction = setElementSelected(
       sparseInteraction,
@@ -69,8 +46,20 @@ describe("collectEmphasisUpdates", () => {
     const denseSelections = collectDenseElementSelections(runtime, layout, parts, denseInteraction);
     const dense = denseSelections.get(99);
     expect(dense?.occurrences[0]?.slot).toBe(0);
-    expect(dense?.occurrences[0]?.ordinals.slice(0, 3)).toEqual([1, 2, 3]);
-    expect(dense?.occurrences[0]?.ordinals).toHaveLength(50);
+    expect(dense?.occurrences[0]?.words.length).toBe(32);
+    expect(Array.from(dense?.occurrences[0]?.words.slice(0, 2) ?? [])).toEqual([
+      0xffffffff, 0x3ffff,
+    ]);
+    const invalid = setElementSelected(
+      denseInteraction,
+      { instanceId: "1/0", elementId: 999_999 },
+      true,
+    );
+    const invalidDense = collectDenseElementSelections(runtime, layout, parts, invalid).get(99);
+    const invalidOccurrence = invalidDense?.occurrences[0];
+    expect(invalidOccurrence?.words.length).toBe(32);
+    expect(denseSelectionContains(invalidDense, 0, 1)).toBe(true);
+    expect(denseSelectionContains(invalidDense, 0, 51)).toBe(false);
 
     const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
       parts,
@@ -84,6 +73,40 @@ describe("collectEmphasisUpdates", () => {
       elementId: 20_000,
     });
     expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(denseSelections);
+  });
+
+  it("keeps equality at the dense cutoff sparse", () => {
+    const { runtime, layout, parts, instanceId } = denseSelectionFixture(321);
+    const interaction = setElementSelected(
+      createInteractionState(),
+      { instanceId, elementId: 20_000 },
+      true,
+    );
+
+    expect(collectDenseElementSelections(runtime, layout, parts, interaction)).toEqual(new Map());
+  });
+
+  it("sorts reverse-ordered occurrences before dense packing", () => {
+    const { runtime, layout, parts, instanceIds } = denseSelectionFixture(1_000, 2);
+    const selectedIds = Array.from({ length: 50 }, (_, index) => 20_000 + index);
+    const targets = instanceIds
+      .slice()
+      .reverse()
+      .flatMap((instanceId) =>
+        selectedIds.map((elementId) => ({ kind: "element" as const, instanceId, elementId })),
+      );
+    const dense = collectDenseElementSelections(
+      runtime,
+      layout,
+      parts,
+      setTargetsSelected(createInteractionState(), targets, true),
+    ).get(99);
+
+    expect(dense?.occurrences.map(({ slot }) => slot)).toEqual([0, 1]);
+    expect(dense?.occurrences.map(({ words }) => Array.from(words.slice(0, 2)))).toEqual([
+      [0xffffffff, 0x3ffff],
+      [0xffffffff, 0x3ffff],
+    ]);
   });
 
   it("caches sparse element, body, and face ownership by part identity", () => {
@@ -179,3 +202,46 @@ describe("collectEmphasisUpdates", () => {
     expect(list[0]).toMatchObject({ slot: 1, elementPickId: 1, selected: true });
   });
 });
+
+function denseSelectionFixture(elementCount: number, placementCount = 1) {
+  const elements: ElementTessellation[] = Array.from({ length: elementCount }, (_, index) => ({
+    id: 20_000 + index,
+    primitiveRanges: [{ primitive: "triangles", primitiveStart: index, primitiveCount: 1 }],
+  }));
+  const part = createPart(99, {
+    geometries: [
+      {
+        positions: new Float32Array(elementCount * 9),
+        indices: Uint32Array.from({ length: elementCount * 3 }, (_, index) => index % 3),
+        primitive: "triangles",
+      },
+    ],
+    elements,
+  });
+  const scene = createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "dense-selection",
+      placements: Array.from({ length: placementCount }, (_, index) => ({
+        kind: "part" as const,
+        partId: 99,
+        transform: translation(index, 0, 0),
+      })),
+    })
+    .withRoot(1)
+    .build();
+  const runtime = createPackedSceneRuntime(scene);
+  const instanceIds = Array.from({ length: placementCount }, (_, index) => {
+    const instanceId = runtime.getInstanceId(index);
+    if (instanceId === undefined) throw new Error(`Missing dense fixture instance ${index}`);
+    return instanceId;
+  });
+  return {
+    instanceId: instanceIds[0] ?? "",
+    instanceIds,
+    layout: buildInstanceLayout(runtime),
+    parts: new Map(scene.parts),
+    runtime,
+  };
+}

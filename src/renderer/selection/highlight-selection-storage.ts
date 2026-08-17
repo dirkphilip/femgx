@@ -67,7 +67,7 @@ export function writeSelectionHeader(
   view[8] = selection === undefined ? 0 : flags;
 }
 
-/** Rebuilds the dense offset table and compact per-occurrence bitsets. */
+/** Copies dense offsets and packed per-occurrence words into the fixed payload. */
 export function writeDenseSelectionData(
   next: Uint8Array,
   storage: HighlightSelectionStorage,
@@ -86,12 +86,7 @@ export function writeDenseSelectionData(
   if (selection === undefined) return;
   for (const [record, occurrence] of selection.occurrences.entries()) {
     view[dataBase + offsetWord + occurrence.slot] = record;
-    for (const ordinal of occurrence.ordinals) {
-      const bit = ordinal - 1;
-      const word = bit >> 5;
-      const index = dataBase + bitsWord + record * storage.selectionWordCapacity + word;
-      view[index] = (view[index] ?? 0) | (1 << (bit & 31));
-    }
+    view.set(occurrence.words, dataBase + bitsWord + record * storage.selectionWordCapacity);
   }
 }
 
