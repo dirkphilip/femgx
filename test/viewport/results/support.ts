@@ -4,7 +4,7 @@ import { createElement } from "../../../src/elements/element";
 
 import { createElementModel } from "../../../src/elements/model";
 
-import { HEX20_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import { elementPart } from "../../../src/geometry/element-part";
 
@@ -109,7 +109,7 @@ export function createHex20ViewportScene() {
   const model = createElementModel(nodes, [
     createElement(
       1,
-      HEX20_SHAPE,
+      ElementShape.Hex20,
       Array.from({ length: 20 }, (_, index) => index),
     ),
   ]);
@@ -186,7 +186,7 @@ export function installTestGpuGlobals(): void {
 export {
   createElement,
   createElementModel,
-  HEX20_SHAPE,
+  ElementShape,
   elementPart,
   createPart,
   createInteractionState,

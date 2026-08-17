@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
-import {
-  HEX8_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  QUAD_SHAPE,
-  TRIANGLE_SHAPE,
-  TET4_SHAPE,
-} from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import { computeBounds } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
@@ -22,12 +15,12 @@ function mixedModel() {
   const nodes: number[] = [];
   for (let node = 0; node < 22; node += 1) nodes.push(node % 4, Math.floor(node / 4), 0);
   return createElementModel(nodes, [
-    createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
-    createElement(2, QUAD_SHAPE, [3, 4, 5, 6]),
-    createElement(3, TET4_SHAPE, [7, 8, 9, 10]),
-    createElement(4, HEX8_SHAPE, [11, 12, 13, 14, 15, 16, 17, 18]),
-    createElement(5, LINE_SHAPE, [19, 20]),
-    createElement(6, POINT_SHAPE, [21]),
+    createElement(1, ElementShape.Triangle, [0, 1, 2]),
+    createElement(2, ElementShape.Quad, [3, 4, 5, 6]),
+    createElement(3, ElementShape.Tet4, [7, 8, 9, 10]),
+    createElement(4, ElementShape.Hex8, [11, 12, 13, 14, 15, 16, 17, 18]),
+    createElement(5, ElementShape.Line, [19, 20]),
+    createElement(6, ElementShape.Point, [21]),
   ]);
 }
 

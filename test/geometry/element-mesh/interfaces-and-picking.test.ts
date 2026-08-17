@@ -6,8 +6,7 @@ import {
   hex20Model,
   sharedTetPairModel,
   geometryFor,
-  HEX8_SHAPE,
-  TET4_SHAPE,
+  ElementShape,
   validateElements,
   deformGeometry,
   createResultField,
@@ -60,7 +59,7 @@ describe("elementPart geometry", () => {
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 12 }],
-        shape: HEX8_SHAPE,
+        shape: ElementShape.Hex8,
       },
     ]);
     expect(() => {
@@ -72,12 +71,12 @@ describe("elementPart geometry", () => {
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 4 }],
-        shape: TET4_SHAPE,
+        shape: ElementShape.Tet4,
       },
       {
         id: 2,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 4, primitiveCount: 4 }],
-        shape: TET4_SHAPE,
+        shape: ElementShape.Tet4,
       },
     ]);
   });

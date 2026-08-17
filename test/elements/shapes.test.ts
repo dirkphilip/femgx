@@ -1,36 +1,20 @@
 import { describe, expect, it } from "vitest";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  topologyFor,
-  type ElementShape,
-  WEDGE6_SHAPE,
-} from "../../src/elements/shapes";
+import { ElementShape, topologyFor } from "../../src/elements/shapes";
 
 const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
-  ["point", POINT_SHAPE],
-  ["line", LINE_SHAPE],
-  ["line3", LINE3_SHAPE],
-  ["triangle", TRIANGLE_SHAPE],
-  ["tri6", TRI6_SHAPE],
-  ["quad", QUAD_SHAPE],
-  ["quad8", QUAD8_SHAPE],
-  ["tet4", TET4_SHAPE],
-  ["tet10", TET10_SHAPE],
-  ["wedge6", WEDGE6_SHAPE],
-  ["pyramid5", PYRAMID5_SHAPE],
-  ["hex8", HEX8_SHAPE],
-  ["hex20", HEX20_SHAPE],
+  ["point", ElementShape.Point],
+  ["line", ElementShape.Line],
+  ["line3", ElementShape.Line3],
+  ["triangle", ElementShape.Triangle],
+  ["tri6", ElementShape.Tri6],
+  ["quad", ElementShape.Quad],
+  ["quad8", ElementShape.Quad8],
+  ["tet4", ElementShape.Tet4],
+  ["tet10", ElementShape.Tet10],
+  ["wedge6", ElementShape.Wedge6],
+  ["pyramid5", ElementShape.Pyramid5],
+  ["hex8", ElementShape.Hex8],
+  ["hex20", ElementShape.Hex20],
 ];
 
 describe("topologyFor", () => {
@@ -45,29 +29,8 @@ describe("topologyFor", () => {
     }
   });
 
-  it("registers a topology whose family and order match every exported shape", () => {
-    for (const [_name, shape] of ALL_SHAPES) {
-      const topology = topologyFor(shape);
-      expect(topology.family).toBe(shape.family);
-      expect(topology.order).toBe(shape.order);
-    }
-  });
-
-  it("throws for an unsupported order", () => {
-    expect(() => topologyFor({ family: "tet", order: 3 as ElementShape["order"] })).toThrow(
-      "Unsupported element shape",
-    );
-    expect(() => topologyFor({ family: "hex", order: 3 as ElementShape["order"] })).toThrow(
-      "Unsupported element shape",
-    );
-    expect(() => topologyFor({ family: "line", order: 3 as ElementShape["order"] })).toThrow(
-      "Unsupported element shape",
-    );
-  });
-
-  it("throws for an unknown family", () => {
-    expect(() => topologyFor({ family: "polygon" as ElementShape["family"], order: 1 })).toThrow(
-      "Unsupported element shape",
-    );
+  it("exposes every documented shape as one primitive discriminant", () => {
+    expect(Object.values(ElementShape)).toEqual(ALL_SHAPES.map(([, shape]) => shape));
+    expect(new Set(Object.values(ElementShape)).size).toBe(ALL_SHAPES.length);
   });
 });

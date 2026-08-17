@@ -1,7 +1,7 @@
 import { createPart, type ElementTessellation } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
-import { TET4_SHAPE } from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 import { canonicalKey } from "../../src/elements/keys";
 import { createTet4Edges, tet4FaceNodeIds, type DenseTet4Payload } from "./tet4-transfer";
 
@@ -103,7 +103,7 @@ function createElements(count: number): ElementTessellation[] {
     primitiveRanges: [
       { primitive: "triangles" as const, primitiveStart: index * 4, primitiveCount: 4 },
     ],
-    shape: TET4_SHAPE,
+    shape: ElementShape.Tet4,
     bodyId: 1,
   }));
 }

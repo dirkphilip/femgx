@@ -9,8 +9,7 @@ import {
   familyModel,
   createElement,
   createElementModel,
-  QUAD_SHAPE,
-  TRIANGLE_SHAPE,
+  ElementShape,
   validateElements,
   validatePickIds,
 } from "./support";
@@ -26,14 +25,14 @@ describe("elementPart geometry", () => {
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
-        shape: TRIANGLE_SHAPE,
+        shape: ElementShape.Triangle,
       },
     ]);
     expect(quad.part.elements).toEqual([
       {
         id: 2,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
-        shape: QUAD_SHAPE,
+        shape: ElementShape.Quad,
       },
     ]);
     expect(triangle.faces?.[0]).toMatchObject({ elementId: 1, faceIndex: 0 });

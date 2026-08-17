@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { required } from "./assertions";
 import { createModelBuilder } from "../../src/io/model-builder";
 import { validateModel } from "../../src/io/model-validation";
-import { TET4_SHAPE } from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 
 function validModel() {
   const builder = createModelBuilder();
   builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
-  builder.openElementShapeBlock(TET4_SHAPE);
+  builder.openElementShapeBlock(ElementShape.Tet4);
   builder.appendElements([1], [0, 1, 2, 3]);
   return builder.build();
 }
