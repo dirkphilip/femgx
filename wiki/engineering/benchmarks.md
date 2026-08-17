@@ -25,7 +25,10 @@ presets retain authored element, face, edge, and body identities while drawing
 only the exterior face subset. Their build telemetry separates generation,
 topology, tessellation, transfer preparation, transfer, and main-thread
 reconstruction so fast mesh generation is not confused with renderer attach or
-frame performance.
+frame performance. Main-thread reconstruction supplies packed semantic columns
+directly to the canonical `Part`; its public `elements`, `faces`, and `edges`
+arrays remain available as lazy views for compatibility, while upload, picking,
+face-subset, visibility-skin, and semantic-index paths traverse the columns.
 
 The Performance Lab keeps its visible benchmark catalog lazy and may retain at
 most one authoritative CPU model. Retention is bounded by a demo-private 256
@@ -42,12 +45,11 @@ created demo-owned module Worker. The Worker receives only the deterministic
 benchmark spec and request id, builds a dense typed geometry/topology payload,
 transfers its buffers, and is terminated before the main thread reconstructs
 the validated immutable `Part` and `Scene`. Face neighbors and the exterior
-skin are transferred as compact typed arrays; authored face and edge objects
-are reconstructed once from the grid spec, so the authoritative model does
-not retain a second dense semantic representation. A new selection, catalog
-switch, file open, or controller destroy terminates the active Worker, and the
-session commits only the current request id. Smaller cases retain the simpler
-synchronous deferred path.
+skin are transferred as compact typed arrays; the packed `Part` retains those
+columns as the one authoritative semantic representation. A new selection,
+catalog switch, file open, or controller destroy terminates the active Worker,
+and the session commits only the current request id. Smaller cases retain the
+simpler synchronous deferred path.
 
 The Worker path records generation, topology, tessellation, transfer
 preparation, transfer, reconstruction, transferred bytes, and final retained
@@ -57,17 +59,22 @@ descriptors and node/key references, edge descriptors and incidence
 references, body membership references, and semantic-index map entries plus
 exact node-to-face CSR bytes. These counts make the object-heavy portion
 visible without pretending that a portable byte count for JavaScript objects
-exists. The 28-cell payload contains 131,712 elements, 526,848 faces, 160,804
-edges, 1,580,544 edge-face references, 8,857,424 transferred typed bytes
-(8.45 MiB), and 6,712,464 final retained typed bytes (6.40 MiB); the 35-cell
-payload contains 257,250 elements, 1,029,000 faces, 311,255 edges, 3,087,000
-edge-face references, 17,269,296 transferred typed bytes (16.47 MiB), and
-13,094,560 final retained typed bytes (12.49 MiB). The edge count includes the
-authored face and body diagonals introduced by the six-Tet cube split. Final
-retained typed bytes exclude worker-only face-neighbor and boundary-subset arrays after
-reconstruction; both typed-byte fields exclude JavaScript object heap and
-driver allocations. The existing opt-in system-Chrome benchmark remains the
-authority for runtime compilation and first-upload measurements.
+exists. With packed reconstruction, the 28-cell payload contains 131,712
+elements, 526,848 faces, 160,804 edges, 1,580,544 edge-face references,
+8,857,424 transferred typed bytes (8.45 MiB), and 47,372,404 retained typed
+bytes (45.18 MiB); the 35-cell payload contains 257,250 elements, 1,029,000
+faces, 311,255 edges, 3,087,000 edge-face references, 17,269,296 transferred
+typed bytes (16.47 MiB), and 92,437,480 retained typed bytes (88.16 MiB). The
+retained semantic columns are intentional: they preserve full-volume face,
+edge, neighbor, and body semantics without per-row JavaScript objects. The
+element, face, edge, primitive-range, and semantic-index entry counts are zero
+until a descriptor-consuming convenience or optional feature explicitly asks
+for them; body descriptors and typed references remain reported. The edge
+count includes the authored face and body diagonals introduced by the six-Tet
+cube split. Both typed-byte fields exclude JavaScript object heap and driver
+allocations; a browser or Node `usedJSHeapSize` value is neither portable nor
+authoritative. The existing opt-in system-Chrome benchmark remains the authority
+for runtime compilation and first-upload measurements.
 
 ## Budget gate (runs in default CI)
 
@@ -622,6 +629,15 @@ Optimize the truthful admitted presentation first. If dense nodes cannot meet
 the reference budget without changing semantics, open an explicit product
 decision rather than silently reducing them. Do not infer a universal capacity
 guarantee from one adapter.
+
+## Package bundle budget
+
+The root package smoke test admits at most 445,000 raw bytes and 110,000 gzip
+bytes. The raw ceiling includes the internal packed semantic consumers required
+for dense upload, picking, visibility, selection, sections, bounds, and result
+orientation; their constructor and validation path remains outside the public
+facade. Keep the gzip ceiling unchanged and treat further growth as a design
+review trigger rather than weakening both limits together.
 
 [engineering/quality-gate|Quality gate]: quality-gate.md
 [engineering/gpu-performance|GPU rendering performance]: gpu-performance.md

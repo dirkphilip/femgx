@@ -11,6 +11,7 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/selection.ts",
   "demo/benchmark/structured-fe.ts",
   "demo/benchmark/tet4-transfer.ts",
+  "demo/benchmark/packed-tet4.ts",
   "demo/benchmark/memory.ts",
   "demo/benchmark/model.ts",
   "demo/benchmark/transfer.ts",

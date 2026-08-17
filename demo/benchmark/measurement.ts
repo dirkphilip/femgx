@@ -2,6 +2,7 @@ import { createCamera, projectPoint, type Camera } from "../../src/camera/camera
 import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
 import type { Geometry } from "../../src/geometry/part";
+import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
 import {
   createWebGpuRendererInternal,
   drainGpuTimestampSamples,
@@ -256,6 +257,11 @@ function countSubmittedElementOccurrences(
     const submittedElementIds = new Set<number>();
     for (const geometry of part.geometries) {
       if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
+        const packed = packedSemanticStorageForGeometry(geometry);
+        if (packed?.faceSubsetOrdinals !== undefined) {
+          addPackedSubsetElementIds(submittedElementIds, packed);
+          continue;
+        }
         for (const face of geometry.faceSubset.faceIds) submittedElementIds.add(face.elementId);
         continue;
       }
@@ -272,6 +278,17 @@ function countSubmittedElementOccurrences(
     count += submittedElementIds.size;
   }
   return count;
+}
+
+function addPackedSubsetElementIds(
+  target: Set<number>,
+  packed: NonNullable<ReturnType<typeof packedSemanticStorageForGeometry>>,
+): void {
+  for (const faceOrdinal of packed.faceSubsetOrdinals ?? []) {
+    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal];
+    const elementId = ownerOrdinal === undefined ? undefined : packed.elementIds[ownerOrdinal];
+    if (elementId !== undefined) target.add(elementId);
+  }
 }
 
 function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
@@ -358,6 +375,14 @@ export function submittedTriangleCount(
 function submittedTrianglesForGeometry(geometry: Geometry): number {
   if (geometry.primitive !== "triangles") return 0;
   if (geometry.faceSubset === undefined) return geometry.indices.length / 3;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed?.faceSubsetOrdinals !== undefined) {
+    let count = 0;
+    for (const faceOrdinal of packed.faceSubsetOrdinals) {
+      count += packed.facePrimitiveCounts[faceOrdinal] ?? 0;
+    }
+    return count;
+  }
   const primitiveCountByFace = new Map(
     (geometry.faces ?? []).map(
       (face) => [`${face.elementId}:${face.faceIndex}`, face.primitiveCount] as const,

@@ -1,4 +1,5 @@
 import type { Part } from "../geometry/part";
+import { packedSemanticStorage } from "../geometry/packed/packed-semantic";
 import type { ElementFrameField, VectorField } from "./fields";
 import { getOrientationTopology, resolveOrientationAnchor } from "./orientation-topology";
 
@@ -123,6 +124,17 @@ export function resolveElementalFrameRecords(
 }
 
 function validateElementCoverage(part: Part, field: VectorField<"elemental">): void {
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) {
+    validatePackedElementIds(
+      part,
+      "Elemental orientation field",
+      field.id,
+      field.count,
+      packed.elementIds,
+    );
+    return;
+  }
   const elements = part.elements;
   if (elements === undefined || elements.length === 0) {
     if (hasActiveVector(field)) {
@@ -142,6 +154,11 @@ function validateElementCoverage(part: Part, field: VectorField<"elemental">): v
 }
 
 function validateFrameCoverage(part: Part, field: ElementFrameField): void {
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) {
+    validatePackedElementIds(part, "Element frame field", field.id, field.count, packed.elementIds);
+    return;
+  }
   const elements = part.elements;
   if (elements === undefined || elements.length === 0) {
     if (hasActiveFrame(field)) {
@@ -155,6 +172,22 @@ function validateFrameCoverage(part: Part, field: ElementFrameField): void {
     if (element.id >= field.count) {
       throw new Error(
         `Element frame field ${field.id} (count ${field.count}) has no value for element ${element.id} in part ${part.id}`,
+      );
+    }
+  }
+}
+
+function validatePackedElementIds(
+  part: Part,
+  fieldLabel: string,
+  fieldId: string,
+  fieldCount: number,
+  elementIds: Uint32Array,
+): void {
+  for (const elementId of elementIds) {
+    if (elementId >= fieldCount) {
+      throw new Error(
+        `${fieldLabel} ${fieldId} (count ${fieldCount}) has no value for element ${elementId} in part ${part.id}`,
       );
     }
   }

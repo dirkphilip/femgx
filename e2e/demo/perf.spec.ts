@@ -227,9 +227,9 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           transferredBytes: expect.any(Number),
           finalRetainedTypedBytes: expect.any(Number),
           semanticAllocationCounts: expect.objectContaining({
-            elementDescriptors: expect.any(Number),
-            faceDescriptors: expect.any(Number),
-            edgeDescriptors: expect.any(Number),
+            elementDescriptors: 0,
+            faceDescriptors: 0,
+            edgeDescriptors: 0,
             semanticIndex: expect.objectContaining({
               nodeTriangleFaceIdsBytes: expect.any(Number),
               neighborTriangleFaceOffsetsBytes: expect.any(Number),

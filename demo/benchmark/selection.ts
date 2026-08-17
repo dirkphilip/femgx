@@ -5,6 +5,7 @@ import { setTargetsSelected } from "../../src/interaction/targets";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import type { InteractionTarget } from "../../src/interaction/target-types";
 import type { Part, PartId } from "../../src/geometry/part";
+import { packedSemanticStorage } from "../../src/geometry/packed/packed-semantic";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -110,6 +111,14 @@ export function authoredElementTargets(
   const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
   if (part === undefined || instanceId === undefined) {
     throw new Error(`${benchmarkCase.id} has no drawable authored-element occurrence`);
+  }
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) {
+    return Array.from(packed.elementIds, (elementId) => ({
+      kind: "element" as const,
+      instanceId,
+      elementId,
+    }));
   }
   return (part.elements ?? []).map((element) => ({
     kind: "element",

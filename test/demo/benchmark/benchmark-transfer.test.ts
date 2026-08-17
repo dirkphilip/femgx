@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
 import { reconstructBenchmarkScene, transferredByteLength } from "../../../demo/benchmark/transfer";
+import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
+import {
+  packedSemanticMaterializationCounts,
+  packedSemanticStorage,
+} from "../../../src/geometry/packed/packed-semantic";
+import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
+import {
+  buildElementPrimitiveOrdinals,
+  buildPrimitiveFaceBodyPickData,
+} from "../../../src/renderer/picking/ids";
 
 describe("dense Tet4 benchmark transfer", () => {
   it("reconstructs the canonical topology, skin, and authored edge metadata", () => {
@@ -42,34 +52,83 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(reconstructedGeometry.faceSubset).toEqual(canonicalGeometry.faceSubset);
     expect(reconstructedPart.bounds).toEqual(canonicalPart.bounds);
     expect(reconstructed.semanticAllocationCounts).toEqual({
-      elementDescriptors: 48,
-      primitiveRangeArrays: 48,
-      primitiveRangeDescriptors: 48,
-      faceDescriptors: 192,
-      faceNodeArrays: 192,
+      elementDescriptors: 0,
+      primitiveRangeArrays: 0,
+      primitiveRangeDescriptors: 0,
+      faceDescriptors: 0,
+      faceNodeArrays: 0,
       faceNodeReferences: 576,
-      faceKeyReferences: 192,
+      faceKeyReferences: 0,
       faceSubsetReferences: 48,
-      edgeDescriptors: 98,
-      edgeNodeArrays: 98,
+      edgeDescriptors: 0,
+      edgeNodeArrays: 0,
       edgeNodeReferences: 196,
       edgeIncidentElementReferences: 288,
-      edgeFaceReferenceArrays: 98,
+      edgeFaceReferenceArrays: 0,
       edgeFaceReferences: 576,
       bodyDescriptors: 1,
-      bodyElementReferences: 48,
+      bodyElementReferences: 0,
       semanticIndex: {
-        elementEntries: 48,
-        elementOrdinalEntries: 48,
+        elementEntries: 0,
+        elementOrdinalEntries: 0,
         bodyEntries: 1,
-        bodyByElementEntries: 48,
-        faceEntries: 192,
-        edgeEntries: 98,
+        bodyByElementEntries: 0,
+        faceEntries: 0,
+        edgeEntries: 0,
         nodeTriangleFaceOffsetsBytes: 112,
         nodeTriangleFaceIdsBytes: 2_304,
         neighborTriangleFaceOffsetsBytes: 196,
         neighborTriangleFaceIdsBytes: 576,
       },
+    });
+  });
+
+  it("builds packed semantic indexes without descriptor graph materialization", () => {
+    const payload = buildDenseTet4Payload(2).payload;
+    const part = reconstructBenchmarkScene(payload).scene.parts.get(1);
+    if (part === undefined) throw new Error("Packed Tet4 part is missing");
+    const storage = packedSemanticStorage(part);
+    if (storage === undefined) throw new Error("Packed Tet4 storage is missing");
+    expect(packedSemanticMaterializationCounts(storage)).toEqual({
+      elements: 0,
+      faces: 0,
+      edges: 0,
+    });
+    const index = getPartSemanticIndex(part);
+    expect(index.elements.size).toBe(payload.elementCount);
+    expect(index.faces.size).toBe(payload.elementCount * 4);
+    expect(packedSemanticMaterializationCounts(storage)).toEqual({
+      elements: 0,
+      faces: 0,
+      edges: 0,
+    });
+    expect(part.elements?.[0]?.id).toBe(1);
+    expect(packedSemanticMaterializationCounts(storage).elements).toBe(1);
+  });
+
+  it("keeps packed upload metadata on typed tables", () => {
+    const payload = buildDenseTet4Payload(2).payload;
+    const part = reconstructBenchmarkScene(payload).scene.parts.get(1);
+    if (part === undefined) throw new Error("Packed Tet4 part is missing");
+    const geometry = part.geometries[0];
+    if (geometry?.primitive !== "triangles") throw new Error("Packed triangles are missing");
+    const index = getPartSemanticIndex(part);
+    const ordinals = buildElementPrimitiveOrdinals(
+      geometry,
+      part.elements ?? [],
+      index.elementOrdinalById,
+    );
+    const topology = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+    const subset = buildFaceSubsetIndices(geometry);
+    expect(ordinals.length).toBe(payload.elementCount * 4);
+    expect(topology.length).toBe(payload.elementCount * 4 * 5);
+    expect(subset.length).toBe(payload.boundaryFaceIndices.length * 3);
+    const storage = packedSemanticStorage(part);
+    if (storage === undefined) throw new Error("Packed Tet4 storage is missing");
+    expect(packedSemanticMaterializationCounts(storage)).toEqual({
+      elements: 0,
+      faces: 0,
+      edges: 0,
     });
   });
 
@@ -85,8 +144,9 @@ describe("dense Tet4 benchmark transfer", () => {
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
     "builds the full worker payload within the bounded dense path",
     () => {
+      const gridSize = Number(process.env["FEMGX_HEAVY_GRID"] ?? 28);
       const start = performance.now();
-      const result = buildDenseTet4Payload(28);
+      const result = buildDenseTet4Payload(gridSize);
       const elapsed = performance.now() - start;
       const reconstructionStart = performance.now();
       const reconstructed = reconstructBenchmarkScene(result.payload);
@@ -97,8 +157,8 @@ describe("dense Tet4 benchmark transfer", () => {
             result.payload,
           )} transferred bytes`,
       );
-      expect(result.payload.elementCount).toBe(131_712);
-      expect(result.payload.boundaryFaceIndices).toHaveLength(9_408);
+      expect(result.payload.elementCount).toBe(gridSize ** 3 * 6);
+      expect(result.payload.boundaryFaceIndices).toHaveLength(12 * gridSize ** 2);
     },
   );
 });

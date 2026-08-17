@@ -129,14 +129,32 @@ export function createPart(
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
   });
-  return {
-    [partBrand]: true,
-    id,
+  return createPartRecord(id, {
     geometries: groups,
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
-    bounds: finitePartBounds(groups),
+  });
+}
+
+/** Internal branded record construction after an owning boundary has validated its inputs. */
+export function createPartRecord(
+  id: PartId,
+  input: {
+    readonly geometries: readonly Geometry[];
+    readonly elements?: readonly ElementTessellation[];
+    readonly nodePositions?: Float32Array;
+    readonly bodies?: readonly GeometryBody[];
+  },
+): Part {
+  return {
+    [partBrand]: true,
+    id,
+    geometries: input.geometries,
+    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+    bounds: finitePartBounds(input.geometries),
   };
 }
 
