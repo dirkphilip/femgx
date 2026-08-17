@@ -90,7 +90,7 @@ describe("GPU draw path", () => {
           part.id,
           {
             elementCount: 2,
-            occurrences: [{ slot: 0, words: new Uint32Array([1]) }],
+            occurrences: [{ slot: 0, selectedCount: 1, words: new Uint32Array([1]) }],
           },
         ],
       ]);

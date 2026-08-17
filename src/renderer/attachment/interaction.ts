@@ -15,6 +15,7 @@ import {
 } from "../interaction-sync";
 import { syncEdgeEmphasisFlags } from "../edges/emphasis-sync";
 import { syncSelectionState, type SelectionState } from "../selection-state";
+import { collectDenseElementSelections } from "../selection/element-selection";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { rebuildAttachmentCalls } from "./calls";
 
@@ -192,6 +193,12 @@ function syncBuffers(options: {
   selectionChanged: boolean;
   edgeChanged: ReadonlySet<PartId>;
 } {
+  const denseSelections = collectDenseElementSelections(
+    options.runtime,
+    options.layout,
+    options.parts,
+    options.interaction,
+  );
   const transparentChanged = syncInteractionEmphasis({
     runtime: options.runtime,
     layout: options.layout,
@@ -202,6 +209,7 @@ function syncBuffers(options: {
     slotByInstanceId: options.state.slotByInstanceId,
     changedSlots: options.changedSlots,
     affectedParts: options.affectedParts,
+    denseSelections,
   });
   const selectionChanged = syncSelectionState({
     runtime: options.runtime,
@@ -213,7 +221,19 @@ function syncBuffers(options: {
     selectionParts: options.selectionParts,
     nodeParts: options.nodeParts,
     changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
+    denseSelections,
   });
+  const edgeChanged = syncEdgeBuffers(options);
+  return { transparentChanged, selectionChanged, edgeChanged };
+}
+
+function syncEdgeBuffers(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly affectedParts: ReadonlySet<PartId>;
+  readonly state: AttachmentInteractionState;
+  readonly bundle: GpuBundle;
+}): ReadonlySet<PartId> {
   const edgeChanged = syncEdgeEmphasisFlags(
     options.layout,
     options.bundle,
@@ -230,5 +250,5 @@ function syncBuffers(options: {
       draw: options.bundle.draw,
     });
   }
-  return { transparentChanged, selectionChanged, edgeChanged };
+  return edgeChanged;
 }

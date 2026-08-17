@@ -1,12 +1,16 @@
 import { logicalPrimitiveCount, type Part, type PartId, type Primitive } from "../../geometry/part";
-import { faceIdentity } from "../../geometry/element-face-selection";
-import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
+import { getPartSemanticIndex, type PartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState } from "../../interaction/state";
 import type { InstanceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { DrawCall, SelectionDrawRange } from "../resources/draw-resources";
 import type { InstanceLayout } from "../runtime-state";
+import {
+  denseOccurrenceAtSlot,
+  type DenseElementSelection,
+  type DenseElementSelections,
+} from "./element-selection";
 
 /** Maximum number of GPU range draws before the instanced fallback wins. */
 const MAX_RANGED_SELECTION_DRAWS = 1024;
@@ -34,9 +38,11 @@ export function buildSelectionDrawCalls(options: {
   readonly interaction: InteractionState;
   readonly part: Part;
   readonly order: Uint32Array;
+  readonly denseSelections: DenseElementSelections;
 }): readonly DrawCall[] | undefined {
   const { layout, runtime, partId, interaction, part, order } = options;
   if (order.length === 0) return [];
+  const denseSelections = options.denseSelections;
   const data = readInteractionState(interaction);
   const slots = layout.partSlots.get(partId);
   if (slots === undefined) return undefined;
@@ -52,7 +58,7 @@ export function buildSelectionDrawCalls(options: {
       const globalSlot = slots[local];
       const instanceId = globalSlot === undefined ? undefined : runtime.getInstanceId(globalSlot);
       if (instanceId === undefined) return undefined;
-      geometry = selectionGeometryForInstance(data, instanceId, part);
+      geometry = selectionGeometryForInstance(data, instanceId, local, part, denseSelections);
       if (geometry === undefined || (isSelectionRanges(geometry) && geometry.length === 0))
         return undefined;
     }
@@ -80,7 +86,9 @@ export function buildSelectionDrawCalls(options: {
 function selectionGeometryForInstance(
   data: ReturnType<typeof readInteractionState>,
   instanceId: InstanceId,
+  localSlot: number,
   part: Part,
+  denseSelections: DenseElementSelections,
 ): SelectionGeometry | undefined {
   if (
     data.selectedPartIds.has(part.id) ||
@@ -98,8 +106,26 @@ function selectionGeometryForInstance(
     return undefined;
   }
   const metadata = getPartSemanticIndex(part);
-  const skin = denseSelectionSkin(selectedElements, selectedFaces?.size ?? 0, part, metadata);
+  const skin =
+    selectedFaces === undefined || selectedFaces.size === 0
+      ? denseSelectionSkin(
+          selectedElements,
+          localSlot,
+          part,
+          metadata,
+          denseSelections.get(part.id),
+        )
+      : undefined;
   if (skin !== undefined) return skin;
+  return fallbackSelectionGeometry(selectedElements, selectedFaces, metadata, part);
+}
+
+function fallbackSelectionGeometry(
+  selectedElements: ReadonlySet<number> | undefined,
+  selectedFaces: ReadonlyMap<string, unknown> | undefined,
+  metadata: PartSemanticIndex,
+  part: Part,
+): SelectionGeometry | undefined {
   const byPrimitive = new Map<Primitive, number[]>();
   let rangeCount = 0;
   for (const elementId of selectedElements ?? []) {
@@ -141,64 +167,80 @@ function selectionGeometryForInstance(
 
 function denseSelectionSkin(
   selectedElements: ReadonlySet<number> | undefined,
-  selectedFaceCount: number,
+  localSlot: number,
   part: Part,
-  metadata: ReturnType<typeof getPartSemanticIndex>,
+  metadata: PartSemanticIndex,
+  denseSelection: DenseElementSelection | undefined,
 ): SelectionSkin | undefined {
   const elementCount = metadata.elements.size;
   if (
     selectedElements === undefined ||
-    selectedFaceCount > 0 ||
     selectedElements.size * 2 < elementCount ||
-    !hasBoundaryFaceSubset(part, metadata)
+    denseSelection === undefined ||
+    denseSelection.elementCount !== elementCount ||
+    !metadata.hasBoundaryFaceSubset ||
+    !metadata.hasCompleteNeighborTriangleIndex
   )
     return undefined;
-  for (const elementId of selectedElements) {
-    const element = metadata.elements.get(elementId);
-    if (
-      element === undefined ||
-      element.primitiveRanges.some((range) => range.primitive !== "triangles")
-    )
-      return undefined;
-  }
+  const occurrence = denseOccurrenceAtSlot(denseSelection, localSlot);
+  if (occurrence === undefined || occurrence.selectedCount !== selectedElements.size)
+    return undefined;
+  if (hasSelectedNonTriangle(occurrence.words, metadata.nonTriangleElementOrdinals))
+    return undefined;
   if (selectedElements.size === elementCount) return { kind: "skin", interfaceRanges: [] };
-  const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  if (triangles?.primitive !== "triangles" || triangles.faces === undefined) return undefined;
-  const byPrimitive = new Map<Primitive, number[]>();
-  let rangeCount = 0;
-  for (const face of triangles.faces) {
-    if (
-      !selectedElements.has(face.elementId) ||
-      face.neighborElementId === undefined ||
-      selectedElements.has(face.neighborElementId)
-    )
-      continue;
-    const nextRangeCount = addPrimitiveRange(
-      byPrimitive,
-      rangeCount,
-      "triangles",
-      face.primitiveStart,
-      face.primitiveCount,
-    );
-    if (nextRangeCount === undefined) return undefined;
-    rangeCount = nextRangeCount;
-  }
-  return { kind: "skin", interfaceRanges: materializeRanges(byPrimitive) };
+  const interfaceRanges = denseInterfaceRanges(part, metadata, occurrence.words);
+  return interfaceRanges === undefined ? undefined : { kind: "skin", interfaceRanges };
 }
 
-function hasBoundaryFaceSubset(
+function hasSelectedNonTriangle(words: Uint32Array, ordinals: Uint32Array): boolean {
+  for (const ordinal of ordinals) {
+    if (isSelectionBitSet(words, ordinal)) return true;
+  }
+  return false;
+}
+
+function denseInterfaceRanges(
   part: Part,
-  metadata: ReturnType<typeof getPartSemanticIndex>,
-): boolean {
+  metadata: PartSemanticIndex,
+  words: Uint32Array,
+): readonly SelectionDrawRange[] | undefined {
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  const subset = triangles?.primitive === "triangles" ? triangles.faceSubset : undefined;
-  return (
-    subset !== undefined &&
-    subset.faceIds.every(({ elementId, faceIndex }) => {
-      const face = metadata.faces.get(faceIdentity(elementId, faceIndex))?.face;
-      return face !== undefined && face.neighborElementId === undefined;
-    })
-  );
+  if (triangles?.primitive !== "triangles" || triangles.faces === undefined) return undefined;
+  const offsets = metadata.neighborTriangleFaceOffsets;
+  const faceIds = metadata.neighborTriangleFaceIds;
+  const intervals: number[] = [];
+  let rangeCount = 0;
+  for (let wordIndex = 0; wordIndex < words.length; wordIndex += 1) {
+    const firstOrdinal = wordIndex * 32 + 1;
+    const validBits = Math.min(32, metadata.elements.size - wordIndex * 32);
+    if (validBits <= 0) break;
+    const mask = validBits === 32 ? 0xffffffff : (1 << validBits) - 1;
+    let unselected = (~(words[wordIndex] ?? 0) & mask) >>> 0;
+    while (unselected !== 0) {
+      const bit = 31 - Math.clz32(unselected & -unselected);
+      const ordinal = firstOrdinal + bit;
+      const start = offsets[ordinal - 1] ?? 0;
+      const end = offsets[ordinal] ?? start;
+      for (let index = start; index < end; index += 1) {
+        const faceId = faceIds[index];
+        const face = faceId === undefined ? undefined : triangles.faces[faceId];
+        if (face === undefined) return undefined;
+        const ownerOrdinal = metadata.elementOrdinalById.get(face.elementId);
+        if (ownerOrdinal === undefined) return undefined;
+        if (!isSelectionBitSet(words, ownerOrdinal)) continue;
+        const nextRangeCount = addPrimitiveRangeToIntervals(
+          intervals,
+          rangeCount,
+          face.primitiveStart,
+          face.primitiveCount,
+        );
+        if (nextRangeCount === undefined) return undefined;
+        rangeCount = nextRangeCount;
+      }
+      unselected = (unselected & (unselected - 1)) >>> 0;
+    }
+  }
+  return materializeTriangleRanges(intervals);
 }
 
 function addPrimitiveRange(
@@ -209,9 +251,27 @@ function addPrimitiveRange(
   primitiveCount: number,
 ): number | undefined {
   const indicesPerPrimitive = primitive === "triangles" ? 3 : 6;
+  const ranges = byPrimitive.get(primitive) ?? [];
+  const nextRangeCount = addPrimitiveRangeToIntervals(
+    ranges,
+    rangeCount,
+    primitiveStart,
+    primitiveCount,
+    indicesPerPrimitive,
+  );
+  if (nextRangeCount !== undefined) byPrimitive.set(primitive, ranges);
+  return nextRangeCount;
+}
+
+function addPrimitiveRangeToIntervals(
+  ranges: number[],
+  rangeCount: number,
+  primitiveStart: number,
+  primitiveCount: number,
+  indicesPerPrimitive = 3,
+): number | undefined {
   const firstIndex = primitiveStart * indicesPerPrimitive;
   const endIndex = (primitiveStart + primitiveCount) * indicesPerPrimitive;
-  const ranges = byPrimitive.get(primitive) ?? [];
   let insertion = 0;
   while (insertion < ranges.length && (ranges[insertion + 1] ?? Infinity) < firstIndex) {
     insertion += 2;
@@ -234,8 +294,22 @@ function addPrimitiveRange(
   if (shift < 0) ranges.length += shift;
   ranges[insertion] = mergedStart;
   ranges[insertion + 1] = mergedEnd;
-  byPrimitive.set(primitive, ranges);
   return nextRangeCount;
+}
+
+function materializeTriangleRanges(intervals: readonly number[]): readonly SelectionDrawRange[] {
+  const ranges: SelectionDrawRange[] = [];
+  for (let index = 0; index < intervals.length; index += 2) {
+    const firstIndex = intervals[index] ?? 0;
+    const endIndex = intervals[index + 1] ?? firstIndex;
+    ranges.push({ primitive: "triangles", firstIndex, indexCount: endIndex - firstIndex });
+  }
+  return ranges;
+}
+
+function isSelectionBitSet(words: Uint32Array, ordinal: number): boolean {
+  const bit = ordinal - 1;
+  return bit >= 0 && bit < words.length * 32 && ((words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
 }
 
 function materializeRanges(byPrimitive: Map<Primitive, number[]>): readonly SelectionDrawRange[] {

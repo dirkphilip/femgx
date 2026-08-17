@@ -14,6 +14,10 @@ import {
   type InstanceLayout,
 } from "./runtime-state";
 import { buildSelectionDrawCalls } from "./selection/draw-ranges";
+import {
+  collectDenseElementSelections,
+  type DenseElementSelections,
+} from "./selection/element-selection";
 import type { GpuBundle } from "./recovery";
 
 /** Mutable selection-only mirrors owned by the renderer attachment. */
@@ -33,6 +37,7 @@ export function syncSelectionState(options: {
   readonly selectionParts: ReadonlySet<PartId>;
   readonly nodeParts: ReadonlySet<PartId>;
   readonly changedInstanceIds: readonly number[] | undefined;
+  readonly denseSelections: DenseElementSelections;
 }): boolean {
   const interactionData = readInteractionState(options.interaction);
   if (options.changedInstanceIds === undefined) {
@@ -64,6 +69,7 @@ export function syncSelectionState(options: {
       draw: options.bundle.draw,
       parts: options.selectionParts,
       partDefinitions: options.parts,
+      denseSelections: options.denseSelections,
     });
   const nodeChanged = options.nodeParts.size > 0 && writeNodeOrders(options, options.nodeParts);
   return nodeChanged || selectionChanged;
@@ -130,6 +136,7 @@ function syncSelectedInstanceOrders(options: {
   readonly draw: DrawResources;
   readonly parts: ReadonlySet<PartId>;
   readonly partDefinitions: ReadonlyMap<PartId, Part>;
+  readonly denseSelections: DenseElementSelections;
 }): boolean {
   const { runtime, layout, interaction, draw, parts, partDefinitions } = options;
   for (const partId of parts) {
@@ -140,7 +147,15 @@ function syncSelectedInstanceOrders(options: {
     const rangedCalls =
       part === undefined
         ? undefined
-        : buildSelectionDrawCalls({ layout, runtime, partId, interaction, part, order });
+        : buildSelectionDrawCalls({
+            layout,
+            runtime,
+            partId,
+            interaction,
+            part,
+            order,
+            denseSelections: options.denseSelections,
+          });
     if (rangedCalls === undefined) {
       layout.partSelectionDrawCalls.delete(partId);
     } else {
@@ -161,6 +176,12 @@ export function syncVisibleSelectionOrders(
     readonly partDefinitions: ReadonlyMap<PartId, Part>;
   },
 ): void {
+  const denseSelections = collectDenseElementSelections(
+    runtime,
+    layout,
+    options.partDefinitions,
+    interaction,
+  );
   syncSelectedInstanceOrders({
     runtime,
     layout,
@@ -168,5 +189,6 @@ export function syncVisibleSelectionOrders(
     draw: bundle.draw,
     parts: options.parts,
     partDefinitions: options.partDefinitions,
+    denseSelections,
   });
 }

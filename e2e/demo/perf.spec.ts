@@ -231,8 +231,9 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
             faceDescriptors: expect.any(Number),
             edgeDescriptors: expect.any(Number),
             semanticIndex: expect.objectContaining({
-              materialized: true,
               nodeTriangleFaceIdsBytes: expect.any(Number),
+              neighborTriangleFaceOffsetsBytes: expect.any(Number),
+              neighborTriangleFaceIdsBytes: expect.any(Number),
             }),
           }),
         });
@@ -242,6 +243,12 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.faceCount).toBe(526_848);
         expect(entry.uniqueTriangles).toBe(526_848);
         expect(entry.submittedTriangles).toBe(9_408);
+        expect(
+          (entry.denseBuild?.semanticAllocationCounts.semanticIndex
+            .neighborTriangleFaceOffsetsBytes ?? 0) +
+            (entry.denseBuild?.semanticAllocationCounts.semanticIndex
+              .neighborTriangleFaceIdsBytes ?? 0),
+        ).toBe(2_596_612);
         expect(entry.interactive).toBeDefined();
         const broad = entry.selection?.phases.find((phase) => phase.id === "broad");
         expect(broad?.returnedTargetCount).toBe(4_704);

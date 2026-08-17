@@ -67,6 +67,8 @@ describe("dense Tet4 benchmark transfer", () => {
         edgeEntries: 98,
         nodeTriangleFaceOffsetsBytes: 112,
         nodeTriangleFaceIdsBytes: 2_304,
+        neighborTriangleFaceOffsetsBytes: 196,
+        neighborTriangleFaceIdsBytes: 576,
       },
     });
   });

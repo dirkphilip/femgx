@@ -28,7 +28,11 @@ import { setNodeSelected } from "../../../../src/interaction/nodes";
 
 import { setTargetsSelected } from "../../../../src/interaction/targets";
 
-import { buildSelectionDrawCalls } from "../../../../src/renderer/selection/draw-ranges";
+import { buildSelectionDrawCalls as buildSelectionDrawCallsInternal } from "../../../../src/renderer/selection/draw-ranges";
+import {
+  collectDenseElementSelections,
+  type DenseElementSelections,
+} from "../../../../src/renderer/selection/element-selection";
 
 /** Shared renderer test helper. */
 export function part(id: number): Part {
@@ -216,5 +220,24 @@ export {
   setFaceSelected,
   setNodeSelected,
   setTargetsSelected,
-  buildSelectionDrawCalls,
 };
+
+type SelectionDrawCallOptions = Omit<
+  Parameters<typeof buildSelectionDrawCallsInternal>[0],
+  "denseSelections"
+> & { readonly denseSelections?: DenseElementSelections };
+
+/** Builds test selection calls while supplying the production dense payload. */
+export function buildSelectionDrawCallsForTest(
+  options: SelectionDrawCallOptions,
+): ReturnType<typeof buildSelectionDrawCallsInternal> {
+  const denseSelections =
+    options.denseSelections ??
+    collectDenseElementSelections(
+      options.runtime,
+      options.layout,
+      new Map([[options.partId, options.part]]),
+      options.interaction,
+    );
+  return buildSelectionDrawCallsInternal({ ...options, denseSelections });
+}

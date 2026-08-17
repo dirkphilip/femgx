@@ -82,7 +82,9 @@ function benchmarkLines(context: WorkbenchSceneContext): string[] {
       );
       const csrBytes =
         semantic.semanticIndex.nodeTriangleFaceOffsetsBytes +
-        semantic.semanticIndex.nodeTriangleFaceIdsBytes;
+        semantic.semanticIndex.nodeTriangleFaceIdsBytes +
+        semantic.semanticIndex.neighborTriangleFaceOffsetsBytes +
+        semantic.semanticIndex.neighborTriangleFaceIdsBytes;
       lines.push(`Benchmark semantic index capacity CSR ${formatBytes(csrBytes)}`);
     }
   }

@@ -33,6 +33,8 @@ export interface DenseSemanticAllocationCounts {
     readonly edgeEntries: number;
     readonly nodeTriangleFaceOffsetsBytes: number;
     readonly nodeTriangleFaceIdsBytes: number;
+    readonly neighborTriangleFaceOffsetsBytes: number;
+    readonly neighborTriangleFaceIdsBytes: number;
   };
 }
 

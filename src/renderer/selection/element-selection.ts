@@ -16,6 +16,7 @@ export interface DenseElementLayout {
 /** One part-local occurrence's dense selected-element membership. */
 export interface DenseElementOccurrence {
   readonly slot: number;
+  readonly selectedCount: number;
   /** One bit per private element ordinal (`ordinal - 1`). */
   readonly words: Uint32Array;
 }
@@ -83,10 +84,30 @@ export function denseSelectionContains(
   slot: number,
   ordinal: number,
 ): boolean {
-  const occurrence = selection?.occurrences.find((candidate) => candidate.slot === slot);
+  const occurrence = denseOccurrenceAtSlot(selection, slot);
   if (occurrence === undefined) return false;
   const bit = ordinal - 1;
   return bit >= 0 && ((occurrence.words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
+}
+
+/** Finds one sorted dense occurrence without scanning preceding placements. */
+export function denseOccurrenceAtSlot(
+  selection: DenseElementSelection | undefined,
+  slot: number,
+): DenseElementOccurrence | undefined {
+  const occurrences = selection?.occurrences;
+  if (occurrences === undefined) return undefined;
+  let lower = 0;
+  let upper = occurrences.length - 1;
+  while (lower <= upper) {
+    const middle = lower + Math.floor((upper - lower) / 2);
+    const candidate = occurrences[middle];
+    if (candidate === undefined) return undefined;
+    if (candidate.slot === slot) return candidate;
+    if (candidate.slot < slot) lower = middle + 1;
+    else upper = middle - 1;
+  }
+  return undefined;
 }
 
 /** Omits selected-only refs already represented by dense occurrence membership. */
@@ -125,7 +146,7 @@ function instanceUsesDenseSelection(
   const partId = runtime.instancePartIds[globalSlot];
   const localSlot = layout.slotPartLocal[globalSlot];
   if (partId === undefined || localSlot === undefined || localSlot < 0) return false;
-  return selections.get(partId)?.occurrences.some(({ slot }) => slot === localSlot) === true;
+  return denseOccurrenceAtSlot(selections.get(partId), localSlot) !== undefined;
 }
 
 function appendElementRefs(
@@ -188,5 +209,5 @@ function addInstanceSelections(context: DenseSelectionContext): void {
     builder = { elementCount: metadata.elementOrdinalById.size, occurrences: [] };
     byPart.set(partId, builder);
   }
-  builder.occurrences.push({ slot: localSlot, words });
+  builder.occurrences.push({ slot: localSlot, selectedCount, words });
 }

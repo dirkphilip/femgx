@@ -9,7 +9,7 @@ import type { EmphasisUpdates } from "./resources/element-resources";
 import { collectEmphasisUpdates } from "./resources/element-resources";
 import { syncElementHighlights } from "./selection/highlight-storage";
 import { syncInstanceEmphasisAdmission } from "./selection/instance-emphasis";
-import { collectDenseElementSelections } from "./selection/element-selection";
+import type { DenseElementSelections } from "./selection/element-selection";
 import { defaultStyle } from "./resources/foundation";
 import type { GpuBundle } from "./recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
@@ -41,6 +41,7 @@ export interface InteractionEmphasisSyncOptions {
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
+  readonly denseSelections: DenseElementSelections;
 }
 
 export interface InteractionElementSyncOptions {
@@ -194,12 +195,6 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
 export function syncInteractionEmphasis(
   options: InteractionEmphasisSyncOptions,
 ): ReadonlySet<PartId> {
-  const denseSelections = collectDenseElementSelections(
-    options.runtime,
-    options.layout,
-    options.parts,
-    options.interaction,
-  );
   const emphasisUpdates = collectEmphasisUpdates(
     options.runtime,
     options.layout,
@@ -207,7 +202,7 @@ export function syncInteractionEmphasis(
     {
       parts: options.parts,
       interaction: options.interaction,
-      denseSelections,
+      denseSelections: options.denseSelections,
       edgeKeysByPart: renderedEdgeKeys(options.bundle.draw),
     },
   );
@@ -219,7 +214,7 @@ export function syncInteractionEmphasis(
       layout: options.layout,
       slotByInstanceId: options.slotByInstanceId,
       parts: options.parts,
-      denseSelections,
+      denseSelections: options.denseSelections,
     },
     options.interaction,
     options.affectedParts,
@@ -233,7 +228,7 @@ export function syncInteractionEmphasis(
     },
     emphasisUpdates,
     options.affectedParts,
-    denseSelections,
+    options.denseSelections,
   );
   return refreshTransparencyFlags({
     runtime: options.runtime,

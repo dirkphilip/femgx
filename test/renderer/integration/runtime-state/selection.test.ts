@@ -15,7 +15,7 @@ import {
   setFaceSelected,
   setNodeSelected,
   setTargetsSelected,
-  buildSelectionDrawCalls,
+  buildSelectionDrawCallsForTest,
   part,
   rangedSelectionPart,
   interiorSubsetPart,
@@ -95,7 +95,7 @@ describe("renderer runtime state", () => {
     );
     const order = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedElement);
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -118,7 +118,7 @@ describe("renderer runtime state", () => {
     );
     const faceOrder = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedFace);
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -142,7 +142,7 @@ describe("renderer runtime state", () => {
       selectedInstance,
     );
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -168,7 +168,7 @@ describe("renderer runtime state", () => {
       allElements,
     );
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -190,7 +190,7 @@ describe("renderer runtime state", () => {
       true,
     );
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -205,7 +205,7 @@ describe("renderer runtime state", () => {
       true,
     );
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: rangedSelectionPart.id,
@@ -251,7 +251,7 @@ describe("renderer runtime state", () => {
     const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
 
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: fragmentedSelectionPart.id,
@@ -286,7 +286,7 @@ describe("renderer runtime state", () => {
     const order = buildSelectionOrder(layout, runtime, interiorSubsetPart.id, interaction);
 
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: interiorSubsetPart.id,
@@ -321,7 +321,7 @@ describe("renderer runtime state", () => {
     const order = buildSelectionOrder(layout, runtime, denseSelectionPart.id, interaction);
 
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: denseSelectionPart.id,

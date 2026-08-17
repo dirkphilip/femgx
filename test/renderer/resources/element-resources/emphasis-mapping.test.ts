@@ -155,7 +155,7 @@ describe("collectEmphasisUpdates", () => {
         denseSelections,
       });
       expect(denseSelections.get(1)?.occurrences).toEqual([
-        { slot: 0, words: new Uint32Array([1]) },
+        { slot: 0, selectedCount: 1, words: new Uint32Array([1]) },
       ]);
       expect(updates.get(1)).toMatchObject([
         {
