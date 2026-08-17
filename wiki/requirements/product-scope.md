@@ -339,6 +339,8 @@ positions or a general load subsystem. Face traction/pressure and element body
 loads remain deferred because they require distinct topology keys and physical
 presentation semantics; constraints, reactions, derived loads, labels, editing,
 custom glyphs, and occurrence overrides remain out of scope.
+The public root-bundle raw budget is 430 kB after this role; its existing
+110 kB gzip ceiling remains unchanged.
 
 ## GPU region target discovery
 
