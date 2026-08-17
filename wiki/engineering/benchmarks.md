@@ -13,6 +13,20 @@ this CPU report does not claim that GPU/readback behavior.
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
+The Performance Lab offers structured Tet4 presets at 24,576, 131,712, and
+257,250 authored elements. Each preset builds dense typed-array topology and
+tessellation in the existing worker, transfers ownership of those buffers, and
+then reconstructs the canonical interactive `Part` on the main thread. The
+structured builder uses authored node ids directly as vertex indices, shares
+the node-position buffer with geometry, and uses packed numeric face identities
+instead of allocating string keys. Grid sizes are bounded to 35 cells per axis.
+The
+presets retain authored element, face, edge, and body identities while drawing
+only the exterior face subset. Their build telemetry separates generation,
+topology, tessellation, transfer preparation, transfer, and main-thread
+reconstruction so fast mesh generation is not confused with renderer attach or
+frame performance.
+
 The Performance Lab keeps its visible benchmark catalog lazy and may retain at
 most one authoritative CPU model. Retention is bounded by a demo-private 256
 MiB hard cap based on deterministic typed-array and 208-byte planar or
@@ -200,6 +214,16 @@ highlight case measures renderer CPU table encoding/diff plus fake queue writes;
 it does not measure real GPU submission, upload completion, draw, or
 first/steady-frame behavior. Those claims remain in the opt-in WebGPU report. The targets and
 changelog format are defined in
+[[engineering/performance-baselines|Performance baselines]].
+
+The opt-in `npm run bench:selection-sync` lane records the 131,712-element Tet4
+selection seam with stable CPU boundaries: fresh interaction identity through
+`collectDenseElementSelections` and packed highlight payload writing, separate
+draw-range construction, and one unchanged identity-cache repeat. It records
+the authored 526,848-face descriptor count, exterior 9,408-face subset, dense
+4,116-word/16,468-byte payload, and exact dense-skin descriptor reads; it does
+not claim fake queue writes, GPU completion, or frame smoothness. Method,
+targets, current numbers, and the before/after changelog live in
 [[engineering/performance-baselines|Performance baselines]].
 
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
@@ -512,7 +536,10 @@ ordinary model catalog and a discoverable **Performance Lab** switch. The switch
 reveals the deterministic capacity cases from `demo/benchmark/model.ts` and the
 shared `demo/fixtures/planar-grid.ts` generator as lazy entries; ordinary startup
 creates no benchmark geometry or capacity work, and a case builds only after it
-is selected. The benchmark owns reproducible cost breakdowns, while diagnostics
+is selected. The workbench can mesh a cubic Tet4 solid on demand
+(`?tet4=<cells>` or the Cells control) through the same dense worker and
+canonical reconstruction used by the fixed Tet4 cases. Dynamic sizes remain
+outside the fixed `npm run bench:webgpu` matrix. The benchmark owns reproducible cost breakdowns, while diagnostics
 may still consume the retained `Performance · 2.10M triangles` fixture directly.
 The catalogs and benchmark are subject to [[requirements/demo-fixtures|the same
 fixture contract]]; issue #526 remains the work tracker until the migration is

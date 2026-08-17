@@ -16,7 +16,8 @@ export interface DenseElementLayout {
 /** One part-local occurrence's dense selected-element membership. */
 export interface DenseElementOccurrence {
   readonly slot: number;
-  readonly ordinals: readonly number[];
+  /** One bit per private element ordinal (`ordinal - 1`). */
+  readonly words: Uint32Array;
 }
 
 /** All dense element membership for one reusable part. */
@@ -39,8 +40,8 @@ const selectionCache = new WeakMap<
 >();
 
 /**
- * Resolves authored selected element ids to private part-local ordinals. The
- * returned lists are deterministic and contain no invalid or duplicate ids.
+ * Resolves authored selected element ids to private part-local bitsets. The
+ * returned occurrences are deterministic and contain no invalid or duplicate ids.
  */
 export function collectDenseElementSelections(
   runtime: PackedSceneRuntime,
@@ -57,25 +58,17 @@ export function collectDenseElementSelections(
   if (cached !== undefined) {
     return cached.selections;
   }
-  const byPart = new Map<PartId, Map<number, Set<number>>>();
+  const byPart = new Map<PartId, DenseSelectionBuilder>();
   for (const [instanceId, elementIds] of data.selectedElementIds) {
     addInstanceSelections({ runtime, layout, parts, byPart, instanceId, elementIds });
   }
   const selections = new Map<PartId, DenseElementSelection>();
-  for (const [partId, bySlot] of byPart) {
-    const part = parts.get(partId);
-    if (part === undefined) continue;
-    const metadata = getPartSemanticIndex(part);
-    const occurrences = [...bySlot.entries()]
-      .sort(([left], [right]) => left - right)
-      .map(([slot, ordinals]) => ({ slot, ordinals: [...ordinals].sort((a, b) => a - b) }))
-      .filter(({ ordinals }) => {
-        const denseBytes = 4 + Math.ceil(metadata.elementOrdinalById.size / 32) * 4;
-        return denseBytes < ordinals.length * ELEMENT_RECORD_STRIDE;
-      });
+  for (const [partId, candidate] of byPart) {
+    candidate.occurrences.sort((left, right) => left.slot - right.slot);
+    const occurrences = candidate.occurrences;
     if (occurrences.length === 0) continue;
     selections.set(partId, {
-      elementCount: metadata.elementOrdinalById.size,
+      elementCount: candidate.elementCount,
       occurrences,
     });
   }
@@ -92,16 +85,8 @@ export function denseSelectionContains(
 ): boolean {
   const occurrence = selection?.occurrences.find((candidate) => candidate.slot === slot);
   if (occurrence === undefined) return false;
-  let low = 0;
-  let high = occurrence.ordinals.length - 1;
-  while (low <= high) {
-    const middle = (low + high) >> 1;
-    const candidate = occurrence.ordinals[middle];
-    if (candidate === ordinal) return true;
-    if (candidate === undefined || candidate > ordinal) high = middle - 1;
-    else low = middle + 1;
-  }
-  return false;
+  const bit = ordinal - 1;
+  return bit >= 0 && ((occurrence.words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
 }
 
 /** Omits selected-only refs already represented by dense occurrence membership. */
@@ -162,9 +147,14 @@ interface DenseSelectionContext {
   readonly runtime: PackedSceneRuntime;
   readonly layout: DenseElementLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
-  readonly byPart: Map<PartId, Map<number, Set<number>>>;
+  readonly byPart: Map<PartId, DenseSelectionBuilder>;
   readonly instanceId: InstanceId;
   readonly elementIds: ReadonlySet<number>;
+}
+
+interface DenseSelectionBuilder {
+  readonly elementCount: number;
+  readonly occurrences: DenseElementOccurrence[];
 }
 
 function addInstanceSelections(context: DenseSelectionContext): void {
@@ -178,19 +168,25 @@ function addInstanceSelections(context: DenseSelectionContext): void {
     return;
   }
   const metadata = getPartSemanticIndex(part);
-  let ordinals = byPart.get(partId)?.get(localSlot);
+  const wordCount = Math.ceil(metadata.elementOrdinalById.size / 32);
+  const denseBytes = 4 + wordCount * Uint32Array.BYTES_PER_ELEMENT;
+  if (elementIds.size * ELEMENT_RECORD_STRIDE <= denseBytes) return;
+  const words = new Uint32Array(wordCount);
+  let selectedCount = 0;
   for (const elementId of elementIds) {
     const ordinal = metadata.elementOrdinalById.get(elementId);
     if (ordinal === undefined) continue;
-    if (ordinals === undefined) {
-      ordinals = new Set();
-      let bySlot = byPart.get(partId);
-      if (bySlot === undefined) {
-        bySlot = new Map();
-        byPart.set(partId, bySlot);
-      }
-      bySlot.set(localSlot, ordinals);
-    }
-    ordinals.add(ordinal);
+    const bit = ordinal - 1;
+    const word = bit >> 5;
+    const mask = 1 << (bit & 31);
+    words[word] = (words[word] ?? 0) | mask;
+    selectedCount += 1;
   }
+  if (denseBytes >= selectedCount * ELEMENT_RECORD_STRIDE) return;
+  let builder = byPart.get(partId);
+  if (builder === undefined) {
+    builder = { elementCount: metadata.elementOrdinalById.size, occurrences: [] };
+    byPart.set(partId, builder);
+  }
+  builder.occurrences.push({ slot: localSlot, words });
 }

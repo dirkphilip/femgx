@@ -6,6 +6,7 @@ import {
   type InteractionGranularity,
 } from "../../src/entries/root";
 import { createModelPresets } from "../fixtures/presets";
+import { parseTet4CellsQuery } from "../benchmark/dense-tet4";
 import { installDemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controllers/controller";
 import { createExampleModel, type WorkbenchModel } from "./models/model";
@@ -48,6 +49,7 @@ export async function startWebGpuDemo(
       presets: models,
       createViewport,
     });
+    meshTet4FromQuery(state.controller);
     state.viewport.render();
   } catch (error) {
     state.viewport?.destroy();
@@ -79,6 +81,13 @@ function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
   return presets.map(createExampleModel);
+}
+
+function meshTet4FromQuery(controller: WorkbenchController): void {
+  const search = (globalThis as { location?: { readonly search?: string } }).location?.search;
+  const cells = parseTet4CellsQuery(search ?? "");
+  if (cells === undefined) return;
+  controller.commands.meshTet4(cells);
 }
 
 function reportRendererFailure(

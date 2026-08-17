@@ -1,6 +1,9 @@
 import { benchmarkCaseSpecs, createBenchmarkCase } from "./model";
 import { measureBenchmarkCase } from "./measurement";
+import { reconstructBenchmarkScene } from "./transfer";
+import { createBenchmarkWorkerLoad } from "./worker-client";
 import type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
+import type { WebGpuBenchmarkCase, WebGpuBenchmarkSpec } from "./model";
 
 export type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
 
@@ -40,15 +43,18 @@ export async function runWebGpuBenchmark(
       let phase = "model build";
       try {
         const modelBuildStart = performance.now();
-        const benchmarkCase = createBenchmarkCase(spec);
+        const built = await buildBenchmarkCase(spec);
         phase = "runtime compile and measurement";
         results.push(
           await measureBenchmarkCase(
             canvas,
             device,
-            benchmarkCase,
+            built.benchmarkCase,
             performance.now() - modelBuildStart,
-            { timestampQueriesRequested: timestampQueriesEnabled },
+            {
+              timestampQueriesRequested: timestampQueriesEnabled,
+              ...(built.denseBuild === undefined ? {} : { denseBuild: built.denseBuild }),
+            },
           ),
         );
       } catch (error) {
@@ -67,7 +73,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {
@@ -90,6 +96,33 @@ export async function runWebGpuBenchmark(
     timedSamples: TIMED_SAMPLES,
     cases: results,
   };
+}
+
+async function buildBenchmarkCase(spec: WebGpuBenchmarkSpec): Promise<{
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+  readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+}> {
+  if (spec.kind !== "structured-fe" || spec.structuredFamily !== "tet4") {
+    return { benchmarkCase: createBenchmarkCase(spec) };
+  }
+  return createBenchmarkWorkerLoad(spec, (result, workerRoundTripMs) => {
+    const reconstructionStart = performance.now();
+    const reconstructed = reconstructBenchmarkScene(result.payload, spec.id);
+    const mainReconstructionMs = performance.now() - reconstructionStart;
+    return {
+      benchmarkCase: { ...spec, scene: reconstructed.scene },
+      denseBuild: {
+        generationMs: result.metrics.generationMs,
+        topologyMs: result.metrics.topologyMs,
+        tessellationMs: result.metrics.tessellationMs,
+        transferPreparationMs: result.metrics.transferPreparationMs,
+        workerRoundTripMs,
+        mainReconstructionMs,
+        transferredBytes: result.metrics.transferredBytes,
+        finalRetainedTypedBytes: reconstructed.finalRetainedTypedBytes,
+      },
+    };
+  }).load();
 }
 
 function benchmarkFailure(caseId: string, phase: string, error: unknown): Error {

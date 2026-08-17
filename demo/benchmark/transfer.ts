@@ -3,7 +3,12 @@ import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
 import { ElementShape } from "../../src/elements/shapes";
 import { canonicalKey } from "../../src/elements/keys";
-import { createTet4Edges, tet4FaceNodeIds, type DenseTet4Payload } from "./tet4-transfer";
+import {
+  createTet4Edges,
+  tet4ElementNodeIds,
+  tet4FaceNodeIdsFromNodes,
+  type DenseTet4Payload,
+} from "./tet4-transfer";
 
 export type BenchmarkTransferPayload = DenseTet4Payload;
 
@@ -26,7 +31,10 @@ export interface BenchmarkWorkerResult {
 }
 
 /** Reconstructs the canonical immutable scene from one transferred FE payload. */
-export function reconstructBenchmarkScene(payload: BenchmarkTransferPayload): {
+export function reconstructBenchmarkScene(
+  payload: BenchmarkTransferPayload,
+  assemblyName = `dense-tet4-${payload.elementCount}`,
+): {
   readonly scene: Scene;
   readonly finalRetainedTypedBytes: number;
 } {
@@ -56,7 +64,7 @@ export function reconstructBenchmarkScene(payload: BenchmarkTransferPayload): {
     .addPart(part)
     .addAssembly({
       id: 1,
-      name: "fe-tet4-solid-132k",
+      name: assemblyName,
       placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
     })
     .withRoot(1)
@@ -64,7 +72,9 @@ export function reconstructBenchmarkScene(payload: BenchmarkTransferPayload): {
   return {
     scene,
     finalRetainedTypedBytes:
-      payload.positions.byteLength +
+      (payload.positions.buffer === payload.nodePositions.buffer
+        ? 0
+        : payload.positions.byteLength) +
       payload.indices.byteLength +
       payload.nodePickIds.byteLength +
       payload.nodePositions.byteLength +
@@ -109,20 +119,34 @@ function createElements(count: number): ElementTessellation[] {
 }
 
 function createFaces(payload: DenseTet4Payload) {
-  return Array.from({ length: payload.elementCount * 4 }, (_, faceNumber) => {
-    const elementId = Math.floor(faceNumber / 4) + 1;
-    const faceIndex = faceNumber % 4;
-    const nodeIds = tet4FaceNodeIds(Math.floor(faceNumber / 4), faceIndex, payload.gridSize);
-    const neighborElementId = payload.faceNeighborIds[faceNumber] ?? 0;
-    return {
-      elementId,
-      faceIndex,
-      primitiveStart: faceNumber,
-      primitiveCount: 1,
-      key: canonicalKey(nodeIds),
-      nodeIds,
-      ...(neighborElementId === 0 ? {} : { neighborElementId }),
-      bodyId: 1,
-    };
-  });
+  const faces = new Array<ReturnType<typeof createFace>>(payload.elementCount * 4);
+  for (let elementIndex = 0; elementIndex < payload.elementCount; elementIndex += 1) {
+    const elementNodes = tet4ElementNodeIds(elementIndex, payload.gridSize);
+    for (let faceIndex = 0; faceIndex < 4; faceIndex += 1) {
+      const faceNumber = elementIndex * 4 + faceIndex;
+      const nodeIds = tet4FaceNodeIdsFromNodes(elementNodes, faceIndex);
+      faces[faceNumber] = createFace(payload, elementIndex, faceIndex, faceNumber, nodeIds);
+    }
+  }
+  return faces;
+}
+
+function createFace(
+  payload: DenseTet4Payload,
+  elementIndex: number,
+  faceIndex: number,
+  faceNumber: number,
+  nodeIds: readonly [number, number, number],
+) {
+  const neighborElementId = payload.faceNeighborIds[faceNumber] ?? 0;
+  return {
+    elementId: elementIndex + 1,
+    faceIndex,
+    primitiveStart: faceNumber,
+    primitiveCount: 1,
+    key: canonicalKey(nodeIds),
+    nodeIds,
+    ...(neighborElementId === 0 ? {} : { neighborElementId }),
+    bodyId: 1,
+  };
 }

@@ -6,7 +6,10 @@ import { boundaryFaceRefs } from "../../src/elements/faces";
 import { elementPart } from "../../src/entries/model";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
-import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
+import {
+  collectDenseElementSelections,
+  denseSelectionContains,
+} from "../../src/renderer/selection/element-selection";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../demo/benchmark/model";
 import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "./measure";
@@ -72,7 +75,11 @@ function runTet4DenseSelection(): void {
     interaction,
   );
   const occurrence = dense.get(tet4PartId)?.occurrences[0];
-  if (occurrence?.ordinals.length !== TET4_ELEMENT_COUNT) {
+  if (
+    occurrence === undefined ||
+    !denseSelectionContains(dense.get(tet4PartId), occurrence.slot, 1) ||
+    !denseSelectionContains(dense.get(tet4PartId), occurrence.slot, TET4_ELEMENT_COUNT)
+  ) {
     throw new Error("Tet4 dense selection lost authored elements");
   }
 }
