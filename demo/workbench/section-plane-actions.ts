@@ -1,4 +1,4 @@
-import type { FemViewport } from "../../src/entries/root";
+import type { Viewport } from "../../src/entries/root";
 import type { WorkbenchModel } from "./models/model";
 import {
   clampSectionOffset,
@@ -12,7 +12,7 @@ import {
 export interface SectionPlaneActionOwner {
   readonly model: WorkbenchModel;
   readonly presentation: { reflectSectionPlane: () => void };
-  readonly activeViewport: () => FemViewport;
+  readonly activeViewport: () => Viewport;
   readonly render: () => void;
   sectionAxis: SectionAxis;
   sectionOffset: number;

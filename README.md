@@ -38,7 +38,7 @@ deferred boundaries.
 - An **Assembly** places parts and nested assemblies without copying geometry.
 - A **Scene** owns the part and assembly registries plus the root hierarchy.
 - A **SceneRuntime** is the derived packed CPU snapshot with stable host identities.
-- **FemViewport** owns the current runtime, camera, WebGPU renderer, interaction,
+- **Viewport** owns the current runtime, camera, WebGPU renderer, interaction,
   results, recovery, resize, and teardown.
 
 Geometry is uploaded once per part and drawn for each placement. Runtime slots,
@@ -74,10 +74,10 @@ For direct 0.x import changes, see the
 ## Canonical workflow
 
 Create or import a reusable part, place it in an assembly, build one scene, and
-give that scene to `FemViewport`:
+give that scene to `Viewport`:
 
 ```ts
-import { createFemViewport, createScene, identity } from "femgx";
+import { createViewport, createScene, identity } from "femgx";
 import { elementPart } from "femgx/model";
 
 const part = elementPart(10, model);
@@ -91,7 +91,7 @@ const scene = createScene()
   .withRoot(1)
   .build();
 
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createViewport({ canvas, scene });
 viewport.setInteraction(interaction);
 viewport.setResults({
   scalar: { field: stress },
@@ -102,7 +102,7 @@ viewport.updateScene(nextScene);
 viewport.destroy();
 ```
 
-`createFemViewport()` is asynchronous because it requests a WebGPU adapter and
+`createViewport()` is asynchronous because it requests a WebGPU adapter and
 device. Use `queryWebGpuSupport()` when a host wants a non-throwing capability
 probe. CPU scene construction, camera math, standalone `createSceneRuntime()`,
 and identity resolution do not require a GPU.

@@ -66,7 +66,7 @@ export interface Assembly {
  *
  * The name is host-facing display metadata. Visibility is tracked by the scene
  * registry and can be changed for the whole definition or one expanded
- * occurrence through {@link FemViewport}.
+ * occurrence through {@link Viewport}.
  * @category Scene and geometry
  */
 export interface NamedAssembly extends Assembly {

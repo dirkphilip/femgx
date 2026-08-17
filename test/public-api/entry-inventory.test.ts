@@ -18,12 +18,12 @@ describe("public package entries", () => {
       "bodyOverride",
       "boxSelectionFrustum",
       "clearSelection",
-      "createFemViewport",
       "createInteractionState",
       "createPart",
       "createResultField",
       "createScalarColorMap",
       "createScene",
+      "createViewport",
       "deformGeometry",
       "deformPositions",
       "emphasizedBodyRefs",
@@ -140,7 +140,7 @@ describe("public package entries", () => {
   });
 
   it("exposes one runtime and one type-level entry for each documented domain", () => {
-    expect(root.createFemViewport).toBeTypeOf("function");
+    expect(root.createViewport).toBeTypeOf("function");
     expect(model.createElementModel).toBeTypeOf("function");
     expect(io.createModelBuilder).toBeTypeOf("function");
     expect(io.validateModel).toBeTypeOf("function");

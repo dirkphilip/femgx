@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../src/entries/root";
+import type { Viewport, InteractionState } from "../../src/entries/root";
 import type { GlbSceneImport } from "../../src/entries/io/glb";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";
@@ -36,13 +36,13 @@ export interface WorkbenchOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly viewport: FemViewport;
+  readonly viewport: Viewport;
   readonly presets: readonly WorkbenchModel[];
   readonly createViewport: (
     slotId: ViewportSlotId,
     pane: WorkbenchPane,
     model: WorkbenchModel,
-  ) => Promise<FemViewport>;
+  ) => Promise<Viewport>;
   readonly importGlb?: (
     source: ArrayBuffer | Uint8Array,
     options?: { readonly strict?: boolean },

@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../../src/entries/root";
+import type { Viewport, InteractionState } from "../../../src/entries/root";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./view";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { TouchInteractionMode, WorkbenchOptions } from "../types";
@@ -15,14 +15,14 @@ export interface WorkbenchViewportSlot {
   readonly interaction: WorkbenchInteraction;
   readonly boxPreview: WorkbenchBoxPreview;
   readonly renderLoop: WorkbenchRenderLoop;
-  viewport: FemViewport;
+  viewport: Viewport;
   dragging: boolean;
   removePaneBindings?: () => void;
 }
 
 interface WorkbenchViewportSlotsOptions {
   readonly view: DemoView;
-  readonly primaryViewport: FemViewport;
+  readonly primaryViewport: Viewport;
   readonly primaryInteraction: WorkbenchInteraction;
   readonly primaryBoxPreview: WorkbenchBoxPreview;
   readonly createViewport: WorkbenchOptions["createViewport"];
@@ -74,11 +74,11 @@ export class WorkbenchViewportSlots {
     return slot;
   }
 
-  activeViewport(): FemViewport {
+  activeViewport(): Viewport {
     return this.activeSlot().viewport;
   }
 
-  viewports(): readonly FemViewport[] {
+  viewports(): readonly Viewport[] {
     return [...this.slots.values()].map((slot) => slot.viewport);
   }
 
@@ -98,7 +98,7 @@ export class WorkbenchViewportSlots {
     return this.secondaryOpening;
   }
 
-  setPrimaryViewport(viewport: FemViewport): void {
+  setPrimaryViewport(viewport: Viewport): void {
     const primary = this.slots.get("primary");
     if (primary === undefined) throw new Error("Workbench has no primary viewport");
     primary.viewport = viewport;
@@ -261,7 +261,7 @@ export class WorkbenchViewportSlots {
     };
   }
 
-  private isStaleSecondary(generation: number, viewport: FemViewport): boolean {
+  private isStaleSecondary(generation: number, viewport: Viewport): boolean {
     if (generation === this.secondaryGeneration) return false;
     viewport.destroy();
     return true;

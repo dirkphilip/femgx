@@ -1,5 +1,5 @@
 import {
-  type FemViewport,
+  type Viewport,
   type InteractionState,
   type ViewportResultsState,
 } from "../../../src/entries/root";
@@ -30,7 +30,7 @@ export interface WorkbenchPresentationOptions {
   readonly getVectorFieldId: () => string;
   readonly getVectorGlyph: () => VectorGlyph;
   readonly getVectorTransform: () => VectorTransform;
-  readonly getViewport: () => FemViewport;
+  readonly getViewport: () => Viewport;
   readonly getInteraction: () => InteractionState;
   readonly getInspection: () => { readonly visible: boolean; readonly text: string };
   readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;

@@ -9,7 +9,7 @@ import {
   setTargetHovered,
   type BoxSelectionModifiers,
   type BoxSelectionEvent,
-  type FemViewport,
+  type Viewport,
   type InteractionTarget,
   type PickHit,
 } from "../../src/entries/root";
@@ -292,7 +292,7 @@ describe("workbench click selection", () => {
       setInspection: (text) => {
         inspectionPanel.textContent = text;
       },
-      viewport: () => ({ pick, pickRegion }) as unknown as FemViewport,
+      viewport: () => ({ pick, pickRegion }) as unknown as Viewport,
       getInteraction: () => interaction,
       setInteraction: (next) => {
         interaction = next;

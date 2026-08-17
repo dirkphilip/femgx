@@ -19,7 +19,7 @@ Assembly placements
             ↓
           Scene
             ↓
-   createFemViewport({ canvas, scene })
+   createViewport({ canvas, scene })
             ↓
      runtime + camera + WebGPU renderer
 ```
@@ -36,7 +36,7 @@ public viewport manager, shared runtime, or renderer pool.
 ```ts
 import {
   createPart,
-  createFemViewport,
+  createViewport,
   createInteractionState,
   createScene,
   identity,
@@ -61,7 +61,7 @@ const scene = createScene()
   .withRoot(1)
   .build();
 
-const viewport = await createFemViewport({
+const viewport = await createViewport({
   canvas,
   scene,
   pointSizePixels: 8,
@@ -108,10 +108,10 @@ while renderer-owned edge helpers retain their separate line-list path.
 | Elements    | `femgx/model`: `createElement`, `ElementModel`, `Body`, `createElementModel`, `elementPart`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                                                             | Validated FE connectivity (Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, Hex20), optional direct body ownership, canonical topology, mixed primitive grouping, and face selection inputs. |
 | Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                                                                                                                                 | Reusable hierarchical placement definitions and local transforms.                                                                                                                                                                 |
 | Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                                                                                   | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                                                            |
-| Viewport    | `createFemViewport`, `FemViewport`, `FemViewportOptions`                                                                                                                                                                                 | Runtime compilation, camera, WebGPU renderer, screen-space point/node sizes, controls, resize, interaction sync, results, recovery, and teardown.                                                                                 |
+| Viewport    | `createViewport`, `Viewport`, `ViewportOptions`                                                                                                                                                                                          | Runtime compilation, camera, WebGPU renderer, screen-space point/node sizes, controls, resize, interaction sync, results, recovery, and teardown.                                                                                 |
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `setPartOverride`, `setInstanceOverride` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit part/instance style overrides remain separate target-scoped layers; instance style is more specific than part style.                  |
 | Camera      | `femgx/camera`: `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                                   | Immutable camera values and projection/navigation math.                                                                                                                                                                           |
-| Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                                      | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
+| Picking     | `Viewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                                         | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                                             | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                                                               |
 | IO          | `femgx/io`: `createModelBuilder`, `validateModel`, `createElementModelFromFemModel`, `createResultFieldFromModelResult`                                                                                                                  | Host-supplied serializable model staging, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                                |
 | Platform    | `femgx/platform`: `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                                  | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                                                             |
@@ -138,7 +138,7 @@ while renderer-owned edge helpers retain their separate line-list path.
   orders, GPU buffers, and batch records are derived representations. Public
   runtime transforms and collections are defensive snapshots; visible handles
   are named `getVisibleInstanceIds()` and use deterministic runtime order.
-- `FemViewport` is the public owner of the current live `SceneRuntime` facade
+- `Viewport` is the public owner of the current live `SceneRuntime` facade
   and the internal WebGPU renderer; hosts should reacquire `viewport.runtime`
   after `setScene` or `updateScene` and never manually synchronize packed
   runtime state.
@@ -150,7 +150,7 @@ consumed by element tessellation. Hosts then call
 its homogeneous primitive groups remain internal draw partitions, not
 additional authoring identities. A selected `ModelResultField` enters the authored
 results path through `createResultFieldFromModelResult` before
-`FemViewport.setResults()`.
+`Viewport.setResults()`.
 
 ## Viewport surface
 
@@ -265,7 +265,7 @@ These exports are supported utilities around the canonical viewport path:
   shells.
 - `interactionTargetFromHit` for pure host-side selection policy.
 
-The low-level WebGPU renderer is internal to `FemViewport` and is not exported
+The low-level WebGPU renderer is internal to `Viewport` and is not exported
 from the package root. A custom renderer lifecycle requires a separate product
 decision and stable public ownership contract.
 
@@ -279,7 +279,7 @@ Before adding a public symbol, confirm:
 
 1. It has one clear owning subsystem and data owner.
 2. Its identity is stable through scene compilation, instancing, and picking.
-3. It fits the `Part → Assembly → Scene → FemViewport` flow.
+3. It fits the `Part → Assembly → Scene → Viewport` flow.
 4. It has the smallest behavior that delivers concrete user value.
 5. Existing abstractions can be extended or simplified before a new one is
    introduced.

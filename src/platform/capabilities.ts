@@ -96,7 +96,7 @@ function gpu(): GPU | undefined {
  *
  * This is an advanced platform-owned primitive. Most applications should use
  * {@link queryWebGpuSupport} to probe without throwing, or let
- * {@link root.createFemViewport} own adapter and device creation. A `null` adapter
+ * {@link root.createViewport} own adapter and device creation. A `null` adapter
  * means the browser exposed WebGPU but could not provide an adapter.
  * @category Advanced runtime and WebGPU platform
  */

@@ -1,6 +1,6 @@
 import {
   type InteractionState,
-  type FemViewport,
+  type Viewport,
   type ViewportBackground,
 } from "../../../src/entries/root";
 import { importGlb } from "../../../src/entries/io/glb";
@@ -133,7 +133,7 @@ export class WorkbenchController {
   readonly rendererName: string;
   model: WorkbenchModel;
   rendererState = "";
-  viewport: FemViewport;
+  viewport: Viewport;
   viewportSlots!: WorkbenchViewportSlots;
   readonly modelSession: WorkbenchModelSession;
   readonly examples: readonly WorkbenchModel[];
@@ -473,9 +473,9 @@ export class WorkbenchController {
 
   activeSlot = (): WorkbenchViewportSlot => this.viewportSlots.activeSlot();
 
-  activeViewport: () => FemViewport = activeViewportForOwner.bind(null, this);
+  activeViewport: () => Viewport = activeViewportForOwner.bind(null, this);
 
-  viewports = (): readonly FemViewport[] => this.viewportSlots.viewports();
+  viewports = (): readonly Viewport[] => this.viewportSlots.viewports();
 
   setActiveSlot: (slotId: ViewportSlotId) => void = setActiveSlotForOwner.bind(null, this);
 

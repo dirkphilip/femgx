@@ -43,7 +43,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Authored semantic element blocks                                                                                                                                                        | elements/interaction | same       | **Remove**   | Blocks duplicate body/element grouping without providing independently replaceable geometry. Remove block authoring, editing, identity, picking, interaction, visibility, topology ownership, and GPU records. Transfer or upload chunks remain private implementation details rather than semantic targets.                                                                                                           |
 | FE node annotations                                                                                                                                                                     | renderer + demo      | same       | **Core now** | Depth testing hides occluded node samples; translucent front circles default to 6 CSS px and are configurable independently from the 8 CSS-px point glyphs in the inclusive `[1,64]` range (DPR-scaled), preserving surfaces without overlap accumulation or zoom-dependent depth offsets.                                                                                                                             |
 | Optional edge / face display overlays                                                                                                                                                   | renderer + demo      | same       | **Deferred** | Display polish beyond the renderer-owned edge overlay and core node annotations is not the minimum product.                                                                                                                                                                                                                                                                                                            |
-| GPU picking (element + node strict; face Core) with host-mappable ids                                                                                                                   | viewport + picking   | same       | **Core now** | `FemViewport.pick` returns a complete `PickHit`; hosts map it with `interactionTargetFromHit`. Node ids are strict; element ownership is present when the hit has an authored element and omitted for truthful node-only point geometry. Face is Core. Multi-hit `pickMany` is future (below), not Core-now.                                                                                                           |
+| GPU picking (element + node strict; face Core) with host-mappable ids                                                                                                                   | viewport + picking   | same       | **Core now** | `Viewport.pick` returns a complete `PickHit`; hosts map it with `interactionTargetFromHit`. Node ids are strict; element ownership is present when the hit has an authored element and omitted for truthful node-only point geometry. Face is Core. Multi-hit `pickMany` is future (below), not Core-now.                                                                                                              |
 | Stable authored FE-edge interaction                                                                                                                                                     | interaction + GPU    | same       | **Core now** | Occurrence-scoped authored edges support exact picking, hover, selection, highlight, and nearest-visible region selection. Edge-only GPU resources are lazy and absent outside edge granularity; ordinary picking retains its four attachments and inactive cost.                                                                                                                                                      |
 | CPU raycast picking (`createPickScene` / `pick()`)                                                                                                                                      | —                    | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                                                                                                                                                                                                                                  |
 | Adjacency inspection overlays / pick-list UI polish                                                                                                                                     | demo                 | e2e        | **Deferred** | Host-mappable neighbor ids on `PickHit` stay; rich adjacency workbench polish is optional.                                                                                                                                                                                                                                                                                                                             |
@@ -51,7 +51,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Authored elemental orientation glyphs                                                                                                                                                   | renderer + results   | viewport   | **Core now** | A bounded authored `VectorField<"elemental">` role with renderer-owned `arrow`/`axis` glyphs, `direction`/`normal` transforms, and positive element-relative scale. It adds no derived mechanics, glyph picking, or public renderer data.                                                                                                                                                                              |
 | Derived engineering quantities, other vector/tensor glyphs, magnitude plots, temporal field interpolation, femgx-owned cases/timelines/playback controls, and a public legend subsystem | —                    | —          | **Deferred** | The minimum product displays exact authored snapshots. It does not create intermediate result states, derive values, retain a sequence, schedule frames, or add generalized result-management or glyph systems.                                                                                                                                                                                                        |
 | IO: solver FE file readers/writers                                                                                                                                                      | —                    | —          | **Remove**   | The minimum product uses host-supplied in-memory FE models; femgx does not own solver-file parser or writer maintenance.                                                                                                                                                                                                                                                                                               |
-| IO: GLB 2.0 display-scene import                                                                                                                                                        | new                  | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`FemViewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                                                                                                      |
+| IO: GLB 2.0 display-scene import                                                                                                                                                        | new                  | new        | **Core now** | Explicit narrow CAD-display addition from #422: bytes-only import into existing `Part`/`Scene`/`Viewport` concepts, with hierarchy, reusable tessellated triangles, names, basic color/alpha, and verified Onshape compression coverage. It does not add FE semantics or a second scene graph.                                                                                                                         |
 | Host-supplied surface-derived mixed-part authoring                                                                                                                                      | geometry             | geometry   | **Core now** | The host supplies display-relevant facets, authored lines, and authored points for one reusable part without omitted solid connectivity. This compiles to existing primitive groups and is not library-owned progressive streaming; see [surface-derived part authoring].                                                                                                                                              |
 | Exterior-only GPU residency with complete client-side FE topology                                                                                                                       | geometry + renderer  | same       | **Deferred** | The client retains complete topology while WebGPU retains only the current display skin. This is distinct from a face-subset draw order: local visibility changes would have to rebuild or upload the newly exposed skin without submitting or retaining every interior face on the GPU. No public residency mode is required until that lifecycle preserves instancing, interaction, deformation, and bounded memory. |
 | IO: additional solver-file adapters, cancellation/progress                                                                                                                              | —                    | —          | **Remove**   | No solver-file adapter or library-owned ingestion workflow is retained.                                                                                                                                                                                                                                                                                                                                                |
@@ -60,7 +60,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Deformation (per-vertex displacement)                                                                                                                                                   | renderer + results   | renderer   | **Core now** | Part of results visualization.                                                                                                                                                                                                                                                                                                                                                                                         |
 | Package smoke tests, e2e coverage, benchmarks and budgets                                                                                                                               | scripts              | test/bench | **Core now** | Engineering gate stays; the e2e contract becomes WebGPU-only.                                                                                                                                                                                                                                                                                                                                                          |
 | Compatibility reporting (capability tiers/matrix)                                                                                                                                       | wiki                 | —          | **Deferred** | Collapses to "modern WebGPU browser or typed unsupported"; no tier ladder.                                                                                                                                                                                                                                                                                                                                             |
-| Screen-space box-selection gesture/event shell + world-space frustum query (primary mouse/pen and explicitly routed touch drag lifecycle + typed events)                                | interaction/camera   | same       | **Core now** | `installBoxSelection` remains a rectangle-only renderer-independent drag lifecycle. Touch is host-enabled only after routing it away from camera navigation. `boxSelectionFrustum(camera, rect)` exposes six named normalized inward planes for host-owned volume queries, while `FemViewport.pickRegion` retains nearest-visible GPU target discovery; both are required and selection policy remains host-owned.     |
+| Screen-space box-selection gesture/event shell + world-space frustum query (primary mouse/pen and explicitly routed touch drag lifecycle + typed events)                                | interaction/camera   | same       | **Core now** | `installBoxSelection` remains a rectangle-only renderer-independent drag lifecycle. Touch is host-enabled only after routing it away from camera navigation. `boxSelectionFrustum(camera, rect)` exposes six named normalized inward planes for host-owned volume queries, while `Viewport.pickRegion` retains nearest-visible GPU target discovery; both are required and selection policy remains host-owned.        |
 | Element through-intersection box selection                                                                                                                                              | demo                 | same       | **Core now** | The canonical workbench offers an element-only Through strategy that returns every display-eligible FE element occurrence whose authored tessellation intersects the box frustum, regardless of raster occlusion. It is a host-side query over existing scene data and adds no GPU pass, buffer, attachment, or readback.                                                                                              |
 | Exact capped FE section cuts                                                                                                                                                            | geometry + renderer  | same       | **Core now** | One active world-space plane keeps the existing positive-half-space clip and adds bounded, occurrence-scoped cap polygons for intersected Tet4/Tet10/Wedge6/Pyramid5/Hex8/Hex20 solids. Caps reuse canonical authored topology, deformation, scalar results, interaction style, depth, and element picking; surfaces, helpers, GLB geometry, multiple planes, and generalized CSG remain out of scope.                 |
 
@@ -167,7 +167,7 @@ the authoritative model boundary.
 
 ## Core camera focus contract
 
-`FemViewport` owns one interruptible camera-transition path for programmatic
+`Viewport` owns one interruptible camera-transition path for programmatic
 camera changes and fit-to-selection. An omitted or zero duration applies the
 destination immediately; a positive finite duration interpolates smoothly and
 lands on the exact protected destination. The default `Z` action frames the
@@ -211,7 +211,7 @@ face, node, and theme styles do not carry line width.
 
 Every viewport renders one renderer-owned positive world-origin X/Y/Z triad by
 default. Hosts may disable it at construction with
-`FemViewportOptions.originTriad: false`. When enabled, its nominal positive-axis
+`ViewportOptions.originTriad: false`. When enabled, its nominal positive-axis
 length is 12% of the complete placed-scene bounds diagonal, resolved once when
 the scene is attached or replaced; it ignores current visibility, deformation,
 camera motion, projection, resize, and device pixel ratio. Each visible frame
@@ -228,7 +228,7 @@ product.
 
 ## Exact capped FE section cuts
 
-`FemViewport.setSectionPlane({ normal, distance })` retains the validated
+`Viewport.setSectionPlane({ normal, distance })` retains the validated
 positive-half-space visibility rule and, while active, renders one deterministic
 planar cap for every intersected display-eligible Tet4, Tet10, Wedge6, Pyramid5,
 Hex8, or Hex20 element occurrence. The internal builder uses authored solid
@@ -258,7 +258,7 @@ and leaves textures, PBR extras, animation, lights, FE identities, and unit
 conversion out of scope.
 
 Authored elemental orientation glyphs are now a bounded **Core now** role. The
-slice uses the existing `VectorField<"elemental">` as authored data, gives `FemViewport` one
+slice uses the existing `VectorField<"elemental">` as authored data, gives `Viewport` one
 orthogonal vector-presentation role alongside scalar coloring and nodal
 deformation, and keeps glyph records, anchors, and renderer policy internal.
 Its durable semantics and explicit non-goals live in
@@ -271,7 +271,7 @@ through #670.
 One `ViewportResultsConfig` is one authored result snapshot. Its scalar,
 deformation, and orientation roles are resolved and installed atomically, so a
 host can show paired stress and displacement states without exposing a mixed
-step. Repeated `FemViewport.setResults()` calls on the same scene/runtime are
+step. Repeated `Viewport.setResults()` calls on the same scene/runtime are
 the sequencing boundary. Same-layout updates reuse renderer storage where
 possible, and recovery retains only the latest installed snapshot.
 
@@ -312,7 +312,7 @@ implementation may delete code; deletion-first is the default stance.
 
 ## GPU region target discovery
 
-`FemViewport.pickRegion(rect, granularity)` returns unique, deterministic
+`Viewport.pickRegion(rect, granularity)` returns unique, deterministic
 interaction targets for nearest visible rasterized samples inside a CSS
 rectangle. It reads only the requested ID attachments from the cached GPU pick
 snapshot, tiles large high-DPI rectangles under a bounded readback budget, and
@@ -325,7 +325,7 @@ pick-list path.
 ## World-space box-selection frustum
 
 `boxSelectionFrustum(camera, rect)` is the complementary consumer contract to
-`FemViewport.pickRegion`. It returns named `left`, `right`, `top`, `bottom`,
+`Viewport.pickRegion`. It returns named `left`, `right`, `top`, `bottom`,
 `near`, and `far` planes with unit inward normals. A point is inside or on the
 selection volume when `dot(plane.normal, point) + plane.distance >= 0` for all
 six planes. Perspective side planes converge at the camera; orthographic side
@@ -345,7 +345,7 @@ and section-plane visibility, and returns stable occurrence-scoped element
 targets through the existing selection mutation path.
 
 Visible-surface selection remains the default and continues to use
-`FemViewport.pickRegion`. Through is element-only, is intersection rather than
+`Viewport.pickRegion`. Through is element-only, is intersection rather than
 full containment, and does not apply to faces, nodes, edges, bodies, parts,
 instances, or GLB display geometry. It is a host-side geometry query and must
 not add a GPU pass, buffer, attachment, readback, CPU rendering fallback,
@@ -363,7 +363,7 @@ choosing an arbitrary owning element. Renderer overlay segments, line elements,
 and tessellation diagonals are not edge identities.
 
 The minimum behavior is exact edge picking, hover, selection, highlight, and
-nearest-visible `FemViewport.pickRegion(rect, "edge")` behavior through the
+nearest-visible `Viewport.pickRegion(rect, "edge")` behavior through the
 existing interaction path. Exact emphasis remains available when the optional
 presentation edge overlay is disabled. Through/contained edge selection, CAD
 curve identity, inferred crease edges, edge editing, per-edge authored styling,
@@ -392,7 +392,7 @@ Removals are implemented by their owning issues, not speculatively here:
   features of the WebGPU contract.
 - Flat `compileScene` snapshot and CPU raycast stack (`createPickScene` /
   `pick()`) → **removed**; the product path is `createSceneRuntime` + GPU
-  `FemViewport.pick`.
+  `Viewport.pick`.
 - Element families beyond the supported Point, Line, Line3, Triangle, Tri6,
   Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 set remain outside the product and require an
   explicit decision before implementation.

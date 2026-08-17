@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../../src/entries/root";
+import type { Viewport, InteractionState } from "../../../src/entries/root";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
@@ -49,8 +49,8 @@ export interface WorkbenchInfrastructureOptions {
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly activeSlot: () => WorkbenchViewportSlot;
-  readonly activeViewport: () => FemViewport;
-  readonly viewports: () => readonly FemViewport[];
+  readonly activeViewport: () => Viewport;
+  readonly viewports: () => readonly Viewport[];
   readonly runtime: () => SceneRuntime;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;

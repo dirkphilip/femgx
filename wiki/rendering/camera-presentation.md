@@ -68,7 +68,7 @@ clamp or a singular-frame fallback. Both spin and pan use the SpaceClaim
 direction convention. One-finger touch resolves the same picked model target.
 Separately, every viewport renders one persistent positive X/Y/Z triad at world
 origin `[0, 0, 0]`, enabled by default and suppressible with
-`FemViewportOptions.originTriad: false`. When enabled, its nominal world length
+`ViewportOptions.originTriad: false`. When enabled, its nominal world length
 is 12% of the complete placed-scene bounds diagonal and is stable until scene
 attachment or replacement; visibility, deformation, camera motion, projection,
 resize, and device-pixel ratio do not change it. Each frame applies a
@@ -80,7 +80,7 @@ ghost accumulated through the normal weighted-transparency targets. This is a
 presentation cue only: it contributes to neither scene bounds nor picking and
 does not replace the lower-left orientation gizmo.
 The viewport also supports one optional world-space section plane through
-`FemViewport.setSectionPlane({ normal, distance })`. Scene fragments keep the
+`Viewport.setSectionPlane({ normal, distance })`. Scene fragments keep the
 positive half-space `dot(normal, worldPosition) + distance >= 0`; the validated
 unit normal and signed distance are applied consistently to opaque, transparent,
 edge, node-overlay, selection, and GPU-pick passes. The plane is presentation
@@ -90,7 +90,7 @@ pivot. `clearSectionPlane()` restores the complete scene, and recovery rewrites
 the retained plane uniform on the rebuilt WebGPU resources.
 Left-drag is reserved for selection, including its
 shift-based inspection modifiers. The renderer owns the opaque viewport
-background: `FemViewportOptions.background` and `FemViewport.setBackground()`
+background: `ViewportOptions.background` and `Viewport.setBackground()`
 select the built-in `studio`, `white`, or `dark` WebGPU presentation without a
 second pass or DOM fallback. Studio is the default restrained cool-neutral
 top-to-bottom gradient with a visibly separated upper and lower field;
@@ -121,12 +121,12 @@ and flat selections receive deterministic scene-scale padding. Its final framing
 targets the selection while its eye position and clip interval continue to
 protect the complete displayed scene.
 
-`FemViewport.setCamera`, `fitView`, and `fitSelection` accept an optional
+`Viewport.setCamera`, `fitView`, and `fitSelection` accept an optional
 `durationMs`. Omitted or zero duration applies immediately; `fitSelection`
 defaults to approximately 400 milliseconds, while a positive finite value is
 interruptible by direct camera manipulation, another camera command, scene
 replacement, resize, or destruction. Hosts opt into the core `Z` shortcut by
-passing `FemViewportOptions.keyboardTarget`; no global listener is installed,
+passing `ViewportOptions.keyboardTarget`; no global listener is installed,
 and repeat, modifiers, and editable targets are ignored. Reduced-motion
 preferences make transitions immediate. A viewport created without an explicit
 camera tracks an auto-fitted presentation: responsive `resize()` refits that
@@ -134,7 +134,7 @@ presentation using the current canvas size and `fitContentInset`, while direct
 camera manipulation opts out until the host calls `fitView()` again. This keeps
 user-authored zoom/orbit state intact during layout changes.
 
-Camera admission through `createCamera` and `FemViewport.setCamera` rejects
+Camera admission through `createCamera` and `Viewport.setCamera` rejects
 non-finite vectors/scalars, degenerate view bases, invalid field of view or
 clip ranges, and incomplete viewport dimensions. Camera transitions reject
 non-finite deltas and pivots; finite zero/negative resize values normalize to

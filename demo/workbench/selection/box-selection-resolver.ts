@@ -1,4 +1,4 @@
-import type { BoxSelectionEvent, FemViewport, InteractionTarget } from "../../../src/entries/root";
+import type { BoxSelectionEvent, Viewport, InteractionTarget } from "../../../src/entries/root";
 import type { SelectionGranularity } from "./pick";
 
 /** Candidate discovery strategy shared by every workbench viewport. */
@@ -26,9 +26,7 @@ export class BoxSelectionResolverContractError extends TypeError {
 }
 
 /** Creates the default nearest-visible resolver around the active viewport. */
-export function visibleSurfaceBoxSelectionResolver(
-  viewport: () => FemViewport,
-): BoxSelectionResolver {
+export function visibleSurfaceBoxSelectionResolver(viewport: () => Viewport): BoxSelectionResolver {
   return ({ event, granularity }) => viewport().pickRegion(event.rect, granularity);
 }
 

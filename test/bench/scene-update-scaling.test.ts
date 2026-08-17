@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createFemViewport,
+  createViewport,
   createPart,
   createScene,
   identity,
   translation,
-  type FemViewport,
+  type Viewport,
   type Scene,
 } from "../../src/entries/root";
 import { RendererAttachment } from "../../src/renderer/attachment";
@@ -21,7 +21,7 @@ const VISIBILITY_FACE_COUNTS = [16_384, 65_536, 262_144] as const;
 const originalNavigator = globalThis.navigator;
 const fixtures = PLACEMENT_COUNTS.map(createReplacementFixture);
 let restoreGpuGlobals: (() => void) | undefined;
-let viewports: FemViewport[] = [];
+let viewports: Viewport[] = [];
 let variantFixtures: VariantFixture[] = [];
 let visibilityFixtures: VisibilityFixture[] = [];
 
@@ -33,7 +33,7 @@ beforeAll(async () => {
   });
   viewports = await Promise.all(
     fixtures.map(({ first }) =>
-      createFemViewport({ canvas: fakeCanvas(), scene: first, device: fakeGpuDevice().device }),
+      createViewport({ canvas: fakeCanvas(), scene: first, device: fakeGpuDevice().device }),
     ),
   );
   variantFixtures = await Promise.all(PLACEMENT_COUNTS.map(createVariantFixture));
@@ -48,7 +48,7 @@ afterAll(() => {
 });
 
 describe("public scene replacement scaling", () => {
-  it("keeps FemViewport.setScene approximately linear", () => {
+  it("keeps Viewport.setScene approximately linear", () => {
     const nextScene = fixtures.map(() => 1);
     const measurements = measureScaling(
       fixtures.map(({ first, second }, index) => ({
@@ -68,14 +68,14 @@ describe("public scene replacement scaling", () => {
     const spread = Math.max(...normalized) / Math.min(...normalized);
     if (process.env["PERF_REPORT"] !== undefined) {
       console.log(
-        `FemViewport.setScene: ${measurements
+        `Viewport.setScene: ${measurements
           .map(({ size, measuredMs }) => `${size}=${measuredMs.toFixed(3)} ms`)
           .join(", ")}`,
       );
     }
     expect(
       spread,
-      `FemViewport.setScene normalized cost spread was ${spread.toFixed(2)}x`,
+      `Viewport.setScene normalized cost spread was ${spread.toFixed(2)}x`,
     ).toBeLessThanOrEqual(3);
   });
 });

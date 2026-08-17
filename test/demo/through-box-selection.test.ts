@@ -3,7 +3,7 @@ import {
   createPart,
   identity,
   setElementVisible,
-  type FemViewport,
+  type Viewport,
   type ElementTessellation,
   type Geometry,
   type InteractionState,
@@ -131,7 +131,7 @@ function viewport(
   runtime: ReturnType<typeof createSceneRuntime>,
   interaction: InteractionState,
   sectionPlane?: { readonly normal: readonly [number, number, number]; readonly distance: number },
-): FemViewport {
+): Viewport {
   return {
     scene,
     runtime,
@@ -155,7 +155,7 @@ function viewport(
       vectors: undefined,
     },
     sectionPlane,
-  } as unknown as FemViewport;
+  } as unknown as Viewport;
 }
 
 function fixture(): {

@@ -17,7 +17,7 @@ applies it after asynchronous GPU picks in `WorkbenchInteraction`.
   target-specific menu. The menu clamps to the viewport and closes after an
   action, Escape, or an outside click.
 
-Visibility changes continue through `FemViewport` and the packed runtime. The
+Visibility changes continue through `Viewport` and the packed runtime. The
 view-level show-all action restores authored assembly, part, and instance
 visibility without changing the current selection or overlay state.
 

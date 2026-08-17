@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
   setElementVisible,
-  type FemViewport,
+  type Viewport,
   type Part,
 } from "../../src/entries/root";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
@@ -28,7 +28,7 @@ describe("workbench select all", () => {
   });
 });
 
-function fakeViewport(interaction: FemViewport["interaction"]): FemViewport {
+function fakeViewport(interaction: Viewport["interaction"]): Viewport {
   const part = mixedPart();
   return {
     interaction,
@@ -37,7 +37,7 @@ function fakeViewport(interaction: FemViewport["interaction"]): FemViewport {
       getVisibleInstanceIds: () => [instanceId],
       getInstance: () => ({ instanceId, partId: part.id }),
     },
-  } as unknown as FemViewport;
+  } as unknown as Viewport;
 }
 
 function mixedPart(): Part {

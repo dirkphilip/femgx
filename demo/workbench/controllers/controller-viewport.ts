@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState, ViewportBackground } from "../../../src/entries/root";
+import type { Viewport, InteractionState, ViewportBackground } from "../../../src/entries/root";
 import { setProjection } from "../../../src/entries/camera";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
@@ -25,7 +25,7 @@ export interface WorkbenchViewportOwner {
   readonly presentation: WorkbenchPresentation;
   readonly visibilityPanel: { rebuild(): void };
   readonly viewportSlots: WorkbenchViewportSlots;
-  readonly activeViewport: () => FemViewport;
+  readonly activeViewport: () => Viewport;
   readonly showState: (slotId: ViewportSlotId) => WorkbenchShowState;
   readonly rendererState: string;
   readonly model: WorkbenchModel;
@@ -41,17 +41,17 @@ export interface WorkbenchViewportOwner {
   readonly observedPaneSizes: Map<ViewportSlotId, ObservedPaneSize>;
   readonly canvas: HTMLCanvasElement;
   resetHoverOwner(): void;
-  viewport: FemViewport;
+  viewport: Viewport;
   applyResultMode(render: boolean): void;
   applyCurrentDisplayState(): void;
   render(): void;
-  viewports(): readonly FemViewport[];
+  viewports(): readonly Viewport[];
 }
 
 /** Returns the currently active viewport for controller-owned slot state. */
 export function activeViewportForOwner(
   owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
-): FemViewport {
+): Viewport {
   return owner.viewportSlots.activeViewport();
 }
 
@@ -64,10 +64,7 @@ export function setActiveSlotForOwner(
 }
 
 /** Toggles projection for the active camera and refits its viewport. */
-export function setProjectionForOwner(owner: {
-  activeViewport(): FemViewport;
-  render(): void;
-}): void {
+export function setProjectionForOwner(owner: { activeViewport(): Viewport; render(): void }): void {
   const viewport = owner.activeViewport();
   viewport.setCamera(
     setProjection(
@@ -80,10 +77,7 @@ export function setProjectionForOwner(owner: {
 }
 
 /** Fits only the active viewport to its current visible selection. */
-export function fitSelectionForOwner(owner: {
-  activeViewport(): FemViewport;
-  render(): void;
-}): void {
+export function fitSelectionForOwner(owner: { activeViewport(): Viewport; render(): void }): void {
   owner.activeViewport().fitSelection();
   owner.render();
 }
@@ -189,7 +183,7 @@ export function activeSlotChangedForOwner(owner: WorkbenchPresentationOwner): vo
 }
 
 /** Restores shared controller state after replacing its primary viewport. */
-export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: FemViewport): void {
+export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: Viewport): void {
   owner.viewportSlots.invalidateInteraction();
   owner.viewport = viewport;
   owner.viewportSlots.setPrimaryViewport(viewport);

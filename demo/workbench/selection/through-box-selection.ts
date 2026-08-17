@@ -6,7 +6,7 @@ import {
   type BoxSelectionFrustum,
   type DeformationState,
   type ElementTessellation,
-  type FemViewport,
+  type Viewport,
   type Geometry,
   type InteractionTarget,
   type Mat4,
@@ -50,7 +50,7 @@ const queryDataByPart = new WeakMap<Part, PartQueryData>();
  * share the workbench's existing asynchronous box-selection queue.
  */
 export function throughIntersectionBoxSelectionResolver(
-  viewport: () => FemViewport,
+  viewport: () => Viewport,
 ): BoxSelectionResolver {
   return ({ event, granularity }) => {
     if (granularity !== "element") {
@@ -306,7 +306,7 @@ function signedDistance(normal: Vec3, distance: number, point: Vec3): number {
   return normal[0] * point[0] + normal[1] * point[1] + normal[2] * point[2] + distance;
 }
 
-function selectionTolerance(view: FemViewport): number {
+function selectionTolerance(view: Viewport): number {
   const cameraScale = Math.max(
     1,
     view.camera.orthoHeight,

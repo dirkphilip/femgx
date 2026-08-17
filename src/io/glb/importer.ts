@@ -35,15 +35,15 @@ const KHR_DRACO_MESH_COMPRESSION = "KHR_draco_mesh_compression";
  * nodes/elements/results and intentionally excludes external resources,
  * textures, PBR extras, animation, lights, and units. In strict mode a
  * recoverable warning is also rejected; otherwise inspect `issues` before
- * handing `scene` to {@link root.createFemViewport}.
+ * handing `scene` to {@link root.createViewport}.
  * @example Import self-contained bytes and render the returned scene.
  * ```ts
- * import { createFemViewport } from "femgx";
+ * import { createViewport } from "femgx";
  * import { importGlb } from "femgx/io/glb";
  *
  * const bytes = new Uint8Array(await fetch("/model.glb").then((response) => response.arrayBuffer()));
  * const imported = await importGlb(bytes, { strict: true });
- * const viewport = await createFemViewport({ canvas, scene: imported.scene });
+ * const viewport = await createViewport({ canvas, scene: imported.scene });
  * ```
  * @category Import and export
  */

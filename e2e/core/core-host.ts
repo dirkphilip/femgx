@@ -1,7 +1,7 @@
 import {
   createInteractionState,
   createResultField,
-  createFemViewport,
+  createViewport,
   createPart,
   createScene,
   identity,
@@ -11,7 +11,7 @@ import {
   setTargetSelected,
   translation,
   WebGpuUnsupportedError,
-  type FemViewport,
+  type Viewport,
 } from "../../src/entries/root";
 import { orbitCamera, projectPoint } from "../../src/entries/camera";
 
@@ -22,7 +22,7 @@ if (canvasElement === null || statusElement === null) {
 }
 const canvas = canvasElement;
 const status = statusElement;
-let viewport: FemViewport | undefined;
+let viewport: Viewport | undefined;
 
 const hostWindow = window as typeof window & {
   femgxCore?: {
@@ -94,7 +94,7 @@ async function start(): Promise<void> {
   );
   let frames = 0;
   try {
-    viewport = await createFemViewport({
+    viewport = await createViewport({
       canvas,
       scene,
       onRender: () => {
@@ -122,7 +122,7 @@ async function start(): Promise<void> {
   }
 }
 
-async function runCase(caseName: string, current: FemViewport): Promise<void> {
+async function runCase(caseName: string, current: Viewport): Promise<void> {
   switch (caseName) {
     case "foundation":
       return;
@@ -149,11 +149,11 @@ async function runCase(caseName: string, current: FemViewport): Promise<void> {
   }
 }
 
-function runInstancing(current: FemViewport): void {
+function runInstancing(current: Viewport): void {
   setStatus("instancing", JSON.stringify(current.stats()));
 }
 
-async function runPicking(current: FemViewport): Promise<void> {
+async function runPicking(current: Viewport): Promise<void> {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const region = { left: 0, top: 0, right: width, bottom: height, width, height };
@@ -189,7 +189,7 @@ async function runPicking(current: FemViewport): Promise<void> {
   );
 }
 
-function runPresentation(current: FemViewport): void {
+function runPresentation(current: Viewport): void {
   const interaction = setPartOverride(createInteractionState(), 1, {
     color: { r: 0.2, g: 0.7, b: 1, a: 1 },
     edge: true,
@@ -209,7 +209,7 @@ function runPresentation(current: FemViewport): void {
   );
 }
 
-function runResults(current: FemViewport): void {
+function runResults(current: Viewport): void {
   const scalar = createResultField({
     id: "temperature",
     name: "Temperature",
@@ -243,7 +243,7 @@ function runResults(current: FemViewport): void {
   );
 }
 
-function runCamera(current: FemViewport): void {
+function runCamera(current: Viewport): void {
   const before = current.camera.position;
   current.setCamera(orbitCamera(current.camera, 0.35, 0.2), { durationMs: 0 });
   current.fitView({ durationMs: 0 });
@@ -254,7 +254,7 @@ function runCamera(current: FemViewport): void {
   );
 }
 
-function runTransparency(current: FemViewport): void {
+function runTransparency(current: Viewport): void {
   let interaction = createInteractionState();
   interaction = setInstanceOverride(interaction, "1/0", {
     color: { r: 0.95, g: 0.25, b: 0.2, a: 1 },

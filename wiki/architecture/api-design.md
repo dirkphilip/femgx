@@ -1,7 +1,7 @@
 # API design north star
 
 The default and only public rendering lifecycle is
-`createFemViewport({ canvas, scene })`. The viewport owns the derived
+`createViewport({ canvas, scene })`. The viewport owns the derived
 `SceneRuntime`, internal WebGPU renderer, fitted camera, standard controls,
 resize synchronization, render invalidation, device recovery, and teardown.
 Lower-level renderer construction remains an internal implementation detail;
@@ -21,14 +21,14 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 
 ## Canonical concepts
 
-| Concept             | Current representation | Responsibility                                                                       |
-| ------------------- | ---------------------- | ------------------------------------------------------------------------------------ |
-| Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges   |
-| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                              |
-| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                    |
-| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                     |
-| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `FemViewport` |
-| Viewport            | `FemViewport`          | Public scene lifecycle, GPU rendering, interaction attributes, and picking           |
+| Concept             | Current representation | Responsibility                                                                     |
+| ------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges |
+| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
+| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
+| Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
+| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
+| Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, interaction attributes, and picking         |
 
 `SceneRuntime` is the defensive query boundary: its public transforms and
 collections are snapshots, and `RuntimeOccurrence.instanceIds` contains only
@@ -48,7 +48,7 @@ Surface-derived topology ───┴─→ Part + assembly placements
                                 ↓
                               Scene
                                 ↓
-                       createFemViewport
+                       createViewport
                                 ↓
                         viewport.runtime
 ```
@@ -127,11 +127,11 @@ const part = surfacePart(10, {
 - The authoritative CPU representation owns the model data; typed arrays in
   the private packed runtime and GPU buffers are compiled representations. The
   public `SceneRuntime` exposes stable handles and defensive query objects, not
-  slots or mutation deltas. `FemViewport.runtime` is the current live facade;
+  slots or mutation deltas. `Viewport.runtime` is the current live facade;
   hosts should reacquire it after `setScene` or `updateScene`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
   intentional host inspection. Live visibility changes and transactional
-  structural scene updates go through `FemViewport`.
+  structural scene updates go through `Viewport`.
 
 ## Public API boundary
 
@@ -140,11 +140,11 @@ The main user workflow should be expressible as:
 1. Define or import reusable part definitions.
 2. Register part and assembly definitions in a scene.
 3. Place a definition one or more times with transforms.
-4. Create one `FemViewport`.
+4. Create one `Viewport`.
 5. Apply interaction, visibility, structural updates, results, and lifecycle
    operations through it.
 
-`FemViewport.updateScene(scene)` is the transactional structural-update
+`Viewport.updateScene(scene)` is the transactional structural-update
 boundary. It recompiles the candidate scene before committing it, preserves the
 camera and state tied to surviving placement ids, prunes references to removed
 inner geometry identities, and revalidates active results. Its
@@ -160,7 +160,7 @@ decision and stable public lifecycle contract.
 ### Elemental orientation results
 
 The public results boundary supports authored scalar coloring, nodal deformation,
-and one orthogonal elemental vector presentation role. `FemViewport` owns all
+and one orthogonal elemental vector presentation role. `Viewport` owns all
 roles in the same atomic result replacement; `Part`, `Scene`, and
 `SceneRuntime` do not own glyph state. The vector role's public vocabulary is
 limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`

@@ -52,7 +52,7 @@ interpolates those colors on the GPU. Both paths preserve host interaction state
 
 ## Canonical viewport workflow
 
-`FemViewport.setResults({ scalar, deformation, vectors })` composes these
+`Viewport.setResults({ scalar, deformation, vectors })` composes these
 helpers into one atomic authored result snapshot. Each role is optional, but
 at least one must be present. An authored scalar field may be nodal or
 elemental. Nodal values map through exact node pick ids and interpolate over
@@ -72,7 +72,7 @@ is renderer-owned. The role does not expose anchors, records, glyph meshes, or G
 roles are resolved and validated before the renderer or public state changes; a
 failed replacement preserves the previous state. `clearResults()` restores the
 base interaction state, disables deformation and glyphs, and leaves the
-authoritative scene geometry untouched. `FemViewport.interaction` always returns the exact
+authoritative scene geometry untouched. `Viewport.interaction` always returns the exact
 host-supplied base value; result colors are an internal effective render state
 and never appear in that getter or in
 `ViewportResultsState`. Replacing results reuses the same scene/runtime and

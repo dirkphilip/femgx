@@ -36,18 +36,13 @@ import {
 import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
 import type {
   CameraTransitionOptions,
-  FemViewport,
-  FemViewportOptions,
+  Viewport,
+  ViewportOptions,
   SceneUpdateOutcome,
   ViewportBackground,
 } from "./types";
 import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
-export type {
-  FemViewport,
-  FemViewportOptions,
-  SceneUpdateOutcome,
-  ViewportBackground,
-} from "./types";
+export type { Viewport, ViewportOptions, SceneUpdateOutcome, ViewportBackground } from "./types";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
@@ -69,10 +64,10 @@ interface PreparedSceneReplacement {
  * public lifecycle owner. It rejects with {@link root.WebGpuUnsupportedError} when
  * the browser cannot provide a working WebGPU device; there is no CPU renderer
  * fallback. A device loss can be reported through `onDeviceLost` and recovered
- * with {@link root.FemViewport.recover}.
+ * with {@link root.Viewport.recover}.
  * @example Create and destroy a viewport.
  * ```ts
- * import { createFemViewport, createPart, createScene, identity } from "femgx";
+ * import { createViewport, createPart, createScene, identity } from "femgx";
  *
  * const canvas = document.querySelector<HTMLCanvasElement>("#viewport");
  * if (canvas === null) throw new Error("Missing #viewport canvas");
@@ -92,19 +87,19 @@ interface PreparedSceneReplacement {
  *   })
  *   .withRoot(2)
  *   .build();
- * const viewport = await createFemViewport({ canvas, scene });
+ * const viewport = await createViewport({ canvas, scene });
  * // The host removes its own event listeners before destroying the viewport.
  * viewport.destroy();
  * ```
  * @category Start here
  */
-export async function createFemViewport(options: FemViewportOptions): Promise<FemViewport> {
+export async function createViewport(options: ViewportOptions): Promise<Viewport> {
   assertViewportBackground(options.background);
   assertOriginTriad(options.originTriad);
   assertPixelSize("pointSizePixels", options.pointSizePixels);
   assertPixelSize("nodeSizePixels", options.nodeSizePixels);
   validateOrientationGizmo(options.canvas, options.orientationGizmo);
-  const owner: { viewport?: FemViewportCore } = {};
+  const owner: { viewport?: ViewportCore } = {};
   let pendingLoss: DeviceLostInfo | undefined;
   const renderer = await createWebGpuRenderer({
     canvas: options.canvas,
@@ -120,12 +115,12 @@ export async function createFemViewport(options: FemViewportOptions): Promise<Fe
     ...(options.pointSizePixels === undefined ? {} : { pointSizePixels: options.pointSizePixels }),
     ...(options.nodeSizePixels === undefined ? {} : { nodeSizePixels: options.nodeSizePixels }),
   });
-  owner.viewport = new FemViewportCore(options, renderer);
+  owner.viewport = new ViewportCore(options, renderer);
   if (pendingLoss !== undefined) owner.viewport.handleDeviceLoss();
   return owner.viewport;
 }
 
-class FemViewportCore implements FemViewport {
+class ViewportCore implements Viewport {
   private currentScene: Scene;
   private currentRuntime: PackedSceneRuntime;
   private currentPublicRuntime: SceneRuntime;
@@ -154,7 +149,7 @@ class FemViewportCore implements FemViewport {
   private readonly navigationBoundsCache = new SceneNavigationBoundsCache();
 
   constructor(
-    private readonly options: FemViewportOptions,
+    private readonly options: ViewportOptions,
     private readonly renderer: WebGpuRenderer,
   ) {
     this.currentScene = options.scene;
@@ -214,7 +209,7 @@ class FemViewportCore implements FemViewport {
   }
 
   private createCameraFocus(
-    options: FemViewportOptions,
+    options: ViewportOptions,
     deformation: () => DeformationState | undefined,
   ): CameraFocusController {
     return new CameraFocusController({
@@ -620,7 +615,7 @@ class FemViewportCore implements FemViewport {
   }
 
   private ensureAlive(): void {
-    if (this.destroyed) throw new Error("FemViewport has been destroyed");
+    if (this.destroyed) throw new Error("Viewport has been destroyed");
   }
 }
 

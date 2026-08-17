@@ -9,7 +9,7 @@ is introduced.
 
 ## Baseline
 
-`FemViewport.setSectionPlane` clips existing displayed geometry in the fragment
+`Viewport.setSectionPlane` clips existing displayed geometry in the fragment
 stages and, when active, adds internal generated caps for supported solid FE
 occurrences. The validated plane is retained as four floats and written to the
 existing section uniform. Opaque, transparent, edge, node, selection,

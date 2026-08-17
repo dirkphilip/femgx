@@ -51,7 +51,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | Case                              | Model                                  | Workload                                                          |
 | --------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
 | public runtime rebuild scaling    | 50k / 100k / 200k placements           | exported `createSceneRuntime`                                     |
-| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `FemViewport.setScene`                                   |
+| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `Viewport.setScene`                                      |
 | `createSceneRuntime` (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
 | structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `elementPart`                                            |
 | `createElementModelFromFemModel`  | 250 000 Triangle3 elements             | typed connectivity conversion                                     |
@@ -61,7 +61,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setPartVisible` toggle           | part with 1 000 instances              | hide then show                                                    |
 | `setAssemblyVisible` toggle       | subcase with 2 000 instances           | hide then show                                                    |
 | `setInstanceVisible` toggle       | single instance                        | override, hide then show                                          |
-| host surface variant update       | 1 024 / 4 096 / 16 384 placements      | `FemViewport.updateScene` with one stable occurrence rebound      |
+| host surface variant update       | 1 024 / 4 096 / 16 384 placements      | `Viewport.updateScene` with one stable occurrence rebound         |
 | resident visibility skin update   | 1 / 2 / 4 / 8 elements and occurrences | one hidden element, shared signature, and exterior-subset restore |
 | `getDrawList`                     | 200 000 visible                        | rebuild draw list                                                 |
 | `sceneWorldBounds`                | 32 768 triangles × 64 placements       | reusable-part bounds and world transforms                         |
@@ -180,11 +180,11 @@ measurements and is separate from the required default-CI budget gate.
 
 `npm run bench` remains a local opt-in Vitest benchmark for the distinct body
 visibility batching comparison in `test/bench/body-batch.bench.ts`. It reports
-the relative cost of individual versus `FemViewport.batch` updates and is not
+the relative cost of individual versus `Viewport.batch` updates and is not
 part of the default gate.
 
 `test/bench/body-batch.bench.ts` compares 64 body visibility mutations issued
-individually with the same ordered mutations inside `FemViewport.batch`. The
+individually with the same ordered mutations inside `Viewport.batch`. The
 reference local run was 22.33x faster for the batch path; the result is a trend
 signal rather than a cross-machine budget because it includes fake-GPU command
 encoding.
@@ -484,7 +484,7 @@ fixture contract]]; issue #526 remains the work tracker until the migration is
 complete, after which the linked requirement is the durable source of truth.
 
 The toolbar's **Continuous** control is a separate, explicit inspection aid and
-is off by default. While enabled, the demo chains one `FemViewport.invalidate()`
+is off by default. While enabled, the demo chains one `Viewport.invalidate()`
 after each completed frame and reports a bounded rolling sample (warmup state,
 duration, frame count, average FPS, p50/p95 interval, and longest interval) in
 the existing diagnostics HUD. These are refresh-rate-limited RAF/render-loop

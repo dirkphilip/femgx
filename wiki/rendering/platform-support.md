@@ -25,7 +25,7 @@ applications call when they want to branch up front. It returns a
   - `"adapter-unavailable"` — `requestAdapter` returned `null` or rejected.
   - `"device-unavailable"` — an adapter exists but `requestDevice` failed.
 
-The throwing entry points (`requestWebGpuDevice` and `createFemViewport`)
+The throwing entry points (`requestWebGpuDevice` and `createViewport`)
 throw `WebGpuUnsupportedError`, which carries the same typed `reason`. The
 viewport accepts an optional `powerPreference` and owns renderer creation.
 
@@ -108,7 +108,7 @@ Device lifetime is centralized in `GpuDeviceLifecycle`
 Re-creating the device after a loss is **intentionally retained**: device loss is
 a normal part of the WebGPU contract on supported hardware (driver resets,
 tab eviction), so this is a supported-path feature rather than a fallback for
-non-target environments. `FemViewport` wires device loss into `recover()` and
+non-target environments. `Viewport` wires device loss into `recover()` and
 destroys the failed renderer if recovery is impossible; the demo only maps the
 viewport callbacks to status text (`data-recovery="error"`). There is no CPU
 fallback and no canvas replacement.
@@ -116,7 +116,7 @@ fallback and no canvas replacement.
 Tests drive the full loss → blocked-render → recovery → re-upload cycle and
 deterministic concurrent/destroyed/replacement-loss interleavings against
 mocked devices (`test/platform/*`, `test/renderer/recovery.test.ts`,
-`test/renderer/integration/gpu-renderer.test.ts`, `test/viewport/fem-viewport.test.ts`).
+`test/renderer/integration/gpu-renderer.test.ts`, `test/viewport/viewport.test.ts`).
 
 ## Browser support
 
