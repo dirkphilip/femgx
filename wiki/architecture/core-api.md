@@ -27,9 +27,11 @@ Assembly placements
 The default application should define reusable geometry, register it in one
 scene, create one or more independent viewports as needed, and drive
 visibility/interaction/results through those viewport owners. Geometry is
-uploaded once per part and reused across placement instances; an application
-may share the authoritative scene and interaction state without introducing a
-public viewport manager, shared runtime, or renderer pool.
+uploaded once per part per renderer/viewport and reused across placement
+instances within that renderer; the CPU `Part` data may be shared across
+scenes and viewports. An application may share the authoritative scene and
+interaction state without introducing a public viewport manager, shared
+runtime, or renderer pool.
 
 ## Minimal example
 
