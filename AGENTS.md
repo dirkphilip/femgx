@@ -114,8 +114,8 @@ Production ownership under `src/`:
   internal GPU pick-id resolution.
 - `results/` — authored scalar/vector fields, ranges, color mapping, and
   nodal deformation.
-- `io/` — validation, diagnostics, VTK legacy interchange, and the narrow GLB
-  display-scene importer defined by the scope contract.
+- `io/` — generic model validation, diagnostics, conversions, and the narrow
+  GLB display-scene importer defined by the scope contract.
 - `platform/`, `renderer/`, `viewport/` — WebGPU lifecycle, rendering, and the
   canonical public lifecycle facade.
 
