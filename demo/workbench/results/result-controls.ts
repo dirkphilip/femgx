@@ -27,6 +27,18 @@ export interface VectorDisplayState {
   readonly widthPixels: number;
 }
 
+/** Returns the user-facing name for an orientation glyph presentation. */
+export function vectorGlyphLabel(glyph: VectorGlyph): "Arrow" | "Axis" {
+  return glyph === "arrow" ? "Arrow" : "Axis";
+}
+
+/** Returns the user-facing name for an occurrence transform presentation. */
+export function vectorTransformLabel(
+  transform: VectorTransform,
+): "Spatial direction" | "Surface normal" {
+  return transform === "direction" ? "Spatial direction" : "Surface normal";
+}
+
 const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<
   string,
   Pick<VectorDisplayState, "glyph" | "transform">

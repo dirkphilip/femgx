@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { WorkbenchSnapshot } from "../results/snapshot";
   import type { WorkbenchResultLegendSnapshot } from "../results/result-legend";
+  import { vectorGlyphLabel, vectorTransformLabel } from "../results/result-controls";
 
   let { snapshot }: { snapshot: WorkbenchSnapshot | undefined } = $props();
 
@@ -10,10 +11,6 @@
 
   function locationLabel(location: "nodal" | "elemental"): string {
     return location === "nodal" ? "Nodal" : "Elemental";
-  }
-
-  function capitalize(value: string): string {
-    return `${value[0]?.toUpperCase() ?? ""}${value.slice(1)}`;
   }
 
   function colorCss(color: Readonly<{ r: number; g: number; b: number; a: number }>): string {
@@ -77,11 +74,15 @@
           .field.unit}</span
       >
       <span
-        >{capitalize(orientation.glyph)} / {capitalize(orientation.transform)} · Scale {formatNumber(
-          orientation.lengthScale,
-        )} · Width {formatNumber(orientation.widthPixels)} CSS px</span
+        >{vectorGlyphLabel(orientation.glyph)} · {vectorTransformLabel(orientation.transform)} · Scale
+        {formatNumber(orientation.lengthScale)} · Width {formatNumber(orientation.widthPixels)} CSS px</span
+      >
+      <span>Arrow preserves sign at the element anchor; Axis is centered and sign-invariant</span>
+      <span
+        >Spatial direction follows occurrence transforms; Surface normal uses inverse-transpose</span
       >
       <span>Authored vectors normalized for display · Magnitude not displayed</span>
+      <span>Faded fragments are behind opaque model geometry</span>
     </div>
   {/if}
   {#if snapshot && hasActiveSection()}

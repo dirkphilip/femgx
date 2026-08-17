@@ -158,6 +158,38 @@ describe("workbench analysis-controls", () => {
     await tick();
   });
 
+  it("explains glyph and transform semantics through visible and accessible copy", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: undefined, snapshot: createSnapshot(true) },
+    });
+    button(target, "#command-analysis").click();
+    await tick();
+
+    expect(element(target, "#vector-transform").closest("label")?.textContent).toContain(
+      "Transform as",
+    );
+    expect((element(target, "#vector-transform") as HTMLSelectElement).options[0]?.text).toBe(
+      "Spatial direction",
+    );
+    expect((element(target, "#vector-transform") as HTMLSelectElement).options[1]?.text).toBe(
+      "Surface normal",
+    );
+    expect(element(target, "#vector-glyph").getAttribute("aria-describedby")).toBe(
+      "vector-glyph-help",
+    );
+    expect(element(target, "#vector-transform").getAttribute("aria-describedby")).toBe(
+      "vector-transform-help",
+    );
+    expect(element(target, "#vector-glyph-help").textContent).toContain("Arrow preserves sign");
+    expect(element(target, "#vector-transform-help").textContent).toContain("inverse-transpose");
+    expect(element(target, "#vector-help").textContent).toContain("behind opaque model geometry");
+
+    await unmount(component);
+  });
+
   it("routes authored result playback controls and reflects its edge states", async () => {
     const calls: string[] = [];
     const target = document.createElement("div");

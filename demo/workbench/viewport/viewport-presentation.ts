@@ -83,6 +83,9 @@ function syncPaneDataset(
   canvas.dataset["selectionGranularity"] = state.selectionGranularity;
   canvas.dataset["boxSelectionStrategy"] = state.boxSelectionStrategy;
   canvas.dataset["results"] = state.resultMode;
+  canvas.dataset["vectorField"] = state.vectorDisplay.fieldId;
+  canvas.dataset["vectorGlyph"] = state.vectorDisplay.glyph;
+  canvas.dataset["vectorTransform"] = state.vectorDisplay.transform;
   canvas.dataset["sectionAxis"] = state.sectionAxis;
   canvas.dataset["sectionOffset"] = String(state.sectionOffset);
   canvas.dataset["background"] = state.background;
