@@ -76,6 +76,8 @@ export interface FakeGpu {
   readonly mapAsyncCount: number;
   /** Render-pipeline descriptors in creation order. */
   readonly renderPipelineDescriptors: readonly GPURenderPipelineDescriptor[];
+  /** Bind-group-layout descriptors in creation order. */
+  readonly bindGroupLayoutDescriptors: readonly GPUBindGroupLayoutDescriptor[];
   /** Shader-module descriptors in creation order. */
   readonly shaderModuleDescriptors: readonly GPUShaderModuleDescriptor[];
   /** Command-buffer submissions in call order. */

@@ -15,7 +15,6 @@ import { destroyResultColorBuffer, destroyResultColorBuffers } from "./result-co
 export function destroyPartResource(resource: PartResource): void {
   resource.vertexBuffer.destroy();
   resource.indexBuffer.destroy();
-  resource.elementOrdinalsBuffer.destroy();
   resource.facePickIdsBuffer.destroy();
   resource.nodePickIdsBuffer.destroy();
   resource.edge?.edgeNodePickIdsBuffer.destroy();

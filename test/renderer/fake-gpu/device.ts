@@ -19,6 +19,7 @@ interface FakeGpuState {
   readonly pipelineDraws: PipelineDraw[];
   readonly pipelineCalls: unknown[];
   readonly renderPipelineDescriptors: GPURenderPipelineDescriptor[];
+  readonly bindGroupLayoutDescriptors: GPUBindGroupLayoutDescriptor[];
   readonly shaderModuleDescriptors: GPUShaderModuleDescriptor[];
   readonly bufferCopies: BufferCopy[];
   readonly textureCopies: Map<
@@ -59,6 +60,7 @@ function createState(): FakeGpuState {
     pipelineDraws: [],
     pipelineCalls: [],
     renderPipelineDescriptors: [],
+    bindGroupLayoutDescriptors: [],
     shaderModuleDescriptors: [],
     bufferCopies: [],
     textureCopies: new Map(),
@@ -329,7 +331,10 @@ function createDevice(options: FakeGpuOptions, state: FakeGpuState): FakeDevice 
     features: new Set(options.features ?? []),
     limits: { timestampPeriod: options.timestampPeriod ?? 1 },
     createBuffer: (descriptor: GPUBufferDescriptor) => createBuffer(state, options, descriptor),
-    createBindGroupLayout: () => ({}),
+    createBindGroupLayout: (descriptor: GPUBindGroupLayoutDescriptor) => {
+      state.bindGroupLayoutDescriptors.push(descriptor);
+      return {};
+    },
     createBindGroup: () => {
       state.counters.bindGroupCreations += 1;
       return {};
@@ -374,6 +379,7 @@ function createFakeGpu(device: FakeDevice, state: FakeGpuState): FakeGpu {
     pipelineDraws: state.pipelineDraws,
     pipelineCalls: state.pipelineCalls,
     renderPipelineDescriptors: state.renderPipelineDescriptors,
+    bindGroupLayoutDescriptors: state.bindGroupLayoutDescriptors,
     shaderModuleDescriptors: state.shaderModuleDescriptors,
     bufferCopies: state.bufferCopies,
     lose: state.lose,

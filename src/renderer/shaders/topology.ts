@@ -35,9 +35,8 @@ fn ownerVisible(slot: u32, bodyPickId: u32, elementPickId: u32) -> bool {
 
 /** WGSL visibility lookup for per-primitive and per-topology ownership data. */
 export const pickDataBindings = /* wgsl */ `
-@group(1) @binding(2) var<storage, read> primitiveElementOrdinals: array<u32>;
-// Header: face-record count, topology range count, and condition count. Face
-// records use five words; ownership conditions use four words.
+// Header: face-record count, topology range count, condition count, and
+// element-ordinal count. Face records use five words; ownership conditions use four words.
 @group(1) @binding(5) var<storage, read> topologyData: array<u32>;
 
 ${ownerVisibilityBindings}
@@ -47,7 +46,7 @@ fn topologyConditionCount() -> u32 {
 }
 
 fn primitiveFaceBase(index: u32) -> u32 {
-  return 3u + index * 5u;
+  return 4u + index * 5u;
 }
 
 fn primitiveFaceBodyPickIds(index: u32) -> vec3<u32> {
@@ -65,17 +64,17 @@ fn primitiveElementId(index: u32) -> u32 {
 }
 
 fn primitiveElementOrdinal(index: u32) -> u32 {
-  return primitiveElementOrdinals[index];
+  return topologyData[topologyConditionBase() + topologyConditionCount() * 4u + index];
 }
 
 fn topologyBodyRange(index: u32) -> vec2<u32> {
   if (index >= topologyData[1]) { return vec2<u32>(0u, 0u); }
-  let base = 3u + topologyData[0] * 5u + index * 2u;
+  let base = 4u + topologyData[0] * 5u + index * 2u;
   return vec2<u32>(topologyData[base], topologyData[base + 1u]);
 }
 
 fn topologyConditionBase() -> u32 {
-  return 3u + topologyData[0] * 5u + topologyData[1] * 2u;
+  return 4u + topologyData[0] * 5u + topologyData[1] * 2u;
 }
 
 fn topologyBodyId(index: u32) -> u32 {
@@ -95,12 +94,12 @@ fn topologyElementNeighborId(index: u32) -> u32 {
 }
 
 fn topologyPrimitiveId(index: u32) -> u32 {
-  let base = topologyConditionBase() + topologyConditionCount() * 4u;
+  let base = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
   return topologyData[base + 1u + index];
 }
 
 fn topologyEdgeId(index: u32) -> u32 {
-  let base = topologyConditionBase() + topologyConditionCount() * 4u;
+  let base = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
   return topologyData[base + 1u + topologyData[base] + index];
 }
 

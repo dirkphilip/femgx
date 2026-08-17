@@ -23,8 +23,6 @@ export interface PartEdgePickResource {
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
-  /** Per-primitive private element ordinals (`ordinal + 1`, 0 = none). */
-  readonly elementOrdinalsBuffer: GPUBuffer;
   /** Interleaved per-triangle face/owner/neighbor body ids. */
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
