@@ -46,7 +46,7 @@ globalThis.addEventListener("message", (event: MessageEvent<BenchmarkWorkerReque
 
 function build(request: BenchmarkWorkerBuildRequest): void {
   try {
-    if (request.spec.id !== "fe-tet4-solid-132k" || request.spec.structuredFamily !== "tet4") {
+    if (request.spec.kind !== "structured-fe" || request.spec.structuredFamily !== "tet4") {
       throw new Error(`Worker does not support benchmark case ${request.spec.id}`);
     }
     if (cancelled.has(request.requestId)) return;

@@ -13,7 +13,7 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "true");
-  await expect(modelSelect.locator("option")).toHaveCount(16);
+  await expect(modelSelect.locator("option")).toHaveCount(18);
   await expect(modelSelect).toHaveValue("");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
 

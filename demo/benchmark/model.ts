@@ -213,6 +213,30 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     ...(includeLarge
       ? [
           {
+            id: "fe-tet4-solid-25k-local",
+            name: "Performance Lab · FE Tet4 solid · 24,576 authored elements · 3,072 submitted exterior triangles (local)",
+            kind: "structured-fe" as const,
+            gridCells: 16,
+            partCount: 1,
+            instanceCount: 1,
+            bodyCount: 1,
+            elementFamily: "tet4" as const,
+            structuredFamily: "tet4" as const,
+            ordinaryDemo: false,
+          },
+          {
+            id: "fe-tet4-solid-257k-local",
+            name: "Performance Lab · FE Tet4 solid · 257,250 authored elements · 14,700 submitted exterior triangles (local)",
+            kind: "structured-fe" as const,
+            gridCells: 35,
+            partCount: 1,
+            instanceCount: 1,
+            bodyCount: 1,
+            elementFamily: "tet4" as const,
+            structuredFamily: "tet4" as const,
+            ordinaryDemo: false,
+          },
+          {
             id: "fe-hex20-solid-local",
             name: "Performance Lab · FE Hex20 solid · 1,728 unique/submitted elements · 10,368 triangles (local)",
             kind: "structured-fe" as const,
