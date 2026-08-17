@@ -191,7 +191,7 @@
     "@webgpu/types": "^0.1.71",
     "dependency-cruiser": "^18.2.0",
     "draco3dgltf": "^1.5.7",
-    "eslint": "^10.8.0",
+    "eslint": "^10.8.1",
     "eslint-plugin-jsdoc": "^63.3.3",
     "eslint-plugin-regexp": "^3.2.0",
     "eslint-plugin-svelte": "^3.23.0",
