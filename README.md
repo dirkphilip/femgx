@@ -24,8 +24,8 @@ path:
   an optional view cube, and a renderer-owned world-origin X/Y/Z triad;
 - authored nodal or elemental scalar fields, nodal-vector deformation, and
   bounded elemental orientation glyphs; and
-- ASCII legacy VTK FE interchange plus self-contained GLB 2.0 display-scene
-  import.
+- host-supplied serializable FE model validation/conversion plus self-contained
+  GLB 2.0 display-scene import.
 
 FemGx does not derive engineering quantities, own result timelines, import GLB
 materials/textures/animation, or provide a non-WebGPU renderer. The authoritative
@@ -62,7 +62,7 @@ Choose the narrowest entry point:
 | ---------------- | ----------------------------------------------------------------------------- |
 | `femgx`          | Parts, scenes, viewport lifecycle, interaction, picking, and authored results |
 | `femgx/model`    | FE shapes/elements, model editing, `elementPart`, and compact `surfacePart`   |
-| `femgx/io`       | FEM validation, VTK interchange, and authored-result conversion               |
+| `femgx/io`       | FEM model validation, diagnostics, and authored-result conversion             |
 | `femgx/io/glb`   | Optional bytes-only GLB display-scene import                                  |
 | `femgx/camera`   | Custom camera shells and navigation helpers                                   |
 | `femgx/runtime`  | Advanced CPU scene-runtime inspection                                         |
@@ -123,9 +123,10 @@ interpolate time steps or derive stress, magnitude, or other engineering values.
 
 ## Import paths
 
-`femgx/io` reads and writes the supported ASCII legacy VTK FE subset. The
-inspection demo's **Open model…** action accepts local `.vtk` models and
-self-contained `.glb` display scenes.
+`femgx/io` owns the serializable `FemModel` staging, validation, model-to-part
+conversion, and authored-result conversion boundaries. The inspection demo's
+**Open model…** action accepts self-contained `.glb` display scenes; local FE
+authoring remains an in-memory host responsibility.
 
 `femgx/io/glb` accepts GLB bytes, preserves numeric glTF coordinates, and returns
 a canonical scene plus presentation metadata. GLB remains display-only: textures,

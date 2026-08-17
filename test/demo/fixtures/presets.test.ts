@@ -7,7 +7,6 @@ import {
   createSectionPlanePreset,
   createModelPresets,
   createTransparencyPreset,
-  createVtkPreset,
 } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { deformGeometry } from "../../../src/results/deform";
@@ -21,11 +20,10 @@ import { transformPoint } from "../../../src/math/mat4";
 import { cross, dot, normalize } from "../../../src/math/vec3";
 
 describe("createModelPresets", () => {
-  it("offers the seven supported product stories in stable order", () => {
+  it("offers the six supported product stories in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
       "bolted",
-      "vtk",
       "gallery",
       "hex20-cylinder",
       "section-volume",
@@ -34,14 +32,13 @@ describe("createModelPresets", () => {
     ]);
     expect(presets.map((preset) => preset.name)).toEqual([
       "Bolted plate assembly",
-      "Imported VTK sample",
       "Element tessellation and mapping gallery",
       "Hex20 cylinder",
       "Section-plane volume",
       "Static results · scalar + deformation + orientation",
       "Order-independent transparency",
     ]);
-    expect(new Set(presets.map((preset) => preset.name)).size).toBe(7);
+    expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
   });
 
   it("keeps the bolted plate as the default showcase", () => {
@@ -70,21 +67,6 @@ describe("createGalleryPreset", () => {
     expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
     expect(preset.partNames.get(15)).toBe("Mixed point, line, and triangle element");
     expect(preset.partColors.get(15)).toEqual({ r: 0.28, g: 0.68, b: 0.64, a: 1 });
-  });
-});
-
-describe("createVtkPreset", () => {
-  it("imports the checked-in VTK sample mesh", () => {
-    const preset = createVtkPreset();
-    expect(preset.name).toBe("Imported VTK sample");
-    expect(preset.scene.parts.size).toBe(1);
-    expect(preset.bounds).toEqual({ minX: 0, minY: 0, minZ: 0, maxX: 2, maxY: 2, maxZ: 1 });
-    expect(preset.results?.scalar?.field.name).toBe("stress");
-    expect(preset.results?.deformation?.field.name).toBe("displacement");
-    expect(preset.resultScalarFields?.map((field) => field.id)).toEqual([
-      "vtk-stress",
-      "vtk-temperature",
-    ]);
   });
 });
 

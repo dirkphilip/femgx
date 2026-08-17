@@ -1,10 +1,9 @@
 # GLB display-scene import
 
 GLB is a deliberately narrow CAD display path from [[requirements/product-scope|the product
-scope]]. VTK remains the only finite-element interchange format. `importGlb(source)` accepts
-self-contained GLB 2.0 bytes and returns the existing `Scene`, deterministic part names/styles,
-and typed diagnostics; it never creates `FemModel`, FE elements, nodes, bodies, results, or a
-parallel runtime graph.
+scope]]. `importGlb(source)` accepts self-contained GLB 2.0 bytes and returns the existing
+`Scene`, deterministic part names/styles, and typed diagnostics; it never creates `FemModel`,
+FE elements, nodes, bodies, results, or a parallel runtime graph.
 
 ## Mapping
 

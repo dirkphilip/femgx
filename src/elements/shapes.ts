@@ -3,9 +3,9 @@
  *
  * Element shapes are identified by a family plus an interpolation order, so the
  * element kind is explicit and never inferred from raw triangles. The node
- * ordering for each supported shape follows the VTK convention: corners first,
- * then mid-edge nodes in canonical edge order. This module is pure CPU-side
- * data with no dependency on the renderer or WebGPU.
+ * ordering for each supported shape is canonical: corners first, then
+ * mid-edge nodes in canonical edge order. This module is pure CPU-side data
+ * with no dependency on the renderer or WebGPU.
  *
  * The topology registry is compiler-exhaustive: `SupportedOrder` declares the
  * interpolation orders each family supports, the registry is checked against

@@ -1,8 +1,8 @@
 import type { ElementShape } from "../elements/shapes";
 
 /**
- * Version of the femgx interchange model layout. Bump when a writer changes
- * the meaning of an existing field; adapters gate on this when reading.
+ * Version of the femgx interchange model layout. Bump when a producer changes
+ * the meaning of an existing field; consumers can gate on this when reading.
  * @category Import and export
  */
 export const FEMGX_FORMAT_VERSION = 1;
@@ -56,7 +56,7 @@ export type MetadataValue = string | number | boolean;
 
 /**
  * Model-level metadata as a string-keyed record. Insertion order is preserved
- * by deterministic exporters.
+ * by deterministic consumers.
  * @category Import and export
  */
 export type ModelMetadata = Readonly<Record<string, MetadataValue>>;
@@ -76,9 +76,8 @@ export interface ModelResultField {
 }
 
 /**
- * The versioned interchange model that all adapters import into and export
- * from. It is fully serializable because it contains only typed arrays and
- * plain objects.
+ * The versioned, host-supplied model boundary. It is fully serializable because
+ * it contains only typed arrays and plain objects.
  * @category Import and export
  */
 export interface FemModel {

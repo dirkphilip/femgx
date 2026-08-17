@@ -1,114 +1,75 @@
-# IO: VTK legacy import/export
+# IO: host-supplied FE model ingestion
 
-The `src/io/` subsystem provides the versioned typed interchange model and the
-single supported format adapter: VTK legacy ASCII. See also
-[[architecture/source-organization|Source organization]].
+The `src/io/` subsystem owns the serializable `FemModel` staging boundary,
+validation, diagnostics, and conversion into the in-memory FE authoring and
+authored-results paths. It does not read or write solver files.
 
-## Interchange model (`src/io/fem-model.ts`)
+## Model boundary (`src/io/fem-model.ts`)
 
-`FemModel` is the versioned, fully serializable interchange format:
+`FemModel` is a versioned, fully serializable host payload:
 
-- `nodes` — `ids: Uint32Array` + `coordinates: Float64Array` (3 per node).
-- `elementShapeBlocks` — rows grouped by `ElementShape`; ids unique across blocks.
-- `sets` — named node/element id groups.
-- `metadata` — string-keyed record, insertion order preserved.
-- `results` — named fields aligned to node/element ids with `components`.
+- `nodes` — `ids: Uint32Array` plus `coordinates: Float64Array` (three per node);
+- `elementShapeBlocks` — rows grouped by `ElementShape`, with ids unique across
+  blocks;
+- `sets` — named node or element id groups;
+- `metadata` — string-keyed values with insertion order preserved; and
+- `results` — named node or element fields with explicit component counts.
 
-Because every array is a typed array and every value is a plain object, a
-`FemModel` is fully serializable. Bump `FEMGX_FORMAT_VERSION` when a writer
-changes field semantics.
+Every array is typed and every value is a plain object, so a `FemModel` is
+straightforward to validate, transfer, and serialize. Bump
+`FEMGX_FORMAT_VERSION` when the meaning of an existing field changes.
 
-The double-precision coordinate table belongs only to interchange. Conversion
-through `createElementModelFromFemModel` produces the product's single-precision
-render model directly, without an intermediate JavaScript array; see
+The double-precision coordinate table belongs to this host payload. Conversion
+through `createElementModelFromFemModel` produces the product's
+single-precision render model directly; see
 [[data/elements-topology|Element topology]].
 
 ## Model builder (`src/io/model-builder.ts`)
 
-`createModelBuilder()` accumulates typed-array chunks (`appendNodes`,
-`openElementShapeBlock`, `appendElements`, `addSet`, `setMetadata`, `addResult`)
-used by the VTK reader and by tests when constructing models.
+`createModelBuilder()` accumulates typed-array chunks through
+`appendNodes`, `openElementShapeBlock`, `appendElements`, `addSet`,
+`setMetadata`, and `addResult`. `build()` returns one immutable `FemModel`.
+The builder is useful for hosts and adapters that already own their ingestion
+boundary; it does not perform file discovery, transport, or background loading.
 
-## Result composition
+## Validation and conversion
+
+`validateModel(model)` returns typed `Issue` records for malformed node tables,
+duplicate identities, invalid connectivity, unknown set/result references, and
+unsupported result shapes. `createElementModelFromFemModel(model)` validates
+the payload and then creates the dense `ElementModel` consumed by
+`elementPart`; node ids must already be dense and in coordinate order.
 
 `createResultFieldFromModelResult(model, result, { id, unit, shape })` is the
-narrow bridge from one parsed `ModelResultField` to the authored field accepted
-by `FemViewport.setResults()`:
+narrow bridge from one host-authored result to the viewport:
 
-- `shape: "scalar"` accepts one-component node or element results;
-- `shape: "vector"` accepts only an explicitly requested three-component node
-  result, the supported deformation input;
+- scalar results may be nodal or elemental;
+- vector results are limited to explicit three-component nodal data for
+  deformation;
 - node ids map through the model node table into dense coordinate-row indices;
-- element ids remain direct field indices so element picking and result values
-  retain the same authored identity;
-- missing rows and components are `NaN`, and duplicate, unknown, malformed, or
+- element ids remain direct field indices so picking stays aligned; and
+- missing rows become `NaN`, while duplicate, unknown, malformed, or
   unsupported identities fail with `IoError` diagnostics.
 
-The complete supported composition is:
-`parseVtk -> createElementModelFromFemModel -> elementPart ->
-createScene -> createResultFieldFromModelResult -> setResults`.
+The complete FE handoff is:
+`FemModel -> validateModel -> createElementModelFromFemModel -> elementPart ->
+Scene -> FemViewport`, with authored results converted through
+`createResultFieldFromModelResult` before `setResults()`.
 
-## Adapter
+## Display-scene import
 
-| Format     | Reader     | Writer     | Notes                          |
-| ---------- | ---------- | ---------- | ------------------------------ |
-| VTK legacy | `parseVtk` | `writeVtk` | ASCII `UNSTRUCTURED_GRID` only |
-
-The package root deliberately exposes only these explicit VTK entry points;
-parser sessions remain internal. Supported attribute
-sections include `SCALARS`, `VECTORS`, `NORMALS`, `TENSORS`, `FIELD`, and
-`COLOR_SCALARS`. Unsupported `METADATA` produces an explicit error instead of
-silently truncating the import. Unsupported cell types are omitted with errors;
-malformed or under-delivered records produce actionable `Issue`s with stable
-`code`s (see `io/diagnostics.ts`).
-
-The separate bytes-only GLB display-scene boundary is documented in
-[[data/glb-import|GLB display-scene import]]. It returns the canonical
-`Scene`, not this FE `FemModel`; VTK remains the only format for FE entities,
-sets, metadata, and results.
-
-## Format capabilities
-
-- **IDs**: VTK has implicit ids. `writeVtk` preserves coordinate row order and
-  remaps authoritative node and element ids to those emitted rows; a parsed
-  file therefore receives dense 0..n-1 ids, while geometry and result
-  associations remain intact.
-- **Cells**: Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10,
-  Wedge6, Pyramid5, Hex8, and Hex20 map to their canonical VTK legacy cell types
-  (VTK cell types 13 and 14 for Wedge6 and Pyramid5).
-- **Sets / metadata**: VTK legacy has no set or metadata concept.
-- **Results**: complete node and element fields are reordered by identity to
-  POINT_DATA and CELL_DATA row order. One-component fields use `SCALARS`,
-  three-component fields use `VECTORS`, and nine-component fields use
-  `TENSORS`. Every other positive component width uses a deterministic `FIELD`
-  array, including six-component fields. Partial, duplicate, unknown, or
-  non-finite fields, invalid component counts, and names that are not one
-  representable VTK token fail with `VtkWriteError` rather than being omitted.
-  Names containing comma or VTK comment delimiters (`#` and `!`) are rejected
-  because the reader would otherwise tokenize them differently on round-trip.
-
-The dense ids after parsing are an unavoidable VTK limitation, not a loss of
-the original associations. Callers should match entities by coordinate and
-connectivity position when comparing a written model with its parsed result.
-
-## Module split
-
-- `vtk/parser.ts` — top-level keyword dispatch and header handling.
-- `vtk/cells.ts` — POINTS / CELLS / CELL_TYPES assembly.
-- `vtk/data.ts` — POINT_DATA / CELL_DATA arrays.
-- `vtk/writer.ts` — deterministic ASCII export.
-- `vtk/result-writer.ts` — result identity remapping and component-shape output.
-- `vtk/parser-session.ts` — parse state and final validation.
-- `vtk/tokens.ts` — VTK line tokenization and numeric parsing.
-- `model-validation.ts`, `diagnostics.ts`, and `typed-buffers.ts` — shared IO
-  contracts and storage.
+The separate bytes-only GLB boundary is documented in
+[[data/glb-import|GLB display-scene import]]. It returns the canonical `Scene`
+and never creates FE identities, result fields, or a parallel scene graph.
 
 ## Out of scope
 
-VTU, Gmsh, Abaqus adapters, cooperative cancellation, and progress reporting
-were removed to match [[requirements/product-scope|product scope]]. Do not
-re-add them without an explicit scope decision.
+Solver file readers and writers, replacement interchange formats, compatibility
+aliases, migration layers, transport, cancellation, and progress reporting are
+outside this subsystem. Add such a capability only after an explicit product
+scope decision.
 
 [architecture/source-organization|Source organization]: ../architecture/source-organization.md
 [data/elements-topology|Element topology]: elements-topology.md
-[requirements/product-scope|product scope]: ../requirements/product-scope.md
+[data/glb-import|GLB display-scene import]: glb-import.md
+[requirements/product-scope|Product scope]: ../requirements/product-scope.md

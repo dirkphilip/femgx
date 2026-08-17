@@ -167,7 +167,7 @@ export function buildTetModel(
   return createElementModel(builder.positions, elements);
 }
 
-/** Builds one straight-sided Wedge6 gallery element in VTK node order. */
+/** Builds one straight-sided Wedge6 gallery element in canonical node order. */
 export function buildWedge6Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1],
@@ -175,7 +175,7 @@ export function buildWedge6Model(): ElementModel {
   );
 }
 
-/** Builds one straight-sided Pyramid5 gallery element in VTK node order. */
+/** Builds one straight-sided Pyramid5 gallery element in canonical node order. */
 export function buildPyramid5Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 1],

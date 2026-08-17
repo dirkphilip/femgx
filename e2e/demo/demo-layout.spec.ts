@@ -12,14 +12,13 @@ const COMPACT = { width: 721, height: 600 } as const;
 const DESKTOP = { width: 1440, height: 900 } as const;
 const ORDINARY_MODELS = [
   "bolted",
-  "vtk",
   "gallery",
   "hex20-cylinder",
   "section-volume",
   "results",
   "transparency",
 ] as const;
-const RESULT_MODELS = new Set(["vtk", "hex20-cylinder", "section-volume", "results"]);
+const RESULT_MODELS = new Set(["hex20-cylinder", "section-volume", "results"]);
 
 test("keeps every ordinary story inside desktop and phone layout budgets", async ({ page }) => {
   for (const viewport of [DESKTOP, PHONE]) {

@@ -13,14 +13,14 @@ import {
 test("uses stable runtime-occurrence and instance controls", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("assembly-occurrence-vis-0")).toBeChecked();
-  await page.getByTestId("model-select").selectOption("vtk");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "vtk");
+  await page.getByTestId("model-select").selectOption("results");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "results");
 
   const rootCheckbox = page.getByTestId("assembly-occurrence-vis-0");
-  await expect(rootCheckbox).toHaveAttribute("data-assembly-occurrence-id", "1");
+  await expect(rootCheckbox).toHaveAttribute("data-assembly-occurrence-id", "20");
   await expect(rootCheckbox).toBeChecked();
   const partCheckbox = page.getByTestId("instance-vis-0");
-  await expect(partCheckbox).toHaveAttribute("data-instance-id", "1/0");
+  await expect(partCheckbox).toHaveAttribute("data-instance-id", "20/0");
   await expect(partCheckbox).toBeChecked();
 
   // Hiding the root assembly hides every descendant instance.
@@ -29,18 +29,18 @@ test("uses stable runtime-occurrence and instance controls", async ({ page }) =>
   await expect(page.getByTestId("status")).toContainText("0 visible");
 
   await rootCheckbox.check();
-  await expect(page.getByTestId("status")).toContainText("1 visible");
+  await expect(page.getByTestId("status")).toContainText("2 visible");
 
   // Hiding the direct part occurrence leaves the assembly occurrence enabled.
   await partCheckbox.uncheck();
   await expect(partCheckbox).not.toBeChecked();
   await expect(rootCheckbox).toBeChecked();
-  await expect(page.getByTestId("status")).toContainText("0 visible");
+  await expect(page.getByTestId("status")).toContainText("1 visible");
 
   await partCheckbox.check();
   await expect(partCheckbox).toBeChecked();
   await expect(rootCheckbox).toBeChecked();
-  await expect(page.getByTestId("status")).toContainText("1 visible");
+  await expect(page.getByTestId("status")).toContainText("2 visible");
 });
 test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
   await page.goto("/");
@@ -97,7 +97,7 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
   await expect(highlight).toHaveAttribute("aria-label", /^Highlight /);
   await expect(highlight).toHaveAttribute("aria-pressed", "false");
 
-  await page.getByTestId("model-select").selectOption("vtk");
+  await page.getByTestId("model-select").selectOption("results");
   await page.getByTestId("model-select").selectOption("bolted");
   await expect(page.locator('input[data-testid^="body-vis-"]')).toHaveCount(names.length);
   await expect(page.getByRole("checkbox", { name: firstName, exact: true })).toBeVisible();

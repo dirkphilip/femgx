@@ -12,7 +12,7 @@ Related: [[data/elements-topology|Element topology]].
 2. `facesOf` / `classifyFaces` (`src/elements/faces.ts`) and `edgesOf` /
    `uniqueEdges` (`src/elements/edges.ts`) express each element's faces and
    edges in the element's own node ids. Face loops use the
-   canonical VTK corner order; quadratic mid-edge nodes are aligned with the
+   canonical corner order; quadratic mid-edge nodes are aligned with the
    edges they bisect, so geometry is never fabricated.
 3. `elementPart` (`src/geometry/element-part.ts`)
    scans the model once and emits the compatible primitive groups needed by

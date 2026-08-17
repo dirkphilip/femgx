@@ -77,7 +77,7 @@ requires it.
 | `HEX8_SHAPE`     | `hex`      | 1     | 8     | 8       | 0              |
 | `HEX20_SHAPE`    | `hex`      | 2     | 20    | 8       | 12             |
 
-## Canonical node ordering (VTK convention)
+## Canonical node ordering
 
 Connectivity lists corners first, then mid-edge nodes in canonical edge order.
 
@@ -105,7 +105,7 @@ Built on the topology, `src/elements/faces.ts` and `src/elements/edges.ts`
 extract deterministic polygon and line output:
 
 - `facesOf(element)` returns the element's faces as oriented polygon loops
-  (`ElementFace { key, nodeIds }`). Faces follow the VTK face tables with
+  (`ElementFace { key, nodeIds }`). Faces follow the canonical face tables with
   right-hand-rule winding, so a face loop gives an outward normal for a
   right-handed (positive-Jacobian) element; in conforming meshes a shared face
   appears with opposite windings in its two incident elements.
@@ -130,23 +130,17 @@ extract deterministic polygon and line output:
   polygons. Helpers: `canonicalKey` (`keys.ts`) and bounds-checked `at`
   (`indices.ts`), both internal.
 
-### Hex20 edge order vs VTK
+### Hex20 edge order
 
-The geometric mid-node assignment — connectivity slot 18 lies on edge `{2,6}`
-and slot 19 on edge `{3,7}` — matches VTK's canonical quadratic-hex numbering
-exactly (`vtkQuadraticHexahedron` maps mid-edge node 18 to edge `{2,6}` and 19
-to `{3,7}`; the golden fixtures in `test/elements/golden.ts` pin this). Only the
-order in which the last two vertical edges are _listed_ differs from VTK's
-internal `Edges` array index order (`{3,7}`/`{2,6}`), which has no effect on
-connectivity import — a file's slots 18/19 map to the same geometric edges in
-both conventions — or on set-based face/edge extraction. The earlier claim that
-VTK-ordered files swap those two mid nodes (issue #66) was verified against the
-VTK source and does not hold; do not "fix" the ordering by swapping slots 18/19.
+The geometric mid-node assignment is fixed: connectivity slot 18 lies on edge
+`{2,6}` and slot 19 lies on edge `{3,7}`. The golden fixtures in
+`test/elements/golden.ts` pin these assignments and the complete canonical edge
+order. Do not swap slots 18 and 19; their positions are part of the authored
+topology contract.
 
-File-format connectivity that differs from this canonical mid-edge order must
-translate at the format boundary. The product currently supports only VTK
-legacy, which already matches this order; see
-[[data/io-import-export|IO: VTK legacy import/export]].
+Hosts that receive another connectivity convention must map it to this
+canonical ordering before creating an `ElementModel`. femgx does not infer or
+rewrite connectivity after the model boundary.
 
 ## Validation
 
@@ -192,6 +186,5 @@ that are not already typed elements belong to the separate geometry-owned
 authoring path in
 [[requirements/surface-derived-part-authoring|surface-derived part authoring]].
 
-[data/io-import-export|IO: VTK legacy import/export]: io-import-export.md
 [requirements/surface-derived-part-authoring|surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md
 [rendering/face-subsets|face subset]: ../rendering/face-subsets.md

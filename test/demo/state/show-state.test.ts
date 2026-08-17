@@ -5,6 +5,7 @@ import {
   cloneShowStateForSlot,
   createWorkbenchShowState,
   installWorkbenchShowStateAccessors,
+  resetShowStatesForModel,
 } from "../../../demo/workbench/state/show-state";
 
 describe("workbench viewport show state", () => {
@@ -49,5 +50,23 @@ describe("workbench viewport show state", () => {
     owner.toggles.edges = false;
     active = "primary";
     expect(owner.toggles.edges).toBe(false);
+  });
+
+  it("preserves each viewport background when model-dependent state resets", () => {
+    const model = createExampleModel(createBoltedPlatePreset());
+    const replacement = createExampleModel(createBoltedPlatePreset());
+    const states = new Map([
+      ["primary" as const, createWorkbenchShowState(model)],
+      ["secondary" as const, createWorkbenchShowState(model)],
+    ]);
+    const primary = states.get("primary");
+    const secondary = states.get("secondary");
+    if (primary === undefined || secondary === undefined) throw new Error("missing slot state");
+    primary.background = "dark";
+    secondary.background = "white";
+    resetShowStatesForModel(states, new Map(), replacement);
+
+    expect(states.get("primary")?.background).toBe("dark");
+    expect(states.get("secondary")?.background).toBe("white");
   });
 });

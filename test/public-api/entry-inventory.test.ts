@@ -94,13 +94,10 @@ describe("public package entries", () => {
     expect(inventory(io)).toEqual([
       "FEMGX_FORMAT_VERSION",
       "IoError",
-      "VtkWriteError",
       "createElementModelFromFemModel",
       "createModelBuilder",
       "createResultFieldFromModelResult",
-      "parseVtk",
       "validateModel",
-      "writeVtk",
     ]);
     expect(inventory(glb)).toEqual(["importGlb"]);
     expect(inventory(camera)).toEqual([
@@ -145,7 +142,10 @@ describe("public package entries", () => {
   it("exposes one runtime and one type-level entry for each documented domain", () => {
     expect(root.createFemViewport).toBeTypeOf("function");
     expect(model.createElementModel).toBeTypeOf("function");
-    expect(io.parseVtk).toBeTypeOf("function");
+    expect(io.createModelBuilder).toBeTypeOf("function");
+    expect(io.validateModel).toBeTypeOf("function");
+    expect(io.createElementModelFromFemModel).toBeTypeOf("function");
+    expect(io.createResultFieldFromModelResult).toBeTypeOf("function");
     expect(glb.importGlb).toBeTypeOf("function");
     expect(camera.createCamera).toBeTypeOf("function");
     expect(runtime.createSceneRuntime).toBeTypeOf("function");

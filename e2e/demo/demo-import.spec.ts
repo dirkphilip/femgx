@@ -1,6 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   activateContextAction,
   drawnPixels,
@@ -11,7 +9,6 @@ import {
 } from "./demo-support";
 
 const fixture = "test/io/fixtures/glb/onshape-cylinder-compressed.glb";
-const vtkFixture = readFileSync(join(process.cwd(), "demo/fixtures/sample-block.vtk"));
 const phone = { width: 390, height: 844 };
 
 async function waitForPresentedCanvas(page: Page): Promise<void> {
@@ -119,36 +116,14 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   await page.screenshot({ path: "test-results/glb-desktop.png", fullPage: true });
 });
 
-test("opens a local VTK mesh through the canonical workbench path", async ({ page }) => {
-  await page.goto("/");
-  await waitForRenderer(page);
-  const canvas = page.getByTestId("view-canvas");
-  await page.getByTestId("model-file").setInputFiles({
-    name: "sample.vtk",
-    mimeType: "text/plain",
-    buffer: vtkFixture,
-  });
-
-  await expect
-    .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })
-    .toBe("opened-model");
-  await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
-  await expect(page.getByTestId("model-select")).toContainText("Opened · sample.vtk");
-  await expect(page.getByTestId("status")).toContainText("1 parts");
-  await openCommandPanel(page, "analysis");
-  await expect(page.getByTestId("result-controls")).toBeVisible();
-  await waitForPresentedCanvas(page);
-  await page.screenshot({ path: "test-results/vtk-open-desktop.png", fullPage: true });
-});
-
 test("keeps the active model when a local model file fails to open", async ({ page }) => {
   await page.goto("/");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
   await page.getByTestId("model-file").setInputFiles({
-    name: "broken.vtk",
-    mimeType: "text/plain",
-    buffer: Buffer.from("not a VTK file"),
+    name: "broken.glb",
+    mimeType: "model/gltf-binary",
+    buffer: Buffer.from("not a GLB file"),
   });
 
   await expect(canvas).toHaveAttribute("data-model", "bolted");
