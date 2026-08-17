@@ -24,7 +24,7 @@ a vector field does not by itself enable a viewport glyph presentation.
 - Accessors `scalarAt` / `vectorAt` read one entity and throw on
   out-of-range indices.
 
-Parsed VTK results enter this same authored-field path through
+Host-supplied `FemModel` results enter this same authored-field path through
 `createResultFieldFromModelResult`. It maps model node identities to dense
 coordinate rows, keeps element ids aligned with picking, and fills absent rows
 with `NaN`; it does not derive or average any engineering quantity.

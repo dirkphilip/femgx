@@ -7,7 +7,7 @@
 - [[data/fe-fixture|FE fixture]] — deterministic procedural FE datasets used by
   the demo and tests.
 - [[data/io-import-export|IO import/export]] — versioned interchange model and
-  VTK legacy adapter.
+  host-supplied model ingestion, validation, and conversion.
 - [[data/glb-import|GLB display-scene import]] — bytes-only CAD scene mapping,
   diagnostics, styles, and compression evidence.
 - [[data/results|Results, deformation, and scalar visualization]] — typed

@@ -33,4 +33,4 @@ repos:
         types: [text]
         # Vitest lifecycle and the FE/graphics acronym.
         args: [--ignore-words-list=afterall]
-        exclude: ^(?:package-lock\.json|.*\.(?:glb|vtk))$
+        exclude: ^(?:package-lock\.json|.*\.glb)$

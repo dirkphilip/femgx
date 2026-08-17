@@ -131,7 +131,7 @@ export function removeShowStateForSlot(
   return hoverOwners.delete(slotId);
 }
 
-/** Resets every existing slot to the same new-model defaults. */
+/** Resets model-dependent state while preserving each slot's presentation background. */
 export function resetShowStatesForModel(
   states: Map<ViewportSlotId, WorkbenchShowState>,
   hoverOwners: Map<ViewportSlotId, WorkbenchHoverOwner | undefined>,
@@ -139,7 +139,7 @@ export function resetShowStatesForModel(
 ): number {
   for (const [slotId, state] of states) {
     if (state.resultPlaybackTimer !== undefined) globalThis.clearTimeout(state.resultPlaybackTimer);
-    states.set(slotId, createWorkbenchShowState(model));
+    states.set(slotId, { ...createWorkbenchShowState(model), background: state.background });
     hoverOwners.set(slotId, undefined);
   }
   return states.size;

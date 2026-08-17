@@ -4,7 +4,7 @@ interface GrowableArrayConstructor<T extends GrowableArray> {
   from(values: ArrayLike<number>): T;
 }
 
-/** Shared growable typed-array storage for the narrow VTK accumulation buffers. */
+/** Shared growable typed-array storage for compact model accumulation. */
 class GrowableBuffer<T extends GrowableArray> {
   private values: T;
   private length = 0;
@@ -62,7 +62,7 @@ class GrowableBuffer<T extends GrowableArray> {
   }
 }
 
-/** A growable Uint32Array backing store for compact VTK accumulation. */
+/** A growable Uint32Array backing store for compact model accumulation. */
 export class Uint32Buffer extends GrowableBuffer<Uint32Array> {
   constructor() {
     super(Uint32Array);
@@ -74,7 +74,7 @@ export class Uint32Buffer extends GrowableBuffer<Uint32Array> {
   }
 }
 
-/** A growable Float64Array backing store for compact VTK accumulation. */
+/** A growable Float64Array backing store for compact model accumulation. */
 export class Float64Buffer extends GrowableBuffer<Float64Array> {
   constructor() {
     super(Float64Array);

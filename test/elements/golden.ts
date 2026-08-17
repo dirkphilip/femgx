@@ -42,8 +42,8 @@ import {
  * ## Node ordering
  *
  * `corners`/`edges`/`edgeNodes` are connectivity-position indices matching the
- * VTK convention used by `topologyFor`: corners first, then mid-edge nodes in
- * canonical edge order. `faces` and `edgeSequences` are the expected
+ * canonical convention used by `topologyFor`: corners first, then mid-edge
+ * nodes in canonical edge order. `faces` and `edgeSequences` are the expected
  * `facesOf`/`edgesOf` output for a sequential element (`nodeIds = 0..n-1`).
  */
 

@@ -37,7 +37,7 @@ describe("workbench model catalog", () => {
     const opened = {
       ...ordinary,
       id: "opened-model",
-      name: "opened.vtk",
+      name: "opened.glb",
       source: "file" as const,
     };
     const catalog = new WorkbenchModelCatalog([ordinary], []);

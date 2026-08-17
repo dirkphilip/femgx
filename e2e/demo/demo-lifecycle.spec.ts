@@ -268,7 +268,7 @@ test("switches between deterministic model presets", async ({ page }) => {
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
-  for (const id of ["vtk", "gallery", "hex20-cylinder", "results", "transparency", "bolted"]) {
+  for (const id of ["gallery", "hex20-cylinder", "results", "transparency", "bolted"]) {
     await page.getByTestId("edge-overlay").click();
     await page.getByTestId("node-overlay").click();
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
@@ -281,7 +281,7 @@ test("switches between deterministic model presets", async ({ page }) => {
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
     await expect(canvas).toHaveAttribute(
       "data-results",
-      id === "results" || id === "hex20-cylinder" || id === "vtk" ? "deformed" : "base",
+      id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
     );
   }
 });

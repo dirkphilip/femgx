@@ -81,7 +81,9 @@ test("steps and plays authored result snapshots from the Analysis inspector", as
   expect(playBox.height).toBeGreaterThanOrEqual(44);
 });
 
-test("switches Results and VTK between elemental and nodal scalar fields", async ({ page }) => {
+test("switches the native Results story between elemental and nodal scalar fields", async ({
+  page,
+}) => {
   await page.goto("/");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
@@ -99,19 +101,6 @@ test("switches Results and VTK between elemental and nodal scalar fields", async
   await expect(resultField).toHaveValue("demo-temperature");
   await expect(canvas).toHaveAttribute("data-results", "deformed");
   await expect(page.getByTestId("result-legend")).toContainText("Demo temperature");
-  await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
-
-  await page.getByTestId("model-select").selectOption("vtk");
-  await expect(resultField.locator("option")).toHaveText([
-    "Base",
-    "stress · Elemental",
-    "temperature · Nodal",
-  ]);
-  await expect(resultField).toHaveValue("vtk-stress");
-  await resultField.selectOption("vtk-temperature");
-  await expect(resultField).toHaveValue("vtk-temperature");
-  await expect(canvas).toHaveAttribute("data-results", "deformed");
-  await expect(page.getByTestId("result-legend")).toContainText("temperature");
   await expect(page.getByTestId("result-legend")).toContainText("Nodal · Unit C");
 });
 

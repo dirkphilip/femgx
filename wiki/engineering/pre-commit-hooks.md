@@ -33,8 +33,8 @@ labels. `scripts/check-github-actions.mjs` remains the separate owner of the
 repository's stricter full-commit-SHA policy for external actions.
 
 Codespell scans tracked text files, including Markdown, TypeScript/JavaScript,
-configuration, and scripts. It deliberately excludes `package-lock.json`, VTK
-fixtures, and binary GLB fixtures. Its only allowlisted term is `afterall`, the
+configuration, and scripts. It deliberately excludes `package-lock.json` and
+binary GLB fixtures. Its only allowlisted term is `afterall`, the
 camel-case Vitest lifecycle API `afterAll`; domain terms and public identifiers
 are fixed or excluded only when the baseline demonstrates that they are not
 ordinary prose.
