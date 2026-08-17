@@ -7,7 +7,6 @@ import {
   buildHighlightTable,
   BODY_HIGHLIGHT_MARKER,
   EDGE_HIGHLIGHT_MARKER,
-  HIGHLIGHT_BUCKET_SIZE,
   type HighlightTableEntry,
 } from "./highlight-table";
 import {
@@ -36,6 +35,8 @@ import {
 import { readInteractionState } from "../../interaction/state";
 import type { PrimitiveStyleOverride } from "../../interaction/interaction";
 import { sparseUpdatesForPart } from "./highlight-filter";
+
+const ZERO_RECORD = new Uint8Array(ELEMENT_RECORD_STRIDE);
 
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
 export interface HighlightStorage {
@@ -108,52 +109,53 @@ export function writeElementHighlights(
   });
   const highlight = storage.highlight;
   const selectionChanged = highlight.denseSelection !== selection;
-  const next = highlight.data.slice();
-  next.fill(0, 0, HIGHLIGHT_HEADER + highlight.sparseCapacity * ELEMENT_RECORD_STRIDE);
-  const view = new Uint32Array(next.buffer);
+  const header = new Uint8Array(HIGHLIGHT_HEADER);
+  const view = new Uint32Array(header.buffer);
   view[0] = entries.length;
   view[1] = table.bucketCount;
   view[2] = table.seed;
   writeSelectionHeader(view, highlight, selection, options.selectedTheme);
-  for (let index = 0; index < table.entries.length; index += 1) {
-    const entry = table.entries[index];
-    if (entry === undefined) continue;
-    next.set(new Uint8Array(entry.data), HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE);
-  }
-  if (selectionChanged) writeDenseSelectionData(next, highlight, selection);
-  writeChangedRanges(device, storage, next, table.bucketCount, options.cost);
+  writeChangedRanges(device, storage, header, table.entries, options.cost);
+  highlight.data.set(header);
+  if (selectionChanged) writeDenseSelectionData(highlight.data, highlight, selection);
   if (selectionChanged || storageReallocated) {
-    writeDenseSelectionBuffer(device, highlight, next, options.cost);
+    writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost);
   }
-  highlight.data.set(next);
   highlight.denseSelection = selection;
 }
 
 function writeChangedRanges(
   device: GPUDevice,
   storage: HighlightTarget,
-  next: Uint8Array,
-  bucketCount: number,
+  header: Uint8Array,
+  entries: readonly (HighlightTableEntry | undefined)[],
   cost?: GpuCostAccumulator,
 ): void {
-  const previous = storage.highlight.data;
-  const previousView = new Uint32Array(previous.buffer);
-  const previousSlots = (previousView[1] ?? 0) * HIGHLIGHT_BUCKET_SIZE;
-  const nextSlots = bucketCount * HIGHLIGHT_BUCKET_SIZE;
-  const header = next.subarray(0, HIGHLIGHT_HEADER);
-  const previousHeader = previous.subarray(0, HIGHLIGHT_HEADER);
-  if (header.some((value, index) => value !== previousHeader[index])) {
+  const highlight = storage.highlight;
+  if (!sameBytes(header, highlight.data, 0, HIGHLIGHT_HEADER)) {
     device.queue.writeBuffer(storage.highlight.buffer, 0, header);
     cost?.write("highlight", HIGHLIGHT_HEADER);
   }
-  const recordCount = Math.max(previousSlots, nextSlots);
   const changedRecords: number[] = [];
-  for (let index = 0; index < recordCount; index += 1) {
-    if (recordChanged(next, previous, index)) changedRecords.push(index);
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    const start = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
+    if (entry === undefined) {
+      if (!sameBytes(ZERO_RECORD, highlight.data, start, ELEMENT_RECORD_STRIDE)) {
+        highlight.data.fill(0, start, start + ELEMENT_RECORD_STRIDE);
+        changedRecords.push(index);
+      }
+      continue;
+    }
+    const data = new Uint8Array(entry.data);
+    if (!sameBytes(data, highlight.data, start, ELEMENT_RECORD_STRIDE)) {
+      highlight.data.set(data, start);
+      changedRecords.push(index);
+    }
   }
   writeChangedRecordRanges(device, {
     buffer: storage.highlight.buffer,
-    next,
+    next: highlight.data,
     recordOffset: HIGHLIGHT_HEADER,
     recordStride: ELEMENT_RECORD_STRIDE,
     recordIndices: changedRecords,
@@ -162,12 +164,16 @@ function writeChangedRanges(
   });
 }
 
-function recordChanged(next: Uint8Array, previous: Uint8Array, index: number): boolean {
-  const start = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
-  for (let offset = 0; offset < ELEMENT_RECORD_STRIDE; offset += 1) {
-    if (next[start + offset] !== previous[start + offset]) return true;
+function sameBytes(
+  next: Uint8Array,
+  previous: Uint8Array,
+  offset: number,
+  length: number,
+): boolean {
+  for (let index = 0; index < length; index += 1) {
+    if (next[index] !== previous[offset + index]) return false;
   }
-  return false;
+  return true;
 }
 
 interface HighlightCapacityOptions {
