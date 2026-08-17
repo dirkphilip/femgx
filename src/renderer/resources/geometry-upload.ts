@@ -26,7 +26,7 @@ export interface UploadVertexData {
 
 /** Geometry buffers and metadata assembled for one cached part resource. */
 export interface PartGeometryData {
-  readonly picks: Pick<PartResource, "elementOrdinalsBuffer" | "nodePickIdsBuffer">;
+  readonly nodePickIdsBuffer: GPUBuffer;
   readonly facePickIdsBuffer: GPUBuffer;
   readonly subsetBuffers: ReturnType<typeof createSubsetBuffers>;
   readonly subsetIndices: Uint32Array | undefined;
@@ -42,9 +42,15 @@ export function buildPartGeometryData(
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
   const emptyEdgeData = emptyMeshEdgeData();
-  const picks = uploadPickBuffers(device, part, geometry, vertexData.nodePickIds);
+  const nodePickIdsBuffer = createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE);
+  const elementOrdinals = buildElementPrimitiveOrdinals(
+    geometry,
+    part.elements ?? [],
+    getPartSemanticIndex(part).elementOrdinalById,
+  );
   const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
   const facePickIdsBuffer = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
+    elementOrdinals,
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
   });
@@ -52,9 +58,14 @@ export function buildPartGeometryData(
     triangleGeometry === undefined || subsetIndices === undefined
       ? undefined
       : expandSurfaceGeometry(triangleGeometry, subsetIndices);
-  const subsetBuffers = createSubsetBuffers(device, subsetVertexData, faceBodyPickIds);
+  const subsetBuffers = createSubsetBuffers(
+    device,
+    subsetVertexData,
+    faceBodyPickIds,
+    elementOrdinals,
+  );
   return {
-    picks,
+    nodePickIdsBuffer,
     facePickIdsBuffer,
     subsetBuffers,
     subsetIndices,
@@ -124,6 +135,11 @@ function uploadEdgeResourceData(
     drawData.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
+  const elementOrdinals = buildElementPrimitiveOrdinals(
+    geometry,
+    part.elements ?? [],
+    getPartSemanticIndex(part).elementOrdinalById,
+  );
   return {
     edgeVertexBuffer: vertexBuffer,
     edgeIndexBuffer: createIndexBuffer(device, drawData.indices),
@@ -132,31 +148,11 @@ function uploadEdgeResourceData(
       device,
       buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
       { ...edgeData, ...drawData },
-      { primitiveIds: [], edgeIds: drawData.edgeIds },
+      { elementOrdinals, primitiveIds: [], edgeIds: drawData.edgeIds },
     ),
     edgeIndexCount: drawData.indices.length,
     edgeKeys: edgeData.edgeKeys,
     edgeNodeIds: edgeData.edgeNodeIds,
-  };
-}
-
-function uploadPickBuffers(
-  device: GPUDevice,
-  part: Part,
-  geometry: Geometry,
-  nodePickIds: Uint32Array,
-): Pick<PartResource, "elementOrdinalsBuffer" | "nodePickIdsBuffer"> {
-  return {
-    elementOrdinalsBuffer: createBuffer(
-      device,
-      buildElementPrimitiveOrdinals(
-        geometry,
-        part.elements ?? [],
-        getPartSemanticIndex(part).elementOrdinalById,
-      ),
-      GPUBufferUsage.STORAGE,
-    ),
-    nodePickIdsBuffer: createBuffer(device, nodePickIds, GPUBufferUsage.STORAGE),
   };
 }
 
@@ -171,6 +167,7 @@ function createTopologyBuffer(
   faceBodyPickIds: Uint32Array,
   edgeData: MeshEdgeData,
   metadata: {
+    readonly elementOrdinals: ArrayLike<number>;
     readonly primitiveIds: ArrayLike<number>;
     readonly edgeIds: ArrayLike<number>;
   },
@@ -192,6 +189,7 @@ function createSubsetBuffers(
   device: GPUDevice,
   vertexData: SurfaceVertexData | undefined,
   faceBodyPickIds: Uint32Array,
+  elementOrdinals: Uint32Array,
 ): {
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
@@ -209,6 +207,7 @@ function createSubsetBuffers(
     subsetVertexBuffer,
     subsetNodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
     subsetTopologyBuffer: createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
+      elementOrdinals,
       primitiveIds: vertexData.primitiveIds,
       edgeIds: [],
     }),

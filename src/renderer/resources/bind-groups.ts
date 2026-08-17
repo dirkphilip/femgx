@@ -136,7 +136,6 @@ function instanceBindGroup(
     entries: [
       { binding: 0, resource: { buffer: storage.buffer } },
       { binding: 1, resource: { buffer: orderBuffer } },
-      { binding: 2, resource: { buffer: geometry.elementOrdinalsBuffer } },
       { binding: 3, resource: { buffer: storage.highlight.buffer } },
       { binding: 4, resource: { buffer: part.deformation } },
       { binding: 5, resource: { buffer: topologyBuffer } },

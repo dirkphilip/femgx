@@ -140,11 +140,6 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
-    elementOrdinalsBuffer: createBuffer(
-      draw.device,
-      new Uint32Array(spritePickIds.length),
-      GPUBufferUsage.STORAGE,
-    ),
     facePickIdsBuffer: createBuffer(
       draw.device,
       packTopologyData(
@@ -152,7 +147,11 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
         nodeBodyData.bodyRanges,
         nodeBodyData.bodyIds,
         nodeBodyData.elementIds,
-        { primitiveIds: [], edgeIds: [] },
+        {
+          elementOrdinals: new Uint32Array(spritePickIds.length),
+          primitiveIds: [],
+          edgeIds: [],
+        },
       ),
       GPUBufferUsage.STORAGE,
     ),
@@ -218,7 +217,7 @@ export function uploadGeometryPart(
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
-    ...geometryData.picks,
+    nodePickIdsBuffer: geometryData.nodePickIdsBuffer,
     facePickIdsBuffer: geometryData.facePickIdsBuffer,
     edge: undefined,
     edgePick: undefined,

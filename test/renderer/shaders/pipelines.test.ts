@@ -13,6 +13,15 @@ describe("GPU render resources", () => {
     try {
       const gpu = fakeGpuDevice();
       const resources = await createRenderResources(gpu.device, "bgra8unorm", "depth24plus");
+      const vertexStorageCounts = gpu.bindGroupLayoutDescriptors.map(
+        (descriptor) =>
+          [...descriptor.entries].filter(
+            (entry) =>
+              entry.buffer?.type === "read-only-storage" &&
+              (entry.visibility & GPUShaderStage.VERTEX) !== 0,
+          ).length,
+      );
+      expect(Math.max(...vertexStorageCounts)).toBeLessThanOrEqual(8);
       expect(resources.cameraBuffer).toBeDefined();
       expect(resources.deformationBuffer).toBeDefined();
       expect(resources.frameBindGroup).toBeDefined();

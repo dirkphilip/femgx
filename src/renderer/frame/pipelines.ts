@@ -80,7 +80,6 @@ export async function createRenderResources(
     entries: [
       { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
-      { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 5, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },

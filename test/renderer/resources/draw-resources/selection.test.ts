@@ -203,8 +203,9 @@ describe("GPU draw path", () => {
       expect(resource.indexCount).toBe(12);
       expect(gpu.buffers[4]?.size).toBe(96);
       expect(gpu.buffers[5]?.size).toBe(48);
-      expect(gpu.buffers[6]?.size).toBe(8);
-      expect(gpu.buffers[7]?.size).toBe(32);
+      expect(
+        gpu.buffers.find((buffer) => buffer.resource === resource.nodePickIdsBuffer)?.size,
+      ).toBe(32);
 
       const indexWrite = gpu.writes.find((write) => write.buffer === resource.indexBuffer);
       expect(indexWrite).toBeDefined();

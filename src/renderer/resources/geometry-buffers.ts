@@ -1,11 +1,16 @@
 import type { MeshEdgeData } from "../edges/mesh-edge";
 
 interface TopologyMetadata {
+  readonly elementOrdinals: ArrayLike<number>;
   readonly primitiveIds: ArrayLike<number>;
   readonly edgeIds: ArrayLike<number>;
 }
 
-const EMPTY_TOPOLOGY_METADATA: TopologyMetadata = { primitiveIds: [], edgeIds: [] };
+const EMPTY_TOPOLOGY_METADATA: TopologyMetadata = {
+  elementOrdinals: [],
+  primitiveIds: [],
+  edgeIds: [],
+};
 
 /** Packs face records and variable-length topology ownership into one buffer. */
 export function packTopologyData(
@@ -15,7 +20,7 @@ export function packTopologyData(
   elementIds: Uint32Array,
   metadata: TopologyMetadata = EMPTY_TOPOLOGY_METADATA,
 ): Uint32Array {
-  const { primitiveIds, edgeIds } = metadata;
+  const { elementOrdinals, primitiveIds, edgeIds } = metadata;
   const faceStride = 5;
   const faceRecordCount = Math.floor(faceBodyPickIds.length / faceStride);
   const rangeCount = Math.floor(bodyRanges.length / 2);
@@ -29,18 +34,21 @@ export function packTopologyData(
   const storedBodyIds = storedConditionCount === 0 ? new Uint32Array() : bodyIds;
   const storedElementIds = storedConditionCount === 0 ? new Uint32Array() : elementIds;
   const metadataOffset =
-    3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
-  const data = new Uint32Array(metadataOffset + 1 + primitiveIds.length + edgeIds.length);
+    4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
+  const primitiveIdsOffset = metadataOffset + elementOrdinals.length;
+  const data = new Uint32Array(primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length);
   data[0] = faceRecordCount;
   data[1] = rangeCount;
   data[2] = storedConditionCount;
-  data.set(faceBodyPickIds, 3);
-  data.set(bodyRanges, 3 + faceBodyPickIds.length);
-  data.set(storedBodyIds, 3 + faceBodyPickIds.length + bodyRanges.length);
-  data.set(storedElementIds, 3 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length);
-  data[metadataOffset] = primitiveIds.length;
-  data.set(primitiveIds, metadataOffset + 1);
-  data.set(edgeIds, metadataOffset + 1 + primitiveIds.length);
+  data[3] = elementOrdinals.length;
+  data.set(faceBodyPickIds, 4);
+  data.set(bodyRanges, 4 + faceBodyPickIds.length);
+  data.set(storedBodyIds, 4 + faceBodyPickIds.length + bodyRanges.length);
+  data.set(storedElementIds, 4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length);
+  data.set(elementOrdinals, metadataOffset);
+  data[primitiveIdsOffset] = primitiveIds.length;
+  data.set(primitiveIds, primitiveIdsOffset + 1);
+  data.set(edgeIds, primitiveIdsOffset + 1 + primitiveIds.length);
   return data;
 }
 
