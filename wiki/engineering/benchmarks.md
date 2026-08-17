@@ -182,11 +182,14 @@ the measured workload. Open the latter in Chrome DevTools' Performance panel.
 131,712-element selection and clear, hover diffs over unchanged dense selection,
 sparse element visibility and restore, 256-body recolor and clear, elemental
 result snapshot builds for 1/8/64 placements, one CPU hover/identity transition
-on one active-result fixture, and 200,000-placement scene/runtime operations. It emits one fingerprinted JSON
-report. Set `PERF_BASELINE_FILE` to write it to an explicit path; otherwise the
-report is printed only. Its hover case measures immutable interaction diff
-preparation, not renderer synchronization or first-frame smoothness; those
-claims remain in the opt-in WebGPU report. The targets and changelog format are defined in
+on one active-result fixture, a high-water sparse-highlight one-record hover
+after 131,712 active records, and 200,000-placement scene/runtime operations.
+It emits one fingerprinted JSON report. Set `PERF_BASELINE_FILE` to write it to
+an explicit path; otherwise the report is printed only. Its CPU/fake-GPU
+highlight case measures renderer CPU table encoding/diff plus fake queue writes;
+it does not measure real GPU submission, upload completion, draw, or
+first/steady-frame behavior. Those claims remain in the opt-in WebGPU report. The targets and
+changelog format are defined in
 [[engineering/performance-baselines|Performance baselines]].
 
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and

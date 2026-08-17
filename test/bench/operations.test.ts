@@ -28,6 +28,7 @@ import {
   emitOperationsReport,
   type OperationSpec,
 } from "./operation-report";
+import { highWaterHighlightHoverOperation } from "./highlight-operation";
 
 const TET4_ELEMENT_COUNT = 131_712;
 const BODY_ELEMENT_COUNT = 16_384;
@@ -68,7 +69,7 @@ describe("local CPU operation baseline", () => {
   it("emits one structured operation report", () => {
     const report = buildOperationsReport(operationSpecs());
     expect(report.schemaVersion).toBe(2);
-    expect(report.operations).toHaveLength(11);
+    expect(report.operations).toHaveLength(12);
     expect(typeof report.gitDirty).toBe("boolean");
     expect(
       report.operations.filter((operation) =>
@@ -80,6 +81,18 @@ describe("local CPU operation baseline", () => {
         operation.name.startsWith("elemental-result-cpu-hover-identity-transition"),
       ),
     ).toHaveLength(1);
+    const highlightOperation = report.operations.find((operation) =>
+      operation.name.startsWith("highlight-hover-one-record-after-131k-high-water"),
+    );
+    expect(highlightOperation?.workload).toMatchObject({
+      unit: "active sparse records per one-record hover",
+      count: 1,
+      details: {
+        activeRecords: 1,
+        highWaterActiveRecords: 131_712,
+      },
+    });
+    expect(highlightOperation?.workload.details).not.toHaveProperty("retainedSparseTableSlots");
     for (const operation of report.operations) {
       expect(operation.timingsMs.p50).toBeGreaterThanOrEqual(0);
       expect(operation.timingsMs.p95).toBeGreaterThanOrEqual(operation.timingsMs.p50);
@@ -137,6 +150,7 @@ function operationSpecs(): readonly OperationSpec[] {
       workloadCount: 1,
       run: updateElementalResultInteraction(activeElementalResultFixture),
     },
+    highWaterHighlightHoverOperation(),
     {
       name: "scene-runtime-rebuild",
       workloadUnit: "placed instances",

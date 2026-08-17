@@ -13,13 +13,19 @@ export interface OperationSpec {
   readonly workloadUnit: string;
   /** Number of units processed by one operation invocation. */
   readonly workloadCount: number;
+  /** Optional numeric workload facts that clarify retained versus active size. */
+  readonly workloadDetails?: Readonly<Record<string, number>>;
   /** Executes one operation without returning a measured value. */
   readonly run: () => void;
 }
 
 interface OperationResult {
   readonly name: string;
-  readonly workload: { readonly unit: string; readonly count: number };
+  readonly workload: {
+    readonly unit: string;
+    readonly count: number;
+    readonly details?: Readonly<Record<string, number>>;
+  };
   readonly timingsMs: { readonly p50: number; readonly p95: number };
 }
 
@@ -79,7 +85,11 @@ function measureOperation(operation: OperationSpec): OperationResult {
   }
   return {
     name: operation.name,
-    workload: { unit: operation.workloadUnit, count: operation.workloadCount },
+    workload: {
+      unit: operation.workloadUnit,
+      count: operation.workloadCount,
+      ...(operation.workloadDetails === undefined ? {} : { details: operation.workloadDetails }),
+    },
     timingsMs: { p50: percentile(samples, 0.5), p95: percentile(samples, 0.95) },
   };
 }
