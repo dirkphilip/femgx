@@ -45,6 +45,7 @@ export function destroyDrawResources(draw: DrawResources): void {
     if (!destroyed.has(resource)) destroyPartResource(resource);
   }
   draw.primitiveParts.clear();
+  draw.admissionCache.clear();
   for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
   draw.parts.clear();
   draw.nodeParts.clear();
@@ -72,6 +73,7 @@ export function destroyPartResources(draw: DrawResources, partId: PartId): void 
     if (resource !== undefined) destroyPartResource(resource);
   }
   draw.parts.delete(partId);
+  draw.admissionCache.delete(partId);
   const nodeResource = draw.nodeParts.get(partId);
   if (nodeResource !== undefined) {
     destroyPartResource(nodeResource);

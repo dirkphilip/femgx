@@ -1,5 +1,7 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { Geometry, Primitive } from "../../geometry/part";
+import type { DeformationState } from "../../results/deform";
+import type { SectionPlane } from "../../math/section-plane";
 import { createEmptyDeformationBuffer } from "../frame/deformation";
 import { packTopologyData } from "../resources/geometry-buffers";
 import { createEmptyOrderBuffer } from "../resources/instance-storage";
@@ -71,10 +73,14 @@ export interface SelectionDrawRange {
 /** Per-frame inputs shared by every draw batch of a pass. */
 export interface DrawCallContext {
   readonly frameBindGroup: GPUBindGroup;
+  readonly minimalFrameBindGroup?: GPUBindGroup;
   readonly instanceLayout: GPUBindGroupLayout;
+  readonly minimalInstanceLayout?: GPUBindGroupLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly pipelines: DrawPipelines;
   readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly deformation?: DeformationState;
+  readonly sectionPlane?: SectionPlane;
   readonly usesExteriorFaceSubsets: boolean;
 }
 
@@ -97,6 +103,7 @@ export function createDrawResources(
     primitiveParts: new Map(),
     nodeParts: new Map(),
     storages: new Map(),
+    admissionCache: new Map(),
     emptyOrderBuffer,
     emptyHighlight,
     emptyDeformationBuffer,

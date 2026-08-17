@@ -16,6 +16,10 @@ describe("GPU render resources", () => {
       expect(resources.cameraBuffer).toBeDefined();
       expect(resources.deformationBuffer).toBeDefined();
       expect(resources.frameBindGroup).toBeDefined();
+      expect(resources.minimalFrameBindGroup).toBeDefined();
+      expect(resources.minimalInstanceLayout).toBeDefined();
+      expect(resources.pipelines.minimalTrianglesColor).toBeDefined();
+      expect(resources.pipelines.minimalTrianglesTransparent).toBeDefined();
       expect(resources.pipelines.trianglesColor).toBeDefined();
       expect(resources.pipelines.trianglesTransparent).toBeDefined();
       expect(resources.pipelines.trianglesPick).toBeDefined();
@@ -41,7 +45,7 @@ describe("GPU render resources", () => {
       const transparent = gpu.renderPipelineDescriptors.filter(
         (descriptor) => descriptor.fragment?.targets.length === 2,
       );
-      expect(transparent).toHaveLength(10);
+      expect(transparent).toHaveLength(11);
       expect(
         transparent.every((descriptor) => descriptor.depthStencil?.depthWriteEnabled === false),
       ).toBe(true);

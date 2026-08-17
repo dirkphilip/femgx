@@ -85,6 +85,10 @@ export interface InstanceStorage {
   orderLength: number;
   /** Cached bind group; invalidated whenever the storage buffers grow. */
   bindGroup: GPUBindGroup | undefined;
+  /** Cached minimal-layout bind group for ordinary opaque triangles. */
+  minimalBindGroup: GPUBindGroup | undefined;
+  /** Cached minimal-layout bind group for ordinary transparent triangles. */
+  minimalTransparentBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing node-sprite geometry and its node-id table. */
   nodeBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the edge-order buffer; invalidated on growth. */
@@ -329,6 +333,8 @@ function createStorage(
     orderData: new Uint32Array(size),
     orderLength: existing?.orderLength ?? 0,
     bindGroup: undefined,
+    minimalBindGroup: undefined,
+    minimalTransparentBindGroup: undefined,
     nodeBindGroup: undefined,
     edgeBindGroup: undefined,
     transparentBindGroup: undefined,
@@ -441,6 +447,8 @@ function releaseOrderSidecar(
 export function invalidateBindGroups(storage: InstanceStorage, cost?: GpuCostAccumulator): void {
   cost?.invalidateBindGroups();
   storage.bindGroup = undefined;
+  storage.minimalBindGroup = undefined;
+  storage.minimalTransparentBindGroup = undefined;
   storage.nodeBindGroup = undefined;
   storage.edgeBindGroup = undefined;
   storage.transparentBindGroup = undefined;

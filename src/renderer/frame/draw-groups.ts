@@ -89,10 +89,14 @@ export function drawContext(
 ): DrawCallContext {
   return {
     frameBindGroup: frame.resources.frameBindGroup,
+    minimalFrameBindGroup: frame.resources.minimalFrameBindGroup,
     instanceLayout: frame.resources.instanceLayout,
+    minimalInstanceLayout: frame.resources.minimalInstanceLayout,
     parts,
     pipelines: frame.resources.pipelines,
     resultColors: frame.resultColors,
     usesExteriorFaceSubsets: frame.usesExteriorFaceSubsets,
+    ...(frame.deformation === undefined ? {} : { deformation: frame.deformation }),
+    ...(frame.sectionPlane === undefined ? {} : { sectionPlane: frame.sectionPlane }),
   };
 }

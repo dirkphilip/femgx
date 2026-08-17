@@ -1,5 +1,6 @@
 import { colorFragmentShader, edgeFragmentShader, triangleColorFragmentShader } from "./scene";
 import { edgeVertexShader } from "./edge";
+import { createMinimalPipelines } from "./minimal-pipeline";
 import {
   instanceVertexShader,
   lineSelectionVertexShader,
@@ -16,13 +17,10 @@ import {
 import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
-  TRANSPARENCY_ACCUMULATION_FORMAT,
-  TRANSPARENCY_BLEND_STATES,
-  TRANSPARENCY_REVEALAGE_FORMAT,
 } from "../frame/transparency";
+import { createBasePipelines, type BasePipelineShaders } from "./primitive-pipelines";
 import { createSelectionPipelines, type SelectionPipelines } from "./selection-pipelines";
-import { PICK_TEXTURE_FORMAT } from "../picking/pick-format";
-import { COLOR_SAMPLE_COUNT, vertexLayout } from "../resources/foundation";
+import { vertexLayout } from "../resources/foundation";
 import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
@@ -30,6 +28,8 @@ import {
 } from "../diagnostics/validation";
 
 export interface DrawPipelines extends SelectionPipelines {
+  readonly minimalTrianglesColor: GPURenderPipeline;
+  readonly minimalTrianglesTransparent: GPURenderPipeline;
   readonly trianglesColor: GPURenderPipeline;
   readonly trianglesTransparent: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
@@ -54,93 +54,27 @@ export interface PipelineResources {
   readonly pointVertexModule: GPUShaderModule;
 }
 
-interface PipelineSpec {
-  readonly depthFormat: GPUTextureFormat;
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
-  readonly fragmentModule: GPUShaderModule;
-  readonly passFormats: readonly GPUTextureFormat[];
-  readonly blendStates?: readonly (GPUBlendState | undefined)[];
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
-  readonly sampleCount: number;
-  readonly depthCompare?: GPUCompareFunction;
-  readonly depthWriteEnabled?: boolean;
-}
-
-interface PipelineShaders {
-  readonly triangleVertex: GPUShaderModule;
-  readonly lineVertex: GPUShaderModule;
+interface PipelineShaders extends BasePipelineShaders {
   readonly lineSelectionVertex: GPUShaderModule;
   readonly selectionVertex: GPUShaderModule;
-  readonly pointVertex: GPUShaderModule;
-  readonly lineNodeVertex: GPUShaderModule;
-  readonly pointNodeVertex: GPUShaderModule;
-  readonly colorFragment: GPUShaderModule;
-  readonly triangleColorFragment: GPUShaderModule;
-  readonly transparencyFragment: GPUShaderModule;
-  readonly triangleTransparencyFragment: GPUShaderModule;
-  readonly nodePickVertex: GPUShaderModule;
-  readonly nodePickFragment: GPUShaderModule;
-}
-
-interface PrimitiveSpec {
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
-  readonly depthCompare?: GPUCompareFunction;
-}
-
-interface PipelineVariants {
-  readonly triangles: PrimitiveSpec;
-  readonly lines: PrimitiveSpec;
-  readonly points: PrimitiveSpec;
-}
-
-const PICK_FORMATS = [
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-  PICK_TEXTURE_FORMAT,
-] as const;
-const TRANSPARENT_FORMATS = [
-  TRANSPARENCY_ACCUMULATION_FORMAT,
-  TRANSPARENCY_REVEALAGE_FORMAT,
-] as const;
-
-interface PrimitivePipelines {
-  readonly color: GPURenderPipeline;
-  readonly transparent: GPURenderPipeline;
-  readonly pick: GPURenderPipeline;
-}
-
-interface PrimitivePipelineOptions {
-  readonly device: GPUDevice;
-  readonly layout: GPUPipelineLayout;
-  readonly format: GPUTextureFormat;
-  readonly depthFormat: GPUTextureFormat;
-  readonly label: string;
-  readonly variant: PrimitiveSpec;
-  readonly colorFragment: GPUShaderModule;
-  readonly transparencyFragment: GPUShaderModule;
-  readonly pickVertex: GPUShaderModule;
-  readonly pickFragment: GPUShaderModule;
 }
 
 /** Compiles and validates every draw and edge shader/pipeline used by a bundle. */
 export async function createPipelineResources(
   device: GPUDevice,
-  layout: GPUPipelineLayout,
+  layouts: { readonly full: GPUPipelineLayout; readonly minimal: GPUPipelineLayout },
   format: GPUTextureFormat,
   depthFormat: GPUTextureFormat,
   validation?: GpuValidationOptions,
 ): Promise<PipelineResources> {
   const shaders = await createPipelineShaders(device, validation);
-  const basePipelines = await buildPipelines(device, layout, format, depthFormat, shaders);
+  const [basePipelines, minimalPipelines] = await Promise.all([
+    createBasePipelines(device, layouts.full, format, depthFormat, shaders),
+    createMinimalPipelines(device, layouts.minimal, format, depthFormat, validation),
+  ]);
   const selectionPipelines = await createSelectionPipelines({
     device,
-    layout,
+    layout: layouts.full,
     format,
     depthFormat,
     validation,
@@ -149,8 +83,12 @@ export async function createPipelineResources(
     selectionVertex: shaders.selectionVertex,
     pointVertex: shaders.pointVertex,
   });
-  const pipelines: DrawPipelines = { ...basePipelines, ...selectionPipelines };
-  const edges = await createEdgePipelines(device, layout, format, depthFormat, validation);
+  const pipelines: DrawPipelines = {
+    ...basePipelines,
+    ...minimalPipelines,
+    ...selectionPipelines,
+  };
+  const edges = await createEdgePipelines(device, layouts.full, format, depthFormat, validation);
   return { pipelines, ...edges, pointVertexModule: shaders.pointVertex };
 }
 
@@ -198,165 +136,6 @@ async function createPipelineShaders(
     nodePickVertex,
     nodePickFragment,
   };
-}
-
-function pipelineVariants(shaders: PipelineShaders): PipelineVariants {
-  return {
-    triangles: {
-      vertexModule: shaders.triangleVertex,
-      vertexEntry: "vertexMain",
-      primitive: "triangle-list",
-      cullMode: "none",
-    },
-    lines: {
-      vertexModule: shaders.lineVertex,
-      vertexEntry: "vertexMain",
-      primitive: "triangle-list",
-      cullMode: "none",
-      depthCompare: "less-equal",
-    },
-    points: {
-      vertexModule: shaders.pointVertex,
-      vertexEntry: "pointVertexMain",
-      primitive: "triangle-list",
-      cullMode: "none",
-      depthCompare: "less-equal",
-    },
-  };
-}
-
-async function buildPipelines(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-  shaders: PipelineShaders,
-): Promise<Omit<DrawPipelines, keyof SelectionPipelines>> {
-  const variants = pipelineVariants(shaders);
-  const [triangles, lines, points] = await Promise.all([
-    createPrimitivePipelines({
-      device,
-      layout,
-      format,
-      depthFormat,
-      label: "triangle",
-      variant: variants.triangles,
-      colorFragment: shaders.triangleColorFragment,
-      transparencyFragment: shaders.triangleTransparencyFragment,
-      pickVertex: shaders.nodePickVertex,
-      pickFragment: shaders.nodePickFragment,
-    }),
-    createPrimitivePipelines({
-      device,
-      layout,
-      format,
-      depthFormat,
-      label: "line",
-      variant: variants.lines,
-      colorFragment: shaders.colorFragment,
-      transparencyFragment: shaders.transparencyFragment,
-      pickVertex: shaders.lineNodeVertex,
-      pickFragment: shaders.nodePickFragment,
-    }),
-    createPrimitivePipelines({
-      device,
-      layout,
-      format,
-      depthFormat,
-      label: "point",
-      variant: variants.points,
-      colorFragment: shaders.colorFragment,
-      transparencyFragment: shaders.transparencyFragment,
-      pickVertex: shaders.pointNodeVertex,
-      pickFragment: shaders.nodePickFragment,
-    }),
-  ]);
-  return {
-    trianglesColor: triangles.color,
-    trianglesTransparent: triangles.transparent,
-    trianglesPick: triangles.pick,
-    linesColor: lines.color,
-    linesTransparent: lines.transparent,
-    linesPick: lines.pick,
-    pointsColor: points.color,
-    pointsTransparent: points.transparent,
-    pointsPick: points.pick,
-  };
-}
-
-async function createPrimitivePipelines(
-  options: PrimitivePipelineOptions,
-): Promise<PrimitivePipelines> {
-  const {
-    device,
-    layout,
-    format,
-    depthFormat,
-    label,
-    variant,
-    colorFragment,
-    transparencyFragment,
-    pickVertex,
-    pickFragment,
-  } = options;
-  const [color, transparent, pick] = await Promise.all([
-    createPipeline(device, layout, `${label} color`, {
-      ...variant,
-      fragmentModule: colorFragment,
-      passFormats: [format],
-      depthFormat,
-      sampleCount: COLOR_SAMPLE_COUNT,
-    }),
-    createPipeline(device, layout, `${label} transparency`, {
-      ...variant,
-      fragmentModule: transparencyFragment,
-      passFormats: TRANSPARENT_FORMATS,
-      blendStates: TRANSPARENCY_BLEND_STATES,
-      depthFormat,
-      sampleCount: COLOR_SAMPLE_COUNT,
-      depthWriteEnabled: false,
-    }),
-    createPipeline(device, layout, `${label} picking`, {
-      ...variant,
-      vertexModule: pickVertex,
-      fragmentModule: pickFragment,
-      passFormats: PICK_FORMATS,
-      depthFormat,
-      sampleCount: 1,
-    }),
-  ]);
-  return { color, transparent, pick };
-}
-
-async function createPipeline(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  label: string,
-  spec: PipelineSpec,
-): Promise<GPURenderPipeline> {
-  return createValidatedRenderPipeline(device, label, {
-    layout,
-    vertex: {
-      module: spec.vertexModule,
-      entryPoint: spec.vertexEntry,
-      buffers: [vertexLayout],
-    },
-    fragment: {
-      module: spec.fragmentModule,
-      entryPoint: "fragmentMain",
-      targets: spec.passFormats.map((passFormat, index) => {
-        const blend = spec.blendStates?.[index];
-        return blend === undefined ? { format: passFormat } : { format: passFormat, blend };
-      }),
-    },
-    primitive: { topology: spec.primitive, cullMode: spec.cullMode },
-    depthStencil: {
-      format: spec.depthFormat,
-      depthWriteEnabled: spec.depthWriteEnabled ?? true,
-      depthCompare: spec.depthCompare ?? "less",
-    },
-    multisample: { count: spec.sampleCount },
-  });
 }
 
 async function createEdgePipelines(
