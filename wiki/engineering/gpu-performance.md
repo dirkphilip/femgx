@@ -79,11 +79,13 @@ authored topology during navigation.
 ## Reference performance envelope
 
 The system-Chrome `instanced-2.10m` case at 800×600 DPR 1 is the dense-overlay
-reference, not a universal hardware guarantee. On the recorded Apple/Metal
-adapter, surface and native-edge presentation reach approximately 120 FPS;
-combined edges and nodes reach approximately 51–65 FPS, while synchronous CPU
-encoding remains about 0.1 ms p50. Dense node coverage/overdraw is therefore the
-next measured GPU target.
+reference, not a universal hardware guarantee. On the final recorded
+Apple/Metal adapter run pinned to `86f55e5`, surface presentation reached 119.5
+FPS, native edges 119.6 FPS, nodes 87.6 FPS, and combined edges/nodes 65.3 FPS.
+Synchronous CPU encoding remained 0.1 ms p50 (0.2 ms p95) for the reference
+case. Combined edges/nodes measured a 17.2 ms moving-camera p95 with 22
+intervals over 16.7 ms and none over 33.3 ms; this accepted miss remains a
+diagnostic target, not a license to silently degrade authored presentation.
 
 For this reference case, performance work targets:
 

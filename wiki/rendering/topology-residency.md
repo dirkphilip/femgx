@@ -123,11 +123,13 @@ Dense exterior presentation uses the measured overlay path:
 - Node display and node interaction data remain separable so a high-performance
   presentation does not imply FE-scale selection storage.
 
-The `instanced-2.10m` 800×600 DPR1 system-Chrome case measured approximately
-120 FPS for surface-only and edge presentation and approximately 65 FPS for the
-combined edge/node view after the native-edge fast path. CPU encoding remains
-about 0.1 ms p50; node fragment coverage and overdraw are the next measured GPU
-target.
+The final `instanced-2.10m` 800×600 DPR1 system-Chrome case, pinned to merged
+SHA `86f55e5`, measured 119.5 FPS for surface-only presentation, 119.6 FPS for
+native edges, 87.6 FPS for nodes, and 65.3 FPS for the combined edge/node view.
+The combined view's moving-camera p95 was 17.2 ms with 22 intervals over 16.7
+ms and none over 33.3 ms. CPU encoding remained 0.1 ms p50 and 0.2 ms p95.
+This is the accepted dense-overlay miss and remains an evidence target; the
+renderer must preserve authored topology and must not silently thin it.
 
 ## Invariants
 

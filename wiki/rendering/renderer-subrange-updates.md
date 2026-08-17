@@ -25,16 +25,20 @@ use fixed device-scoped empty bindings while inactive
   part-local slots in ascending draw order. The vertex shader reads
   `instances[drawOrder[instanceIndex]]`, so hidden slots are never drawn and the
   draw is `drawIndexed(geometry, visibleCountOfPart)`.
-- **Optional-path order buffers**: separate compacted lists for transparency,
-  visible/hidden selection, selected nodes, edge presentation, and node
-  presentation. Each list grows only when it has active entries and is released
-  when its membership becomes empty. Inactive bindings use one shared valid
-  empty order buffer.
-- **Emphasis/selection sidecar**: sparse fixed-stride records plus optional
-  dense ordinal bitsets. Small exception sets remain sparse; dense membership is
-  used only when its byte representation is smaller. The sidecar is absent
-  until emphasis or dense selection is active and returns to the shared zero
-  table when cleared.
+- **Five optional order sidecars**: compacted lists for transparency, surface
+  selection, selected-node presentation, edge presentation, and node
+  presentation. The one selection list is reused by both visible and hidden
+  selection passes; visible/hidden does not mean two allocations. Each sidecar
+  grows only when its active membership requires it and is released when that
+  membership becomes empty. Inactive bindings use one shared valid empty order
+  buffer.
+- **Emphasis/selection storage**: a part-owned sparse fixed-stride highlight
+  table plus optional dense ordinal bitsets for element selection. Small
+  exception sets remain sparse; dense membership is used only when its byte
+  representation is smaller. The part-owned table is absent until emphasis is
+  active and returns to the shared zero table when cleared; dense selection is
+  likewise derived from the current authoritative selection and never changes
+  visible or picking semantics.
 
 Pick ids are `global slot + 1`, so they are **stable across visibility changes**;
 `pick()` resolves a readback id through the runtime's `getInstanceId(slot)`.
@@ -84,10 +88,13 @@ conditions remain in compact topology storage, where face ranges can share one
 retained record across all of a face's triangles. Subset surface positions use
 cached subset buffers; placements never receive geometry or topology copies.
 
-Presentation edge endpoints and topology are materialized only on first edge
-display. Exact wider edge-pick geometry is a separate lazy resource created only
-when edge granularity is requested. Repeated placements share both resources by
-part, and leaving presentation enabled never implies exact edge-pick residency.
+Presentation edge endpoints, topology, and their result-color tail are
+materialized only on first edge display. Exact wider authored edge-pick geometry
+is a separate lazy resource created only when edge granularity is requested.
+Repeated placements share both resources by part, and leaving presentation
+enabled never implies exact edge-pick residency. Node presentation addresses the
+canonical node-pick table through its own node order sidecar; it does not create
+an element-scaled selection table merely because nodes are visible.
 
 ## Design notes
 

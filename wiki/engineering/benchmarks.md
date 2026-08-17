@@ -275,6 +275,52 @@ kept out of normal runs:
 | `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 152                           |         1 |            7,776 |               1,296 |
 | `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
+### Final real-WebGPU matrix
+
+The final post-program report was run on merged `main` SHA `86f55e5` on
+2026-08-17. It used system Chrome `151.0.7922.34` on an Apple `metal-3`
+adapter with `isFallbackAdapter: false`, features
+`core-features-and-limits` and `timestamp-query`, 2 untimed warmups, and 7
+timed samples. The reference canvas was 800×600 at DPR 1; `unique-250k` was
+the explicit high-DPR physical-target case at DPR 2. Queue-drained wall time
+and synchronous encoding are milliseconds. The adapter exposed no timestamp
+period, so GPU pass values remain raw timestamp ticks in opaque/transparency/
+composite order and must not be compared with the millisecond columns.
+
+| Case                         | CPU p95 ms | Queue p95 ms | GPU pass p95 ticks (O/T/C)        | RAF evidence                                 | Structure (admission min/top/feature; opaque draws×instances; writes) | Retained / peak MiB |
+| ---------------------------- | ---------: | -----------: | --------------------------------- | -------------------------------------------- | --------------------------------------------------------------------- | ------------------: |
+| `instanced-2.10m`            |        0.2 |          5.8 | 5,570,560 / 1,441,792 / 8,388,608 | moving 9.6 / 10.4 ms, 0 / 0 over 16.7 / 33.3 | 1 / 0 / 1; 1×64; 7                                                    |         12.5 / 25.0 |
+| `unique-250k` (DPR 2)        |        0.2 |          2.8 | 3,997,696 / 1,638,400 / 1,310,720 | —                                            | 1 / 0 / 1; 1×1; 7                                                     |         24.9 / 49.7 |
+| `unique-1m`                  |        0.3 |          6.1 | 5,898,240 / 2,424,832 / 2,490,368 | moving 9.8 / 10.3 ms, 0 / 0                  | 1 / 0 / 1; 1×1; 7                                                     |        99.2 / 198.3 |
+| `many-parts-100`             |        0.4 |          2.5 | 4,259,840 / 1,048,576 / 1,114,112 | moving 9.3 / 10.4 ms, 0 / 0                  | 100 / 0 / 100; 100×100; 7                                             |       100.2 / 200.4 |
+| `many-parts-1000`            |        1.4 |          6.9 | 4,325,376 / 720,896 / 720,896     | —                                            | 1,000 / 0 / 1,000; 1,000×1,000; 7                                     |        96.8 / 193.6 |
+| `placements-10k`             |        0.2 |          4.5 | 3,145,728 / 655,360 / 720,896     | —                                            | 1 / 0 / 1; 1×10,000; 7                                                |           1.0 / 1.0 |
+| `bodies-256`                 |        0.2 |          1.5 | 196,608 / 327,680 / 393,216       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.2 / 0.4 |
+| `fe-quad-shell-visual`       |        0.1 |          1.5 | 196,608 / 327,680 / 393,216       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.2 / 0.5 |
+| `fe-quad8-shell-visual`      |        0.1 |          1.4 | 196,608 / 393,216 / 393,216       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.3 / 0.6 |
+| `fe-hex8-solid-visual`       |        0.1 |          1.4 | 196,608 / 393,216 / 524,288       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.8 / 1.5 |
+| `fe-tet4-solid-132k`         |        0.2 |          1.9 | 393,216 / 524,288 / 589,824       | moving 9.4 / 10.3 ms, 0 / 0                  | 1 / 0 / 1; 1×1; 7                                                     |        59.7 / 119.3 |
+| `fe-hex8-orientation-visual` |        0.2 |          1.6 | 262,144 / 524,288 / 524,288       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.8 / 1.5 |
+| `fe-hex20-solid-visual`      |        0.1 |          1.5 | 262,144 / 393,216 / 458,752       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           1.0 / 2.0 |
+
+The instancing overlay submatrix used the same scene and deterministic moving
+camera: surface 119.5 FPS (p95 9.8 ms, max 10.5 ms, no interval over 16.7 or
+33.3 ms), nodes 87.6 FPS (p95 12.5 ms, max 13.2 ms, no interval over either
+threshold), native edges 119.6 FPS (p95 10.1 ms, max 10.3 ms, no interval over
+either threshold), and edges plus nodes 65.3 FPS (p95 17.2 ms, max 19.0 ms,
+22 intervals over 16.7 ms, none over 33.3 ms). The combined overlay therefore
+remains the explicitly accepted reference miss against the 16.7 ms p95 target;
+it is not a reason to thin authored topology or add a public quality enum.
+
+The matrix's 390×844 mobile check uses the same weighted/base render-target
+accounting at DPR 3: 239,957,640 / 94,798,080 bytes. Desktop and mobile
+screenshots were visually inspected for the origin triad, edges/nodes, scalar
+results, deformation, orientation glyphs, section caps, legends, and responsive
+controls. The focused Chrome contract suite exercises selection and weighted
+transparency transitions as well; those semantic checks are intentionally
+separate from the queue and timestamp measurements, so a nonblank capture is
+not mistaken for a timing sample.
+
 The planar-grid generator is shared by the visual performance fixture and the
 benchmark case factory, so their geometry/count conventions cannot drift. Each
 case creates one renderer over the same deterministic scene, drains
@@ -306,16 +352,14 @@ includes retained interior tessellation while submitted-triangle count reflects
 the compact exterior order. The Tet4 case uses a conforming 28×28×28 lattice
 with six Tet4 elements per cell: it retains 131,712 authored elements, 24,389
 shared nodes, and 526,848 complete faces for picking and through-intersection
-selection, while submitting only 9,408 exterior triangles. On the local CPU
-measurement lane, this case built in 2.50 s, estimated 62.6 MiB of retained
-renderer buffers, and 125.2 MiB at the upload peak. A 35×35×35 candidate
-(257,250 Tet4 elements) took 6.28 s and estimated 116.3 MiB retained/232.6 MiB
-peak, so it is not in the bounded browser matrix; a million-element tier is
-likewise not claimed under the current full-topology retention contract. The
-system-Chrome WebGPU lane measured a 1.90 s model build, 0.75 s attachment and
-first frame, 0.9 ms visible-frame p95, and 8.61 ms moving-camera interval p95
-with no interval over 16.7 ms. GPU visible-region selection readback remained
-under 7.2 ms in the three measured rectangles. A separate warmed host-side
+selection, while submitting only 9,408 exterior triangles. The final
+system-Chrome report measured a 2.02 s model build, 585.4 ms attachment and
+first frame, 1.9 ms visible-frame p95, and 9.41 ms moving-camera interval p95
+with no interval over 16.7 ms. A 35×35×35 candidate (257,250 Tet4 elements)
+is not in the bounded browser matrix, and a million-element tier is likewise
+not claimed under the current full-topology retention contract. GPU
+visible-region selection readback remained under 7.2 ms in the three measured
+rectangles. A separate warmed host-side
 Through query returned 11,372 elements from an 80×80 rectangle in 116 ms and
 all 131,712 elements from the full viewport in 45 ms; Through remains a
 completed-gesture query rather than per-frame work. The
@@ -454,28 +498,29 @@ Issue [#628](https://github.com/dirkphilip/femgx/issues/628) asked whether the
 measured performance envelope justified a new interactive quality mode. The
 opt-in benchmark was run in system Chrome 151 on Apple Metal 3 with a real
 WebGPU adapter (`isFallbackAdapter: false`), at 800×600 and DPR 1, with two
-untimed warmups and seven timed samples across all 11 default cases.
+untimed warmups and seven timed samples across all 13 default cases. The final
+report is pinned to merged SHA `86f55e5` above.
 
-| Measurement                           | Observed result                             |
-| ------------------------------------- | ------------------------------------------- |
-| Settled visible-frame p95             | 1.0–8.6 ms across the matrix                |
-| Representative moving-camera RAF      | 119.5–120 FPS; zero intervals over 16.7 ms  |
-| One-time upload/first-frame p95       | 4.0–417.7 ms, depending on geometry         |
-| Default weighted target estimate      | 38,880,000 bytes at 81 bytes/physical pixel |
-| No-weighted-contributor base estimate | 15,360,000 bytes at 32 bytes/physical pixel |
-| 390×844 DPR 3 weighted/base estimates | 239,957,640 / 94,798,080 bytes              |
+| Measurement                           | Observed result                              |
+| ------------------------------------- | -------------------------------------------- |
+| Settled visible-frame p95             | 1.4–6.9 ms across the matrix                 |
+| Representative moving-camera RAF      | 119.5–119.6 FPS; zero intervals over 16.7 ms |
+| One-time upload/first-frame p95       | 6.1–729.6 ms, depending on geometry          |
+| Default weighted target estimate      | 38,880,000 bytes at 81 bytes/physical pixel  |
+| No-weighted-contributor base estimate | 15,360,000 bytes at 32 bytes/physical pixel  |
+| 390×844 DPR 3 weighted/base estimates | 239,957,640 / 94,798,080 bytes               |
 
-All 11 cases completed. The default path retained weighted transparency, while
+All 13 cases completed. The default path retained weighted transparency, while
 focused real-Chrome checks covered the lazy no-OIT path, transparency ordering,
 depth weighting, picking, the origin triad, and the 390×844 mobile viewport.
 The results show an upload-cost envelope worth documenting, but no repeatable
 steady-state interactive miss on the measured device.
 
-The original matrix did not justify a public quality control. Later dense
+The original matrix did not justify a public quality control. The final dense
 overlay evidence changed the implementation priority without changing that API
-decision: native one-device-pixel presentation edges recovered the edge-only
-case from approximately 12 FPS to approximately 120 FPS, while the combined
-edge/node path remains approximately 51–65 FPS. The durable targets and
+decision: native one-device-pixel presentation edges measure 119.6 FPS, while
+the combined edge/node path measures 65.3 FPS with a 17.2 ms p95 and remains
+the accepted dense-overlay miss. The durable targets and
 diagnostic process are defined in
 [[engineering/gpu-performance|GPU rendering performance]].
 
