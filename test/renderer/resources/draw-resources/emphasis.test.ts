@@ -86,7 +86,13 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
       const denseSelections: DenseElementSelections = new Map([
-        [part.id, { elementCount: 2, occurrences: [{ slot: 0, ordinals: [1] }] }],
+        [
+          part.id,
+          {
+            elementCount: 2,
+            occurrences: [{ slot: 0, words: new Uint32Array([1]) }],
+          },
+        ],
       ]);
       syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), denseSelections);
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
