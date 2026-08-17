@@ -12,7 +12,7 @@ import {
 export interface SectionPlaneActionOwner {
   readonly model: WorkbenchModel;
   readonly presentation: { reflectSectionPlane: () => void };
-  readonly viewports: () => readonly FemViewport[];
+  readonly activeViewport: () => FemViewport;
   readonly render: () => void;
   sectionAxis: SectionAxis;
   sectionOffset: number;
@@ -30,7 +30,7 @@ export function setSectionAxis(owner: SectionPlaneActionOwner, value: string): v
   applySectionPlane(owner, true);
 }
 
-/** Applies a bounded slider offset to all active viewports. */
+/** Applies a bounded slider offset to the active viewport. */
 export function setSectionOffset(owner: SectionPlaneActionOwner, value: string): void {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) {
@@ -41,13 +41,12 @@ export function setSectionOffset(owner: SectionPlaneActionOwner, value: string):
   applySectionPlane(owner, true);
 }
 
-/** Synchronizes the section plane across primary and secondary viewports. */
+/** Applies the section plane to the active viewport. */
 export function applySectionPlane(owner: SectionPlaneActionOwner, render: boolean): void {
   const plane = sectionPlaneFor(owner.sectionAxis, owner.sectionOffset);
-  for (const viewport of owner.viewports()) {
-    if (plane === undefined) viewport.clearSectionPlane();
-    else viewport.setSectionPlane(plane);
-  }
+  const viewport = owner.activeViewport();
+  if (plane === undefined) viewport.clearSectionPlane();
+  else viewport.setSectionPlane(plane);
   owner.presentation.reflectSectionPlane();
   if (render) owner.render();
 }

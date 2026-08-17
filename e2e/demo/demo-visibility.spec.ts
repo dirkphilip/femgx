@@ -174,7 +174,7 @@ test("Show all restores bodies and other visibility layers without clearing sele
   expect(await dataset(page, "selected")).toBe(selected);
 });
 
-test("hides selected elements and restores them through synchronized toolbar actions", async ({
+test("keeps selected-element visibility and selection local to the active viewport", async ({
   page,
 }) => {
   await page.goto("/");
@@ -206,9 +206,15 @@ test("hides selected elements and restores them through synchronized toolbar act
   await expect.poll(() => dataset(page, "selected")).toBe(selected);
   await expect(secondary).toHaveAttribute("data-selected", selected);
 
-  const assembly = page.getByTestId("assembly-occurrence-vis-1");
-  await assembly.uncheck();
-  await expect(assembly).not.toBeChecked();
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await openCommandPanel(page, "selection");
+  await expect(hideSelected).toBeEnabled();
+  await hideSelected.click();
+  await expect(page.getByTestId("model-feedback")).toHaveText("Hidden 1 selected element.");
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
+  await expect(secondary).toHaveAttribute("data-selected", selected);
+
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
   await openCommandPanel(page, "selection");
   await expect(hideSelected).toBeDisabled();
   await expect(hideSelected).toHaveAttribute(
@@ -216,23 +222,13 @@ test("hides selected elements and restores them through synchronized toolbar act
     "Select one or more visible elements to hide.",
   );
 
-  const showAll = page.getByTestId("show-all");
-  await expect(showAll).toHaveText("Show all");
-  await showAll.click();
-  await expect(assembly).toBeChecked();
-  await expect(hideSelected).toBeEnabled();
-  await hideSelected.click();
-  await expect(page.getByTestId("model-feedback")).toHaveText("Hidden 1 selected element.");
-  await expect(hideSelected).toHaveText("Hide selected");
-  await expect.poll(() => dataset(page, "selected")).toBe(selected);
-  await expect(secondary).toHaveAttribute("data-selected", selected);
-
   const clearSelection = page.getByTestId("clear-selection");
   await expect(clearSelection).toBeEnabled();
   await clearSelection.click();
-  await expect.poll(() => dataset(page, "selected")).toBe("");
-  await expect(clearSelection).toBeDisabled();
   await expect(secondary).toHaveAttribute("data-selected", "");
+  await expect(clearSelection).toBeDisabled();
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await expect.poll(() => dataset(page, "selected")).toBe(selected);
 });
 
 test("context menu selects a target and toggles display without losing selection", async ({

@@ -27,13 +27,19 @@ export interface ElementDetailHoverTarget {
 export interface WorkbenchHoverController {
   disposed: boolean;
   hoverOwner: WorkbenchHoverOwner | undefined;
+  readonly hoverOwnerForSlot?: (slotId: ViewportSlotId) => WorkbenchHoverOwner | undefined;
+  readonly setHoverOwnerForSlot?: (
+    slotId: ViewportSlotId,
+    value: WorkbenchHoverOwner | undefined,
+  ) => void;
   interaction: InteractionState;
   readonly viewportSlots: { clearHover(): void };
   readonly render: () => void;
-  readonly viewports: () => readonly FemViewport[];
+  readonly activeViewport?: () => FemViewport;
+  readonly viewports?: () => readonly FemViewport[];
 }
 
-/** Commits one hierarchy row as the shared transient hover source. */
+/** Commits one hierarchy row as the active viewport's transient hover source. */
 export function setHierarchyHover(
   owner: WorkbenchHoverController,
   target: VisibilityRowTarget,
@@ -76,7 +82,7 @@ export function clearHierarchyHover(
   owner.render();
 }
 
-/** Commits one detail-list element as the shared transient hover source. */
+/** Commits one detail-list element as the active viewport's transient hover source. */
 export function setElementDetailHover(
   owner: WorkbenchHoverController,
   target: ElementDetailHoverTarget,
@@ -120,10 +126,10 @@ function elementDetailTargetsEqual(
   return left.instanceId === right.instanceId && left.elementId === right.elementId;
 }
 
-/** Sends the shared interaction snapshot to each viewport. */
+/** Sends the active interaction snapshot to the active viewport. */
 export function applyDisplayedInteraction(owner: WorkbenchHoverController): void {
   const displayed = displayedInteraction(owner);
-  for (const viewport of owner.viewports()) viewport.setInteraction(displayed);
+  activeViewport(owner)?.setInteraction(displayed);
 }
 
 function displayedInteraction(owner: WorkbenchHoverController): InteractionState {
@@ -131,13 +137,21 @@ function displayedInteraction(owner: WorkbenchHoverController): InteractionState
   if (hoverOwner?.kind !== "hierarchy" || hoverOwner.row.kind !== "assembly") {
     return owner.interaction;
   }
-  const viewport = owner.viewports()[0];
-  if (viewport === undefined) return owner.interaction;
   return setTargetsHighlighted(
     owner.interaction,
-    interactionTargetsForRow(viewport.runtime, hoverOwner.row),
+    interactionTargetsForRow(activeViewport(owner)?.runtime ?? ownerRuntime(owner), hoverOwner.row),
     true,
   );
+}
+
+function activeViewport(owner: WorkbenchHoverController): FemViewport | undefined {
+  return owner.activeViewport?.() ?? owner.viewports?.()[0];
+}
+
+function ownerRuntime(owner: WorkbenchHoverController): FemViewport["runtime"] {
+  const viewport = activeViewport(owner);
+  if (viewport === undefined) throw new Error("Workbench hover has no viewport");
+  return viewport.runtime;
 }
 
 /** Reports whether a viewport slot still owns transient canvas hover. */
@@ -145,17 +159,24 @@ export function canClearCanvasHover(
   owner: WorkbenchHoverController,
   slotId: ViewportSlotId,
 ): boolean {
-  return owner.hoverOwner?.kind === "canvas" && owner.hoverOwner.slotId === slotId;
+  const hoverOwner = owner.hoverOwnerForSlot?.(slotId) ?? owner.hoverOwner;
+  return hoverOwner?.kind === "canvas" && hoverOwner.slotId === slotId;
 }
 
 /** Marks a viewport slot as the current transient canvas hover source. */
 export function markCanvasHover(owner: WorkbenchHoverController, slotId: ViewportSlotId): void {
-  owner.hoverOwner = { kind: "canvas", slotId };
+  if (owner.setHoverOwnerForSlot !== undefined) {
+    owner.setHoverOwnerForSlot(slotId, { kind: "canvas", slotId });
+  } else {
+    owner.hoverOwner = { kind: "canvas", slotId };
+  }
 }
 
 /** Clears canvas ownership for a slot without disturbing a newer source. */
 export function clearCanvasHover(owner: WorkbenchHoverController, slotId: ViewportSlotId): void {
-  if (canClearCanvasHover(owner, slotId)) owner.hoverOwner = undefined;
+  if (!canClearCanvasHover(owner, slotId)) return;
+  if (owner.setHoverOwnerForSlot !== undefined) owner.setHoverOwnerForSlot(slotId, undefined);
+  else owner.hoverOwner = undefined;
 }
 
 /** Drops source ownership without changing the interaction snapshot. */

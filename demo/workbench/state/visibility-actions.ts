@@ -21,7 +21,6 @@ import { elementTarget } from "../selection/pick";
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
   readonly viewport: () => FemViewport;
-  readonly viewports?: () => readonly FemViewport[];
   readonly scene: () => Scene;
   readonly runtime: () => SceneRuntime;
   readonly interaction: () => InteractionState;
@@ -68,19 +67,17 @@ export class WorkbenchVisibilityActions {
   }
 
   setPart(partId: PartId, visible: boolean): void {
-    for (const viewport of this.viewports()) viewport.setPartVisible(partId, visible);
+    this.options.viewport().setPartVisible(partId, visible);
     this.finish();
   }
 
   setInstance(instanceId: InstanceId, visible: boolean): void {
-    for (const viewport of this.viewports()) viewport.setInstanceVisible(instanceId, visible);
+    this.options.viewport().setInstanceVisible(instanceId, visible);
     this.finish();
   }
 
   setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
-    for (const viewport of this.viewports()) {
-      viewport.setAssemblyOccurrenceVisible(occurrenceId, visible);
-    }
+    this.options.viewport().setAssemblyOccurrenceVisible(occurrenceId, visible);
     this.finish();
   }
 
@@ -106,7 +103,7 @@ export class WorkbenchVisibilityActions {
     );
   }
 
-  /** Hides selected element occurrences in one synchronized interaction update. */
+  /** Hides selected element occurrences in one active-slot interaction update. */
   hideSelected(): void {
     const interaction = this.options.interaction();
     const selected = selectedElementTargets(interaction);
@@ -179,22 +176,21 @@ export class WorkbenchVisibilityActions {
       }
     }
     this.options.applyInteraction(interaction);
-    for (const viewport of this.viewports()) {
-      viewport.batch(() => {
-        for (const assemblyId of scene.assemblies.keys()) {
-          viewport.setAssemblyVisible(assemblyId, true);
-        }
-        for (const occurrenceId of runtime.getOccurrenceIds()) {
-          viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
-        }
-        for (const partId of scene.parts.keys()) {
-          viewport.setPartVisible(partId, true);
-        }
-        for (const instanceId of runtime.getInstanceIds()) {
-          viewport.setInstanceVisible(instanceId, true);
-        }
-      });
-    }
+    const viewport = this.options.viewport();
+    viewport.batch(() => {
+      for (const assemblyId of scene.assemblies.keys()) {
+        viewport.setAssemblyVisible(assemblyId, true);
+      }
+      for (const occurrenceId of runtime.getOccurrenceIds()) {
+        viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
+      }
+      for (const partId of scene.parts.keys()) {
+        viewport.setPartVisible(partId, true);
+      }
+      for (const instanceId of runtime.getInstanceIds()) {
+        viewport.setInstanceVisible(instanceId, true);
+      }
+    });
     this.finish();
   }
 
@@ -222,9 +218,5 @@ export class WorkbenchVisibilityActions {
   private finish(render = true): void {
     this.options.syncPanel();
     if (render) this.options.render();
-  }
-
-  private viewports(): readonly FemViewport[] {
-    return this.options.viewports?.() ?? [this.options.viewport()];
   }
 }

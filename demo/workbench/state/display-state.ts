@@ -11,7 +11,7 @@ import type { WorkbenchScalarField } from "../results/result-controls";
 import type { WorkbenchResultPlaybackStep } from "../results/result-playback";
 
 interface ResultStateOptions {
-  readonly viewports: readonly FemViewport[];
+  readonly viewport: FemViewport;
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
   readonly scalar: WorkbenchScalarField | undefined;
@@ -21,23 +21,21 @@ interface ResultStateOptions {
   readonly reflect: () => void;
 }
 
-/** Applies the authored result display state to every active viewport. */
+/** Applies the authored result display state to the active viewport only. */
 export function applyResultState(options: ResultStateOptions): void {
   const config = options.model.results;
-  for (const viewport of options.viewports) {
-    const roles = resultRoles({
-      config,
-      mode: options.mode,
-      scalarField: options.scalar,
-      deformationScale: options.deformationScale,
-      vector: options.vector,
-      playback: options.playback,
-    });
-    if (roles === undefined) {
-      viewport.clearResults();
-    } else {
-      viewport.setResults(roles);
-    }
+  const roles = resultRoles({
+    config,
+    mode: options.mode,
+    scalarField: options.scalar,
+    deformationScale: options.deformationScale,
+    vector: options.vector,
+    playback: options.playback,
+  });
+  if (roles === undefined) {
+    options.viewport.clearResults();
+  } else {
+    options.viewport.setResults(roles);
   }
   options.reflect();
 }
@@ -81,7 +79,7 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
 }
 
 interface DisplayStateOptions {
-  readonly viewports: readonly FemViewport[];
+  readonly viewport: FemViewport;
   readonly model: WorkbenchModel;
   readonly toggles: DisplayToggles;
   readonly interaction: InteractionState;
@@ -90,7 +88,7 @@ interface DisplayStateOptions {
   readonly reflect: () => void;
 }
 
-/** Applies part overrides, highlight state, and the shared display controls. */
+/** Applies part overrides, highlight state, and the active display controls. */
 export function applyDisplayState(options: DisplayStateOptions): void {
   let state = options.interaction;
   for (const partId of options.model.scene.parts.keys()) {
@@ -102,6 +100,6 @@ export function applyDisplayState(options: DisplayStateOptions): void {
   }
   options.setInteraction(state);
   options.applyDisplayedInteraction();
-  for (const viewport of options.viewports) viewport.setEdgeDepthTest(true);
+  options.viewport.setEdgeDepthTest(true);
   options.reflect();
 }

@@ -81,7 +81,8 @@ controller, so camera and interaction behavior is stable
   The renderer-owned origin triad, orientation gizmo, and orbit pivot remain
   presentation cues outside the clipping contract.
 - The demo's Off / Keep +X / Keep +Y / Keep +Z controls derive the offset range
-  from complete placed-scene bounds and apply the state to both viewport panes.
+  from complete placed-scene bounds and apply the state to the active viewport
+  pane.
 
 ## Workbench controller
 
@@ -89,9 +90,12 @@ controller, so camera and interaction behavior is stable
   DOM presentation policy while `FemViewport` owns each packed runtime,
   camera, controls, interaction synchronization, visibility, picking, and
   renderer lifecycle. The controller keeps a small map of at most two
-  demo-private viewport slots: the exact active `Scene` and workbench state are
-  shared, while each slot owns its pane, camera, runtime, renderer, interaction
-  readback generation, orientation gizmo, and render loop. Focused
+  demo-private viewport slots: the exact active `Scene` and model-owned data are
+  shared, while each slot owns its pane, camera, runtime, show state,
+  interaction readback generation, orientation gizmo, and render loop. Opening
+  the secondary slot clones the active show state once; subsequent visibility,
+  results, section, display, selection, hover, and inspection changes target
+  only the active slot. Focused
   `demo/workbench/` modules own async picking, selection state, visibility
   actions/tree construction, menu rendering, presentation, and abortable DOM
   bindings; `demo/devtools/diagnostics.ts` owns diagnostics formatting and
@@ -146,7 +150,8 @@ controller, so camera and interaction behavior is stable
   left rail; the viewport workspace owns the remaining space. It contains one
   primary pane by default and an optional secondary pane with equal desktop
   columns. Both panes use independent cameras and renderers while sharing the
-  authoritative scene, selection, visibility, results, and model transitions.
+  authoritative scene and model transitions; selection, visibility, results,
+  display, section, hover, and inspection are active-slot local.
   The canvas command bar is one calm, non-scrolling surface with four labeled
   disclosure targets: **Selection**, **View**, **Display**, and **Analysis**.
   Model selection and local-file loading live in the navigation rail, so the
@@ -240,7 +245,7 @@ explicit ownership directories:
 - `demo/benchmark/` owns the opt-in WebGPU benchmark and its internal imports.
 
 The workbench controller is intentionally still cohesive because it is the
-stateful coordinator for preset, shared interaction, display, and up-to-two
+stateful coordinator for preset, per-slot show state, display, and up-to-two
 viewport transitions. Each viewport slot remains demo-private; no public
 viewport manager, shared runtime, or renderer pool is introduced. Feature
 construction, listener lifetime, DOM formatting, and benchmark execution are

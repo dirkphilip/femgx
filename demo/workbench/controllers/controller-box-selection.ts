@@ -11,6 +11,10 @@ import type { TouchInteractionMode } from "../types";
 interface BoxSelectionOwner {
   boxSelectionStrategy: BoxSelectionStrategy;
   readonly selectionGranularity: SelectionGranularity;
+  readonly showState?: (slotId: "primary" | "secondary") => {
+    readonly boxSelectionStrategy: BoxSelectionStrategy;
+    readonly selectionGranularity: SelectionGranularity;
+  };
   readonly viewportSlots: WorkbenchViewportSlots;
   render(): void;
 }
@@ -24,8 +28,10 @@ export function normalizeBoxSelectionStrategyForGranularity(owner: BoxSelectionO
 export function applyBoxSelectionResolvers(owner: BoxSelectionOwner): void {
   for (const slot of owner.viewportSlots.all()) {
     const viewport = () => slot.viewport;
+    const state = owner.showState?.(slot.id);
+    const strategy = state?.boxSelectionStrategy ?? owner.boxSelectionStrategy;
     slot.interaction.setBoxSelectionResolver(
-      owner.boxSelectionStrategy === "through-intersection"
+      strategy === "through-intersection"
         ? throughIntersectionBoxSelectionResolver(viewport)
         : visibleSurfaceBoxSelectionResolver(viewport),
     );

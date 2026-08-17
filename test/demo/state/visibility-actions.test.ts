@@ -11,13 +11,13 @@ import {
   type FemViewport,
   type InteractionState,
   type Scene,
-} from "../../src/entries/root";
-import { createSceneRuntime, type SceneRuntime } from "../../src/entries/runtime";
-import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
+} from "../../../src/entries/root";
+import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
+import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import {
   visibleSelectedElementTargets,
   WorkbenchVisibilityActions,
-} from "../../demo/workbench/state/visibility-actions";
+} from "../../../demo/workbench/state/visibility-actions";
 
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {

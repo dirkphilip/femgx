@@ -1,4 +1,5 @@
 import type { FemViewport, InteractionState, ViewportBackground } from "../../../src/entries/root";
+import { setProjection } from "../../../src/entries/camera";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchPresentation } from "../viewport/presentation";
@@ -15,19 +16,22 @@ import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import { applyBoxSelectionResolvers } from "./controller-box-selection";
 import { applySectionPlane } from "../section-plane-actions";
+import type { WorkbenchShowState } from "../state/show-state";
 
 export interface WorkbenchViewportOwner {
   readonly disposed: boolean;
   readonly view: DemoView;
-  readonly background: ViewportBackground;
+  background: ViewportBackground;
   readonly presentation: WorkbenchPresentation;
   readonly visibilityPanel: { rebuild(): void };
   readonly viewportSlots: WorkbenchViewportSlots;
+  readonly activeViewport: () => FemViewport;
+  readonly showState: (slotId: ViewportSlotId) => WorkbenchShowState;
   readonly rendererState: string;
   readonly model: WorkbenchModel;
   readonly interaction: InteractionState;
-  readonly toggles: DisplayToggles;
-  readonly continuousEnabled: boolean;
+  toggles: DisplayToggles;
+  continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly resultMode: ResultDisplayMode;
@@ -57,6 +61,50 @@ export function setActiveSlotForOwner(
   slotId: ViewportSlotId,
 ): void {
   owner.viewportSlots.setActiveSlot(slotId);
+}
+
+/** Toggles projection for the active camera and refits its viewport. */
+export function setProjectionForOwner(owner: {
+  activeViewport(): FemViewport;
+  render(): void;
+}): void {
+  const viewport = owner.activeViewport();
+  viewport.setCamera(
+    setProjection(
+      viewport.camera,
+      viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
+    ),
+  );
+  viewport.fitView();
+  owner.render();
+}
+
+/** Fits only the active viewport to its current visible selection. */
+export function fitSelectionForOwner(owner: {
+  activeViewport(): FemViewport;
+  render(): void;
+}): void {
+  owner.activeViewport().fitSelection();
+  owner.render();
+}
+
+/** Records pane-local camera gesture ownership for render-loop and focus policy. */
+export function setCameraGestureActiveForOwner(
+  owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
+  slotId: ViewportSlotId,
+  active: boolean,
+): void {
+  owner.viewportSlots.setCameraGestureActive(slotId, active);
+}
+
+/** Routes selected-element hiding through the active viewport's visibility owner. */
+export function hideSelectedForOwner(owner: { visibilityActions: { hideSelected(): void } }): void {
+  owner.visibilityActions.hideSelected();
+}
+
+/** Restores visibility only in the active viewport. */
+export function showAllForOwner(owner: { visibilityActions: { showAll(): void } }): void {
+  owner.visibilityActions.showAll();
 }
 
 /** Invalidates pointer interaction across the viewport slot graph. */
@@ -98,6 +146,25 @@ interface WorkbenchPresentationOwner {
   applyDisplayedInteraction(): void;
   syncViewportPresentation(): void;
   publishSnapshot(): void;
+}
+
+/** Restores active-slot presentation after a pane receives focus. */
+export function activeSlotChangedForController(
+  owner: WorkbenchPresentationOwner & {
+    readonly menu: { hide(): void };
+    readonly visibilityPanel: { rebuild(): void };
+    readonly presentation: WorkbenchPresentation;
+    readonly applyActiveState: () => void;
+  },
+  slotId: ViewportSlotId,
+  setActiveSlotId: (slotId: ViewportSlotId) => void,
+): void {
+  setActiveSlotId(slotId);
+  owner.menu.hide();
+  owner.applyActiveState();
+  owner.visibilityPanel.rebuild();
+  owner.presentation.reflectResults();
+  activeSlotChangedForOwner(owner);
 }
 
 /** Renders the current controller state through the presentation adapters. */
@@ -160,6 +227,7 @@ export function syncControllerViewportPresentation(owner: WorkbenchViewportOwner
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
     background: owner.background,
+    showState: owner.showState.bind(owner),
   });
 }
 

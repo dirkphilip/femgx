@@ -2,6 +2,7 @@ import type { AuthoredResultSequence, AuthoredResultSnapshot } from "../../fixtu
 import type { ValueRange } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
+import type { WorkbenchShowState } from "../state/show-state";
 
 export interface WorkbenchResultPlaybackSnapshot {
   readonly label: string;
@@ -102,9 +103,17 @@ function sequence(owner: ResultPlaybackOwner): AuthoredResultSequence | undefine
 }
 
 function currentStep(owner: ResultPlaybackOwner): WorkbenchResultPlaybackStep | undefined {
-  if (!owner.resultPlaybackActive) return undefined;
-  const source = sequence(owner);
-  const snapshot = source?.steps[owner.resultPlaybackIndex];
+  return resultPlaybackStepForState(owner.model, owner);
+}
+
+/** Resolves one slot's current authored playback step without reading another slot. */
+export function resultPlaybackStepForState(
+  model: WorkbenchModel,
+  state: Pick<WorkbenchShowState, "resultPlaybackActive" | "resultPlaybackIndex">,
+): WorkbenchResultPlaybackStep | undefined {
+  if (!state.resultPlaybackActive) return undefined;
+  const source = model.resultSequence;
+  const snapshot = source?.steps[state.resultPlaybackIndex];
   return source === undefined || snapshot === undefined
     ? undefined
     : { snapshot, range: source.range };

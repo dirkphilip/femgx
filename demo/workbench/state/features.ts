@@ -21,7 +21,6 @@ export interface WorkbenchFeatureOptions {
   readonly rendererName: string;
   readonly viewport: () => FemViewport;
   readonly interactionViewport: () => FemViewport;
-  readonly viewports: () => readonly FemViewport[];
   readonly runtime: () => SceneRuntime;
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
@@ -36,6 +35,8 @@ export interface WorkbenchFeatureOptions {
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
+  readonly getInspection: () => { readonly visible: boolean; readonly text: string };
+  readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
   readonly hoverSlotId: ViewportSlotId;
   readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
@@ -77,12 +78,30 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
     getSectionAxis: options.sectionAxis,
     getSectionOffset: options.sectionOffset,
     getInteraction: options.interaction,
+    getInspection: options.getInspection,
+    setInspection: options.setInspection,
     getRuntime: options.runtime,
     menu,
     publishSnapshot: options.publishSnapshot,
   });
   const visibility = createVisibilityFeatures(options, presentation);
-  const interactionController = new WorkbenchInteraction({
+  const interactionController = createPrimaryInteraction(options, menu, presentation);
+  return {
+    menu,
+    visibilityPanel: visibility.panel,
+    visibilityActions: visibility.actions,
+    interactionController,
+    presentation,
+    boxPreview: new WorkbenchBoxPreview(options.view.primaryPane.boxSelectionOverlay),
+  };
+}
+
+function createPrimaryInteraction(
+  options: WorkbenchFeatureOptions,
+  menu: WorkbenchMenu,
+  presentation: WorkbenchPresentation,
+): WorkbenchInteraction {
+  return new WorkbenchInteraction({
     canvas: options.canvas,
     viewport: options.interactionViewport,
     getInteraction: options.interaction,
@@ -106,14 +125,6 @@ export function createWorkbenchFeatures(options: WorkbenchFeatureOptions): Workb
       },
     },
   });
-  return {
-    menu,
-    visibilityPanel: visibility.panel,
-    visibilityActions: visibility.actions,
-    interactionController,
-    presentation,
-    boxPreview: new WorkbenchBoxPreview(options.view.primaryPane.boxSelectionOverlay),
-  };
 }
 
 function createVisibilityFeatures(
@@ -125,7 +136,6 @@ function createVisibilityFeatures(
 } {
   const actions = new WorkbenchVisibilityActions({
     viewport: options.viewport,
-    viewports: options.viewports,
     scene: () => options.model().scene,
     runtime: options.runtime,
     interaction: options.interaction,
