@@ -34,7 +34,9 @@ test("fits a phone-sized viewport without horizontal overflow", async ({ page })
   expect(overflow, "the page must not scroll horizontally on a phone").toBeLessThanOrEqual(0);
 });
 
-test("uses one accessible phone drawer and keeps it exclusive of Analysis", async ({ page }) => {
+test("uses one accessible phone drawer and keeps it exclusive of Analysis", async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize(PHONE);
   await page.goto("/");
   const trigger = page.getByTestId("navigation-toggle");
@@ -56,17 +58,37 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
         text: element.textContent,
       };
     };
-    return { trigger: read('[data-testid="navigation-toggle"]'), commandBar: read(".command-bar") };
+    return {
+      trigger: read('[data-testid="navigation-toggle"]'),
+      commandBar: read(".command-bar"),
+      commandTarget: read(".command-target"),
+    };
   });
-  if (closedGeometry.trigger === undefined || closedGeometry.commandBar === undefined) {
+  if (
+    closedGeometry.trigger === undefined ||
+    closedGeometry.commandBar === undefined ||
+    closedGeometry.commandTarget === undefined
+  ) {
     throw new Error("mobile navigation geometry is missing");
   }
   expect(closedGeometry.trigger.right).toBeLessThanOrEqual(closedGeometry.commandBar.x);
   expect(closedGeometry.trigger.y).toBeLessThan(closedGeometry.commandBar.bottom);
   expect(closedGeometry.trigger.width).toBe(44);
   expect(closedGeometry.trigger.height).toBe(44);
+  expect(
+    Math.abs(
+      closedGeometry.trigger.y +
+        closedGeometry.trigger.height / 2 -
+        (closedGeometry.commandTarget.y + closedGeometry.commandTarget.height / 2),
+    ),
+  ).toBeLessThanOrEqual(1);
   expect(closedGeometry.trigger.text.trim()).toBe("");
+  await expect(trigger.locator("path")).toHaveAttribute("d", "M4 5h16v14H4zM9 5v14");
   await expect(trigger).toHaveAttribute("aria-label", "Open navigation");
+  await page.screenshot({
+    path: testInfo.outputPath("mobile-navigation-closed.png"),
+    fullPage: true,
+  });
 
   await openCommandPanel(page, "analysis");
   await expect(page.getByTestId("analysis-controls")).toBeVisible();
@@ -74,6 +96,11 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
   await expect(trigger).toHaveAttribute("aria-label", "Close navigation");
   await expect(drawer).toHaveAttribute("aria-hidden", "false");
   await expect(page.getByTestId("analysis-controls")).toBeHidden();
+  await expect(drawer).toHaveCSS("transform", "matrix(1, 0, 0, 1, 0, 0)");
+  await page.screenshot({
+    path: testInfo.outputPath("mobile-navigation-open.png"),
+    fullPage: true,
+  });
   const openGeometry = await page.evaluate(() => {
     const read = (selector: string) => {
       const element = document.querySelector<HTMLElement>(selector);
@@ -102,6 +129,16 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
     "navigation-toggle",
   );
   await expect(drawer).toHaveAttribute("aria-hidden", "true");
+});
+
+test("keeps the navigation trigger mobile-only", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  await expect(page.getByTestId("navigation-toggle")).toBeHidden();
+  await page.screenshot({
+    path: testInfo.outputPath("desktop-navigation-absent.png"),
+    fullPage: true,
+  });
 });
 
 test("stacks the optional secondary viewport without mobile overflow", async ({ page }) => {

@@ -5,6 +5,9 @@
   .app {
     --mobile-navigation-header-height: 60px;
     --mobile-navigation-rail-width: 56px;
+    --mobile-navigation-control-size: 44px;
+    --mobile-navigation-header-padding: calc(4px + env(safe-area-inset-top));
+    --mobile-navigation-control-offset: calc(1px + var(--mobile-navigation-header-padding));
     display: block;
     height: var(--workbench-viewport-height, 100dvh);
     min-height: 360px;
@@ -48,12 +51,13 @@
   .navigation-toggle {
     position: fixed;
     z-index: 40;
-    top: calc((var(--mobile-navigation-header-height) - 44px) / 2 + env(safe-area-inset-top));
+    top: var(--mobile-navigation-control-offset);
     left: calc(8px + env(safe-area-inset-left));
     display: block;
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: var(--mobile-navigation-control-size);
+    min-width: var(--mobile-navigation-control-size);
+    height: var(--mobile-navigation-control-size);
+    min-height: var(--mobile-navigation-control-size);
     padding: 0;
     border-color: #38506f;
     box-shadow: 0 8px 22px rgb(6 16 30 / 0.34);
@@ -95,7 +99,7 @@
     padding: 13px 16px;
   }
   .toolbar {
-    padding: calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right)) 4px
+    padding: var(--mobile-navigation-header-padding) calc(4px + env(safe-area-inset-right)) 4px
       calc(var(--mobile-navigation-rail-width) + env(safe-area-inset-left));
   }
   .command-bar {
