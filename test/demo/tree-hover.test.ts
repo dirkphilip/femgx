@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SceneRuntime } from "../../src/entries/runtime";
-import type { FemViewport, InteractionState } from "../../src/entries/root";
+import type { Viewport, InteractionState } from "../../src/entries/root";
 import { createInteractionState, setInstanceHighlighted } from "../../src/interaction/interaction";
 import { isTargetHighlighted } from "../../src/interaction/targets";
 import {
@@ -106,7 +106,7 @@ describe("visibility tree hover mapping", () => {
       setInteraction: (state: InteractionState) => {
         displayed = state;
       },
-    } as unknown as FemViewport;
+    } as unknown as Viewport;
     const owner = {
       disposed: false,
       hoverOwner: undefined,

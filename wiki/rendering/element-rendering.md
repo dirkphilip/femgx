@@ -97,10 +97,10 @@ renderer-owned edge and node overlays remain separate post-composite stages.
   expands each center into a screen-space sprite quad (4 vertices per point)
   using the complete `[0,1,2, 0,2,3]` triangle split; the point vertex shader
   sizes it to a constant CSS-pixel diameter
-  (`FemViewportOptions.pointSizePixels`, default 8), scaled by
+  (`ViewportOptions.pointSizePixels`, default 8), scaled by
   `devicePixelRatio` into device pixels so apparent size is stable across
   displays. Node annotations use their independent
-  `FemViewportOptions.nodeSizePixels` diameter (default 6); both values are
+  `ViewportOptions.nodeSizePixels` diameter (default 6); both values are
   validated in the inclusive `[1,64]` CSS-pixel range. Point picking keeps a
   minimum 8 CSS-pixel diameter regardless of the visible point size. The
   visible color path renders at 4× MSAA and resolves to the canvas, so mesh
@@ -112,7 +112,7 @@ renderer-owned edge and node overlays remain separate post-composite stages.
 A per-instance `edge` style override (see
 [[rendering/element-interaction|Element-level interaction]]) overlays a part's edges as
 lines on its solid surface. Hosts may choose the public
-`FemViewport.setEdgeDepthTest` policy, so a model can be shown solid with a
+`Viewport.setEdgeDepthTest` policy, so a model can be shown solid with a
 wireframe overlay instead of edges-only.
 
 The inspection demo presents a single `Solid` display and optional edge

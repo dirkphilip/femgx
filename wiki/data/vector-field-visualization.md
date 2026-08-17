@@ -9,7 +9,7 @@ the viewport results API by issue #670.
 Finite-element users should be able to inspect authored per-element normals and
 fiber/material directions in the same instanced scene used for scalar coloring,
 nodal deformation, selection, and visibility. The existing
-`VectorField<"elemental">` is the data source. `FemViewport` owns the
+`VectorField<"elemental">` is the data source. `Viewport` owns the
 presentation role and its atomic result transition; `Part`, `Scene`, and
 `SceneRuntime` continue to own geometry, authoring, and compiled scene data,
 not glyph state.

@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../../src/entries/root";
+import type { Viewport, InteractionState } from "../../../src/entries/root";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import { installWorkbenchPaneLifecycle } from "../lifecycle";
 import type { WorkbenchFeatures } from "../state/features";
@@ -23,7 +23,7 @@ export interface WorkbenchControllerWiringContext {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly viewport: FemViewport;
+  readonly viewport: Viewport;
   readonly model: WorkbenchModel;
   readonly models: readonly WorkbenchModel[];
   readonly toggles: DisplayToggles;
@@ -44,8 +44,8 @@ export interface WorkbenchControllerWiringContext {
     slotId: ViewportSlotId,
     value: { readonly visible: boolean; readonly text: string },
   ) => void;
-  readonly activeViewport: () => FemViewport;
-  readonly viewports: () => readonly FemViewport[];
+  readonly activeViewport: () => Viewport;
+  readonly viewports: () => readonly Viewport[];
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly runtime: SceneRuntime;
   readonly setInteraction: (value: InteractionState) => void;

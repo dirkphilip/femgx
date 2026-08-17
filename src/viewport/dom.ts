@@ -91,6 +91,6 @@ export function validateOrientationGizmo(
     typeof orientationGizmo.container.contains !== "function" ||
     !orientationGizmo.container.contains(canvas)
   ) {
-    throw new Error("FemViewport orientationGizmo.container must contain the canvas");
+    throw new Error("Viewport orientationGizmo.container must contain the canvas");
   }
 }

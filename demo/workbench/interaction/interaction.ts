@@ -1,6 +1,6 @@
 import {
   setTargetHovered,
-  type FemViewport,
+  type Viewport,
   type InteractionState,
   type PartId,
   type PickHit,
@@ -51,7 +51,7 @@ function isCompletedBoxSelectionEvent(
 /** View and state hooks used by the asynchronous picking interaction layer. */
 export interface WorkbenchInteractionOptions {
   readonly canvas: HTMLCanvasElement;
-  readonly viewport: () => FemViewport;
+  readonly viewport: () => Viewport;
   readonly getInteraction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly partName: (partId: PartId) => string | undefined;

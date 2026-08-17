@@ -1,4 +1,4 @@
-import type { FemViewport, InteractionState } from "../../../src/entries/root";
+import type { Viewport, InteractionState } from "../../../src/entries/root";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
@@ -19,8 +19,8 @@ export interface WorkbenchFeatureOptions {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly viewport: () => FemViewport;
-  readonly interactionViewport: () => FemViewport;
+  readonly viewport: () => Viewport;
+  readonly interactionViewport: () => Viewport;
   readonly runtime: () => SceneRuntime;
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;

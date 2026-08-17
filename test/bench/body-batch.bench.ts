@@ -2,15 +2,15 @@ import { afterAll, beforeAll, bench, describe } from "vitest";
 import { createPart, type ElementTessellation, type GeometryBody } from "../../src/geometry/part";
 import { setBodyVisible } from "../../src/interaction/bodies";
 import { identity } from "../../src/math/mat4";
-import type { FemViewport } from "../../src/viewport/fem-viewport";
-import { createFemViewport } from "../../src/viewport/fem-viewport";
+import type { Viewport } from "../../src/viewport/viewport";
+import { createViewport } from "../../src/viewport/viewport";
 import { createScene } from "../../src/scene/scene";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 const BODY_COUNT = 64;
 const originalNavigator = globalThis.navigator;
 let restoreGpuGlobals: (() => void) | undefined;
-let viewport: FemViewport | undefined;
+let viewport: Viewport | undefined;
 let visible = false;
 
 function bodyScene() {
@@ -42,7 +42,7 @@ function bodyScene() {
     .build();
 }
 
-function currentViewport(): FemViewport {
+function currentViewport(): Viewport {
   if (viewport === undefined) throw new Error("body benchmark viewport is not initialized");
   return viewport;
 }
@@ -67,7 +67,7 @@ beforeAll(async () => {
     value: { gpu: { getPreferredCanvasFormat: () => "bgra8unorm" } },
   });
   const gpu = fakeGpuDevice();
-  viewport = await createFemViewport({
+  viewport = await createViewport({
     canvas: fakeCanvas(),
     scene: bodyScene(),
     device: gpu.device,

@@ -63,7 +63,7 @@ excluded from the render and pick passes.
 
 ## Batching
 
-`FemViewport.batch(operation)` is a synchronous transaction boundary for related
+`Viewport.batch(operation)` is a synchronous transaction boundary for related
 mutations. Nested batches share the outer boundary; the final interaction state
 and visibility state preserve operation order, while visibility slots are sent to
 the renderer once as a sorted union and one invalidation schedules the frame.

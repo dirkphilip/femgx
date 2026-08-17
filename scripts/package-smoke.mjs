@@ -260,7 +260,7 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { boxSelectionFrustum, createFemViewport, createInteractionState, createPart, createResultField, createScene, identity, setInstanceOverride, setPartOverride, setTargetHighlighted, setTargetSelected, translation, type FemViewport, type InteractionTarget, type StyleOverride } from "femgx";',
+      'import { boxSelectionFrustum, createViewport, createInteractionState, createPart, createResultField, createScene, identity, setInstanceOverride, setPartOverride, setTargetHighlighted, setTargetSelected, translation, type Viewport, type InteractionTarget, type StyleOverride } from "femgx";',
       'import { createElement, createElementModel, elementPart, LINE_SHAPE, POINT_SHAPE, TRIANGLE_SHAPE } from "femgx/model";',
       'import { createElementModelFromFemModel, createModelBuilder, createResultFieldFromModelResult, validateModel } from "femgx/io";',
       'import { createCamera } from "femgx/camera";',
@@ -319,8 +319,8 @@ function main() {
       "interaction = setTargetHighlighted(interaction, bodyTarget, true);",
       'const stress = createResultField({ id: "stress", name: "Stress", location: "elemental", shape: "scalar", count: 1, unit: "MPa", values: new Float32Array([1]) });',
       'const displacement = createResultField({ id: "displacement", name: "Displacement", location: "nodal", shape: "vector", count: 3, unit: "mm", values: new Float32Array(9) });',
-      "const viewportPromise = createFemViewport({ canvas, scene, orientationGizmo: { container: viewportContainer } });",
-      "async function exerciseViewport(viewport: FemViewport): Promise<void> {",
+      "const viewportPromise = createViewport({ canvas, scene, orientationGizmo: { container: viewportContainer } });",
+      "async function exerciseViewport(viewport: Viewport): Promise<void> {",
       "  viewport.setCamera(viewport.camera);",
       "  viewport.fitView();",
       "  viewport.resize();",

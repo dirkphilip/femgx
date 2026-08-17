@@ -52,7 +52,7 @@ export interface SceneUpdateOutcome {
  * typed unsupported failure; this option set does not enable a CPU fallback.
  * @category Viewport lifecycle
  */
-export interface FemViewportOptions {
+export interface ViewportOptions {
   readonly canvas: HTMLCanvasElement;
   readonly scene: Scene;
   /** Point-element screen-space diameter in CSS pixels (default 8). */
@@ -87,7 +87,7 @@ export interface FemViewportOptions {
 /**
  * Canonical scene, camera, interaction, rendering, and lifecycle owner.
  *
- * `FemViewport` is the sole public rendering lifecycle. It consumes one
+ * `Viewport` is the sole public rendering lifecycle. It consumes one
  * immutable {@link Scene}, owns its derived live {@link SceneRuntime}, and
  * exposes host-facing mutations for visibility, interaction, results, camera,
  * and structural scene updates. Runtime slots, GPU buffers, and renderer
@@ -100,7 +100,7 @@ export interface FemViewportOptions {
  * be removed by the host.
  * @category Start here
  */
-export interface FemViewport {
+export interface Viewport {
   readonly scene: Scene;
   /**
    * The current live query facade. Read it again after `setScene` or

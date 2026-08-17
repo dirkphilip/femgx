@@ -6,7 +6,7 @@ import {
   setElementVisible,
   setTargetHighlighted,
   setBodyVisible,
-  type FemViewport,
+  type Viewport,
   type InteractionTarget,
   type InstanceId,
   type InteractionState,
@@ -20,7 +20,7 @@ import { elementTarget } from "../selection/pick";
 
 /** Runtime hooks used by menu and visibility-panel visibility actions. */
 export interface VisibilityActionOptions {
-  readonly viewport: () => FemViewport;
+  readonly viewport: () => Viewport;
   readonly scene: () => Scene;
   readonly runtime: () => SceneRuntime;
   readonly interaction: () => InteractionState;

@@ -2,7 +2,7 @@ import {
   isBodyVisible,
   isElementVisible,
   type ElementTessellation,
-  type FemViewport,
+  type Viewport,
   type Part,
 } from "../../../src/entries/root";
 import type { WorkbenchInteraction } from "../interaction/interaction";
@@ -14,7 +14,7 @@ interface SelectAllOwner {
   readonly selectionGranularity: SelectionGranularity;
   readonly interactionController: Pick<WorkbenchInteraction, "replaceAll">;
   readonly presentation: { setFeedback(message: string): void };
-  activeViewport(): FemViewport;
+  activeViewport(): Viewport;
 }
 
 /** Replaces the current selection with every eligible target. */
@@ -30,7 +30,7 @@ export function selectAll(owner: SelectAllOwner): void {
 
 /** Collects every explicitly visible target at the active workbench granularity. */
 export function selectAllTargets(
-  viewport: FemViewport,
+  viewport: Viewport,
   granularity: SelectionGranularity,
 ): readonly SelectTarget[] {
   const targets: SelectTarget[] = [];
@@ -70,7 +70,7 @@ function appendBodies(
 }
 
 function visibleElements(
-  viewport: FemViewport,
+  viewport: Viewport,
   part: Part,
   instanceId: string,
 ): readonly ElementTessellation[] {

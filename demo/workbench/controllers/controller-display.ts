@@ -1,5 +1,5 @@
 import { applyDisplayState, applyResultState } from "../state/display-state";
-import type { FemViewport } from "../../../src/entries/root";
+import type { Viewport } from "../../../src/entries/root";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
 import {
@@ -18,7 +18,7 @@ import { applySectionPlane } from "../section-plane-actions";
 import { sectionPlaneFor } from "../section-controls";
 
 interface ControllerDisplayOwner extends WorkbenchViewportOwner {
-  readonly activeViewport: () => FemViewport;
+  readonly activeViewport: () => Viewport;
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly syncViewportPresentation: () => void;
   readonly publishSnapshot: () => void;

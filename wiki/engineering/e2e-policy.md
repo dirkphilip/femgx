@@ -51,7 +51,7 @@ The local `chrome` project uses headless system Chrome with `--enable-gpu`,
 removes Playwright's unsafe SwiftShader fallback, and asserts that the resolved
 adapter is neither a fallback nor SwiftShader. The demo therefore commits to
 hardware WebGPU without opening a visible window. Picking is asynchronous GPU
-readback through `FemViewport.pick`.
+readback through `Viewport.pick`.
 `requireHit` first uses the existing `pickRegion` seam to recursively localize
 a matching identity, then verifies the returned coordinate through a real
 pointer move and the normal dataset readback. Its bounded fallback grid is
@@ -163,7 +163,7 @@ assertions.
 
 | Existing contract                                                                                                                                                           | Owner and reason                                                                             |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Hardware adapter, instanced presentation, direct viewport teardown, public camera transitions                                                                               | `e2e/core`: public `FemViewport` lifecycle and GPU submission seams                          |
+| Hardware adapter, instanced presentation, direct viewport teardown, public camera transitions                                                                               | `e2e/core`: public `Viewport` lifecycle and GPU submission seams                             |
 | Point/region/edge picking, visibility mutation, interaction emphasis, background/overlay resources, resize/DPR, transparency, scalar results, deformation, section clipping | `e2e/core`: raster or public-API evidence unavailable to fast tests                          |
 | Workbench model choice, hierarchy/tree policy, menus, diagnostics, file import/error presentation, focus and exposed-canvas layout                                          | `e2e/demo`: Svelte/workbench host behavior                                                   |
 | Mobile overflow, reachable controls, context menus, view-cube semantics, and the representative nonblank smoke path                                                         | `e2e/demo`: responsive UI and host policy; touch/pick correctness belongs to the core matrix |

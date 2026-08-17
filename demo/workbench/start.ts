@@ -1,8 +1,8 @@
 import {
-  createFemViewport,
+  createViewport,
   WebGpuUnsupportedError,
   type BoxSelectionRect,
-  type FemViewport,
+  type Viewport,
   type InteractionGranularity,
 } from "../../src/entries/root";
 import { createModelPresets } from "../fixtures/presets";
@@ -62,7 +62,7 @@ export async function startWebGpuDemo(
 }
 
 interface StartState {
-  viewport: FemViewport | undefined;
+  viewport: Viewport | undefined;
   controller: WorkbenchController | undefined;
 }
 
@@ -100,9 +100,9 @@ function reportRendererFailure(
 function createViewportFactory(
   state: StartState,
   reportFailure: (error: unknown) => void,
-): (slotId: ViewportSlotId, pane: WorkbenchPane, model: WorkbenchModel) => Promise<FemViewport> {
+): (slotId: ViewportSlotId, pane: WorkbenchPane, model: WorkbenchModel) => Promise<Viewport> {
   return async (slotId, pane, model) =>
-    createFemViewport({
+    createViewport({
       canvas: pane.canvas,
       scene: model.scene,
       keyboardTarget: pane.scene,
@@ -154,7 +154,7 @@ function installWorkbenchHarness(
     slotId: ViewportSlotId,
     pane: WorkbenchPane,
     model: WorkbenchModel,
-  ) => Promise<FemViewport>,
+  ) => Promise<Viewport>,
   reportFailure: (error: unknown) => void,
 ): void {
   const controller = state.controller;

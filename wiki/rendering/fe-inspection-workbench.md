@@ -1,7 +1,7 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-GPU picking via `FemViewport.pick` (node → face → element, with explicit authored-edge
+GPU picking via `Viewport.pick` (node → face → element, with explicit authored-edge
 granularity), a shared workbench controller, and per-node/face/element/edge selection and highlighting that
 never rebuilds geometry or clones materials. The WebGPU renderer drives the
 controller, so camera and interaction behavior is stable
@@ -38,10 +38,10 @@ controller, so camera and interaction behavior is stable
 ## GPU picking
 
 - Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
-  `FemViewport.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
+  `Viewport.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
   use `interactionTargetFromHit` to choose part / instance / body / element /
   face / node selection policy. The workbench's Edge mode requests
-  `FemViewport.pick(x, y, "edge")` and retains occurrence-scoped authored keys.
+  `Viewport.pick(x, y, "edge")` and retains occurrence-scoped authored keys.
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see
@@ -55,7 +55,7 @@ controller, so camera and interaction behavior is stable
   targets. Inspection reports canonical nodes, incident elements/faces, hit position,
   and tangent; it never invents one owning element for a shared edge. Through remains
   unavailable in Edge mode, while Visible region selection uses the same edge granularity.
-- A completed primary-button box drag calls `FemViewport.pickRegion` once at
+- A completed primary-button box drag calls `Viewport.pickRegion` once at
   element granularity. Plain drags replace selection with the returned visible
   elements; Ctrl/Meta drags toggle them. Shift and Alt do not add select-through
   behavior, and stale or rejected region readbacks cannot overwrite newer
@@ -67,7 +67,7 @@ controller, so camera and interaction behavior is stable
 
 ## Section-plane inspection
 
-- `FemViewport.setSectionPlane({ normal, distance })` keeps the world-space
+- `Viewport.setSectionPlane({ normal, distance })` keeps the world-space
   positive half-space `dot(normal, worldPosition) + distance >= 0`. The viewport
   validates and normalizes one finite non-zero normal; `clearSectionPlane()`
   restores the unclipped scene. While active, supported solid FE occurrences
@@ -87,7 +87,7 @@ controller, so camera and interaction behavior is stable
 ## Workbench controller
 
 - `demo/workbench/controllers/controller.ts` (`WorkbenchController`) owns active-preset and
-  DOM presentation policy while `FemViewport` owns each packed runtime,
+  DOM presentation policy while `Viewport` owns each packed runtime,
   camera, controls, interaction synchronization, visibility, picking, and
   renderer lifecycle. The controller keeps a small map of at most two
   demo-private viewport slots: the exact active `Scene` and model-owned data are
@@ -193,7 +193,7 @@ controller, so camera and interaction behavior is stable
   results example covers signed normals, sign-invariant fibers, missing/zero
   rows, and a reflected non-uniform repeated placement.
 - The controller exposes a `rendererState` note (e.g. `recovered`) for status
-  presentation. `FemViewport` performs recovery and reports success/failure to
+  presentation. `Viewport` performs recovery and reports success/failure to
   the demo callbacks ([[rendering/platform-support|Platform support]]).
 - The context-menu **Reset all** action restores the active preset's complete initial
   state: all runtime hierarchy/part/instance visibility, palette
@@ -220,8 +220,8 @@ opens past the right or bottom edge.
 
 ## Orientation gizmo and viewport boundary
 
-The interactive view cube is owned by `FemViewport`, not by the demo. Hosts opt
-in during `createFemViewport` with `orientationGizmo: { container }`, where each
+The interactive view cube is owned by `Viewport`, not by the demo. Hosts opt
+in during `createViewport` with `orientationGizmo: { container }`, where each
 pane's container contains its canvas. Each viewport creates one SVG root with six face,
 eight corner, four pitch/yaw arrow controls, and two curved in-plane roll
 controls; it updates their projections from the exact camera during the normal

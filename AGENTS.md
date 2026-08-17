@@ -18,7 +18,7 @@ Hard boundaries worth repeating:
   do not turn them into fallback machinery.
 - The canonical product path is reusable parts placed through hierarchical
   assemblies, compiled into one packed `SceneRuntime`, and consumed by
-  `FemViewport`. Preserve instancing and host-mappable GPU interaction ids.
+  `Viewport`. Preserve instancing and host-mappable GPU interaction ids.
 - Every viewport also renders one renderer-owned positive X/Y/Z triad at world
   origin. It is scaled from complete placed-scene bounds, remains out of scene
   identity, bounds, picking, and interaction, and is opaque when depth-visible
@@ -136,7 +136,7 @@ harness code in `demo/devtools/`, and the opt-in `demo/benchmark/`.
 ### Public API north star
 
 The canonical workflow is part definitions and assembly placements registered
-in a `Scene`, compiled into one `SceneRuntime`, and consumed by `FemViewport`.
+in a `Scene`, compiled into one `SceneRuntime`, and consumed by `Viewport`.
 See [[architecture/api-design|API design north star]].
 
 - Geometry is defined once and referenced by instances; placements do not copy

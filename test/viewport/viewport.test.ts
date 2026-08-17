@@ -13,10 +13,10 @@ import { isTargetSelected, setTargetSelected } from "../../src/interaction/targe
 import { translation } from "../../src/math/mat4";
 import type { Placement } from "../../src/scene/assembly";
 import { createScene, type Scene } from "../../src/scene/scene";
-import { createFemViewport } from "../../src/viewport/fem-viewport";
+import { createViewport } from "../../src/viewport/viewport";
 import { RendererAttachment } from "../../src/renderer/attachment";
 import { GpuRenderer } from "../../src/renderer/renderer-core";
-import type { FemViewport } from "../../src/viewport/types";
+import type { Viewport } from "../../src/viewport/types";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 import * as geometryBounds from "../../src/viewport/geometry-bounds";
 
@@ -313,14 +313,14 @@ function identityScene(withSecondElement: boolean): Scene {
   );
 }
 
-describe("FemViewport", () => {
+describe("Viewport", () => {
   it("reuses displayed scene bounds across wheel zoom frames", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
     const input = wheelCanvas();
     const displayedBounds = vi.spyOn(geometryBounds, "displayedPartBounds");
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: input.canvas,
       scene: scene(),
       device: gpu.device,
@@ -344,7 +344,7 @@ describe("FemViewport", () => {
     installNavigator();
     const updateInstances = vi.spyOn(RendererAttachment.prototype, "updateInstances");
     const updateElements = vi.spyOn(RendererAttachment.prototype, "updateElements");
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -368,7 +368,7 @@ describe("FemViewport", () => {
     installNavigator();
     const gpu = fakeGpuDevice();
     const onRender = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: gpu.device,
@@ -405,7 +405,7 @@ describe("FemViewport", () => {
     viewport.destroy();
 
     await expect(
-      createFemViewport({ canvas: fakeCanvas(), scene: scene(), pointSizePixels: 65 }),
+      createViewport({ canvas: fakeCanvas(), scene: scene(), pointSizePixels: 65 }),
     ).rejects.toThrow(/pointSizePixels/);
   });
 
@@ -413,7 +413,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: gpu.device,
@@ -440,7 +440,7 @@ describe("FemViewport", () => {
     installNavigator();
     const gpu = fakeGpuDevice();
     const onRender = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       background: "white",
@@ -461,17 +461,17 @@ describe("FemViewport", () => {
     viewport.destroy();
 
     await expect(
-      createFemViewport({ canvas: fakeCanvas(), scene: scene(), background: "invalid" as never }),
+      createViewport({ canvas: fakeCanvas(), scene: scene(), background: "invalid" as never }),
     ).rejects.toThrow("Invalid viewport background");
     await expect(
-      createFemViewport({ canvas: fakeCanvas(), scene: scene(), originTriad: "invalid" as never }),
+      createViewport({ canvas: fakeCanvas(), scene: scene(), originTriad: "invalid" as never }),
     ).rejects.toThrow("Invalid originTriad");
   });
 
   it("invalidates geometry resources before applying results to a replacement scene", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: resultScene(3),
       results: nodalResult(3),
@@ -494,7 +494,7 @@ describe("FemViewport", () => {
     const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
     const setDeformation = vi.spyOn(GpuRenderer.prototype, "setDeformation");
     const setResultColors = vi.spyOn(GpuRenderer.prototype, "setResultColors");
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(false),
       results: orientationResult(),
@@ -517,7 +517,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(false),
       results: orientationResult(),
@@ -544,7 +544,7 @@ describe("FemViewport", () => {
     const resetScene = vi.spyOn(RendererAttachment.prototype, "clear");
     const initial = identityScene(true);
     const replacement = identityScene(false);
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: initial,
       device: fakeGpuDevice().device,
@@ -572,7 +572,7 @@ describe("FemViewport", () => {
   it("prunes nested interaction identities that the replacement geometry removed", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(true),
       device: fakeGpuDevice().device,
@@ -618,7 +618,7 @@ describe("FemViewport", () => {
   it("preserves compatible results and reports when scene coverage clears them", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: resultScene(3),
       results: nodalResult(3),
@@ -640,7 +640,7 @@ describe("FemViewport", () => {
     const container = { contains } as unknown as HTMLElement;
 
     await expect(
-      createFemViewport({
+      createViewport({
         canvas,
         scene: scene(),
         orientationGizmo: { container },
@@ -655,7 +655,7 @@ describe("FemViewport", () => {
     const gpu = fakeGpuDevice();
     const canvas = fakeCanvas(640, 360);
     const onRender = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas,
       scene: scene(),
       device: gpu.device,
@@ -722,7 +722,7 @@ describe("FemViewport", () => {
       unit: "unitless",
       values: new Float32Array([0, 0, 0, 10, 0, 0, 0, 0, 0]),
     });
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: resultScene(3),
       device: fakeGpuDevice().device,
@@ -737,12 +737,12 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: gpu.device,
     });
-    const visibilitySetters: readonly ((current: FemViewport) => void)[] = [
+    const visibilitySetters: readonly ((current: Viewport) => void)[] = [
       (current) => {
         current.updateScene(scene());
       },
@@ -772,7 +772,7 @@ describe("FemViewport", () => {
     for (const setVisible of visibilitySetters) {
       expect(() => {
         setVisible(viewport);
-      }).toThrow("FemViewport has been destroyed");
+      }).toThrow("Viewport has been destroyed");
     }
     expect(viewport.runtime.getVisibleInstanceIds()).toEqual(before.drawList);
     expect(viewport.runtime.getInstances()).toEqual(before.instances);
@@ -787,7 +787,7 @@ describe("FemViewport", () => {
   it("includes instance transforms when fitting the scene", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(25),
       device: fakeGpuDevice().device,
@@ -823,7 +823,7 @@ describe("FemViewport", () => {
         { kind: "part", placementId: "added", partId: 3, transform: translation(20, 0, 0) },
       ],
     );
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: initial,
       device: fakeGpuDevice().device,
@@ -855,7 +855,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const onRender = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -874,7 +874,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: gpu.device,
@@ -910,7 +910,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const keyboard = new KeyboardTarget();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -945,7 +945,7 @@ describe("FemViewport", () => {
   it("leaves the camera unchanged when selected geometry is hidden or stale", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -966,7 +966,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const onRender = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -1002,12 +1002,12 @@ describe("FemViewport", () => {
   it("keeps runtime visibility isolated between viewports", async () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
-    const first = await createFemViewport({
+    const first = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
     });
-    const second = await createFemViewport({
+    const second = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,
@@ -1027,7 +1027,7 @@ describe("FemViewport", () => {
     installNavigator();
     const gpu = fakeGpuDevice();
     const onError = vi.fn();
-    await createFemViewport({
+    await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: gpu.device,
@@ -1050,7 +1050,7 @@ describe("FemViewport", () => {
     const resolveCandidate = installTwoPhaseNavigator(first.device, candidate.device);
     const onRecovered = vi.fn();
     const onError = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       onRecovered,
@@ -1078,7 +1078,7 @@ describe("FemViewport", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const onRecovered = vi.fn();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
       device: fakeGpuDevice().device,

@@ -3,7 +3,7 @@
 This is the workflow-first guide to the experimental FemGx 0.x API. The
 generated pages below this introduction document every exported symbol, but
 the examples here are the useful starting point: each one follows data from
-authoring or import through a `Scene` and into one `FemViewport`.
+authoring or import through a `Scene` and into one `Viewport`.
 
 The package is intentionally WebGPU-only. A browser without a working WebGPU
 device receives a typed unsupported result or error; there is no CPU renderer
@@ -20,7 +20,7 @@ Part definitions + assembly placements
                  ↓
                Scene
                  ↓
-       createFemViewport({ canvas, scene })
+       createViewport({ canvas, scene })
                  ↓
        viewport.runtime / interaction / results
 ```
@@ -33,7 +33,7 @@ There are four important ownership boundaries:
   not copy geometry.
 - A `Scene` is the authoritative registry of parts and assembly definitions,
   together with its root assembly and visibility state.
-- `FemViewport` owns the current compiled runtime, WebGPU resources, camera,
+- `Viewport` owns the current compiled runtime, WebGPU resources, camera,
   interaction state, result snapshot, recovery, resize, and teardown.
 
 `SceneRuntime` is a read-only query facade over the compiled scene. It exposes
@@ -110,7 +110,7 @@ To render it, register the definition and a placement in an assembly. A scene
 must have a registered root assembly:
 
 ```ts
-import { createFemViewport, createScene, identity } from "femgx";
+import { createViewport, createScene, identity } from "femgx";
 
 const scene = createScene()
   .addPart(trianglePart)
@@ -129,7 +129,7 @@ const scene = createScene()
   .withRoot(20)
   .build();
 
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createViewport({ canvas, scene });
 // The viewport owns rendering and camera fitting from this point onward.
 viewport.fitView();
 ```
@@ -150,10 +150,10 @@ workflow so `elementPart` supplies these mappings consistently.
 model as a whole and owns a `Float32Array` copy of the node coordinates.
 
 This small two-triangle model is concrete enough to run and demonstrates the
-full `ElementModel → elementPart → Scene → FemViewport` path:
+full `ElementModel → elementPart → Scene → Viewport` path:
 
 ```ts
-import { createFemViewport, createScene, identity } from "femgx";
+import { createViewport, createScene, identity } from "femgx";
 import { TRIANGLE_SHAPE, createElement, createElementModel, elementPart } from "femgx/model";
 
 const nodes = new Float32Array([
@@ -187,7 +187,7 @@ const scene = createScene()
   .withRoot(40)
   .build();
 
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createViewport({ canvas, scene });
 ```
 
 `elementPart` compiles a heterogeneous model into homogeneous primitive groups
@@ -239,7 +239,7 @@ second placement changes only the parent transform; it does not duplicate the
 part geometry:
 
 ```ts
-import { createFemViewport, createScene, rotationZ, translation } from "femgx";
+import { createViewport, createScene, rotationZ, translation } from "femgx";
 
 const bracketAssembly = {
   id: 50,
@@ -278,7 +278,7 @@ const scene = createScene()
   .withRoot(60)
   .build();
 
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createViewport({ canvas, scene });
 ```
 
 The nested assembly transform is relative to its owning assembly. The runtime
@@ -304,7 +304,7 @@ if (firstInstance !== undefined) {
 
 ## Workflow 4: viewport lifecycle, picking, and structural updates
 
-`createFemViewport` is the one supported rendering lifecycle. It requests a
+`createViewport` is the one supported rendering lifecycle. It requests a
 WebGPU device, creates the fitted camera and standard controls, synchronizes
 canvas resizing, and submits frames. The host owns DOM event wiring and decides
 what a physical hit means for its UI.
@@ -537,7 +537,7 @@ already own model ingestion. Validate the payload, convert it once to the typed
 render model, compile a part, and follow the normal scene path:
 
 ```ts
-import { createFemViewport, createScene, identity } from "femgx";
+import { createViewport, createScene, identity } from "femgx";
 import { createElementModelFromFemModel, createModelBuilder, validateModel } from "femgx/io";
 import { TRIANGLE_SHAPE, elementPart } from "femgx/model";
 
@@ -560,7 +560,7 @@ const scene = createScene()
   })
   .withRoot(71)
   .build();
-const viewport = await createFemViewport({ canvas, scene });
+const viewport = await createViewport({ canvas, scene });
 ```
 
 Node ids must be dense and in coordinate order for the conversion. Element ids
@@ -571,20 +571,20 @@ coordinates for rendering. Host-supplied result fields can be converted with
 ## Workflow 7: import a GLB display scene
 
 `femgx/io/glb` imports self-contained GLB 2.0 bytes into the same canonical
-`Scene`/`Part`/`FemViewport` concepts. It preserves hierarchy, reusable
+`Scene`/`Part`/`Viewport` concepts. It preserves hierarchy, reusable
 tessellated triangle geometry, names, and basic color/alpha metadata. It does
 not create FE nodes or elements and does not import external resources,
 textures, PBR features, animation, lights, or units.
 
 ```ts
-import { createFemViewport } from "femgx";
+import { createViewport } from "femgx";
 import { importGlb } from "femgx/io/glb";
 
 const response = await fetch("/models/bracket.glb");
 if (!response.ok) throw new Error(`GLB request failed: ${response.status}`);
 const glbBytes = new Uint8Array(await response.arrayBuffer());
 const imported = await importGlb(glbBytes, { strict: true });
-const viewport = await createFemViewport({ canvas, scene: imported.scene });
+const viewport = await createViewport({ canvas, scene: imported.scene });
 
 for (const [partId, name] of imported.partNames) {
   console.log("Imported part", partId, name, imported.partStyles.get(partId));
@@ -622,21 +622,21 @@ console.log(snapshot.getOccurrences());
 
 This is useful for host-side inspection or queries before a viewport exists,
 but it is not a second rendering lifecycle. Live visibility changes belong to
-`FemViewport`; runtime arrays, packed slots, draw batches, and GPU record
+`Viewport`; runtime arrays, packed slots, draw batches, and GPU record
 layouts are implementation details.
 
 ## Camera and resize ownership
 
 The default viewport creates a fitted camera and installs standard controls on
 the supplied canvas. Hosts that need custom camera state can use `femgx/camera`
-and pass the resulting immutable `Camera` to `createFemViewport`:
+and pass the resulting immutable `Camera` to `createViewport`:
 
 ```ts
-import { createFemViewport } from "femgx";
+import { createViewport } from "femgx";
 import { createCamera, setProjection } from "femgx/camera";
 
 const camera = setProjection(createCamera({ width: 800, height: 480 }), "perspective");
-const viewport = await createFemViewport({ canvas, scene, camera });
+const viewport = await createViewport({ canvas, scene, camera });
 viewport.setCamera(camera, { durationMs: 250 });
 ```
 
@@ -663,7 +663,7 @@ if (support.status !== "supported") {
 }
 ```
 
-`createFemViewport` performs the device request itself. If that request cannot
+`createViewport` performs the device request itself. If that request cannot
 produce a working device, it rejects with `WebGpuUnsupportedError` carrying a
 typed reason (`"no-webgpu"`, `"adapter-unavailable"`, or
 `"device-unavailable"`). A supported-path device loss can be reported with

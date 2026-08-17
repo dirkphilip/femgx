@@ -8,7 +8,7 @@ import {
   setElementVisible,
   setBodyVisible,
   setTargetSelected,
-  type FemViewport,
+  type Viewport,
   type InteractionState,
   type Scene,
 } from "../../../src/entries/root";
@@ -165,7 +165,7 @@ describe("WorkbenchVisibilityActions", () => {
       setInstanceVisible(instanceId: string, visible: boolean): void {
         calls.push(`instance:${instanceId}:${visible}`);
       },
-    } as unknown as FemViewport;
+    } as unknown as Viewport;
     const actions = new WorkbenchVisibilityActions({
       viewport: () => viewport,
       scene: () => scene,
@@ -225,7 +225,7 @@ function createActionHarness(scene: Scene, runtime: SceneRuntime, initial: Inter
   const feedback: string[] = [];
   return {
     actions: new WorkbenchVisibilityActions({
-      viewport: () => ({}) as FemViewport,
+      viewport: () => ({}) as Viewport,
       scene: () => scene,
       runtime: () => runtime,
       interaction: () => interaction,

@@ -22,11 +22,11 @@ presentation and interaction policy only.
   (`updateInstances`, `updateElements`, `updateVisibility`) plus the viewport's
   pure interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
-- GPU picking (`FemViewport.pick`) and pure interaction-target conversion.
+- GPU picking (`Viewport.pick`) and pure interaction-target conversion.
 - Opinionated SpaceClaim-style mouse/touch navigation
   (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
   and the renderer-owned rotation-origin axis widget.
-- The canonical `FemViewport`: runtime compilation, camera fit/resize,
+- The canonical `Viewport`: runtime compilation, camera fit/resize,
   standard controls, render invalidation, interaction/visibility GPU deltas,
   picking, scene replacement, device recovery, and teardown.
 
@@ -48,7 +48,7 @@ presentation and interaction policy only.
 The workbench presentation shell is the only Svelte-owned surface. Svelte
 components may render immutable workbench snapshots and dispatch typed
 demo-private commands, but they must not import `src/`, own model or viewport
-state, schedule WebGPU frames, or recreate `FemViewport` or `SceneRuntime` on
+state, schedule WebGPU frames, or recreate `Viewport` or `SceneRuntime` on
 ordinary component updates. The plain TypeScript controller and session core
 remain the lifecycle and state owners; Svelte is a replaceable presentation
 layer.
@@ -69,7 +69,7 @@ the WebGPU emphasis semantics.
 
 ## Viewport synchronization
 
-The demo passes presentation state to `FemViewport`; it never calls renderer
+The demo passes presentation state to `Viewport`; it never calls renderer
 upload or draw methods. The viewport derives interaction and visibility deltas,
 owns the packed runtime, and resets its upload baseline after scene replacement
 or recovery. This keeps the public host path and the demo test bench identical.
@@ -102,7 +102,7 @@ model normal host usage:
 
 These exemptions are intentionally narrow. Packed runtime slots, renderer records,
 capacities, and other benchmark internals remain non-public; ordinary demo code
-must use the canonical `createFemViewport` workflow.
+must use the canonical `createViewport` workflow.
 
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
 [rendering/interactive-state|Interactive state]: ../rendering/interactive-state.md

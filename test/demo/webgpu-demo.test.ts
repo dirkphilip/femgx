@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FemViewport } from "../../src/viewport/fem-viewport";
+import type { Viewport } from "../../src/viewport/viewport";
 import { WebGpuUnsupportedError } from "../../src/platform/capabilities";
 import type { DemoView } from "../../demo/workbench/viewport/view";
 import type { WorkbenchOptions } from "../../demo/workbench/controllers/controller";
@@ -30,7 +30,7 @@ const mocks = vi.hoisted(() => {
       this.render();
     }
 
-    setViewport(viewport: FemViewport): void {
+    setViewport(viewport: Viewport): void {
       this.currentViewport = viewport;
     }
 
@@ -44,7 +44,7 @@ const mocks = vi.hoisted(() => {
   }
   return {
     FakeWorkbenchController,
-    createFemViewport: vi.fn(),
+    createViewport: vi.fn(),
     runWebGpuBenchmark: vi.fn(() => Promise.resolve({ schemaVersion: 2 })),
     receivedPresets: [] as readonly { readonly id: string }[],
   };
@@ -55,7 +55,7 @@ vi.mock("../../demo/workbench/controllers/controller", () => ({
 }));
 vi.mock("../../src/entries/root", async (importOriginal) => ({
   ...(await importOriginal()),
-  createFemViewport: mocks.createFemViewport,
+  createViewport: mocks.createViewport,
 }));
 vi.mock("../../demo/benchmark/runner", () => ({
   runWebGpuBenchmark: mocks.runWebGpuBenchmark,
@@ -96,7 +96,7 @@ function fakeView(canvas: HTMLCanvasElement): DemoView {
 }
 
 interface FakeViewport {
-  readonly viewport: FemViewport;
+  readonly viewport: Viewport;
   readonly render: ReturnType<typeof vi.fn>;
   readonly setInteraction: ReturnType<typeof vi.fn>;
   readonly destroy: ReturnType<typeof vi.fn>;
@@ -116,10 +116,10 @@ function fakeViewport(): FakeViewport {
     setInteraction,
     destroy,
     viewport: {
-      scene: {} as FemViewport["scene"],
-      runtime: { visibleCount: 0 } as FemViewport["runtime"],
-      camera: {} as FemViewport["camera"],
-      interaction: {} as FemViewport["interaction"],
+      scene: {} as Viewport["scene"],
+      runtime: { visibleCount: 0 } as Viewport["runtime"],
+      camera: {} as Viewport["camera"],
+      interaction: {} as Viewport["interaction"],
       results: undefined,
       sectionPlane: undefined,
       updateScene: vi.fn(() => ({ results: "none" as const })),
@@ -176,7 +176,7 @@ afterEach(() => {
 describe("startWebGpuDemo", () => {
   it("starts ordinary mode without benchmark catalog entries", async () => {
     const viewport = fakeViewport();
-    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
 
     await startWebGpuDemo(startOptions(fakeCanvas()));
 
@@ -186,20 +186,20 @@ describe("startWebGpuDemo", () => {
 
   it("starts through the public FEM viewport", async () => {
     const viewport = fakeViewport();
-    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
 
     const controller = await startWebGpuDemo(startOptions(canvas));
 
     expect(controller).toBeDefined();
-    expect(mocks.createFemViewport).toHaveBeenCalledOnce();
+    expect(mocks.createViewport).toHaveBeenCalledOnce();
     expect(viewport.render).toHaveBeenCalled();
     expect(canvas.dataset["renderer"]).toBe("webgpu");
   });
 
   it("does not schedule continuous frames for a static preset", async () => {
     const viewport = fakeViewport();
-    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
     const requestFrame = vi.fn(() => 1);
     globalThis.requestAnimationFrame = requestFrame;
 
@@ -210,7 +210,7 @@ describe("startWebGpuDemo", () => {
   });
 
   it("reports an explicit unsupported message when viewport creation fails", async () => {
-    mocks.createFemViewport.mockRejectedValue(
+    mocks.createViewport.mockRejectedValue(
       new WebGpuUnsupportedError("adapter-unavailable", "no WebGPU adapter"),
     );
     const canvas = fakeCanvas();
@@ -229,7 +229,7 @@ describe("startWebGpuDemo", () => {
   });
 
   it("reports an ordinary startup failure as a renderer error", async () => {
-    mocks.createFemViewport.mockRejectedValue(new Error("renderer initialization failed"));
+    mocks.createViewport.mockRejectedValue(new Error("renderer initialization failed"));
     const canvas = fakeCanvas();
     const startup = { rendererStatus: "", status: "" };
 
@@ -250,7 +250,7 @@ describe("startWebGpuDemo", () => {
     viewport.render.mockImplementation(() => {
       throw new Error("frame submit exploded");
     });
-    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
     const startup = { rendererStatus: "", status: "" };
 
@@ -268,7 +268,7 @@ describe("startWebGpuDemo", () => {
   it("tears down and recreates the public viewport", async () => {
     const first = fakeViewport();
     const second = fakeViewport();
-    mocks.createFemViewport
+    mocks.createViewport
       .mockResolvedValueOnce(first.viewport)
       .mockResolvedValueOnce(second.viewport);
     const canvas = fakeCanvas();
@@ -279,7 +279,7 @@ describe("startWebGpuDemo", () => {
     expect(canvas.dataset["renderer"]).toBe("destroyed");
 
     await demoWindow.femgxDemo?.recreateRenderer();
-    expect(mocks.createFemViewport).toHaveBeenCalledTimes(2);
+    expect(mocks.createViewport).toHaveBeenCalledTimes(2);
     expect(second.render).toHaveBeenCalled();
     expect(canvas.dataset["renderer"]).toBe("webgpu");
   });
@@ -287,7 +287,7 @@ describe("startWebGpuDemo", () => {
   it("attaches a recreated viewport before publishing its initial frame", async () => {
     const first = fakeViewport();
     const second = fakeViewport();
-    mocks.createFemViewport
+    mocks.createViewport
       .mockResolvedValueOnce(first.viewport)
       .mockImplementationOnce((options: { readonly onRender?: () => void }) => {
         options.onRender?.();
@@ -306,7 +306,7 @@ describe("startWebGpuDemo", () => {
 
   it("reports a viewport recreation failure", async () => {
     const first = fakeViewport();
-    mocks.createFemViewport.mockResolvedValueOnce(first.viewport);
+    mocks.createViewport.mockResolvedValueOnce(first.viewport);
     const canvas = fakeCanvas();
     const startup = { rendererStatus: "", status: "" };
     await startWebGpuDemo({
@@ -315,7 +315,7 @@ describe("startWebGpuDemo", () => {
       reportStartupFailure: (next) => Object.assign(startup, next),
     });
     demoWindow.femgxDemo?.destroyRenderer();
-    mocks.createFemViewport.mockRejectedValueOnce(new Error("recreation failed"));
+    mocks.createViewport.mockRejectedValueOnce(new Error("recreation failed"));
 
     await demoWindow.femgxDemo?.recreateRenderer();
 
@@ -325,7 +325,7 @@ describe("startWebGpuDemo", () => {
 
   it("tears down the workbench before running the opt-in benchmark", async () => {
     const viewport = fakeViewport();
-    mocks.createFemViewport.mockResolvedValue(viewport.viewport);
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
     const canvas = fakeCanvas();
     await startWebGpuDemo(startOptions(canvas));
 

@@ -3,7 +3,7 @@ import {
   setTargetsHighlighted,
   type InstanceId,
   type InteractionState,
-  type FemViewport,
+  type Viewport,
 } from "../../../src/entries/root";
 import type { ElementId } from "../../../src/entries/model";
 import {
@@ -35,8 +35,8 @@ export interface WorkbenchHoverController {
   interaction: InteractionState;
   readonly viewportSlots: { clearHover(): void };
   readonly render: () => void;
-  readonly activeViewport?: () => FemViewport;
-  readonly viewports?: () => readonly FemViewport[];
+  readonly activeViewport?: () => Viewport;
+  readonly viewports?: () => readonly Viewport[];
 }
 
 /** Commits one hierarchy row as the active viewport's transient hover source. */
@@ -144,11 +144,11 @@ function displayedInteraction(owner: WorkbenchHoverController): InteractionState
   );
 }
 
-function activeViewport(owner: WorkbenchHoverController): FemViewport | undefined {
+function activeViewport(owner: WorkbenchHoverController): Viewport | undefined {
   return owner.activeViewport?.() ?? owner.viewports?.()[0];
 }
 
-function ownerRuntime(owner: WorkbenchHoverController): FemViewport["runtime"] {
+function ownerRuntime(owner: WorkbenchHoverController): Viewport["runtime"] {
   const viewport = activeViewport(owner);
   if (viewport === undefined) throw new Error("Workbench hover has no viewport");
   return viewport.runtime;

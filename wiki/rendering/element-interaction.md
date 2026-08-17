@@ -107,7 +107,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   Point parts are excluded because their primary point sprites already draw
   their authored nodes; node order membership is not a per-element filter.
 - The overlay draws with depth writes off and `depthCompare` selected by
-  `FemViewport.setEdgeDepthTest`: on (default) uses `less-equal` so edges
+  `Viewport.setEdgeDepthTest`: on (default) uses `less-equal` so edges
   occluded by nearer geometry are culled; off uses `always` so every edge shows
   through the model. Two edge pipelines are pre-created in
   `renderer/frame/pipelines.ts`.
@@ -127,7 +127,7 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   topology layout.
 - The workbench drives the overlay by applying an `{ edge: true }` part
   override to every part. Hosts control occlusion through the public
-  `FemViewport.setEdgeDepthTest` method; the workbench keeps the shipped
+  `Viewport.setEdgeDepthTest` method; the workbench keeps the shipped
   depth-tested edge policy.
 - The edge pass renders instance-level style only; per-element emphasis is not
   drawn on edges because edges shared between adjacent elements have no

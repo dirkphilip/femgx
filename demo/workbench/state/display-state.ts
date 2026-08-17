@@ -1,6 +1,6 @@
 import {
   setPartOverride,
-  type FemViewport,
+  type Viewport,
   type InteractionState,
   type ViewportElementVectorConfig,
   type ViewportResultsConfig,
@@ -11,7 +11,7 @@ import type { WorkbenchScalarField } from "../results/result-controls";
 import type { WorkbenchResultPlaybackStep } from "../results/result-playback";
 
 interface ResultStateOptions {
-  readonly viewport: FemViewport;
+  readonly viewport: Viewport;
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
   readonly scalar: WorkbenchScalarField | undefined;
@@ -79,7 +79,7 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
 }
 
 interface DisplayStateOptions {
-  readonly viewport: FemViewport;
+  readonly viewport: Viewport;
   readonly model: WorkbenchModel;
   readonly toggles: DisplayToggles;
   readonly interaction: InteractionState;

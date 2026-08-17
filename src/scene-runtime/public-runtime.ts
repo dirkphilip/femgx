@@ -11,7 +11,7 @@ import { invariantValue } from "./invariants";
  * `instanceId` identifies an expanded placement; `partId` identifies the
  * reusable definition it references. The transform is a defensive world-space
  * snapshot. Visibility fields describe effective runtime state and are not
- * mutation handles; use {@link root.FemViewport.setInstanceVisible} for live
+ * mutation handles; use {@link root.Viewport.setInstanceVisible} for live
  * changes.
  * @category Advanced runtime and WebGPU platform
  */
@@ -50,7 +50,7 @@ export interface RuntimeOccurrence {
  *
  * This is a defensive inspection facade over a compiled scene, not a renderer
  * control surface. Collections and transforms are snapshots, runtime slots and
- * GPU records are hidden, and live mutations belong to {@link root.FemViewport}.
+ * GPU records are hidden, and live mutations belong to {@link root.Viewport}.
  * `viewport.runtime` is the current facade; reacquire it after scene
  * replacement. Use {@link createSceneRuntime} only when a standalone CPU
  * snapshot is the intended workflow.

@@ -10,7 +10,7 @@ import { identity, scale } from "../../src/math/mat4";
 import { GpuRenderer } from "../../src/renderer/renderer-core";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
-import { createFemViewport } from "../../src/viewport/fem-viewport";
+import { createViewport } from "../../src/viewport/viewport";
 import type { ViewportResultsConfig } from "../../src/viewport/results";
 import {
   applyViewportResultInteraction,
@@ -381,7 +381,7 @@ describe("viewport results workflow", () => {
     restoreGpuGlobals = installGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
@@ -403,7 +403,7 @@ describe("viewport results workflow", () => {
     const gpu = fakeGpuDevice();
     const scene = createTestScene(scale(1, 0, 1));
     const vector = elementalVector();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
@@ -489,7 +489,7 @@ describe("viewport results workflow", () => {
     installNavigator();
     const gpu = fakeGpuDevice();
     const base = createInteractionState();
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: createTestScene(),
       device: gpu.device,
@@ -547,7 +547,7 @@ describe("viewport results workflow", () => {
       unit: "MPa",
       values: new Float32Array([6]),
     });
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
@@ -601,7 +601,7 @@ describe("viewport results workflow", () => {
     const base = setPartOverride(createInteractionState(), 1, {
       color: { r: 1, g: 0, b: 0, a: 1 },
     });
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: createTestScene(),
       device: fakeGpuDevice().device,
@@ -646,7 +646,7 @@ describe("viewport results workflow", () => {
     const config = (field: typeof fieldA) => ({
       scalar: { field, range: { min: 0, max: 10 } },
     });
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: createTestScene(),
       device: fakeGpuDevice().device,
@@ -700,7 +700,7 @@ describe("viewport results workflow", () => {
       unit: "MPa",
       values: new Float32Array([0, 1]),
     });
-    const viewport = await createFemViewport({
+    const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,

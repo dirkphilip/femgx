@@ -21,7 +21,7 @@ test("presents two reusable public part occurrences as one instanced frame", asy
   await expect.poll(() => drawnPixels(canvas)).toBe(true);
 });
 
-test("resolves raster point, region, authored-edge, and visibility interaction through FemViewport", async ({
+test("resolves raster point, region, authored-edge, and visibility interaction through Viewport", async ({
   page,
 }) => {
   const { canvas, status } = await openCase(page, "picking");

@@ -57,7 +57,7 @@ export interface ViewportElementVectorConfig {
 /**
  * One atomic, non-empty combination of authored result roles.
  *
- * Pass this object to {@link FemViewport.setResults}. Scalar coloring,
+ * Pass this object to {@link Viewport.setResults}. Scalar coloring,
  * deformation, and elemental orientation are validated together and installed
  * as one snapshot, so hosts do not expose a mixed state while sequencing their
  * own result cases. FemGx retains only the current snapshot.

@@ -20,5 +20,5 @@ export function parseSelectionGranularity(value: string): SelectionGranularity |
 
 /** Identifies the expected teardown error from a renderer callback race. */
 export function isDestroyedViewportError(error: unknown): boolean {
-  return error instanceof Error && error.message === "FemViewport has been destroyed";
+  return error instanceof Error && error.message === "Viewport has been destroyed";
 }

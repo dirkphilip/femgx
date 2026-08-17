@@ -1,6 +1,6 @@
 /**
  * The canonical femgx workflow: reusable Parts and Assemblies compiled into a
- * Scene, then rendered through FemViewport.
+ * Scene, then rendered through Viewport.
  */
 export type {
   Assembly,
@@ -30,12 +30,12 @@ export {
 export { createPart } from "../geometry/part";
 export { createScene, type Scene, type SceneBuilder } from "../scene/scene";
 export {
-  createFemViewport,
-  type FemViewport,
-  type FemViewportOptions,
+  createViewport,
+  type Viewport,
+  type ViewportOptions,
   type SceneUpdateOutcome,
   type ViewportBackground,
-} from "../viewport/fem-viewport";
+} from "../viewport/viewport";
 export type { CameraTransitionOptions } from "../viewport/types";
 export type { OrientationGizmoOptions } from "../viewport/orientation-gizmo";
 export type { SectionPlane } from "../math/section-plane";

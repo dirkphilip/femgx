@@ -7,7 +7,7 @@ import type { AssemblyId } from "./types";
  * visibility state.
  *
  * A scene is the handoff from host-owned model authoring to
- * {@link createFemViewport}. Its maps contain reusable definitions; transforms
+ * {@link createViewport}. Its maps contain reusable definitions; transforms
  * and occurrence identities live in {@link Placement} entries under the root
  * assembly. The renderer compiles this immutable snapshot into a derived
  * runtime, but never mutates or replaces the scene as the source of truth.
@@ -26,7 +26,7 @@ export interface Scene {
  *
  * Builder methods are intentionally chainable. `build()` copies the registries
  * and visibility sets, validates references and acyclicity, and returns a
- * snapshot safe to pass to {@link createFemViewport}; later builder calls do
+ * snapshot safe to pass to {@link createViewport}; later builder calls do
  * not change an already-built scene.
  * @category Scene and geometry
  */
@@ -308,7 +308,7 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
  * have a registered root; all placement references must resolve to registered
  * definitions and the assembly graph must be acyclic. `build()` returns an
  * isolated immutable snapshot, so it is also the boundary used to prepare a
- * candidate for {@link FemViewport.updateScene}.
+ * candidate for {@link Viewport.updateScene}.
  * @example Register one reusable part and its root assembly.
  * ```ts
  * import { createPart, createScene, identity } from "femgx";

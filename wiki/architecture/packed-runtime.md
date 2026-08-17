@@ -14,7 +14,7 @@ The public runtime exposes stable instance and assembly-occurrence handles via
 `getInstances()`, `getOccurrences()`, `getInstance(instanceId)`, and
 `getOccurrence(occurrenceId)`. It is query-only; every transform and collection
 result is a defensive snapshot, and live visibility mutations go through
-`FemViewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
+`Viewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
 picking synchronized. `getVisibleInstanceIds()` returns visible handles in
 deterministic depth-first runtime order, not the renderer's private part-batched
 draw order. `RuntimeOccurrence.instanceIds` contains only direct part placements;

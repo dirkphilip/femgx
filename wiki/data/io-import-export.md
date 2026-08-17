@@ -53,7 +53,7 @@ narrow bridge from one host-authored result to the viewport:
 
 The complete FE handoff is:
 `FemModel -> validateModel -> createElementModelFromFemModel -> elementPart ->
-Scene -> FemViewport`, with authored results converted through
+Scene -> Viewport`, with authored results converted through
 `createResultFieldFromModelResult` before `setResults()`.
 
 ## Display-scene import
