@@ -53,7 +53,9 @@ export interface SceneUpdateOutcome {
  * @category Viewport lifecycle
  */
 export interface ViewportOptions {
+  /** Browser canvas whose CSS box and WebGPU backing surface are synchronized. */
   readonly canvas: HTMLCanvasElement;
+  /** Immutable authored scene compiled into this viewport's live runtime. */
   readonly scene: Scene;
   /** Point-element screen-space diameter in CSS pixels (default 8). */
   readonly pointSizePixels?: number;
@@ -61,12 +63,19 @@ export interface ViewportOptions {
   readonly nodeSizePixels?: number;
   /** Whether to render the default world-origin triad (default `true`). */
   readonly originTriad?: boolean;
+  /** Optional host container for the renderer-owned orientation gizmo. */
   readonly orientationGizmo?: OrientationGizmoOptions;
+  /** Initial immutable camera value; otherwise the viewport creates a fitted camera. */
   readonly camera?: Camera;
+  /** Initial immutable interaction snapshot; otherwise an empty state is created. */
   readonly interaction?: InteractionState;
+  /** Initial authored result snapshot, validated against the supplied scene. */
   readonly results?: ViewportResultsConfig;
+  /** Initial renderer-owned background presentation. */
   readonly background?: ViewportBackground;
+  /** Supported-path device supplied by a host that owns adapter selection. */
   readonly device?: GPUDevice;
+  /** WebGPU power preference used only when the viewport requests its own device. */
   readonly powerPreference?: GPUPowerPreference;
   /** Reports terminal or recoverable WebGPU device loss. */
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
@@ -101,6 +110,7 @@ export interface ViewportOptions {
  * @category Start here
  */
 export interface Viewport {
+  /** The authoritative immutable scene currently compiled by this viewport. */
   readonly scene: Scene;
   /**
    * The current live query facade. Read it again after `setScene` or
@@ -109,9 +119,13 @@ export interface Viewport {
    * slots or renderer draw order.
    */
   readonly runtime: SceneRuntime;
+  /** Current immutable camera value; use {@link setCamera} to replace it. */
   readonly camera: Camera;
+  /** Current immutable interaction snapshot; use {@link setInteraction} to replace it. */
   readonly interaction: InteractionState;
+  /** Current resolved authored result snapshot, or `undefined` when cleared. */
   readonly results: ViewportResultsState | undefined;
+  /** Current world-space clipping plane, or `undefined` when clipping is cleared. */
   readonly sectionPlane: SectionPlane | undefined;
   /** Sets the point-element screen-space diameter in CSS pixels. */
   setPointSizePixels(size: number): void;
@@ -134,9 +148,19 @@ export interface Viewport {
   fitView(options?: CameraTransitionOptions): void;
   /** Fits the currently selected targets, or the scene when none are selected. */
   fitSelection(options?: CameraTransitionOptions): void;
-  /** Replaces the immutable host interaction snapshot and synchronizes the renderer. */
+  /**
+   * Replaces the immutable host interaction snapshot and synchronizes the
+   * renderer. Use {@link setTargetSelected}, {@link setTargetsSelected},
+   * {@link setTargetHighlighted}, or {@link setTargetsHighlighted} to build
+   * duplicate-safe transitions before installing them here; this method does
+   * not mutate the supplied snapshot.
+   */
   setInteraction(interaction: InteractionState): void;
-  /** Groups synchronous mutations into one deferred invalidation and render. */
+  /**
+   * Groups synchronous mutations into one deferred invalidation and render.
+   * This coalesces viewport work only; it does not replace immutable bulk
+   * interaction helpers such as {@link setTargetsSelected}.
+   */
   batch<T>(operation: () => T): T;
   /** Atomically replaces the active authored scalar/deformation/vector result snapshot. */
   setResults(results: ViewportResultsConfig): void;
@@ -150,13 +174,13 @@ export interface Viewport {
   setBackground(background: ViewportBackground): void;
   /** Enables or disables depth testing for rendered edges. */
   setEdgeDepthTest(enabled: boolean): void;
-  /** Changes visibility for every occurrence of one part definition. */
+  /** Changes live visibility for every occurrence of one part definition. */
   setPartVisible(partId: PartId, visible: boolean): void;
-  /** Changes visibility for one assembly occurrence. */
+  /** Changes live visibility for one expanded assembly occurrence. */
   setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
-  /** Changes visibility for every occurrence of one assembly definition. */
+  /** Changes live visibility for every expanded occurrence of one assembly definition. */
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
-  /** Changes visibility for one placed-part occurrence. */
+  /** Changes live visibility for one expanded placed-part occurrence. */
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
   /**
    * Reads the topmost rendered target at canvas CSS coordinates.
@@ -171,7 +195,9 @@ export interface Viewport {
    *
    * This is nearest-visible GPU region discovery and does not mutate selection.
    * A host that needs element Through selection should combine
-   * `boxSelectionFrustum` with authoritative placed FE geometry instead.
+   * {@link boxSelectionFrustum} with authoritative placed FE geometry instead;
+   * that host-side query ignores raster occlusion while respecting scene
+   * visibility, section planes, deformation, and occurrence transforms.
    */
   pickRegion(
     rect: BoxSelectionRect,

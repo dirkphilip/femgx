@@ -16,12 +16,19 @@ import { invariantValue } from "./invariants";
  * @category Advanced runtime and WebGPU platform
  */
 export interface RuntimeInstance {
+  /** Stable identity of this expanded placed-part occurrence. */
   readonly instanceId: InstanceId;
+  /** Reusable part definition referenced by this instance. */
   readonly partId: PartId;
+  /** Expanded assembly occurrence that directly owns this instance. */
   readonly occurrenceId: AssemblyOccurrenceId;
+  /** Effective visibility after occurrence, part, and instance layers combine. */
   readonly visible: boolean;
+  /** Visibility contributed by the part-definition layer. */
   readonly partVisible: boolean;
+  /** Visibility contributed by the instance override layer. */
   readonly overrideVisible: boolean;
+  /** Defensive world-space transform snapshot, in the scene's authored units. */
   readonly transform: Mat4;
 }
 
@@ -35,13 +42,19 @@ export interface RuntimeInstance {
  * @category Advanced runtime and WebGPU platform
  */
 export interface RuntimeOccurrence {
+  /** Stable identity of this expanded placement of an assembly definition. */
   readonly occurrenceId: AssemblyOccurrenceId;
+  /** Reusable assembly definition expanded at this occurrence. */
   readonly assemblyId: AssemblyId;
+  /** Parent occurrence, or `undefined` for the expanded root. */
   readonly parentId: AssemblyOccurrenceId | undefined;
+  /** Direct child assembly occurrences in deterministic hierarchy order. */
   readonly childIds: readonly AssemblyOccurrenceId[];
   /** Stable placed-part ids directly contained by this occurrence. */
   readonly instanceIds: readonly InstanceId[];
+  /** Visibility contributed by this occurrence's assembly-definition layer. */
   readonly visible: boolean;
+  /** Effective visibility after ancestor and occurrence layers combine. */
   readonly effectiveVisible: boolean;
 }
 
@@ -57,9 +70,13 @@ export interface RuntimeOccurrence {
  * @category Advanced runtime and WebGPU platform
  */
 export interface SceneRuntime {
+  /** Assembly definition selected as the scene root. */
   readonly rootAssemblyId: AssemblyId;
+  /** Number of expanded assembly occurrences, including the root. */
   readonly occurrenceCount: number;
+  /** Number of expanded placed-part instances. */
   readonly instanceCount: number;
+  /** Number of instances currently effective-visible for rendering. */
   readonly visibleCount: number;
   /** Returns a fresh snapshot of every stable placed-part id in runtime order. */
   getInstanceIds(): readonly InstanceId[];
