@@ -200,6 +200,61 @@ function drawContext(): DrawCallContext {
 }
 
 describe("GPU draw path", () => {
+  it("admits plain triangle surfaces minimally and promotes feature state", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0]));
+      const pipelines = {
+        minimalTrianglesColor: { name: "minimal-triangles-color" },
+        minimalTrianglesTransparent: { name: "minimal-triangles-transparent" },
+        trianglesColor: { name: "triangles-color" },
+        trianglesTransparent: { name: "triangles-transparent" },
+      } as unknown as DrawPipelines;
+      const context: DrawCallContext = {
+        ...drawContext(),
+        frameBindGroup: { name: "feature-frame" } as unknown as GPUBindGroup,
+        minimalFrameBindGroup: { name: "minimal-frame" } as unknown as GPUBindGroup,
+        minimalInstanceLayout: { name: "minimal-instance" } as unknown as GPUBindGroupLayout,
+        pipelines,
+      };
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(pass, draw, context, [{ partId: part.id, instanceCount: 1 }], {
+        kind: "surface",
+        pass: "color",
+      });
+      drawBatches(pass, draw, context, [{ partId: part.id, instanceCount: 1 }], {
+        kind: "surface",
+        pass: "transparent",
+      });
+      drawBatches(
+        pass,
+        draw,
+        { ...context, resultColors: new Map([[part.id, new Float32Array([1, 0, 0, 1])]]) },
+        [{ partId: part.id, instanceCount: 1 }],
+        { kind: "surface", pass: "color" },
+      );
+      pass.end();
+      expect(gpu.pipelineCalls).toEqual([
+        pipelines.minimalTrianglesColor,
+        pipelines.minimalTrianglesTransparent,
+        pipelines.trianglesColor,
+      ]);
+      expect(draw.cost.snapshot().admissions).toEqual({ minimal: 2, topology: 0, feature: 1 });
+      expect(draw.admissionCache.get(part.id)?.admission).toBe("feature");
+    } finally {
+      restore();
+    }
+  });
+
   it("draws every primitive leaf from one semantic part", () => {
     const restore = installGpuGlobals();
     try {
@@ -1129,6 +1184,7 @@ describe("GPU draw path", () => {
         pipelines.pointsColor,
       ]);
       expect(gpu.drawCalls).toHaveLength(3);
+      expect(draw.cost.snapshot().admissions).toEqual({ minimal: 0, topology: 2, feature: 1 });
     } finally {
       restore();
     }

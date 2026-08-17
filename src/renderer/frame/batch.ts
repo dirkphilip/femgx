@@ -1,5 +1,16 @@
 import { orderBindGroup } from "../resources/bind-groups";
+import type { GpuCostAdmission } from "../diagnostics/cost";
 import { ensureDeformationBuffer } from "./deformation";
+import {
+  drawIntentState,
+  geometriesForIntent,
+  geometryForPrimitive,
+  pipelineAdmission,
+  pipelineForIntent,
+  selectionRangesForIntent,
+  type DrawIntent,
+  type DrawIntentState,
+} from "./draw-admission";
 import type { Geometry, Part } from "../../geometry/part";
 import {
   uploadNodePart,
@@ -9,34 +20,10 @@ import {
   type DrawCall,
   type DrawCallContext,
   type DrawResources,
+  type InstanceStorage,
   type SelectionDrawRange,
 } from "../resources/draw-resources";
 import type { PartResource } from "../resources/foundation";
-
-type PipelinePass = "color" | "transparent" | "pick" | "selection-visible" | "selection-hidden";
-
-type DrawIntent =
-  | {
-      readonly kind: "surface";
-      readonly pass: PipelinePass;
-      readonly primitive?: "triangles" | "lines" | "points";
-      /** Selects the exterior face order when it still represents displayed topology. */
-      readonly surfaceSubset?: boolean | undefined;
-    }
-  | { readonly kind: "edge"; readonly pipeline: GPURenderPipeline }
-  | { readonly kind: "edge-pick"; readonly pipeline: GPURenderPipeline }
-  | {
-      readonly kind: "nodes";
-      readonly pipeline: GPURenderPipeline;
-      readonly selection?: "visible" | "hidden";
-    };
-
-interface DrawIntentState {
-  readonly orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection";
-  readonly overlay: boolean;
-  readonly edgePick: boolean;
-  readonly nodes: boolean;
-}
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -101,7 +88,7 @@ function drawOneBatch(
   },
 ): GPURenderPipeline | undefined {
   const { draw, context, call, geometry, intent, current, range } = batch;
-  const { orderKind, overlay, edgePick, nodes } = drawIntentState(intent);
+  const { overlay, edgePick, nodes } = drawIntentState(intent);
   if (range !== undefined && range.primitive !== geometry?.primitive) return current;
   const storage = draw.storages.get(call.partId);
   const part = context.parts.get(call.partId);
@@ -112,32 +99,125 @@ function drawOneBatch(
   const subset = usesFaceSubset(intent, geometry, nodes, range, context.usesExteriorFaceSubsets);
   if (!hasBatchResources({ draw, part, geometry, resource, overlay, edgePick, subset }))
     return current;
-  const pipeline =
-    intent.kind === "surface"
-      ? pipelineFor(geometry?.primitive ?? "triangles", intent.pass, context.pipelines)
-      : intent.pipeline;
+  const prepared = prepareBatchDraw(pass, {
+    draw,
+    context,
+    call,
+    part,
+    geometry,
+    intent,
+    current,
+    storage,
+    resource,
+    subset,
+  });
+  const geometryCount = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
+  if (geometryCount === undefined) return current;
+  const count = range?.indexCount ?? geometryCount;
+  pass.drawIndexed(count, call.instanceCount, range?.firstIndex ?? 0, 0, call.firstInstance ?? 0);
+  draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
+  draw.cost.admission(prepared.admission);
+  return prepared.pipeline;
+}
+
+function prepareBatchDraw(
+  pass: GPURenderPassEncoder,
+  options: {
+    readonly draw: DrawResources;
+    readonly context: DrawCallContext;
+    readonly call: DrawCall;
+    readonly part: Part;
+    readonly geometry: Geometry | undefined;
+    readonly intent: DrawIntent;
+    readonly current: GPURenderPipeline | undefined;
+    readonly storage: InstanceStorage;
+    readonly resource: PartResource;
+    readonly subset: boolean;
+  },
+): { readonly pipeline: GPURenderPipeline; readonly admission: GpuCostAdmission } {
+  const { draw, context, call, part, geometry, intent, current, storage, resource, subset } =
+    options;
+  const { orderKind, overlay, edgePick } = drawIntentState(intent);
+  const admission = pipelineAdmission({
+    context,
+    storage,
+    call,
+    geometry,
+    intent,
+    cache: draw.admissionCache,
+  });
+  pass.setBindGroup(
+    0,
+    admission === "minimal" && context.minimalFrameBindGroup !== undefined
+      ? context.minimalFrameBindGroup
+      : context.frameBindGroup,
+  );
+  const pipeline = pipelineForIntent(intent, geometry, context.pipelines, admission);
   if (current !== pipeline) pass.setPipeline(pipeline);
+  pass.setBindGroup(
+    1,
+    createBatchBindGroup({
+      draw,
+      context,
+      call,
+      part,
+      storage,
+      resource,
+      orderKind,
+      overlay,
+      edgePick,
+      subset,
+      admission,
+    }),
+  );
+  return { pipeline, admission };
+}
+
+function createBatchBindGroup(options: {
+  readonly draw: DrawResources;
+  readonly context: DrawCallContext;
+  readonly call: DrawCall;
+  readonly part: Part;
+  readonly storage: InstanceStorage;
+  readonly resource: PartResource;
+  readonly orderKind: DrawIntentState["orderKind"];
+  readonly overlay: boolean;
+  readonly edgePick: boolean;
+  readonly subset: boolean;
+  readonly admission: GpuCostAdmission;
+}): GPUBindGroup {
+  const {
+    draw,
+    context,
+    call,
+    part,
+    storage,
+    resource,
+    orderKind,
+    overlay,
+    edgePick,
+    subset,
+    admission,
+  } = options;
   const deformation = ensureDeformationBuffer(
     draw.device,
     draw.deformations,
     call.partId,
     draw.emptyDeformationBuffer,
   );
-  const group = orderBindGroup(draw.device, context.instanceLayout, storage, orderKind, {
+  const instanceLayout =
+    admission === "minimal" && context.minimalInstanceLayout !== undefined
+      ? context.minimalInstanceLayout
+      : context.instanceLayout;
+  return orderBindGroup(draw.device, instanceLayout, storage, orderKind, {
     geometry: resource,
     deformation,
     edge: overlay,
     surfaceSubset: !overlay && subset,
     edgePick,
+    admission,
     cache: !edgePick && part.geometries.length === 1,
   });
-  pass.setBindGroup(1, group);
-  const geometryCount = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
-  if (geometryCount === undefined) return current;
-  const count = range?.indexCount ?? geometryCount;
-  pass.drawIndexed(count, call.instanceCount, range?.firstIndex ?? 0, 0, call.firstInstance ?? 0);
-  draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
-  return pipeline;
 }
 
 function hasBatchResources(options: {
@@ -166,52 +246,6 @@ function hasBatchResources(options: {
   if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return false;
   if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) return false;
   return !(!overlay && subset && resource.subsetIndexCount === 0);
-}
-
-function selectionRangesForIntent(
-  call: DrawCall,
-  intent: DrawIntent,
-): readonly SelectionDrawRange[] | undefined {
-  if (intent.kind !== "surface" || !intent.pass.startsWith("selection-")) return undefined;
-  return call.selectionRanges;
-}
-
-function geometryForPrimitive(
-  geometries: readonly (Geometry | undefined)[],
-  primitive: SelectionDrawRange["primitive"],
-): Geometry | undefined {
-  for (const geometry of geometries) {
-    if (geometry?.primitive === primitive) return geometry;
-  }
-  return undefined;
-}
-
-function drawIntentState(intent: DrawIntent): DrawIntentState {
-  if (intent.kind === "nodes") {
-    return {
-      orderKind: intent.selection === undefined ? "node" : "node-selection",
-      overlay: false,
-      edgePick: false,
-      nodes: true,
-    };
-  }
-  if (intent.kind === "edge") {
-    return { orderKind: "edge", overlay: true, edgePick: false, nodes: false };
-  }
-  if (intent.kind === "edge-pick") {
-    return { orderKind: "opaque", overlay: true, edgePick: true, nodes: false };
-  }
-  return {
-    orderKind:
-      intent.pass === "transparent"
-        ? "transparent"
-        : intent.pass.startsWith("selection-")
-          ? "selection"
-          : "opaque",
-    overlay: false,
-    edgePick: false,
-    nodes: false,
-  };
 }
 
 function drawCostCategory(
@@ -281,15 +315,6 @@ function uploadBatchGeometry(
       : uploadGeometryPart(draw, part, geometry, colors);
 }
 
-function geometriesForIntent(part: Part, intent: DrawIntent): readonly (Geometry | undefined)[] {
-  if (intent.kind === "nodes") return [undefined];
-  if (intent.kind === "edge" || intent.kind === "edge-pick") {
-    return part.geometries.filter((geometry) => geometry.primitive === "triangles");
-  }
-  if (intent.primitive === undefined) return part.geometries;
-  return part.geometries.filter((geometry) => geometry.primitive === intent.primitive);
-}
-
 function bindDrawGeometry(
   pass: GPURenderPassEncoder,
   geometry: PartResource,
@@ -323,43 +348,4 @@ function bindDrawGeometry(
   pass.setVertexBuffer(0, vertexBuffer);
   pass.setIndexBuffer(indexBuffer, "uint32");
   return count;
-}
-
-function pipelineFor(
-  primitive: "triangles" | "lines" | "points",
-  pass: PipelinePass,
-  pipelines: DrawCallContext["pipelines"],
-): GPURenderPipeline {
-  switch (primitive) {
-    case "triangles":
-      return pass === "color"
-        ? pipelines.trianglesColor
-        : pass === "transparent"
-          ? pipelines.trianglesTransparent
-          : pass === "selection-visible"
-            ? pipelines.trianglesSelectionVisible
-            : pass === "selection-hidden"
-              ? pipelines.trianglesSelectionHidden
-              : pipelines.trianglesPick;
-    case "lines":
-      return pass === "color"
-        ? pipelines.linesColor
-        : pass === "transparent"
-          ? pipelines.linesTransparent
-          : pass === "selection-visible"
-            ? pipelines.linesSelectionVisible
-            : pass === "selection-hidden"
-              ? pipelines.linesSelectionHidden
-              : pipelines.linesPick;
-    case "points":
-      return pass === "color"
-        ? pipelines.pointsColor
-        : pass === "transparent"
-          ? pipelines.pointsTransparent
-          : pass === "selection-visible"
-            ? pipelines.pointsSelectionVisible
-            : pass === "selection-hidden"
-              ? pipelines.pointsSelectionHidden
-              : pipelines.pointsPick;
-  }
 }

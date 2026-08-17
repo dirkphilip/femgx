@@ -51,6 +51,25 @@ acceptable where WebGPU layout validity requires them, but an omitted feature
 must create no model-scaled buffer, ownership table, upload, shader read, draw,
 or steady-frame work.
 
+The current admission lattice has one reduced pipeline family and two semantic
+families that retain the canonical feature layout:
+
+- Minimal triangle color and transparency draws bind only the camera uniform,
+  instance records, and draw order. Their shaders read geometry, occurrence
+  transform/style, lighting, opacity, and the renderer-owned edge-depth marker;
+  they do not declare topology, result, deformation, section, or emphasis
+  bindings.
+- Topology presentation covers authored lines/points and requested edge/node
+  overlays while no feature state is active. It preserves the existing
+  topology-aware shaders and does not materialize exact edge-pick resources
+  until exact edge interaction is asked for; sectioning, results, deformation,
+  or fine emphasis promote the affected batch to the feature path.
+- The feature path admits results, deformation, section clipping, body/element
+  visibility, fine emphasis, selection, and picking through the existing full
+  pipeline family. A cached per-part admission is invalidated by the relevant
+  authoritative state identity or highlight ownership change; steady frames do
+  not rescan the scene or create pipelines.
+
 A public interaction-detail or quality profile is not approved. If measured
 internal fast paths cannot meet the dense-node budget without changing visible
 semantics, that tradeoff requires a separate product decision with screenshots

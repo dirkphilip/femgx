@@ -46,6 +46,10 @@ export type GpuCostWrite = (typeof GPU_COST_WRITES)[number];
 export const GPU_COST_CPU = ["instance-scan", "order-rebuild", "call-rebuild"] as const;
 export type GpuCostCpu = (typeof GPU_COST_CPU)[number];
 
+/** Internal draw-path admissions reported by the opt-in cost snapshot. */
+export const GPU_COST_ADMISSIONS = ["minimal", "topology", "feature"] as const;
+export type GpuCostAdmission = (typeof GPU_COST_ADMISSIONS)[number];
+
 export interface GpuDrawCost {
   readonly calls: number;
   readonly indices: number;
@@ -79,6 +83,7 @@ export interface GpuMemoryCost {
 export interface GpuCostSnapshot {
   readonly passes: Readonly<Record<GpuCostPass, number>>;
   readonly draws: Readonly<Record<GpuCostDraw, GpuDrawCost>>;
+  readonly admissions: Readonly<Record<GpuCostAdmission, number>>;
   readonly writes: Readonly<Record<GpuCostWrite, GpuWriteCost>>;
   readonly cpu: Readonly<Record<GpuCostCpu, number>>;
   readonly memory: GpuMemoryCost;
@@ -108,6 +113,7 @@ interface MutableMemoryCost {
 export class GpuCostAccumulator {
   private readonly passCounts = emptyPassCounts();
   private readonly drawCounts = emptyDrawCounts();
+  private readonly admissionCounts = emptyAdmissionCounts();
   private readonly writeCounts = emptyWriteCounts();
   private readonly cpuCounts = emptyCpuCounts();
   private readonly memoryCounts = emptyMemoryCounts();
@@ -118,6 +124,7 @@ export class GpuCostAccumulator {
     for (const pass of GPU_COST_PASSES) this.passCounts[pass] = 0;
     for (const draw of GPU_COST_DRAWS)
       this.drawCounts[draw] = { calls: 0, indices: 0, instances: 0 };
+    for (const admission of GPU_COST_ADMISSIONS) this.admissionCounts[admission] = 0;
     for (const write of GPU_COST_WRITES) this.writeCounts[write] = { calls: 0, bytes: 0 };
     for (const work of GPU_COST_CPU) this.cpuCounts[work] = 0;
     this.memoryCounts.allocatedBytes = 0;
@@ -137,6 +144,11 @@ export class GpuCostAccumulator {
     count.calls += 1;
     count.indices += indices;
     count.instances += instances;
+  }
+
+  /** Records one successfully encoded batch under its admitted draw path. */
+  public admission(admission: GpuCostAdmission): void {
+    this.admissionCounts[admission] += 1;
   }
 
   public write(write: GpuCostWrite, bytes: number): void {
@@ -188,6 +200,7 @@ export class GpuCostAccumulator {
     return {
       passes: { ...this.passCounts },
       draws: cloneDrawCounts(this.drawCounts),
+      admissions: { ...this.admissionCounts },
       writes: cloneWriteCounts(this.writeCounts),
       cpu: { ...this.cpuCounts },
       memory: { ...this.memoryCounts },
@@ -219,6 +232,10 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
 
 function emptyCpuCounts(): Record<GpuCostCpu, number> {
   return { "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
+}
+
+function emptyAdmissionCounts(): Record<GpuCostAdmission, number> {
+  return { minimal: 0, topology: 0, feature: 0 };
 }
 
 function drawCost(): MutableDrawCost {

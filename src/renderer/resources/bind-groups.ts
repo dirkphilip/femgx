@@ -14,6 +14,8 @@ export interface PartDrawInputs {
   readonly surfaceSubset?: boolean;
   /** Whether to retain the per-path bind group; edge-pick bindings stay transient. */
   readonly cache?: boolean;
+  /** Selects the binding layout admitted for this draw. */
+  readonly admission?: "minimal" | "topology" | "feature";
 }
 
 /**
@@ -29,9 +31,33 @@ export function orderBindGroup(
   part: PartDrawInputs,
 ): GPUBindGroup {
   const orderBuffer = orderBufferFor(storage, orderKind);
-  const create = (): GPUBindGroup => instanceBindGroup(device, layout, storage, orderBuffer, part);
+  const create = (): GPUBindGroup =>
+    part.admission === "minimal"
+      ? minimalInstanceBindGroup(device, layout, storage, orderBuffer)
+      : instanceBindGroup(device, layout, storage, orderBuffer, part);
   if (part.cache === false) return create();
+  if (part.admission === "minimal") {
+    return orderKind === "transparent"
+      ? (storage.minimalTransparentBindGroup ??= create())
+      : (storage.minimalBindGroup ??= create());
+  }
   return cachedOrderBindGroup(storage, orderKind, part.surfaceSubset === true, create);
+}
+
+function minimalInstanceBindGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  storage: InstanceStorage,
+  orderBuffer: GPUBuffer,
+): GPUBindGroup {
+  return device.createBindGroup({
+    label: "femgx minimal part draw bind group",
+    layout,
+    entries: [
+      { binding: 0, resource: { buffer: storage.buffer } },
+      { binding: 1, resource: { buffer: orderBuffer } },
+    ],
+  });
 }
 
 function cachedOrderBindGroup(

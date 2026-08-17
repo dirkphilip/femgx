@@ -44,6 +44,8 @@ export interface RenderResources {
   readonly deformationBuffer: GPUBuffer;
   readonly sectionPlaneBuffer: GPUBuffer;
   readonly frameBindGroup: GPUBindGroup;
+  /** Frame binding containing only the camera uniform for minimal geometry draws. */
+  readonly minimalFrameBindGroup: GPUBindGroup;
   readonly pipelines: DrawPipelines;
   readonly orientationGlyphs: OrientationGlyphPipelines;
   readonly composite: CompositeResources;
@@ -56,6 +58,8 @@ export interface RenderResources {
   /** Persistent world-origin triad with visible and weighted-ghost variants. */
   readonly originTriad: OriginTriadResources | undefined;
   readonly instanceLayout: GPUBindGroupLayout;
+  /** Instance binding containing only records and the selected draw order. */
+  readonly minimalInstanceLayout: GPUBindGroupLayout;
   readonly pipelineLayout: GPUPipelineLayout;
   readonly overlayDepth: OverlayDepthResources;
   readonly background: BackgroundResources;
@@ -84,6 +88,13 @@ export async function createRenderResources(
       { binding: 7, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
     ],
   });
+  const minimalInstanceLayout = device.createBindGroupLayout({
+    entries: [0, 1].map((binding) => ({
+      binding,
+      visibility: GPUShaderStage.VERTEX,
+      buffer: { type: "read-only-storage" as const },
+    })),
+  });
   const cameraLayout = device.createBindGroupLayout({
     entries: [
       {
@@ -95,12 +106,24 @@ export async function createRenderResources(
       { binding: 2, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
     ],
   });
+  const minimalCameraLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: "uniform" },
+      },
+    ],
+  });
   const layout = device.createPipelineLayout({
     bindGroupLayouts: [cameraLayout, instanceLayout],
   });
+  const minimalLayout = device.createPipelineLayout({
+    bindGroupLayouts: [minimalCameraLayout, minimalInstanceLayout],
+  });
   const pipelineResources = await createPipelineResources(
     device,
-    layout,
+    { full: layout, minimal: minimalLayout },
     format,
     depthFormat,
     validation,
@@ -182,6 +205,11 @@ export async function createRenderResources(
         { binding: 2, resource: { buffer: sectionPlaneBuffer } },
       ],
     });
+    const minimalFrameBindGroup = device.createBindGroup({
+      label: "femgx minimal frame bind group",
+      layout: minimalCameraLayout,
+      entries: [{ binding: 0, resource: { buffer: cameraBuffer } }],
+    });
     if (originTriadPipeline !== undefined) {
       originTriad = createOriginTriadResources({
         device,
@@ -194,7 +222,9 @@ export async function createRenderResources(
       deformationBuffer,
       sectionPlaneBuffer,
       frameBindGroup,
+      minimalFrameBindGroup,
       instanceLayout,
+      minimalInstanceLayout,
       pipelineLayout: layout,
       overlayDepth,
       pipelines: pipelineResources.pipelines,
