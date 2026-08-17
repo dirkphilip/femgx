@@ -41,6 +41,8 @@ describe("workbench analysis-controls", () => {
     await change(target, "#background-select", "dark");
     button(target, "#command-selection").click();
     await change(target, "#box-selection-strategy", "through-intersection");
+    await change(target, "#selection-granularity", "part");
+    await change(target, "#selection-granularity", "instance");
     await change(target, "#selection-granularity", "body");
     await change(target, "#selection-granularity", "face");
     await change(target, "#selection-granularity", "edge");
@@ -102,6 +104,32 @@ describe("workbench analysis-controls", () => {
     );
 
     await unmount(modelSource);
+    await unmount(component);
+  });
+
+  it("exposes part and instance selection with element-only Through guidance", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: { controller: undefined, snapshot: createSnapshot(true) },
+    });
+
+    button(target, "#command-selection").click();
+    const granularity = element(target, "#selection-granularity") as HTMLSelectElement;
+    expect([...granularity.options].map((option) => option.value)).toEqual([
+      "part",
+      "instance",
+      "body",
+      "element",
+      "face",
+      "node",
+      "edge",
+    ]);
+    expect(granularity.title).toContain("parts, instances");
+    const strategy = element(target, "#box-selection-strategy") as HTMLSelectElement;
+    expect(strategy.title).toContain("available only for Element");
+
     await unmount(component);
   });
 

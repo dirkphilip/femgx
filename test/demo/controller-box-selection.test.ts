@@ -25,7 +25,7 @@ describe("workbench box-selection strategy", () => {
   });
 
   it("falls back to Visible when Through is requested outside Element granularity", () => {
-    for (const selectionGranularity of ["body", "face"] as const) {
+    for (const selectionGranularity of ["part", "instance", "body", "face"] as const) {
       const owner = {
         boxSelectionStrategy: "through-intersection" as const,
         selectionGranularity,
