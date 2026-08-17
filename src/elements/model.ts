@@ -42,11 +42,11 @@ export interface ElementModel {
  * {@link model.elementPart} without a renderer or WebGPU device.
  * @example Build one renderable typed model.
  * ```ts
- * import { createElementModel, createElement, elementPart, TRIANGLE_SHAPE } from "femgx/model";
+ * import { createElementModel, createElement, elementPart, ElementShape } from "femgx/model";
  *
  * const model = createElementModel(
  *   new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
- *   [createElement(100, TRIANGLE_SHAPE, [0, 1, 2])],
+ *   [createElement(100, ElementShape.Triangle, [0, 1, 2])],
  * );
  * const part = elementPart(10, model);
  * ```

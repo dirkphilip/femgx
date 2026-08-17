@@ -11,8 +11,9 @@ the renderer or WebGPU**.
 - `Element` — `{ id: ElementId, shape: ElementShape, nodeIds: readonly NodeId[] }`.
   `ElementId`/`NodeId` are stable non-negative integers. `nodeIds` follow the
   canonical ordering for `shape` (see `topologyFor`).
-- `ElementShape` — a `family` plus an explicit `order` (0 point, 1 linear,
-  2 quadratic), so element kind is never inferred from raw triangles.
+- `ElementShape` — one documented const object whose primitive values form the
+  exact supported-shape union. Callers use values such as `ElementShape.Tet4`;
+  unsupported shapes fail during type checking.
 - `createElement(id, shape, nodeIds)` — the validated constructor. It copies
   `nodeIds` so each element owns its connectivity.
 
@@ -61,21 +62,21 @@ requires it.
 
 ## Shapes
 
-| Shape            | Family     | Order | Nodes | Corners | Mid-edge nodes |
-| ---------------- | ---------- | ----- | ----- | ------- | -------------- |
-| `POINT_SHAPE`    | `point`    | 0     | 1     | 1       | 0              |
-| `LINE_SHAPE`     | `line`     | 1     | 2     | 2       | 0              |
-| `LINE3_SHAPE`    | `line`     | 2     | 3     | 2       | 1              |
-| `TRIANGLE_SHAPE` | `triangle` | 1     | 3     | 3       | 0              |
-| `TRI6_SHAPE`     | `triangle` | 2     | 6     | 3       | 3              |
-| `QUAD_SHAPE`     | `quad`     | 1     | 4     | 4       | 0              |
-| `QUAD8_SHAPE`    | `quad`     | 2     | 8     | 4       | 4              |
-| `TET4_SHAPE`     | `tet`      | 1     | 4     | 4       | 0              |
-| `TET10_SHAPE`    | `tet`      | 2     | 10    | 4       | 6              |
-| `WEDGE6_SHAPE`   | `wedge`    | 1     | 6     | 6       | 0              |
-| `PYRAMID5_SHAPE` | `pyramid`  | 1     | 5     | 5       | 0              |
-| `HEX8_SHAPE`     | `hex`      | 1     | 8     | 8       | 0              |
-| `HEX20_SHAPE`    | `hex`      | 2     | 20    | 8       | 12             |
+| Shape                   | Family     | Order | Nodes | Corners | Mid-edge nodes |
+| ----------------------- | ---------- | ----- | ----- | ------- | -------------- |
+| `ElementShape.Point`    | `point`    | 0     | 1     | 1       | 0              |
+| `ElementShape.Line`     | `line`     | 1     | 2     | 2       | 0              |
+| `ElementShape.Line3`    | `line`     | 2     | 3     | 2       | 1              |
+| `ElementShape.Triangle` | `triangle` | 1     | 3     | 3       | 0              |
+| `ElementShape.Tri6`     | `triangle` | 2     | 6     | 3       | 3              |
+| `ElementShape.Quad`     | `quad`     | 1     | 4     | 4       | 0              |
+| `ElementShape.Quad8`    | `quad`     | 2     | 8     | 4       | 4              |
+| `ElementShape.Tet4`     | `tet`      | 1     | 4     | 4       | 0              |
+| `ElementShape.Tet10`    | `tet`      | 2     | 10    | 4       | 6              |
+| `ElementShape.Wedge6`   | `wedge`    | 1     | 6     | 6       | 0              |
+| `ElementShape.Pyramid5` | `pyramid`  | 1     | 5     | 5       | 0              |
+| `ElementShape.Hex8`     | `hex`      | 1     | 8     | 8       | 0              |
+| `ElementShape.Hex20`    | `hex`      | 2     | 20    | 8       | 12             |
 
 ## Canonical node ordering
 
@@ -115,7 +116,7 @@ extract deterministic polygon and line output:
 - A triangle or quad exposes its complete surface as one oriented face;
   that face owns all triangles emitted by the surface tessellator.
 - Point and line elements have no faces; `edgesOf` exposes a line's single edge
-  (including its mid node for `LINE3_SHAPE`), while triangle and quad edges use
+  (including its mid node for `ElementShape.Line3`), while triangle and quad edges use
   their canonical perimeter order.
 - `classifyFaces(elements)` deduplicates coincident faces by a canonical key
   (sorted node ids) and flags boundary faces — those shared by exactly one
@@ -146,10 +147,12 @@ rewrite connectivity after the model boundary.
 
 `createElement` throws on:
 
-- unsupported shapes (`topologyFor` — including unsupported orders);
 - connectivity length that does not match the shape's node count;
 - duplicate node references;
 - negative or non-integer element/node ids.
+
+Unsupported shapes are excluded by the `ElementShape` type rather than checked
+again at runtime inside trusted TypeScript paths.
 
 ## Golden fixtures
 
@@ -172,15 +175,15 @@ constraint ties its keys to the derived `SupportedShapeKey` union and pins each
 entry's `family`/`order` to the literals encoded in its key — so a missing
 topology, an unsupported order, a mis-keyed registration, or an entry whose
 `family`/`order` contradict its key fails at compile time instead of at runtime.
-`ElementOrder` (`0 | 1 | 2`) narrows the public
-`ElementShape.order`/`ElementTopology.order`, and `topologyFor`/`createElement`
-keep a runtime safety net for untyped input. Nothing here couples topology to
-WebGPU.
+`ElementShape` is the compiler-exhaustive supported set. `topologyFor` trusts
+that closed type; `createElement` checks only numeric and cardinality invariants
+that TypeScript cannot express. Untyped external data must be converted and
+validated at its owning IO boundary. Nothing here couples topology to WebGPU.
 
 ## Surface authoring
 
-`TRIANGLE_SHAPE`, `TRI6_SHAPE`, `QUAD_SHAPE`, and `QUAD8_SHAPE` are the typed
-surface finite elements. They preserve element ids, node ids, face ownership, deformation,
+`ElementShape.Triangle`, `.Tri6`, `.Quad`, and `.Quad8` are the typed surface
+finite elements. They preserve element ids, node ids, face ownership, deformation,
 results, and GPU picking through `elementPart`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
 authoring path in

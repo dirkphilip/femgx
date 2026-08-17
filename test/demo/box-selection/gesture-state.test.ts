@@ -4,12 +4,14 @@ import {
   WorkbenchBoxPreview,
   hoveredTarget,
   setTargetSelected,
+  setTargetHovered,
   selectedKeys,
   rect,
   harness,
   element,
   nodeHit,
   createInteractionState,
+  complete,
 } from "./support";
 import type {
   BoxSelectionResolver,
@@ -201,6 +203,83 @@ describe("workbench gesture-state", () => {
     expect(selectionFeedback).toHaveBeenLastCalledWith(
       "Viewport click interaction failed: test failure",
     );
+  });
+
+  it("keeps the exact resolved hover for inspection and clears it after a box", async () => {
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, canvas, getInteraction, inspectionPanel } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "node",
+    );
+    const bindings = workbench.viewportInteractionOptions();
+    const modifiers = { shift: false, control: false, alt: false, meta: false } as const;
+    const hoverEvent = {} as PointerEvent;
+    const hovered = await bindings.resolvePoint?.({
+      phase: "hover",
+      x: 10,
+      y: 20,
+      granularity: "node",
+      modifiers,
+      event: hoverEvent,
+    });
+    const current = getInteraction();
+    await bindings.applyInteraction?.({
+      phase: "hover",
+      granularity: "node",
+      current,
+      defaultInteraction: setTargetHovered(current, hovered),
+      target: hovered,
+      targets: hovered === undefined ? [] : [hovered],
+      modifiers,
+      event: hoverEvent,
+    });
+
+    expect(inspectionPanel.textContent).toContain("Node 3");
+    expect(canvas.dataset).toMatchObject({ hovered: "n:instance-a:3", pick: "n:instance-a:3" });
+
+    const beforeBox = getInteraction();
+    const boxEvent = complete();
+    if (hovered === undefined) throw new Error("node hover did not resolve");
+    await bindings.applyInteraction?.({
+      phase: "box",
+      granularity: "node",
+      current: beforeBox,
+      defaultInteraction: setTargetSelected(setTargetHovered(beforeBox, undefined), hovered, true),
+      target: undefined,
+      targets: [hovered],
+      modifiers,
+      event: boxEvent,
+      frustum: {} as BoxSelectionFrustum,
+    });
+
+    expect(hoveredTarget(getInteraction())).toBeUndefined();
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+    expect(canvas.dataset).toMatchObject({ hovered: "", pick: "" });
+
+    const nextHoverEvent = {} as PointerEvent;
+    const nextHover = await bindings.resolvePoint?.({
+      phase: "hover",
+      x: 10,
+      y: 20,
+      granularity: "node",
+      modifiers,
+      event: nextHoverEvent,
+    });
+    const staleViewportState = createInteractionState();
+    await bindings.applyInteraction?.({
+      phase: "hover",
+      granularity: "node",
+      current: staleViewportState,
+      defaultInteraction: setTargetHovered(staleViewportState, nextHover),
+      target: nextHover,
+      targets: nextHover === undefined ? [] : [nextHover],
+      modifiers,
+      event: nextHoverEvent,
+    });
+
+    expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
   });
 
   it("does not select or mutate inspection for a drag beyond the threshold", async () => {

@@ -1,37 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  topologyFor,
-  type ElementShape,
-  WEDGE6_SHAPE,
-} from "../../src/elements/shapes";
+import { ElementShape, topologyFor } from "../../src/elements/shapes";
 
 const ALL_SHAPES: ReadonlyArray<readonly [string, ElementShape]> = [
-  ["point", POINT_SHAPE],
-  ["line", LINE_SHAPE],
-  ["line3", LINE3_SHAPE],
-  ["triangle", TRIANGLE_SHAPE],
-  ["tri6", TRI6_SHAPE],
-  ["quad", QUAD_SHAPE],
-  ["quad8", QUAD8_SHAPE],
-  ["tet4", TET4_SHAPE],
-  ["tet10", TET10_SHAPE],
-  ["wedge6", WEDGE6_SHAPE],
-  ["pyramid5", PYRAMID5_SHAPE],
-  ["hex8", HEX8_SHAPE],
-  ["hex20", HEX20_SHAPE],
+  ["point", ElementShape.Point],
+  ["line", ElementShape.Line],
+  ["line3", ElementShape.Line3],
+  ["triangle", ElementShape.Triangle],
+  ["tri6", ElementShape.Tri6],
+  ["quad", ElementShape.Quad],
+  ["quad8", ElementShape.Quad8],
+  ["tet4", ElementShape.Tet4],
+  ["tet10", ElementShape.Tet10],
+  ["wedge6", ElementShape.Wedge6],
+  ["pyramid5", ElementShape.Pyramid5],
+  ["hex8", ElementShape.Hex8],
+  ["hex20", ElementShape.Hex20],
 ];
 
 const nodeIds = (shape: ElementShape): number[] =>
@@ -47,7 +31,7 @@ describe("createElement", () => {
 
   it("owns a copy of the connectivity", () => {
     const nodes = [0, 1, 2, 3];
-    const element = createElement(1, TET4_SHAPE, nodes);
+    const element = createElement(1, ElementShape.Tet4, nodes);
     nodes[0] = 99;
     expect(element.nodeIds[0]).toBe(0);
   });
@@ -63,41 +47,37 @@ describe("createElement", () => {
   });
 
   it("rejects duplicate node references", () => {
-    expect(() => createElement(1, TET4_SHAPE, [0, 1, 1, 2])).toThrow(
+    expect(() => createElement(1, ElementShape.Tet4, [0, 1, 1, 2])).toThrow(
       "references node 1 more than once",
     );
-    expect(() => createElement(2, HEX8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 0])).toThrow(
+    expect(() => createElement(2, ElementShape.Hex8, [0, 1, 2, 3, 4, 5, 6, 0])).toThrow(
       "references node 0 more than once",
     );
   });
 
-  it("rejects an unsupported shape order", () => {
-    expect(() =>
-      createElement(1, { family: "tet", order: 3 as ElementShape["order"] }, [0, 1, 2, 3]),
-    ).toThrow("Unsupported element shape");
-  });
-
   it("rejects negative node ids", () => {
-    expect(() => createElement(1, TET4_SHAPE, [0, 1, 2, -1])).toThrow("invalid node id -1");
+    expect(() => createElement(1, ElementShape.Tet4, [0, 1, 2, -1])).toThrow("invalid node id -1");
   });
 
   it("rejects non-integer node ids", () => {
-    expect(() => createElement(1, TET4_SHAPE, [0, 1, 2, 1.5])).toThrow("invalid node id 1.5");
+    expect(() => createElement(1, ElementShape.Tet4, [0, 1, 2, 1.5])).toThrow(
+      "invalid node id 1.5",
+    );
   });
 
   it("rejects negative and non-integer element ids", () => {
-    expect(() => createElement(-1, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
+    expect(() => createElement(-1, ElementShape.Tet4, [0, 1, 2, 3])).toThrow(
       "Element id must be a safe integer",
     );
-    expect(() => createElement(1.5, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
+    expect(() => createElement(1.5, ElementShape.Tet4, [0, 1, 2, 3])).toThrow(
       "Element id must be a safe integer",
     );
-    expect(() => createElement(0xffff_ffff, TET4_SHAPE, [0, 1, 2, 3])).toThrow(
+    expect(() => createElement(0xffff_ffff, ElementShape.Tet4, [0, 1, 2, 3])).toThrow(
       "Element id must be a safe integer",
     );
   });
 
   it("accepts the largest element id representable by one-based GPU picking", () => {
-    expect(createElement(0xffff_fffe, TET4_SHAPE, [0, 1, 2, 3]).id).toBe(0xffff_fffe);
+    expect(createElement(0xffff_fffe, ElementShape.Tet4, [0, 1, 2, 3]).id).toBe(0xffff_fffe);
   });
 });

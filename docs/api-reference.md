@@ -161,7 +161,7 @@ full `ElementModel → elementPart → Scene → Viewport` path:
 
 ```ts
 import { createViewport, createScene, identity } from "femgx";
-import { TRIANGLE_SHAPE, createElement, createElementModel, elementPart } from "femgx/model";
+import { ElementShape, createElement, createElementModel, elementPart } from "femgx/model";
 
 const nodes = new Float32Array([
   0,
@@ -178,8 +178,8 @@ const nodes = new Float32Array([
   0, // node 3
 ]);
 const elements = [
-  createElement(100, TRIANGLE_SHAPE, [0, 1, 2]),
-  createElement(101, TRIANGLE_SHAPE, [0, 2, 3]),
+  createElement(100, ElementShape.Triangle, [0, 1, 2]),
+  createElement(101, ElementShape.Triangle, [0, 2, 3]),
 ];
 const model = createElementModel(nodes, elements);
 const part = elementPart(30, model);
@@ -617,11 +617,11 @@ render model, compile a part, and follow the normal scene path:
 ```ts
 import { createViewport, createScene, identity } from "femgx";
 import { createElementModelFromFemModel, createModelBuilder, validateModel } from "femgx/io";
-import { TRIANGLE_SHAPE, elementPart } from "femgx/model";
+import { ElementShape, elementPart } from "femgx/model";
 
 const builder = createModelBuilder();
 builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-builder.openElementShapeBlock(TRIANGLE_SHAPE);
+builder.openElementShapeBlock(ElementShape.Triangle);
 builder.appendElements([100], [0, 1, 2]);
 const model = builder.build();
 const issues = validateModel(model);

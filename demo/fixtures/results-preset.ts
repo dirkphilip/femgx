@@ -13,7 +13,7 @@ import {
   createElement,
   createElementModel,
   elementPart,
-  QUAD_SHAPE,
+  ElementShape,
 } from "../../src/entries/model";
 import type { AuthoredResultSequence, ModelPreset } from "./presets";
 import { sceneBounds } from "../scene-bounds";
@@ -169,7 +169,7 @@ function createResultsModel() {
       const c1 = nodeId(i + 1, j);
       const c2 = nodeId(i + 1, j + 1);
       const c3 = nodeId(i, j + 1);
-      elements.push(createElement(j * columns + i, QUAD_SHAPE, [c0, c1, c2, c3]));
+      elements.push(createElement(j * columns + i, ElementShape.Quad, [c0, c1, c2, c3]));
     }
   }
   return createElementModel(nodes, elements);

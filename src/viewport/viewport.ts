@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- the canonical viewport facade keeps lifecycle ownership together. */
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { installCameraControlsWithProtectedBounds } from "../camera/controls";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
@@ -7,13 +6,12 @@ import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
-import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
-import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
+import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
-import { SceneNavigationBoundsCache } from "./scene-bounds";
+import { SceneNavigationBoundsCache, type SceneNavigationBounds } from "./scene-bounds";
 import {
   assertViewportBackground,
   cssSize,
@@ -23,17 +21,10 @@ import {
 } from "./dom";
 import { CameraFocusController } from "./camera-focus";
 import { normalizeSectionPlane, type SectionPlane } from "../math/section-plane";
-import { flushViewportBatch } from "./batch";
-import { assertOriginTriad, sceneOriginTriadScale } from "./origin-triad";
+import { assertOriginTriad } from "./origin-triad";
 import type { DeformationState } from "../results/deform";
 import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
-import {
-  resolveViewportInteraction,
-  resolveViewportResults,
-  type ViewportResultsConfig,
-  type ViewportResultsState,
-} from "./results";
-import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
+import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import type {
   CameraTransitionOptions,
   Viewport,
@@ -41,19 +32,10 @@ import type {
   SceneUpdateOutcome,
   ViewportBackground,
 } from "./types";
-import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
+import { ViewportSceneController } from "./scene-controller";
+import { ViewportVisibilityController } from "./visibility-controller";
+import { ViewportLifecycleController } from "./lifecycle-controller";
 export type { Viewport, ViewportOptions, SceneUpdateOutcome, ViewportBackground } from "./types";
-
-interface PreparedSceneReplacement {
-  readonly scene: Scene;
-  readonly runtime: PackedSceneRuntime;
-  readonly publicRuntime: SceneRuntime;
-  readonly originTriadNominalScale: number;
-  readonly baseInteraction: InteractionState;
-  readonly effectiveInteraction: InteractionState;
-  readonly results: ViewportResultsState | undefined;
-  readonly outcome: SceneUpdateOutcome;
-}
 
 /**
  * Creates a fitted, interactive FEM viewport backed only by WebGPU.
@@ -121,82 +103,66 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
 }
 
 class ViewportCore implements Viewport {
-  private currentScene: Scene;
-  private currentRuntime: PackedSceneRuntime;
-  private currentPublicRuntime: SceneRuntime;
   private cameraRef: { camera: Camera };
-  private baseInteraction: InteractionState;
-  private effectiveInteraction: InteractionState;
-  private currentResults: ViewportResultsState | undefined;
   private currentSectionPlane: SectionPlane | undefined;
   private appliedInteraction = createInteractionState();
-  private readonly removeControls: () => void;
-  private readonly removeResize: () => void;
-  private readonly removeKeyboard: () => void;
   private readonly cameraFocus: CameraFocusController;
-  private orientationGizmo: OrientationGizmoHandle | undefined;
-  private frame: number | undefined;
-  private recoveryPromise: Promise<void> | undefined;
-  private batchDepth = 0;
-  private batchDirty = false;
-  private readonly pendingVisibility = new Set<number>();
-  private destroyed = false;
+  private readonly sceneController: ViewportSceneController;
+  private readonly visibility: ViewportVisibilityController;
+  private readonly lifecycle: ViewportLifecycleController;
   private autoFitOnResize = false;
   private background: ViewportBackground;
   private pointSizePixels: number;
   private nodeSizePixels: number;
-  private originTriadNominalScale: number;
   private readonly navigationBoundsCache = new SceneNavigationBoundsCache();
 
   constructor(
     private readonly options: ViewportOptions,
     private readonly renderer: WebGpuRenderer,
   ) {
-    this.currentScene = options.scene;
     this.background = options.background ?? "studio";
     this.pointSizePixels = options.pointSizePixels ?? 8;
     this.nodeSizePixels = options.nodeSizePixels ?? 6;
-    this.currentRuntime = createPackedSceneRuntime(options.scene);
-    this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
-    this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
-    this.effectiveInteraction = this.baseInteraction =
-      options.interaction ?? createInteractionState();
+    this.sceneController = new ViewportSceneController({
+      scene: options.scene,
+      interaction: options.interaction,
+      renderer,
+    });
     this.cameraRef = { camera: options.camera ?? createCamera() };
-    const deformation = () => this.currentResults?.deformation;
+    this.visibility = new ViewportVisibilityController({
+      runtime: () => this.sceneController.runtime,
+      renderer,
+      isBatching: () => this.lifecycle.isBatching,
+      invalidate: this.invalidate.bind(this),
+      navigationBoundsCache: this.navigationBoundsCache,
+    });
+    const deformation = () => this.sceneController.results?.deformation;
     const navigationBounds = () =>
-      this.navigationBoundsCache.get(this.currentScene, this.currentRuntime, deformation());
+      this.navigationBoundsCache.get(
+        this.sceneController.scene,
+        this.sceneController.runtime,
+        deformation(),
+      );
     this.cameraFocus = this.createCameraFocus(options, deformation);
-    this.removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
-      this.fitSelection();
-    });
     assertValidCamera(this.cameraRef.camera);
-    this.resize(false);
-    this.removeControls = installCameraControlsWithProtectedBounds({
-      canvas: options.canvas,
-      cameraRef: this.cameraRef,
-      navigation: renderer,
-      bounds: () => navigationBounds().bounds,
-      protectedBounds: () => navigationBounds().protectedBounds,
-      onRender: this.invalidate.bind(this),
-      onGestureChange: (active) => {
-        if (active) {
-          this.autoFitOnResize = false;
-          this.cameraFocus.cancel();
-        }
-        options.onGestureChange?.(active);
+    const bindings = this.installCanvasBindings(options, navigationBounds);
+    this.lifecycle = new ViewportLifecycleController({
+      renderer,
+      cameraFocus: this.cameraFocus,
+      removeControls: bindings.removeControls,
+      removeResize: bindings.removeResize,
+      removeKeyboard: bindings.removeKeyboard,
+      orientationGizmo: bindings.orientationGizmo,
+      resetInteraction: () => {
+        this.appliedInteraction = createInteractionState();
       },
+      render: this.render.bind(this),
+      onRecovered: options.onRecovered,
+      onError: options.onError,
     });
-    this.removeResize = installResize(options.canvas, () => {
-      this.resize();
-    });
-    this.orientationGizmo =
-      options.orientationGizmo === undefined
-        ? undefined
-        : createOrientationGizmo(options.orientationGizmo, (action) => {
-            this.cameraFocus.applyOrientationAction(action);
-          });
+    this.resize(false);
     try {
-      if (options.results !== undefined) this.applyResults(options.results);
+      if (options.results !== undefined) this.sceneController.setResults(options.results);
       if (options.camera === undefined) {
         this.autoFitOnResize = true;
         this.cameraFocus.fitView(undefined, false);
@@ -208,6 +174,45 @@ class ViewportCore implements Viewport {
     }
   }
 
+  private installCanvasBindings(
+    options: ViewportOptions,
+    navigationBounds: () => SceneNavigationBounds,
+  ): {
+    readonly removeControls: () => void;
+    readonly removeResize: () => void;
+    readonly removeKeyboard: () => void;
+    readonly orientationGizmo: OrientationGizmoHandle | undefined;
+  } {
+    const removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
+      this.fitSelection();
+    });
+    const removeControls = installCameraControlsWithProtectedBounds({
+      canvas: options.canvas,
+      cameraRef: this.cameraRef,
+      navigation: this.renderer,
+      bounds: () => navigationBounds().bounds,
+      protectedBounds: () => navigationBounds().protectedBounds,
+      onRender: this.invalidate.bind(this),
+      onGestureChange: (active) => {
+        if (active) {
+          this.autoFitOnResize = false;
+          this.cameraFocus.cancel();
+        }
+        options.onGestureChange?.(active);
+      },
+    });
+    const removeResize = installResize(options.canvas, () => {
+      this.resize();
+    });
+    const orientationGizmo =
+      options.orientationGizmo === undefined
+        ? undefined
+        : createOrientationGizmo(options.orientationGizmo, (action) => {
+            this.cameraFocus.applyOrientationAction(action);
+          });
+    return { removeControls, removeResize, removeKeyboard, orientationGizmo };
+  }
+
   private createCameraFocus(
     options: ViewportOptions,
     deformation: () => DeformationState | undefined,
@@ -215,9 +220,9 @@ class ViewportCore implements Viewport {
     return new CameraFocusController({
       cameraRef: this.cameraRef,
       canvas: options.canvas,
-      scene: () => this.currentScene,
-      runtime: () => this.currentRuntime,
-      interaction: () => this.baseInteraction,
+      scene: () => this.sceneController.scene,
+      runtime: () => this.sceneController.runtime,
+      interaction: () => this.sceneController.interaction,
       deformation,
       ...(options.fitContentInset === undefined
         ? {}
@@ -227,19 +232,19 @@ class ViewportCore implements Viewport {
   }
 
   get scene(): Scene {
-    return this.currentScene;
+    return this.sceneController.scene;
   }
   get runtime(): SceneRuntime {
-    return this.currentPublicRuntime;
+    return this.sceneController.publicRuntime;
   }
   get camera(): Camera {
     return this.cameraRef.camera;
   }
   get interaction(): InteractionState {
-    return this.baseInteraction;
+    return this.sceneController.interaction;
   }
   get results(): ViewportResultsState | undefined {
-    return this.currentResults;
+    return this.sceneController.results;
   }
   get sectionPlane(): SectionPlane | undefined {
     return this.currentSectionPlane;
@@ -247,15 +252,22 @@ class ViewportCore implements Viewport {
 
   setScene(scene: Scene): void {
     this.ensureAlive();
-    const replacement = this.prepareSceneReplacement(scene, false);
-    this.installSceneReplacement(replacement, true);
+    this.sceneController.setScene(scene, this.cameraFocus.cancel.bind(this.cameraFocus));
+    this.visibility.reset();
+    this.appliedInteraction = createInteractionState();
+    this.invalidate();
   }
 
   updateScene(scene: Scene): SceneUpdateOutcome {
     this.ensureAlive();
-    const replacement = this.prepareSceneReplacement(scene, true);
-    this.installSceneReplacement(replacement, false);
-    return replacement.outcome;
+    const outcome = this.sceneController.updateScene(
+      scene,
+      this.cameraFocus.cancel.bind(this.cameraFocus),
+    );
+    this.visibility.reset();
+    this.appliedInteraction = createInteractionState();
+    this.invalidate();
+    return outcome;
   }
 
   setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
@@ -278,38 +290,24 @@ class ViewportCore implements Viewport {
 
   setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
-    this.baseInteraction = interaction;
-    this.effectiveInteraction = resolveViewportInteraction(
-      interaction,
-      this.currentResults,
-      this.currentScene,
-      this.currentRuntime,
-    );
+    this.sceneController.setInteraction(interaction);
     this.invalidate();
   }
 
   batch<T>(operation: () => T): T {
     this.ensureAlive();
-    this.batchDepth += 1;
-    try {
-      return operation();
-    } finally {
-      this.batchDepth -= 1;
-      if (this.batchDepth === 0) this.flushBatch();
-    }
+    return this.lifecycle.batch(operation, this.visibility.flush.bind(this.visibility));
   }
 
   setResults(results: ViewportResultsConfig): void {
     this.ensureAlive();
-    this.applyResults(results);
+    this.sceneController.setResults(results);
     this.invalidate();
   }
 
   clearResults(): void {
     this.ensureAlive();
-    this.currentResults = undefined;
-    this.effectiveInteraction = this.baseInteraction;
-    applyResolvedViewportResults(this.renderer, undefined);
+    this.sceneController.clearResults();
     this.invalidate();
   }
 
@@ -364,31 +362,19 @@ class ViewportCore implements Viewport {
 
   setPartVisible(partId: PartId, visible: boolean): void {
     this.ensureAlive();
-    this.applyVisibility(this.currentRuntime.setPartVisible(partId, visible).changedInstanceIds);
+    this.visibility.setPartVisible(partId, visible);
   }
   setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
     this.ensureAlive();
-    const node = this.currentRuntime.getNodeSlot(occurrenceId);
-    this.applyVisibility(
-      node === undefined
-        ? []
-        : this.currentRuntime.setAssemblyNodeVisible(node, visible).changedInstanceIds,
-    );
+    this.visibility.setAssemblyOccurrenceVisible(occurrenceId, visible);
   }
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
     this.ensureAlive();
-    this.applyVisibility(
-      this.currentRuntime.setAssemblyVisible(assemblyId, visible).changedInstanceIds,
-    );
+    this.visibility.setAssemblyVisible(assemblyId, visible);
   }
   setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
     this.ensureAlive();
-    const slot = this.currentRuntime.getInstanceSlot(instanceId);
-    this.applyVisibility(
-      slot === undefined
-        ? []
-        : this.currentRuntime.setInstanceVisible(slot, visible).changedInstanceIds,
-    );
+    this.visibility.setInstanceVisible(instanceId, visible);
   }
 
   pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
@@ -415,212 +401,56 @@ class ViewportCore implements Viewport {
 
   invalidate(): void {
     this.ensureAlive();
-    if (this.batchDepth > 0) {
-      this.batchDirty = true;
-      return;
-    }
-    if (this.frame !== undefined) return;
-    if (typeof requestAnimationFrame === "undefined") {
-      this.render();
-      return;
-    }
-    this.frame = requestAnimationFrame(() => {
-      this.frame = undefined;
-      this.render();
-    });
+    this.lifecycle.invalidate();
   }
 
   render(): void {
     this.ensureAlive();
-    if (this.batchDepth > 0) {
-      this.batchDirty = true;
+    if (this.lifecycle.isBatching) {
+      this.lifecycle.markDirty();
       return;
     }
-    const interactionChanged = this.appliedInteraction !== this.effectiveInteraction;
+    const runtime = this.sceneController.runtime;
+    const interaction = this.sceneController.effectiveInteractionState;
+    const interactionChanged = this.appliedInteraction !== interaction;
     const changed = interactionChanged
-      ? changedInstanceSlots(
-          this.currentRuntime,
-          this.appliedInteraction,
-          this.effectiveInteraction,
-        )
+      ? changedInstanceSlots(runtime, this.appliedInteraction, interaction)
       : [];
-    if (changed.length > 0) {
-      this.renderer.updateInstances(this.currentRuntime, this.effectiveInteraction, changed);
-    }
-    if (interactionChanged) {
-      this.renderer.updateElements(this.currentRuntime, this.effectiveInteraction, changed);
-    }
-    this.orientationGizmo?.update(this.cameraRef.camera);
+    if (changed.length > 0) this.renderer.updateInstances(runtime, interaction, changed);
+    if (interactionChanged) this.renderer.updateElements(runtime, interaction, changed);
+    this.lifecycle.updateOrientationGizmo(this.cameraRef.camera);
     this.renderer.render(
-      this.currentRuntime,
+      runtime,
       this.cameraRef.camera,
-      this.currentScene.parts,
-      this.originTriadNominalScale,
+      this.sceneController.scene.parts,
+      this.sceneController.originTriadScale,
     );
-    this.appliedInteraction = this.effectiveInteraction;
+    this.appliedInteraction = interaction;
     this.options.onRender?.();
   }
 
   recover(): Promise<void> {
     this.ensureAlive();
-    if (this.recoveryPromise !== undefined) return this.recoveryPromise;
-    const recovery = this.renderer.recover().then(() => {
-      this.appliedInteraction = createInteractionState();
-      this.render();
-      this.options.onRecovered?.();
-    });
-    this.recoveryPromise = recovery;
-    const clearRecovery = (): void => {
-      if (this.recoveryPromise === recovery) this.recoveryPromise = undefined;
-    };
-    recovery.then(clearRecovery, clearRecovery);
-    return recovery;
+    return this.lifecycle.recover();
   }
   handleDeviceLoss(): void {
-    if (this.destroyed) return;
-    void this.recover().catch((error: unknown) => {
-      if (this.destroyed) return;
-      this.destroy();
-      this.options.onError?.(error);
-    });
+    this.lifecycle.handleDeviceLoss();
   }
 
   destroy(): void {
-    if (this.destroyed) return;
-    this.destroyed = true;
-    if (this.frame !== undefined && typeof cancelAnimationFrame !== "undefined") {
-      cancelAnimationFrame(this.frame);
-    }
-    this.cameraFocus.dispose();
-    this.removeControls();
-    this.removeResize();
-    this.removeKeyboard();
-    this.orientationGizmo?.destroy();
-    this.renderer.destroy();
+    this.lifecycle.destroy();
   }
 
   stats(): { readonly visibleInstances: number; readonly drawBatches: number } {
     return {
-      visibleInstances: this.currentRuntime.visibleCount,
+      visibleInstances: this.sceneController.runtime.visibleCount,
       drawBatches: this.renderer.stats().drawBatches,
     };
   }
 
-  private applyVisibility(changed: readonly number[]): void {
-    if (changed.length === 0) return;
-    this.navigationBoundsCache.invalidate();
-    if (this.batchDepth > 0) for (const slot of changed) this.pendingVisibility.add(slot);
-    else this.renderer.updateVisibility(this.currentRuntime, changed);
-    this.invalidate();
-  }
-
-  private flushBatch(): void {
-    flushViewportBatch({
-      pendingVisibility: this.pendingVisibility,
-      batchDirty: this.batchDirty,
-      runtime: this.currentRuntime,
-      renderer: this.renderer,
-      invalidate: this.invalidate.bind(this),
-    });
-    this.batchDirty = false;
-  }
-
-  private applyResults(results: ViewportResultsConfig): void {
-    const applied = applyViewportResults({
-      results,
-      scene: this.currentScene,
-      runtime: this.currentRuntime,
-      interaction: this.baseInteraction,
-      renderer: this.renderer,
-      ...(this.currentResults === undefined ? {} : { previous: this.currentResults }),
-    });
-    this.currentResults = applied.results;
-    this.effectiveInteraction = applied.interaction;
-  }
-
-  private prepareSceneReplacement(
-    scene: Scene,
-    preserveResults: boolean,
-  ): PreparedSceneReplacement {
-    const nextRuntime = createPackedSceneRuntime(scene);
-    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
-    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
-    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
-    const nextInteraction = reconcileInteractionState(
-      this.baseInteraction,
-      nextRuntime,
-      scene.parts,
-    );
-    const resultUpdate = preserveResults
-      ? this.prepareSceneResults(scene, nextRuntime, nextInteraction)
-      : { results: undefined, interaction: nextInteraction, outcome: { results: "none" as const } };
-    return {
-      scene,
-      runtime: nextRuntime,
-      publicRuntime: nextPublicRuntime,
-      originTriadNominalScale: nextOriginTriadNominalScale,
-      baseInteraction: nextInteraction,
-      effectiveInteraction: resultUpdate.interaction,
-      results: resultUpdate.results,
-      outcome: resultUpdate.outcome,
-    };
-  }
-
-  private installSceneReplacement(
-    replacement: PreparedSceneReplacement,
-    resetRenderer: boolean,
-  ): void {
-    if (resetRenderer) this.renderer.resetScene(replacement.scene.parts);
-    this.cameraFocus.cancel();
-    this.currentScene = replacement.scene;
-    this.currentRuntime = replacement.runtime;
-    this.originTriadNominalScale = replacement.originTriadNominalScale;
-    this.currentPublicRuntime = replacement.publicRuntime;
-    this.pendingVisibility.clear();
-    this.currentResults = replacement.results;
-    this.baseInteraction = replacement.baseInteraction;
-    this.effectiveInteraction = replacement.effectiveInteraction;
-    this.appliedInteraction = createInteractionState();
-    applyResolvedViewportResults(this.renderer, replacement.results);
-    this.invalidate();
-  }
-
-  private prepareSceneResults(
-    scene: Scene,
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-  ): {
-    readonly results: ViewportResultsState | undefined;
-    readonly interaction: InteractionState;
-    readonly outcome: SceneUpdateOutcome;
-  } {
-    const previous = this.currentResults;
-    if (previous === undefined) {
-      return { results: undefined, interaction, outcome: { results: "none" } };
-    }
-    try {
-      const results = resolveViewportResults(previous.config, scene, runtime, previous);
-      return {
-        results,
-        interaction: resolveViewportInteraction(interaction, results, scene, runtime),
-        outcome: { results: "preserved" },
-      };
-    } catch (error: unknown) {
-      return {
-        results: undefined,
-        interaction,
-        outcome: { results: "cleared", reason: errorMessage(error) },
-      };
-    }
-  }
-
   private ensureAlive(): void {
-    if (this.destroyed) throw new Error("Viewport has been destroyed");
+    this.lifecycle.ensureAlive();
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function assertPixelSize(name: string, value: number | undefined): void {

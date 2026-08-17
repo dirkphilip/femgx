@@ -1,13 +1,7 @@
 import { createElement, type Element, type NodeId } from "../../src/elements/element";
 import { createElementModel, type Body, type ElementModel } from "../../src/elements/model";
 import { boundaryFaceRefs, facesOfElement, type FaceIdRef } from "../../src/elements/faces";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TET4_SHAPE,
-} from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import type { Part } from "../../src/geometry/part";
 
@@ -53,7 +47,9 @@ export function createStructuredFeModel(
         const corners = quadCorners(builder, x, y);
         const nodeIds =
           family === "quad" ? corners : [...corners, ...quadMidEdges(builder, corners)];
-        elements.push(createElement(id, family === "quad" ? QUAD_SHAPE : QUAD8_SHAPE, nodeIds));
+        elements.push(
+          createElement(id, family === "quad" ? ElementShape.Quad : ElementShape.Quad8, nodeIds),
+        );
         id += 1;
       }
     }
@@ -66,7 +62,9 @@ export function createStructuredFeModel(
           const corners = hexCorners(builder, x, y, z);
           const nodeIds =
             family === "hex8" ? corners : [...corners, ...hexMidEdges(builder, corners)];
-          elements.push(createElement(id, family === "hex8" ? HEX8_SHAPE : HEX20_SHAPE, nodeIds));
+          elements.push(
+            createElement(id, family === "hex8" ? ElementShape.Hex8 : ElementShape.Hex20, nodeIds),
+          );
           id += 1;
         }
       }
@@ -106,22 +104,52 @@ function createStructuredTet4Model(gridSize: number): ElementModel {
         const n101 = n001 + 1;
         const n011 = n001 + side;
         const n111 = n011 + 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n100, n110, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n100,
+          n110,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n110, n010, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n110,
+          n010,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n010, n011, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n010,
+          n011,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n011, n001, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n011,
+          n001,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n001, n101, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n001,
+          n101,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
-        elements[elementIndex] = createElement(elementId, TET4_SHAPE, [n000, n101, n100, n111]);
+        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
+          n000,
+          n101,
+          n100,
+          n111,
+        ]);
         elementIndex += 1;
         elementId += 1;
       }

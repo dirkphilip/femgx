@@ -70,6 +70,7 @@ function createToolbarSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot
     selectionGranularity: input.selectionGranularity,
     boxSelectionStrategy: input.boxSelectionStrategy,
     touchInteractionMode: input.touchInteractionMode,
+    activeSlot: input.activeSlot,
     secondaryOpen: input.secondaryOpen,
     secondaryBusy: input.secondaryBusy,
   });

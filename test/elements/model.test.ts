@@ -6,12 +6,12 @@ import {
   type ElementModelOptions,
   ElementModelValidationError,
 } from "../../src/elements/model";
-import { LINE_SHAPE, TRIANGLE_SHAPE } from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 
 const nodes = [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0];
 const elements: readonly Element[] = [
-  createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
-  createElement(2, LINE_SHAPE, [2, 3]),
+  createElement(1, ElementShape.Triangle, [0, 1, 2]),
+  createElement(2, ElementShape.Line, [2, 3]),
 ];
 
 function model(options: ElementModelOptions = {}, sourceElements: readonly Element[] = elements) {

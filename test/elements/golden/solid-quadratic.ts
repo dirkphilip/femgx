@@ -1,11 +1,11 @@
-import { TET10_SHAPE, HEX20_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import type { GoldenElementConvention } from "./types";
 
 export const solidQuadraticConventions: readonly GoldenElementConvention[] = [
   {
     name: "tet10",
-    shape: TET10_SHAPE,
+    shape: ElementShape.Tet10,
     nodeCount: 10,
     corners: [0, 1, 2, 3],
     edges: [
@@ -48,7 +48,7 @@ export const solidQuadraticConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "hex20",
-    shape: HEX20_SHAPE,
+    shape: ElementShape.Hex20,
     nodeCount: 20,
     corners: [0, 1, 2, 3, 4, 5, 6, 7],
     edges: [

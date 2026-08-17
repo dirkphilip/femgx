@@ -5,9 +5,9 @@ import {
   heterogeneousModel,
   geometryFor,
   createElementModel,
-  LINE_SHAPE,
-  POINT_SHAPE,
+  ElementShape,
   elementPart,
+  topologyFor,
 } from "./support";
 
 describe("elementPart metadata", () => {
@@ -72,20 +72,22 @@ describe("elementPart", () => {
     expect(
       part.elements
         ?.filter((element) => [1, 2, 3, 4].includes(element.id))
-        .map((element) => element.shape?.family),
+        .map((element) =>
+          element.shape === undefined ? undefined : topologyFor(element.shape).family,
+        ),
     ).toEqual(["triangle", "quad", "tet", "hex"]);
     expect(part.elements?.filter((element) => element.id === 5)).toEqual([
       {
         id: 5,
         primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }],
-        shape: LINE_SHAPE,
+        shape: ElementShape.Line,
       },
     ]);
     expect(part.elements?.filter((element) => element.id === 6)).toEqual([
       {
         id: 6,
         primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }],
-        shape: POINT_SHAPE,
+        shape: ElementShape.Point,
       },
     ]);
   });

@@ -1,19 +1,7 @@
 import {
   createElement,
   createElementModel,
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD_SHAPE,
-  QUAD8_SHAPE,
-  TRIANGLE_SHAPE,
-  TRI6_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  WEDGE6_SHAPE,
+  ElementShape,
   type Element,
   type ElementModel,
   type NodeId,
@@ -108,7 +96,7 @@ export function buildHexModel(
       for (let k = 0; k < gridSize; k += 1) {
         const [c0, c1, c2, c3, c4, c5, c6, c7] = hexCellCorners(builder, i, j, k, cellSize);
         if (!quadratic) {
-          elements.push(createElement(id, HEX8_SHAPE, [c0, c1, c2, c3, c4, c5, c6, c7]));
+          elements.push(createElement(id, ElementShape.Hex8, [c0, c1, c2, c3, c4, c5, c6, c7]));
         } else {
           const midEdges = [
             midNode(builder, c0, c1),
@@ -125,7 +113,7 @@ export function buildHexModel(
             midNode(builder, c3, c7),
           ];
           elements.push(
-            createElement(id, HEX20_SHAPE, [c0, c1, c2, c3, c4, c5, c6, c7, ...midEdges]),
+            createElement(id, ElementShape.Hex20, [c0, c1, c2, c3, c4, c5, c6, c7, ...midEdges]),
           );
         }
         id += 1;
@@ -171,7 +159,7 @@ export function buildTetModel(
 export function buildWedge6Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1],
-    [createElement(13, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5])],
+    [createElement(13, ElementShape.Wedge6, [0, 1, 2, 3, 4, 5])],
   );
 }
 
@@ -179,7 +167,7 @@ export function buildWedge6Model(): ElementModel {
 export function buildPyramid5Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 1],
-    [createElement(14, PYRAMID5_SHAPE, [0, 1, 2, 3, 4])],
+    [createElement(14, ElementShape.Pyramid5, [0, 1, 2, 3, 4])],
   );
 }
 
@@ -205,7 +193,7 @@ function buildCellTets(
       node(template[3]),
     ];
     if (!quadratic) {
-      elements.push(createElement(id, TET4_SHAPE, tetCorners));
+      elements.push(createElement(id, ElementShape.Tet4, tetCorners));
     } else {
       const [a, b, c, d] = tetCorners;
       const midEdges = [
@@ -216,7 +204,7 @@ function buildCellTets(
         midNode(builder, b, d),
         midNode(builder, c, d),
       ];
-      elements.push(createElement(id, TET10_SHAPE, [a, b, c, d, ...midEdges]));
+      elements.push(createElement(id, ElementShape.Tet10, [a, b, c, d, ...midEdges]));
     }
     id += 1;
   }
@@ -253,7 +241,7 @@ export function buildPointLineModel(
   for (let i = 0; i <= gridSize; i += 1) {
     for (let j = 0; j <= gridSize; j += 1) {
       for (let k = 0; k <= gridSize; k += 1) {
-        elements.push(createElement(id, POINT_SHAPE, [at(i, j, k)]));
+        elements.push(createElement(id, ElementShape.Point, [at(i, j, k)]));
         id += 1;
       }
     }
@@ -271,23 +259,23 @@ const QUAD8_NODES = [
 
 /** Builds the authored triangle example with the original node ids. */
 export function buildTriangleModel(): ElementModel {
-  return createElementModel(SURFACE_NODES, [createElement(1, TRIANGLE_SHAPE, [0, 1, 2])]);
+  return createElementModel(SURFACE_NODES, [createElement(1, ElementShape.Triangle, [0, 1, 2])]);
 }
 
 /** Builds the authored quad example with the original node ids. */
 export function buildQuadModel(): ElementModel {
-  return createElementModel(SURFACE_NODES, [createElement(2, QUAD_SHAPE, [1, 3, 4, 2])]);
+  return createElementModel(SURFACE_NODES, [createElement(2, ElementShape.Quad, [1, 3, 4, 2])]);
 }
 
 /** Builds the authored quadratic triangle with explicit mid-edge nodes. */
 export function buildTri6Model(): ElementModel {
-  return createElementModel(TRI6_NODES, [createElement(11, TRI6_SHAPE, [0, 1, 2, 3, 4, 5])]);
+  return createElementModel(TRI6_NODES, [createElement(11, ElementShape.Tri6, [0, 1, 2, 3, 4, 5])]);
 }
 
 /** Builds the authored quadratic quadrilateral with explicit mid-edge nodes. */
 export function buildQuad8Model(): ElementModel {
   return createElementModel(QUAD8_NODES, [
-    createElement(12, QUAD8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7]),
+    createElement(12, ElementShape.Quad8, [0, 1, 2, 3, 4, 5, 6, 7]),
   ]);
 }
 
@@ -346,7 +334,7 @@ export function buildHex20CylinderModel(options: Hex20CylinderOptions = {}): Ele
           cylinderNode(builder, layer + 0.5, nextSector, radial + 1, r1, angle1, (z0 + z1) / 2),
           cylinderNode(builder, layer + 0.5, nextSector, radial, r0, angle1, (z0 + z1) / 2),
         ];
-        elements.push(createElement(id, HEX20_SHAPE, [...corners, ...midEdges]));
+        elements.push(createElement(id, ElementShape.Hex20, [...corners, ...midEdges]));
         id += 1;
       }
     }
@@ -379,12 +367,16 @@ function outlineLineElements(
   const end = gridSize;
   if (lineKind !== "quadratic") {
     for (const [a, b] of blockEdgeSegments(end)) {
-      elements.push(createElement(id, LINE_SHAPE, [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])]));
+      elements.push(
+        createElement(id, ElementShape.Line, [at(a[0], a[1], a[2]), at(b[0], b[1], b[2])]),
+      );
       id += 1;
     }
   }
   if (lineKind !== "linear") {
-    elements.push(createElement(id, LINE3_SHAPE, [at(0, 0, 0), at(end, end, end), at(0, 0, end)]));
+    elements.push(
+      createElement(id, ElementShape.Line3, [at(0, 0, 0), at(end, end, end), at(0, 0, end)]),
+    );
   }
   return elements;
 }

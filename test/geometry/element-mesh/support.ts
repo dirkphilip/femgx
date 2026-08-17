@@ -4,22 +4,7 @@ import { createElementModel, type Body, type ElementModel } from "../../../src/e
 
 import { boundaryFaceRefs, FaceSelectionError } from "../../../src/elements/faces";
 
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  WEDGE6_SHAPE,
-  type ElementFamily,
-} from "../../../src/elements/shapes";
+import { ElementShape, topologyFor, type ElementFamily } from "../../../src/elements/shapes";
 
 import { type TessellationOptions, elementPart } from "../../../src/geometry/element-part";
 
@@ -42,7 +27,7 @@ export const TET_NODES: readonly number[] = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]
 
 /** Shared core test helper. */
 export function tet4Model(): ElementModel {
-  return createElementModel(TET_NODES, [createElement(1, TET4_SHAPE, [0, 1, 2, 3])]);
+  return createElementModel(TET_NODES, [createElement(1, ElementShape.Tet4, [0, 1, 2, 3])]);
 }
 
 export const TET10_NODES: readonly number[] = [
@@ -70,7 +55,7 @@ export const TET10_NODES: readonly number[] = [
 /** Shared core test helper. */
 export function tet10Model(): ElementModel {
   const nodeIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  return createElementModel(TET10_NODES, [createElement(1, TET10_SHAPE, nodeIds)]);
+  return createElementModel(TET10_NODES, [createElement(1, ElementShape.Tet10, nodeIds)]);
 }
 
 export const HEX8_NODES: readonly number[] = [
@@ -102,14 +87,16 @@ export const HEX8_NODES: readonly number[] = [
 
 /** Shared core test helper. */
 export function hex8Model(): ElementModel {
-  return createElementModel(HEX8_NODES, [createElement(1, HEX8_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7])]);
+  return createElementModel(HEX8_NODES, [
+    createElement(1, ElementShape.Hex8, [0, 1, 2, 3, 4, 5, 6, 7]),
+  ]);
 }
 
 /** Shared core test helper. */
 export function wedge6Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1],
-    [createElement(1, WEDGE6_SHAPE, [0, 1, 2, 3, 4, 5])],
+    [createElement(1, ElementShape.Wedge6, [0, 1, 2, 3, 4, 5])],
   );
 }
 
@@ -117,7 +104,7 @@ export function wedge6Model(): ElementModel {
 export function pyramid5Model(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 1],
-    [createElement(1, PYRAMID5_SHAPE, [0, 1, 2, 3, 4])],
+    [createElement(1, ElementShape.Pyramid5, [0, 1, 2, 3, 4])],
   );
 }
 
@@ -142,7 +129,7 @@ export function hex20Model(): ElementModel {
   return createElementModel(nodes, [
     createElement(
       1,
-      HEX20_SHAPE,
+      ElementShape.Hex20,
       Array.from({ length: 20 }, (_, index) => index),
     ),
   ]);
@@ -165,20 +152,23 @@ export function skewedHex20Model(): ElementModel {
 export function surfaceModel(): ElementModel {
   return createElementModel(
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0],
-    [createElement(1, TRIANGLE_SHAPE, [0, 1, 2]), createElement(2, QUAD_SHAPE, [1, 3, 4, 2])],
+    [
+      createElement(1, ElementShape.Triangle, [0, 1, 2]),
+      createElement(2, ElementShape.Quad, [1, 3, 4, 2]),
+    ],
   );
 }
 
 export const QUADRATIC_SURFACES = [
   {
     name: "Tri6",
-    shape: TRI6_SHAPE,
+    shape: ElementShape.Tri6,
     nodes: [0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0, 0.2, 0.5, 0.5, 0.1, 0, 0.5, 0.2],
     triangles: 4,
   },
   {
     name: "Quad8",
-    shape: QUAD8_SHAPE,
+    shape: ElementShape.Quad8,
     nodes: [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0, 0.2, 1, 0.5, 0.1, 0.5, 1, 0.2, 0, 0.5, 0.1],
     triangles: 6,
   },
@@ -188,8 +178,8 @@ export const QUADRATIC_SURFACES = [
 export function sharedTetPairModel(): ElementModel {
   const nodes = [...TET_NODES, 0, 0, -1];
   return createElementModel(nodes, [
-    createElement(1, TET4_SHAPE, [0, 1, 2, 3]),
-    createElement(2, TET4_SHAPE, [0, 1, 2, 4]),
+    createElement(1, ElementShape.Tet4, [0, 1, 2, 3]),
+    createElement(2, ElementShape.Tet4, [0, 1, 2, 4]),
   ]);
 }
 
@@ -198,10 +188,10 @@ export function pointLineModel(): ElementModel {
   return createElementModel(
     [1, 2, 3, 4, 5, 6, 7, 8, 9],
     [
-      createElement(1, POINT_SHAPE, [0]),
-      createElement(2, POINT_SHAPE, [1]),
-      createElement(3, LINE_SHAPE, [0, 1]),
-      createElement(4, LINE3_SHAPE, [1, 2, 0]),
+      createElement(1, ElementShape.Point, [0]),
+      createElement(2, ElementShape.Point, [1]),
+      createElement(3, ElementShape.Line, [0, 1]),
+      createElement(4, ElementShape.Line3, [1, 2, 0]),
     ],
   );
 }
@@ -214,12 +204,12 @@ export function heterogeneousModel(): ElementModel {
     0, 0,
   ];
   return createElementModel(nodes, [
-    createElement(1, TRIANGLE_SHAPE, [0, 1, 2]),
-    createElement(2, QUAD_SHAPE, [3, 4, 5, 6]),
-    createElement(3, TET4_SHAPE, [7, 8, 9, 10]),
-    createElement(4, HEX8_SHAPE, [11, 12, 13, 14, 15, 16, 17, 18]),
-    createElement(5, LINE_SHAPE, [19, 20]),
-    createElement(6, POINT_SHAPE, [21]),
+    createElement(1, ElementShape.Triangle, [0, 1, 2]),
+    createElement(2, ElementShape.Quad, [3, 4, 5, 6]),
+    createElement(3, ElementShape.Tet4, [7, 8, 9, 10]),
+    createElement(4, ElementShape.Hex8, [11, 12, 13, 14, 15, 16, 17, 18]),
+    createElement(5, ElementShape.Line, [19, 20]),
+    createElement(6, ElementShape.Point, [21]),
   ]);
 }
 
@@ -342,7 +332,7 @@ export type TestGeometry<T extends TriangleGeometry | LineGeometry | PointGeomet
 export function familyModel(model: ElementModel, family: ElementFamily): ElementModel {
   return createElementModel(
     [...model.nodes],
-    model.elements.filter((element) => element.shape.family === family),
+    model.elements.filter((element) => topologyFor(element.shape).family === family),
   );
 }
 
@@ -359,19 +349,8 @@ export {
   type ElementModel,
   boundaryFaceRefs,
   FaceSelectionError,
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  WEDGE6_SHAPE,
+  ElementShape,
+  topologyFor,
   type ElementFamily,
   type TessellationOptions,
   elementPart,

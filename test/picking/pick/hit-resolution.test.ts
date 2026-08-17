@@ -8,8 +8,7 @@ import {
   context,
   createElement,
   createElementModel,
-  LINE_SHAPE,
-  POINT_SHAPE,
+  ElementShape,
   elementPart,
   createPart,
   type TriangleGeometry,
@@ -174,7 +173,7 @@ describe("resolvePickHit", () => {
   it("resolves element and node ids from heterogeneous line and point parts", () => {
     const model = createElementModel(
       [0, 0, 0, 1, 0, 0],
-      [createElement(5, LINE_SHAPE, [0, 1]), createElement(8, POINT_SHAPE, [1])],
+      [createElement(5, ElementShape.Line, [0, 1]), createElement(8, ElementShape.Point, [1])],
     );
     const lineElement = model.elements[0];
     const pointElement = model.elements[1];

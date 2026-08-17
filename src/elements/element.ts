@@ -32,16 +32,16 @@ export interface Element {
 /**
  * Creates an element from an id, shape, and connectivity.
  *
- * Validates that the shape is supported, that the connectivity matches the
- * shape's node count, that node ids are non-negative integers, and that no node
- * is referenced twice. Returns a new element that owns a copy of `nodeIds`;
+ * The `ElementShape` type admits only supported shapes. This validates that the
+ * connectivity matches the shape's node count, that node ids are non-negative
+ * integers, and that no node is referenced twice. Returns a new element that owns a copy of `nodeIds`;
  * the source connectivity may therefore be reused for another authoring
  * operation.
  * @example Author one triangle.
  * ```ts
- * import { TRIANGLE_SHAPE, createElement } from "femgx/model";
+ * import { ElementShape, createElement } from "femgx/model";
  *
- * const element = createElement(100, TRIANGLE_SHAPE, [0, 1, 2]);
+ * const element = createElement(100, ElementShape.Triangle, [0, 1, 2]);
  * ```
  * @category Elements and model editing
  */
@@ -73,7 +73,7 @@ function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly N
   const topology = topologyFor(shape);
   if (nodeIds.length !== topology.nodeCount) {
     throw new Error(
-      `Element ${id} of shape ${shape.family} order ${shape.order} expects ${topology.nodeCount} nodes but got ${nodeIds.length}`,
+      `Element ${id} of shape ${shape} expects ${topology.nodeCount} nodes but got ${nodeIds.length}`,
     );
   }
   const seen = new Set<NodeId>();
