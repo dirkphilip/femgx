@@ -2,7 +2,6 @@ import type { PrimitiveStyleOverride } from "../../interaction/interaction";
 import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../resources/element-resources";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { DenseElementSelection } from "./element-selection";
-import { writeChangedRecordRanges } from "../resources/buffer-writes";
 
 /** The storage fields required to pack dense selected-element membership. */
 export interface HighlightSelectionStorage {
@@ -96,62 +95,16 @@ export function writeDenseSelectionData(
   }
 }
 
-/** Writes only changed dense offset and bitset words to the GPU. */
-export function writeChangedSelectionRanges(
+/** Uploads the packed dense-selection payload as one deterministic GPU write. */
+export function writeDenseSelectionBuffer(
   device: GPUDevice,
   storage: HighlightSelectionStorage,
   next: Uint8Array,
   cost?: GpuCostAccumulator,
 ): void {
-  const previous = storage.data;
-  const nextView = new Uint32Array(next.buffer);
-  const previousView = new Uint32Array(previous.buffer);
-  const nextOffset = nextView[4] ?? 0;
-  const previousOffset = previousView[4] ?? 0;
-  const nextSlots = nextView[7] ?? 0;
-  const previousSlots = previousView[7] ?? 0;
-  const dataBase = HIGHLIGHT_HEADER / 4;
-  const changedOffsets: number[] = [];
-  for (let slot = 0; slot < Math.max(nextSlots, previousSlots); slot += 1) {
-    if (
-      readWord(nextView, dataBase + nextOffset + slot) !==
-      readWord(previousView, dataBase + previousOffset + slot)
-    ) {
-      changedOffsets.push(slot);
-    }
-  }
-  writeChangedRecordRanges(device, {
-    buffer: storage.buffer,
-    next,
-    recordOffset: HIGHLIGHT_HEADER + nextOffset * 4,
-    recordStride: 4,
-    recordIndices: changedOffsets,
-    cost,
-    category: "highlight",
-  });
-  const nextBits = nextView[5] ?? 0;
-  const previousBits = previousView[5] ?? 0;
-  const wordCount = storage.selectionRecordCapacity * storage.selectionWordCapacity;
-  const changedBits: number[] = [];
-  for (let index = 0; index < wordCount; index += 1) {
-    if (
-      readWord(nextView, dataBase + nextBits + index) !==
-      readWord(previousView, dataBase + previousBits + index)
-    ) {
-      changedBits.push(index);
-    }
-  }
-  writeChangedRecordRanges(device, {
-    buffer: storage.buffer,
-    next,
-    recordOffset: HIGHLIGHT_HEADER + nextBits * 4,
-    recordStride: 4,
-    recordIndices: changedBits,
-    cost,
-    category: "highlight",
-  });
-}
-
-function readWord(view: Uint32Array, index: number): number {
-  return index >= 0 && index < view.length ? (view[index] ?? 0) : 0;
+  const start = HIGHLIGHT_HEADER + storage.sparseCapacity * ELEMENT_RECORD_STRIDE;
+  const payload = next.subarray(start);
+  if (payload.byteLength === 0) return;
+  device.queue.writeBuffer(storage.buffer, start, payload);
+  cost?.write("highlight", payload.byteLength);
 }

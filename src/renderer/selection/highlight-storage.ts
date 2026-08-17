@@ -29,7 +29,7 @@ import type {
 import { collectDenseElementSelections } from "./element-selection";
 import {
   highlightByteLength,
-  writeChangedSelectionRanges,
+  writeDenseSelectionBuffer,
   writeDenseSelectionData,
   writeSelectionHeader,
 } from "./highlight-selection-storage";
@@ -99,7 +99,7 @@ export function writeElementHighlights(
     releaseHighlightStorage(device, storage, options.cost);
     return;
   }
-  ensureHighlightStorage(device, storage, {
+  const storageReallocated = ensureHighlightStorage(device, storage, {
     minimumRecords: table.entries.length,
     selectionSlotCapacity: selection === undefined ? 0 : (options.slotCapacity ?? 0),
     selectionRecordCapacity: selection?.occurrences.length ?? 0,
@@ -122,7 +122,9 @@ export function writeElementHighlights(
   }
   if (selectionChanged) writeDenseSelectionData(next, highlight, selection);
   writeChangedRanges(device, storage, next, table.bucketCount, options.cost);
-  if (selectionChanged) writeChangedSelectionRanges(device, highlight, next, options.cost);
+  if (selectionChanged || storageReallocated) {
+    writeDenseSelectionBuffer(device, highlight, next, options.cost);
+  }
   highlight.data.set(next);
   highlight.denseSelection = selection;
 }
@@ -180,7 +182,7 @@ function ensureHighlightStorage(
   device: GPUDevice,
   storage: HighlightTarget,
   options: HighlightCapacityOptions,
-): void {
+): boolean {
   const current = storage.highlight;
   const releasesSelection =
     options.selectionSlotCapacity === 0 &&
@@ -210,7 +212,7 @@ function ensureHighlightStorage(
     storage.highlightOwned = true;
     options.cost?.allocateBuffer(storage.highlight.buffer.size);
     invalidateHighlightBindGroups(storage, options.cost);
-    return;
+    return true;
   }
   if (
     nextSparseCapacity === current.sparseCapacity &&
@@ -218,7 +220,7 @@ function ensureHighlightStorage(
     nextRecordCapacity === current.selectionRecordCapacity &&
     nextWordCapacity === current.selectionWordCapacity
   ) {
-    return;
+    return false;
   }
   const grown = createHighlightStorage(
     device,
@@ -234,6 +236,7 @@ function ensureHighlightStorage(
   storage.highlight = grown;
   storage.highlightOwned = true;
   invalidateHighlightBindGroups(storage, options.cost);
+  return true;
 }
 
 function preserveDenseSelection(current: HighlightStorage, next: HighlightStorage): void {

@@ -78,9 +78,29 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await page.getByTestId("viewport-toggle").click();
   await waitForRenderer(page, secondary);
   await expect(secondaryPane).toHaveAttribute("data-active", "true");
-  await expect(secondaryPane).toHaveCSS("outline-color", "rgb(96, 165, 250)");
-  await expect(secondaryPane).toHaveCSS("outline-width", "2px");
+  await expect(secondaryPane).toHaveCSS("outline-color", "rgb(255, 138, 0)");
+  await expect(secondaryPane).toHaveCSS("outline-width", "5px");
   await expect(primaryPane).toHaveCSS("outline-width", "1px");
+
+  await requireHit(
+    page,
+    secondary,
+    { fresh: true },
+    "the active secondary viewport must expose inspection",
+  );
+  const secondaryBounds = await secondaryPane.boundingBox();
+  const secondaryInspection = await page.getByTestId("inspection-panel").boundingBox();
+  if (secondaryBounds === null || secondaryInspection === null) {
+    throw new Error("active secondary inspection has no bounds");
+  }
+  expect(secondaryInspection.x).toBeGreaterThanOrEqual(secondaryBounds.x);
+  expect(secondaryInspection.y).toBeGreaterThanOrEqual(secondaryBounds.y);
+  expect(secondaryInspection.x + secondaryInspection.width).toBeLessThanOrEqual(
+    secondaryBounds.x + secondaryBounds.width,
+  );
+  expect(secondaryInspection.y + secondaryInspection.height).toBeLessThanOrEqual(
+    secondaryBounds.y + secondaryBounds.height,
+  );
 
   const primaryBox = await primary.boundingBox();
   if (primaryBox === null) throw new Error("primary canvas has no bounding box");
@@ -93,7 +113,63 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
 
   await page.mouse.click(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2);
   await expect(primaryPane).toHaveAttribute("data-active", "true");
-  await expect(primaryPane).toHaveCSS("outline-color", "rgb(96, 165, 250)");
+  await expect(primaryPane).toHaveCSS("outline-color", "rgb(255, 138, 0)");
+  await expect(primaryPane).toHaveCSS("outline-width", "5px");
+  const primaryBounds = await primaryPane.boundingBox();
+  const primaryInspection = await page.getByTestId("inspection-panel").boundingBox();
+  if (primaryBounds === null || primaryInspection === null) {
+    throw new Error("active primary inspection has no bounds");
+  }
+  expect(primaryInspection.x).toBeGreaterThanOrEqual(primaryBounds.x);
+  expect(primaryInspection.y).toBeGreaterThanOrEqual(primaryBounds.y);
+});
+test("fits only the active viewport to its own selection", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const primary = page.getByTestId("view-canvas");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await waitForRenderer(page, primary);
+  await openCommandPanel(page, "view");
+  await page.getByTestId("viewport-toggle").click();
+  await waitForRenderer(page, secondary);
+
+  const secondaryHit = await requireHit(
+    page,
+    secondary,
+    { fresh: true, reverse: true },
+    "secondary selection must resolve before fitting its viewport",
+  );
+  await page.mouse.click(secondaryHit.x, secondaryHit.y);
+  await expect.poll(() => secondary.getAttribute("data-selected")).toMatch(/^e:/);
+  await expect(primary).toHaveAttribute("data-selected", "");
+  await openCommandPanel(page, "view");
+  await expect(page.getByTestId("fit-view")).toHaveAttribute("aria-label", "Fit selection");
+
+  const primaryCameraBefore = await primary.getAttribute("data-camera");
+  const secondaryCameraBefore = await secondary.getAttribute("data-camera");
+  await page.getByTestId("fit-view").click();
+  await page.waitForTimeout(500);
+  expect(await secondary.getAttribute("data-camera")).not.toBe(secondaryCameraBefore);
+  await expect(primary).toHaveAttribute("data-camera", primaryCameraBefore ?? "");
+  const secondaryCameraAfter = await secondary.getAttribute("data-camera");
+  const secondarySelection = await secondary.getAttribute("data-selected");
+
+  const primaryHit = await requireHit(
+    page,
+    primary,
+    { fresh: true },
+    "primary selection must resolve before fitting its viewport",
+  );
+  await page.mouse.click(primaryHit.x, primaryHit.y);
+  await expect.poll(() => primary.getAttribute("data-selected")).toMatch(/^e:/);
+  await expect(secondary).toHaveAttribute("data-selected", secondarySelection ?? "");
+
+  const primaryCameraSelected = await primary.getAttribute("data-camera");
+  await openCommandPanel(page, "view");
+  await page.getByTestId("fit-view").click();
+  await page.waitForTimeout(500);
+  expect(await primary.getAttribute("data-camera")).not.toBe(primaryCameraSelected);
+  await expect(secondary).toHaveAttribute("data-camera", secondaryCameraAfter ?? "");
 });
 test("opens isolated viewports and keeps teardown state deterministic", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

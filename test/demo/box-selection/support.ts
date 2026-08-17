@@ -126,6 +126,7 @@ function harness(
   });
   return {
     workbench,
+    canvas,
     pick,
     pickRegion,
     render,

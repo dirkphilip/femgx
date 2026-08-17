@@ -200,8 +200,33 @@ test("keeps repeated partial, empty, and Control-append box selections complete"
   );
   expect(expectedLeft.length).toBeGreaterThan(1);
   expect(expectedLeft.length).toBeLessThan(expectedFull.length);
+  expect(expectedLeft.some((key) => key.startsWith("e:1/0/"))).toBe(true);
+  expect(expectedLeft.some((key) => key.startsWith("e:1/1/"))).toBe(true);
+
+  const clickHit = await requireHit(
+    page,
+    canvas,
+    { fresh: true },
+    "hover must retain the exact GPU hit used by inspection",
+  );
+  const clickedTarget = await dataset(page, "hovered");
+  expect(clickedTarget).toMatch(/^e:/);
+  await expect(page.getByTestId("inspection-panel")).not.toContainText(
+    "Click or right-click a visible element",
+  );
 
   await drag(left[0], left[1], expectedLeft);
+  await expect(canvas).toHaveAttribute("data-hovered", "");
+  await expect(canvas).toHaveAttribute("data-pick", "");
+
+  await page.mouse.move(clickHit.x, clickHit.y);
+  await expect.poll(() => dataset(page, "hovered")).toMatch(/^e:/);
+  await expect
+    .poll(async () => (await dataset(page, "selected")).split(",").filter(Boolean).sort())
+    .toEqual(expectedLeft);
+
+  await page.mouse.click(clickHit.x, clickHit.y);
+  await expect.poll(() => dataset(page, "selected")).toBe(clickedTarget);
 
   const empty = [
     { fx: 0.88, fy: 0.12 },

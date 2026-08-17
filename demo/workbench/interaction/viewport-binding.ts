@@ -1,6 +1,13 @@
 import {
+  clearSelection,
+  isTargetSelected,
+  setTargetHovered,
+  setTargetSelected,
+  setTargetsSelected,
   type InteractionGranularity,
+  type InteractionState,
   type InteractionTarget,
+  type PickHit,
   type ViewportInteractionApplyRequest,
   type ViewportInteractionBoxEvent,
 } from "../../../src/entries/root";
@@ -28,19 +35,21 @@ export async function resolveViewportPoint(
       readonly meta: boolean;
     };
   },
-): Promise<SelectTarget | undefined> {
+): Promise<{ readonly hit: PickHit | undefined; readonly target: SelectTarget | undefined }> {
   const granularity = selectionGranularity(request.granularity);
   const hit = await options
     .viewport()
     .pick(request.x, request.y, granularity === "edge" ? "edge" : undefined);
-  return hit === undefined
-    ? undefined
-    : selectTarget(hit, granularity, {
-        shiftKey: request.modifiers.shift,
-        ctrlKey: request.modifiers.control,
-        altKey: request.modifiers.alt,
-        metaKey: request.modifiers.meta,
-      });
+  const target =
+    hit === undefined
+      ? undefined
+      : selectTarget(hit, granularity, {
+          shiftKey: request.modifiers.shift,
+          ctrlKey: request.modifiers.control,
+          altKey: request.modifiers.alt,
+          metaKey: request.modifiers.meta,
+        });
+  return { hit, target };
 }
 
 /** Resolves one completed box through the current workbench strategy. */
@@ -56,7 +65,12 @@ export function resolveViewportRegion(
 export function applyViewportInteraction(
   options: Pick<
     WorkbenchInteractionOptions,
-    "canvas" | "hoverOwnership" | "selectionFeedback" | "setInteraction" | "render"
+    | "canvas"
+    | "getInteraction"
+    | "hoverOwnership"
+    | "selectionFeedback"
+    | "setInteraction"
+    | "render"
   >,
   request: ViewportInteractionApplyRequest,
 ): undefined {
@@ -64,17 +78,48 @@ export function applyViewportInteraction(
     if (request.target === undefined) options.hoverOwnership?.clear();
     else options.hoverOwnership?.mark();
     options.canvas.dataset["hovered"] = targetKey(request.target);
+  } else {
+    options.hoverOwnership?.clear();
+    options.canvas.dataset["hovered"] = "";
   }
+  const interaction = workbenchInteraction(options.getInteraction(), request);
   if (request.phase === "box") {
     const granularity = selectionGranularity(request.granularity);
-    const selectedCount = selectedTargetCount(request.defaultInteraction, granularity);
+    const selectedCount = selectedTargetCount(interaction, granularity);
     options.selectionFeedback?.(
       `Box selection: ${selectedCount} ${selectionNoun(granularity, selectedCount)}`,
     );
   }
-  options.setInteraction(request.defaultInteraction);
+  options.setInteraction(interaction);
   options.render();
   return undefined;
+}
+
+function workbenchInteraction(
+  current: InteractionState,
+  request: ViewportInteractionApplyRequest,
+): InteractionState {
+  if (request.phase === "hover") return setTargetHovered(current, request.target);
+  const withoutHover = setTargetHovered(current, undefined);
+  if (request.phase === "box") {
+    return setTargetsSelected(
+      request.modifiers.control || request.modifiers.meta
+        ? withoutHover
+        : clearSelection(withoutHover),
+      request.targets,
+      true,
+    );
+  }
+  if (request.modifiers.control || request.modifiers.meta) {
+    return request.target === undefined
+      ? withoutHover
+      : setTargetSelected(withoutHover, request.target, !isTargetSelected(current, request.target));
+  }
+  return setTargetsSelected(
+    clearSelection(withoutHover),
+    request.target === undefined ? [] : [request.target],
+    true,
+  );
 }
 
 /** Reports a binding failure through the workbench's existing feedback surface. */

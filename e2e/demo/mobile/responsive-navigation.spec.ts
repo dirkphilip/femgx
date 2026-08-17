@@ -45,12 +45,14 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
     };
     return {
       trigger: read('[data-testid="navigation-toggle"]'),
+      icon: read(".navigation-toggle-icon"),
       commandBar: read(".command-bar"),
       commandTarget: read(".command-target"),
     };
   });
   if (
     closedGeometry.trigger === undefined ||
+    closedGeometry.icon === undefined ||
     closedGeometry.commandBar === undefined ||
     closedGeometry.commandTarget === undefined
   ) {
@@ -60,6 +62,20 @@ test("uses one accessible phone drawer and keeps it exclusive of Analysis", asyn
   expect(closedGeometry.trigger.y).toBeLessThan(closedGeometry.commandBar.bottom);
   expect(closedGeometry.trigger.width).toBe(44);
   expect(closedGeometry.trigger.height).toBe(44);
+  expect(
+    Math.abs(
+      closedGeometry.trigger.x +
+        closedGeometry.trigger.width / 2 -
+        (closedGeometry.icon.x + closedGeometry.icon.width / 2),
+    ),
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(
+      closedGeometry.trigger.y +
+        closedGeometry.trigger.height / 2 -
+        (closedGeometry.icon.y + closedGeometry.icon.height / 2),
+    ),
+  ).toBeLessThanOrEqual(1);
   expect(
     Math.abs(
       closedGeometry.trigger.y +

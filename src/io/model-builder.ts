@@ -104,7 +104,7 @@ class ModelBuilder implements FemModelBuilder {
     const nodeCount = topologyFor(block.shape).nodeCount;
     if (connectivity.length !== ids.length * nodeCount) {
       throw new IoError(
-        `appendElements for ${block.shape.family} order ${block.shape.order} expected ` +
+        `appendElements for ${block.shape} expected ` +
           `${ids.length * nodeCount} connectivity values but got ${connectivity.length}`,
       );
     }

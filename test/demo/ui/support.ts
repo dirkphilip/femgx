@@ -121,6 +121,7 @@ function createSnapshot(
     selectionGranularity: "element",
     boxSelectionStrategy: "visible-surface",
     touchInteractionMode: "navigate",
+    activeSlot: "primary",
     secondaryOpen: false,
     secondaryBusy: false,
     scalarFieldId: withResults ? "demo-stress" : "__base__",

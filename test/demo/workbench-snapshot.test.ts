@@ -25,6 +25,7 @@ describe("workbench presentation snapshot", () => {
     expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.occurrenceCount);
     expect(snapshot.hierarchy.hideSelectedElementCount).toBe(0);
     expect(snapshot.toolbar).toMatchObject({
+      activeSlot: "primary",
       secondaryOpen: false,
       secondaryBusy: false,
       boxSelectionStrategy: "visible-surface",
@@ -131,6 +132,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     selectionGranularity: "element",
     boxSelectionStrategy: "visible-surface",
     touchInteractionMode: "navigate",
+    activeSlot: "primary",
     secondaryOpen: false,
     secondaryBusy: false,
     scalarFieldId: "__base__",

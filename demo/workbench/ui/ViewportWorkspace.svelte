@@ -25,10 +25,17 @@
   <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
   <div id="viewport-workspace" data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}>
     <ViewportPane>
-      <ResultLegend {snapshot} />
-      <StatusOverlays {snapshot} {startup} />
+      {#if snapshot?.toolbar.activeSlot !== "secondary"}
+        <ResultLegend {snapshot} />
+        <StatusOverlays {snapshot} {startup} />
+      {/if}
     </ViewportPane>
-    <ViewportPane secondary hidden={!(snapshot?.toolbar.secondaryOpen ?? false)} />
+    <ViewportPane secondary hidden={!(snapshot?.toolbar.secondaryOpen ?? false)}>
+      {#if snapshot?.toolbar.activeSlot === "secondary"}
+        <ResultLegend {snapshot} />
+        <StatusOverlays {snapshot} {startup} />
+      {/if}
+    </ViewportPane>
     <TouchToolRail {controller} {snapshot} />
   </div>
 </div>

@@ -101,6 +101,7 @@ export interface WorkbenchSnapshot {
     readonly selectionGranularity: SelectionGranularity;
     readonly boxSelectionStrategy: BoxSelectionStrategy;
     readonly touchInteractionMode: TouchInteractionMode;
+    readonly activeSlot: "primary" | "secondary";
     readonly secondaryOpen: boolean;
     readonly secondaryBusy: boolean;
   };
@@ -185,6 +186,7 @@ export interface WorkbenchSnapshotInput {
   readonly selectionGranularity: SelectionGranularity;
   readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly touchInteractionMode: TouchInteractionMode;
+  readonly activeSlot: "primary" | "secondary";
   readonly scalarFieldId: string;
   readonly secondaryOpen: boolean;
   readonly secondaryBusy: boolean;
@@ -225,6 +227,7 @@ export interface WorkbenchSnapshotOwner {
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
   readonly viewportSlots: {
+    activeSlot(): { readonly id: "primary" | "secondary" };
     isSecondaryVisible(): boolean;
     isSecondaryOpening(): boolean;
   };
@@ -325,6 +328,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     selectionGranularity: owner.selectionGranularity,
     boxSelectionStrategy: owner.boxSelectionStrategy,
     touchInteractionMode: owner.touchInteractionMode,
+    activeSlot: owner.viewportSlots.activeSlot().id,
     scalarFieldId: owner.scalarFieldId,
     secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
     secondaryBusy: owner.viewportSlots.isSecondaryOpening(),

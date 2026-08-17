@@ -289,6 +289,11 @@ describe("writeElementHighlights", () => {
       });
 
       expect(iterations).toBe(1);
+      const gpuBytes = new Uint8Array(storage.highlight.data.byteLength);
+      for (const write of gpu.writes) {
+        if (write.buffer === storage.highlight.buffer) gpuBytes.set(write.bytes, write.offset);
+      }
+      expect(gpuBytes).toEqual(storage.highlight.data);
     } finally {
       restore();
     }

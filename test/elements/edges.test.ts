@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { edgesOf, uniqueEdges } from "../../src/elements/edges";
-import {
-  HEX20_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  topologyFor,
-  type ElementShape,
-} from "../../src/elements/shapes";
+import { ElementShape, topologyFor } from "../../src/elements/shapes";
 
 const sequentialElement = (id: number, shape: ElementShape) =>
   createElement(
@@ -20,7 +12,7 @@ const sequentialElement = (id: number, shape: ElementShape) =>
 
 describe("edgesOf", () => {
   it("preserves the element's node identity, not connectivity positions", () => {
-    const element = createElement(1, TET4_SHAPE, [10, 20, 30, 40]);
+    const element = createElement(1, ElementShape.Tet4, [10, 20, 30, 40]);
     expect(edgesOf(element).map((edge) => edge.nodeIds)).toEqual([
       [10, 20],
       [20, 30],
@@ -32,15 +24,15 @@ describe("edgesOf", () => {
   });
 
   it("is deterministic across repeated calls", () => {
-    const element = sequentialElement(1, HEX20_SHAPE);
+    const element = sequentialElement(1, ElementShape.Hex20);
     expect(edgesOf(element)).toEqual(edgesOf(element));
   });
 });
 
 describe("uniqueEdges", () => {
   it("deduplicates edges shared between two tets", () => {
-    const a = createElement(1, TET4_SHAPE, [0, 1, 2, 3]);
-    const b = createElement(2, TET4_SHAPE, [0, 1, 2, 4]);
+    const a = createElement(1, ElementShape.Tet4, [0, 1, 2, 3]);
+    const b = createElement(2, ElementShape.Tet4, [0, 1, 2, 4]);
     const edges = uniqueEdges([a, b]);
     expect(edges).toHaveLength(9);
     expect(edges.map((edge) => edge.nodeIds)).toEqual([
@@ -57,8 +49,8 @@ describe("uniqueEdges", () => {
   });
 
   it("deduplicates quadratic edges shared between two Tet10 elements", () => {
-    const a = createElement(1, TET10_SHAPE, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    const b = createElement(2, TET10_SHAPE, [0, 1, 2, 10, 4, 5, 6, 11, 12, 13]);
+    const a = createElement(1, ElementShape.Tet10, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const b = createElement(2, ElementShape.Tet10, [0, 1, 2, 10, 4, 5, 6, 11, 12, 13]);
     const edges = uniqueEdges([a, b]);
     expect(edges).toHaveLength(9);
     expect(edges.map((edge) => edge.nodeIds)).toEqual([
@@ -75,7 +67,7 @@ describe("uniqueEdges", () => {
   });
 
   it("canonicalizes each edge to ascending corners with the mid node centered", () => {
-    const element = createElement(1, TET10_SHAPE, [10, 20, 30, 40, 1, 2, 3, 4, 5, 6]);
+    const element = createElement(1, ElementShape.Tet10, [10, 20, 30, 40, 1, 2, 3, 4, 5, 6]);
     expect(uniqueEdges([element]).map((edge) => edge.nodeIds)).toEqual([
       [10, 1, 20],
       [10, 3, 30],
@@ -87,15 +79,15 @@ describe("uniqueEdges", () => {
   });
 
   it("keeps line and point element output without deduping away their topology", () => {
-    const line = createElement(1, LINE_SHAPE, [0, 1]);
-    const point = createElement(2, POINT_SHAPE, [0]);
+    const line = createElement(1, ElementShape.Line, [0, 1]);
+    const point = createElement(2, ElementShape.Point, [0]);
     const edges = uniqueEdges([line, point]);
     expect(edges.map((edge) => edge.nodeIds)).toEqual([[0, 1]]);
   });
 
   it("returns edges sorted deterministically regardless of element order", () => {
-    const a = createElement(1, TET4_SHAPE, [0, 1, 2, 3]);
-    const b = createElement(2, TET4_SHAPE, [0, 1, 2, 4]);
+    const a = createElement(1, ElementShape.Tet4, [0, 1, 2, 3]);
+    const b = createElement(2, ElementShape.Tet4, [0, 1, 2, 4]);
     expect(uniqueEdges([a, b])).toEqual(uniqueEdges([b, a]));
   });
 

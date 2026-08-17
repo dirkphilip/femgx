@@ -2,14 +2,7 @@ import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
 import { createElement, type Element } from "../../../src/elements/element";
 import { createElementModel } from "../../../src/elements/model";
 import { FEMGX_FORMAT_VERSION, type FemModel } from "../../../src/io/fem-model";
-import {
-  HEX8_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  QUAD_SHAPE,
-  TRIANGLE_SHAPE,
-  TET4_SHAPE,
-} from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 import { createPart, type Part, type TriangleGeometry } from "../../../src/entries/root";
 import { BENCH_BODY_COUNT, BENCH_BODY_GRID_CELLS, makeBodies, makeBodyGeometry } from "../fixtures";
 
@@ -45,7 +38,7 @@ const NODE_COPY_BENCH_NODE_COUNT = 500_000;
 const nodeCopyBenchmarkNodes = new Float32Array(NODE_COPY_BENCH_NODE_COUNT * 3);
 nodeCopyBenchmarkNodes.set([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const nodeCopyBenchmarkModel = createElementModel(nodeCopyBenchmarkNodes, [
-  createElement(1, TET4_SHAPE, [0, 1, 2, 3]),
+  createElement(1, ElementShape.Tet4, [0, 1, 2, 3]),
 ]);
 
 function makeHeterogeneousModel(repetitions: number) {
@@ -67,12 +60,12 @@ function makeHeterogeneousModel(repetitions: number) {
     nextElementId += 1;
   };
   for (let repetition = 0; repetition < repetitions; repetition += 1) {
-    addElement(TRIANGLE_SHAPE, 3);
-    addElement(QUAD_SHAPE, 4);
-    addElement(TET4_SHAPE, 4);
-    addElement(HEX8_SHAPE, 8);
-    addElement(LINE_SHAPE, 2);
-    addElement(POINT_SHAPE, 1);
+    addElement(ElementShape.Triangle, 3);
+    addElement(ElementShape.Quad, 4);
+    addElement(ElementShape.Tet4, 4);
+    addElement(ElementShape.Hex8, 8);
+    addElement(ElementShape.Line, 2);
+    addElement(ElementShape.Point, 1);
   }
   return createElementModel(nodes, elements);
 }
@@ -96,7 +89,7 @@ function makeConversionBenchmarkModel(): FemModel {
     },
     elementShapeBlocks: [
       {
-        shape: TRIANGLE_SHAPE,
+        shape: ElementShape.Triangle,
         count: CONVERSION_BENCH_ELEMENT_COUNT,
         ids,
         connectivity,

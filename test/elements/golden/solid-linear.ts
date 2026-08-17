@@ -1,11 +1,11 @@
-import { WEDGE6_SHAPE, PYRAMID5_SHAPE, TET4_SHAPE, HEX8_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import type { GoldenElementConvention } from "./types";
 
 export const solidLinearConventions: readonly GoldenElementConvention[] = [
   {
     name: "wedge6",
-    shape: WEDGE6_SHAPE,
+    shape: ElementShape.Wedge6,
     nodeCount: 6,
     corners: [0, 1, 2, 3, 4, 5],
     edges: [
@@ -51,7 +51,7 @@ export const solidLinearConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "pyramid5",
-    shape: PYRAMID5_SHAPE,
+    shape: ElementShape.Pyramid5,
     nodeCount: 5,
     corners: [0, 1, 2, 3, 4],
     edges: [
@@ -94,7 +94,7 @@ export const solidLinearConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "tet4",
-    shape: TET4_SHAPE,
+    shape: ElementShape.Tet4,
     nodeCount: 4,
     corners: [0, 1, 2, 3],
     edges: [
@@ -131,7 +131,7 @@ export const solidLinearConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "hex8",
-    shape: HEX8_SHAPE,
+    shape: ElementShape.Hex8,
     nodeCount: 8,
     corners: [0, 1, 2, 3, 4, 5, 6, 7],
     edges: [
