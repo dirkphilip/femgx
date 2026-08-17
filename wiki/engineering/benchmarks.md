@@ -29,12 +29,13 @@ frame performance.
 
 The Performance Lab keeps its visible benchmark catalog lazy and may retain at
 most one authoritative CPU model. Retention is bounded by a demo-private 256
-MiB hard cap based on deterministic typed-array and 208-byte planar or
-3,072-byte structured-FE element-record estimates; the estimate excludes
-renderer-owned GPU resources. A successful under-cap case is reused after an
-ordinary-catalog round trip, selecting another case evicts the prior reference,
-and over-cap cases rebuild when explicitly selected again. The current outcome
-is available only in the development diagnostics HUD.
+MiB hard cap based on deterministic typed-array and conservative 208-byte
+planar or 3,072-byte structured-FE element-record estimates; the estimate
+excludes renderer-owned GPU resources and is a retention-policy estimate, not a
+measurement of JavaScript heap usage. A successful under-cap case is reused
+after an ordinary-catalog round trip, selecting another case evicts the prior
+reference, and over-cap cases rebuild when explicitly selected again. The
+current outcome is available only in the development diagnostics HUD.
 
 The over-budget `fe-tet4-solid-132k` case is generated through one lazily
 created demo-owned module Worker. The Worker receives only the deterministic
@@ -50,12 +51,22 @@ synchronous deferred path.
 
 The Worker path records generation, topology, tessellation, transfer
 preparation, transfer, reconstruction, transferred bytes, and final retained
-typed bytes in development diagnostics. A full local 28-cell dense build
-measured about 0.25 s for construction, 1.53 s for main-thread reconstruction,
-9.15 MiB transferred, and 6.68 MiB retained typed payload in the focused
-Node/Vitest measurement. The transfer/reconstruction footprint is therefore
-about 1.3× the final retained typed payload; browser/driver memory is outside
-this estimate. The existing opt-in system-Chrome benchmark remains the
+typed bytes in development diagnostics. Dense cases also record deterministic
+semantic allocation counts: element and primitive-range descriptors, face
+descriptors and node/key references, edge descriptors and incidence
+references, body membership references, and semantic-index map entries plus
+exact node-to-face CSR bytes. These counts make the object-heavy portion
+visible without pretending that a portable byte count for JavaScript objects
+exists. The 28-cell payload contains 131,712 elements, 526,848 faces, 160,804
+edges, 1,580,544 edge-face references, 8,857,424 transferred typed bytes
+(8.45 MiB), and 6,712,464 final retained typed bytes (6.40 MiB); the 35-cell
+payload contains 257,250 elements, 1,029,000 faces, 311,255 edges, 3,087,000
+edge-face references, 17,269,296 transferred typed bytes (16.47 MiB), and
+13,094,560 final retained typed bytes (12.49 MiB). The edge count includes the
+authored face and body diagonals introduced by the six-Tet cube split. Final
+retained typed bytes exclude worker-only face-neighbor and boundary-subset arrays after
+reconstruction; both typed-byte fields exclude JavaScript object heap and
+driver allocations. The existing opt-in system-Chrome benchmark remains the
 authority for runtime compilation and first-upload measurements.
 
 ## Budget gate (runs in default CI)

@@ -14,7 +14,8 @@ describe("dense Tet4 benchmark transfer", () => {
     if (canonicalPart === undefined) throw new Error("Canonical Tet4 part is missing");
 
     const transfer = buildDenseTet4Payload(spec.gridCells).payload;
-    const reconstructedPart = reconstructBenchmarkScene(transfer).scene.parts.get(1);
+    const reconstructed = reconstructBenchmarkScene(transfer);
+    const reconstructedPart = reconstructed.scene.parts.get(1);
     if (reconstructedPart === undefined) throw new Error("Reconstructed Tet4 part is missing");
     const canonicalGeometry = canonicalPart.geometries[0];
     const reconstructedGeometry = reconstructedPart.geometries[0];
@@ -40,6 +41,34 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(reconstructedGeometry.edges).toEqual(canonicalGeometry.edges);
     expect(reconstructedGeometry.faceSubset).toEqual(canonicalGeometry.faceSubset);
     expect(reconstructedPart.bounds).toEqual(canonicalPart.bounds);
+    expect(reconstructed.semanticAllocationCounts).toEqual({
+      elementDescriptors: 48,
+      primitiveRangeArrays: 48,
+      primitiveRangeDescriptors: 48,
+      faceDescriptors: 192,
+      faceNodeArrays: 192,
+      faceNodeReferences: 576,
+      faceKeyReferences: 192,
+      faceSubsetReferences: 48,
+      edgeDescriptors: 98,
+      edgeNodeArrays: 98,
+      edgeNodeReferences: 196,
+      edgeIncidentElementReferences: 288,
+      edgeFaceReferenceArrays: 98,
+      edgeFaceReferences: 576,
+      bodyDescriptors: 1,
+      bodyElementReferences: 48,
+      semanticIndex: {
+        elementEntries: 48,
+        elementOrdinalEntries: 48,
+        bodyEntries: 1,
+        bodyByElementEntries: 48,
+        faceEntries: 192,
+        edgeEntries: 98,
+        nodeTriangleFaceOffsetsBytes: 112,
+        nodeTriangleFaceIdsBytes: 2_304,
+      },
+    });
   });
 
   it("uses node ids directly as vertices and bounds dense preset sizes", () => {

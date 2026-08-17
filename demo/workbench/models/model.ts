@@ -20,6 +20,7 @@ import {
   type WebGpuBenchmarkSpec,
 } from "../../benchmark/model";
 import { reconstructBenchmarkScene } from "../../benchmark/transfer";
+import type { DenseSemanticAllocationCounts } from "../../benchmark/types";
 import { createBenchmarkWorkerLoad } from "../../benchmark/worker-client";
 
 /** Build and transfer measurements retained for the Performance Lab diagnostics. */
@@ -34,6 +35,7 @@ export interface WorkbenchBenchmarkBuildTelemetry {
   readonly mainReconstructionMs?: number;
   readonly transferredBytes?: number;
   readonly finalRetainedTypedBytes?: number;
+  readonly semanticAllocationCounts?: DenseSemanticAllocationCounts;
 }
 
 export type WorkbenchPerformanceRetentionReason = "reused" | "evicted-over-budget" | "rebuild";
@@ -129,6 +131,7 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
           transferMs,
           mainReconstructionMs,
           finalRetainedTypedBytes: reconstructed.finalRetainedTypedBytes,
+          semanticAllocationCounts: reconstructed.semanticAllocationCounts,
         });
       })
     : undefined;
