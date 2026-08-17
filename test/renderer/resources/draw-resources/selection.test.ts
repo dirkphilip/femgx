@@ -16,7 +16,7 @@ import {
 } from "./support";
 
 describe("GPU draw path", () => {
-  it("uses the face subset only for visible selection, retaining full hidden geometry", () => {
+  it("uses the face subset for visible and explicitly compact hidden selection", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -47,9 +47,56 @@ describe("GPU draw path", () => {
         [{ partId: subsetPart.id, instanceCount: 1 }],
         { kind: "surface", pass: "selection-hidden", surfaceSubset: true },
       );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        [{ partId: subsetPart.id, instanceCount: 1, surfaceSubset: true }],
+        { kind: "surface", pass: "selection-hidden", surfaceSubset: true },
+      );
+      const supplemental = [
+        {
+          partId: subsetPart.id,
+          instanceCount: 1,
+          surfaceSubset: true,
+          selectionRanges: [{ primitive: "triangles" as const, firstIndex: 3, indexCount: 3 }],
+        },
+      ];
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) },
+        supplemental,
+        { kind: "surface", pass: "selection-hidden", surfaceSubset: true },
+      );
+      drawBatches(
+        pass,
+        draw,
+        {
+          ...drawContext(),
+          parts: new Map([[subsetPart.id, subsetPart]]),
+          usesExteriorFaceSubsets: false,
+        },
+        [{ partId: subsetPart.id, instanceCount: 1, surfaceSubset: true }],
+        { kind: "surface", pass: "selection-hidden", surfaceSubset: true },
+      );
+      drawBatches(
+        pass,
+        draw,
+        {
+          ...drawContext(),
+          parts: new Map([[subsetPart.id, subsetPart]]),
+          usesExteriorFaceSubsets: false,
+        },
+        supplemental,
+        { kind: "surface", pass: "selection-hidden", surfaceSubset: false },
+      );
       pass.end();
       expect(gpu.drawCalls).toEqual([
         { indexCount: 3, instanceCount: 1 },
+        { indexCount: 6, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1, firstIndex: 3 },
         { indexCount: 6, instanceCount: 1 },
       ]);
     } finally {

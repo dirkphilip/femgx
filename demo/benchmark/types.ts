@@ -72,7 +72,7 @@ export interface BenchmarkPercentiles {
 }
 
 export interface SelectionBenchmarkPhase {
-  readonly id: "narrow" | "one-shell" | "broad" | "all-authored";
+  readonly id: "narrow" | "one-shell" | "broad" | "all-but-one" | "all-authored";
   readonly returnedTargetCount: number;
   readonly selectedOccurrenceCount: number;
   readonly invalidSnapshotMs: number;

@@ -229,7 +229,7 @@ function ensureHighlightStorage(
     nextRecordCapacity,
     nextWordCapacity,
   );
-  preserveDenseSelection(current, grown);
+  preserveDenseSelection(device, current, grown, options.cost);
   options.cost?.releaseBuffer(current.buffer.size);
   current.buffer.destroy();
   options.cost?.allocateBuffer(grown.buffer.size);
@@ -239,7 +239,24 @@ function ensureHighlightStorage(
   return true;
 }
 
-function preserveDenseSelection(current: HighlightStorage, next: HighlightStorage): void {
+function uploadPreservedDenseSelection(
+  device: GPUDevice,
+  storage: HighlightStorage,
+  cost?: GpuCostAccumulator,
+): void {
+  if (storage.denseSelection === undefined) return;
+  const offset = HIGHLIGHT_HEADER + storage.sparseCapacity * ELEMENT_RECORD_STRIDE;
+  const bytes = storage.data.subarray(offset);
+  device.queue.writeBuffer(storage.buffer, offset, bytes);
+  cost?.write("highlight", bytes.byteLength);
+}
+
+function preserveDenseSelection(
+  device: GPUDevice,
+  current: HighlightStorage,
+  next: HighlightStorage,
+  cost?: GpuCostAccumulator,
+): void {
   if (current.denseSelection === undefined) return;
   if (
     current.selectionSlotCapacity !== next.selectionSlotCapacity ||
@@ -268,6 +285,7 @@ function preserveDenseSelection(current: HighlightStorage, next: HighlightStorag
     HIGHLIGHT_HEADER + (nextOffset + next.selectionSlotCapacity) * 4,
   );
   next.denseSelection = current.denseSelection;
+  uploadPreservedDenseSelection(device, next, cost);
 }
 
 function releaseHighlightStorage(

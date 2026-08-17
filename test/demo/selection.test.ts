@@ -3,6 +3,7 @@ import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
+  setTargetsSelected,
   type PickHit,
 } from "../../src/entries/root";
 import type { SceneRuntime } from "../../src/entries/runtime";
@@ -14,6 +15,8 @@ import {
   toggleElementSelection,
   toggleSelection,
   hasVisibleSelection,
+  selectedCount,
+  selectionDatasetValue,
 } from "../../demo/workbench/selection/selection";
 import type { SelectTarget } from "../../demo/workbench/selection/pick";
 import { parseSelectionGranularity } from "../../demo/workbench/state/workbench-values";
@@ -254,6 +257,21 @@ describe("demo selection policy", () => {
     expect(isTargetSelected(appended, part)).toBe(true);
     expect(isTargetSelected(appended, element)).toBe(true);
     expect(appendTargets(appended, [])).toBe(appended);
+  });
+
+  it("bounds dense selection diagnostics without enumerating every identity", () => {
+    const targets = Array.from({ length: 257 }, (_, elementId) => ({
+      kind: "element" as const,
+      instanceId: "1/0",
+      elementId,
+    }));
+    const interaction = setTargetsSelected(createInteractionState(), targets, true);
+
+    expect(selectedCount(interaction)).toBe(257);
+    expect(selectionDatasetValue(interaction)).toBe("count:257");
+    expect(selectionDatasetValue(setTargetSelected(createInteractionState(), element, true))).toBe(
+      "e:1/0:7",
+    );
   });
 
   it("only advertises framing for selected geometry in visible occurrences", () => {

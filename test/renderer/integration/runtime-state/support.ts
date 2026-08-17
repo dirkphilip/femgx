@@ -93,6 +93,92 @@ export const rangedSelectionPart = createPart(3, {
   ],
 });
 
+function selectionSkinPart(
+  id: number,
+  faceIds: readonly { readonly elementId: number; readonly faceIndex: number }[],
+) {
+  return createPart(id, {
+    geometries: [
+      {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2, 0, 1, 2, 2, 1, 0, 0, 1, 2, 2, 1, 0, 2, 1, 0]),
+        primitive: "triangles",
+        faces: selectionSkinFaces,
+        faceSubset: { faceIds },
+      },
+    ],
+    elements: selectionSkinElements,
+  });
+}
+
+const selectionSkinFaces = [
+  {
+    elementId: 101,
+    faceIndex: 0,
+    primitiveStart: 0,
+    primitiveCount: 1,
+    key: "a",
+    nodeIds: [0, 1, 2],
+  },
+  {
+    elementId: 101,
+    faceIndex: 1,
+    primitiveStart: 1,
+    primitiveCount: 1,
+    key: "b",
+    nodeIds: [0, 1, 2],
+    neighborElementId: 102,
+  },
+  {
+    elementId: 102,
+    faceIndex: 0,
+    primitiveStart: 2,
+    primitiveCount: 1,
+    key: "b",
+    nodeIds: [0, 1, 2],
+    neighborElementId: 101,
+  },
+  {
+    elementId: 102,
+    faceIndex: 1,
+    primitiveStart: 3,
+    primitiveCount: 1,
+    key: "c",
+    nodeIds: [0, 1, 2],
+    neighborElementId: 103,
+  },
+  {
+    elementId: 103,
+    faceIndex: 0,
+    primitiveStart: 4,
+    primitiveCount: 1,
+    key: "c",
+    nodeIds: [0, 1, 2],
+    neighborElementId: 102,
+  },
+  {
+    elementId: 103,
+    faceIndex: 1,
+    primitiveStart: 5,
+    primitiveCount: 1,
+    key: "d",
+    nodeIds: [0, 1, 2],
+  },
+] as const;
+
+const selectionSkinElements = [101, 102, 103].map((id, index) => ({
+  id,
+  primitiveRanges: [
+    { primitive: "triangles" as const, primitiveStart: index * 2, primitiveCount: 2 },
+  ],
+}));
+
+export const interiorSubsetPart = selectionSkinPart(5, [{ elementId: 101, faceIndex: 1 }]);
+export const denseSelectionPart = selectionSkinPart(6, [
+  { elementId: 101, faceIndex: 0 },
+  { elementId: 103, faceIndex: 1 },
+]);
+
 export const fragmentedSelectionPart = createPart(4, {
   geometries: [
     {
