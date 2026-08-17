@@ -1,0 +1,166 @@
+import {
+  createInteractionState,
+  createScene,
+  selectedTargets,
+  setTargetsHighlighted,
+  setTargetsSelected,
+  translation,
+} from "../../../src/entries/root";
+import { createSceneRuntime } from "../../../src/entries/runtime";
+import { buildHighlightTable } from "../../../src/renderer/selection/highlight-table";
+import {
+  collectEmphasisUpdates,
+  encodeEmphasisRecord,
+} from "../../../src/renderer/resources/element-resources";
+import { defaultStyle } from "../../../src/renderer/resources/foundation";
+import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
+import type { BudgetCase, ScalingCase } from "./types";
+import {
+  emphasisPart,
+  emphasisScene,
+  emphasisRuntime,
+  emphasisLayout,
+  emphasisSlotByInstanceId,
+  emphasisElementIds,
+  emphasisInteraction,
+  emphasisDenseSelections,
+  bulkSelectionTargets,
+  duplicateBulkSelectionTargets,
+  bulkHighlightTargets,
+  tet4SelectionTargets,
+  phaseSelectionTargets,
+  phaseSelectionStates,
+  sceneBuilderParts,
+  emphasisTableEntries,
+} from "./interaction-fixtures";
+
+const INTERACTION_SCALING_COUNTS = [1_024, 4_096, 16_384] as const;
+
+export const interactionBudgets: readonly BudgetCase[] = [
+  {
+    name: "setTargetsSelected (16,384 elements)",
+    description: "one immutable bulk transition in one occurrence",
+    budgetMs: 100,
+    run: () => {
+      setTargetsSelected(createInteractionState(), bulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsSelected duplicate inputs (16,384 elements)",
+    description: "one bulk transition with 1,024 repeated identities",
+    budgetMs: 100,
+    run: () => {
+      setTargetsSelected(createInteractionState(), duplicateBulkSelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsSelected (131,712 Tet4 elements)",
+    description: "one immutable bulk transition for the bounded Tet4 selection result",
+    budgetMs: 35,
+    run: () => {
+      setTargetsSelected(createInteractionState(), tet4SelectionTargets, true);
+    },
+  },
+  {
+    name: "setTargetsHighlighted (8,192 elements)",
+    description: "one duplicate-safe immutable bulk transition in one occurrence",
+    budgetMs: 100,
+    run: () => {
+      setTargetsHighlighted(createInteractionState(), bulkHighlightTargets, true);
+    },
+  },
+  {
+    name: "buildHighlightTable (16,384 records)",
+    description: "bounded four-entry buckets for repeated placements",
+    budgetMs: 1_500,
+    run: () => {
+      buildHighlightTable(emphasisTableEntries);
+    },
+  },
+  {
+    name: "encodeEmphasisRecord mirror (16,384 records)",
+    description: "CPU mirror preparation for selected element records",
+    budgetMs: 100,
+    run: () => {
+      for (const entry of emphasisTableEntries) {
+        encodeEmphasisRecord({
+          slot: entry.slot,
+          elementPickId: entry.elementPickId,
+          facePickId: entry.facePickId,
+          nodePickId: entry.nodePickId,
+          style: defaultStyle,
+        });
+      }
+    },
+  },
+  {
+    name: "immutable part ownership lookup (16,384 elements)",
+    description: "cached element-to-body metadata map reads",
+    budgetMs: 100,
+    run: () => {
+      const metadata = getPartSemanticIndex(emphasisPart);
+      for (const elementId of emphasisElementIds) metadata.bodyByElement.get(elementId);
+    },
+  },
+  {
+    name: "collectEmphasisUpdates (16,384 elements)",
+    description: "dense selection avoids per-element sparse records",
+    budgetMs: 25,
+    run: () => {
+      collectEmphasisUpdates(emphasisRuntime, emphasisLayout, emphasisSlotByInstanceId, {
+        parts: emphasisScene.parts,
+        interaction: emphasisInteraction,
+        denseSelections: emphasisDenseSelections,
+      });
+    },
+  },
+];
+
+export const interactionScalingCases: readonly ScalingCase[] = [
+  {
+    name: "many-part scene build",
+    description: "register, place, snapshot, and compile 1,024–4,096 reusable parts",
+    points: [1_024, 2_048, sceneBuilderParts.length].map((size) => ({
+      size,
+      run: () => {
+        const parts = sceneBuilderParts.slice(0, size);
+        let builder = createScene();
+        for (const part of parts) builder = builder.addPart(part);
+        const scene = builder
+          .addAssembly({
+            id: 1,
+            name: "root",
+            placements: parts.map((part) => ({
+              kind: "part" as const,
+              partId: part.id,
+              transform: translation(part.id, 0, 0),
+            })),
+          })
+          .withRoot(1)
+          .build();
+        createSceneRuntime(scene);
+      },
+    })),
+    maxNormalizedSpread: 3,
+  },
+  {
+    name: "element interaction updates",
+    description: "select, enumerate, and clear 1,024–16,384 targets",
+    points: INTERACTION_SCALING_COUNTS.map((count) => {
+      const targets = phaseSelectionTargets.get(count);
+      const selected = phaseSelectionStates.get(count);
+      if (targets === undefined || selected === undefined)
+        throw new Error(`Missing ${count} targets`);
+      return {
+        size: count,
+        run: () => {
+          setTargetsSelected(createInteractionState(), targets, true);
+          selectedTargets(selected);
+          setTargetsSelected(selected, targets, false);
+        },
+      };
+    }),
+    maxNormalizedSpread: 3,
+    iterations: 2,
+  },
+];

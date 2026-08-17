@@ -1,0 +1,171 @@
+import { type Locator, type Page } from "@playwright/test";
+import type { Box } from "./browser";
+import { sweepCells } from "./picking-core";
+import type { RegionRect, SweepHit, SweepOptions } from "./picking-types";
+
+/** Selects the region-query granularity implied by a dataset key. */
+export function regionGranularityForKey(
+  prefix: string,
+  selectedGranularity: string | null,
+): string {
+  const kind = prefix.split(":", 1)[0];
+  if (kind === "n") return "node";
+  if (kind === "f") return "face";
+  if (kind === "e") return "element";
+  if (kind === "i") return "instance";
+  if (kind === "p") return "part";
+  if (kind === "ed") return "edge";
+  return selectedGranularity ?? "element";
+}
+
+/** Converts one region-query identity into the workbench dataset key format. */
+export function regionTargetKey(target: unknown): string | undefined {
+  if (typeof target !== "object" || target === null || !("kind" in target)) return undefined;
+  const value = target as Record<string, unknown>;
+  const kind = value["kind"];
+  const text = (key: string): string | undefined => {
+    const result = value[key];
+    return typeof result === "string" || typeof result === "number" ? String(result) : undefined;
+  };
+  const instanceId = text("instanceId");
+  switch (kind) {
+    case "node":
+      return instanceId === undefined || text("nodeId") === undefined
+        ? undefined
+        : `n:${instanceId}:${text("nodeId")}`;
+    case "face":
+      return instanceId === undefined ||
+        text("elementId") === undefined ||
+        text("faceIndex") === undefined
+        ? undefined
+        : `f:${instanceId}:${text("elementId")}:${text("faceIndex")}`;
+    case "element":
+      return instanceId === undefined || text("elementId") === undefined
+        ? undefined
+        : `e:${instanceId}:${text("elementId")}`;
+    case "instance":
+      return instanceId === undefined ? undefined : `i:${instanceId}`;
+    case "part": {
+      const partId = text("partId");
+      return partId === undefined ? undefined : `p:${partId}`;
+    }
+    case "edge":
+      return instanceId === undefined || text("key") === undefined
+        ? undefined
+        : `ed:${instanceId}:${text("key")}`;
+    default:
+      return undefined;
+  }
+}
+
+/** Subdivides one region in stable top-left, top-right, bottom-left, bottom-right order. */
+export function subdivideRegion(region: RegionRect): readonly RegionRect[] {
+  const middleX = region.left + region.width / 2;
+  const middleY = region.top + region.height / 2;
+  return [
+    regionRect(region.left, region.top, middleX, middleY),
+    regionRect(middleX, region.top, region.right, middleY),
+    regionRect(region.left, middleY, middleX, region.bottom),
+    regionRect(middleX, middleY, region.right, region.bottom),
+  ];
+}
+
+function regionRect(left: number, top: number, right: number, bottom: number): RegionRect {
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+async function regionTargets(
+  canvas: Locator,
+  region: RegionRect,
+  granularity: string,
+): Promise<readonly unknown[] | undefined> {
+  return canvas.evaluate(
+    async (_element, { value, level }) => {
+      const pickRegion = (
+        window as typeof window & {
+          femgxDemo?: {
+            pickRegion?: (rect: RegionRect, requested: string) => Promise<readonly unknown[]>;
+          };
+        }
+      ).femgxDemo?.pickRegion;
+      return pickRegion === undefined ? undefined : pickRegion(value, level);
+    },
+    { value: region, level: granularity },
+  );
+}
+
+async function locateRegionCell(
+  canvas: Locator,
+  region: RegionRect,
+  granularity: string,
+  prefix: string,
+  depth = 0,
+): Promise<{ readonly region: RegionRect; readonly key: string } | undefined> {
+  const targets = await regionTargets(canvas, region, granularity);
+  const key = targets
+    ?.map(regionTargetKey)
+    .find((value): value is string => value !== undefined && value.startsWith(prefix));
+  if (key === undefined) return undefined;
+  if (region.width <= 4 || region.height <= 4 || depth >= 8) return { region, key };
+  for (const child of subdivideRegion(region)) {
+    const result = await locateRegionCell(canvas, child, granularity, prefix, depth + 1);
+    if (result !== undefined) return result;
+  }
+  return { region, key };
+}
+
+function regionProbePoints(region: RegionRect): readonly (readonly [number, number])[] {
+  const insetX = Math.min(1, region.width / 4);
+  const insetY = Math.min(1, region.height / 4);
+  const left = region.left + insetX;
+  const right = region.right - insetX;
+  const top = region.top + insetY;
+  const bottom = region.bottom - insetY;
+  return [
+    [Math.round((left + right) / 2), Math.round((top + bottom) / 2)],
+    [Math.round(left), Math.round(top)],
+    [Math.round(right), Math.round(top)],
+    [Math.round(left), Math.round(bottom)],
+    [Math.round(right), Math.round(bottom)],
+  ];
+}
+
+/** Narrows a region-query hit to a small pointer-probe rectangle. */
+export async function locateHitByRegion(
+  page: Page,
+  canvas: Locator,
+  box: Box,
+  options: Required<Pick<SweepOptions, "prefix" | "attribute" | "settleMs" | "fresh">>,
+): Promise<SweepHit | undefined> {
+  const canvasBox = await canvas.boundingBox();
+  if (canvasBox === null) return undefined;
+  const granularity = regionGranularityForKey(
+    options.prefix,
+    await canvas.getAttribute("data-selection-granularity"),
+  );
+  const localRegion = regionRect(
+    box.x - canvasBox.x,
+    box.y - canvasBox.y,
+    box.x - canvasBox.x + box.width,
+    box.y - canvasBox.y + box.height,
+  );
+  const located = await locateRegionCell(canvas, localRegion, granularity, options.prefix);
+  if (located === undefined) return undefined;
+  const keyOf = async (): Promise<string> =>
+    (await canvas.getAttribute(`data-${options.attribute}`)) ?? "";
+  const clearKey = async (): Promise<void> => {
+    await canvas.evaluate((node, name) => {
+      (node as HTMLElement).dataset[name] = "";
+    }, options.attribute);
+  };
+  const matches = (key: string): boolean => key === located.key;
+  const points = regionProbePoints(located.region).map(
+    ([x, y]) => [Math.round(canvasBox.x + x), Math.round(canvasBox.y + y)] as const,
+  );
+  return sweepCells(page, points, {
+    ...(options.fresh ? { clearKey } : {}),
+    keyOf,
+    matches,
+    settleMs: options.settleMs,
+  });
+}
