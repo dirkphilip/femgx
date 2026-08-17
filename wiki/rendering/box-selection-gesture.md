@@ -77,9 +77,9 @@ started.
 
 On completion, `WorkbenchInteraction` sends one request containing the completed
 event and captured Element/Face/Node granularity to its workbench-private box
-selection resolver. The default visible-surface resolver makes one
-`pickRegion(event.rect, granularity)` call; a workbench-owned resolver may
-replace candidate discovery without taking over selection mutation. Plain completion
+selection resolver. The canonical Element default uses the Through resolver;
+Visible uses one `pickRegion(event.rect, granularity)` call. A workbench-owned
+resolver may replace candidate discovery without taking over selection mutation. Plain completion
 replaces selection with distinct returned targets; Ctrl/Meta appends them, while
 Shift and Alt remain reserved without select-through behavior. The pending query
 is generation-checked, so newer clicks, context actions, model changes, resets,
@@ -88,14 +88,16 @@ Post-drag hover stays suspended until that query settles, so ordinary pointer
 motion cannot discard a completed box. Cancellation and below-threshold gestures
 never query.
 
-The workbench's **Visible** strategy is the default. Its **Through** strategy is
-available only at Element granularity and uses the public frustum helper to test
+The workbench's **Through** strategy is the default at Element granularity. It uses
+the public frustum helper to test
 the current, deformed authored FE tessellation on the host. It ignores raster
 occlusion but still requires effective scene/runtime, body, element, and
 section-plane visibility; it returns one stable occurrence-scoped element target
 per intersecting element. Through does not add GPU work, readback, geometry copies,
-or a general geometry-query subsystem. Changing strategy or granularity invalidates
-an in-flight request, and non-element granularity stays visibly on Visible.
+or a general geometry-query subsystem. **Visible** remains available for every
+granularity and continues to use nearest-visible GPU samples. Changing strategy or
+granularity invalidates an in-flight request; non-element granularity stays on
+Visible while the last element strategy is restored on returning to Element.
 
 ## Connection to region picking
 

@@ -161,8 +161,8 @@
       data-testid="box-selection-strategy"
       aria-label="Box selection"
       aria-describedby="interaction-help"
-      title="Visible selects nearest visible samples; Through selects intersecting visible elements through occlusion."
-      value={snapshot?.toolbar.boxSelectionStrategy ?? "visible-surface"}
+      title="Visible selects nearest visible samples; Through selects all intersecting elements through occlusion."
+      value={snapshot?.toolbar.boxSelectionStrategy ?? "through-intersection"}
       onchange={setBoxSelectionStrategy}
     >
       <option value="visible-surface">Visible</option>
@@ -327,9 +327,9 @@
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
     Body/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle a click or append a box.
     Shift promotes Face/Node to the owning element. Alt selects an instance. Edge selects authored
-    occurrence-scoped topology; shared edges remain edges when Shift is held. Through is available
-    only for Element. Point elements use their primary glyph as the node marker, whether Nodes is
-    enabled or hidden. Press Z to frame the visible selection, or the complete model when none is
-    eligible.
+    occurrence-scoped topology; shared edges remain edges when Shift is held. Through is the default
+    for Element and Visible is used for other granularities. Point elements use their primary glyph
+    as the node marker, whether Nodes is enabled or hidden. Press Z to frame the visible selection,
+    or the complete model when none is eligible.
   </p>
 </div>

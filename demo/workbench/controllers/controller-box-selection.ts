@@ -10,6 +10,7 @@ import type { TouchInteractionMode } from "../types";
 
 interface BoxSelectionOwner {
   boxSelectionStrategy: BoxSelectionStrategy;
+  elementBoxSelectionStrategy?: BoxSelectionStrategy;
   readonly selectionGranularity: SelectionGranularity;
   readonly showState?: (slotId: "primary" | "secondary") => {
     readonly boxSelectionStrategy: BoxSelectionStrategy;
@@ -21,7 +22,10 @@ interface BoxSelectionOwner {
 
 /** Applies the element-only strategy rule when selection granularity changes. */
 export function normalizeBoxSelectionStrategyForGranularity(owner: BoxSelectionOwner): void {
-  if (owner.selectionGranularity !== "element") owner.boxSelectionStrategy = "visible-surface";
+  owner.boxSelectionStrategy =
+    owner.selectionGranularity === "element"
+      ? (owner.elementBoxSelectionStrategy ?? owner.boxSelectionStrategy)
+      : "visible-surface";
 }
 
 /** Rebuilds resolver closures for every current viewport and invalidates stale work. */
@@ -42,7 +46,7 @@ export function applyBoxSelectionResolvers(owner: BoxSelectionOwner): void {
 export function setBoxSelectionStrategy(owner: BoxSelectionOwner, value: string): void {
   const strategy = parseBoxSelectionStrategy(value);
   if (strategy === undefined) return;
-  owner.boxSelectionStrategy = strategy;
+  if (owner.selectionGranularity === "element") owner.elementBoxSelectionStrategy = strategy;
   normalizeBoxSelectionStrategyForGranularity(owner);
   applyBoxSelectionResolvers(owner);
   owner.render();

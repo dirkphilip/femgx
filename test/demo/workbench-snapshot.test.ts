@@ -28,7 +28,7 @@ describe("workbench presentation snapshot", () => {
       activeSlot: "primary",
       secondaryOpen: false,
       secondaryBusy: false,
-      boxSelectionStrategy: "visible-surface",
+      boxSelectionStrategy: "through-intersection",
     });
     expect(
       createWorkbenchSnapshot({ ...input, secondaryOpen: true, secondaryBusy: true }).toolbar,
@@ -130,7 +130,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     toggles: { edges: true, nodes: true, diagnostics: false },
     continuous: false,
     selectionGranularity: "element",
-    boxSelectionStrategy: "visible-surface",
+    boxSelectionStrategy: "through-intersection",
     touchInteractionMode: "navigate",
     activeSlot: "primary",
     secondaryOpen: false,
