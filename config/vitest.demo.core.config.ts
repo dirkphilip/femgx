@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["test/demo/**/*.test.ts"],
-    exclude: ["test/demo/ui*.test.ts"],
+    exclude: ["test/demo/ui*.test.ts", "test/demo/ui/**/*.test.ts"],
     server: {
       deps: {
         inline: ["wgsl_reflect"],

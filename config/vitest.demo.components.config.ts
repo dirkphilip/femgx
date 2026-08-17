@@ -7,7 +7,7 @@ export default defineConfig({
     conditions: ["browser"],
   },
   test: {
-    include: ["test/demo/ui-interactions.test.ts"],
+    include: ["test/demo/ui/**/*.test.ts"],
     environment: "happy-dom",
     coverage: {
       provider: "v8",

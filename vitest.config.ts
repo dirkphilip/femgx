@@ -11,6 +11,7 @@ export default defineConfig({
       "test/bench/scene-update-scaling.test.ts",
       // Svelte component tests run with the plugin in the demo component gate.
       "test/demo/ui*.test.ts",
+      "test/demo/ui/**/*.test.ts",
     ],
     server: {
       deps: {
