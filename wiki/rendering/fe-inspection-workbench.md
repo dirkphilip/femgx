@@ -57,7 +57,7 @@ controller, so camera and interaction behavior is stable
   unavailable in Edge mode, while Visible region selection uses the same edge granularity.
 - A completed primary-button box drag calls `Viewport.pickRegion` once at
   element granularity. Plain drags replace selection with the returned visible
-  elements; Ctrl/Meta drags toggle them. Shift and Alt do not add select-through
+  elements; Ctrl/Meta drags append them. Shift and Alt do not add select-through
   behavior, and stale or rejected region readbacks cannot overwrite newer
   interaction state.
 - The workbench ignores stale readbacks with a pick generation counter so

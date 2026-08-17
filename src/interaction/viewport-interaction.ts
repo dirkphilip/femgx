@@ -38,8 +38,9 @@ export type {
  *
  * Mouse and pen hover replace the one hovered target. Plain clicks replace
  * selection, while Control/Meta clicks toggle it. Completed box selections use
- * `Viewport.pickRegion` by default and apply one duplicate-safe immutable
- * transition. Hosts can replace point/region discovery or return their own
+ * `Viewport.pickRegion` by default; plain boxes replace selection and
+ * Control/Meta boxes append through one duplicate-safe immutable transition.
+ * Hosts can replace point/region discovery or return their own
  * interaction state from `applyInteraction`; returning `undefined` suppresses
  * the default policy. A completed-box callback receives the normalized CSS
  * rectangle, six inward frustum planes, captured granularity, and candidates.
@@ -93,12 +94,13 @@ class ViewportInteraction {
   };
 
   private readonly pointerMove = (event: PointerEvent): void => {
-    if (!this.isPointPointer(event) || this.boxActive || event.buttons !== 0) return;
+    if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive || event.buttons !== 0)
+      return;
     void this.resolvePoint("hover", event);
   };
 
   private readonly pointerLeave = (event: PointerEvent): void => {
-    if (!this.isPointPointer(event)) return;
+    if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive) return;
     this.generation += 1;
     const current = this.options.viewport.interaction;
     const next = setTargetHovered(current, undefined);
@@ -347,12 +349,7 @@ function boxInteraction(
   if (!modifiers.control && !modifiers.meta) {
     return setTargetsSelected(clearSelection(withoutHover), targets, true);
   }
-  const selected: InteractionTarget[] = [];
-  const cleared: InteractionTarget[] = [];
-  for (const target of uniqueTargets(targets)) {
-    (isTargetSelected(current, target) ? cleared : selected).push(target);
-  }
-  return setTargetsSelected(setTargetsSelected(withoutHover, cleared, false), selected, true);
+  return setTargetsSelected(withoutHover, uniqueTargets(targets), true);
 }
 
 function uniqueTargets(targets: readonly InteractionTarget[]): InteractionTarget[] {

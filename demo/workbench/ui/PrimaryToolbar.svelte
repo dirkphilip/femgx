@@ -325,10 +325,11 @@
     {snapshot?.overlays.feedback?.message ?? ""}
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-    Body/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle. Shift promotes Face/Node
-    to the owning element. Alt selects an instance. Edge selects authored occurrence-scoped
-    topology; shared edges remain edges when Shift is held. Through is available only for Element.
-    Point elements use their primary glyph as the node marker, whether Nodes is enabled or hidden.
-    Press Z to frame the visible selection, or the complete model when none is eligible.
+    Body/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle a click or append a box.
+    Shift promotes Face/Node to the owning element. Alt selects an instance. Edge selects authored
+    occurrence-scoped topology; shared edges remain edges when Shift is held. Through is available
+    only for Element. Point elements use their primary glyph as the node marker, whether Nodes is
+    enabled or hidden. Press Z to frame the visible selection, or the complete model when none is
+    eligible.
   </p>
 </div>

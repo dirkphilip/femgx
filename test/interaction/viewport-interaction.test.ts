@@ -298,6 +298,54 @@ describe("installViewportInteraction", () => {
     disposer();
   });
 
+  it("applies repeated partial, empty, and Control-append boxes after post-drag pointer motion", async () => {
+    const first: InteractionTarget = { ...target, elementId: 2 };
+    const second: InteractionTarget = { ...target, elementId: 3 };
+    const harness = viewportHarness();
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+    });
+    const completeBox = async (
+      targets: readonly InteractionTarget[],
+      modifiers: Partial<PointerInput> = {},
+    ): Promise<void> => {
+      let resolveTargets: ((value: readonly InteractionTarget[]) => void) | undefined;
+      harness.pickRegion.mockReturnValueOnce(
+        new Promise<readonly InteractionTarget[]>((resolve) => {
+          resolveTargets = resolve;
+        }),
+      );
+      const queryCount = harness.pickRegion.mock.calls.length;
+      harness.canvas.dispatch("pointerdown", pointer({ clientX: 30, clientY: 40, buttons: 1 }));
+      harness.canvas.dispatch(
+        "pointermove",
+        pointer({ clientX: 80, clientY: 90, buttons: 1, ...modifiers }),
+      );
+      harness.canvas.dispatch("pointerup", pointer({ clientX: 80, clientY: 90, ...modifiers }));
+      await vi.waitFor(() => {
+        expect(harness.pickRegion).toHaveBeenCalledTimes(queryCount + 1);
+      });
+      harness.canvas.dispatch("pointermove", pointer({ clientX: 81, clientY: 91 }));
+      resolveTargets?.(targets);
+      await settle();
+    };
+
+    await completeBox([first]);
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([first]);
+
+    await completeBox([]);
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+
+    await completeBox([second]);
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([second]);
+
+    await completeBox([second, first], { ctrlKey: true });
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([first, second]);
+    disposer();
+  });
+
   it("reports a current region failure without changing interaction state", async () => {
     const error = new Error("region failed");
     const errors: Array<{ readonly error: unknown; readonly phase: string }> = [];
