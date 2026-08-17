@@ -32,6 +32,8 @@ export interface WorkbenchPresentationOptions {
   readonly getVectorTransform: () => VectorTransform;
   readonly getViewport: () => FemViewport;
   readonly getInteraction: () => InteractionState;
+  readonly getInspection: () => { readonly visible: boolean; readonly text: string };
+  readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
   readonly getRuntime: () => SceneRuntime;
   readonly getSectionAxis: () => SectionAxis;
   readonly getSectionOffset: () => number;
@@ -51,10 +53,6 @@ export class WorkbenchPresentation {
   private status = "";
   private statusVisible = false;
   private diagnosticsText = "";
-  private inspection = {
-    visible: false,
-    text: "Click or right-click a visible element, face, node, or authored edge to inspect it.",
-  };
   private resultLegend = resultLegendSnapshot(undefined, "off", 0);
 
   constructor(options: WorkbenchPresentationOptions) {
@@ -71,7 +69,7 @@ export class WorkbenchPresentation {
       rendererStatusVisible: this.rendererStatusVisible,
       status: this.status,
       statusVisible: this.statusVisible,
-      inspection: Object.freeze({ ...this.inspection }),
+      inspection: Object.freeze({ ...this.options.getInspection() }),
       diagnostics: Object.freeze({
         visible: this.options.getToggles().diagnostics,
         text: this.diagnosticsText,
@@ -100,7 +98,7 @@ export class WorkbenchPresentation {
   }
 
   setInspection(text: string, visible: boolean): void {
-    this.inspection = { text, visible };
+    this.options.setInspection({ text, visible });
     this.options.publishSnapshot();
   }
 

@@ -32,15 +32,25 @@ export interface WorkbenchControllerWiringContext {
   readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly selectionGranularityForSlot: (slotId: ViewportSlotId) => SelectionGranularity;
   readonly touchInteractionMode: TouchInteractionMode;
+  readonly touchInteractionModeForSlot: (slotId: ViewportSlotId) => TouchInteractionMode;
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly interaction: InteractionState;
+  readonly getInspection: () => { readonly visible: boolean; readonly text: string };
+  readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
+  readonly setInspectionForSlot: (
+    slotId: ViewportSlotId,
+    value: { readonly visible: boolean; readonly text: string },
+  ) => void;
   readonly activeViewport: () => FemViewport;
   readonly viewports: () => readonly FemViewport[];
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly runtime: SceneRuntime;
   readonly setInteraction: (value: InteractionState) => void;
+  readonly interactionForSlot: (slotId: ViewportSlotId) => InteractionState;
+  readonly setInteractionForSlot: (slotId: ViewportSlotId, value: InteractionState) => void;
   readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
@@ -51,10 +61,13 @@ export interface WorkbenchControllerWiringContext {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
-  readonly applySharedState: () => void;
+  readonly applyActiveState: () => void;
+  readonly applyState: (slotId: ViewportSlotId) => void;
+  readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
+  readonly removeShowState: (slotId: ViewportSlotId) => void;
   readonly rebuildVisibility: () => void;
   readonly feedback: (message: string) => void;
-  readonly onActiveSlotChanged: () => void;
+  readonly onActiveSlotChanged: (slotId: ViewportSlotId) => void;
   readonly menu: WorkbenchMenu;
   readonly visibilityPanel: VisibilityPanelController;
   readonly visibilityActions: WorkbenchFeatures["visibilityActions"];
@@ -92,11 +105,18 @@ export function createControllerInfrastructure(
     vectorTransform: () => context.vectorDisplay.transform,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
+    selectionGranularityForSlot: context.selectionGranularityForSlot.bind(context),
     touchInteractionMode: () => context.touchInteractionMode,
+    touchInteractionModeForSlot: context.touchInteractionModeForSlot.bind(context),
     sectionAxis: () => context.sectionAxis,
     sectionOffset: () => context.sectionOffset,
     interaction: () => context.interaction,
     setInteraction: context.setInteraction.bind(context),
+    getInspection: context.getInspection.bind(context),
+    setInspection: context.setInspection.bind(context),
+    setInspectionForSlot: context.setInspectionForSlot.bind(context),
+    interactionForSlot: context.interactionForSlot.bind(context),
+    setInteractionForSlot: context.setInteractionForSlot.bind(context),
     canClearCanvasHover: context.canClearCanvasHover.bind(context),
     markCanvasHover: context.markCanvasHover.bind(context),
     clearCanvasHover: context.clearCanvasHover.bind(context),
@@ -107,7 +127,10 @@ export function createControllerInfrastructure(
     setDiagnostics: context.setDiagnostics.bind(context),
     fitSelection: context.fitSelection.bind(context),
     reset: context.reset.bind(context),
-    applySharedState: context.applySharedState.bind(context),
+    applyActiveState: context.applyActiveState.bind(context),
+    applyState: context.applyState.bind(context),
+    cloneShowState: context.cloneShowState.bind(context),
+    removeShowState: context.removeShowState.bind(context),
     rebuildVisibility: context.rebuildVisibility.bind(context),
     feedback: context.feedback.bind(context),
     onActiveSlotChanged: context.onActiveSlotChanged.bind(context),

@@ -27,21 +27,24 @@ interface WorkbenchViewportSlotsOptions {
   readonly primaryBoxPreview: WorkbenchBoxPreview;
   readonly createViewport: WorkbenchOptions["createViewport"];
   readonly getModel: () => WorkbenchModel;
-  readonly getInteraction: () => InteractionState;
-  readonly setInteraction: (value: InteractionState) => void;
+  readonly getInteraction: (slotId: ViewportSlotId) => InteractionState;
+  readonly setInteraction: (slotId: ViewportSlotId, value: InteractionState) => void;
   readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
-  readonly selectionGranularity: () => SelectionGranularity;
-  readonly touchInteractionMode: () => TouchInteractionMode;
+  readonly selectionGranularity: (slotId: ViewportSlotId) => SelectionGranularity;
+  readonly touchInteractionMode: (slotId: ViewportSlotId) => TouchInteractionMode;
   readonly menu: WorkbenchMenu;
   readonly render: () => void;
-  readonly applySharedState: () => void;
+  readonly applyActiveState: () => void;
+  readonly applyState: (slotId: ViewportSlotId) => void;
+  readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
+  readonly removeShowState: (slotId: ViewportSlotId) => void;
   readonly rebuildVisibility: () => void;
   readonly feedback: (message: string) => void;
-  readonly setInspection: (text: string, visible: boolean) => void;
+  readonly setInspection: (slotId: ViewportSlotId, text: string, visible: boolean) => void;
   readonly selectionFeedback: (message: string) => void;
-  readonly onActiveSlotChanged: () => void;
+  readonly onActiveSlotChanged: (slotId: ViewportSlotId) => void;
 }
 
 /** Owns the primary and optional secondary viewport lifecycles. */
@@ -59,7 +62,7 @@ export class WorkbenchViewportSlots {
       pane: options.view.primaryPane,
       interaction: options.primaryInteraction,
       boxPreview: options.primaryBoxPreview,
-      renderLoop: new WorkbenchRenderLoop(() => this.activeViewport()),
+      renderLoop: new WorkbenchRenderLoop(() => this.slots.get("primary")?.viewport),
       viewport: options.primaryViewport,
       dragging: false,
     });
@@ -101,14 +104,15 @@ export class WorkbenchViewportSlots {
     primary.viewport = viewport;
     this.activeSlotId = "primary";
     primary.renderLoop.attach(performance.now());
+    this.options.onActiveSlotChanged("primary");
   }
 
   invalidateInteraction(): void {
     for (const slot of this.slots.values()) slot.interaction.clearContext();
   }
 
-  clearHover(): void {
-    for (const slot of this.slots.values()) slot.interaction.clearHover();
+  clearHover(slotId = this.activeSlotId): void {
+    this.slots.get(slotId)?.interaction.clearHover();
   }
 
   detachPrimary(): void {
@@ -127,8 +131,8 @@ export class WorkbenchViewportSlots {
     return slot.dragging || slot.boxPreview.isActive();
   }
 
-  setContinuous(enabled: boolean, timestamp: number): void {
-    for (const slot of this.slots.values()) slot.renderLoop.setEnabled(enabled, timestamp);
+  setContinuous(slotId: ViewportSlotId, enabled: boolean, timestamp: number): void {
+    this.slots.get(slotId)?.renderLoop.setEnabled(enabled, timestamp);
   }
 
   onRender(slotId: ViewportSlotId, timestamp: number): boolean {
@@ -144,7 +148,7 @@ export class WorkbenchViewportSlots {
     for (const slot of this.slots.values()) {
       slot.pane.scene.dataset["active"] = String(slot.id === slotId);
     }
-    this.options.onActiveSlotChanged();
+    this.options.onActiveSlotChanged(slotId);
   }
 
   async toggleSecondaryViewport(): Promise<void> {
@@ -155,6 +159,7 @@ export class WorkbenchViewportSlots {
     if (this.secondaryOpening) return;
     const generation = ++this.secondaryGeneration;
     this.prepareSecondaryViewport();
+    this.options.cloneShowState("primary", "secondary");
     await Promise.resolve();
     try {
       const slot = await this.createSecondarySlot();
@@ -162,7 +167,7 @@ export class WorkbenchViewportSlots {
       this.slots.set("secondary", slot);
       this.bindSecondarySlot(slot);
       this.setActiveSlot("secondary");
-      this.options.applySharedState();
+      this.options.applyActiveState();
       this.options.rebuildVisibility();
       slot.viewport.render();
       this.options.render();
@@ -202,10 +207,12 @@ export class WorkbenchViewportSlots {
     const interaction = new WorkbenchInteraction({
       canvas: view.secondaryPane.canvas,
       viewport: () => viewport,
-      selectionGranularity: this.options.selectionGranularity,
-      touchMode: this.options.touchInteractionMode,
-      getInteraction: this.options.getInteraction,
-      setInteraction: this.options.setInteraction,
+      selectionGranularity: () => this.options.selectionGranularity("secondary"),
+      touchMode: () => this.options.touchInteractionMode("secondary"),
+      getInteraction: () => this.options.getInteraction("secondary"),
+      setInteraction: (value) => {
+        this.options.setInteraction("secondary", value);
+      },
       hoverOwnership: {
         canClear: () => {
           return this.options.canClearCanvasHover("secondary");
@@ -220,7 +227,9 @@ export class WorkbenchViewportSlots {
       partName: (partId) => this.options.getModel().partNames.get(partId),
       menu: this.options.menu,
       render: this.options.render,
-      setInspection: this.options.setInspection,
+      setInspection: (text, visible) => {
+        this.options.setInspection("secondary", text, visible);
+      },
       selectionFeedback: this.options.selectionFeedback,
     });
     return {
@@ -243,7 +252,7 @@ export class WorkbenchViewportSlots {
       interaction: slot.interaction,
       boxPreview: slot.boxPreview,
       dragging: () => slot.dragging || slot.boxPreview.isActive(),
-      touchInteractionMode: this.options.touchInteractionMode,
+      touchInteractionMode: () => this.options.touchInteractionMode("secondary"),
       setActive: this.setActiveSlot.bind(this, "secondary"),
     });
     slot.removePaneBindings = () => {
@@ -261,6 +270,7 @@ export class WorkbenchViewportSlots {
   private cleanupFailedSecondary(error: unknown): void {
     const slot = this.slots.get("secondary");
     if (slot !== undefined) this.closeSecondaryViewport();
+    else this.options.removeShowState("secondary");
     this.options.feedback(`Secondary viewport could not be opened: ${errorMessage(error)}`);
   }
 
@@ -271,6 +281,7 @@ export class WorkbenchViewportSlots {
     this.setActiveSlot("primary");
     this.destroySlot(slot);
     this.slots.delete("secondary");
+    this.options.removeShowState("secondary");
     this.options.render();
   }
 

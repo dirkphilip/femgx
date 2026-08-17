@@ -206,7 +206,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await expect(vectorWidth).toBeVisible();
 });
 
-test("applies one shared section plane over complete placed-volume bounds", async ({ page }) => {
+test("keeps section planes local to the active viewport", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("section-volume");
   await openCommandPanel(page, "analysis");
@@ -230,7 +230,14 @@ test("applies one shared section plane over complete placed-volume bounds", asyn
   );
   await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
-  await expect(page.getByTestId("secondary-view-canvas")).toHaveAttribute("data-section-axis", "x");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await expect(secondary).toHaveAttribute("data-section-axis", "x");
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
+  await openCommandPanel(page, "analysis");
+  await page.getByTestId("section-axis").selectOption("z");
+  await expect(secondary).toHaveAttribute("data-section-axis", "z");
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await expect(canvas).toHaveAttribute("data-section-axis", "x");
 });
 
 test("reset restores the complete workbench display state", async ({ page }) => {

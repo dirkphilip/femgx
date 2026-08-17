@@ -31,8 +31,7 @@ export interface WorkbenchModelActivationOwner extends WorkbenchModelState {
   readonly viewportSlots: WorkbenchViewportSlots;
   readonly presentation: WorkbenchPresentation;
   readonly visibilityPanel: { rebuild: () => void };
-  applyResultMode: (render: boolean) => void;
-  applyCurrentDisplayState: () => void;
+  applyState: (slotId: WorkbenchViewportSlot["id"]) => void;
   render: () => void;
 }
 
@@ -58,12 +57,7 @@ export function activateModelForOwner(
       owner.sectionOffset = next.sectionOffset;
       owner.interaction = next.interaction;
     },
-    applyResultMode: () => {
-      owner.applyResultMode(false);
-    },
-    applyDisplayState: () => {
-      owner.applyCurrentDisplayState();
-    },
+    applyState: owner.applyState.bind(owner),
     rebuildVisibility: () => {
       owner.visibilityPanel.rebuild();
     },
@@ -79,8 +73,7 @@ export interface WorkbenchModelControllerContext {
   readonly state: WorkbenchModelState;
   readonly presentation: WorkbenchPresentation;
   readonly setControllerState: (state: WorkbenchModelState) => void;
-  readonly applyResultMode: () => void;
-  readonly applyDisplayState: () => void;
+  readonly applyState: (slotId: WorkbenchViewportSlot["id"]) => void;
   readonly rebuildVisibility: () => void;
   readonly render: () => void;
 }
@@ -99,13 +92,9 @@ export function activateControllerModel(
     state: context.state,
     model,
     presentation: context.presentation,
-    applyResultMode: () => {
+    applyState: (slotId) => {
       syncState();
-      context.applyResultMode();
-    },
-    applyDisplayState: () => {
-      syncState();
-      context.applyDisplayState();
+      context.applyState(slotId);
     },
     rebuildVisibility: context.rebuildVisibility,
     render: () => {
@@ -122,8 +111,7 @@ interface ActivateWorkbenchModelOptions {
   readonly state: WorkbenchModelState;
   readonly model: WorkbenchModel;
   readonly presentation: WorkbenchPresentation;
-  readonly applyResultMode: () => void;
-  readonly applyDisplayState: () => void;
+  readonly applyState: (slotId: WorkbenchViewportSlot["id"]) => void;
   readonly rebuildVisibility: () => void;
   readonly render: () => void;
 }
@@ -148,8 +136,7 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.sectionOffset = 0;
   state.interaction = createModelInteraction(model, true, true);
   setModelScene(options.slots, model);
-  options.applyResultMode();
-  options.applyDisplayState();
+  for (const slot of options.slots) options.applyState(slot.id);
   resetSlotVisibility(options.slots, model);
   options.rebuildVisibility();
   for (const slot of options.slots) slot.pane.canvas.dataset["model"] = model.id;

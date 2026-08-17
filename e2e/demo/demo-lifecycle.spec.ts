@@ -65,7 +65,7 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
 });
-test("opens shared-state viewports and synchronizes teardown", async ({ page }) => {
+test("opens isolated viewports and keeps teardown state deterministic", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
   const primary = page.getByTestId("view-canvas");
@@ -82,20 +82,39 @@ test("opens shared-state viewports and synchronizes teardown", async ({ page }) 
   );
   await expect(primary).toHaveAttribute("data-selection-granularity", "element");
   await expect(secondary).toHaveAttribute("data-selection-granularity", "element");
-  await setSelectionGranularity(page, "node");
-  await expect(primary).toHaveAttribute("data-selection-granularity", "node");
+  await page.getByTestId("background-select").selectOption("dark");
+  await expect(secondary).toHaveAttribute("data-background", "dark");
+  await expect(primary).toHaveAttribute("data-background", "studio");
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await page.getByTestId("background-select").selectOption("white");
+  await expect(primary).toHaveAttribute("data-background", "white");
+  await expect(secondary).toHaveAttribute("data-background", "dark");
+
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
+  await openCommandPanel(page, "selection");
+  await page.getByTestId("selection-granularity").selectOption("node");
+  await expect(page.getByTestId("selection-granularity")).toHaveValue("node");
+  await expect(primary).toHaveAttribute("data-selection-granularity", "element");
   await expect(secondary).toHaveAttribute("data-selection-granularity", "node");
 
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await setSelectionGranularity(page, "face");
+  await expect(primary).toHaveAttribute("data-selection-granularity", "face");
+  await expect(secondary).toHaveAttribute("data-selection-granularity", "node");
+
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
   const firstInstance = page.locator("input[data-instance-id]").first();
   await expect(firstInstance).toBeChecked();
   await firstInstance.uncheck();
   await expect(page.getByTestId("status")).toContainText("33 visible");
+  await expect(primary).toHaveAttribute("data-visible-instances", "34");
+  await expect(secondary).toHaveAttribute("data-visible-instances", "33");
   await page.getByRole("region", { name: "Primary viewport" }).focus();
   await expect(page.getByRole("region", { name: "Primary viewport" })).toHaveAttribute(
     "data-active",
     "true",
   );
-  await expect(page.getByTestId("status")).toContainText("33 visible");
+  await expect(page.getByTestId("status")).toContainText("34 visible");
 
   await page.getByTestId("model-select").selectOption("results");
   await expect(primary).toHaveAttribute("data-model", "results");
@@ -107,7 +126,7 @@ test("opens shared-state viewports and synchronizes teardown", async ({ page }) 
   await openCommandPanel(page, "analysis");
   await page.getByTestId("result-field").selectOption("__base__");
   await expect(primary).toHaveAttribute("data-results", "base");
-  await expect(secondary).toHaveAttribute("data-results", "base");
+  await expect(secondary).toHaveAttribute("data-results", "deformed");
   await page.getByTestId("command-analysis").click();
 
   await openCommandPanel(page, "view");
@@ -117,6 +136,7 @@ test("opens shared-state viewports and synchronizes teardown", async ({ page }) 
   await page.getByTestId("viewport-toggle").click();
   await expect(secondary).toBeVisible();
   await expect(page.locator('[data-femgx-orientation-gizmo="true"]')).toHaveCount(2);
+  await expect(secondary).toHaveAttribute("data-results", "base");
 });
 test("shows diagnostics from target and empty-scene context menus", async ({ page }) => {
   await page.goto("/");

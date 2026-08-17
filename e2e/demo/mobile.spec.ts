@@ -114,6 +114,8 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   const secondary = page.getByTestId("secondary-view-canvas");
   await expect(secondary).toBeVisible();
   await waitForRenderer(page, secondary);
+  await page.getByTestId("background-select").selectOption("dark");
+  await page.getByTestId("command-view").click();
   const layout = await page.evaluate(() => ({
     width: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -139,10 +141,22 @@ test("stacks the optional secondary viewport without mobile overflow", async ({ 
   await expect(checkbox).not.toBeChecked();
   await expect
     .poll(async () => Number((await primary.getAttribute("data-frames")) ?? "0"))
-    .toBeGreaterThan(primaryFrames);
+    .toBe(primaryFrames);
   await expect
     .poll(async () => Number((await secondary.getAttribute("data-frames")) ?? "0"))
     .toBeGreaterThan(secondaryFrames);
+  await page.locator("#primary-scene").focus();
+  const primaryCheckbox = visibilityPanel.locator('input[type="checkbox"]').first();
+  await page.waitForTimeout(100);
+  const primaryFramesBefore = Number((await primary.getAttribute("data-frames")) ?? "0");
+  const secondaryFramesBefore = Number((await secondary.getAttribute("data-frames")) ?? "0");
+  await primaryCheckbox.uncheck();
+  await expect
+    .poll(async () => Number((await primary.getAttribute("data-frames")) ?? "0"))
+    .toBeGreaterThan(primaryFramesBefore);
+  await expect
+    .poll(async () => Number((await secondary.getAttribute("data-frames")) ?? "0"))
+    .toBe(secondaryFramesBefore);
   const scrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
   expect(scrollHeight).toBeLessThanOrEqual(PHONE.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(

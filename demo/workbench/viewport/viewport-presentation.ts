@@ -8,6 +8,7 @@ import type { ViewportSlotId } from "./view";
 import type { ResultDisplayMode, DisplayToggles } from "../types";
 import type { SectionAxis } from "../section-controls";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
+import type { WorkbenchShowState } from "../state/show-state";
 
 export interface ObservedPaneSize {
   readonly size: { readonly width: number; readonly height: number };
@@ -46,6 +47,7 @@ interface SyncViewportPresentationOptions {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly background: string;
+  readonly showState: (slotId: ViewportSlotId) => WorkbenchShowState;
 }
 
 /** Publishes renderer stats and stable pane data attributes for the demo shell. */
@@ -69,20 +71,22 @@ function syncPaneDataset(
   options: SyncViewportPresentationOptions,
 ): void {
   const canvas = slot.pane.canvas;
+  const state = options.showState(slot.id);
   canvas.dataset["model"] = options.model.id;
   canvas.dataset["dragging"] = String(slot.dragging);
-  canvas.dataset["selected"] = selectedKeys(options.interaction).join(",");
+  canvas.dataset["selected"] = selectedKeys(state.interaction).join(",");
   canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(slot.viewport.camera));
   canvas.dataset["cameraBounds"] = JSON.stringify(options.model.bounds);
-  canvas.dataset["edges"] = String(options.toggles.edges);
-  canvas.dataset["nodes"] = String(options.toggles.nodes);
-  canvas.dataset["continuous"] = String(options.continuous);
-  canvas.dataset["selectionGranularity"] = options.selectionGranularity;
-  canvas.dataset["boxSelectionStrategy"] = options.boxSelectionStrategy;
-  canvas.dataset["results"] = options.resultMode;
-  canvas.dataset["sectionAxis"] = options.sectionAxis;
-  canvas.dataset["sectionOffset"] = String(options.sectionOffset);
-  canvas.dataset["background"] = options.background;
+  canvas.dataset["edges"] = String(state.toggles.edges);
+  canvas.dataset["nodes"] = String(state.toggles.nodes);
+  canvas.dataset["continuous"] = String(state.continuousEnabled);
+  canvas.dataset["selectionGranularity"] = state.selectionGranularity;
+  canvas.dataset["boxSelectionStrategy"] = state.boxSelectionStrategy;
+  canvas.dataset["results"] = state.resultMode;
+  canvas.dataset["sectionAxis"] = state.sectionAxis;
+  canvas.dataset["sectionOffset"] = String(state.sectionOffset);
+  canvas.dataset["background"] = state.background;
+  canvas.dataset["visibleInstances"] = String(slot.viewport.runtime.visibleCount);
 }
 
 function canvasSize(canvas: HTMLCanvasElement): {

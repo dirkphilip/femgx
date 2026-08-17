@@ -3,12 +3,10 @@ import {
   type FemViewport,
   type ViewportBackground,
 } from "../../../src/entries/root";
-import { setProjection } from "../../../src/entries/camera";
 import { importGlb } from "../../../src/entries/io/glb";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { DemoView } from "../viewport/view";
-import { createModelInteraction } from "../state/preset";
-import { errorMessage, type WorkbenchModel } from "../models/model";
+import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog, WorkbenchCatalogMode } from "../models/model-catalog";
 import {
   createWorkbenchModelCatalog,
@@ -25,28 +23,37 @@ import {
   setBoxSelectionStrategy as changeBoxSelectionStrategy,
   setTouchInteractionMode as changeTouchInteractionMode,
 } from "./controller-box-selection";
-import {
-  createDefaultDisplayToggles,
-  type DisplayToggles,
-  type ResultDisplayMode,
-  type TouchInteractionMode,
-  type WorkbenchOptions,
+import type {
+  DisplayToggles,
+  ResultDisplayMode,
+  TouchInteractionMode,
+  WorkbenchOptions,
 } from "../types";
 import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlots, WorkbenchViewportSlot } from "../viewport/viewport-slots";
 import { WorkbenchModelSession } from "../models/model-session";
 import { activateModelForOwner } from "../models/model-activation";
 import {
+  createWorkbenchShowState,
+  installWorkbenchShowStateAccessors,
+  cloneShowStateForSlot,
+  removeShowStateForSlot,
+  resetShowStatesForModel,
+  setInspectionForSlot,
+  showStateForSlot,
+  type WorkbenchShowState,
+} from "../state/show-state";
+import {
   applyControllerDisplayState as applyDisplayStateForOwner,
   applyControllerResultMode as applyResultModeForOwner,
+  applyActiveStateForOwner,
+  applyStateForOwner,
+  setBackgroundForOwner,
+  setContinuousForOwner,
+  setDiagnosticsForOwner,
 } from "./controller-display";
 import type { ObservedPaneSize } from "../viewport/viewport-presentation";
-import {
-  activeScalarFieldIdForModel,
-  resultModeForModel,
-  vectorDisplayForModel,
-  type VectorDisplayState,
-} from "../results/result-controls";
+import type { VectorDisplayState } from "../results/result-controls";
 import {
   setVectorField as applyVectorField,
   setVectorGlyph as applyVectorGlyph,
@@ -68,7 +75,7 @@ import {
   installResultPlaybackVisibility,
   type WorkbenchResultPlaybackActions,
 } from "../results/result-playback";
-import { parseSelectionGranularity, parseViewportBackground } from "../state/workbench-values";
+import { parseSelectionGranularity } from "../state/workbench-values";
 import {
   applySectionPlane,
   setSectionAxis as applySectionAxis,
@@ -86,7 +93,7 @@ import {
 } from "../results/snapshot";
 import { createWorkbenchCommands } from "../interaction/commands";
 import {
-  activeSlotChangedForOwner,
+  activeSlotChangedForController,
   activeViewportForOwner,
   boxSelectionStatsForOwner,
   detachViewportForOwner,
@@ -97,6 +104,11 @@ import {
   resetViewportRenderLoop,
   setControllerViewport,
   setActiveSlotForOwner,
+  setCameraGestureActiveForOwner,
+  setProjectionForOwner,
+  fitSelectionForOwner,
+  hideSelectedForOwner,
+  showAllForOwner,
   syncControllerViewportPresentation,
   toggleSecondaryViewportForOwner,
 } from "./controller-viewport";
@@ -120,9 +132,6 @@ export class WorkbenchController {
   readonly view: DemoView;
   readonly rendererName: string;
   model: WorkbenchModel;
-  toggles: DisplayToggles;
-  resultMode: ResultDisplayMode;
-  interaction: InteractionState;
   rendererState = "";
   viewport: FemViewport;
   viewportSlots!: WorkbenchViewportSlots;
@@ -138,29 +147,36 @@ export class WorkbenchController {
   presentation!: WorkbenchFeatures["presentation"];
   boxPreview!: WorkbenchFeatures["boxPreview"];
   private boxSelectionDisposer: (() => void) | undefined;
-  hoverOwner: WorkbenchHoverOwner | undefined;
   disposed = false;
-  continuousEnabled = false;
-  deformationScale: number;
-  vectorDisplay: VectorDisplayState;
-  sectionAxis: SectionAxis = "off";
-  sectionOffset = 0;
-  selectionGranularity: SelectionGranularity = "element";
-  boxSelectionStrategy: BoxSelectionStrategy = "visible-surface";
-  touchInteractionMode: TouchInteractionMode = "navigate";
-  elementDetail: WorkbenchElementDetailSnapshot | undefined;
-  scalarFieldId: string;
-  background: ViewportBackground = "studio";
   readonly observedPaneSizes = new Map<ViewportSlotId, ObservedPaneSize>();
   readonly snapshotBridge: WorkbenchSnapshotBridge;
   private readonly commandSurface: WorkbenchCommands;
   readonly elementDetailActions: WorkbenchElementDetailActions;
   readonly resultPlaybackActions: WorkbenchResultPlaybackActions;
-  resultPlaybackIndex = 0;
-  resultPlaybackRate = 1;
-  resultPlaybackPlaying = false;
-  resultPlaybackActive = false;
-  resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  private readonly showStates = new Map<ViewportSlotId, WorkbenchShowState>();
+  private readonly hoverOwners = new Map<ViewportSlotId, WorkbenchHoverOwner | undefined>();
+  private activeSlotId: ViewportSlotId = "primary";
+  declare toggles: DisplayToggles;
+  declare resultMode: ResultDisplayMode;
+  declare interaction: InteractionState;
+  declare hoverOwner: WorkbenchHoverOwner | undefined;
+  declare continuousEnabled: boolean;
+  declare deformationScale: number;
+  declare vectorDisplay: VectorDisplayState;
+  declare sectionAxis: SectionAxis;
+  declare sectionOffset: number;
+  declare selectionGranularity: SelectionGranularity;
+  declare boxSelectionStrategy: BoxSelectionStrategy;
+  declare touchInteractionMode: TouchInteractionMode;
+  declare elementDetail: WorkbenchElementDetailSnapshot | undefined;
+  declare scalarFieldId: string;
+  declare background: ViewportBackground;
+  declare resultPlaybackIndex: number;
+  declare resultPlaybackRate: number;
+  declare resultPlaybackPlaying: boolean;
+  declare resultPlaybackActive: boolean;
+  declare resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  declare inspection: { visible: boolean; text: string };
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -173,12 +189,13 @@ export class WorkbenchController {
     this.catalog = createWorkbenchModelCatalog(this.examples);
     this.models = this.catalog.models;
     this.model = initialModel;
-    this.toggles = createDefaultDisplayToggles();
-    this.resultMode = resultModeForModel(this.model);
-    this.scalarFieldId = activeScalarFieldIdForModel(this.model);
-    this.deformationScale = this.model.results?.deformation?.scale ?? 1;
-    this.vectorDisplay = vectorDisplayForModel(this.model);
-    this.interaction = createModelInteraction(this.model, true, true);
+    this.showStates.set("primary", createWorkbenchShowState(this.model));
+    installWorkbenchShowStateAccessors(
+      this,
+      this.showStates,
+      this.hoverOwners,
+      () => this.activeSlotId,
+    );
     this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
     this.elementDetailActions = createElementDetailActions(this);
     this.resultPlaybackActions = createResultPlaybackActions(this);
@@ -225,6 +242,49 @@ export class WorkbenchController {
     return this.activeViewport().runtime;
   }
 
+  showState = showStateForSlot.bind(null, this.showStates);
+
+  interactionForSlot = (slotId: ViewportSlotId): InteractionState =>
+    this.showState(slotId).interaction;
+
+  setInteractionForSlot = (slotId: ViewportSlotId, value: InteractionState): void => {
+    this.showState(slotId).interaction = value;
+  };
+
+  selectionGranularityForSlot = (slotId: ViewportSlotId): SelectionGranularity =>
+    this.showState(slotId).selectionGranularity;
+
+  touchInteractionModeForSlot = (slotId: ViewportSlotId): TouchInteractionMode =>
+    this.showState(slotId).touchInteractionMode;
+
+  hoverOwnerForSlot = (slotId: ViewportSlotId): WorkbenchHoverOwner | undefined =>
+    this.hoverOwners.get(slotId);
+
+  setHoverOwnerForSlot = (slotId: ViewportSlotId, value: WorkbenchHoverOwner | undefined): void => {
+    this.hoverOwners.set(slotId, value);
+  };
+
+  cloneShowState = (from: ViewportSlotId, to: ViewportSlotId) =>
+    cloneShowStateForSlot(this.showStates, this.hoverOwners, from, to);
+
+  removeShowState = (slotId: ViewportSlotId) =>
+    removeShowStateForSlot(this.showStates, this.hoverOwners, slotId);
+
+  resetShowStates = (model: WorkbenchModel) =>
+    resetShowStatesForModel(this.showStates, this.hoverOwners, model);
+
+  getInspection = (): { readonly visible: boolean; readonly text: string } => this.inspection;
+
+  setInspection = (value: { readonly visible: boolean; readonly text: string }): void => {
+    this.inspection = value;
+  };
+
+  setInspectionForSlot = (
+    slotId: ViewportSlotId,
+    value: { readonly visible: boolean; readonly text: string },
+  ) =>
+    setInspectionForSlot(this.showStates, this.activeSlotId, slotId, value, this.publishSnapshot);
+
   get snapshot(): WorkbenchSnapshot {
     return this.snapshotBridge.current;
   }
@@ -247,17 +307,13 @@ export class WorkbenchController {
 
   getBoxSelectionStats = boxSelectionStatsForOwner.bind(null, this);
 
-  setViewport = (viewport: FemViewport): void => {
-    setControllerViewport(this, viewport);
-  };
+  setViewport = setControllerViewport.bind(null, this);
 
   invalidateInteraction = invalidateInteractionForOwner.bind(null, this);
 
   detachViewport = detachViewportForOwner.bind(null, this);
 
-  setCameraGestureActive(slotId: ViewportSlotId, active: boolean): void {
-    this.viewportSlots.setCameraGestureActive(slotId, active);
-  }
+  setCameraGestureActive = setCameraGestureActiveForOwner.bind(null, this);
 
   isPointerGestureActive = isPointerGestureActiveForOwner.bind(null, this);
 
@@ -273,35 +329,15 @@ export class WorkbenchController {
     }
   }
 
-  setContinuous(enabled = !this.continuousEnabled): void {
-    if (this.continuousEnabled === enabled) return;
-    this.continuousEnabled = enabled;
-    this.viewportSlots.setContinuous(enabled, performance.now());
-    this.syncViewportPresentation();
-    this.publishSnapshot();
-  }
+  setContinuous = setContinuousForOwner.bind(null, this);
 
-  setProjection(): void {
-    const viewport = this.activeViewport();
-    viewport.setCamera(
-      setProjection(
-        viewport.camera,
-        viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
-      ),
-    );
-    viewport.fitView();
-    this.render();
-  }
+  setProjection = setProjectionForOwner.bind(null, this);
 
-  hideSelected(): void {
-    this.visibilityActions.hideSelected();
-  }
+  hideSelected = hideSelectedForOwner.bind(null, this);
 
   selectAll = applySelectAll.bind(null, this);
 
-  showAll(): void {
-    this.visibilityActions.showAll();
-  }
+  showAll = showAllForOwner.bind(null, this);
 
   setSelectionGranularity(value: string): void {
     const granularity = parseSelectionGranularity(value);
@@ -317,52 +353,32 @@ export class WorkbenchController {
 
   setTouchInteractionMode = changeTouchInteractionMode.bind(null, this);
 
-  setBackground(value: string): void {
-    const background = parseViewportBackground(value);
-    if (background === undefined) {
-      return;
-    }
-    try {
-      for (const viewport of this.viewports()) viewport.setBackground(background);
-    } catch (error) {
-      this.presentation.setFeedback(
-        `Background could not be changed: ${errorMessage(error)}`,
-        "error",
-      );
-      return;
-    }
-    this.background = background;
-    this.render();
-  }
+  setBackground = setBackgroundForOwner.bind(null, this);
 
-  setInteraction(interaction: InteractionState): void {
+  setInteraction = (interaction: InteractionState): void => {
     this.interaction = interaction;
     this.publishSnapshot();
-  }
+  };
 
-  setDiagnostics(): void {
-    this.toggles.diagnostics = !this.toggles.diagnostics;
-    this.syncViewportPresentation();
-    this.publishSnapshot();
-  }
+  setDiagnostics = setDiagnosticsForOwner.bind(null, this);
 
-  applySharedState(): void {
-    this.applyResultMode(false);
-    this.applyCurrentDisplayState();
-    applySectionPlane(this, false);
-  }
+  applyActiveState = applyActiveStateForOwner.bind(null, this);
 
-  rebuildVisibility(): void {
+  applyState = applyStateForOwner.bind(null, this);
+
+  rebuildVisibility = (): void => {
     this.visibilityPanel.rebuild();
-  }
+  };
 
-  feedback(message: string): void {
+  feedback = (message: string): void => {
     this.presentation.setFeedback(message, "error");
-  }
+  };
 
-  onActiveSlotChanged(): void {
-    activeSlotChangedForOwner(this);
-  }
+  onActiveSlotChanged = (slotId: ViewportSlotId): void => {
+    activeSlotChangedForController(this, slotId, (active) => {
+      this.activeSlotId = active;
+    });
+  };
 
   setModel = setModelForOwner.bind(null, this);
 
@@ -387,10 +403,7 @@ export class WorkbenchController {
     this.render();
   }
 
-  fitSelection(): void {
-    this.activeViewport().fitSelection();
-    this.render();
-  }
+  fitSelection = fitSelectionForOwner.bind(null, this);
 
   reset(): void {
     this.touchInteractionMode = "navigate";
@@ -449,6 +462,7 @@ export class WorkbenchController {
     this.resultPlaybackActions.resetForModel(model);
     this.elementDetail = undefined;
     this.resetHoverOwner();
+    this.resetShowStates(model);
     const activeModel = rememberCatalogModel(this, model);
     activateModelForOwner(activeModel, this);
   }

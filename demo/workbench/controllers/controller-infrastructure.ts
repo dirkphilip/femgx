@@ -30,11 +30,21 @@ export interface WorkbenchInfrastructureOptions {
   readonly vectorTransform: () => VectorTransform;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly selectionGranularityForSlot: (slotId: ViewportSlotId) => SelectionGranularity;
   readonly touchInteractionMode: () => TouchInteractionMode;
+  readonly touchInteractionModeForSlot: (slotId: ViewportSlotId) => TouchInteractionMode;
   readonly sectionAxis: () => SectionAxis;
   readonly sectionOffset: () => number;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (value: InteractionState) => void;
+  readonly getInspection: () => { readonly visible: boolean; readonly text: string };
+  readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
+  readonly setInspectionForSlot: (
+    slotId: ViewportSlotId,
+    value: { readonly visible: boolean; readonly text: string },
+  ) => void;
+  readonly interactionForSlot: (slotId: ViewportSlotId) => InteractionState;
+  readonly setInteractionForSlot: (slotId: ViewportSlotId, value: InteractionState) => void;
   readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
@@ -49,10 +59,13 @@ export interface WorkbenchInfrastructureOptions {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
-  readonly applySharedState: () => void;
+  readonly applyActiveState: () => void;
+  readonly applyState: (slotId: ViewportSlotId) => void;
+  readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
+  readonly removeShowState: (slotId: ViewportSlotId) => void;
   readonly rebuildVisibility: () => void;
   readonly feedback: (message: string) => void;
-  readonly onActiveSlotChanged: () => void;
+  readonly onActiveSlotChanged: (slotId: ViewportSlotId) => void;
 }
 
 export interface WorkbenchInfrastructure {
@@ -71,7 +84,6 @@ export function createWorkbenchInfrastructure(
     rendererName: options.rendererName,
     viewport: options.activeViewport,
     interactionViewport: options.activeViewport,
-    viewports: options.viewports,
     runtime: options.runtime,
     model: options.model,
     toggles: options.toggles,
@@ -86,6 +98,8 @@ export function createWorkbenchInfrastructure(
     sectionOffset: options.sectionOffset,
     interaction: options.interaction,
     setInteraction: options.setInteraction,
+    getInspection: options.getInspection,
+    setInspection: options.setInspection,
     hoverSlotId: "primary",
     canClearCanvasHover: options.canClearCanvasHover,
     markCanvasHover: options.markCanvasHover,
@@ -135,19 +149,24 @@ function createViewportSlots(
     primaryBoxPreview: features.boxPreview,
     createViewport: options.createViewport,
     getModel: options.model,
-    getInteraction: options.interaction,
-    setInteraction: options.setInteraction,
+    getInteraction: options.interactionForSlot,
+    setInteraction: options.setInteractionForSlot,
     canClearCanvasHover: options.canClearCanvasHover,
     markCanvasHover: options.markCanvasHover,
     clearCanvasHover: options.clearCanvasHover,
-    selectionGranularity: options.selectionGranularity,
-    touchInteractionMode: options.touchInteractionMode,
+    selectionGranularity: options.selectionGranularityForSlot,
+    touchInteractionMode: options.touchInteractionModeForSlot,
     menu: features.menu,
     render: options.render,
-    applySharedState: options.applySharedState,
+    applyActiveState: options.applyActiveState,
+    applyState: options.applyState,
+    cloneShowState: options.cloneShowState,
+    removeShowState: options.removeShowState,
     rebuildVisibility: options.rebuildVisibility,
     feedback: options.feedback,
-    setInspection: features.presentation.setInspection.bind(features.presentation),
+    setInspection: (slotId, text, visible) => {
+      options.setInspectionForSlot(slotId, { text, visible });
+    },
     selectionFeedback: features.presentation.setFeedback.bind(features.presentation),
     onActiveSlotChanged: options.onActiveSlotChanged,
   });
