@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    parseTet4Cells,
+    TET4_DENSE_DEFAULT_CELLS,
+    TET4_DENSE_MAX_CELLS,
+  } from "../../benchmark/dense-tet4";
   import type { WorkbenchController } from "../controllers/controller";
   import type { WorkbenchCommands, WorkbenchSnapshot } from "../results/snapshot";
 
@@ -13,6 +18,7 @@
   type ModelFile = Parameters<WorkbenchCommands["openModel"]>[0];
 
   let modelFileInput: { click(): void; value: string } | undefined;
+  let tet4Cells = $state(String(TET4_DENSE_DEFAULT_CELLS));
 
   function selectValue(event: unknown): string | undefined {
     const currentTarget = eventTarget(event);
@@ -30,6 +36,18 @@
     controller?.commands.setCatalogMode(
       snapshot?.model.mode === "performance" ? "ordinary" : "performance",
     );
+  }
+
+  function meshTet4(): void {
+    const cells = parseTet4Cells(tet4Cells);
+    if (cells === undefined) return;
+    controller?.commands.meshTet4(cells);
+  }
+
+  function meshTet4OnEnter(event: unknown): void {
+    if (typeof event !== "object" || event === null || !("key" in event)) return;
+    if (event.key !== "Enter") return;
+    meshTet4();
   }
 
   function openModel(): void {
@@ -106,6 +124,34 @@
       : "Enter Performance Lab"}
     onclick={toggleCatalogMode}>Performance Lab</button
   >
+  {#if snapshot?.model.mode === "performance"}
+    <label class="tet4-mesh" for="tet4-cells">
+      <span>Cells</span>
+      <input
+        id="tet4-cells"
+        data-testid="tet4-cells"
+        type="number"
+        inputmode="numeric"
+        min="1"
+        max={TET4_DENSE_MAX_CELLS}
+        step="1"
+        value={tet4Cells}
+        disabled={snapshot.model.selectionDisabled}
+        aria-label="Tet4 grid cells per axis"
+        oninput={(event) => {
+          tet4Cells = selectValue(event) ?? tet4Cells;
+        }}
+        onkeydown={meshTet4OnEnter}
+      />
+    </label>
+    <button
+      id="mesh-tet4"
+      data-testid="mesh-tet4"
+      type="button"
+      disabled={snapshot.model.selectionDisabled || parseTet4Cells(tet4Cells) === undefined}
+      onclick={meshTet4}>Mesh Tet4</button
+    >
+  {/if}
   <button
     id="open-model"
     data-testid="open-model"

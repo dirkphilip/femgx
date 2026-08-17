@@ -237,6 +237,7 @@ export interface WorkbenchSnapshotOwner {
 export interface WorkbenchCommands {
   setProjection(): void;
   setCatalogMode(mode: WorkbenchCatalogMode): void;
+  meshTet4(cells: number): void;
   setBackground(value: string): void;
   toggleEdges(): void;
   toggleNodes(): void;

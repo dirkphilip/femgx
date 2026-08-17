@@ -94,6 +94,17 @@ export interface SelectionBenchmarkReport {
   readonly phases: readonly SelectionBenchmarkPhase[];
 }
 
+export interface DenseBenchmarkBuild {
+  readonly generationMs: number;
+  readonly topologyMs: number;
+  readonly tessellationMs: number;
+  readonly transferPreparationMs: number;
+  readonly workerRoundTripMs: number;
+  readonly mainReconstructionMs: number;
+  readonly transferredBytes: number;
+  readonly finalRetainedTypedBytes: number;
+}
+
 export interface WebGpuBenchmarkCaseResult {
   readonly id: string;
   readonly name: string;
@@ -112,6 +123,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly submittedTriangles: number;
   readonly visibleTriangles: number;
   readonly modelBuildMs: number;
+  readonly denseBuild?: DenseBenchmarkBuild;
   readonly runtimeCompileMs: number;
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
@@ -134,7 +146,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 8;
+  readonly schemaVersion: 9;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {

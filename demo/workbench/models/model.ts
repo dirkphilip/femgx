@@ -119,7 +119,7 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
   const workerLoad = isWorkerBenchmarkSpec(spec)
     ? createBenchmarkWorkerLoad(spec, (result, transferMs) => {
         const reconstructionStart = performance.now();
-        const reconstructed = reconstructBenchmarkScene(result.payload);
+        const reconstructed = reconstructBenchmarkScene(result.payload, spec.id);
         const mainReconstructionMs = performance.now() - reconstructionStart;
         return createBenchmarkModelFromScene(spec, reconstructed.scene, {
           path: "worker",
@@ -187,7 +187,7 @@ function createBenchmarkModelFromScene(
 
 /** Returns whether a benchmark belongs on the dense worker path. */
 export function isWorkerBenchmarkSpec(spec: WebGpuBenchmarkSpec): boolean {
-  return spec.id === "fe-tet4-solid-132k" && spec.structuredFamily === "tet4";
+  return spec.kind === "structured-fe" && spec.structuredFamily === "tet4";
 }
 
 function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec["kind"]): number {

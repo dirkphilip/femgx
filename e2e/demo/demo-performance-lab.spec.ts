@@ -9,11 +9,11 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   const labSwitch = page.getByTestId("performance-lab");
   const canvas = page.getByTestId("view-canvas");
 
-  await expect(modelSelect.locator("option")).toHaveCount(7);
+  await expect(modelSelect.locator("option")).toHaveCount(6);
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "true");
-  await expect(modelSelect.locator("option")).toHaveCount(16);
+  await expect(modelSelect.locator("option")).toHaveCount(18);
   await expect(modelSelect).toHaveValue("");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
 
@@ -26,7 +26,7 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
 
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
-  await expect(modelSelect.locator("option")).toHaveCount(7);
+  await expect(modelSelect.locator("option")).toHaveCount(6);
   await expect(modelSelect).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
@@ -68,4 +68,16 @@ test("cancels a stale heavy FE build and completes the selected case", async ({ 
   await expect(canvas).toHaveAttribute("data-model", "fe-tet4-solid-132k", {
     timeout: 30_000,
   });
+});
+
+test("builds a configurable Tet4 solid through the dense worker", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("performance-lab").click();
+  await page.getByTestId("tet4-cells").fill("16");
+  await page.getByTestId("mesh-tet4").click();
+  await expect(canvas).toHaveAttribute("data-model", "fe-tet4-dense-16", {
+    timeout: 15_000,
+  });
+  await expect(page.getByText("24576 elements")).toBeVisible();
 });
