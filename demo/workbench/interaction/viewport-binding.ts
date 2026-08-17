@@ -36,7 +36,7 @@ export async function resolveViewportPoint(
     };
   },
 ): Promise<{ readonly hit: PickHit | undefined; readonly target: SelectTarget | undefined }> {
-  const granularity = selectionGranularity(request.granularity);
+  const granularity = request.granularity;
   const hit = await options
     .viewport()
     .interaction.pick(request.x, request.y, granularity === "edge" ? "edge" : undefined);
@@ -58,7 +58,7 @@ export function resolveViewportRegion(
   event: ViewportInteractionBoxEvent,
   granularity: InteractionGranularity,
 ): Promise<readonly InteractionTarget[]> {
-  return resolver({ event, granularity: selectionGranularity(granularity) });
+  return resolver({ event, granularity });
 }
 
 /** Applies the public installer's state through controller ownership. */
@@ -84,7 +84,7 @@ export function applyViewportInteraction(
   }
   const interaction = workbenchInteraction(options.getInteraction(), request);
   if (request.phase === "box") {
-    const granularity = selectionGranularity(request.granularity);
+    const granularity = request.granularity;
     const selectedCount = selectedTargetCount(interaction, granularity);
     options.selectionFeedback?.(
       `Box selection: ${selectedCount} ${selectionNoun(granularity, selectedCount)}`,
@@ -130,19 +130,6 @@ export function reportViewportInteractionError(
 ): void {
   const detail = error instanceof Error ? error.message : String(error);
   options.selectionFeedback?.(`Viewport ${phase} interaction failed: ${detail}`);
-}
-
-function selectionGranularity(value: InteractionGranularity): SelectionGranularity {
-  if (
-    value === "body" ||
-    value === "element" ||
-    value === "face" ||
-    value === "node" ||
-    value === "edge"
-  ) {
-    return value;
-  }
-  throw new TypeError(`Workbench interaction does not support ${value} granularity`);
 }
 
 function selectionNoun(granularity: SelectionGranularity, count: number): string {

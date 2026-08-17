@@ -34,10 +34,21 @@ export function selectAllTargets(
   granularity: SelectionGranularity,
 ): readonly SelectTarget[] {
   const targets: SelectTarget[] = [];
+  const selectedPartIds = new Set<number>();
   for (const instanceId of viewport.runtime.getVisibleInstanceIds()) {
     const instance = viewport.runtime.getInstance(instanceId);
     const part = instance === undefined ? undefined : viewport.scene.parts.get(instance.partId);
     if (part === undefined) continue;
+    if (granularity === "part") {
+      if (selectedPartIds.has(part.id)) continue;
+      selectedPartIds.add(part.id);
+      targets.push({ kind: "part", partId: part.id });
+      continue;
+    }
+    if (granularity === "instance") {
+      targets.push({ kind: "instance", instanceId });
+      continue;
+    }
     const elementIds = new Set(
       visibleElements(viewport, part, instanceId).map((element) => element.id),
     );

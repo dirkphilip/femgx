@@ -13,9 +13,15 @@ import type { InteractionTarget } from "./support";
 
 describe("workbench modifiers", () => {
   it.each([
-    ["face", { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 }],
-    ["node", { kind: "node", instanceId: "instance-a", nodeId: 3 }],
-  ] as const)("box selection uses %s targets", async (granularity, target) => {
+    ["part", { kind: "part", partId: 1 }, "p:1"],
+    ["instance", { kind: "instance", instanceId: "instance-a" }, "i:instance-a"],
+    [
+      "face",
+      { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 },
+      "f:instance-a:2:1",
+    ],
+    ["node", { kind: "node", instanceId: "instance-a", nodeId: 3 }, "n:instance-a:3"],
+  ] as const)("box selection uses %s targets", async (granularity, target, expectedKey) => {
     const pickRegion = vi.fn(() => Promise.resolve([target, target] as const));
     const { workbench, render, selectionFeedback, getInteraction } = harness(
       undefined,
@@ -27,9 +33,7 @@ describe("workbench modifiers", () => {
     await workbench.selectBox(complete());
 
     expect(pickRegion).toHaveBeenCalledWith(rect(), granularity);
-    expect(selectedKeys(getInteraction())).toEqual([
-      granularity === "face" ? "f:instance-a:2:1" : "n:instance-a:3",
-    ]);
+    expect(selectedKeys(getInteraction())).toEqual([expectedKey]);
     expect(selectionFeedback).toHaveBeenLastCalledWith(`Box selection: 1 ${granularity}`);
     expect(render).toHaveBeenCalledOnce();
   });

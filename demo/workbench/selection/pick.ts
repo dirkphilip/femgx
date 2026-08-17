@@ -9,7 +9,7 @@ import type { BodyId, ElementId } from "../../../src/entries/model";
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<
   InteractionGranularity,
-  "body" | "element" | "face" | "node" | "edge"
+  "part" | "instance" | "body" | "element" | "face" | "node" | "edge"
 >;
 
 /** A stable selection identity at any supported granularity. */
@@ -22,8 +22,8 @@ export type SelectTarget = InteractionTarget & {
 /**
  * Maps a GPU pick target to the active selection granularity. Shift promotes
  * face and node targets to their owning element and Alt to the instance;
- * Control/Meta remain additive selection modifiers. Body mode stays coarse when
- * Shift is held, while authored edges have no single owner.
+ * Control/Meta remain additive selection modifiers. Part and instance modes
+ * stay at their selected scope, while authored edges have no single owner.
  */
 export function selectTarget(
   hit: PickHit,
@@ -39,7 +39,11 @@ export function selectTarget(
     hit,
     modifiers.altKey
       ? "instance"
-      : modifiers.shiftKey && granularity !== "edge" && granularity !== "body"
+      : modifiers.shiftKey &&
+          granularity !== "part" &&
+          granularity !== "instance" &&
+          granularity !== "edge" &&
+          granularity !== "body"
         ? "element"
         : granularity,
     modifiers,
@@ -73,6 +77,8 @@ function mapTarget(
   };
   return modifiers.shiftKey &&
     !modifiers.altKey &&
+    selectedTarget.kind !== "part" &&
+    selectedTarget.kind !== "instance" &&
     selectedTarget.kind !== "edge" &&
     selectedTarget.kind !== "body"
     ? elementTarget(selectedTarget)
