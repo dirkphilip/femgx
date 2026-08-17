@@ -1319,7 +1319,7 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
-  it("submits complete solid topology after element visibility exposes an interior", async () => {
+  it("submits a compact solid skin after element visibility exposes an interior", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();
     installNavigator(gpu.device);
@@ -1344,9 +1344,9 @@ describe("WebGPU renderer", () => {
     );
     renderer.render(runtime, camera, scene.parts);
 
-    expect(readGpuCostSnapshot(renderer).draws.opaque.indices).toBe(6);
+    expect(readGpuCostSnapshot(renderer).draws.opaque.indices).toBe(3);
     await renderer.pick(400, 300);
-    expect(readGpuCostSnapshot(renderer).draws.pick.indices).toBe(6);
+    expect(readGpuCostSnapshot(renderer).draws.pick.indices).toBe(3);
     renderer.destroy();
   });
 });

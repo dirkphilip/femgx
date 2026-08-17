@@ -157,8 +157,8 @@ export class GpuRenderer implements WebGpuRenderer {
   public resetScene(parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
     this.sectionCaps.reset(this.lifecycle.bundle.draw);
+    this.attachment.clear(this.lifecycle.bundle);
     this.attachment.prepareParts(parts, this.lifecycle.bundle);
-    this.attachment.clear();
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
     this.sourceParts = undefined;
@@ -377,7 +377,7 @@ export class GpuRenderer implements WebGpuRenderer {
         this.lifecycle.bundle.device,
         this.timestampQueriesRequested,
       );
-      this.attachment.clear();
+      this.attachment.clear(this.lifecycle.bundle);
       this.sectionCaps.recover(this.parts, this.resultColors);
       this.picking.resetAfterRecovery();
       writeBackgroundColors(

@@ -107,7 +107,7 @@ export interface InstanceStorage {
   subsetTransparentBindGroup: GPUBindGroup | undefined;
 }
 
-interface InstanceStorageOwner {
+export interface InstanceStorageOwner {
   readonly device: GPUDevice;
   readonly cost: GpuCostAccumulator;
   readonly storages: Map<number, InstanceStorage>;

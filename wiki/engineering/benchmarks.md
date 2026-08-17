@@ -26,40 +26,41 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 ### Covered workloads
 
-| Case                              | Model                             | Workload                                                     |
-| --------------------------------- | --------------------------------- | ------------------------------------------------------------ |
-| public runtime rebuild scaling    | 50k / 100k / 200k placements      | exported `createSceneRuntime`                                |
-| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements | exported `FemViewport.setScene`                              |
-| `createSceneRuntime` (deep)       | balanced tree, 204 800 instances  | nested transform composition                                 |
-| structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements      | exported `elementPart`                                       |
-| `createElementModelFromFemModel`  | 250 000 Triangle3 elements        | typed connectivity conversion                                |
-| `createPart` (face subset)        | 20 000 declared/selected faces    | linear face identity validation                              |
-| `buildFaceSubsetIndices`          | 20 000 declared/selected faces    | declared-order compact index construction                    |
-| `displayedPartBounds` (subset)    | 20 000 selected triangles         | indexed face visibility and bounds                           |
-| `setPartVisible` toggle           | part with 1 000 instances         | hide then show                                               |
-| `setAssemblyVisible` toggle       | subcase with 2 000 instances      | hide then show                                               |
-| `setInstanceVisible` toggle       | single instance                   | override, hide then show                                     |
-| host surface variant update       | 1 024 / 4 096 / 16 384 placements | `FemViewport.updateScene` with one stable occurrence rebound |
-| `getDrawList`                     | 200 000 visible                   | rebuild draw list                                            |
-| `sceneWorldBounds`                | 32 768 triangles × 64 placements  | reusable-part bounds and world transforms                    |
-| `resolvePick`                     | 50 000 lookups on 200 000         | O(1) index resolution                                        |
-| many-part scene scaling           | 1 024 / 2 048 / 4 096 parts       | register, place, snapshot, and compile                       |
-| `setTargetsSelected`              | 16 384 element targets            | one duplicate-safe immutable bulk transition                 |
-| `setTargetsHighlighted`           | 8 192 element targets             | one duplicate-safe immutable bulk transition                 |
-| `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets   | duplicate-safe bulk transition                               |
-| element interaction scaling       | 1 024 / 4 096 / 16 384 targets    | select, enumerate, and clear                                 |
-| pick-region resolution scaling    | 16 384 / 100 000 element ids      | indexed identity resolution                                  |
-| `immutable part ownership lookup` | 16 384 element ids                | cached element-to-body metadata map reads                    |
-| `collectEmphasisUpdates`          | 16 384 selected elements          | cached ownership and one reusable sync snapshot              |
-| `buildHighlightTable`             | 16 384 emphasis records           | bounded four-entry hash buckets                              |
-| `encodeEmphasisRecord` mirror     | 16 384 emphasis records           | CPU highlight-buffer preparation                             |
-| `elementPart`                     | 600 mixed linear elements         | grouped triangle/line/point tessellation                     |
-| `elementPart` (large node pool)   | 500 000 nodes / one Tet4          | volume tessellation without a transient node copy            |
-| `expand line geometry`            | 10,000 authored line segments     | one reusable four-corner triangle quad per segment           |
-| `createPart`                      | 16 384 quads / 256 bodies         | element/body/face validation                                 |
-| `elementPart`                     | 16 384 FE quads / 256 bodies      | body-aware canonical tessellation                            |
-| primitive topology ids            | 16 384 quads / 256 bodies         | face/body/element GPU-id preparation                         |
-| body-aware mesh edges             | 16 384 quads / 256 bodies         | edge topology and ownership preparation                      |
+| Case                              | Model                                  | Workload                                                          |
+| --------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| public runtime rebuild scaling    | 50k / 100k / 200k placements           | exported `createSceneRuntime`                                     |
+| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `FemViewport.setScene`                                   |
+| `createSceneRuntime` (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
+| structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `elementPart`                                            |
+| `createElementModelFromFemModel`  | 250 000 Triangle3 elements             | typed connectivity conversion                                     |
+| `createPart` (face subset)        | 20 000 declared/selected faces         | linear face identity validation                                   |
+| `buildFaceSubsetIndices`          | 20 000 declared/selected faces         | declared-order compact index construction                         |
+| `displayedPartBounds` (subset)    | 20 000 selected triangles              | indexed face visibility and bounds                                |
+| `setPartVisible` toggle           | part with 1 000 instances              | hide then show                                                    |
+| `setAssemblyVisible` toggle       | subcase with 2 000 instances           | hide then show                                                    |
+| `setInstanceVisible` toggle       | single instance                        | override, hide then show                                          |
+| host surface variant update       | 1 024 / 4 096 / 16 384 placements      | `FemViewport.updateScene` with one stable occurrence rebound      |
+| resident visibility skin update   | 1 / 2 / 4 / 8 elements and occurrences | one hidden element, shared signature, and exterior-subset restore |
+| `getDrawList`                     | 200 000 visible                        | rebuild draw list                                                 |
+| `sceneWorldBounds`                | 32 768 triangles × 64 placements       | reusable-part bounds and world transforms                         |
+| `resolvePick`                     | 50 000 lookups on 200 000              | O(1) index resolution                                             |
+| many-part scene scaling           | 1 024 / 2 048 / 4 096 parts            | register, place, snapshot, and compile                            |
+| `setTargetsSelected`              | 16 384 element targets                 | one duplicate-safe immutable bulk transition                      |
+| `setTargetsHighlighted`           | 8 192 element targets                  | one duplicate-safe immutable bulk transition                      |
+| `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets        | duplicate-safe bulk transition                                    |
+| element interaction scaling       | 1 024 / 4 096 / 16 384 targets         | select, enumerate, and clear                                      |
+| pick-region resolution scaling    | 16 384 / 100 000 element ids           | indexed identity resolution                                       |
+| `immutable part ownership lookup` | 16 384 element ids                     | cached element-to-body metadata map reads                         |
+| `collectEmphasisUpdates`          | 16 384 selected elements               | cached ownership and one reusable sync snapshot                   |
+| `buildHighlightTable`             | 16 384 emphasis records                | bounded four-entry hash buckets                                   |
+| `encodeEmphasisRecord` mirror     | 16 384 emphasis records                | CPU highlight-buffer preparation                                  |
+| `elementPart`                     | 600 mixed linear elements              | grouped triangle/line/point tessellation                          |
+| `elementPart` (large node pool)   | 500 000 nodes / one Tet4               | volume tessellation without a transient node copy                 |
+| `expand line geometry`            | 10,000 authored line segments          | one reusable four-corner triangle quad per segment                |
+| `createPart`                      | 16 384 quads / 256 bodies              | element/body/face validation                                      |
+| `elementPart`                     | 16 384 FE quads / 256 bodies           | body-aware canonical tessellation                                 |
+| primitive topology ids            | 16 384 quads / 256 bodies              | face/body/element GPU-id preparation                              |
+| body-aware mesh edges             | 16 384 quads / 256 bodies              | edge topology and ownership preparation                           |
 
 ### Stable model sizes and warmup rules
 
@@ -91,6 +92,16 @@ the variant-update regression keeps one stable placement rebound while the
 remaining placements and a shared destination variant stay unchanged. This
 distinction prevents a full next-runtime compile from being mistaken for
 geometry upload or unrelated GPU storage work.
+
+Fully resident visibility evidence is separate from host replacement evidence.
+The focused renderer regression compares one hidden element against its
+exterior subset: submitted surface and pick indices remain the compact visible
+skin count, while an unaffected repeated occurrence keeps the exterior subset.
+Repeated occurrences with the same sparse body/element signature reuse one
+GPU index buffer. Restoring visibility releases inactive skin storage. The
+bounded cache retains at most two full-order equivalents per part (64 KiB
+minimum, 16 MiB maximum); budget overflow is reported by the correct complete
+topology fallback rather than a guessed surface.
 
 ### Interpreting budgets
 

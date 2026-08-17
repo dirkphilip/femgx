@@ -11,12 +11,13 @@ import {
   destroyInstancePartResources,
   destroyInstanceResources,
   patchInstances,
-  writeDrawOrder,
   type DrawResources,
 } from "../resources/draw-resources";
-import { rebuildEdgeOrders, rebuildTransparentOrders } from "../attachment-orders";
+import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { syncVisibleSelectionOrders, writeNodeOrders } from "../selection-state";
-import { rebuildAttachmentCalls } from "../attachment-calls";
+import { rebuildAttachmentCalls } from "./calls";
+import { rebuildVisibilitySurface } from "../visibility/skins";
+import { writeDrawOrder } from "../resources/instance-storage";
 
 /** Returns current slots whose instance record changed across a runtime revision. */
 export function attachmentChangedSlots(
@@ -208,12 +209,7 @@ export function rebuildAttachmentOrders(options: {
   const activeParts = new Set(
     [...options.parts].filter((partId) => options.layout.partSlots.has(partId)),
   );
-  for (const partId of activeParts) {
-    options.bundle.draw.cost.cpu("order-rebuild", 1);
-    const order = buildDrawOrder(options.layout, options.runtime, partId);
-    writeDrawOrder(options.bundle.draw, partId, order);
-    options.layout.partVisibleCounts.set(partId, order.length);
-  }
+  rebuildSurfaceOrders(options, activeParts);
   rebuildEdgeOrders({
     runtime: options.runtime,
     layout: options.layout,
@@ -245,6 +241,28 @@ export function rebuildAttachmentOrders(options: {
   });
   options.layout.visibleCount = options.runtime.visibleCount;
   return rebuildAttachmentCalls(options.layout, options.bundle.draw.cost);
+}
+
+function rebuildSurfaceOrders(
+  options: Parameters<typeof rebuildAttachmentOrders>[0],
+  activeParts: ReadonlySet<PartId>,
+): void {
+  for (const partId of activeParts) {
+    options.bundle.draw.cost.cpu("order-rebuild", 1);
+    const part = options.partDefinitions.get(partId);
+    if (part === undefined) {
+      options.layout.partSurfaceDrawCalls.delete(partId);
+      options.layout.partVisibleCounts.set(partId, 0);
+      continue;
+    }
+    rebuildVisibilitySurface({
+      runtime: options.runtime,
+      layout: options.layout,
+      part,
+      interaction: options.interaction,
+      draw: options.bundle.draw,
+    });
+  }
 }
 
 function instanceSlots(runtime: PackedSceneRuntime): ReadonlyMap<string, number> {

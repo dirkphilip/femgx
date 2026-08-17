@@ -1,6 +1,7 @@
 import type { Part, PartId } from "../../geometry/part";
 import { type InteractionState } from "../../interaction/interaction";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
+import { diffNestedSetMembers } from "../../interaction/mechanics";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { InstanceId } from "../../scene/types";
 import type { GpuBundle } from "../recovery";
@@ -14,8 +15,8 @@ import {
 } from "../interaction-sync";
 import { syncEdgeEmphasisFlags } from "../edges/emphasis-sync";
 import { syncSelectionState, type SelectionState } from "../selection-state";
-import { rebuildEdgeOrders, rebuildTransparentOrders } from "../attachment-orders";
-import { rebuildAttachmentCalls } from "../attachment-calls";
+import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
+import { rebuildAttachmentCalls } from "./calls";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -43,7 +44,11 @@ export function syncAttachmentInteraction(options: {
   readonly attached: boolean;
   readonly fullSync: boolean;
   readonly changedSlots: readonly number[];
-}): { readonly changed: boolean; readonly calls: DrawCallLists | undefined } {
+}): {
+  readonly changed: boolean;
+  readonly calls: DrawCallLists | undefined;
+  readonly visibilityParts?: ReadonlySet<PartId>;
+} {
   const state = options.state;
   const previousInteraction = state.beforeLastInstanceUpdate ?? state.interaction;
   const scope = interactionScope({ ...options, previousInteraction });
@@ -79,7 +84,13 @@ export function syncAttachmentInteraction(options: {
       : undefined;
   state.interaction = options.interaction;
   state.beforeLastInstanceUpdate = undefined;
-  return { changed: options.attached || visibilityChanged, calls };
+  return {
+    changed: options.attached || visibilityChanged,
+    calls,
+    ...(visibilityChanged && scope.visibilityParts.size > 0
+      ? { visibilityParts: scope.visibilityParts }
+      : {}),
+  };
 }
 
 function interactionScope(options: {
@@ -92,6 +103,7 @@ function interactionScope(options: {
 }): {
   readonly slots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
+  readonly visibilityParts: ReadonlySet<PartId>;
   readonly dirtyParts: ReturnType<typeof interactionDirtyParts>;
 } {
   const slots = interactionAffectedSlots(
@@ -104,6 +116,7 @@ function interactionScope(options: {
   return {
     slots,
     affectedParts: partsForSlots(options.runtime, options.layout, slots, options.fullSync),
+    visibilityParts: visibilityAffectedParts(options),
     dirtyParts: interactionDirtyParts(
       options.runtime,
       options.layout,
@@ -114,12 +127,52 @@ function interactionScope(options: {
   };
 }
 
+function visibilityAffectedParts(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly previousInteraction: InteractionState;
+  readonly interaction: InteractionState;
+  readonly fullSync: boolean;
+  readonly changedSlots: readonly number[];
+}): ReadonlySet<PartId> {
+  if (options.fullSync) return new Set(options.layout.partOrder);
+  const slots = new Set(options.changedSlots);
+  const previous = readInteractionState(options.previousInteraction);
+  const next = readInteractionState(options.interaction);
+  const addInstance = (instanceId: string): void => {
+    const slot = options.runtime.getInstanceSlot(instanceId);
+    if (slot !== undefined) slots.add(slot);
+  };
+  diffNestedSetMembers(previous.hiddenBodyIds, next.hiddenBodyIds, addInstance);
+  diffNestedSetMembers(previous.hiddenElementIds, next.hiddenElementIds, addInstance);
+  const hiddenChanged =
+    previous.hiddenBodyIds !== next.hiddenBodyIds ||
+    previous.hiddenElementIds !== next.hiddenElementIds;
+  return hiddenChanged
+    ? partsForSlots(options.runtime, options.layout, [...slots], false)
+    : new Set();
+}
+
 function updateHiddenState(state: AttachmentInteractionState, data: InteractionStateData): boolean {
   const previous = state.appliedHiddenIds;
   const next: HiddenInteractionTuple = [data.hiddenBodyIds, data.hiddenElementIds];
   state.appliedHiddenIds = next;
   state.usesExteriorFaceSubsets = !hasHiddenInteractionIds(next);
-  return previous[0] !== next[0] || previous[1] !== next[1];
+  return !hiddenIdsEqual(previous[0], next[0]) || !hiddenIdsEqual(previous[1], next[1]);
+}
+
+function hiddenIdsEqual(previous: HiddenInteractionIds, next: HiddenInteractionIds): boolean {
+  if (previous === next) return true;
+  if (previous === undefined || next === undefined) {
+    return (previous?.size ?? 0) === 0 && (next?.size ?? 0) === 0;
+  }
+  if (previous.size !== next.size) return false;
+  for (const [instanceId, previousIds] of previous) {
+    const nextIds = next.get(instanceId);
+    if (nextIds === undefined || nextIds.size !== previousIds.size) return false;
+    for (const id of previousIds) if (!nextIds.has(id)) return false;
+  }
+  return true;
 }
 
 function syncBuffers(options: {

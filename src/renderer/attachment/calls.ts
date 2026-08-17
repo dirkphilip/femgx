@@ -1,5 +1,5 @@
-import type { GpuCostAccumulator } from "./diagnostics/cost";
-import { buildDrawCalls, type DrawCallLists, type InstanceLayout } from "./runtime-state";
+import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { buildDrawCalls, type DrawCallLists, type InstanceLayout } from "../runtime-state";
 
 /** Rebuilds the compact per-pass call lists, including the empty attachment state. */
 export function rebuildAttachmentCalls(

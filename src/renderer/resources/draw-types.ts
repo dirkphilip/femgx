@@ -8,6 +8,7 @@ import type { ColorTargets } from "./color-targets";
 import type { HighlightStorage } from "../selection/highlight-storage";
 import type { InstanceStorage } from "./instance-storage";
 import type { PartResource } from "./foundation";
+import type { VisibilitySkinCache } from "../visibility/types";
 
 /** Cached state used to avoid re-evaluating unchanged feature admission. */
 export interface PipelineAdmissionCacheEntry {
@@ -30,6 +31,8 @@ export interface DrawResources {
   readonly primitiveParts: Map<PartId, Map<Primitive, PartResource>>;
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
+  /** Bounded compact surface skins keyed by effective body/element visibility. */
+  readonly visibilitySkins: Map<PartId, VisibilitySkinCache>;
   readonly admissionCache: Map<PartId, PipelineAdmissionCacheEntry>;
   /** Fixed device-scoped binding for inactive order sidecars. */
   readonly emptyOrderBuffer: GPUBuffer;

@@ -8,6 +8,7 @@ import type { DrawResources } from "./draw-types";
 import { destroyColorTargets } from "./color-targets";
 import type { PartResource } from "./foundation";
 import { destroyInstanceResources } from "./instance-lifecycle";
+import { destroyVisibilitySkinCache, destroyVisibilitySkinCaches } from "../visibility/skins";
 
 /** Releases one uploaded part geometry resource, including optional overlays. */
 export function destroyPartResource(resource: PartResource): void {
@@ -49,6 +50,7 @@ export function destroyDrawResources(draw: DrawResources): void {
   for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
   draw.parts.clear();
   draw.nodeParts.clear();
+  destroyVisibilitySkinCaches(draw);
   destroyInstanceResources(draw);
   destroyDeformationBuffers(draw.deformations, draw.cost);
   draw.deformations.clear();
@@ -64,6 +66,7 @@ export function destroyDrawResources(draw: DrawResources): void {
 
 /** Releases all cached resources derived from one changed part definition. */
 export function destroyPartResources(draw: DrawResources, partId: PartId): void {
+  destroyVisibilitySkinCache(draw, partId);
   const resources = draw.primitiveParts.get(partId);
   if (resources !== undefined) {
     for (const resource of resources.values()) destroyPartResource(resource);
