@@ -50,6 +50,7 @@ export function applyControllerResultModeForSlot(
     model: owner.model,
     mode: state.resultMode,
     scalar: scalarFieldForModel(owner.model, state.scalarFieldId),
+    scalarPartId: owner.model.resultScalarPartIds?.get(state.scalarFieldId),
     deformationScale: state.deformationScale,
     vector: vectorConfigForDisplay(owner.model, state.vectorDisplay),
     playback: resultPlaybackStepForState(owner.model, state),

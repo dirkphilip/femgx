@@ -56,11 +56,13 @@ Mapped colors are plain `Color` values. Elemental and nodal results resolve into
 one dense renderer-owned color table per reusable part: elemental values use
 private element ordinals, while nodal values use exact one-based node pick ids
 and the existing tessellation interpolates them on the GPU. Both paths preserve
-host interaction state and share the table across placements.
+host interaction state and share the table across placements. A scalar config
+may name one reusable `partId` when the dense field is part-local; omitting it
+retains the scene-wide identity contract.
 
 ## Canonical viewport workflow
 
-`ViewportResults.set({ scalar, deformation, vectors })` composes these
+`ViewportResults.set({ scalar, deformation, vectors, loads })` composes these
 helpers into one atomic authored result snapshot. Each role is optional, but
 at least one must be present. An authored scalar field may be nodal or
 elemental. Nodal values map through exact node pick ids and interpolate over
@@ -86,6 +88,11 @@ node pick id or private element ordinal; they never appear in interaction state
 or in `ViewportResultsState`. One table belongs to each reusable part and is
 shared by all placements. Replacing results reuses the same scene/runtime and
 updates only renderer-owned color, deformation, and glyph state.
+
+An independent `loads` role accepts a part-owned `NodalLoadField` with force
+`Fx/Fy/Fz` and moment `Mx/My/Mz` triplets. Its `forceUnit` and `momentUnit`
+remain explicit, and `forceLengthScale` / `momentLengthScale` describe
+part-local presentation units per authored force / moment unit.
 An `ElementFrameField` may instead be supplied with `glyph: "triad"`; each
 complete dense row renders one positive RGB X/Y/Z line set through the same
 anchor, transform, deformation, visibility, section, depth-visible/weighted

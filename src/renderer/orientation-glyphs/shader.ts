@@ -125,7 +125,8 @@ fn arrowHeadVertex(
 }
 
 fn glyphDirection(record: GlyphRecord, instance: Instance, slot: u32) -> vec3<f32> {
-  if (glyphParams.transformMode == 1u) {
+  let transformMode = select(glyphParams.transformMode, (record.ids.w >> 8u) & 1u, record.ids.w != 0xffffffffu);
+  if (transformMode == 1u) {
     let matrix = glyphNormalMatrices[slot];
     return finiteDirection(
       matrix.column0.xyz * record.direction.x +
@@ -134,6 +135,10 @@ fn glyphDirection(record: GlyphRecord, instance: Instance, slot: u32) -> vec3<f3
     );
   }
   return finiteDirection((instance.transform * vec4<f32>(record.direction.xyz, 0.0)).xyz);
+}
+
+fn glyphMode(record: GlyphRecord) -> u32 {
+  return select(glyphParams.mode, record.ids.w & 255u, record.ids.w != 0xffffffffu);
 }
 
 fn glyphVisible(slot: u32, record: GlyphRecord) -> bool {
@@ -150,6 +155,7 @@ fn glyphVertex(
   let slot = drawOrder[occurrenceIndex];
   let instance = instances[slot];
   let record = glyphRecords[glyphIndex];
+  let mode = glyphMode(record);
   let direction = glyphDirection(record, instance, slot);
   let glyphLength = max(record.anchorLength.w * glyphParams.lengthScale, 0.0);
   let localAnchor = record.anchorLength.xyz + record.anchorDelta.xyz * deformation.scale;
@@ -157,7 +163,7 @@ fn glyphVertex(
   let directionLength = length(direction);
   var start = anchor;
   var end = anchor + direction * glyphLength;
-  if (glyphParams.mode == 1u) {
+  if (mode == 1u) {
     start = anchor - direction * (glyphLength * 0.5);
     end = anchor + direction * (glyphLength * 0.5);
   }
@@ -168,7 +174,7 @@ fn glyphVertex(
   if (directionLength > 0.0 && glyphVisible(slot, record)) {
     if (vertexIndex < 6u) {
       position = segmentVertex(clipStart, clipEnd, vertexIndex % 4u, width);
-    } else if (glyphParams.mode == 0u) {
+    } else if (mode == 0u) {
       position = arrowHeadVertex(clipStart, clipEnd, (vertexIndex - 6u) % 3u, width);
     }
   }
@@ -176,7 +182,7 @@ fn glyphVertex(
   output.position = position;
   output.worldPosition = select(anchor, end, vertexIndex >= 6u);
   output.axis = record.ids.z;
-  output.triad = select(0u, 1u, glyphParams.mode == 2u);
+  output.triad = select(0u, 1u, mode == 2u);
   return output;
 }
 

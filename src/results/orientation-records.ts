@@ -20,6 +20,12 @@ export interface ElementalOrientationRecords {
   readonly directions: Float32Array;
   /** RGB axis index per record; zero for ordinary vector glyph records. */
   readonly axisIndices?: Uint32Array;
+  /** Per-record glyph mode: 0 arrow, 1 axis, 2 triad, 3 arc segment. */
+  readonly glyphModes?: Uint32Array;
+  /** Per-record normal transform flag; zero is direction, one is normal. */
+  readonly transformModes?: Uint32Array;
+  /** Optional per-record multiplier folded into the authored reference length. */
+  readonly lengthScales?: Float32Array;
   readonly anchorDeltas: Float32Array | undefined;
 }
 

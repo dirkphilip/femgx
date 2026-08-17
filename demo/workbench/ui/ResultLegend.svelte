@@ -91,6 +91,20 @@
       <span>Faded fragments are behind opaque model geometry</span>
     </div>
   {/if}
+  {#if snapshot?.overlays.resultLegend.loads}
+    {@const loads = snapshot.overlays.resultLegend.loads}
+    <div id="result-legend-loads" data-testid="result-legend-loads" class="legend-role">
+      <strong>Loads</strong>
+      <span
+        >{loads.field.name} · Nodal · Force {loads.field.forceUnit} · Moment {loads.field
+          .momentUnit}</span
+      >
+      <span
+        >Straight force arrows + curved moment arrows · Width {formatNumber(loads.widthPixels)} CSS px</span
+      >
+      <span>Authored at part-local nodes · Not pick targets</span>
+    </div>
+  {/if}
   {#if snapshot && hasActiveSection()}
     <div id="result-legend-section" data-testid="result-legend-section" class="legend-role">
       <strong>Section</strong>

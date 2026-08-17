@@ -5,6 +5,7 @@ import {
   resolveElementalOrientationRecords,
   type ElementalOrientationRecords,
 } from "../results/orientation-records";
+import { resolveNodalLoadRecords } from "../results/load-records";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type {
@@ -12,6 +13,7 @@ import type {
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
+  ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,
 } from "./results-types";
@@ -27,6 +29,11 @@ export interface ResolvedVectors {
   readonly records: OrientationRecordMap;
 }
 
+export interface ResolvedLoads {
+  readonly config: ViewportLoadConfig;
+  readonly records: OrientationRecordMap;
+}
+
 /** Validates the runtime-facing result role boundary before any role is resolved. */
 export function validateResultsConfig(config: ViewportResultsConfig): void {
   if (!isRecord(config)) throw new Error("Viewport results config must be an object");
@@ -34,13 +41,15 @@ export function validateResultsConfig(config: ViewportResultsConfig): void {
   const hasRole =
     roles["scalar"] !== undefined ||
     roles["deformation"] !== undefined ||
-    roles["vectors"] !== undefined;
+    roles["vectors"] !== undefined ||
+    roles["loads"] !== undefined;
   if (!hasRole) {
-    throw new Error("Viewport results config must include scalar, deformation, or vectors");
+    throw new Error("Viewport results config must include scalar, deformation, vectors, or loads");
   }
   if (roles["scalar"] !== undefined) validateScalarConfig(roles["scalar"]);
   if (roles["deformation"] !== undefined) validateDeformationConfig(roles["deformation"]);
   if (roles["vectors"] !== undefined) validateVectorConfig(roles["vectors"]);
+  if (roles["loads"] !== undefined) validateLoadConfig(roles["loads"]);
 }
 
 /** Resolves elemental vectors and their renderer-owned per-part records. */
@@ -52,19 +61,26 @@ export function resolveVectors(
 ): ResolvedVectors | undefined {
   if (config === undefined) return undefined;
   const records = new Map<PartId, ElementalOrientationRecords>();
+  const lengthScale = config.lengthScale ?? 1;
   for (const partId of renderedPartIds(runtime)) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
+    if (config.glyph !== "triad" && config.partId !== undefined && partId !== config.partId)
+      continue;
     if (config.glyph === "triad" && partId !== config.field.partId) continue;
     const displacements = deformation?.displacements.get(partId);
     records.set(
       partId,
-      config.glyph === "triad"
-        ? resolveElementalFrameRecords(part, config.field, displacements)
-        : resolveElementalOrientationRecords(part, config.field, displacements),
+      decorateRecords(
+        config.glyph === "triad"
+          ? resolveElementalFrameRecords(part, config.field, displacements)
+          : resolveElementalOrientationRecords(part, config.field, displacements),
+        config.glyph === "triad" ? 2 : config.glyph === "axis" ? 1 : 0,
+        config.glyph === "triad" ? "direction" : config.transform,
+        lengthScale,
+      ),
     );
   }
-  const lengthScale = config.lengthScale ?? 1;
   const widthPixels = config.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS;
   if (config.glyph === "triad") {
     return {
@@ -92,6 +108,47 @@ export function resolveVectors(
   };
 }
 
+/** Resolves the independent authored nodal-load presentation role. */
+export function resolveLoads(
+  config: ViewportLoadConfig | undefined,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  deformation: DeformationState | undefined,
+): ResolvedLoads | undefined {
+  if (config === undefined) return undefined;
+  const records = new Map<PartId, ElementalOrientationRecords>();
+  for (const partId of renderedPartIds(runtime)) {
+    const part = scene.parts.get(partId);
+    if (part === undefined) continue;
+    if (partId !== config.field.partId) continue;
+    records.set(
+      partId,
+      resolveNodalLoadRecords(
+        part,
+        config.field,
+        deformation?.displacements.get(partId),
+        config.forceLengthScale ?? 1,
+        config.momentLengthScale ?? 1,
+      ),
+    );
+  }
+  return { config, records };
+}
+
+function decorateRecords(
+  records: ElementalOrientationRecords,
+  glyphMode: number,
+  transform: "direction" | "normal",
+  lengthScale: number,
+): ElementalOrientationRecords {
+  return {
+    ...records,
+    glyphModes: new Uint32Array(records.elementIds.length).fill(glyphMode),
+    transformModes: new Uint32Array(records.elementIds.length).fill(transform === "normal" ? 1 : 0),
+    lengthScales: new Float32Array(records.elementIds.length).fill(lengthScale),
+  };
+}
+
 /** Returns the distinct part definitions represented by a packed runtime. */
 export function renderedPartIds(runtime: PackedSceneRuntime): ReadonlySet<PartId> {
   const partIds = new Set<PartId>();
@@ -106,6 +163,7 @@ function validateScalarConfig(value: unknown): void {
   if (!isRecord(value) || !isScalarField(value["field"])) {
     throw new Error("Viewport scalar role requires a nodal or elemental scalar field");
   }
+  validateOptionalPartId(value["partId"], "scalar");
 }
 
 function validateDeformationConfig(value: unknown): void {
@@ -138,6 +196,7 @@ function validateVectorConfig(value: unknown): void {
   ) {
     throw new Error("Viewport vector lengthScale must be finite and positive");
   }
+  validateOptionalPartId(value["partId"], "vector");
   if (
     value["widthPixels"] !== undefined &&
     (typeof value["widthPixels"] !== "number" ||
@@ -147,6 +206,38 @@ function validateVectorConfig(value: unknown): void {
   ) {
     throw new Error(
       `Viewport vector widthPixels must be finite and between ${MIN_VECTOR_WIDTH_PIXELS} and ${MAX_VECTOR_WIDTH_PIXELS}`,
+    );
+  }
+}
+
+function validateOptionalPartId(value: unknown, role: "scalar" | "vector"): void {
+  if (value !== undefined && (typeof value !== "number" || !Number.isInteger(value) || value < 0)) {
+    throw new Error(`Viewport ${role} partId must be a non-negative integer`);
+  }
+}
+
+function validateLoadConfig(value: unknown): void {
+  if (!isRecord(value) || !isNodalLoadField(value["field"])) {
+    throw new Error("Viewport loads role requires a nodal load field");
+  }
+  for (const [name, raw] of [
+    ["forceLengthScale", value["forceLengthScale"]],
+    ["momentLengthScale", value["momentLengthScale"]],
+  ] as const) {
+    if (raw !== undefined && (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0)) {
+      throw new Error(`Viewport load ${name} must be finite and positive`);
+    }
+  }
+  const width = value["widthPixels"];
+  if (
+    width !== undefined &&
+    (typeof width !== "number" ||
+      !Number.isFinite(width) ||
+      width < MIN_VECTOR_WIDTH_PIXELS ||
+      width > MAX_VECTOR_WIDTH_PIXELS)
+  ) {
+    throw new Error(
+      `Viewport load widthPixels must be finite and between ${MIN_VECTOR_WIDTH_PIXELS} and ${MAX_VECTOR_WIDTH_PIXELS}`,
     );
   }
 }
@@ -169,6 +260,10 @@ function isElementalVectorField(value: unknown): value is ViewportElementVectorC
 
 function isElementFrameField(value: unknown): boolean {
   return isRecord(value) && value["shape"] === "frame" && value["location"] === "elemental";
+}
+
+function isNodalLoadField(value: unknown): boolean {
+  return isRecord(value) && value["shape"] === "load" && value["location"] === "nodal";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

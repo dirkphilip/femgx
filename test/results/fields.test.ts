@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createElementFrameField,
+  createNodalLoadField,
   frameAt,
   createResultField,
   scalarAt,
@@ -12,6 +13,34 @@ import {
 } from "../../src/results/fields";
 
 describe("createResultField", () => {
+  it("creates a part-owned six-component nodal load", () => {
+    const field = createNodalLoadField({
+      partId: 7,
+      id: "loads",
+      name: "Nodal loads",
+      count: 2,
+      forceUnit: "N",
+      momentUnit: "N·m",
+      values: new Float32Array([1, 0, 0, NaN, NaN, NaN, NaN, NaN, NaN, 0, 0, 2]),
+    });
+    expect(field.partId).toBe(7);
+    expect(field.shape).toBe("load");
+    expect(field.values).toHaveLength(12);
+  });
+
+  it("rejects mixed finite and missing load triplets", () => {
+    expect(() =>
+      createNodalLoadField({
+        partId: 7,
+        id: "loads",
+        name: "Nodal loads",
+        count: 1,
+        forceUnit: "N",
+        momentUnit: "N·m",
+        values: new Float32Array([1, NaN, 0, NaN, NaN, NaN]),
+      }),
+    ).toThrow("mixed finite/missing");
+  });
   it("creates a nodal scalar field", () => {
     const field = createResultField({
       id: "disp-z",

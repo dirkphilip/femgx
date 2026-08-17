@@ -4,6 +4,7 @@ import {
   type InteractionState,
   type ViewportElementFrameConfig,
   type ViewportElementVectorConfig,
+  type PartId,
   type ViewportResultsConfig,
 } from "../../../src/entries/root";
 import { partStyleOverride, type WorkbenchModel } from "../models/model";
@@ -16,6 +17,7 @@ interface ResultStateOptions {
   readonly model: WorkbenchModel;
   readonly mode: ResultDisplayMode;
   readonly scalar: WorkbenchScalarField | undefined;
+  readonly scalarPartId: PartId | undefined;
   readonly deformationScale: number;
   readonly vector: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined;
   readonly playback: WorkbenchResultPlaybackStep | undefined;
@@ -29,6 +31,7 @@ export function applyResultState(options: ResultStateOptions): void {
     config,
     mode: options.mode,
     scalarField: options.scalar,
+    scalarPartId: options.scalarPartId,
     deformationScale: options.deformationScale,
     vector: options.vector,
     playback: options.playback,
@@ -45,6 +48,7 @@ interface ResultRolesOptions {
   readonly config: WorkbenchModel["results"];
   readonly mode: ResultDisplayMode;
   readonly scalarField: WorkbenchScalarField | undefined;
+  readonly scalarPartId: PartId | undefined;
   readonly deformationScale: number;
   readonly vector: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined;
   readonly playback: WorkbenchResultPlaybackStep | undefined;
@@ -61,8 +65,15 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
   const scalar =
     mode === "base"
       ? undefined
-      : (playbackScalar ?? (scalarField === undefined ? config?.scalar : { field: scalarField }));
+      : (playbackScalar ??
+        (scalarField === undefined
+          ? config?.scalar
+          : {
+              field: scalarField,
+              ...(options.scalarPartId === undefined ? {} : { partId: options.scalarPartId }),
+            }));
   const deformationConfig = config?.deformation;
+  const loads = config?.loads;
   const deformation =
     mode !== "deformed"
       ? undefined
@@ -71,11 +82,18 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
         : deformationConfig === undefined
           ? undefined
           : { field: deformationConfig.field, scale: deformationScale };
-  if (scalar === undefined && deformation === undefined && vector === undefined) return undefined;
+  if (
+    scalar === undefined &&
+    deformation === undefined &&
+    vector === undefined &&
+    loads === undefined
+  )
+    return undefined;
   return {
     ...(scalar === undefined ? {} : { scalar }),
     ...(deformation === undefined ? {} : { deformation }),
     ...(vector === undefined ? {} : { vectors: vector }),
+    ...(loads === undefined ? {} : { loads }),
   };
 }
 

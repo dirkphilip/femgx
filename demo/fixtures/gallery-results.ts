@@ -1,10 +1,13 @@
 import {
   createElementFrameField,
+  createNodalLoadField,
   createResultField,
   type ElementFrameField,
   type PartId,
   type ScalarField,
   type Scene,
+  type VectorField,
+  type ViewportLoadConfig,
   type ViewportResultsConfig,
 } from "../../src/entries/root";
 
@@ -12,6 +15,8 @@ export interface GalleryResults {
   readonly active: ViewportResultsConfig;
   readonly scalarFields: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
   readonly frame: ElementFrameField;
+  readonly vectorFields: readonly VectorField<"elemental">[];
+  readonly loads: ViewportLoadConfig;
 }
 
 /** Builds the static result examples shown by the landing element gallery. */
@@ -34,16 +39,43 @@ export function createGalleryResults(scene: Scene, framePartId: PartId): Gallery
     shape: "scalar",
     count: nodalCount,
     unit: "unitless",
-    values: indexedValues(nodalCount),
+    values: alternatingValues(nodalCount),
+  });
+  const shellThickness = createResultField({
+    id: "gallery-shell-thickness",
+    name: "Shell thickness",
+    location: "elemental",
+    shape: "scalar",
+    count: elementalCount,
+    unit: "mm",
+    values: thicknessValues(elementalCount),
   });
   const frame = createGalleryFrame(scene, framePartId);
+  const vectorFields = [
+    createGalleryVector(
+      "gallery-shell-normals",
+      "Shell normals · authored outward",
+      elementalCount,
+      [0, 0, 1],
+    ),
+    createGalleryVector(
+      "gallery-fibre-axis",
+      "Fibre orientation · authored axis",
+      elementalCount,
+      [1, 0.35, 0],
+    ),
+  ];
+  const loads = createGalleryLoads(scene);
   return {
     active: {
       scalar: { field: elemental },
       vectors: { field: frame, glyph: "triad", lengthScale: 0.42, widthPixels: 2 },
+      loads,
     },
-    scalarFields: [elemental, nodal],
+    scalarFields: [elemental, nodal, shellThickness],
     frame,
+    vectorFields,
+    loads,
   };
 }
 
@@ -54,10 +86,7 @@ function createGalleryFrame(scene: Scene, partId: PartId): ElementFrameField {
   const values = new Float32Array(count * 9);
   values.fill(Number.NaN);
   for (const element of part.elements ?? []) {
-    const angle = element.id * (Math.PI / 12);
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    values.set([cosine, sine, 0, -sine, cosine, 0, 0, 0, 1], element.id * 9);
+    values.set([1, 0, 0, 0, 1, 0, 0, 0, 1], element.id * 9);
   }
   return createElementFrameField({
     partId,
@@ -67,6 +96,49 @@ function createGalleryFrame(scene: Scene, partId: PartId): ElementFrameField {
     unit: "unitless",
     values,
   });
+}
+
+function createGalleryVector(
+  id: string,
+  name: string,
+  count: number,
+  direction: readonly [number, number, number],
+): VectorField<"elemental"> {
+  const values = new Float32Array(count * 3);
+  values.fill(Number.NaN);
+  for (let element = 0; element < count; element += 1) values.set(direction, element * 3);
+  return createResultField({
+    id,
+    name,
+    location: "elemental",
+    shape: "vector",
+    count,
+    unit: "unitless",
+    values,
+  });
+}
+
+function createGalleryLoads(scene: Scene): ViewportLoadConfig {
+  const partId = 1;
+  const part = scene.parts.get(partId);
+  const count = part?.nodePositions === undefined ? 0 : part.nodePositions.length / 3;
+  const values = new Float32Array(count * 6);
+  values.fill(Number.NaN);
+  if (count > 0) values.set([0.9, 0.15, 0, 0, 0, 0.7], 0);
+  return {
+    field: createNodalLoadField({
+      partId,
+      id: "gallery-nodal-loads",
+      name: "Point force + moment",
+      count,
+      forceUnit: "N",
+      momentUnit: "N·m",
+      values,
+    }),
+    forceLengthScale: 1.1,
+    momentLengthScale: 0.65,
+    widthPixels: 3,
+  };
 }
 
 function elementCount(scene: Scene): number {
@@ -89,4 +161,12 @@ function nodeCount(scene: Scene): number {
 
 function indexedValues(count: number): Float32Array {
   return Float32Array.from({ length: count }, (_, index) => (count <= 1 ? 0 : index / (count - 1)));
+}
+
+function alternatingValues(count: number): Float32Array {
+  return Float32Array.from({ length: count }, (_, index) => index % 2);
+}
+
+function thicknessValues(count: number): Float32Array {
+  return Float32Array.from({ length: count }, (_, index) => 0.2 + (index % 5) / 10);
 }

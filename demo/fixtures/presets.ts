@@ -33,7 +33,9 @@ export interface ModelPreset {
   readonly resultSequence?: AuthoredResultSequence;
   /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
+  readonly resultScalarPartIds?: ReadonlyMap<string, PartId>;
   readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
+  readonly resultVectorPartIds?: ReadonlyMap<string, PartId>;
 }
 
 /** One exact authored scalar/deformation snapshot in the demo sequence. */
@@ -99,7 +101,12 @@ export function createGalleryPreset(): ModelPreset {
     bounds: sceneBounds(fixture.scene),
     results: results.active,
     resultScalarFields: results.scalarFields,
-    resultVectorFields: [results.frame],
+    resultScalarPartIds: new Map([["gallery-shell-thickness", partIds.quad8]]),
+    resultVectorFields: [results.frame, ...results.vectorFields],
+    resultVectorPartIds: new Map([
+      ["gallery-shell-normals", partIds.triangle],
+      ["gallery-fibre-axis", partIds.tri6],
+    ]),
   };
 }
 
