@@ -155,6 +155,11 @@ Install dependencies with `npm ci`. The main local commands are:
 | `npm run build:docs`          | Generate the experimental API reference                   |
 | `npm run typecheck`           | Run strict TypeScript checks                              |
 | `npm run lint`                | Run repository, ESLint, public-doc, and dependency checks |
+| `npm run lint:markdown`       | Check local Markdown and Foam links                       |
+| `npm run lint:styles`         | Check CSS and Svelte component styles                     |
+| `npm run lint:wgsl`           | Validate composed WGSL offline with Naga                  |
+| `npm run lint:package`        | Validate package metadata with Publint                    |
+| `npm run lint:dead-code`      | Check files and dependency wiring with Knip               |
 | `npm run format:check`        | Check Prettier formatting                                 |
 | `npm run review:diff`         | Review the change for growth and weakened tests           |
 | `npm test`                    | Run the normal Vitest suite                               |
