@@ -90,26 +90,26 @@ renderer or expanding product scope.
 
 ### Current local reference
 
-Apple M3 Pro (11 logical cores), Node 24.18.0, dirty worktree based on
-`b5114ee9`; schema-2 CPU report with 14 operations, two warmups, and seven timed
+Apple M3 Pro (11 logical cores), Node 24.18.0, clean commit `61d7ec8c`;
+schema-2 CPU report with 14 operations, two warmups, and seven timed
 samples. WebGPU is not measured by this table:
 
 | Operation                                   | Workload                                                                                   |  p50 ms |  p95 ms | CPU-only target                       | CPU-only status                                                     |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------ | ------: | ------: | ------------------------------------- | ------------------------------------------------------------------- |
-| Half selection and clear                    | 65,856 elements                                                                            |  11.209 |  17.922 | ≤100 ms state construction            | CPU target met; renderer sync/first frame open                      |
-| All selection and clear                     | 131,712 elements                                                                           |  25.453 |  26.275 | ≤100 ms state construction            | CPU target met; renderer sync/first frame open                      |
-| Hover diff over unchanged selection         | 131,712 elements                                                                           |   0.008 |   0.025 | ≤8 ms interaction diff                | CPU target met; renderer sync/first frame open                      |
-| Sparse visibility and restore               | 8 elements                                                                                 |   0.012 |   0.024 | ≤16.7 ms state mutation               | CPU target met; renderer sync/first frame open                      |
-| Body recolor and clear                      | 256 bodies                                                                                 |   2.242 |   5.264 | ≤100 ms override construction         | CPU target met; renderer sync/first frame open                      |
-| Elemental snapshot build (1 placement)      | 16,384 unique authored elements                                                            |   0.979 |   1.804 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
-| Elemental snapshot build (8 placements)     | 16,384 unique authored elements                                                            |   0.521 |   0.530 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
-| Elemental snapshot build (64 placements)    | 16,384 unique authored elements                                                            |   0.535 |   1.038 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
-| Active-result CPU hover/identity transition | 1 transition                                                                               |   0.002 |   0.004 | ≤8 ms interaction transition          | CPU target met; renderer sync/first frame open                      |
-| Direct element pick near last id            | 1 hit; 131,712 elements; 526,848 faces; 24,389 nodes; 6,419,736-byte CSR arrays            |   0.001 |   0.008 | ≤8 ms pick resolution                 | CPU target met; cold setup observed separately; GPU open            |
-| Deepest triangle pick near last ids         | 1 hit; 131,712 elements; 526,848 faces; 24,389 nodes; adjacency; 6,419,736-byte CSR arrays |   0.006 |   0.011 | ≤8 ms pick resolution                 | CPU target met; cold setup observed separately; GPU open            |
-| Sparse highlight one-record hover           | 1 active record; 131,712 high-water records; 2,097,152 retained slots                      |   0.010 |   0.027 | ≤8 ms renderer CPU table/diff         | CPU/fake-GPU target met; real GPU submission/upload/draw/frame open |
-| Scene-runtime rebuild                       | 200,000 placements                                                                         | 134.905 | 157.424 | Capacity trend; no CPU latency target | CPU capacity trend; viewport/frame open                             |
-| Part visibility toggle                      | 1,000 placements                                                                           |   0.142 |   0.154 | ≤16.7 ms state mutation               | CPU target met; renderer sync/first frame open                      |
+| Half selection and clear                    | 65,856 elements                                                                            |  12.369 |  20.002 | ≤100 ms state construction            | CPU target met; renderer sync/first frame open                      |
+| All selection and clear                     | 131,712 elements                                                                           |  27.103 |  27.402 | ≤100 ms state construction            | CPU target met; renderer sync/first frame open                      |
+| Hover diff over unchanged selection         | 131,712 elements                                                                           |   0.008 |   0.026 | ≤8 ms interaction diff                | CPU target met; renderer sync/first frame open                      |
+| Sparse visibility and restore               | 8 elements                                                                                 |   0.013 |   0.024 | ≤16.7 ms state mutation               | CPU target met; renderer sync/first frame open                      |
+| Body recolor and clear                      | 256 bodies                                                                                 |   2.485 |   5.594 | ≤100 ms override construction         | CPU target met; renderer sync/first frame open                      |
+| Elemental snapshot build (1 placement)      | 16,384 unique authored elements                                                            |   1.142 |   2.115 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
+| Elemental snapshot build (8 placements)     | 16,384 unique authored elements                                                            |   0.580 |   0.616 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
+| Elemental snapshot build (64 placements)    | 16,384 unique authored elements                                                            |   0.591 |   1.174 | ≤100 ms snapshot construction         | CPU target met; GPU upload/first frame open                         |
+| Active-result CPU hover/identity transition | 1 transition                                                                               |   0.002 |   0.005 | ≤8 ms interaction transition          | CPU target met; renderer sync/first frame open                      |
+| Direct element pick near last id            | 1 hit; 131,712 elements; 526,848 faces; 24,389 nodes; 6,419,736-byte CSR arrays            |   0.001 |   0.007 | ≤8 ms pick resolution                 | CPU target met; cold setup observed separately; GPU open            |
+| Deepest triangle pick near last ids         | 1 hit; 131,712 elements; 526,848 faces; 24,389 nodes; adjacency; 6,419,736-byte CSR arrays |   0.008 |   0.009 | ≤8 ms pick resolution                 | CPU target met; cold setup observed separately; GPU open            |
+| Sparse highlight one-record hover           | 1 active record; 131,712 high-water records; 2,097,152 retained slots                      |   0.015 |   0.028 | ≤8 ms renderer CPU table/diff         | CPU/fake-GPU target met; real GPU submission/upload/draw/frame open |
+| Scene-runtime rebuild                       | 200,000 placements                                                                         | 148.470 | 155.355 | Capacity trend; no CPU latency target | CPU capacity trend; viewport/frame open                             |
+| Part visibility toggle                      | 1,000 placements                                                                           |   0.161 |   0.176 | ≤16.7 ms state mutation               | CPU target met; renderer sync/first frame open                      |
 
 Repeated placements reuse one 16,384-element authored scalar table. The 1/8/64
 snapshot rows retain fixture coverage while reporting the same unique authored
@@ -127,7 +127,7 @@ readback, upload completion, draw, or frame time. The 6,419,736-byte figure
 covers only the two retained node-to-triangle-face CSR typed arrays on this
 fixture; Maps and object overhead are excluded. One observed cold, unsampled
 `PartSemanticIndex` construction for this distinct `Part` identity took
-250.930250 ms in the AFTER run. Attachment eagerly pays that construction for
+213.350542 ms in this clean run. Attachment eagerly pays that construction for
 each distinct or replacement `Part` identity, outside the per-pick timings.
 
 ## Dense selection synchronization seam
@@ -154,11 +154,15 @@ speedup. The draw rows separately time
 `buildSelectionDrawCalls`; they do not claim GPU submission, upload completion,
 draw, or frame smoothness.
 
-The dense-skin setup probe records authored face-descriptor reads, not merely
-submitted exterior faces: half selection reads 256,910 descriptors, all-but-one
-reads 526,848, and all selection takes the full-selection shortcut after its
-9,408-entry exterior-subset validation (zero authored-face reads). Those counts
-keep the 526,848-face scan separate from the typed selection representation.
+Eligible exterior triangle parts retain a neighbor-to-selected-owner CSR so
+dense skin construction can traverse the smaller unselected complement instead
+of scanning all 526,848 authored face descriptors. The probe records 12,159
+neighbor-face entries for half selection, 3 for all-but-one, and 0 for all.
+This fixture retains 2,596,612 bytes for that CSR, in addition to 6,419,736
+bytes for the node-to-triangle-face CSR used by inspection: 9,016,348 typed-array
+bytes in total. Maps and object overhead are excluded. Parts without an exterior
+face subset or with non-local neighbor topology do not allocate the neighbor
+CSR and retain the generic scan.
 
 ### Current selection-sync reference
 
@@ -166,15 +170,15 @@ The following is the clean Apple M3 Pro / Node 24.18.0 snapshot from the final
 selection-sync harness and production commits; the JSON artifact remains the
 source of truth and the changelog records the before/after milestones.
 
-| Operation                       | Workload         | p50 ms | p95 ms | Evidence boundary                      |
-| ------------------------------- | ---------------- | -----: | -----: | -------------------------------------- |
-| Half build dense payload        | 65,856 elements  |  1.779 |  1.894 | CPU collect + pack                     |
-| Half build draw ranges          | 65,856 elements  | 20.383 | 22.806 | CPU authored-face/range construction   |
-| All-but-one build dense payload | 131,711 elements |  3.160 |  3.432 | CPU collect + pack                     |
-| All-but-one build draw ranges   | 131,711 elements | 22.362 | 23.139 | CPU authored-face/range construction   |
-| All build dense payload         | 131,712 elements |  2.893 |  3.066 | CPU collect + pack                     |
-| All build draw ranges           | 131,712 elements |  7.931 |  8.573 | CPU exterior validation/full-selection |
-| Unchanged repeat collect cache  | 131,712 elements |  0.000 |  0.010 | CPU identity-cache hit                 |
+| Operation                       | Workload         | p50 ms | p95 ms | Evidence boundary                 |
+| ------------------------------- | ---------------- | -----: | -----: | --------------------------------- |
+| Half build dense payload        | 65,856 elements  |  1.779 |  1.894 | CPU collect + pack                |
+| Half build draw ranges          | 65,856 elements  |  6.321 |  7.269 | CPU complement/range construction |
+| All-but-one build dense payload | 131,711 elements |  3.160 |  3.432 | CPU collect + pack                |
+| All-but-one build draw ranges   | 131,711 elements |  0.013 |  0.017 | CPU complement/range construction |
+| All build dense payload         | 131,712 elements |  2.893 |  3.066 | CPU collect + pack                |
+| All build draw ranges           | 131,712 elements |  0.001 |  0.001 | CPU full-selection shortcut       |
+| Unchanged repeat collect cache  | 131,712 elements |  0.000 |  0.010 | CPU identity-cache hit            |
 
 ## Changelog
 
@@ -194,6 +198,7 @@ number.
 | 2026-08-17 | `b5114ee9`                                 | Apple M3 Pro / 24.18.0 | AFTER indexed element inspection/pick resolution (schema 2, 14 operations) | Direct element **0.001458 / 0.008166 ms**; deepest triangle **0.006459 / 0.010709 ms**                                                                                                                                                                                       | CPU `resolvePickHit` after cached dense node→triangle-face CSR; 6,419,736 bytes for the two CSR typed arrays only (Maps/object overhead excluded); one observed cold, unsampled `PartSemanticIndex` construction for this distinct `Part` identity **250.930250 ms**, eagerly paid per distinct/replacement `Part` identity by attachment and outside timing. `23-local-operations-after-pick-index.json`. |
 | 2026-08-17 | `9a5a9f8f966041fd520fca4903fa8a0594d7e7ff` | Apple M3 Pro / 24.18.0 | BEFORE dense selection collect-plus-pack (7 selection-sync rows)           | Payload half **7.698625 / 11.904708 ms**; all-but-one **12.963000 / 14.972875 ms**; all **13.325958 / 16.409750 ms**; draw half **18.364750 / 21.350041 ms**, all-but-one **22.953250 / 25.787250 ms**, all **8.015666 / 8.130833 ms**; unchanged **0.000333 / 0.008334 ms** | `24-local-selection-sync-before.json`, clean final harness; `gitDirty: false`. Draw-range values are a separate unchanged/noise baseline; no GPU/frame claim.                                                                                                                                                                                                                                              |
 | 2026-08-17 | `ef7d58806e5c188e168c105035b791dfc611141e` | Apple M3 Pro / 24.18.0 | AFTER direct typed-bitset collect-plus-pack (7 selection-sync rows)        | Payload half **1.778709 / 1.893875 ms**; all-but-one **3.159917 / 3.432084 ms**; all **2.892666 / 3.066250 ms**; draw half **20.383417 / 22.806042 ms**, all-but-one **22.362208 / 23.139292 ms**, all **7.930875 / 8.572750 ms**; unchanged **0.000375 / 0.010042 ms**      | `25-local-selection-sync-after-dense-bitset.json`, clean final harness; `gitDirty: false`. Draw-range values remain a separate unchanged/noise baseline; the measured win is collect-plus-pack.                                                                                                                                                                                                            |
+| 2026-08-18 | `61d7ec8c1a654b6d5d973bf5df04e979068f7a05` | Apple M3 Pro / 24.18.0 | AFTER dense selection complement traversal (7 selection-sync rows)         | Payload half **1.919166 / 2.051833 ms**; all-but-one **3.224417 / 3.268875 ms**; all **2.996708 / 3.615583 ms**; draw half **6.321084 / 7.268500 ms**, all-but-one **0.012541 / 0.017166 ms**, all **0.000916 / 0.001042 ms**; unchanged **0.000333 / 0.007458 ms**          | `26-local-selection-face-ranges-after.json`, clean final harness; `gitDirty: false`. Half exceeds the 1,024-range cap and returns the intentional full-draw fallback. Neighbor CSR is 2,596,612 bytes; real GPU submission/draw/frame evidence remains separate.                                                                                                                                           |
 
 To append a milestone, run the command with `PERF_BASELINE_FILE`, inspect the
 JSON, then add the exact fingerprint and selected p50/p95 values to this table.

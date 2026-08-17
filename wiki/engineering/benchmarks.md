@@ -207,9 +207,12 @@ selection seam with stable CPU boundaries: fresh interaction identity through
 `collectDenseElementSelections` and packed highlight payload writing, separate
 draw-range construction, and one unchanged identity-cache repeat. It records
 the authored 526,848-face descriptor count, exterior 9,408-face subset, dense
-4,116-word/16,468-byte payload, and exact dense-skin descriptor reads; it does
-not claim fake queue writes, GPU completion, or frame smoothness. Method,
-targets, current numbers, and the before/after changelog live in
+4,116-word/16,468-byte payload, exact neighbor-face entries traversed, and the
+retained neighbor-CSR bytes. Timed draw samples assert the intentional half
+range-cap fallback and the all-but-one/all draw-call shapes. Fixture creation,
+semantic-index construction, and storage allocation remain outside timing. The
+lane does not claim fake queue writes, GPU completion, or frame smoothness.
+Method, targets, current numbers, and the before/after changelog live in
 [[engineering/performance-baselines|Performance baselines]].
 
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
