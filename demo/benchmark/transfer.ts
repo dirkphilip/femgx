@@ -1,4 +1,4 @@
-import { createPart, type ElementTessellation } from "../../src/geometry/part";
+import { createPart, type ElementTessellation, type Part } from "../../src/geometry/part";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
 import { ElementShape } from "../../src/elements/shapes";
@@ -9,6 +9,7 @@ import {
   tet4FaceNodeIdsFromNodes,
   type DenseTet4Payload,
 } from "./tet4-transfer";
+import type { DenseSemanticAllocationCounts } from "./types";
 
 export type BenchmarkTransferPayload = DenseTet4Payload;
 
@@ -37,6 +38,7 @@ export function reconstructBenchmarkScene(
 ): {
   readonly scene: Scene;
   readonly finalRetainedTypedBytes: number;
+  readonly semanticAllocationCounts: DenseSemanticAllocationCounts;
 } {
   const elements = createElements(payload.elementCount);
   const faces = createFaces(payload);
@@ -79,6 +81,64 @@ export function reconstructBenchmarkScene(
       payload.nodePickIds.byteLength +
       payload.nodePositions.byteLength +
       16 * Float32Array.BYTES_PER_ELEMENT,
+    semanticAllocationCounts: countDenseSemanticAllocations(part),
+  };
+}
+
+function countDenseSemanticAllocations(part: Part): DenseSemanticAllocationCounts {
+  const elements = part.elements ?? [];
+  const triangleGeometry = part.geometries.find((geometry) => geometry.primitive === "triangles");
+  const faces = triangleGeometry?.primitive === "triangles" ? (triangleGeometry.faces ?? []) : [];
+  const edges = triangleGeometry?.primitive === "triangles" ? (triangleGeometry.edges ?? []) : [];
+  const faceNodeReferences = faces.reduce((total, face) => total + face.nodeIds.length, 0);
+  const edgeNodeReferences = edges.reduce((total, edge) => total + edge.nodeIds.length, 0);
+  const edgeIncidentElementReferences = edges.reduce(
+    (total, edge) => total + edge.incidentElementIds.length,
+    0,
+  );
+  const edgeFaceReferences = edges.reduce((total, edge) => total + edge.faceRefs.length, 0);
+  const bodyElementReferences = (part.bodies ?? []).reduce(
+    (total, body) => total + body.elementIds.length,
+    0,
+  );
+  const nodeCount = (part.nodePositions?.length ?? 0) / 3;
+  return {
+    elementDescriptors: elements.length,
+    primitiveRangeArrays: elements.reduce(
+      (total, element) => total + (element.primitiveRanges.length > 0 ? 1 : 0),
+      0,
+    ),
+    primitiveRangeDescriptors: elements.reduce(
+      (total, element) => total + element.primitiveRanges.length,
+      0,
+    ),
+    faceDescriptors: faces.length,
+    faceNodeArrays: faces.length,
+    faceNodeReferences,
+    faceKeyReferences: faces.length,
+    faceSubsetReferences:
+      triangleGeometry?.primitive === "triangles"
+        ? (triangleGeometry.faceSubset?.faceIds.length ?? 0)
+        : 0,
+    edgeDescriptors: edges.length,
+    edgeNodeArrays: edges.length,
+    edgeNodeReferences,
+    edgeIncidentElementReferences,
+    edgeFaceReferenceArrays: edges.length,
+    edgeFaceReferences,
+    bodyDescriptors: part.bodies?.length ?? 0,
+    bodyElementReferences,
+    semanticIndex: {
+      elementEntries: elements.length,
+      elementOrdinalEntries: elements.length,
+      bodyEntries: part.bodies?.length ?? 0,
+      bodyByElementEntries: bodyElementReferences,
+      faceEntries: faces.length,
+      edgeEntries: edges.length,
+      nodeTriangleFaceOffsetsBytes:
+        faces.length === 0 ? 0 : (nodeCount + 1) * Uint32Array.BYTES_PER_ELEMENT,
+      nodeTriangleFaceIdsBytes: faceNodeReferences * Uint32Array.BYTES_PER_ELEMENT,
+    },
   };
 }
 
