@@ -143,8 +143,9 @@ export function installControllerLifecycle(context: WorkbenchControllerWiringCon
     pane: context.view.primaryPane,
     signal: context.listenerController.signal,
     interaction: context.interactionController,
+    viewport: () => context.viewport,
     boxPreview: context.boxPreview,
-    dragging: () => context.isPointerGestureActive(),
+    selectionGranularity: () => context.selectionGranularity,
     touchInteractionMode: () => context.touchInteractionMode,
     setActive: context.setActiveSlot.bind(context, "primary"),
   });

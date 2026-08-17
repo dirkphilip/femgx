@@ -1,0 +1,112 @@
+import type { BoxSelectionFrustum } from "./box-frustum";
+import type { BoxSelectionEvent, BoxSelectionRect } from "./box-selection";
+import type { InteractionState } from "./interaction";
+import type { InteractionTarget } from "./target-types";
+import type { InteractionGranularity, PickHit } from "../picking/types";
+import type { Camera } from "../camera/camera";
+
+/** Explicitly routed touch behavior for an installed viewport interaction. */
+export type ViewportInteractionTouchMode = "navigate" | "hover" | "box-select";
+
+/** Interaction operation currently being resolved or applied. */
+export type ViewportInteractionPhase = "hover" | "click" | "box";
+
+/** The discriminated completed event delivered by the default box lifecycle. */
+export type ViewportInteractionBoxEvent = Extract<
+  BoxSelectionEvent,
+  { readonly type: "start" | "change" | "complete" }
+> & { readonly type: "complete" };
+
+/** Modifier state normalized across pointer and box-selection events. */
+export interface ViewportInteractionModifiers {
+  readonly shift: boolean;
+  readonly control: boolean;
+  readonly alt: boolean;
+  readonly meta: boolean;
+}
+
+/** A completed box gesture plus its resolved, host-mappable candidates. */
+export interface ViewportInteractionBoxSelection {
+  readonly event: ViewportInteractionBoxEvent;
+  readonly granularity: InteractionGranularity;
+  readonly frustum: BoxSelectionFrustum;
+  readonly targets: readonly InteractionTarget[];
+}
+
+/**
+ * Input passed to the optional interaction-application override.
+ *
+ * Returning an `InteractionState` installs that state. Returning `undefined`
+ * suppresses the default mutation, which lets a host own selection policy while
+ * still using the installer's candidate discovery and event ordering.
+ */
+export interface ViewportInteractionApplyRequest {
+  readonly phase: ViewportInteractionPhase;
+  readonly granularity: InteractionGranularity;
+  readonly current: InteractionState;
+  readonly defaultInteraction: InteractionState;
+  readonly target: InteractionTarget | undefined;
+  readonly targets: readonly InteractionTarget[];
+  readonly modifiers: ViewportInteractionModifiers;
+  readonly event: PointerEvent | MouseEvent | BoxSelectionEvent;
+  readonly frustum?: BoxSelectionFrustum;
+}
+
+/** Result of an interaction-application override. */
+export type ViewportInteractionApplyResult =
+  InteractionState | undefined | Promise<InteractionState | undefined>;
+
+/**
+ * Options for the explicit default hover, click, and box-selection binding.
+ *
+ * The installer adds point listeners only to `canvas` and composes the
+ * existing explicit box-selection lifecycle, including its Escape cancellation
+ * handling. Touch is ignored unless `touchMode` routes it to hover or box
+ * selection.
+ */
+export interface ViewportInteractionOptions {
+  readonly viewport: {
+    readonly camera: Camera;
+    readonly interaction: InteractionState;
+    /** Reads the physical target under canvas CSS coordinates. */
+    pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
+    /** Resolves unique targets intersecting a canvas-space rectangle. */
+    pickRegion(
+      rect: BoxSelectionRect,
+      granularity: InteractionGranularity,
+    ): Promise<readonly InteractionTarget[]>;
+    /** Installs the next immutable interaction snapshot. */
+    setInteraction(interaction: InteractionState): void;
+  };
+  readonly canvas: HTMLCanvasElement;
+  /** Reads the active target granularity when each pointer operation starts. */
+  readonly granularity: () => InteractionGranularity;
+  /** Returns the host's current touch routing decision (default: navigate). */
+  readonly touchMode?: () => ViewportInteractionTouchMode;
+  /** Replaces point candidate discovery for hover and click. */
+  readonly resolvePoint?: (request: {
+    readonly phase: "hover" | "click";
+    readonly x: number;
+    readonly y: number;
+    readonly granularity: InteractionGranularity;
+    readonly modifiers: ViewportInteractionModifiers;
+    readonly event: PointerEvent | MouseEvent;
+  }) => Promise<InteractionTarget | undefined>;
+  /** Replaces visible-region candidate discovery for a completed box. */
+  readonly resolveRegion?: (request: {
+    readonly rect: BoxSelectionRect;
+    readonly event: ViewportInteractionBoxEvent;
+    readonly granularity: InteractionGranularity;
+    readonly frustum: BoxSelectionFrustum;
+  }) => Promise<readonly InteractionTarget[]>;
+  /** Replaces or suppresses the default immutable interaction transition. */
+  readonly applyInteraction?: (
+    request: ViewportInteractionApplyRequest,
+  ) => ViewportInteractionApplyResult;
+  /** Observes every box lifecycle event, including start/change/cancel. */
+  readonly onBoxEvent?: (event: BoxSelectionEvent) => void;
+  /** Observes a completed box after candidate discovery and validation. */
+  readonly onBoxSelection?: (selection: ViewportInteractionBoxSelection) => void;
+  /** Receives resolver and application failures without mutating valid state. */
+  readonly onError?: (error: unknown, phase: ViewportInteractionPhase) => void;
+}

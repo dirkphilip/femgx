@@ -98,6 +98,17 @@ export {
   type BoxSelectionFrustum,
   type FrustumPlane,
 } from "../interaction/box-frustum";
+export {
+  installViewportInteraction,
+  type ViewportInteractionApplyRequest,
+  type ViewportInteractionApplyResult,
+  type ViewportInteractionBoxEvent,
+  type ViewportInteractionBoxSelection,
+  type ViewportInteractionModifiers,
+  type ViewportInteractionOptions,
+  type ViewportInteractionPhase,
+  type ViewportInteractionTouchMode,
+} from "../interaction/viewport-interaction";
 export type { AssemblyId, AssemblyOccurrenceId, ElementRef, InstanceId } from "../scene/types";
 export type {
   EdgePickHit,

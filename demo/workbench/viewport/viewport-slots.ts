@@ -250,8 +250,9 @@ export class WorkbenchViewportSlots {
       pane: slot.pane,
       signal: paneController.signal,
       interaction: slot.interaction,
+      viewport: () => slot.viewport,
       boxPreview: slot.boxPreview,
-      dragging: () => slot.dragging || slot.boxPreview.isActive(),
+      selectionGranularity: () => this.options.selectionGranularity("secondary"),
       touchInteractionMode: () => this.options.touchInteractionMode("secondary"),
       setActive: this.setActiveSlot.bind(this, "secondary"),
     });
