@@ -15,7 +15,7 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   await expect(labSwitch).toHaveAttribute("aria-pressed", "true");
   await expect(modelSelect.locator("option")).toHaveCount(18);
   await expect(modelSelect).toHaveValue("");
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
 
   await modelSelect.selectOption("bodies-256");
   await expect(canvas).toHaveAttribute("data-model", "bodies-256");
@@ -27,8 +27,8 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
   await expect(modelSelect.locator("option")).toHaveCount(6);
-  await expect(modelSelect).toHaveValue("bolted");
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(modelSelect).toHaveValue("gallery");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
@@ -59,9 +59,9 @@ test("cancels a stale heavy FE build and completes the selected case", async ({ 
   await labSwitch.click();
   await modelSelect.selectOption("fe-tet4-solid-132k");
   await labSwitch.click();
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
   await page.waitForTimeout(2_000);
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
 
   await labSwitch.click();
   await modelSelect.selectOption("fe-tet4-solid-132k");

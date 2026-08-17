@@ -53,21 +53,24 @@ test("cancels a box selection with Escape and never changes selection", async ({
 test("reports the active model, renderer, instances, parts, and batches", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByTestId("status")).toHaveText(
-    /Bolted plate assembly · webgpu · \d+ visible · 4 parts · \d+ batches · orthographic camera/,
+    /Element tessellation and mapping gallery · webgpu · \d+ visible · 15 parts · \d+ batches · orthographic camera/,
   );
   await expect(page.getByTestId("renderer-status")).toHaveText(/Renderer webgpu/);
   await expect(page.getByTestId("stats-panel")).toBeHidden();
 });
-test("defaults to the bolted plate assembly showcase", async ({ page }) => {
+test("defaults to the element gallery showcase", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("model-select")).toHaveValue("bolted");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "bolted");
-  await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
-  await expect(page.getByTestId("status")).toContainText("34 visible");
+  await expect(page.getByTestId("model-select")).toHaveValue("gallery");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "gallery");
+  await expect(page.getByTestId("status")).toContainText(
+    "Element tessellation and mapping gallery",
+  );
+  await expect(page.getByTestId("status")).toContainText("15 visible");
 });
 test("keeps toolbar commands bound to the deliberately active viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   const primary = page.getByTestId("view-canvas");
   const secondary = page.getByTestId("secondary-view-canvas");
   const primaryPane = page.getByRole("region", { name: "Primary viewport" });
@@ -132,6 +135,7 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
 test("fits only the active viewport to its own selection", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   const primary = page.getByTestId("view-canvas");
   const secondary = page.getByTestId("secondary-view-canvas");
   await waitForRenderer(page, primary);
@@ -180,6 +184,7 @@ test("fits only the active viewport to its own selection", async ({ page }) => {
 test("opens isolated viewports and keeps teardown state deterministic", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   const primary = page.getByTestId("view-canvas");
   const secondary = page.getByTestId("secondary-view-canvas");
   await waitForRenderer(page, primary);
@@ -375,12 +380,12 @@ test("switches between deterministic model presets", async ({ page }) => {
   const select = page.getByTestId("model-select");
   const canvas = page.getByTestId("view-canvas");
   await openCommandPanel(page, "display");
-  await expect(select).toHaveValue("bolted");
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect(select).toHaveValue("gallery");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
 
-  for (const id of ["gallery", "hex20-cylinder", "results", "transparency", "bolted"]) {
+  for (const id of ["bolted", "hex20-cylinder", "results", "transparency", "gallery"]) {
     await page.getByTestId("edge-overlay").click();
     await page.getByTestId("node-overlay").click();
     await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
@@ -393,7 +398,11 @@ test("switches between deterministic model presets", async ({ page }) => {
     await expect(page.getByTestId("node-overlay")).toHaveAttribute("aria-pressed", "true");
     await expect(canvas).toHaveAttribute(
       "data-results",
-      id === "results" || id === "hex20-cylinder" ? "deformed" : "base",
+      id === "results" || id === "hex20-cylinder"
+        ? "deformed"
+        : id === "gallery"
+          ? "colored"
+          : "base",
     );
   }
 });

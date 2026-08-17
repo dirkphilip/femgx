@@ -23,16 +23,16 @@ describe("createModelPresets", () => {
   it("offers the six supported product stories in stable order", () => {
     const presets = createModelPresets();
     expect(presets.map((preset) => preset.id)).toEqual([
-      "bolted",
       "gallery",
+      "bolted",
       "hex20-cylinder",
       "section-volume",
       "results",
       "transparency",
     ]);
     expect(presets.map((preset) => preset.name)).toEqual([
-      "Bolted plate assembly",
       "Element tessellation and mapping gallery",
+      "Bolted plate assembly",
       "Hex20 cylinder",
       "Section-plane volume",
       "Results and element-orientation gallery",
@@ -41,8 +41,8 @@ describe("createModelPresets", () => {
     expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
   });
 
-  it("keeps the bolted plate as the default showcase", () => {
-    expect(createDefaultPreset().id).toBe("bolted");
+  it("uses the element gallery as the default showcase", () => {
+    expect(createDefaultPreset().id).toBe("gallery");
     expect(createModelPresets()[0]).toEqual(createDefaultPreset());
   });
 
@@ -67,6 +67,50 @@ describe("createGalleryPreset", () => {
     expect(preset.partNames.get(10)).toBe("Generic solver-mapped element");
     expect(preset.partNames.get(15)).toBe("Mixed point, line, and triangle element");
     expect(preset.partColors.get(15)).toEqual({ r: 0.28, g: 0.68, b: 0.64, a: 1 });
+  });
+
+  it("offers static elemental colors, nodal interpolation, and element frames", () => {
+    const preset = createGalleryPreset();
+    expect(preset.resultSequence).toBeUndefined();
+    expect(preset.results?.deformation).toBeUndefined();
+    expect(preset.results?.scalar?.field.id).toBe("gallery-element-colors");
+    expect(preset.resultScalarFields?.map((field) => [field.id, field.location])).toEqual([
+      ["gallery-element-colors", "elemental"],
+      ["gallery-nodal-interpolation", "nodal"],
+    ]);
+    expect(preset.results?.vectors).toMatchObject({
+      glyph: "triad",
+      field: { id: "gallery-element-frames", partId: 6, shape: "frame" },
+    });
+  });
+
+  it("resolves complete gallery coverage for the Hex8 examples", () => {
+    const preset = createGalleryPreset();
+    const config = preset.results;
+    const hex8 = preset.elementModels.get(6);
+    const nodal = preset.resultScalarFields?.find(
+      (field) => field.id === "gallery-nodal-interpolation",
+    );
+    if (config === undefined || hex8 === undefined || nodal === undefined)
+      throw new Error("Gallery results are incomplete");
+    const runtime = createPackedSceneRuntime(preset.scene);
+    const state = resolveViewportResults(config, preset.scene, runtime);
+    const nodalState = resolveViewportResults({ scalar: { field: nodal } }, preset.scene, runtime);
+    const records = viewportOrientationRecords(state)?.get(6);
+    if (records === undefined) throw new Error("Gallery frame records are missing");
+
+    expect(state.scalar?.field.location).toBe("elemental");
+    expect(nodalState.scalar?.field.location).toBe("nodal");
+    expect(state.scalar?.field.count).toBeGreaterThan(
+      Math.max(...hex8.elements.map((element) => element.id)),
+    );
+    expect(
+      new Set(hex8.elements.map((element) => state.scalar?.field.values[element.id])).size,
+    ).toBe(hex8.elements.length);
+    expect(records.elementIds).toHaveLength(hex8.elements.length * 3);
+    expect(Array.from(records.elementIds).filter((_, index) => index % 3 === 0)).toEqual(
+      hex8.elements.map((element) => element.id),
+    );
   });
 });
 
