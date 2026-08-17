@@ -119,7 +119,7 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
   const workerLoad = isWorkerBenchmarkSpec(spec)
     ? createBenchmarkWorkerLoad(spec, (result, transferMs) => {
         const reconstructionStart = performance.now();
-        const reconstructed = reconstructBenchmarkScene(result.payload);
+        const reconstructed = reconstructBenchmarkScene(result.payload, spec.id);
         const mainReconstructionMs = performance.now() - reconstructionStart;
         return createBenchmarkModelFromScene(spec, reconstructed.scene, {
           path: "worker",

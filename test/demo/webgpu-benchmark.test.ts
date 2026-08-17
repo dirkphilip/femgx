@@ -11,7 +11,7 @@ import {
   createStructuredFeModel,
   createStructuredFePart,
 } from "../../demo/benchmark/structured-fe";
-import { createLazyBenchmarkModel } from "../../demo/workbench/models/model";
+import { createLazyBenchmarkModel, isWorkerBenchmarkSpec } from "../../demo/workbench/models/model";
 import { createCamera } from "../../src/entries/camera";
 import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -326,6 +326,16 @@ describe("WebGPU benchmark models", () => {
       structuredFamily: "tet4",
       ordinaryDemo: false,
     });
+  });
+
+  it("offers bounded dense Tet4 worker presets for interactive scaling", () => {
+    const tet4Specs = benchmarkCaseSpecs(true).filter((spec) => spec.structuredFamily === "tet4");
+    expect(tet4Specs.map(({ id, gridCells }) => ({ id, gridCells }))).toEqual([
+      { id: "fe-tet4-solid-132k", gridCells: 28 },
+      { id: "fe-tet4-solid-25k-local", gridCells: 16 },
+      { id: "fe-tet4-solid-257k-local", gridCells: 35 },
+    ]);
+    expect(tet4Specs.every(isWorkerBenchmarkSpec)).toBe(true);
   });
 
   it("summarizes interactive frame intervals and thresholds", () => {

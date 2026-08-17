@@ -9,7 +9,7 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
   const labSwitch = page.getByTestId("performance-lab");
   const canvas = page.getByTestId("view-canvas");
 
-  await expect(modelSelect.locator("option")).toHaveCount(7);
+  await expect(modelSelect.locator("option")).toHaveCount(6);
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "true");
@@ -26,7 +26,7 @@ test("enters the Performance Lab without eager geometry or rebuilding a prior ca
 
   await labSwitch.click();
   await expect(labSwitch).toHaveAttribute("aria-pressed", "false");
-  await expect(modelSelect.locator("option")).toHaveCount(7);
+  await expect(modelSelect.locator("option")).toHaveCount(6);
   await expect(modelSelect).toHaveValue("bolted");
   await expect(canvas).toHaveAttribute("data-model", "bolted");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");

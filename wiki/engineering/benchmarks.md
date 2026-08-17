@@ -13,6 +13,20 @@ this CPU report does not claim that GPU/readback behavior.
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
+The Performance Lab offers structured Tet4 presets at 24,576, 131,712, and
+257,250 authored elements. Each preset builds dense typed-array topology and
+tessellation in the existing worker, transfers ownership of those buffers, and
+then reconstructs the canonical interactive `Part` on the main thread. The
+structured builder uses authored node ids directly as vertex indices, shares
+the node-position buffer with geometry, and uses packed numeric face identities
+instead of allocating string keys. Grid sizes are bounded to 35 cells per axis.
+The
+presets retain authored element, face, edge, and body identities while drawing
+only the exterior face subset. Their build telemetry separates generation,
+topology, tessellation, transfer preparation, transfer, and main-thread
+reconstruction so fast mesh generation is not confused with renderer attach or
+frame performance.
+
 The Performance Lab keeps its visible benchmark catalog lazy and may retain at
 most one authoritative CPU model. Retention is bounded by a demo-private 256
 MiB hard cap based on deterministic typed-array and 208-byte planar or

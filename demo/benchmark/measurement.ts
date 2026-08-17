@@ -62,7 +62,10 @@ export async function measureBenchmarkCase(
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
   modelBuildMs: number,
-  options: { readonly timestampQueriesRequested?: boolean } = {},
+  options: {
+    readonly timestampQueriesRequested?: boolean;
+    readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+  } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
   let runtimeCompileMs: number;
@@ -172,6 +175,7 @@ export async function measureBenchmarkCase(
     submittedTriangles: submittedTriangleCount(benchmarkCase, runtime, false),
     visibleTriangles: submittedTriangleCount(benchmarkCase, runtime, true),
     modelBuildMs,
+    ...(options.denseBuild === undefined ? {} : { denseBuild: options.denseBuild }),
     runtimeCompileMs,
     instanceCount: runtime.instanceCount,
     timings: summarize(coldSample, samples),

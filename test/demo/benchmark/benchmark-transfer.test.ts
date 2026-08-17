@@ -25,8 +25,30 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(reconstructedPart.elements).toEqual(canonicalPart.elements);
     expect(reconstructedPart.bodies).toEqual(canonicalPart.bodies);
     expect(reconstructedPart.nodePositions).toEqual(canonicalPart.nodePositions);
-    expect(reconstructedGeometry).toEqual(canonicalGeometry);
+    expect(reconstructedGeometry.primitive).toBe("triangles");
+    expect(canonicalGeometry.primitive).toBe("triangles");
+    if (
+      reconstructedGeometry.primitive !== "triangles" ||
+      canonicalGeometry.primitive !== "triangles"
+    ) {
+      throw new Error("Tet4 triangle geometry is missing");
+    }
+    expect(authoredNodeIndices(reconstructedGeometry)).toEqual(
+      authoredNodeIndices(canonicalGeometry),
+    );
+    expect(reconstructedGeometry.faces).toEqual(canonicalGeometry.faces);
+    expect(reconstructedGeometry.edges).toEqual(canonicalGeometry.edges);
+    expect(reconstructedGeometry.faceSubset).toEqual(canonicalGeometry.faceSubset);
     expect(reconstructedPart.bounds).toEqual(canonicalPart.bounds);
+  });
+
+  it("uses node ids directly as vertices and bounds dense preset sizes", () => {
+    const result = buildDenseTet4Payload(2);
+    expect(result.payload.positions).toBe(result.payload.nodePositions);
+    expect(Array.from(result.payload.nodePickIds)).toEqual(
+      Array.from({ length: 27 }, (_, index) => index + 1),
+    );
+    expect(() => buildDenseTet4Payload(36)).toThrow(/\[1,35\]/);
   });
 
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
@@ -49,3 +71,10 @@ describe("dense Tet4 benchmark transfer", () => {
     },
   );
 });
+
+function authoredNodeIndices(geometry: {
+  readonly indices: Uint32Array;
+  readonly nodePickIds?: Uint32Array;
+}): readonly number[] {
+  return Array.from(geometry.indices, (vertex) => (geometry.nodePickIds?.[vertex] ?? 0) - 1);
+}

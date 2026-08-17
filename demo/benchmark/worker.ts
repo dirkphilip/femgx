@@ -68,7 +68,9 @@ function build(request: BenchmarkWorkerBuildRequest): void {
         transferPreparationMs,
         transferredBytes: transferredByteLength(built.payload),
         finalRetainedTypedBytes:
-          built.payload.positions.byteLength +
+          (built.payload.positions.buffer === built.payload.nodePositions.buffer
+            ? 0
+            : built.payload.positions.byteLength) +
           built.payload.indices.byteLength +
           built.payload.nodePickIds.byteLength +
           built.payload.nodePositions.byteLength +
