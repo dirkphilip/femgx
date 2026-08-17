@@ -296,15 +296,7 @@ h1 {
   color: #fff;
   background: #294a70;
 }
-.scene {
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  background: var(--workbench-scene-background);
-  outline: 1px solid #53647a;
-  outline-offset: -1px;
-}
+.scene,
 .scene-pane {
   position: relative;
   min-width: 0;
@@ -314,10 +306,9 @@ h1 {
   outline: 1px solid #53647a;
   outline-offset: -1px;
 }
-.scene:focus-visible {
-  outline: 2px solid var(--workbench-accent);
-  outline-offset: -2px;
-}
+.scene[data-active="true"],
+.scene-pane[data-active="true"],
+.scene:focus-visible,
 .scene-pane:focus-visible {
   outline: 2px solid var(--workbench-accent);
   outline-offset: -2px;
