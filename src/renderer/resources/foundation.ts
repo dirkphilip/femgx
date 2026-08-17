@@ -6,7 +6,6 @@ interface PartEdgeResource {
   readonly edgeIndexBuffer: GPUBuffer;
   readonly edgeTopologyBuffer: GPUBuffer;
   readonly edgeIndexCount: number;
-  readonly resultColorBinding: { readonly buffer: GPUBuffer; readonly offset: number };
   readonly edgeKeys: readonly string[] | undefined;
   readonly edgeNodeIds: readonly (readonly number[])[] | undefined;
 }
@@ -24,18 +23,13 @@ export interface PartEdgePickResource {
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
-  /** Geometry-position buffers carrying the appended per-node result table. */
-  resultColorBuffers: readonly { readonly buffer: GPUBuffer; readonly offset: number }[];
-  readonly resultColorNodeCount: number;
-  resultColorsSource: Float32Array | undefined;
-  resultColorsActive: boolean;
   /** Per-primitive private element ordinals (`ordinal + 1`, 0 = none). */
   readonly elementOrdinalsBuffer: GPUBuffer;
   /** Interleaved per-triangle face/owner/neighbor body ids. */
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
-  /** Edge geometry, topology, and result binding, materialized on first edge use. */
+  /** Edge geometry and topology, materialized on first edge use. */
   edge: PartEdgeResource | undefined;
   edgePick: PartEdgePickResource | undefined;
   readonly indexCount: number;

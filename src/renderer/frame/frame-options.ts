@@ -1,10 +1,10 @@
 import type { SectionPlane } from "../../math/section-plane";
 import type { DeformationState } from "../../results/deform";
-import type { PartId } from "../../geometry/part";
 import type { GpuBundle } from "../recovery";
 import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
+import type { ResultColorMap } from "../../results/colors";
 
 const EMPTY_CALLS: readonly DrawCall[] = [];
 
@@ -31,11 +31,11 @@ interface FrameOptionSources {
   readonly nodeSize: number;
   readonly deformation: DeformationState | undefined;
   readonly sectionPlane: SectionPlane | undefined;
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly resultColors: ResultColorMap | undefined;
   readonly orbitPivot: readonly [number, number, number] | undefined;
   readonly originTriadEnabled: boolean;
   readonly originTriadNominalScale: number;
-  readonly timestampRecorder?: GpuTimestampRecorder;
+  readonly timestampRecorder: GpuTimestampRecorder | undefined;
 }
 
 /** Builds the immutable frame input record from current renderer state. */

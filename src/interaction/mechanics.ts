@@ -180,6 +180,7 @@ export function diffSetMembers<T>(
   next: ReadonlySet<T>,
   visit: (value: T) => void,
 ): void {
+  if (previous === next) return;
   for (const value of previous) if (!next.has(value)) visit(value);
   for (const value of next) if (!previous.has(value)) visit(value);
 }
@@ -190,15 +191,18 @@ export function diffNestedSetMembers<OuterKey, InnerKey>(
   next: ReadonlyMap<OuterKey, ReadonlySet<InnerKey>>,
   visit: (value: OuterKey) => void,
 ): void {
+  if (previous === next) return;
   for (const [outerKey, values] of previous) {
     const nextValues = next.get(outerKey);
-    if (nextValues === undefined || [...values].some((value) => !nextValues.has(value))) {
+    if (nextValues === values) continue;
+    if (nextValues === undefined || hasMissingMember(values, nextValues)) {
       visit(outerKey);
     }
   }
   for (const [outerKey, values] of next) {
     const previousValues = previous.get(outerKey);
-    if (previousValues === undefined || [...values].some((value) => !previousValues.has(value))) {
+    if (previousValues === values) continue;
+    if (previousValues === undefined || hasMissingMember(values, previousValues)) {
       visit(outerKey);
     }
   }
@@ -210,8 +214,14 @@ export function diffMapValues<Key, Value>(
   next: ReadonlyMap<Key, Value>,
   visit: (value: Key) => void,
 ): void {
+  if (previous === next) return;
   for (const [key, value] of previous) if (next.get(key) !== value) visit(key);
   for (const [key, value] of next) if (previous.get(key) !== value) visit(key);
+}
+
+function hasMissingMember<T>(values: ReadonlySet<T>, other: ReadonlySet<T>): boolean {
+  for (const value of values) if (!other.has(value)) return true;
+  return false;
 }
 
 /** Collects references in caller-defined order without duplicate identities. */

@@ -2,7 +2,7 @@
 export const emphasisStructs = /* wgsl */ `
 // Field layout must match encodeEmphasisRecord in resources/element-resources.ts:
 // slot 0, elementPickId 4, facePickId 8, nodePickId 12, color 16, emissive 32,
-// hidden 36, selected 40, preservesDisplayedColor 44.
+// hidden 36, selected 40, keepsResultColor 44.
 // The struct has no trailing member so its size stays 48 bytes (vec3 members
 // would force 16-byte alignment and a 64-byte stride that would not match the
 // encoder).
@@ -15,7 +15,7 @@ struct ElementHighlight {
   emissive: f32,
   hidden: u32,
   selected: u32,
-  preservesDisplayedColor: bool,
+  keepsResultColor: bool,
 };
 
 // The fixed header is followed by a u32 payload. Sparse records occupy the

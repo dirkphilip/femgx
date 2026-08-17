@@ -6,6 +6,7 @@ import { readGpuValidationOptions } from "./diagnostics/validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
+import type { ResultColorMap } from "../results/colors";
 import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnostics/timestamps";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
@@ -55,6 +56,17 @@ export function setRendererOrientationGlyphs(
     throw new Error("Elemental orientation glyphs require the built-in WebGPU renderer");
   }
   renderer.setOrientationGlyphs(state);
+}
+
+/** Hands internal dense scalar colors to the concrete renderer without widening its public API. */
+export function setRendererResultColors(
+  renderer: WebGpuRenderer,
+  colors: ResultColorMap | undefined,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Authored scalar colors require the built-in WebGPU renderer");
+  }
+  renderer.setResultColors(colors);
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

@@ -7,11 +7,11 @@ import {
 } from "../../src/renderer/resources/element-resources";
 import type { Scene } from "../../src/scene/scene";
 
+const EMPTY_RESULT_COLOR_BUFFER_BYTES = 16;
+
 export interface BenchmarkMemoryEstimate {
   /** Mandatory surface, line, and point geometry buffers. */
   readonly geometryBytes: number;
-  /** Result-color tails appended to materialized position buffers. */
-  readonly resultColorBytes: number;
   readonly pickMetadataBytes: number;
   /** Canonical optional edge index buffers; subset edge indices are in subsetBytes. */
   readonly edgeIndexBytes: number;
@@ -55,7 +55,6 @@ export function estimateBenchmarkMemory(
   options: BenchmarkMemoryOptions = {},
 ): BenchmarkMemoryEstimate {
   let geometryBytes = 0;
-  let resultColorBytes = 0;
   let pickMetadataBytes = 0;
   let edgeIndexBytes = 0;
   let subsetBytes = 0;
@@ -69,7 +68,6 @@ export function estimateBenchmarkMemory(
         edgeMaterialized && geometry.primitive === "triangles" && geometry.faceSubset === undefined
           ? edgeEndpointUpperBoundFor(geometry, primitiveCount)
           : 0;
-      const resultColorTailBytes = resultColorTailBytesFor(geometry);
       const mainPositionBytes = expandedVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
       const mainIndexBytes = expandedIndexCountFor(geometry) * Uint32Array.BYTES_PER_ELEMENT;
       geometryBytes +=
@@ -78,7 +76,6 @@ export function estimateBenchmarkMemory(
         (canonicalEdge === 0
           ? 0
           : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
-      resultColorBytes += resultColorTailBytes * (canonicalEdge === 0 ? 1 : 2);
       const topologyUpperBound = topologyBytesUpperBound(
         primitiveCount,
         expandedVertexCount,
@@ -91,9 +88,8 @@ export function estimateBenchmarkMemory(
         topologyUpperBound;
       edgeIndexBytes +=
         canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
-      const subset = subsetEstimate(geometry, resultColorTailBytes, edgeMaterialized);
+      const subset = subsetEstimate(geometry, edgeMaterialized);
       subsetBytes += subset.bufferBytes;
-      resultColorBytes += subset.resultColorBytes;
     }
     cpuSceneTypedArrayBytes += scenePartTypedArrayBytes(part);
   }
@@ -108,13 +104,20 @@ export function estimateBenchmarkMemory(
   const instanceBytes = instanceCount * (96 + Uint32Array.BYTES_PER_ELEMENT);
   const highlightBytes = HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE;
   const deformationBytes = 4;
-  // Includes the shared empty order sentinel; the empty highlight and
-  // deformation sentinels are reported in their dedicated fields above.
-  const fixedBufferBytes = CAMERA_UNIFORM_SIZE + DEFORMATION_UNIFORM_SIZE + 32 + 64 + 48 + 16 + 4;
+  // Includes the shared 16-byte empty result-color binding plus empty order;
+  // highlight and deformation sentinels are reported in their dedicated fields above.
+  const fixedBufferBytes =
+    CAMERA_UNIFORM_SIZE +
+    DEFORMATION_UNIFORM_SIZE +
+    32 +
+    64 +
+    48 +
+    16 +
+    EMPTY_RESULT_COLOR_BUFFER_BYTES +
+    4;
   const pickReadbackBytes = 256 * 5;
   const totalBufferBytes =
     geometryBytes +
-    resultColorBytes +
     pickMetadataBytes +
     edgeIndexBytes +
     subsetBytes +
@@ -123,8 +126,7 @@ export function estimateBenchmarkMemory(
     highlightBytes +
     fixedBufferBytes +
     pickReadbackBytes;
-  const uploadStagingBytes =
-    geometryBytes + resultColorBytes + pickMetadataBytes + edgeIndexBytes + subsetBytes;
+  const uploadStagingBytes = geometryBytes + pickMetadataBytes + edgeIndexBytes + subsetBytes;
   const pixels = width * height;
   const visibleColorBytes = pixels * (16 + 4 + 32 + 8 + 4 + 1);
   const visibleDepthBytes = pixels * 16;
@@ -132,7 +134,6 @@ export function estimateBenchmarkMemory(
   const pickDepthBytes = pixels * 4;
   return {
     geometryBytes,
-    resultColorBytes,
     pickMetadataBytes,
     edgeIndexBytes,
     subsetBytes,
@@ -178,12 +179,6 @@ function edgeEndpointUpperBoundFor(
   return geometry.primitive === "triangles" ? primitiveCount * 6 : 1;
 }
 
-function resultColorTailBytesFor(geometry: Part["geometries"][number]): number {
-  let maxNodePickId = 0;
-  for (const pickId of geometry.nodePickIds ?? []) maxNodePickId = Math.max(maxNodePickId, pickId);
-  return (maxNodePickId + 2) * 4 * Float32Array.BYTES_PER_ELEMENT;
-}
-
 function topologyBytesUpperBound(
   primitiveCount: number,
   expandedVertexCount: number,
@@ -202,11 +197,10 @@ function topologyBytesUpperBound(
 
 function subsetEstimate(
   geometry: Part["geometries"][number],
-  resultColorTailBytes: number,
   edgeMaterialized: boolean,
-): { readonly bufferBytes: number; readonly resultColorBytes: number } {
+): { readonly bufferBytes: number } {
   if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) {
-    return { bufferBytes: 0, resultColorBytes: 0 };
+    return { bufferBytes: 0 };
   }
   let primitiveCount = 0;
   for (const faceId of geometry.faceSubset.faceIds) {
@@ -232,7 +226,6 @@ function subsetEstimate(
         topologyBytesUpperBound(logicalPrimitiveCount(geometry), 0, edgeEndpointUpperBound);
   return {
     bufferBytes: surfaceBufferBytes + edgeBufferBytes,
-    resultColorBytes: resultColorTailBytes * (edgeEndpointUpperBound === 0 ? 1 : 2),
   };
 }
 

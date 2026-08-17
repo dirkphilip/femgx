@@ -100,25 +100,27 @@ export const instanceBindings = /* wgsl */ `
 @group(1) @binding(6) var<storage, read> vertexNodePickIds: array<u32>;
 `;
 
-/** Shared lookup for renderer-owned nodal scalar colors. */
+/** Shared lookup for renderer-owned dense nodal or elemental scalar colors. */
 export const resultColorFunctions = /* wgsl */ `
-fn resultColorActive(nodePickId: u32) -> bool {
-  let metadata = arrayLength(&geometryPositions) - 4u;
-  return nodePickId != 0u && geometryPositions[metadata] >= 0.0;
+@group(1) @binding(8) var<storage, read> resultColors: array<f32>;
+
+fn resultColorKey(nodePickId: u32, elementOrdinal: u32) -> u32 {
+  return select(nodePickId, elementOrdinal, resultColors[0] == 1.0);
 }
 
-fn resultColorForNode(nodePickId: u32, fallback: vec4<f32>) -> vec4<f32> {
-  if (!resultColorActive(nodePickId)) {
-    return fallback;
-  }
-  let metadata = arrayLength(&geometryPositions) - 4u;
-  let nodeCount = u32(geometryPositions[metadata + 1u]);
-  let base = metadata - nodeCount * 4u + nodePickId * 4u;
+fn resultColorActive(nodePickId: u32, elementOrdinal: u32) -> bool {
+  let key = resultColorKey(nodePickId, elementOrdinal);
+  return resultColors[0] >= 0.0 && key != 0u && key < u32(resultColors[1]);
+}
+
+fn resultColorFor(nodePickId: u32, elementOrdinal: u32, fallback: vec4<f32>) -> vec4<f32> {
+  if (!resultColorActive(nodePickId, elementOrdinal)) { return fallback; }
+  let base = 4u + resultColorKey(nodePickId, elementOrdinal) * 4u;
   return vec4<f32>(
-    geometryPositions[base],
-    geometryPositions[base + 1u],
-    geometryPositions[base + 2u],
-    geometryPositions[base + 3u],
+    resultColors[base],
+    resultColors[base + 1u],
+    resultColors[base + 2u],
+    resultColors[base + 3u] * fallback.a,
   );
 }
 `;

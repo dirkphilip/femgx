@@ -4,12 +4,10 @@ import { createElementModel } from "../../src/elements/model";
 import { ElementShape } from "../../src/elements/shapes";
 import { elementPart } from "../../src/geometry/element-part";
 import { computeBounds } from "../../src/geometry/part";
-import { createInteractionState } from "../../src/interaction/interaction";
-import { readInteractionState } from "../../src/interaction/state";
 import { identity } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
 import { createScene } from "../../src/scene/scene";
-import { applyViewportResultInteraction, resolveViewportResults } from "../../src/viewport/results";
+import { resolveViewportResults, viewportResultColors } from "../../src/viewport/results";
 
 function mixedModel() {
   const nodes: number[] = [];
@@ -80,20 +78,9 @@ describe("heterogeneous viewport results", () => {
       runtime,
     );
 
-    const resolvedScalar = result.scalar;
-    if (resolvedScalar?.field.location !== "elemental") {
-      throw new Error("Expected elemental field");
-    }
-    const effective = applyViewportResultInteraction(
-      createInteractionState(),
-      resolvedScalar,
-      scene,
-      runtime,
-    );
-    const effectiveData = readInteractionState(effective);
-    expect([...(effectiveData.elementOverrides.get("1/0")?.keys() ?? [])]).toEqual([
-      1, 2, 3, 4, 5, 6,
-    ]);
+    const colors = viewportResultColors(result)?.get(30);
+    expect(colors?.location).toBe("elemental");
+    expect(colors?.values).toHaveLength(7 * 4);
     expect(result.deformation?.displacements.size).toBe(1);
     expect(result.deformation?.displacements.get(30)?.length).toBe(22 * 3);
   });

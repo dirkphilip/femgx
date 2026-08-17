@@ -201,10 +201,10 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const resource = uploadPart(draw, logicalPointPart);
       expect(resource.indexCount).toBe(12);
-      expect(gpu.buffers[3]?.size).toBe(160);
-      expect(gpu.buffers[4]?.size).toBe(48);
-      expect(gpu.buffers[5]?.size).toBe(8);
-      expect(gpu.buffers[6]?.size).toBe(32);
+      expect(gpu.buffers[4]?.size).toBe(96);
+      expect(gpu.buffers[5]?.size).toBe(48);
+      expect(gpu.buffers[6]?.size).toBe(8);
+      expect(gpu.buffers[7]?.size).toBe(32);
 
       const indexWrite = gpu.writes.find((write) => write.buffer === resource.indexBuffer);
       expect(indexWrite).toBeDefined();

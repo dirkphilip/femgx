@@ -80,16 +80,16 @@ describe("encodeEmphasisRecord", () => {
     expect(bodyIds[9]).toBe(1);
     expect(bodyIds[10]).toBe(1);
 
-    const preservedIds = new Uint32Array(
+    const keepsResultIds = new Uint32Array(
       encodeEmphasisRecord({
         slot: 2,
         elementPickId: 11,
         facePickId: 0,
         nodePickId: 0,
-        preservesDisplayedColor: true,
+        keepsResultColor: true,
         style,
       }),
     );
-    expect(preservedIds[11]).toBe(1);
+    expect(keepsResultIds[11]).toBe(1);
   });
 });

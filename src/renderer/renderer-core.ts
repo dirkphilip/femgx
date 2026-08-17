@@ -6,6 +6,7 @@ import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
+import type { ResultColorMap } from "../results/colors";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import { RendererAttachment } from "./attachment";
 import { destroyInstanceResources } from "./resources/draw-resources";
@@ -53,7 +54,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
   private deformation: DeformationState | undefined;
-  private resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  private resultColors: ResultColorMap | undefined;
   private sectionPlane: SectionPlane | undefined;
   private interaction = createInteractionState();
   private readonly sectionCaps = new SectionCapController();
@@ -156,6 +157,7 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public resetScene(parts: ReadonlyMap<PartId, Part>): void {
     this.ensureAlive();
+    syncResultColors(this.lifecycle.bundle.draw, undefined);
     this.sectionCaps.reset(this.lifecycle.bundle.draw);
     this.attachment.clear(this.lifecycle.bundle);
     this.attachment.prepareParts(parts, this.lifecycle.bundle);
@@ -180,7 +182,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.deformation = deformation;
   }
 
-  public setResultColors(colors: ReadonlyMap<PartId, Float32Array> | undefined): void {
+  public setResultColors(colors: ResultColorMap | undefined): void {
     this.ensureAlive();
     if (this.resultColors === colors) return;
     this.resultColors = colors;
@@ -414,9 +416,7 @@ export class GpuRenderer implements WebGpuRenderer {
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,
       originTriadNominalScale: this.originTriadNominalScale,
-      ...(this.timestampRecorder === undefined
-        ? {}
-        : { timestampRecorder: this.timestampRecorder }),
+      timestampRecorder: this.timestampRecorder,
     });
   }
 

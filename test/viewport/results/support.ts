@@ -27,7 +27,6 @@ import { createViewport } from "../../../src/viewport/viewport";
 import type { ViewportResultsConfig } from "../../../src/viewport/results";
 
 import {
-  applyViewportResultInteraction,
   resolveViewportResults,
   viewportOrientationRecords,
   viewportResultColors,
@@ -199,7 +198,6 @@ export {
   createScene,
   createViewport,
   type ViewportResultsConfig,
-  applyViewportResultInteraction,
   resolveViewportResults,
   viewportOrientationRecords,
   viewportResultColors,

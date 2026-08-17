@@ -1,107 +1,132 @@
 import type { PartId } from "../../geometry/part";
-import type { PartResource } from "./foundation";
+import type { ResultColorMap, ResultColorTable } from "../../results/colors";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 
-/** Draw resources needed to synchronize renderer-owned nodal colors. */
+/** One renderer-owned dense scalar table shared by every draw of a reusable part. */
+export interface ResultColorStorage {
+  readonly buffer: GPUBuffer;
+  source: ResultColorTable;
+}
+
+/** Draw resources needed to synchronize renderer-owned scalar colors. */
 export interface ResultColorDrawResources {
   readonly device: GPUDevice;
   readonly cost?: GpuCostAccumulator;
-  readonly parts: ReadonlyMap<PartId, PartResource>;
-  readonly primitiveParts?: ReadonlyMap<PartId, ReadonlyMap<string, PartResource>>;
-  readonly nodeParts: ReadonlyMap<PartId, PartResource>;
+  readonly resultColors: Map<PartId, ResultColorStorage>;
+  readonly emptyResultColorBuffer: GPUBuffer;
+  readonly storages: ReadonlyMap<
+    PartId,
+    {
+      bindGroup: GPUBindGroup | undefined;
+      nodeBindGroup?: GPUBindGroup | undefined;
+      edgeBindGroup: GPUBindGroup | undefined;
+      transparentBindGroup?: GPUBindGroup | undefined;
+      selectionBindGroup?: GPUBindGroup | undefined;
+      subsetSelectionBindGroup?: GPUBindGroup | undefined;
+      nodeSelectionBindGroup?: GPUBindGroup | undefined;
+      subsetBindGroup?: GPUBindGroup | undefined;
+      subsetTransparentBindGroup?: GPUBindGroup | undefined;
+    }
+  >;
 }
 
-/** Result color tail appended to every geometry-position storage buffer. */
-export interface ResultColorTail {
-  readonly resultColorNodeCount: number;
-  readonly data: Float32Array;
+/** Creates the fixed valid storage binding shared by parts without scalar results. */
+export function createEmptyResultColorBuffer(device: GPUDevice): GPUBuffer {
+  return device.createBuffer({
+    label: "femgx empty result color storage",
+    size: 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
 }
 
-/** Creates the per-part result color tail and its synchronization state. */
-export function createResultColorTail(
-  nodePickIds: Uint32Array,
-  colors: Float32Array | undefined,
-): ResultColorTail {
-  const nodeCount = maxNodePickId(nodePickIds) + 1;
-  const colorData = colors ?? new Float32Array(nodeCount * 4);
-  if (colorData.length !== nodeCount * 4) {
-    throw new Error(
-      `Result color buffer expects ${nodeCount * 4} values but got ${colorData.length}`,
-    );
-  }
-  return {
-    resultColorNodeCount: nodeCount,
-    data: resultColorData(colorData, nodeCount, colors !== undefined),
-  };
-}
-
-/** Appends one result color table and metadata record to geometry positions. */
-export function appendResultColorTail(
-  positions: Float32Array,
-  tail: ResultColorTail,
-): { readonly data: Float32Array; readonly offset: number } {
-  const offset = positions.length;
-  const data = new Float32Array(offset + tail.data.length);
-  data.set(positions);
-  data.set(tail.data, offset);
-  return { data, offset };
-}
-
-/** Synchronizes the renderer-owned nodal scalar color buffers. */
+/** Synchronizes one dense scalar buffer per active reusable part. */
 export function syncResultColors(
   draw: ResultColorDrawResources,
-  colors: ReadonlyMap<PartId, Float32Array> | undefined,
+  colors: ResultColorMap | undefined,
 ): void {
-  const resources =
-    draw.primitiveParts === undefined
-      ? [...draw.parts]
-      : [...draw.primitiveParts].flatMap(([partId, primitiveResources]) =>
-          [...primitiveResources.values()].map((resource) => [partId, resource] as const),
-        );
-  for (const [partId, resource] of [...resources, ...draw.nodeParts]) {
-    const next = colors?.get(partId);
-    if (next !== undefined) {
-      if (next.length !== resource.resultColorNodeCount * 4) {
-        throw new Error(
-          `Result color buffer for part ${partId} expects ${resource.resultColorNodeCount * 4} values but got ${next.length}`,
-        );
-      }
-      const nextData = resultColorData(next, resource.resultColorNodeCount, true);
-      if (resource.resultColorsActive && resource.resultColorsSource === next) continue;
-      for (const target of resource.resultColorBuffers) {
-        draw.device.queue.writeBuffer(target.buffer, target.offset * 4, nextData);
-        draw.cost?.write("result", nextData.byteLength);
-      }
-      resource.resultColorsSource = next;
-      resource.resultColorsActive = true;
-      continue;
-    }
-    if (!resource.resultColorsActive) continue;
-    const inactive = resultColorData(
-      new Float32Array(resource.resultColorNodeCount * 4),
-      resource.resultColorNodeCount,
-      false,
-    );
-    for (const target of resource.resultColorBuffers) {
-      draw.device.queue.writeBuffer(target.buffer, target.offset * 4, inactive);
-      draw.cost?.write("result", inactive.byteLength);
-    }
-    resource.resultColorsSource = undefined;
-    resource.resultColorsActive = false;
+  for (const [partId, table] of colors ?? []) uploadResultColors(draw, partId, table);
+  for (const [partId, storage] of draw.resultColors) {
+    if (colors?.has(partId) === true) continue;
+    releaseResultColors(draw, partId, storage);
   }
 }
 
-function resultColorData(colors: Float32Array, nodeCount: number, active: boolean): Float32Array {
-  const data = new Float32Array(colors.length + 4);
-  data.set(colors);
-  const metadata = colors.length;
-  data[metadata] = active ? 0 : -1;
-  data[metadata + 1] = nodeCount;
+/** Returns the active part table or the shared inactive binding. */
+export function resultColorBuffer(draw: ResultColorDrawResources, partId: PartId): GPUBuffer {
+  return draw.resultColors.get(partId)?.buffer ?? draw.emptyResultColorBuffer;
+}
+
+/** Destroys every dense result buffer owned by the draw path. */
+export function destroyResultColorBuffers(draw: ResultColorDrawResources): void {
+  for (const storage of draw.resultColors.values()) {
+    draw.cost?.releaseBuffer(storage.buffer.size);
+    storage.buffer.destroy();
+  }
+  draw.resultColors.clear();
+}
+
+/** Releases one part's dense result buffer. */
+export function destroyResultColorBuffer(draw: ResultColorDrawResources, partId: PartId): void {
+  const storage = draw.resultColors.get(partId);
+  if (storage !== undefined) releaseResultColors(draw, partId, storage);
+}
+
+function uploadResultColors(
+  draw: ResultColorDrawResources,
+  partId: PartId,
+  table: ResultColorTable,
+): void {
+  const current = draw.resultColors.get(partId);
+  if (current?.source === table) return;
+  const data = resultColorData(table);
+  if (current !== undefined && current.buffer.size === data.byteLength) {
+    current.source = table;
+    draw.device.queue.writeBuffer(current.buffer, 0, data);
+    draw.cost?.write("result", data.byteLength);
+    return;
+  }
+  const buffer = draw.device.createBuffer({
+    label: "femgx result color storage",
+    size: data.byteLength,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  if (current !== undefined) releaseResultColors(draw, partId, current);
+  draw.resultColors.set(partId, { buffer, source: table });
+  draw.cost?.allocateBuffer(buffer.size);
+  draw.device.queue.writeBuffer(buffer, 0, data);
+  draw.cost?.write("result", data.byteLength);
+  invalidateBindGroups(draw, partId);
+}
+
+function releaseResultColors(
+  draw: ResultColorDrawResources,
+  partId: PartId,
+  storage: ResultColorStorage,
+): void {
+  draw.cost?.releaseBuffer(storage.buffer.size);
+  storage.buffer.destroy();
+  draw.resultColors.delete(partId);
+  invalidateBindGroups(draw, partId);
+}
+
+function resultColorData(table: ResultColorTable): Float32Array {
+  const data = new Float32Array(table.values.length + 4);
+  data[0] = table.location === "nodal" ? 0 : 1;
+  data[1] = table.values.length / 4;
+  data.set(table.values, 4);
   return data;
 }
 
-function maxNodePickId(nodePickIds: Uint32Array): number {
-  let max = 0;
-  for (const pickId of nodePickIds) max = Math.max(max, pickId);
-  return max;
+function invalidateBindGroups(draw: ResultColorDrawResources, partId: PartId): void {
+  const storage = draw.storages.get(partId);
+  if (storage === undefined) return;
+  storage.bindGroup = undefined;
+  storage.nodeBindGroup = undefined;
+  storage.transparentBindGroup = undefined;
+  storage.edgeBindGroup = undefined;
+  storage.selectionBindGroup = undefined;
+  storage.subsetSelectionBindGroup = undefined;
+  storage.nodeSelectionBindGroup = undefined;
+  storage.subsetBindGroup = undefined;
+  storage.subsetTransparentBindGroup = undefined;
 }

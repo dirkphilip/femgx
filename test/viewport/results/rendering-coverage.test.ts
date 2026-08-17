@@ -17,7 +17,7 @@ describe("viewport results workflow", () => {
   it("keeps preserved elemental result colors out of host interaction", async () => {
     installTestGpuGlobals();
     installNavigator();
-    const updateElements = vi.spyOn(GpuRenderer.prototype, "updateElements");
+    const setResultColors = vi.spyOn(GpuRenderer.prototype, "setResultColors");
     const fieldA = createResultField({
       id: "stress-a",
       name: "Stress A",
@@ -46,14 +46,8 @@ describe("viewport results workflow", () => {
       results: config(fieldA),
     });
     const hostInteraction = viewport.interaction.state;
-    const rendererInteraction = (): ReturnType<typeof readInteractionState> => {
-      const call = updateElements.mock.calls.at(-1);
-      if (call === undefined) throw new Error("renderer interaction was not updated");
-      return readInteractionState(call[1]);
-    };
-    const resultColor = (interaction: ReturnType<typeof readInteractionState>) =>
-      interaction.elementOverrides.get("1/0")?.get(0)?.color;
-    const colorA = resultColor(rendererInteraction());
+    const resultColors = () => setResultColors.mock.calls.at(-1)?.[0];
+    const colorA = resultColors()?.get(1)?.values.slice(4, 8);
 
     expect(viewport.updateScene(createTestScene())).toEqual({ results: "preserved" });
     expect(viewport.interaction.state).toBe(hostInteraction);
@@ -61,12 +55,12 @@ describe("viewport results workflow", () => {
 
     viewport.results.set(config(fieldB));
     expect(viewport.interaction.state).toBe(hostInteraction);
-    const colorB = resultColor(rendererInteraction());
+    const colorB = resultColors()?.get(1)?.values.slice(4, 8);
     expect(colorB).not.toEqual(colorA);
 
     viewport.results.clear();
     expect(viewport.interaction.state).toBe(hostInteraction);
-    expect(resultColor(rendererInteraction())).toBeUndefined();
+    expect(resultColors()).toBeUndefined();
     viewport.destroy();
   });
 

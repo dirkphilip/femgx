@@ -4,6 +4,12 @@ Deterministic performance validation for the CPU-side scene pipeline. See
 [[engineering/quality-gate|Quality gate]] for how budgets fit into CI.
 GPU timing, mode, and memory rules live in
 [[engineering/gpu-performance|GPU rendering performance]].
+Local interaction targets and machine-fingerprinted operation reports live in
+[[engineering/performance-baselines|Performance baselines]]. The default
+buttonless mouse/pen hover binding also has an absolute scheduling target of no
+more than one submitted hover query per animation frame, one hover query in
+flight, and one newest queued hover query; touch hover remains immediate, and
+this CPU report does not claim that GPU/readback behavior.
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
@@ -172,6 +178,17 @@ the measured workload. Open the latter in Chrome DevTools' Performance panel.
 
 ## Performance report (opt-in, trend tracking)
 
+`npm run bench:operations` runs the local CPU operation matrix for half/all
+131,712-element selection and clear, hover diffs over unchanged dense selection,
+sparse element visibility and restore, 256-body recolor and clear, elemental
+result snapshot builds for 1/8/64 placements, one CPU hover/identity transition
+on one active-result fixture, and 200,000-placement scene/runtime operations. It emits one fingerprinted JSON
+report. Set `PERF_BASELINE_FILE` to write it to an explicit path; otherwise the
+report is printed only. Its hover case measures immutable interaction diff
+preparation, not renderer synchronization or first-frame smoothness; those
+claims remain in the opt-in WebGPU report. The targets and changelog format are defined in
+[[engineering/performance-baselines|Performance baselines]].
+
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
 prints their measured medians for human review and trend comparison. The
 opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs this same report
@@ -242,7 +259,7 @@ check.
 
 Optional triangle-edge geometry is not part of the cold attachment estimate. The
 benchmark memory estimator accepts the part ids whose edge resources have
-materialized, so edge position, index, topology, node-id, and result-tail bytes
+materialized, so edge position, index, topology, and node-id bytes
 are counted only after the first edge draw. This mirrors the retained per-part
 cache: toggling additional placements does not multiply those bytes.
 
@@ -397,8 +414,10 @@ a fragment-only duration.
 The JSON report identifies the browser user agent, adapter identity and fallback
 status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned
-buffer/render-target memory breakdown. The breakdown includes appended inactive
-result-color tails, expanded main geometry and materialized optional edge
+buffer/render-target memory breakdown. Benchmark cases have no active scalar
+table, so active result-color allocations are not modeled; the shared 16-byte
+empty result binding is included in fixedBufferBytes. The breakdown includes
+expanded main geometry and materialized optional edge
 geometry, topology/pick metadata, face-subset buffers, mandatory instance
 records and ordinary visible order, shared empty order/highlight/deformation
 sentinels, admitted optional sidecars, pooled pick readback, and the multisampled

@@ -6,6 +6,7 @@ import {
   createInteractionState,
   setPartOverride,
   setTargetHovered,
+  setElementOverride,
   fakeCanvas,
   fakeGpuDevice,
   installFreshDeviceNavigator,
@@ -15,6 +16,7 @@ import {
   camera,
   installGpuTestGlobals,
 } from "./support";
+import { setRendererResultColors } from "../../../../src/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("culls hidden parts from the draw order without rewriting records", async () => {
@@ -176,4 +178,57 @@ describe("WebGPU renderer", () => {
     await expect(renderer.pick(2, 2)).resolves.toMatchObject({ kind: "element", elementId: 7 });
     renderer.destroy();
   });
+
+  it("shares a flat elemental result color with the owning section cap", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    setRendererResultColors(renderer, elementalColors());
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+    expect(elementalResultWrites(gpu)).toHaveLength(2);
+    renderer.destroy();
+  });
+
+  it("keeps an explicit element color above the result color on its section cap", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const interaction = setElementOverride(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 7 },
+      { color: { r: 0, g: 1, b: 0, a: 1 } },
+    );
+    renderer.updateElements(runtime, interaction);
+    setRendererResultColors(renderer, elementalColors());
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+    expect(elementalResultWrites(gpu)).toHaveLength(1);
+    renderer.destroy();
+  });
 });
+
+function elementalColors() {
+  return new Map([
+    [
+      1,
+      {
+        location: "elemental" as const,
+        values: new Float32Array([0, 0, 0, 0, 0.8, 0.2, 0.1, 1]),
+      },
+    ],
+  ]);
+}
+
+function elementalResultWrites(gpu: ReturnType<typeof fakeGpuDevice>) {
+  return gpu.writes.filter((write) => {
+    if (!(write.source instanceof Float32Array) || write.source.length !== 12) return false;
+    return write.source[0] === 1 && write.source[1] === 2;
+  });
+}

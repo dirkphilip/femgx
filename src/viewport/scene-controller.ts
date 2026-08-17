@@ -5,7 +5,6 @@ import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/pu
 import type { Scene } from "../scene/scene";
 import { sceneOriginTriadScale } from "./origin-triad";
 import {
-  resolveViewportInteraction,
   resolveViewportResults,
   type ViewportResultsConfig,
   type ViewportResultsState,
@@ -21,7 +20,6 @@ interface PreparedSceneReplacement {
   readonly publicRuntime: SceneRuntime;
   readonly originTriadNominalScale: number;
   readonly baseInteraction: InteractionState;
-  readonly effectiveInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   readonly outcome: SceneUpdateOutcome;
 }
@@ -38,7 +36,6 @@ export class ViewportSceneController {
   private currentRuntime: PackedSceneRuntime;
   private currentPublicRuntime: SceneRuntime;
   private baseInteraction: InteractionState;
-  private effectiveInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
 
@@ -47,8 +44,7 @@ export class ViewportSceneController {
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
-    this.effectiveInteraction = this.baseInteraction =
-      options.interaction ?? createInteractionState();
+    this.baseInteraction = options.interaction ?? createInteractionState();
   }
 
   get scene(): Scene {
@@ -65,10 +61,6 @@ export class ViewportSceneController {
 
   get interaction(): InteractionState {
     return this.baseInteraction;
-  }
-
-  get effectiveInteractionState(): InteractionState {
-    return this.effectiveInteraction;
   }
 
   get results(): ViewportResultsState | undefined {
@@ -89,30 +81,20 @@ export class ViewportSceneController {
 
   setInteraction(interaction: InteractionState): void {
     this.baseInteraction = interaction;
-    this.effectiveInteraction = resolveViewportInteraction(
-      interaction,
-      this.currentResults,
-      this.currentScene,
-      this.currentRuntime,
-    );
   }
 
   setResults(results: ViewportResultsConfig): void {
-    const applied = applyViewportResults({
+    this.currentResults = applyViewportResults({
       results,
       scene: this.currentScene,
       runtime: this.currentRuntime,
-      interaction: this.baseInteraction,
       renderer: this.options.renderer,
       ...(this.currentResults === undefined ? {} : { previous: this.currentResults }),
     });
-    this.currentResults = applied.results;
-    this.effectiveInteraction = applied.interaction;
   }
 
   clearResults(): void {
     this.currentResults = undefined;
-    this.effectiveInteraction = this.baseInteraction;
     applyResolvedViewportResults(this.options.renderer, undefined);
   }
 
@@ -131,7 +113,6 @@ export class ViewportSceneController {
     this.currentPublicRuntime = replacement.publicRuntime;
     this.currentResults = replacement.results;
     this.baseInteraction = replacement.baseInteraction;
-    this.effectiveInteraction = replacement.effectiveInteraction;
     applyResolvedViewportResults(this.options.renderer, replacement.results);
     return replacement.outcome;
   }
@@ -150,15 +131,14 @@ export class ViewportSceneController {
       scene.parts,
     );
     const resultUpdate = preserveResults
-      ? this.prepareSceneResults(scene, nextRuntime, nextInteraction)
-      : { results: undefined, interaction: nextInteraction, outcome: { results: "none" as const } };
+      ? this.prepareSceneResults(scene, nextRuntime)
+      : { results: undefined, outcome: { results: "none" as const } };
     return {
       scene,
       runtime: nextRuntime,
       publicRuntime: nextPublicRuntime,
       originTriadNominalScale: nextOriginTriadNominalScale,
       baseInteraction: nextInteraction,
-      effectiveInteraction: resultUpdate.interaction,
       results: resultUpdate.results,
       outcome: resultUpdate.outcome,
     };
@@ -167,27 +147,23 @@ export class ViewportSceneController {
   private prepareSceneResults(
     scene: Scene,
     runtime: PackedSceneRuntime,
-    interaction: InteractionState,
   ): {
     readonly results: ViewportResultsState | undefined;
-    readonly interaction: InteractionState;
     readonly outcome: SceneUpdateOutcome;
   } {
     const previous = this.currentResults;
     if (previous === undefined) {
-      return { results: undefined, interaction, outcome: { results: "none" } };
+      return { results: undefined, outcome: { results: "none" } };
     }
     try {
       const results = resolveViewportResults(previous.config, scene, runtime, previous);
       return {
         results,
-        interaction: resolveViewportInteraction(interaction, results, scene, runtime),
         outcome: { results: "preserved" },
       };
     } catch (error: unknown) {
       return {
         results: undefined,
-        interaction,
         outcome: { results: "cleared", reason: errorMessage(error) },
       };
     }

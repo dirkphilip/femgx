@@ -47,8 +47,6 @@ export interface WebGpuRenderer {
   resetScene(parts: ReadonlyMap<PartId, Part>): void;
   /** Sets or clears the per-frame CPU deformation state. */
   setDeformation(deformation: DeformationState | undefined): void;
-  /** Sets or clears renderer-owned nodal scalar color buffers. */
-  setResultColors(colors: ReadonlyMap<PartId, Float32Array> | undefined): void;
   /** Sets or clears the single world-space scene clipping plane. */
   setSectionPlane(plane: SectionPlane | undefined): void;
   /** Writes only GPU subranges affected by changed instance slots. */

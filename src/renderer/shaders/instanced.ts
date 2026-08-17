@@ -44,9 +44,12 @@ const bodyAndElementHighlighting = /* wgsl */ `
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == bodyPickId && highlight.facePickId == 0xffffffffu) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
+        color = highlight.color;
+        resultColorEnabled = select(
+          false,
+          resultColorActive(nodePickId, elementOrdinal),
+          highlight.keepsResultColor,
+        );
         emissive = highlight.emissive;
         hidden = highlight.hidden != 0u;
         selected = selected || highlight.selected != 0u;
@@ -57,7 +60,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
   if (elementOrdinal != 0u && denseElementSelected(drawOrder[instanceIndex], elementOrdinal)) {
     color = applyDenseSelectionColor(color);
     emissive = applyDenseSelectionEmissive(emissive);
-    selectionKeepsResult = true;
+    resultColorEnabled = resultColorActive(nodePickId, elementOrdinal);
     selected = true;
     exactSelection = true;
   }
@@ -67,9 +70,12 @@ const bodyAndElementHighlighting = /* wgsl */ `
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.elementPickId == elementPickId && highlight.facePickId == 0u) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
+        color = highlight.color;
+        resultColorEnabled = select(
+          false,
+          resultColorActive(nodePickId, elementOrdinal),
+          highlight.keepsResultColor,
+        );
         emissive = highlight.emissive;
         hidden = hidden || highlight.hidden != 0u;
         matched = true;
@@ -85,10 +91,9 @@ const instanceHighlighting = /* wgsl */ `
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
   let nodePickId = vertexNodePickIds[vertexIndex];
-  let baseResultColor = resultColorForNode(nodePickId, instance.color);
+  let baseResultColor = resultColorFor(nodePickId, elementOrdinal, instance.color);
   var color = baseResultColor;
-  var resultColorEnabled = resultColorActive(nodePickId);
-  var selectionKeepsResult = false;
+  var resultColorEnabled = resultColorActive(nodePickId, elementOrdinal);
   var emissive = instance.emissive;
   var hidden = false;
   var matched = false;
@@ -100,11 +105,10 @@ ${bodyAndElementHighlighting}
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, facePickId, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
     let base = bucket * 4u;
     for (var offset = 0u; offset < 4u; offset++) {
-    let highlight = elementHighlightAt(base + offset);
+      let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.facePickId == facePickId) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
+        if (!highlight.keepsResultColor) { color = highlight.color; }
+        if (highlight.selected == 0u && !highlight.keepsResultColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         exactSelection = exactSelection || highlight.selected != 0u;
@@ -112,9 +116,6 @@ ${bodyAndElementHighlighting}
       }
     }
   }
-  }
-  if (selectionKeepsResult) {
-    resultColorEnabled = resultColorActive(nodePickId);
   }
 `;
 
@@ -281,14 +282,13 @@ fn pointVertex(
     clip.z,
     clip.w,
   );
-  let baseResultColor = resultColorForNode(nodePickId, instance.color);
+  let baseResultColor = resultColorFor(nodePickId, elementOrdinal, instance.color);
   var color = select(
     baseResultColor,
     vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
     nodeOverlay,
   );
-  var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
-  var selectionKeepsResult = false;
+  var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId, elementOrdinal);
   if (nodeOverlay && instanceSelected(instance.selected)) {
     color = instance.color;
   }
@@ -307,9 +307,8 @@ ${bodyAndElementHighlighting}
     for (var offset = 0u; offset < 4u; offset++) {
       let highlight = elementHighlightAt(base + offset);
       if (highlight.slot == drawOrder[instanceIndex] && highlight.nodePickId == nodePickId) {
-        if (!highlight.preservesDisplayedColor) { color = highlight.color; }
-        selectionKeepsResult = selectionKeepsResult || highlight.selected != 0u || highlight.preservesDisplayedColor;
-        if (highlight.selected == 0u && !highlight.preservesDisplayedColor) { resultColorEnabled = false; }
+        if (!highlight.keepsResultColor) { color = highlight.color; }
+        if (highlight.selected == 0u && !highlight.keepsResultColor) { resultColorEnabled = false; }
         emissive = highlight.emissive;
         selected = selected || highlight.selected != 0u;
         break;
@@ -319,9 +318,6 @@ ${bodyAndElementHighlighting}
   }
   if (nodeOverlay && !topologyAnyOwnerVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     hidden = true;
-  }
-  if (selectionKeepsResult) {
-    resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId);
   }
   if (!nodeOverlay && !primitiveVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
     hidden = true;

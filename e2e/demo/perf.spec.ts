@@ -108,7 +108,6 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         height: 600,
         dpr: spec.id === DPR2_READBACK_CASE_ID ? 2 : 1,
       });
-      expect(entry?.estimatedMemory.resultColorBytes).toBeGreaterThan(0);
       expect(entry?.estimatedMemory.visibleColorBytes).toBeGreaterThan(0);
       if (entry === undefined) throw new Error("Benchmark report case is missing");
       expect(entry.elementFamily).toBeDefined();

@@ -9,10 +9,12 @@ import type { HighlightStorage } from "../selection/highlight-storage";
 import type { InstanceStorage } from "./instance-storage";
 import type { PartResource } from "./foundation";
 import type { VisibilitySkinCache } from "../visibility/types";
+import type { ResultColorStorage } from "./result-colors";
+import type { ResultColorMap } from "../../results/colors";
 
 /** Cached state used to avoid re-evaluating unchanged feature admission. */
 export interface PipelineAdmissionCacheEntry {
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly resultColors: ResultColorMap | undefined;
   readonly deformation: DeformationState | undefined;
   readonly sectionPlane: SectionPlane | undefined;
   readonly usesExteriorFaceSubsets: boolean;
@@ -40,7 +42,10 @@ export interface DrawResources {
   readonly emptyHighlight: HighlightStorage;
   /** Fixed device-scoped identity displacement binding. */
   readonly emptyDeformationBuffer: GPUBuffer;
+  /** Fixed device-scoped inactive scalar color binding. */
+  readonly emptyResultColorBuffer: GPUBuffer;
   readonly deformations: Map<PartId, DeformationStorage>;
+  readonly resultColors: Map<PartId, ResultColorStorage>;
   readonly orientationGlyphs: OrientationGlyphDrawResources;
   /** The complete visible-frame target state and its composite cache. */
   readonly targets: ColorTargets;

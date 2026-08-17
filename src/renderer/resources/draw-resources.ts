@@ -1,6 +1,7 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { Geometry, Primitive } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
+import type { ResultColorMap } from "../../results/colors";
 import type { SectionPlane } from "../../math/section-plane";
 import { createEmptyDeformationBuffer } from "../frame/deformation";
 import { packTopologyData } from "../resources/geometry-buffers";
@@ -14,7 +15,7 @@ import {
 import type { DrawPipelines } from "../frame/pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometry";
 import { createBuffer, type PartResource } from "./foundation";
-import { appendResultColorTail, createResultColorTail } from "./result-colors";
+import { createEmptyResultColorBuffer } from "./result-colors";
 import {
   buildPartEdgePickResources,
   buildPartEdgeResources,
@@ -83,7 +84,7 @@ export interface DrawCallContext {
   readonly minimalInstanceLayout?: GPUBindGroupLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly pipelines: DrawPipelines;
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly resultColors: ResultColorMap | undefined;
   readonly deformation?: DeformationState;
   readonly sectionPlane?: SectionPlane;
   readonly usesExteriorFaceSubsets: boolean;
@@ -97,9 +98,11 @@ export function createDrawResources(
   const emptyOrderBuffer = createEmptyOrderBuffer(device);
   const emptyHighlight = createHighlightStorage(device, 1);
   const emptyDeformationBuffer = createEmptyDeformationBuffer(device);
+  const emptyResultColorBuffer = createEmptyResultColorBuffer(device);
   cost.allocateBuffer(emptyOrderBuffer.size);
   cost.allocateBuffer(emptyHighlight.buffer.size);
   cost.allocateBuffer(emptyDeformationBuffer.size);
+  cost.allocateBuffer(emptyResultColorBuffer.size);
   return {
     device,
     cost,
@@ -113,38 +116,30 @@ export function createDrawResources(
     emptyOrderBuffer,
     emptyHighlight,
     emptyDeformationBuffer,
+    emptyResultColorBuffer,
     deformations: new Map(),
+    resultColors: new Map(),
     orientationGlyphs: createOrientationGlyphDrawResources(device, cost),
     targets: createColorTargets(),
   };
 }
 
 /** Uploads the transient node-sprite geometry and its body-owner metadata. */
-export function uploadNodePart(
-  draw: DrawResources,
-  part: Part,
-  resultColors?: Float32Array,
-): PartResource {
+export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
   const nodes = part.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part);
   const nodeBodyData = buildNodeBodyOwnerData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
-  const resultTail = createResultColorTail(ids, resultColors);
-  const vertexWithResults = appendResultColorTail(positions, resultTail);
   const vertexBuffer = createBuffer(
     draw.device,
-    vertexWithResults.data,
+    positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
-    resultColorBuffers: [{ buffer: vertexBuffer, offset: vertexWithResults.offset }],
-    resultColorNodeCount: resultTail.resultColorNodeCount,
-    resultColorsSource: resultColors,
-    resultColorsActive: resultColors !== undefined,
     elementOrdinalsBuffer: createBuffer(
       draw.device,
       new Uint32Array(spritePickIds.length),
@@ -191,17 +186,13 @@ function buildNodeSpriteBuffers(
 }
 
 /** Uploads and caches one homogeneous primitive leaf of a semantic part. */
-export function uploadPart(
-  draw: DrawResources,
-  part: Part,
-  resultColors?: Float32Array,
-): PartResource {
+export function uploadPart(draw: DrawResources, part: Part): PartResource {
   if (part.geometries.length !== 1) {
     throw new Error("uploadPart requires one explicit geometry group");
   }
   const geometry = part.geometries[0];
   if (geometry === undefined) throw new Error("Part has no geometry groups");
-  return uploadGeometryPart(draw, part, geometry, resultColors);
+  return uploadGeometryPart(draw, part, geometry);
 }
 
 /** Uploads and caches one homogeneous primitive leaf of a semantic part. */
@@ -209,7 +200,6 @@ export function uploadGeometryPart(
   draw: DrawResources,
   part: Part,
   geometry: Geometry,
-  resultColors?: Float32Array,
 ): PartResource {
   const resources = draw.primitiveParts.get(part.id) ?? new Map<Primitive, PartResource>();
   const existing = resources.get(geometry.primitive);
@@ -218,27 +208,16 @@ export function uploadGeometryPart(
     geometry.primitive === "points"
       ? expandPointGeometry(geometry)
       : expandSurfaceGeometry(geometry);
-  const resultTail = createResultColorTail(vertexData.nodePickIds, resultColors);
-  const vertexWithResults = appendResultColorTail(vertexData.positions, resultTail);
   const vertexBuffer = createBuffer(
     draw.device,
-    vertexWithResults.data,
+    vertexData.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
   const indexBuffer = createBuffer(draw.device, vertexData.indices, GPUBufferUsage.INDEX);
-  const geometryData = buildPartGeometryData(draw.device, part, geometry, vertexData, resultTail);
+  const geometryData = buildPartGeometryData(draw.device, part, geometry, vertexData);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer,
-    resultColorBuffers: [
-      { buffer: vertexBuffer, offset: vertexWithResults.offset },
-      ...(geometryData.subsetResultColorBinding === undefined
-        ? []
-        : [geometryData.subsetResultColorBinding]),
-    ],
-    resultColorNodeCount: resultTail.resultColorNodeCount,
-    resultColorsSource: resultColors,
-    resultColorsActive: resultColors !== undefined,
     ...geometryData.picks,
     facePickIdsBuffer: geometryData.facePickIdsBuffer,
     edge: undefined,
@@ -278,14 +257,9 @@ export function ensureEdgeResources(
   if (resource === undefined) throw new Error("Edge geometry requires its uploaded resource");
   if (geometry?.primitive !== "triangles") return undefined;
   if (resource.edge !== undefined) return resource.edge;
-  const resultTail = createResultColorTail(
-    new Uint32Array([resource.resultColorNodeCount - 1]),
-    resource.resultColorsSource,
-  );
-  const edge = buildPartEdgeResources(draw.device, part, geometry, resultTail);
+  const edge = buildPartEdgeResources(draw.device, part, geometry);
   if (edge === undefined) return undefined;
   resource.edge = edge;
-  resource.resultColorBuffers = [...resource.resultColorBuffers, edge.resultColorBinding];
   return edge;
 }
 

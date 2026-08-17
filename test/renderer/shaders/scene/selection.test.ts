@@ -23,6 +23,10 @@ describe("selection emphasis shaders", () => {
   });
 
   it("keeps result colors available in visible and hidden selection passes", () => {
+    expect(instanceVertexShader).toContain("@group(1) @binding(8)");
+    expect(instanceVertexShader).toContain(
+      "select(nodePickId, elementOrdinal, resultColors[0] == 1.0)",
+    );
     for (const source of [selectionFragmentShader, selectionTransparencyFragmentShader]) {
       expect(source).toContain("@location(10) resultColor: vec4<f32>");
       expect(source).toContain("resultColorEnabled: u32");
