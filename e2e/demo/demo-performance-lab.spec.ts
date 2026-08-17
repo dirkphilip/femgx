@@ -69,3 +69,15 @@ test("cancels a stale heavy FE build and completes the selected case", async ({ 
     timeout: 30_000,
   });
 });
+
+test("builds a configurable Tet4 solid through the dense worker", async ({ page }) => {
+  await loadWebGpuPage(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("performance-lab").click();
+  await page.getByTestId("tet4-cells").fill("16");
+  await page.getByTestId("mesh-tet4").click();
+  await expect(canvas).toHaveAttribute("data-model", "fe-tet4-dense-16", {
+    timeout: 15_000,
+  });
+  await expect(page.getByText("24576 elements")).toBeVisible();
+});
