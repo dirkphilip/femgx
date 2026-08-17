@@ -146,7 +146,8 @@ export class WorkbenchViewportSlots {
     if (this.slots.get(slotId) === undefined) return;
     this.activeSlotId = slotId;
     for (const slot of this.slots.values()) {
-      slot.pane.scene.dataset["active"] = String(slot.id === slotId);
+      if (this.slots.size === 1) delete slot.pane.scene.dataset["active"];
+      else slot.pane.scene.dataset["active"] = String(slot.id === slotId);
     }
     this.options.onActiveSlotChanged(slotId);
   }
@@ -279,9 +280,9 @@ export class WorkbenchViewportSlots {
     const slot = this.slots.get("secondary");
     if (slot === undefined) return;
     this.secondaryGeneration += 1;
-    this.setActiveSlot("primary");
     this.destroySlot(slot);
     this.slots.delete("secondary");
+    this.setActiveSlot("primary");
     this.options.removeShowState("secondary");
     this.options.render();
   }

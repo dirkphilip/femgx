@@ -307,14 +307,19 @@ h1 {
   outline-offset: -1px;
 }
 .scene[data-active="true"],
-.scene-pane[data-active="true"],
+.scene-pane[data-active="true"] {
+  outline: 3px solid var(--workbench-active-viewport);
+  outline-offset: -3px;
+}
 .scene:focus-visible,
 .scene-pane:focus-visible {
   outline: 5px solid var(--workbench-active-viewport);
   outline-offset: -5px;
 }
 .scene[data-active="true"]::after,
-.scene-pane[data-active="true"]::after,
+.scene-pane[data-active="true"]::after {
+  border: 3px solid var(--workbench-active-viewport);
+}
 .scene:focus-visible::after,
 .scene-pane:focus-visible::after {
   position: absolute;
