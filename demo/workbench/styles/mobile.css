@@ -186,6 +186,9 @@
   .model-source button {
     flex: 0 1 104px;
   }
+  .tet4-mesh {
+    flex: 1 1 140px;
+  }
   .toolbar-background select {
     min-width: 0;
   }

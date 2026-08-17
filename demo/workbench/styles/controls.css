@@ -91,6 +91,26 @@
 .model-source button {
   flex: 0 0 auto;
 }
+.tet4-mesh {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--workbench-control-border);
+  border-radius: 6px;
+  padding: 0 8px;
+  color: #b9c7d8;
+  background: var(--workbench-control-background);
+  font-size: 12px;
+}
+.tet4-mesh input {
+  width: 4.5rem;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+}
 .toolbar-background {
   display: flex;
   min-width: 150px;

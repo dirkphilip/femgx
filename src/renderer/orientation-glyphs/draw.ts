@@ -43,7 +43,7 @@ export function drawOrientationGlyphs(
       : frame.resources.orientationGlyphs.hidden,
   );
   pass.setBindGroup(0, context.frameBindGroup);
-  const vertexCount = state.mode === "axis" ? 6 : 9;
+  const vertexCount = state.mode === "arrow" ? 9 : 6;
   for (const call of calls) {
     const resource = frame.draw.orientationGlyphs.parts.get(call.partId);
     const storage = frame.draw.storages.get(call.partId);

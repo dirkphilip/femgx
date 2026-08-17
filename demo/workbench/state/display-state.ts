@@ -2,6 +2,7 @@ import {
   setPartOverride,
   type Viewport,
   type InteractionState,
+  type ViewportElementFrameConfig,
   type ViewportElementVectorConfig,
   type ViewportResultsConfig,
 } from "../../../src/entries/root";
@@ -16,7 +17,7 @@ interface ResultStateOptions {
   readonly mode: ResultDisplayMode;
   readonly scalar: WorkbenchScalarField | undefined;
   readonly deformationScale: number;
-  readonly vector: ViewportElementVectorConfig | undefined;
+  readonly vector: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined;
   readonly playback: WorkbenchResultPlaybackStep | undefined;
   readonly reflect: () => void;
 }
@@ -45,7 +46,7 @@ interface ResultRolesOptions {
   readonly mode: ResultDisplayMode;
   readonly scalarField: WorkbenchScalarField | undefined;
   readonly deformationScale: number;
-  readonly vector: ViewportElementVectorConfig | undefined;
+  readonly vector: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined;
   readonly playback: WorkbenchResultPlaybackStep | undefined;
 }
 

@@ -2,6 +2,7 @@ import {
   createResultField,
   type Bounds,
   type Color,
+  type ElementFrameField,
   type PartId,
   type Scene,
   type ScalarField,
@@ -15,6 +16,7 @@ import { createElementFixture, createHex20CylinderFixture } from "./element-fixt
 import { sceneBounds } from "../scene-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
+import { createGalleryResults } from "./gallery-results";
 
 /** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
@@ -31,7 +33,7 @@ export interface ModelPreset {
   readonly resultSequence?: AuthoredResultSequence;
   /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
 }
 
 /** One exact authored scalar/deformation snapshot in the demo sequence. */
@@ -53,6 +55,7 @@ export interface AuthoredResultSequence {
 export function createGalleryPreset(): ModelPreset {
   const fixture = createElementFixture();
   const partIds = fixture.partIds;
+  const results = createGalleryResults(fixture.scene, partIds.hex8);
   return {
     id: "gallery",
     name: "Element tessellation and mapping gallery",
@@ -94,6 +97,9 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.mixed, "Mixed point, line, and triangle element"],
     ]),
     bounds: sceneBounds(fixture.scene),
+    results: results.active,
+    resultScalarFields: results.scalarFields,
+    resultVectorFields: [results.frame],
   };
 }
 
@@ -228,8 +234,8 @@ export function createModelPresets(
   options: { readonly transparencyOpacity?: number } = {},
 ): readonly ModelPreset[] {
   return [
-    createBoltedPlatePreset(),
     createGalleryPreset(),
+    createBoltedPlatePreset(),
     createHex20CylinderPreset(),
     createSectionPlanePreset(),
     createResultsPreset(),
@@ -239,7 +245,7 @@ export function createModelPresets(
   ];
 }
 
-/** The demo's default showcase preset (the bolted plate assembly). */
+/** The demo's default showcase preset (the element gallery). */
 export function createDefaultPreset(): ModelPreset {
   const preset = createModelPresets()[0];
   if (preset === undefined) throw new Error("The demo has no default model preset");

@@ -2,6 +2,7 @@ import {
   createScene,
   type Bounds,
   type Color,
+  type ElementFrameField,
   type PartId,
   type Scene,
   type ScalarField,
@@ -19,6 +20,7 @@ import {
   type WebGpuBenchmarkSpec,
 } from "../../benchmark/model";
 import { reconstructBenchmarkScene } from "../../benchmark/transfer";
+import type { DenseSemanticAllocationCounts } from "../../benchmark/types";
 import { createBenchmarkWorkerLoad } from "../../benchmark/worker-client";
 
 /** Build and transfer measurements retained for the Performance Lab diagnostics. */
@@ -33,6 +35,7 @@ export interface WorkbenchBenchmarkBuildTelemetry {
   readonly mainReconstructionMs?: number;
   readonly transferredBytes?: number;
   readonly finalRetainedTypedBytes?: number;
+  readonly semanticAllocationCounts?: DenseSemanticAllocationCounts;
 }
 
 export type WorkbenchPerformanceRetentionReason = "reused" | "evicted-over-budget" | "rebuild";
@@ -50,7 +53,7 @@ export interface WorkbenchModel {
   readonly results: ModelPreset["results"];
   readonly resultSequence?: ModelPreset["resultSequence"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Deterministic CPU-byte estimate used by the demo-private Performance Lab retention policy. */
@@ -78,7 +81,7 @@ export interface ImportedModelData {
   readonly bounds?: Bounds;
   readonly results: ModelPreset["results"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
   readonly issues: readonly Issue[];
 }
 
@@ -119,7 +122,7 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
   const workerLoad = isWorkerBenchmarkSpec(spec)
     ? createBenchmarkWorkerLoad(spec, (result, transferMs) => {
         const reconstructionStart = performance.now();
-        const reconstructed = reconstructBenchmarkScene(result.payload);
+        const reconstructed = reconstructBenchmarkScene(result.payload, spec.id);
         const mainReconstructionMs = performance.now() - reconstructionStart;
         return createBenchmarkModelFromScene(spec, reconstructed.scene, {
           path: "worker",
@@ -128,6 +131,7 @@ export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchMo
           transferMs,
           mainReconstructionMs,
           finalRetainedTypedBytes: reconstructed.finalRetainedTypedBytes,
+          semanticAllocationCounts: reconstructed.semanticAllocationCounts,
         });
       })
     : undefined;
@@ -187,7 +191,7 @@ function createBenchmarkModelFromScene(
 
 /** Returns whether a benchmark belongs on the dense worker path. */
 export function isWorkerBenchmarkSpec(spec: WebGpuBenchmarkSpec): boolean {
-  return spec.id === "fe-tet4-solid-132k" && spec.structuredFamily === "tet4";
+  return spec.kind === "structured-fe" && spec.structuredFamily === "tet4";
 }
 
 function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec["kind"]): number {

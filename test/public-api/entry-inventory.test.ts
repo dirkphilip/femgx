@@ -13,12 +13,14 @@ describe("public package entries", () => {
   it("keeps an exact runtime export inventory per entry", () => {
     expect(inventory(root)).toEqual([
       "FIELD_COMPONENT_COUNT",
+      "FRAME_COMPONENT_COUNT",
       "GeometryValidationError",
       "UnknownSceneIdentityError",
       "WebGpuUnsupportedError",
       "bodyOverride",
       "boxSelectionFrustum",
       "clearSelection",
+      "createElementFrameField",
       "createInteractionState",
       "createPart",
       "createResultField",
@@ -29,6 +31,7 @@ describe("public package entries", () => {
       "deformPositions",
       "emphasizedBodyRefs",
       "finiteRange",
+      "frameAt",
       "hoveredTarget",
       "identity",
       "installBoxSelection",

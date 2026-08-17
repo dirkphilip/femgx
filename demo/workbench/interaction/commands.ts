@@ -1,5 +1,6 @@
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "../results/snapshot";
+import { meshTet4ForOwner, type CatalogModeOwner } from "../controllers/controller-catalog";
 import type { WorkbenchElementDetailActions } from "../controllers/controller-element-detail";
 import type { WorkbenchResultPlaybackActions } from "../results/result-playback";
 import type { WorkbenchModel } from "../models/model";
@@ -10,7 +11,7 @@ import type { WorkbenchVisibilityActions } from "../state/visibility-actions";
 import type { WorkbenchInteraction } from "./interaction";
 import type { WorkbenchMenu } from "./menu";
 
-interface WorkbenchCommandOwner {
+interface WorkbenchCommandOwner extends CatalogModeOwner {
   readonly model: WorkbenchModel;
   vectorDisplay: VectorDisplayState;
   readonly presentation: { reflectResults: () => void };
@@ -57,6 +58,9 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
   return {
     setProjection: owner.setProjection.bind(owner),
     setCatalogMode: owner.setCatalogMode.bind(owner),
+    meshTet4: (cells) => {
+      meshTet4ForOwner(owner, cells);
+    },
     setBackground: owner.setBackground.bind(owner),
     toggleEdges: owner.setEdges.bind(owner),
     toggleNodes: owner.setNodes.bind(owner),

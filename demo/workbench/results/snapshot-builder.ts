@@ -83,7 +83,7 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
   const scalarFields = resultScalarFieldsForModel(input.model).map(resultField);
   const deformationFields = deformation === undefined ? [] : [resultField(deformation)];
   const vectorFields = resultVectorFieldsForModel(input.model).map((field) =>
-    Object.freeze({ id: field.id, name: field.name }),
+    Object.freeze({ id: field.id, name: field.name, shape: field.shape }),
   );
   const resultControlsVisible =
     scalarFields.length > 0 || deformation !== undefined || vectorFields.length > 0;

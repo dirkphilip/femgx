@@ -120,4 +120,25 @@ describe("workbench model catalog", () => {
     expect(catalog.setMode("performance")).toBe(second.id);
     expect(catalog.resolveModel(second.id)).toBe(second);
   });
+
+  it("appends an unseen Performance Lab entry without replacing placeholders", () => {
+    const ordinary = createExampleModel(createBoltedPlatePreset());
+    const first = createLazyBenchmarkModel(
+      benchmarkCaseSpecs(false).find((spec) => spec.id === "unique-250k") ??
+        (() => {
+          throw new Error("benchmark case missing");
+        })(),
+    );
+    const extra = createLazyBenchmarkModel(
+      benchmarkCaseSpecs(false).find((spec) => spec.id === "unique-1m") ??
+        (() => {
+          throw new Error("benchmark case missing");
+        })(),
+    );
+    const catalog = new WorkbenchModelCatalog([ordinary], [first]);
+    catalog.ensurePerformanceModel(first);
+    catalog.ensurePerformanceModel(extra);
+    catalog.setMode("performance");
+    expect(catalog.models.map((model) => model.id)).toEqual([first.id, extra.id]);
+  });
 });

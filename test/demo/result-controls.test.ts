@@ -32,6 +32,7 @@ describe("demo orientation result controls", () => {
     expect(resultVectorFieldsForModel(model).map((field) => field.id)).toEqual([
       "demo-normals",
       "demo-fibers",
+      "demo-element-frames",
     ]);
     expect(vectorDisplayForModel(model)).toMatchObject({
       fieldId: "demo-normals",
@@ -39,6 +40,20 @@ describe("demo orientation result controls", () => {
       transform: "normal",
       lengthScale: 1,
       widthPixels: 2,
+    });
+  });
+
+  it("maps the authored frame choice to a renderer-owned triad", () => {
+    const model = createExampleModel(createResultsPreset());
+    const display = vectorDisplayForField(
+      model,
+      "demo-element-frames",
+      vectorDisplayForModel(model),
+    );
+    expect(display.glyph).toBe("triad");
+    expect(vectorConfigForDisplay(model, display)).toMatchObject({
+      field: { id: "demo-element-frames", shape: "frame" },
+      glyph: "triad",
     });
   });
 
@@ -119,6 +134,7 @@ describe("demo orientation result controls", () => {
     expect(parseVectorWidthPixels("8.1")).toBeUndefined();
     expect(parseVectorGlyph("arrow")).toBe("arrow");
     expect(parseVectorGlyph("axis")).toBe("axis");
+    expect(parseVectorGlyph("triad")).toBeUndefined();
     expect(parseVectorGlyph("cone")).toBeUndefined();
     expect(parseVectorTransform("direction")).toBe("direction");
     expect(parseVectorTransform("normal")).toBe("normal");

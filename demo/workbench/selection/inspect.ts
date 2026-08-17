@@ -116,7 +116,12 @@ function resultDescription(
     }
   }
   const vectors = results.vectors?.field;
-  if (vectors !== undefined && hit.kind !== "edge" && hit.elementId !== undefined) {
+  if (
+    vectors !== undefined &&
+    vectors.shape === "vector" &&
+    hit.kind !== "edge" &&
+    hit.elementId !== undefined
+  ) {
     const entity = hit.elementId;
     if (entity >= 0 && entity < vectors.count) {
       const value = vectorAt(vectors, entity);

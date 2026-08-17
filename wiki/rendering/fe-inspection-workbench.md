@@ -11,10 +11,14 @@ controller, so camera and interaction behavior is stable
 ## Model presets
 
 - `demo/fixtures/presets.ts` builds six deterministic product-story cases from fixed data:
-  the **bolted plate assembly**, **element tessellation and mapping gallery**,
+  the **element tessellation and mapping gallery**, **bolted plate assembly**,
   linearly tessellated **Hex20 cylinder**, **section-plane volume**, **static results** workflow, and
   **order-independent transparency** demonstration. Every preset is derived from fixed data, so the demo
   and tests share identical structure.
+- The element gallery is the landing preset. It has a static Analysis example with
+  elemental coloring, nodal interpolation, and a per-element RGB frame; it does
+  not include deformation or result playback. The separate **static results**
+  preset remains the workflow for those controls.
 - Each preset carries `elementModels` (per-part element topology used for
   node/face picking and emphasis), a part theme, and overall bounds. All scene
   parts start visible; the demo's model `<select>` switches presets without
@@ -34,6 +38,8 @@ controller, so camera and interaction behavior is stable
   [issue #526](https://github.com/dirkphilip/femgx/issues/526).
   Performance Lab names and diagnostics identify the FE family, unique element
   count, submitted element occurrences, and unique/submitted triangle units.
+  A cubic Tet4 solid can be meshed on demand from the Performance Lab Cells
+  control or `?tet4=<cells>` through the demo-owned dense worker path.
 
 ## GPU picking
 

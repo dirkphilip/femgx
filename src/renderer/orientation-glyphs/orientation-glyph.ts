@@ -15,7 +15,7 @@ import {
 import type { OrientationGlyphPipelines } from "./pipelines";
 
 /** Renderer-owned glyph presentation mode. */
-export type OrientationGlyphMode = "arrow" | "axis";
+export type OrientationGlyphMode = "arrow" | "axis" | "triad";
 
 /** Renderer-owned occurrence direction transform mode. */
 export type OrientationGlyphTransform = "direction" | "normal";
@@ -312,7 +312,7 @@ function writeNormalMatrices(
 function writeParams(resources: OrientationGlyphDrawResources, state: OrientationGlyphState): void {
   const floats = new Float32Array(resources.paramsData);
   const ids = new Uint32Array(resources.paramsData);
-  const mode = state.mode === "axis" ? 1 : 0;
+  const mode = state.mode === "axis" ? 1 : state.mode === "triad" ? 2 : 0;
   const transform = state.transform === "normal" ? 1 : 0;
   if (
     floats[0] === state.lengthScale &&

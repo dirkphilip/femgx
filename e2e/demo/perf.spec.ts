@@ -94,7 +94,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(8);
+      expect(report.schemaVersion).toBe(10);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -217,6 +217,25 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.faceCount).toBeGreaterThan(0);
       }
       if (entry.id === "fe-tet4-solid-132k") {
+        expect(entry.denseBuild).toMatchObject({
+          generationMs: expect.any(Number),
+          topologyMs: expect.any(Number),
+          tessellationMs: expect.any(Number),
+          transferPreparationMs: expect.any(Number),
+          workerRoundTripMs: expect.any(Number),
+          mainReconstructionMs: expect.any(Number),
+          transferredBytes: expect.any(Number),
+          finalRetainedTypedBytes: expect.any(Number),
+          semanticAllocationCounts: expect.objectContaining({
+            elementDescriptors: expect.any(Number),
+            faceDescriptors: expect.any(Number),
+            edgeDescriptors: expect.any(Number),
+            semanticIndex: expect.objectContaining({
+              materialized: true,
+              nodeTriangleFaceIdsBytes: expect.any(Number),
+            }),
+          }),
+        });
         expect(entry.uniqueElementCount).toBe(131_712);
         expect(entry.submittedElementOccurrences).toBe(9_240);
         expect(entry.nodeCount).toBe(24_389);

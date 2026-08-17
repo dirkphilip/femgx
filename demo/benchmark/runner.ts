@@ -1,6 +1,9 @@
 import { benchmarkCaseSpecs, createBenchmarkCase } from "./model";
 import { measureBenchmarkCase } from "./measurement";
+import { reconstructBenchmarkScene } from "./transfer";
+import { createBenchmarkWorkerLoad } from "./worker-client";
 import type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
+import type { WebGpuBenchmarkCase, WebGpuBenchmarkSpec } from "./model";
 
 export type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
 
@@ -9,7 +12,7 @@ const HEIGHT = 600;
 const WARMUP_SAMPLES = 2;
 const TIMED_SAMPLES = 7;
 const MEMORY_ESTIMATE_SCOPE =
-  "retained renderer-owned buffers and fixed render targets including shared empty result-color, order, highlight, and deformation sentinels; optional interaction and presentation sidecars are included only when admitted; optional edge bytes are included only for materialized part ids; cpuSceneTypedArrayBytes and uploadStagingBytes are reported separately; driver allocations are excluded; edge and topology storage are upper bounds";
+  "retained renderer-owned buffers and fixed render targets including shared empty result-color, order, highlight, and deformation sentinels; optional interaction and presentation sidecars are included only when admitted; optional edge bytes are included only for materialized part ids; cpuSceneTypedArrayBytes and uploadStagingBytes are typed-array/staging accounting only; dense semanticAllocationCounts report descriptor/reference counts and exact CSR bytes, while JavaScript object heap and driver allocations are excluded; edge and topology storage are upper bounds";
 
 /** Runs the opt-in, hardware-dependent WebGPU capacity benchmark. */
 export async function runWebGpuBenchmark(
@@ -40,15 +43,18 @@ export async function runWebGpuBenchmark(
       let phase = "model build";
       try {
         const modelBuildStart = performance.now();
-        const benchmarkCase = createBenchmarkCase(spec);
+        const built = await buildBenchmarkCase(spec);
         phase = "runtime compile and measurement";
         results.push(
           await measureBenchmarkCase(
             canvas,
             device,
-            benchmarkCase,
+            built.benchmarkCase,
             performance.now() - modelBuildStart,
-            { timestampQueriesRequested: timestampQueriesEnabled },
+            {
+              timestampQueriesRequested: timestampQueriesEnabled,
+              ...(built.denseBuild === undefined ? {} : { denseBuild: built.denseBuild }),
+            },
           ),
         );
       } catch (error) {
@@ -67,7 +73,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 8,
+    schemaVersion: 10,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {
@@ -90,6 +96,34 @@ export async function runWebGpuBenchmark(
     timedSamples: TIMED_SAMPLES,
     cases: results,
   };
+}
+
+async function buildBenchmarkCase(spec: WebGpuBenchmarkSpec): Promise<{
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+  readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+}> {
+  if (spec.kind !== "structured-fe" || spec.structuredFamily !== "tet4") {
+    return { benchmarkCase: createBenchmarkCase(spec) };
+  }
+  return createBenchmarkWorkerLoad(spec, (result, workerRoundTripMs) => {
+    const reconstructionStart = performance.now();
+    const reconstructed = reconstructBenchmarkScene(result.payload, spec.id);
+    const mainReconstructionMs = performance.now() - reconstructionStart;
+    return {
+      benchmarkCase: { ...spec, scene: reconstructed.scene },
+      denseBuild: {
+        generationMs: result.metrics.generationMs,
+        topologyMs: result.metrics.topologyMs,
+        tessellationMs: result.metrics.tessellationMs,
+        transferPreparationMs: result.metrics.transferPreparationMs,
+        workerRoundTripMs,
+        mainReconstructionMs,
+        transferredBytes: result.metrics.transferredBytes,
+        finalRetainedTypedBytes: reconstructed.finalRetainedTypedBytes,
+        semanticAllocationCounts: reconstructed.semanticAllocationCounts,
+      },
+    };
+  }).load();
 }
 
 function benchmarkFailure(caseId: string, phase: string, error: unknown): Error {
