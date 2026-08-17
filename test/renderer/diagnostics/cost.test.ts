@@ -8,6 +8,9 @@ describe("GPU cost accounting", () => {
     cost.draw("opaque", 12, 3);
     cost.write("instance", 96);
     cost.cpu("instance-scan", 4);
+    cost.allocateBuffer(128);
+    cost.releaseBuffer(64);
+    cost.invalidateBindGroups(2);
     cost.targets(1600, 1200, 2);
 
     const snapshot = cost.snapshot();
@@ -15,6 +18,13 @@ describe("GPU cost accounting", () => {
     expect(snapshot.draws.opaque).toEqual({ calls: 1, indices: 12, instances: 3 });
     expect(snapshot.writes.instance).toEqual({ calls: 1, bytes: 96 });
     expect(snapshot.cpu["instance-scan"]).toBe(4);
+    expect(snapshot.memory).toEqual({
+      allocatedBytes: 128,
+      releasedBytes: 64,
+      bufferCreates: 1,
+      bufferDestroys: 1,
+      bindGroupInvalidations: 2,
+    });
     expect(snapshot.targets).toEqual({
       width: 1600,
       height: 1200,
@@ -37,6 +47,13 @@ describe("GPU cost accounting", () => {
     expect(cleared.draws.opaque).toEqual({ calls: 0, indices: 0, instances: 0 });
     expect(cleared.writes.instance).toEqual({ calls: 0, bytes: 0 });
     expect(cleared.cpu).toEqual({ "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 });
+    expect(cleared.memory).toEqual({
+      allocatedBytes: 0,
+      releasedBytes: 0,
+      bufferCreates: 0,
+      bufferDestroys: 0,
+      bindGroupInvalidations: 0,
+    });
     expect(cleared.targets).toBeUndefined();
   });
 });

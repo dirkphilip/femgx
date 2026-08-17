@@ -74,6 +74,7 @@ export function syncDeformations(sync: DeformationSync, state: DeformationState 
   }
   for (const [partId, storage] of sync.deformations) {
     if (storage.source === undefined || resolved.displacements.has(partId)) continue;
+    sync.cost?.releaseBuffer(storage.buffer.size);
     storage.buffer.destroy();
     sync.deformations.delete(partId);
     invalidateBindGroups(sync, partId);
@@ -88,9 +89,11 @@ export function ensureDeformationBuffer(
   device: GPUDevice,
   deformations: Map<PartId, DeformationStorage>,
   partId: PartId,
+  emptyBuffer?: GPUBuffer,
 ): GPUBuffer {
   const existing = deformations.get(partId);
   if (existing !== undefined) return existing.buffer;
+  if (emptyBuffer !== undefined) return emptyBuffer;
   const buffer = device.createBuffer({
     label: "femgx empty deformation storage",
     size: 4,
@@ -98,6 +101,15 @@ export function ensureDeformationBuffer(
   });
   deformations.set(partId, { buffer, source: undefined });
   return buffer;
+}
+
+/** Creates the fixed valid deformation binding shared by inactive parts. */
+export function createEmptyDeformationBuffer(device: GPUDevice): GPUBuffer {
+  return device.createBuffer({
+    label: "femgx empty deformation storage",
+    size: 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
 }
 
 /** Writes the per-frame deformation uniform into its GPU buffer. */
@@ -116,8 +128,12 @@ export function writeDeformationUniform(
 }
 
 /** Destroys every per-part deformation buffer owned by the draw path. */
-export function destroyDeformationBuffers(deformations: Map<PartId, DeformationStorage>): void {
+export function destroyDeformationBuffers(
+  deformations: Map<PartId, DeformationStorage>,
+  cost?: GpuCostAccumulator,
+): void {
   for (const storage of deformations.values()) {
+    cost?.releaseBuffer(storage.buffer.size);
     storage.buffer.destroy();
   }
 }
@@ -126,9 +142,11 @@ export function destroyDeformationBuffers(deformations: Map<PartId, DeformationS
 export function destroyDeformationBuffer(
   deformations: Map<PartId, DeformationStorage>,
   partId: PartId,
+  cost?: GpuCostAccumulator,
 ): void {
   const storage = deformations.get(partId);
   if (storage === undefined) return;
+  cost?.releaseBuffer(storage.buffer.size);
   storage.buffer.destroy();
   deformations.delete(partId);
 }
@@ -151,10 +169,12 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   if (current !== undefined) {
+    sync.cost?.releaseBuffer(current.buffer.size);
     current.buffer.destroy();
     invalidateBindGroups(sync, partId);
   }
   sync.deformations.set(partId, { buffer, source: values });
+  sync.cost?.allocateBuffer(buffer.size);
   sync.device.queue.writeBuffer(buffer, 0, values);
   sync.cost?.write("deformation", values.byteLength);
 }

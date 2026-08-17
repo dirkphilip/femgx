@@ -43,6 +43,12 @@ Per-frame allocations were removed from `src/renderer/`:
   small uniform; changed same-sized arrays write into existing storage. Device
   recovery retains the latest result/deformation state and re-uploads only that
   active step.
+- **Optional interaction and presentation sidecars** — each part retains only
+  its instance records and ordinary visible order until transparent, selection,
+  node, edge, or emphasis state is active. Inactive bindings use fixed
+  device-scoped empty buffers; active sidecars grow independently and are
+  released on their empty transition. Device recovery therefore recreates only
+  sidecars admitted by the authoritative state replay.
 
 ## Synchronization constraints
 

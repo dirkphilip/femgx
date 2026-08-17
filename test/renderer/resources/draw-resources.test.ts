@@ -16,23 +16,21 @@ import {
   writeEdgeOrder,
   writeNodeOrder,
   writeSelectionOrder,
+  writeTransparentOrder,
   type DrawCallContext,
 } from "../../../src/renderer/resources/draw-resources";
 import { drawBatches } from "../../../src/renderer/frame/batch";
 import { ensureColorTargets } from "../../../src/renderer/frame/pipelines";
 import { beginColorPass } from "../../../src/renderer/frame/passes";
+import { defaultStyle } from "../../../src/renderer/resources/foundation";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
-  INITIAL_ELEMENT_HIGHLIGHTS,
 } from "../../../src/renderer/resources/element-resources";
-import { defaultStyle } from "../../../src/renderer/resources/foundation";
 import type { DrawPipelines } from "../../../src/renderer/frame/pipelines";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 import { syncInstanceEmphasisAdmission } from "../../../src/renderer/selection/instance-emphasis";
 import type { DenseElementSelections } from "../../../src/renderer/selection/element-selection";
-
-const HIGHLIGHT_BUFFER_SIZE = HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE;
 
 const part: Part = createPart(1, {
   geometries: [
@@ -240,12 +238,12 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(5);
-      expect(gpu.buffers[0]?.size).toBe(68);
-      expect(gpu.buffers[1]?.size).toBe(12);
-      expect(gpu.buffers[2]?.size).toBe(4);
-      expect(gpu.buffers[3]?.size).toBe(12);
-      expect(gpu.buffers[4]?.size).toBe(56);
+      expect(gpu.buffers).toHaveLength(8);
+      expect(gpu.buffers[3]?.size).toBe(68);
+      expect(gpu.buffers[4]?.size).toBe(12);
+      expect(gpu.buffers[5]?.size).toBe(4);
+      expect(gpu.buffers[6]?.size).toBe(12);
+      expect(gpu.buffers[7]?.size).toBe(56);
       expect(first.edge).toBeUndefined();
     } finally {
       restore();
@@ -284,7 +282,7 @@ describe("GPU draw path", () => {
       expect(resource.subsetIndexCount).toBe(3);
       expect(resource.subsetIndexBuffer).toBeDefined();
       expect(resource.edge).toBeUndefined();
-      expect(gpu.buffers).toHaveLength(9);
+      expect(gpu.buffers).toHaveLength(12);
 
       patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
       writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));
@@ -474,10 +472,10 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const resource = uploadPart(draw, logicalPointPart);
       expect(resource.indexCount).toBe(12);
-      expect(gpu.buffers[0]?.size).toBe(160);
-      expect(gpu.buffers[1]?.size).toBe(48);
-      expect(gpu.buffers[2]?.size).toBe(8);
-      expect(gpu.buffers[3]?.size).toBe(32);
+      expect(gpu.buffers[3]?.size).toBe(160);
+      expect(gpu.buffers[4]?.size).toBe(48);
+      expect(gpu.buffers[5]?.size).toBe(8);
+      expect(gpu.buffers[6]?.size).toBe(32);
 
       const indexWrite = gpu.writes.find((write) => write.buffer === resource.indexBuffer);
       expect(indexWrite).toBeDefined();
@@ -731,20 +729,90 @@ describe("GPU draw path", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, part.id, [{ slot: 5, data: record(1) }]);
-      expect(gpu.buffers).toHaveLength(8);
-      expect(gpu.buffers[0]?.size).toBe(6 * 96);
-      expect(gpu.buffers[1]?.size).toBe(6 * 4);
-      expect(gpu.buffers[2]?.size).toBe(6 * 4);
-      expect(gpu.buffers[3]?.size).toBe(6 * 4);
+      expect(gpu.buffers).toHaveLength(5);
+      expect(gpu.buffers[3]?.size).toBe(6 * 96);
       expect(gpu.buffers[4]?.size).toBe(6 * 4);
-      expect(gpu.buffers[5]?.size).toBe(6 * 4);
-      expect(gpu.buffers[6]?.size).toBe(6 * 4);
-      expect(gpu.buffers[7]?.size).toBe(HIGHLIGHT_BUFFER_SIZE);
       patchInstances(draw, part.id, [{ slot: 10, data: record(2) }]);
-      expect(gpu.buffers[8]?.size).toBe(12 * 96);
-      expect(gpu.buffers[9]?.size).toBe(12 * 4);
-      expect(gpu.buffers[10]?.size).toBe(12 * 4);
-      expect(gpu.buffers[11]?.size).toBe(12 * 4);
+      expect(gpu.buffers).toHaveLength(7);
+      expect(gpu.buffers[5]?.size).toBe(12 * 96);
+      expect(gpu.buffers[6]?.size).toBe(12 * 4);
+    } finally {
+      restore();
+    }
+  });
+
+  it.each([1, 100, 1000])(
+    "keeps empty optional residency fixed for %s bodyless parts",
+    (partCount) => {
+      const restore = installGpuGlobals();
+      try {
+        const gpu = fakeGpuDevice();
+        const draw = createDrawResources(gpu.device);
+        for (let partId = 1; partId <= partCount; partId += 1) {
+          patchInstances(draw, partId, [{ slot: 0, data: record(0) }]);
+          writeDrawOrder(draw, partId, new Uint32Array([0]));
+        }
+        expect(gpu.buffers.reduce((bytes, buffer) => bytes + buffer.size, 0)).toBe(
+          HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE + 8 + partCount * (96 + 4),
+        );
+        expect(
+          [...draw.storages.values()].every(
+            (storage) =>
+              storage.sidecars.transparent === undefined &&
+              storage.sidecars.selection === undefined &&
+              storage.sidecars.nodeSelection === undefined &&
+              storage.sidecars.edge === undefined &&
+              storage.sidecars.node === undefined &&
+              !storage.highlightOwned,
+          ),
+        ).toBe(true);
+      } finally {
+        restore();
+      }
+    },
+  );
+
+  it("admits and releases an optional order sidecar independently of core capacity", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 99, data: record(1) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([99]));
+      const storage = draw.storages.get(part.id);
+      expect(storage?.capacity).toBe(100);
+      expect(storage?.sidecars.transparent).toBeUndefined();
+      expect(storage?.sidecars.selection).toBeUndefined();
+      expect(storage?.sidecars.edge).toBeUndefined();
+      expect(storage?.highlightOwned).toBe(false);
+      expect(gpu.buffers).toHaveLength(5);
+
+      writeTransparentOrder(draw, part.id, new Uint32Array([0, 1]));
+      const transparent = storage?.sidecars.transparent;
+      expect(transparent?.capacity).toBe(2);
+      expect(transparent?.buffer.size).toBe(8);
+      expect(gpu.buffers).toHaveLength(6);
+
+      writeTransparentOrder(draw, part.id, new Uint32Array());
+      expect(storage?.sidecars.transparent).toBeUndefined();
+      expect(gpu.buffers.at(-1)?.destroyed).toBe(true);
+      expect(draw.cost.snapshot().memory.bindGroupInvalidations).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("destroys shared, core, and active sidecar buffers exactly once", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 2, data: record(0) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
+      writeTransparentOrder(draw, part.id, new Uint32Array([2]));
+      destroyDrawResources(draw);
+      destroyDrawResources(draw);
+      expect(gpu.buffers.every((buffer) => buffer.destroyCount === 1)).toBe(true);
     } finally {
       restore();
     }
@@ -803,7 +871,7 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const resource = uploadPart(draw, part);
       expect(resource.edge).toBeUndefined();
-      expect(gpu.buffers).toHaveLength(5);
+      expect(gpu.buffers).toHaveLength(8);
       patchInstances(draw, part.id, [
         { slot: 0, data: record(0) },
         { slot: 1, data: record(1) },

@@ -1,12 +1,9 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { Geometry, Primitive } from "../../geometry/part";
-import {
-  destroyDeformationBuffer,
-  destroyDeformationBuffers,
-  type DeformationStorage,
-} from "../frame/deformation";
+import { createEmptyDeformationBuffer } from "../frame/deformation";
 import { packTopologyData } from "../resources/geometry-buffers";
-import type { InstanceStorage } from "../resources/instance-storage";
+import { createEmptyOrderBuffer } from "../resources/instance-storage";
+import { createHighlightStorage } from "../selection/highlight-storage";
 import {
   buildNodeBodyPickData,
   buildNodeBodyOwnerData,
@@ -21,18 +18,16 @@ import {
   buildPartEdgeResources,
   buildPartGeometryData,
 } from "../resources/geometry-upload";
-import {
-  createColorTargets,
-  destroyColorTargets,
-  type ColorTargets,
-} from "../resources/color-targets";
+import { createColorTargets } from "../resources/color-targets";
 import { GpuCostAccumulator } from "../diagnostics/cost";
-import {
-  createOrientationGlyphDrawResources,
-  destroyOrientationGlyphPart,
-  destroyOrientationGlyphDrawResources,
-  type OrientationGlyphDrawResources,
-} from "../orientation-glyphs/orientation-glyph";
+import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
+import type { DrawResources } from "./draw-types";
+
+export type { DrawResources } from "./draw-types";
+
+export { destroyDrawResources, destroyPartResource, destroyPartResources } from "./draw-lifecycle";
+
+export { destroyInstancePartResources, destroyInstanceResources } from "./instance-lifecycle";
 
 const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
@@ -73,21 +68,6 @@ export interface SelectionDrawRange {
   readonly indexCount: number;
 }
 
-/** Per-part geometry and instance storage buffers owned by the draw path. */
-export interface DrawResources {
-  readonly device: GPUDevice;
-  readonly cost: GpuCostAccumulator;
-  readonly parts: Map<PartId, PartResource>;
-  /** Per-primitive resources for parts that contain more than one topology. */
-  readonly primitiveParts: Map<PartId, Map<Primitive, PartResource>>;
-  readonly nodeParts: Map<PartId, PartResource>;
-  readonly storages: Map<PartId, InstanceStorage>;
-  readonly deformations: Map<PartId, DeformationStorage>;
-  readonly orientationGlyphs: OrientationGlyphDrawResources;
-  /** The complete visible-frame target state and its composite cache. */
-  readonly targets: ColorTargets;
-}
-
 /** Per-frame inputs shared by every draw batch of a pass. */
 export interface DrawCallContext {
   readonly frameBindGroup: GPUBindGroup;
@@ -103,13 +83,23 @@ export function createDrawResources(
   device: GPUDevice,
   cost = new GpuCostAccumulator(),
 ): DrawResources {
+  const emptyOrderBuffer = createEmptyOrderBuffer(device);
+  const emptyHighlight = createHighlightStorage(device, 1);
+  const emptyDeformationBuffer = createEmptyDeformationBuffer(device);
+  cost.allocateBuffer(emptyOrderBuffer.size);
+  cost.allocateBuffer(emptyHighlight.buffer.size);
+  cost.allocateBuffer(emptyDeformationBuffer.size);
   return {
     device,
     cost,
+    destroyed: false,
     parts: new Map(),
     primitiveParts: new Map(),
     nodeParts: new Map(),
     storages: new Map(),
+    emptyOrderBuffer,
+    emptyHighlight,
+    emptyDeformationBuffer,
     deformations: new Map(),
     orientationGlyphs: createOrientationGlyphDrawResources(device, cost),
     targets: createColorTargets(),
@@ -348,88 +338,4 @@ function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
     POINT_SPRITE_INDICES.map((index) => index + sprite * 4),
     sprite * POINT_SPRITE_INDICES.length,
   );
-}
-
-/** Releases one uploaded part geometry resource, including optional overlays. */
-export function destroyPartResource(resource: PartResource): void {
-  resource.vertexBuffer.destroy();
-  resource.indexBuffer.destroy();
-  resource.elementOrdinalsBuffer.destroy();
-  resource.facePickIdsBuffer.destroy();
-  resource.nodePickIdsBuffer.destroy();
-  resource.edge?.edgeNodePickIdsBuffer.destroy();
-  resource.edge?.edgeVertexBuffer.destroy();
-  resource.edge?.edgeIndexBuffer.destroy();
-  resource.edge?.edgeTopologyBuffer.destroy();
-  resource.edgePick?.vertexBuffer.destroy();
-  resource.edgePick?.indexBuffer.destroy();
-  resource.edgePick?.nodePickIdsBuffer.destroy();
-  resource.edgePick?.topologyBuffer.destroy();
-  resource.subsetIndexBuffer?.destroy();
-  resource.subsetVertexBuffer?.destroy();
-  resource.subsetNodePickIdsBuffer?.destroy();
-  resource.subsetTopologyBuffer?.destroy();
-}
-
-/** Releases all per-placement instance and highlight buffers while retaining geometry. */
-export function destroyInstanceResources(draw: DrawResources): void {
-  for (const partId of [...draw.storages.keys()]) destroyInstancePartResources(draw, partId);
-}
-
-/** Releases one part's placement and highlight buffers while retaining geometry. */
-export function destroyInstancePartResources(draw: DrawResources, partId: PartId): void {
-  const storage = draw.storages.get(partId);
-  if (storage === undefined) return;
-  storage.buffer.destroy();
-  storage.orderBuffer.destroy();
-  storage.selectionOrderBuffer.destroy();
-  storage.nodeSelectionOrderBuffer.destroy();
-  storage.transparentOrderBuffer.destroy();
-  storage.edgeOrderBuffer.destroy();
-  storage.nodeOrderBuffer.destroy();
-  storage.highlight.buffer.destroy();
-  draw.storages.delete(partId);
-}
-
-/** Releases every part, storage, deformation, and depth resource owned by the draw path. */
-export function destroyDrawResources(draw: DrawResources): void {
-  const destroyed = new Set<PartResource>();
-  for (const resources of draw.primitiveParts.values()) {
-    for (const resource of resources.values()) {
-      destroyPartResource(resource);
-      destroyed.add(resource);
-    }
-  }
-  for (const resource of draw.parts.values()) {
-    if (!destroyed.has(resource)) destroyPartResource(resource);
-  }
-  draw.primitiveParts.clear();
-  for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
-  draw.parts.clear();
-  draw.nodeParts.clear();
-  destroyInstanceResources(draw);
-  destroyDeformationBuffers(draw.deformations);
-  draw.deformations.clear();
-  destroyOrientationGlyphDrawResources(draw.orientationGlyphs);
-  destroyColorTargets(draw.targets);
-}
-
-/** Releases all cached resources derived from one changed part definition. */
-export function destroyPartResources(draw: DrawResources, partId: PartId): void {
-  const resources = draw.primitiveParts.get(partId);
-  if (resources !== undefined) {
-    for (const resource of resources.values()) destroyPartResource(resource);
-    draw.primitiveParts.delete(partId);
-  } else {
-    const resource = draw.parts.get(partId);
-    if (resource !== undefined) destroyPartResource(resource);
-  }
-  draw.parts.delete(partId);
-  const nodeResource = draw.nodeParts.get(partId);
-  if (nodeResource !== undefined) {
-    destroyPartResource(nodeResource);
-    draw.nodeParts.delete(partId);
-  }
-  destroyDeformationBuffer(draw.deformations, partId);
-  destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }

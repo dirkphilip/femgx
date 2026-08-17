@@ -1,4 +1,4 @@
-import type { InstanceStorage } from "./instance-storage";
+import { orderBufferFor, type InstanceStorage } from "./instance-storage";
 import type { PartResource } from "../resources/foundation";
 
 /** The per-part draw inputs a bind group addresses. */
@@ -28,18 +28,7 @@ export function orderBindGroup(
   orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
   part: PartDrawInputs,
 ): GPUBindGroup {
-  const orderBuffer =
-    orderKind === "edge"
-      ? storage.edgeOrderBuffer
-      : orderKind === "node"
-        ? storage.nodeOrderBuffer
-        : orderKind === "node-selection"
-          ? storage.nodeSelectionOrderBuffer
-          : orderKind === "selection"
-            ? storage.selectionOrderBuffer
-            : orderKind === "transparent"
-              ? storage.transparentOrderBuffer
-              : storage.orderBuffer;
+  const orderBuffer = orderBufferFor(storage, orderKind);
   const create = (): GPUBindGroup => instanceBindGroup(device, layout, storage, orderBuffer, part);
   if (part.cache === false) return create();
   return cachedOrderBindGroup(storage, orderKind, part.surfaceSubset === true, create);

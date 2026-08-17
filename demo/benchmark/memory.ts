@@ -1,6 +1,10 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/frame/deformation";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/frame/pipelines";
+import {
+  ELEMENT_RECORD_STRIDE,
+  HIGHLIGHT_HEADER,
+} from "../../src/renderer/resources/element-resources";
 import type { Scene } from "../../src/scene/scene";
 
 export interface BenchmarkMemoryEstimate {
@@ -13,7 +17,7 @@ export interface BenchmarkMemoryEstimate {
   readonly edgeIndexBytes: number;
   /** Optional face-subset buffers; zero when no part declares a subset. */
   readonly subsetBytes: number;
-  /** One empty deformation storage buffer is bound for each rendered part. */
+  /** One device-scoped empty deformation storage buffer. */
   readonly deformationBytes: number;
   readonly instanceBytes: number;
   readonly highlightBytes: number;
@@ -98,10 +102,15 @@ export function estimateBenchmarkMemory(
       cpuSceneTypedArrayBytes += placement.transform.byteLength;
     }
   }
-  const instanceBytes = instanceCount * (96 + 6 * Uint32Array.BYTES_PER_ELEMENT);
-  const highlightBytes = scene.parts.size * (16 + 128 * 48);
-  const deformationBytes = scene.parts.size * 4;
-  const fixedBufferBytes = CAMERA_UNIFORM_SIZE + DEFORMATION_UNIFORM_SIZE + 32 + 64 + 48 + 16;
+  // The per-part core retains only instance records and the ordinary visible
+  // order. Optional orders and highlight tables are admitted by state and are
+  // absent from this empty-scene estimate.
+  const instanceBytes = instanceCount * (96 + Uint32Array.BYTES_PER_ELEMENT);
+  const highlightBytes = HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE;
+  const deformationBytes = 4;
+  // Includes the shared empty order sentinel; the empty highlight and
+  // deformation sentinels are reported in their dedicated fields above.
+  const fixedBufferBytes = CAMERA_UNIFORM_SIZE + DEFORMATION_UNIFORM_SIZE + 32 + 64 + 48 + 16 + 4;
   const pickReadbackBytes = 256 * 5;
   const totalBufferBytes =
     geometryBytes +

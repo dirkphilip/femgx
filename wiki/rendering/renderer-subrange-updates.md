@@ -6,8 +6,9 @@ changed placements instead of rebuilding instance data.
 
 ## Per-part storage
 
-Each attached part currently owns one instance-record buffer, six compact order
-buffers, and one emphasis/selection buffer
+Each attached part owns one instance-record buffer and one ordinary visible
+order buffer. Optional order and emphasis sidecars are admitted by state and
+use fixed device-scoped empty bindings while inactive
 (`src/renderer/resources/instance-storage.ts`):
 
 - **Record buffer** (`binding 0`): one 96-byte record per slot — column-major
@@ -25,13 +26,14 @@ buffers, and one emphasis/selection buffer
   draw is `drawIndexed(geometry, visibleCountOfPart)`.
 - **Optional-path order buffers**: separate compacted lists for transparency,
   visible/hidden selection, selected nodes, edge presentation, and node
-  presentation. The current implementation allocates all six orders at part
-  capacity. This is an implementation gap against the zero-inactive-cost
-  contract: #1008 moves non-ordinary orders and emphasis storage into lazy
-  sidecars backed by fixed shared empty resources.
-- **Emphasis/selection buffer**: sparse fixed-stride records plus optional dense
-  ordinal bitsets. Small exception sets remain sparse; dense membership is used
-  only when its byte representation is smaller.
+  presentation. Each list grows only when it has active entries and is released
+  when its membership becomes empty. Inactive bindings use one shared valid
+  empty order buffer.
+- **Emphasis/selection sidecar**: sparse fixed-stride records plus optional
+  dense ordinal bitsets. Small exception sets remain sparse; dense membership is
+  used only when its byte representation is smaller. The sidecar is absent
+  until emphasis or dense selection is active and returns to the shared zero
+  table when cleared.
 
 Pick ids are `global slot + 1`, so they are **stable across visibility changes**;
 `pick()` resolves a readback id through the runtime's `getInstanceId(slot)`.
@@ -109,9 +111,10 @@ part, and leaving presentation enabled never implies exact edge-pick residency.
 - Ordinary, transparent, edge, node, selection, node-selection, and face-subset
   bind groups are cached per part/storage variant and invalidated when their
   referenced buffers are replaced or grown. The edge-pick path intentionally
-  creates its request-specific bind group for each batch. #1008 makes inactive
-  optional orders fixed-empty instead of capacity-sized; #1009 then admits
-  minimal/topology/feature shader layouts without duplicating geometry.
+  creates its request-specific bind group for each batch. Inactive optional
+  orders and emphasis bind the shared sentinels; active sidecar growth or
+  release invalidates the cached groups. #1009 then admits minimal/topology/
+  feature shader layouts without duplicating geometry.
 - The WGSL record structs (`Instance`, `ElementHighlight`, `ElementHighlights`,
   `Camera`) are verified against the CPU encoder constants (`INSTANCE_STRIDE`,
   `ELEMENT_RECORD_STRIDE`, `HIGHLIGHT_HEADER`, `CAMERA_UNIFORM_SIZE`) by

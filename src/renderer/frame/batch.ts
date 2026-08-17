@@ -117,7 +117,12 @@ function drawOneBatch(
       ? pipelineFor(geometry?.primitive ?? "triangles", intent.pass, context.pipelines)
       : intent.pipeline;
   if (current !== pipeline) pass.setPipeline(pipeline);
-  const deformation = ensureDeformationBuffer(draw.device, draw.deformations, call.partId);
+  const deformation = ensureDeformationBuffer(
+    draw.device,
+    draw.deformations,
+    call.partId,
+    draw.emptyDeformationBuffer,
+  );
   const group = orderBindGroup(draw.device, context.instanceLayout, storage, orderKind, {
     geometry: resource,
     deformation,

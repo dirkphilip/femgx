@@ -33,6 +33,13 @@ export interface BenchmarkGpuCostSnapshot {
   >;
   readonly writes: Readonly<Record<string, { readonly calls: number; readonly bytes: number }>>;
   readonly cpu: Readonly<Record<string, number>>;
+  readonly memory: {
+    readonly allocatedBytes: number;
+    readonly releasedBytes: number;
+    readonly bufferCreates: number;
+    readonly bufferDestroys: number;
+    readonly bindGroupInvalidations: number;
+  };
   readonly targets:
     | {
         readonly width: number;

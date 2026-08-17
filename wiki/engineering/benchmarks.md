@@ -310,10 +310,10 @@ status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned
 buffer/render-target memory breakdown. The breakdown includes appended inactive
 result-color tails, expanded main geometry and materialized optional edge
-geometry, topology/pick metadata, face-subset buffers, per-part deformation and
-highlight storage, six
-instance-order buffers, pooled pick readback, and the multisampled visible color
-targets. The default triad-enabled weighted path accounts for 81 logical
+geometry, topology/pick metadata, face-subset buffers, mandatory instance
+records and ordinary visible order, shared empty order/highlight/deformation
+sentinels, admitted optional sidecars, pooled pick readback, and the multisampled
+visible color targets. The default triad-enabled weighted path accounts for 81 logical
 render-target bytes per physical pixel: MSAA color/depth, resolved opaque color,
 `rgba16float` accumulation, and scalar `r8unorm` revealage. A frame with no
 weighted contributor retains only the 32-byte MSAA color/depth base and skips OIT
