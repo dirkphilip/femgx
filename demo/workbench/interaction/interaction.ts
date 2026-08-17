@@ -4,6 +4,7 @@ import {
   type InteractionState,
   type PartId,
   type PickHit,
+  type ViewportInteractionApplyRequest,
   type ViewportInteractionOptions,
 } from "../../../src/entries/root";
 import { clientToCanvasCss } from "../../../src/entries/camera";
@@ -82,6 +83,7 @@ export class WorkbenchInteraction {
   private skipNextClick = false;
   private hoverPick: HoverPick | undefined;
   private target: SelectTarget | undefined;
+  private readonly resolvedPointHits = new WeakMap<object, PickHit | undefined>();
   private readonly boxSelection: WorkbenchBoxSelectionController;
 
   constructor(private readonly options: WorkbenchInteractionOptions) {
@@ -278,10 +280,15 @@ export class WorkbenchInteraction {
     "resolvePoint" | "resolveRegion" | "applyInteraction" | "onError"
   > {
     return {
-      resolvePoint: (request) => resolveDefaultViewportPoint(this.options, request),
+      resolvePoint: async (request) => {
+        const resolved = await resolveDefaultViewportPoint(this.options, request);
+        this.resolvedPointHits.set(request.event, resolved.hit);
+        return resolved.target;
+      },
       resolveRegion: ({ event, granularity }) =>
         resolveDefaultViewportRegion(this.boxSelection.resolver(), event, granularity),
       applyInteraction: (request) => {
+        this.applyResolvedPoint(request);
         applyDefaultViewportInteraction(this.options, request);
       },
       onError: (error, phase) => {
@@ -356,6 +363,13 @@ export class WorkbenchInteraction {
   private invalidatePendingQuery(): void {
     this.boxSelection.invalidate();
     this.generation += 1;
+  }
+
+  private applyResolvedPoint(request: ViewportInteractionApplyRequest): void {
+    const hit = request.phase === "box" ? undefined : this.resolvedPointHits.get(request.event);
+    if (request.phase !== "box") this.resolvedPointHits.delete(request.event);
+    this.options.canvas.dataset["pick"] = targetKey(hit);
+    this.showPick(hit);
   }
 
   private showPick(hit: Parameters<typeof describePick>[0]): void {

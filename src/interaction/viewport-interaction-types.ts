@@ -61,8 +61,9 @@ export type ViewportInteractionApplyResult =
  *
  * The installer adds point listeners only to `canvas` and composes the
  * existing explicit box-selection lifecycle, including its Escape cancellation
- * handling. Touch is ignored unless `touchMode` routes it to hover or box
- * selection.
+ * handling. A tap selects in Navigate and Box select modes, Highlight routes a
+ * tap to hover, and movement beyond the shared tap threshold remains a camera
+ * or box gesture.
  */
 export interface ViewportInteractionOptions {
   /**
