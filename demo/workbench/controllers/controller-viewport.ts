@@ -66,19 +66,19 @@ export function setActiveSlotForOwner(
 /** Toggles projection for the active camera and refits its viewport. */
 export function setProjectionForOwner(owner: { activeViewport(): Viewport; render(): void }): void {
   const viewport = owner.activeViewport();
-  viewport.setCamera(
+  viewport.view.setCamera(
     setProjection(
-      viewport.camera,
-      viewport.camera.mode === "perspective" ? "orthographic" : "perspective",
+      viewport.view.camera,
+      viewport.view.camera.mode === "perspective" ? "orthographic" : "perspective",
     ),
   );
-  viewport.fitView();
+  viewport.view.fit();
   owner.render();
 }
 
 /** Fits only the active viewport to its current visible selection. */
 export function fitSelectionForOwner(owner: { activeViewport(): Viewport; render(): void }): void {
-  owner.activeViewport().fitSelection();
+  owner.activeViewport().view.fitSelection();
   owner.render();
 }
 
@@ -188,7 +188,7 @@ export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: V
   owner.viewport = viewport;
   owner.viewportSlots.setPrimaryViewport(viewport);
   try {
-    viewport.setBackground(owner.background);
+    viewport.presentation.setBackground(owner.background);
   } catch (error) {
     owner.presentation.setFeedback(
       `Background could not be restored: ${errorMessage(error)}`,

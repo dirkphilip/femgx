@@ -35,8 +35,14 @@ export {
   type ViewportOptions,
   type SceneUpdateOutcome,
   type ViewportBackground,
+  type ViewportInteraction,
+  type ViewportPresentation,
+  type ViewportResults,
+  type ViewportView,
+  type ViewportVisibility,
 } from "../viewport/viewport";
 export type { CameraTransitionOptions } from "../viewport/types";
+export { UnknownSceneIdentityError } from "../viewport/visibility-error";
 export type { OrientationGizmoOptions } from "../viewport/orientation-gizmo";
 export type { SectionPlane } from "../math/section-plane";
 export type {

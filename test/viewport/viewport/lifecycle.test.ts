@@ -11,6 +11,7 @@ import {
   fakeGpuDevice,
   installTestGpuGlobals,
 } from "./support";
+import { UnknownSceneIdentityError } from "../../../src/entries/root";
 
 describe("Viewport", () => {
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {
@@ -43,44 +44,47 @@ describe("Viewport", () => {
 
     expect(viewport.runtime.instanceCount).toBe(1);
     expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
-    expect(viewport.camera.width).toBe(640);
+    expect(viewport.view.camera.width).toBe(640);
     expect(viewport.stats()).toEqual({ visibleInstances: 1, drawBatches: 1 });
     expect(onRender).toHaveBeenCalledOnce();
 
-    const interaction = setPartOverride(viewport.interaction, 1, {
+    const interaction = setPartOverride(viewport.interaction.state, 1, {
       color: { r: 1, g: 0, b: 0, a: 1 },
     });
-    viewport.setInteraction(interaction);
-    viewport.setEdgeDepthTest(false);
+    viewport.interaction.set(interaction);
+    viewport.presentation.setEdgeDepthTest(false);
     viewport.render();
-    expect(viewport.interaction).toBe(interaction);
+    expect(viewport.interaction.state).toBe(interaction);
 
-    viewport.setPartVisible(1, false);
+    viewport.visibility.setPart(1, false);
     expect(viewport.stats().visibleInstances).toBe(0);
     expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
-    viewport.setPartVisible(1, true);
+    viewport.visibility.setPart(1, true);
     expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
-    viewport.setInstanceVisible("1/0", false);
+    viewport.visibility.setInstance("1/0", false);
     expect(viewport.stats().visibleInstances).toBe(0);
     expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
 
     Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 320 });
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 200 });
     viewport.resize();
-    expect(viewport.camera.width).toBe(320);
-    expect(viewport.camera.height).toBe(200);
-    const manuallyFramed = { ...viewport.camera, orthoHeight: viewport.camera.orthoHeight * 0.5 };
-    viewport.setCamera(manuallyFramed);
+    expect(viewport.view.camera.width).toBe(320);
+    expect(viewport.view.camera.height).toBe(200);
+    const manuallyFramed = {
+      ...viewport.view.camera,
+      orthoHeight: viewport.view.camera.orthoHeight * 0.5,
+    };
+    viewport.view.setCamera(manuallyFramed);
     Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 640 });
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 360 });
     viewport.resize();
-    expect(viewport.camera.orthoHeight).toBe(manuallyFramed.orthoHeight);
+    expect(viewport.view.camera.orthoHeight).toBe(manuallyFramed.orthoHeight);
 
     viewport.setScene(scene(10));
     viewport.render();
-    expect(viewport.camera.target[0]).toBeCloseTo(0);
-    viewport.setCamera({ ...viewport.camera, position: [20, 20, 20] });
-    expect(viewport.camera.position).toEqual([20, 20, 20]);
+    expect(viewport.view.camera.target[0]).toBeCloseTo(0);
+    viewport.view.setCamera({ ...viewport.view.camera, position: [20, 20, 20] });
+    expect(viewport.view.camera.position).toEqual([20, 20, 20]);
 
     viewport.destroy();
     expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
@@ -108,9 +112,102 @@ describe("Viewport", () => {
       results: { deformation: { field: displacement } },
     });
 
-    expect(viewport.camera.target[0]).toBeCloseTo(5);
+    expect(viewport.view.camera.target[0]).toBeCloseTo(5);
     viewport.destroy();
   });
+
+  it("keeps capability references live across scene, render, resize, and recovery", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: gpu.device,
+    });
+    const capabilities = {
+      view: viewport.view,
+      interaction: viewport.interaction,
+      visibility: viewport.visibility,
+      results: viewport.results,
+      presentation: viewport.presentation,
+    };
+
+    viewport.render();
+    viewport.resize();
+    viewport.setScene(scene(10));
+    viewport.updateScene(scene(20));
+    await viewport.recover();
+
+    expect(viewport.view).toBe(capabilities.view);
+    expect(viewport.interaction).toBe(capabilities.interaction);
+    expect(viewport.visibility).toBe(capabilities.visibility);
+    expect(viewport.results).toBe(capabilities.results);
+    expect(viewport.presentation).toBe(capabilities.presentation);
+    viewport.destroy();
+  });
+
+  it.each([
+    [
+      "part",
+      999,
+      (viewport: Viewport) => {
+        viewport.visibility.setPart(999, false);
+      },
+    ],
+    [
+      "assembly",
+      999,
+      (viewport: Viewport) => {
+        viewport.visibility.setAssembly(999, false);
+      },
+    ],
+    [
+      "assembly-occurrence",
+      "missing-occurrence",
+      (viewport: Viewport) => {
+        viewport.visibility.setAssemblyOccurrence("missing-occurrence", false);
+      },
+    ],
+    [
+      "instance",
+      "missing-instance",
+      (viewport: Viewport) => {
+        viewport.visibility.setInstance("missing-instance", false);
+      },
+    ],
+  ] as const)(
+    "throws a typed error before mutating for an unknown %s",
+    async (_kind, _id, mutate) => {
+      installTestGpuGlobals();
+      installNavigator();
+      const gpu = fakeGpuDevice();
+      const viewport = await createViewport({
+        canvas: fakeCanvas(),
+        scene: scene(),
+        device: gpu.device,
+      });
+      const beforeVisible = viewport.runtime.getVisibleInstanceIds();
+      const beforeWrites = gpu.writes.length;
+      let error: unknown;
+      expect(() => {
+        viewport.batch(() => {
+          mutate(viewport);
+        });
+      }).toThrow(UnknownSceneIdentityError);
+      try {
+        mutate(viewport);
+      } catch (caught: unknown) {
+        error = caught;
+      }
+      expect(error).toBeInstanceOf(UnknownSceneIdentityError);
+      expect((error as UnknownSceneIdentityError).kind).toBe(_kind);
+      expect((error as UnknownSceneIdentityError).id).toBe(_id);
+      expect(viewport.runtime.getVisibleInstanceIds()).toEqual(beforeVisible);
+      expect(gpu.writes).toHaveLength(beforeWrites);
+      viewport.destroy();
+    },
+  );
 
   it("rejects every visibility mutation after destruction without changing state", async () => {
     installTestGpuGlobals();
@@ -123,19 +220,34 @@ describe("Viewport", () => {
     });
     const visibilitySetters: readonly ((current: Viewport) => void)[] = [
       (current) => {
+        void current.view.camera;
+      },
+      (current) => {
+        void current.interaction.state;
+      },
+      (current) => {
+        void current.interaction.pick(0, 0);
+      },
+      (current) => {
+        void current.results.state;
+      },
+      (current) => {
+        void current.presentation.sectionPlane;
+      },
+      (current) => {
         current.updateScene(scene());
       },
       (current) => {
-        current.setPartVisible(1, false);
+        current.visibility.setPart(1, false);
       },
       (current) => {
-        current.setAssemblyOccurrenceVisible("1", false);
+        current.visibility.setAssemblyOccurrence("1", false);
       },
       (current) => {
-        current.setAssemblyVisible(1, false);
+        current.visibility.setAssembly(1, false);
       },
       (current) => {
-        current.setInstanceVisible("1/0", false);
+        current.visibility.setInstance("1/0", false);
       },
     ];
     const before = {

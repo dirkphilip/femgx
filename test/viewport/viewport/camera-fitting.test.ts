@@ -32,8 +32,8 @@ describe("Viewport", () => {
     input.wheel(-100);
     expect(displayedBounds).toHaveBeenCalledTimes(1);
 
-    viewport.setInstanceVisible("1/0", false);
-    viewport.setInstanceVisible("1/0", true);
+    viewport.visibility.setInstance("1/0", false);
+    viewport.visibility.setInstance("1/0", true);
     input.wheel(100);
     expect(displayedBounds).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -54,11 +54,11 @@ describe("Viewport", () => {
     expect(updateInstances).not.toHaveBeenCalled();
     expect(updateElements).toHaveBeenCalledOnce();
     viewport.render();
-    viewport.setInteraction(viewport.interaction);
+    viewport.interaction.set(viewport.interaction.state);
     expect(updateInstances).not.toHaveBeenCalled();
     expect(updateElements).toHaveBeenCalledOnce();
 
-    viewport.setInteraction(setPartOverride(viewport.interaction, 1, { emissive: 0.25 }));
+    viewport.interaction.set(setPartOverride(viewport.interaction.state, 1, { emissive: 0.25 }));
     expect(updateInstances).toHaveBeenCalledOnce();
     expect(updateElements).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -75,7 +75,7 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    expect(viewport.camera.target[0]).toBeCloseTo(25);
+    expect(viewport.view.camera.target[0]).toBeCloseTo(25);
     expect(viewport.runtime.getTransform("1/0")?.[12]).toBe(25);
     viewport.destroy();
   });
@@ -92,13 +92,13 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
       keyboardTarget: keyboard,
     });
-    const previous = viewport.camera;
+    const previous = viewport.view.camera;
     const invalid = { durationMs: Number.NaN };
     expect(() => {
-      viewport.fitSelection(invalid);
+      viewport.view.fitSelection(invalid);
     }).toThrow(/durationMs/);
     expect(() => {
-      viewport.setCamera(previous, invalid);
+      viewport.view.setCamera(previous, invalid);
     }).toThrow(/durationMs/);
 
     const preventDefault = vi.fn();
@@ -112,7 +112,7 @@ describe("Viewport", () => {
       preventDefault,
     } as unknown as Event);
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(viewport.camera.target).toEqual(previous.target);
+    expect(viewport.view.camera.target).toEqual(previous.target);
 
     viewport.destroy();
     keyboard.dispatch({ key: "z", preventDefault: vi.fn() } as unknown as Event);
@@ -126,15 +126,15 @@ describe("Viewport", () => {
       scene: scene(),
       device: fakeGpuDevice().device,
     });
-    viewport.setInstanceVisible("1/0", false);
-    viewport.setInteraction(
-      setTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/0" }, true),
+    viewport.visibility.setInstance("1/0", false);
+    viewport.interaction.set(
+      setTargetSelected(viewport.interaction.state, { kind: "instance", instanceId: "1/0" }, true),
     );
-    const before = viewport.camera;
+    const before = viewport.view.camera;
 
-    viewport.fitSelection({ durationMs: 0 });
+    viewport.view.fitSelection({ durationMs: 0 });
 
-    expect(viewport.camera).toBe(before);
+    expect(viewport.view.camera).toBe(before);
     viewport.destroy();
   });
 });

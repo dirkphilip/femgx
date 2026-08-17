@@ -28,7 +28,7 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 | Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
 | Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
-| Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, interaction attributes, and picking         |
+| Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, and stable capability facades               |
 
 `SceneRuntime` is the defensive query boundary: its public transforms and
 collections are snapshots, and `RuntimeOccurrence.instanceIds` contains only
@@ -39,6 +39,15 @@ immutable compiled snapshot for intentional host inspection.
 The API may eventually introduce explicit `PartDefinition` and
 `PartInstance` names, but it must preserve this semantic distinction even
 while the implementation uses the shorter current names.
+
+`Viewport` remains the single lifecycle owner. Its stable non-owning facades
+are `viewport.view` for camera/navigation, `viewport.interaction` for live
+interaction state and physical picking, `viewport.visibility` for scene-owned
+visibility mutations, `viewport.results` for the current authored snapshot,
+and `viewport.presentation` for clipping and renderer-owned presentation.
+They delegate into one live owner rather than caching a scene, runtime, or
+renderer snapshot. All capability reads and mutations use the same destroyed
+state boundary as the root lifecycle.
 
 ## Canonical data flow
 
@@ -167,7 +176,7 @@ limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`
 transform semantics, and a finite positive element-relative scale:
 
 ```ts
-viewport.setResults({
+viewport.results.set({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
   vectors: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },

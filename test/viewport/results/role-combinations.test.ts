@@ -115,13 +115,13 @@ describe("viewport results workflow", () => {
       device: gpu.device,
       results: { vectors: { field, glyph: "arrow", transform: "direction", widthPixels: 2 } },
     });
-    const previous = viewport.results;
+    const previous = viewport.results.state;
     expect(() => {
-      viewport.setResults({
+      viewport.results.set({
         vectors: { field, glyph: "axis", transform: "direction", widthPixels: 9 },
       });
     }).toThrow("widthPixels");
-    expect(viewport.results).toBe(previous);
+    expect(viewport.results.state).toBe(previous);
     viewport.destroy();
   });
 
@@ -137,20 +137,20 @@ describe("viewport results workflow", () => {
       device: gpu.device,
       results: { vectors: { field: vector, glyph: "arrow", transform: "direction" } },
     });
-    const previous = viewport.results;
+    const previous = viewport.results.state;
 
     const emptyConfig = {} as ViewportResultsConfig;
     expect(() => {
-      viewport.setResults(emptyConfig);
+      viewport.results.set(emptyConfig);
     }).toThrow("must include");
-    expect(viewport.results).toBe(previous);
+    expect(viewport.results.state).toBe(previous);
     expect(() => {
-      viewport.setResults({ vectors: { field: vector, glyph: "axis", transform: "normal" } });
+      viewport.results.set({ vectors: { field: vector, glyph: "axis", transform: "normal" } });
     }).toThrow("normal transform");
-    expect(viewport.results).toBe(previous);
+    expect(viewport.results.state).toBe(previous);
 
-    viewport.clearResults();
-    expect(viewport.results).toBeUndefined();
+    viewport.results.clear();
+    expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
 

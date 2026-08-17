@@ -103,8 +103,10 @@ describe("visibility tree hover mapping", () => {
     let displayed: InteractionState | undefined;
     const viewport = {
       runtime,
-      setInteraction: (state: InteractionState) => {
-        displayed = state;
+      interaction: {
+        set: (state: InteractionState) => {
+          displayed = state;
+        },
       },
     } as unknown as Viewport;
     const owner = {

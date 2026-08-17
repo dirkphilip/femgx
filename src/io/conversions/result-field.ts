@@ -39,7 +39,7 @@ export type ModelResultFieldConversionOptions =
  *   unit: "degC",
  *   shape: "scalar",
  * });
- * viewport.setResults({ scalar: { field } });
+ * viewport.results.set({ scalar: { field } });
  * ```
  * @category Import and export
  */

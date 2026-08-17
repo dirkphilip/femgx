@@ -129,7 +129,7 @@ function elementDetailTargetsEqual(
 /** Sends the active interaction snapshot to the active viewport. */
 export function applyDisplayedInteraction(owner: WorkbenchHoverController): void {
   const displayed = displayedInteraction(owner);
-  activeViewport(owner)?.setInteraction(displayed);
+  activeViewport(owner)?.interaction.set(displayed);
 }
 
 function displayedInteraction(owner: WorkbenchHoverController): InteractionState {

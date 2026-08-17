@@ -77,9 +77,9 @@ interaction = setPartOverride(interaction, part.id, {
 interaction = setInstanceOverride(interaction, "1/0", {
   lineWidthPixels: 3,
 });
-viewport.setInteraction(interaction);
-viewport.setPartVisible(part.id, false);
-viewport.clearResults();
+viewport.interaction.set(interaction);
+viewport.visibility.setPart(part.id, false);
+viewport.results.clear();
 viewport.destroy();
 ```
 
@@ -92,8 +92,8 @@ part-level inputs rather than geometry fields. Omitting bodies must not create
 a model-scaled ownership table or renderer resource.
 `pointSizePixels` and `nodeSizePixels` are independent screen-space diameters
 in CSS pixels. They default to 8 and 6, accept values in `[1,64]`, and can be
-changed later with `viewport.setPointSizePixels` and
-`viewport.setNodeSizePixels`.
+changed later with `viewport.presentation.setPointSizePixels` and
+`viewport.presentation.setNodeSizePixels`.
 
 `StyleOverride.lineWidthPixels` controls authored `Line` and `Line3` elements
 in CSS pixels. It is valid on part and instance overrides, where instance
@@ -110,10 +110,10 @@ while renderer-owned edge helpers retain their separate line-list path.
 | Elements    | `femgx/model`: `createElement`, `ElementModel`, `Body`, `createElementModel`, `elementPart`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                                                             | Validated FE connectivity (Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, Hex20), optional direct body ownership, canonical topology, mixed primitive grouping, and face selection inputs. |
 | Assemblies  | `NamedAssembly`, `PartPlacement`, `SubAssemblyPlacement`                                                                                                                                                                                 | Reusable hierarchical placement definitions and local transforms.                                                                                                                                                                 |
 | Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                                                                                   | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                                                            |
-| Viewport    | `createViewport`, `Viewport`, `ViewportOptions`                                                                                                                                                                                          | Runtime compilation, camera, WebGPU renderer, screen-space point/node sizes, controls, resize, interaction sync, results, recovery, and teardown.                                                                                 |
+| Viewport    | `createViewport`, `Viewport`, `ViewportOptions`, `ViewportView`, `ViewportInteraction`, `ViewportVisibility`, `ViewportResults`, `ViewportPresentation`                                                                                  | Runtime compilation, one lifecycle owner, stable capability facades, WebGPU renderer, controls, resize, recovery, and teardown.                                                                                                   |
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `setPartOverride`, `setInstanceOverride` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit part/instance style overrides remain separate target-scoped layers; instance style is more specific than part style.                  |
 | Camera      | `femgx/camera`: `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                                   | Immutable camera values and projection/navigation math.                                                                                                                                                                           |
-| Picking     | `Viewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                                         | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
+| Picking     | `ViewportInteraction.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                              | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                                             | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                                                               |
 | IO          | `femgx/io`: `createModelBuilder`, `validateModel`, `createElementModelFromFemModel`, `createResultFieldFromModelResult`                                                                                                                  | Host-supplied serializable model staging, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                                |
 | Platform    | `femgx/platform`: `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                                  | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                                                             |
@@ -152,37 +152,37 @@ consumed by element tessellation. Hosts then call
 its homogeneous primitive groups remain internal draw partitions, not
 additional authoring identities. A selected `ModelResultField` enters the authored
 results path through `createResultFieldFromModelResult` before
-`Viewport.setResults()`.
+`ViewportResults.set()`.
 
 ## Viewport surface
 
 ### Lifecycle and scene
 
-| Method                            | Purpose                                                                                                                                                                                      |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `updateScene(scene)`              | Apply a structural scene update atomically, preserve the camera and surviving placement state, prune invalid nested references, and report whether active results were preserved or cleared. |
-| `setScene(scene)`                 | Replace the authoritative scene and rebuild the derived runtime, clearing active results.                                                                                                    |
-| `setCamera(camera)` / `fitView()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle.                                                                                |
-| `resize()`                        | Match WebGPU render size to the canvas and device pixel ratio.                                                                                                                               |
-| `invalidate()` / `render()`       | Schedule or perform a render of the current state.                                                                                                                                           |
-| `batch(operation)`                | Coalesce synchronous mutations into one invalidation and render.                                                                                                                             |
-| `recover()`                       | Recreate supported WebGPU resources after device loss.                                                                                                                                       |
-| `destroy()`                       | Release renderer, resize, and camera-control resources.                                                                                                                                      |
+| Method                                  | Purpose                                                                                                                                                                                      |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `updateScene(scene)`                    | Apply a structural scene update atomically, preserve the camera and surviving placement state, prune invalid nested references, and report whether active results were preserved or cleared. |
+| `setScene(scene)`                       | Replace the authoritative scene and rebuild the derived runtime, clearing active results.                                                                                                    |
+| `view.setCamera(camera)` / `view.fit()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle.                                                                                |
+| `resize()`                              | Match WebGPU render size to the canvas and device pixel ratio.                                                                                                                               |
+| `invalidate()` / `render()`             | Schedule or perform a render of the current state.                                                                                                                                           |
+| `batch(operation)`                      | Coalesce synchronous mutations into one invalidation and render.                                                                                                                             |
+| `recover()`                             | Recreate supported WebGPU resources after device loss.                                                                                                                                       |
+| `destroy()`                             | Release renderer, resize, and camera-control resources.                                                                                                                                      |
 
 ### Visibility and interaction
 
-`setPartVisible`, `setAssemblyOccurrenceVisible`, `setAssemblyVisible`, and
-`setInstanceVisible` update the viewport-owned derived runtime using stable part,
+`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`, and
+`setInstance` update the viewport-owned derived runtime using stable part,
 assembly, and placement handles, then synchronize only affected instance records.
 Style,
 selection, highlight, and hover changes are expressed as a new opaque
-`InteractionState` and installed with `setInteraction`. Use target-level
+`InteractionState` and installed with `interaction.set`. Use target-level
 operations for all six supported target kinds; query helpers provide state
 without exposing the internal collections. Body visibility and explicit style
 overrides remain separate, placement-scoped layers.
 
-When result visualization is active, `viewport.interaction` remains the exact
-host-owned value passed to `setInteraction`. The viewport derives a private
+When result visualization is active, `viewport.interaction.state` remains the exact
+host-owned value passed to `viewport.interaction.set`. The viewport derives a private
 effective render interaction by layering result colors over that base value;
 hosts never receive or need to round-trip the derived element overrides.
 
@@ -204,7 +204,7 @@ rather than CPU material clones.
 ### Picking
 
 ```ts
-const hit = await viewport.pick(x, y);
+const hit = await viewport.interaction.pick(x, y);
 if (hit?.kind === "face") {
   console.log(hit.partId, hit.instanceId, hit.key, hit.normal, hit.worldPosition);
 }
@@ -236,13 +236,13 @@ const stress = createResultField({
   values: authoredScalarValues,
 });
 
-viewport.setResults({
+viewport.results.set({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
   vectors: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
 });
 
-viewport.clearResults();
+viewport.results.clear();
 ```
 
 `ViewportResultsConfig` represents one authored snapshot with scalar fields at
@@ -250,7 +250,7 @@ nodal or elemental locations, explicit or observed ranges, scalar color maps,
 optional nodal deformation, and an optional elemental orientation vector role. The
 non-empty role set is resolved atomically: invalid combinations leave the
 previous result state and renderer state unchanged. Hosts may sequence exact
-authored snapshots through repeated `setResults()` calls; snapshot collections,
+authored snapshots through repeated `results.set()` calls; snapshot collections,
 time metadata, scheduling, controls, and playback rate remain host-owned.
 Derived engineering quantities, tensor glyphs, temporal interpolation, and a
 public legend subsystem remain outside the core API. Element anchors, packed

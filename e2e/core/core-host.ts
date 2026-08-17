@@ -157,10 +157,10 @@ async function runPicking(current: Viewport): Promise<void> {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const region = { left: 0, top: 0, right: width, bottom: height, width, height };
-  const targets = await current.pickRegion(region, "element");
+  const targets = await current.interaction.pickRegion(region, "element");
   const target = targets[0];
   if (target !== undefined) {
-    current.setInteraction(
+    current.interaction.set(
       setTargetSelected(
         setPartOverride(createInteractionState(), 1, { edge: true, nodes: true }),
         target,
@@ -169,14 +169,16 @@ async function runPicking(current: Viewport): Promise<void> {
     );
     current.render();
   }
-  const projected = projectPoint(current.camera, [0, -0.2, 0]);
+  const projected = projectPoint(current.view.camera, [0, -0.2, 0]);
   const picked =
-    projected === undefined ? undefined : await current.pick(projected[0], projected[1]);
-  const edgeTargets = await current.pickRegion(region, "edge");
-  current.setInstanceVisible("1/0", false);
+    projected === undefined
+      ? undefined
+      : await current.interaction.pick(projected[0], projected[1]);
+  const edgeTargets = await current.interaction.pickRegion(region, "edge");
+  current.visibility.setInstance("1/0", false);
   current.render();
-  const hidden = await current.pickRegion(region, "element");
-  current.setInstanceVisible("1/0", true);
+  const hidden = await current.interaction.pickRegion(region, "element");
+  current.visibility.setInstance("1/0", true);
   current.render();
   setStatus(
     "picking",
@@ -195,17 +197,17 @@ function runPresentation(current: Viewport): void {
     edge: true,
     nodes: true,
   });
-  current.setInteraction(interaction);
-  current.setBackground("dark");
-  current.setEdgeDepthTest(false);
-  current.setPointSizePixels(10);
-  current.setNodeSizePixels(12);
+  current.interaction.set(interaction);
+  current.presentation.setBackground("dark");
+  current.presentation.setEdgeDepthTest(false);
+  current.presentation.setPointSizePixels(10);
+  current.presentation.setNodeSizePixels(12);
   current.resize();
   current.render();
   canvas.dataset["presentation"] = "dark,edge-free,nodes-12,points-10";
   setStatus(
     "presentation",
-    JSON.stringify({ width: current.camera.width, height: current.camera.height }),
+    JSON.stringify({ width: current.view.camera.width, height: current.view.camera.height }),
   );
 }
 
@@ -228,26 +230,29 @@ function runResults(current: Viewport): void {
     unit: "mm",
     values: new Float32Array([0, 0, 0, 0.2, 0, 0, 0, 0.2, 0]),
   });
-  current.setResults({ scalar: { field: scalar }, deformation: { field: displacement, scale: 1 } });
-  current.setSectionPlane({ normal: [0, 0, 1], distance: 0.1 });
-  const active = current.results;
-  current.clearSectionPlane();
+  current.results.set({
+    scalar: { field: scalar },
+    deformation: { field: displacement, scale: 1 },
+  });
+  current.presentation.setSectionPlane({ normal: [0, 0, 1], distance: 0.1 });
+  const active = current.results.state;
+  current.presentation.clearSectionPlane();
   current.render();
   setStatus(
     "results",
     JSON.stringify({
       scalar: active?.scalar?.field.id ?? "none",
       deformation: active?.deformation !== undefined,
-      sectionCleared: current.sectionPlane === undefined,
+      sectionCleared: current.presentation.sectionPlane === undefined,
     }),
   );
 }
 
 function runCamera(current: Viewport): void {
-  const before = current.camera.position;
-  current.setCamera(orbitCamera(current.camera, 0.35, 0.2), { durationMs: 0 });
-  current.fitView({ durationMs: 0 });
-  const after = current.camera.position;
+  const before = current.view.camera.position;
+  current.view.setCamera(orbitCamera(current.view.camera, 0.35, 0.2), { durationMs: 0 });
+  current.view.fit({ durationMs: 0 });
+  const after = current.view.camera.position;
   setStatus(
     "camera",
     JSON.stringify({ moved: before.some((value, index) => value !== after[index]) }),
@@ -264,7 +269,7 @@ function runTransparency(current: Viewport): void {
     color: { r: 0.2, g: 0.5, b: 1, a: 1 },
     opacity: 0.75,
   });
-  current.setInteraction(interaction);
+  current.interaction.set(interaction);
   current.render();
   hostWindow.femgxCore = {
     ...hostWindow.femgxCore,
@@ -272,7 +277,7 @@ function runTransparency(current: Viewport): void {
       current.destroy();
     },
     toggleEmphasis: () => {
-      current.setInteraction(
+      current.interaction.set(
         setTargetHighlighted(
           interaction,
           { kind: "element", instanceId: "1/0", elementId: 1 },

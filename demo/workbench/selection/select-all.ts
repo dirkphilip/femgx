@@ -78,10 +78,13 @@ function visibleElements(
     part.bodies?.flatMap((body) => body.elementIds.map((id) => [id, body.id] as const)),
   );
   return (part.elements ?? []).filter((element) => {
-    if (!isElementVisible(viewport.interaction, { instanceId, elementId: element.id }))
+    if (!isElementVisible(viewport.interaction.state, { instanceId, elementId: element.id }))
       return false;
     const bodyId = element.bodyId ?? bodyByElement.get(element.id);
-    if (bodyId !== undefined && !isBodyVisible(viewport.interaction, { instanceId, bodyId })) {
+    if (
+      bodyId !== undefined &&
+      !isBodyVisible(viewport.interaction.state, { instanceId, bodyId })
+    ) {
       return false;
     }
     return true;

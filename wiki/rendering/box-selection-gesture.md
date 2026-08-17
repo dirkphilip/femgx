@@ -114,7 +114,7 @@ inside or on-plane points. Perspective side planes meet at the camera position;
 orthographic side planes remain parallel. Reversed rectangles are normalized,
 partially out-of-range rectangles are clamped to the camera viewport, and
 non-finite or zero-area inputs throw. This host-owned volume query complements
-`Viewport.pickRegion`: it does not restore renderer frustum culling or mutate
+`ViewportInteraction.pickRegion`: it does not restore renderer frustum culling or mutate
 selection.
 
 Related: [[rendering/interaction-selection-menu|Selection and view context

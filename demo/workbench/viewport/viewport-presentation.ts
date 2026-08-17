@@ -55,7 +55,7 @@ export function syncViewportPresentation(options: SyncViewportPresentationOption
   const { activeSlot } = options;
   const viewportStats = activeSlot.viewport.stats();
   options.presentation.refresh(
-    activeSlot.viewport.camera,
+    activeSlot.viewport.view.camera,
     options.rendererState,
     {
       visibleInstances: viewportStats.visibleInstances,
@@ -75,7 +75,7 @@ function syncPaneDataset(
   canvas.dataset["model"] = options.model.id;
   canvas.dataset["dragging"] = String(slot.dragging);
   canvas.dataset["selected"] = selectedKeys(state.interaction).join(",");
-  canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(slot.viewport.camera));
+  canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(slot.viewport.view.camera));
   canvas.dataset["cameraBounds"] = JSON.stringify(options.model.bounds);
   canvas.dataset["edges"] = String(state.toggles.edges);
   canvas.dataset["nodes"] = String(state.toggles.nodes);

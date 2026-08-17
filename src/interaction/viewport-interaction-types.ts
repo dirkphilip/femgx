@@ -72,17 +72,19 @@ export interface ViewportInteractionOptions {
    * the binding.
    */
   readonly viewport: {
-    readonly camera: Camera;
-    readonly interaction: InteractionState;
-    /** Reads the physical target under canvas CSS coordinates. */
-    pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
-    /** Resolves unique targets intersecting a canvas-space rectangle. */
-    pickRegion(
-      rect: BoxSelectionRect,
-      granularity: InteractionGranularity,
-    ): Promise<readonly InteractionTarget[]>;
-    /** Installs the next immutable interaction snapshot. */
-    setInteraction(interaction: InteractionState): void;
+    readonly view: { readonly camera: Camera };
+    readonly interaction: {
+      readonly state: InteractionState;
+      /** Reads the physical target under canvas CSS coordinates. */
+      pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
+      /** Resolves unique targets intersecting a canvas-space rectangle. */
+      pickRegion(
+        rect: BoxSelectionRect,
+        granularity: InteractionGranularity,
+      ): Promise<readonly InteractionTarget[]>;
+      /** Installs the next immutable interaction snapshot. */
+      set(interaction: InteractionState): void;
+    };
   };
   /** Canvas receiving the installer's point and composed box listeners. */
   readonly canvas: HTMLCanvasElement;

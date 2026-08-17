@@ -19,11 +19,11 @@ const mocks = vi.hoisted(() => {
     }
 
     get camera() {
-      return this.currentViewport.camera;
+      return this.currentViewport.view.camera;
     }
 
     render(): void {
-      this.currentViewport.setInteraction(this.interaction);
+      this.currentViewport.interaction.set(this.interaction);
     }
 
     onViewportRender(): void {
@@ -111,38 +111,48 @@ function fakeViewport(): FakeViewport {
   const destroy = vi.fn(() => {
     destroyed = true;
   });
+  const interaction = {
+    state: {} as Viewport["interaction"]["state"],
+    set: setInteraction,
+    pick: vi.fn(),
+    pickRegion: vi.fn(),
+  };
+  const results = { state: undefined, set: vi.fn(), clear: vi.fn() } as Viewport["results"];
+  const presentation = {
+    sectionPlane: undefined,
+    setSectionPlane: vi.fn(),
+    clearSectionPlane: vi.fn(),
+    setBackground: vi.fn(),
+    setPointSizePixels: vi.fn(),
+    setNodeSizePixels: vi.fn(),
+    setEdgeDepthTest: vi.fn(),
+  } as Viewport["presentation"];
+  const visibility = {
+    setPart: vi.fn(),
+    setAssembly: vi.fn(),
+    setAssemblyOccurrence: vi.fn(),
+    setInstance: vi.fn(),
+  } as Viewport["visibility"];
   return {
     render,
     setInteraction,
     destroy,
     viewport: {
-      scene: {} as Viewport["scene"],
+      scene: {} as unknown as Viewport["scene"],
       runtime: { visibleCount: 0 } as Viewport["runtime"],
-      camera: {} as Viewport["camera"],
-      interaction: {} as Viewport["interaction"],
-      results: undefined,
-      sectionPlane: undefined,
+      view: {
+        camera: {} as Viewport["view"]["camera"],
+        setCamera: vi.fn(),
+        fit: vi.fn(),
+        fitSelection: vi.fn(),
+      },
+      interaction,
+      visibility,
+      results,
+      presentation,
       updateScene: vi.fn(() => ({ results: "none" as const })),
       setScene: vi.fn(),
-      setCamera: vi.fn(),
-      fitView: vi.fn(),
-      fitSelection: vi.fn(),
-      setInteraction,
       batch: <T>(operation: () => T): T => operation(),
-      setResults: vi.fn(),
-      clearResults: vi.fn(),
-      setSectionPlane: vi.fn(),
-      clearSectionPlane: vi.fn(),
-      setBackground: vi.fn(),
-      setPointSizePixels: vi.fn(),
-      setNodeSizePixels: vi.fn(),
-      setEdgeDepthTest: vi.fn(),
-      setPartVisible: vi.fn(),
-      setAssemblyOccurrenceVisible: vi.fn(),
-      setAssemblyVisible: vi.fn(),
-      setInstanceVisible: vi.fn(),
-      pick: vi.fn(),
-      pickRegion: vi.fn(),
       resize: vi.fn(),
       invalidate: vi.fn(),
       render,

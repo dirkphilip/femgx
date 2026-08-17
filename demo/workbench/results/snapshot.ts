@@ -231,7 +231,7 @@ export interface WorkbenchSnapshotOwner {
     isSecondaryVisible(): boolean;
     isSecondaryOpening(): boolean;
   };
-  activeViewport(): { readonly camera: Pick<Camera, "mode"> };
+  activeViewport(): { readonly view: { readonly camera: Pick<Camera, "mode"> } };
 }
 
 export interface WorkbenchCommands {
@@ -321,7 +321,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     interaction: owner.interaction,
     rendererName: owner.rendererName,
     rendererState: owner.rendererState,
-    cameraMode: owner.activeViewport().camera.mode,
+    cameraMode: owner.activeViewport().view.camera.mode,
     background: owner.background,
     toggles: owner.toggles,
     continuous: owner.continuousEnabled,

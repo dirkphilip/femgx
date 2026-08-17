@@ -51,7 +51,7 @@ The local `chrome` project uses headless system Chrome with `--enable-gpu`,
 removes Playwright's unsafe SwiftShader fallback, and asserts that the resolved
 adapter is neither a fallback nor SwiftShader. The demo therefore commits to
 hardware WebGPU without opening a visible window. Picking is asynchronous GPU
-readback through `Viewport.pick`.
+readback through `ViewportInteraction.pick`.
 `requireHit` first uses the existing `pickRegion` seam to recursively localize
 a matching identity, then verifies the returned coordinate through a real
 pointer move and the normal dataset readback. Its bounded fallback grid is

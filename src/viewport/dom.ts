@@ -1,5 +1,11 @@
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
-import type { ViewportBackground } from "./types";
+import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
+import type { CameraRef } from "../camera/controls";
+import { installCameraControlsWithProtectedBounds } from "../camera/controls";
+import type { ViewCubeAction } from "../camera/view-cube";
+import type { SceneNavigationBounds } from "./scene-bounds";
+import type { WebGpuRenderer } from "../renderer/gpu-renderer";
+import type { ViewportBackground, ViewportOptions } from "./types";
 
 /** Validates the renderer-owned viewport background option. */
 export function assertViewportBackground(
@@ -93,4 +99,58 @@ export function validateOrientationGizmo(
   ) {
     throw new Error("Viewport orientationGizmo.container must contain the canvas");
   }
+}
+
+/** Validates a renderer-owned screen-space size in CSS pixels. */
+export function assertPixelSize(name: string, value: number | undefined): void {
+  if (value === undefined) return;
+  if (!Number.isFinite(value) || value < 1 || value > 64) {
+    throw new RangeError(`${name} must be finite and in [1, 64] CSS pixels`);
+  }
+}
+
+/** Resources installed around one viewport canvas and released with its lifecycle. */
+export interface ViewportCanvasBindings {
+  readonly removeControls: () => void;
+  readonly removeResize: () => void;
+  readonly removeKeyboard: () => void;
+  readonly orientationGizmo: OrientationGizmoHandle | undefined;
+}
+
+interface ViewportCanvasBindingOptions {
+  readonly options: ViewportOptions;
+  readonly renderer: WebGpuRenderer;
+  readonly cameraRef: CameraRef;
+  readonly navigationBounds: () => SceneNavigationBounds;
+  readonly fitSelection: () => void;
+  readonly invalidate: () => void;
+  readonly resize: () => void;
+  readonly onGestureChange: (active: boolean) => void;
+  readonly onOrientationAction: (action: ViewCubeAction) => void;
+}
+
+/** Installs camera, resize, keyboard, and optional orientation-gizmo bindings. */
+export function installViewportCanvasBindings(
+  bindingOptions: ViewportCanvasBindingOptions,
+): ViewportCanvasBindings {
+  const { options, renderer, navigationBounds } = bindingOptions;
+  const removeKeyboard = installViewportKeyboard(
+    options.keyboardTarget,
+    bindingOptions.fitSelection,
+  );
+  const removeControls = installCameraControlsWithProtectedBounds({
+    canvas: options.canvas,
+    cameraRef: bindingOptions.cameraRef,
+    navigation: renderer,
+    bounds: () => navigationBounds().bounds,
+    protectedBounds: () => navigationBounds().protectedBounds,
+    onRender: bindingOptions.invalidate,
+    onGestureChange: bindingOptions.onGestureChange,
+  });
+  const removeResize = installResize(options.canvas, bindingOptions.resize);
+  const orientationGizmo =
+    options.orientationGizmo === undefined
+      ? undefined
+      : createOrientationGizmo(options.orientationGizmo, bindingOptions.onOrientationAction);
+  return { removeControls, removeResize, removeKeyboard, orientationGizmo };
 }

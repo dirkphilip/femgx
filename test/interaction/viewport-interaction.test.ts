@@ -41,12 +41,12 @@ describe("installViewportInteraction", () => {
     harness.canvas.dispatch("pointermove", pointer({ clientX: 30, clientY: 40 }));
     await settle();
     expect(harness.pick).toHaveBeenCalledWith(20, 20, undefined);
-    expect(hoveredTarget(harness.viewport.interaction)).toEqual(target);
+    expect(hoveredTarget(harness.viewport.interaction.state)).toEqual(target);
 
     harness.canvas.dispatch("pointerdown", pointer());
     harness.canvas.dispatch("click", click());
     await settle();
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([target]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([target]);
     expect(harness.setInteraction).toHaveBeenCalledTimes(2);
     disposer();
   });
@@ -70,14 +70,14 @@ describe("installViewportInteraction", () => {
     await settle();
     harness.canvas.dispatch("click", click({ ctrlKey: true }));
     await settle();
-    expect(isTargetSelected(harness.viewport.interaction, target)).toBe(true);
-    expect(isTargetSelected(harness.viewport.interaction, other)).toBe(true);
+    expect(isTargetSelected(harness.viewport.interaction.state, target)).toBe(true);
+    expect(isTargetSelected(harness.viewport.interaction.state, other)).toBe(true);
 
     harness.pick.mockResolvedValueOnce(hit);
     harness.canvas.dispatch("click", click({ metaKey: true }));
     await settle();
-    expect(isTargetSelected(harness.viewport.interaction, target)).toBe(false);
-    expect(isTargetSelected(harness.viewport.interaction, other)).toBe(true);
+    expect(isTargetSelected(harness.viewport.interaction.state, target)).toBe(false);
+    expect(isTargetSelected(harness.viewport.interaction.state, other)).toBe(true);
     disposer();
   });
 
@@ -106,7 +106,7 @@ describe("installViewportInteraction", () => {
     expect(selection?.targets).toEqual([target]);
     expect(selection?.frustum.left.normal).toHaveLength(3);
     expect(selection?.frustum.far.normal).toHaveLength(3);
-    expect(isTargetSelected(harness.viewport.interaction, target)).toBe(true);
+    expect(isTargetSelected(harness.viewport.interaction.state, target)).toBe(true);
     expect(harness.setInteraction).toHaveBeenCalledOnce();
     disposer();
   });
@@ -157,7 +157,7 @@ describe("installViewportInteraction", () => {
     resolveNewest?.([newest]);
     await settle();
 
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([newest]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([newest]);
     disposer();
   });
 
@@ -196,16 +196,16 @@ describe("installViewportInteraction", () => {
     };
 
     await completeBox([first]);
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([first]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([first]);
 
     await completeBox([]);
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([]);
 
     await completeBox([second]);
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([second]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([second]);
 
     await completeBox([second, first], { ctrlKey: true });
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([first, second]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([first, second]);
     disposer();
   });
 
@@ -223,14 +223,14 @@ describe("installViewportInteraction", () => {
     harness.canvas.dispatch("pointermove", pointer({ clientX: 80, clientY: 90, buttons: 1 }));
     harness.canvas.dispatch("pointerup", pointer({ clientX: 80, clientY: 90 }));
     await settle();
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([target]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([target]);
 
     harness.canvas.dispatch("pointerdown", pointer({ clientX: 70, clientY: 70, buttons: 1 }));
     harness.canvas.dispatch("pointerup", pointer({ clientX: 70, clientY: 70 }));
     harness.canvas.dispatch("click", click({ clientX: 70, clientY: 70 }));
     await settle();
 
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([clicked]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([clicked]);
     disposer();
   });
 
@@ -271,7 +271,7 @@ describe("installViewportInteraction", () => {
     await settle();
 
     expect(errors).toEqual([{ error, phase: "box" }]);
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([]);
     expect(harness.setInteraction).not.toHaveBeenCalled();
     disposer();
   });
@@ -339,7 +339,7 @@ describe("installViewportInteraction", () => {
     await settle();
 
     expect(harness.pick).toHaveBeenCalledOnce();
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([target]);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([target]);
     disposer();
   });
 
@@ -358,8 +358,8 @@ describe("installViewportInteraction", () => {
     harness.canvas.dispatch("pointerleave", touch);
     await settle();
 
-    expect(hoveredTarget(harness.viewport.interaction)).toEqual(target);
-    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+    expect(hoveredTarget(harness.viewport.interaction.state)).toEqual(target);
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([]);
     disposer();
   });
 

@@ -59,9 +59,9 @@ export function throughIntersectionBoxSelectionResolver(
       );
     }
     const view = viewport();
-    const frustum = boxSelectionFrustum(view.camera, event.rect);
+    const frustum = boxSelectionFrustum(view.view.camera, event.rect);
     const tolerance = selectionTolerance(view);
-    const deformation = view.results?.deformation;
+    const deformation = view.results.state?.deformation;
     const targets: InteractionTarget[] = [];
 
     for (const instanceId of view.runtime.getVisibleInstanceIds()) {
@@ -73,10 +73,11 @@ export function throughIntersectionBoxSelectionResolver(
       if (part === undefined) continue;
       const partQuery = queryData(part);
       for (const element of partQuery.elements) {
-        if (!isElementVisible(view.interaction, { instanceId, elementId: element.id })) continue;
+        if (!isElementVisible(view.interaction.state, { instanceId, elementId: element.id }))
+          continue;
         if (
           element.bodyId !== undefined &&
-          !isBodyVisible(view.interaction, { instanceId, bodyId: element.bodyId })
+          !isBodyVisible(view.interaction.state, { instanceId, bodyId: element.bodyId })
         ) {
           continue;
         }
@@ -87,7 +88,7 @@ export function throughIntersectionBoxSelectionResolver(
             geometryByPrimitive: partQuery.geometryByPrimitive,
             transform: instance.transform,
             frustum,
-            sectionPlane: view.sectionPlane,
+            sectionPlane: view.presentation.sectionPlane,
             deformation,
             tolerance,
           })
@@ -309,11 +310,11 @@ function signedDistance(normal: Vec3, distance: number, point: Vec3): number {
 function selectionTolerance(view: Viewport): number {
   const cameraScale = Math.max(
     1,
-    view.camera.orthoHeight,
+    view.view.camera.orthoHeight,
     Math.hypot(
-      view.camera.position[0] - view.camera.target[0],
-      view.camera.position[1] - view.camera.target[1],
-      view.camera.position[2] - view.camera.target[2],
+      view.view.camera.position[0] - view.view.camera.target[0],
+      view.view.camera.position[1] - view.view.camera.target[1],
+      view.view.camera.position[2] - view.view.camera.target[2],
     ),
   );
   return cameraScale * 1e-7;

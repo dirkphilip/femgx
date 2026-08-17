@@ -45,7 +45,7 @@ describe("viewport results workflow", () => {
       device: fakeGpuDevice().device,
       results: config(fieldA),
     });
-    const hostInteraction = viewport.interaction;
+    const hostInteraction = viewport.interaction.state;
     const rendererInteraction = (): ReturnType<typeof readInteractionState> => {
       const call = updateElements.mock.calls.at(-1);
       if (call === undefined) throw new Error("renderer interaction was not updated");
@@ -56,16 +56,16 @@ describe("viewport results workflow", () => {
     const colorA = resultColor(rendererInteraction());
 
     expect(viewport.updateScene(createTestScene())).toEqual({ results: "preserved" });
-    expect(viewport.interaction).toBe(hostInteraction);
-    expect(readInteractionState(viewport.interaction).elementOverrides.size).toBe(0);
+    expect(viewport.interaction.state).toBe(hostInteraction);
+    expect(readInteractionState(viewport.interaction.state).elementOverrides.size).toBe(0);
 
-    viewport.setResults(config(fieldB));
-    expect(viewport.interaction).toBe(hostInteraction);
+    viewport.results.set(config(fieldB));
+    expect(viewport.interaction.state).toBe(hostInteraction);
     const colorB = resultColor(rendererInteraction());
     expect(colorB).not.toEqual(colorA);
 
-    viewport.clearResults();
-    expect(viewport.interaction).toBe(hostInteraction);
+    viewport.results.clear();
+    expect(viewport.interaction.state).toBe(hostInteraction);
     expect(resultColor(rendererInteraction())).toBeUndefined();
     viewport.destroy();
   });
@@ -102,7 +102,9 @@ describe("viewport results workflow", () => {
 
     expect(part.geometries[0]?.indices.length).toBe(6 * 6 * 3);
     expect(part.geometries[0]?.nodePickIds).not.toContain(0);
-    expect(viewport.results?.deformation?.displacements.get(7)).toHaveLength(model.nodes.length);
+    expect(viewport.results.state?.deformation?.displacements.get(7)).toHaveLength(
+      model.nodes.length,
+    );
     expect(gpu.writes.some((write) => write.bytes.byteLength === model.nodes.length * 4)).toBe(
       true,
     );

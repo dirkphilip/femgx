@@ -315,7 +315,7 @@ export class WorkbenchInteraction {
     try {
       return await this.options
         .viewport()
-        .pick(
+        .interaction.pick(
           point.x,
           point.y,
           this.options.selectionGranularity() === "edge" ? "edge" : undefined,
@@ -376,7 +376,7 @@ export class WorkbenchInteraction {
     const text = describePick(
       hit,
       (partId) => this.options.partName(partId),
-      this.options.viewport().results,
+      this.options.viewport().results.state,
     );
     this.options.setInspection(text, hit !== undefined);
   }

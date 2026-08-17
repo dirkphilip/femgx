@@ -22,7 +22,7 @@ presentation and interaction policy only.
   (`updateInstances`, `updateElements`, `updateVisibility`) plus the viewport's
   pure interaction-diff helper `changedInstanceSlots`
   ([[rendering/renderer-subrange-updates|Renderer subrange updates]]).
-- GPU picking (`Viewport.pick`) and pure interaction-target conversion.
+- GPU picking (`ViewportInteraction.pick`) and pure interaction-target conversion.
 - Opinionated SpaceClaim-style mouse/touch navigation
   (`installCameraControls`), camera math, asynchronous orbit-pivot handling,
   and the renderer-owned rotation-origin axis widget.

@@ -135,26 +135,30 @@ function viewport(
   return {
     scene,
     runtime,
-    interaction,
-    camera: createCamera({
-      mode: "orthographic",
-      position: [0, 0, 10],
-      target: [0, 0, 0],
-      up: [0, 1, 0],
-      width: 100,
-      height: 100,
-      orthoHeight: 10,
-    }),
-    results: {
-      config: {},
-      scalar: undefined,
-      deformation: {
-        scale: 1,
-        displacements: new Map([[1, new Float32Array([-2, -2, 0, 0, 0, 0])]]),
-      },
-      vectors: undefined,
+    view: {
+      camera: createCamera({
+        mode: "orthographic",
+        position: [0, 0, 10],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+        width: 100,
+        height: 100,
+        orthoHeight: 10,
+      }),
     },
-    sectionPlane,
+    interaction: { state: interaction },
+    results: {
+      state: {
+        config: {},
+        scalar: undefined,
+        deformation: {
+          scale: 1,
+          displacements: new Map([[1, new Float32Array([-2, -2, 0, 0, 0, 0])]]),
+        },
+        vectors: undefined,
+      },
+    },
+    presentation: { sectionPlane },
   } as unknown as Viewport;
 }
 

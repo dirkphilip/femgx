@@ -153,17 +153,19 @@ describe("WorkbenchVisibilityActions", () => {
         calls.push("batch");
         return operation();
       },
-      setAssemblyVisible(assemblyId: number, visible: boolean): void {
-        calls.push(`assembly:${assemblyId}:${visible}`);
-      },
-      setAssemblyOccurrenceVisible(occurrenceId: string, visible: boolean): void {
-        calls.push(`occurrence:${occurrenceId}:${visible}`);
-      },
-      setPartVisible(partId: number, visible: boolean): void {
-        calls.push(`part:${partId}:${visible}`);
-      },
-      setInstanceVisible(instanceId: string, visible: boolean): void {
-        calls.push(`instance:${instanceId}:${visible}`);
+      visibility: {
+        setAssembly(assemblyId: number, visible: boolean): void {
+          calls.push(`assembly:${assemblyId}:${visible}`);
+        },
+        setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
+          calls.push(`occurrence:${occurrenceId}:${visible}`);
+        },
+        setPart(partId: number, visible: boolean): void {
+          calls.push(`part:${partId}:${visible}`);
+        },
+        setInstance(instanceId: string, visible: boolean): void {
+          calls.push(`instance:${instanceId}:${visible}`);
+        },
       },
     } as unknown as Viewport;
     const actions = new WorkbenchVisibilityActions({

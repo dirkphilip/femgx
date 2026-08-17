@@ -118,13 +118,19 @@ export function viewportHarness(initial = createInteractionState()): ViewportHar
   const pick = vi.fn(() => Promise.resolve(hit));
   const pickRegion = vi.fn(() => Promise.resolve([target]));
   const viewport = {
-    get interaction() {
-      return interaction;
+    view: {
+      get camera() {
+        return createCamera({ width: 200, height: 100 });
+      },
     },
-    camera: createCamera({ width: 200, height: 100 }),
-    pick,
-    pickRegion,
-    setInteraction,
+    interaction: {
+      get state() {
+        return interaction;
+      },
+      pick,
+      pickRegion,
+      set: setInteraction,
+    },
   } as unknown as Viewport;
   return { canvas, window, viewport, setInteraction, pick, pickRegion };
 }

@@ -38,7 +38,7 @@ export type {
  *
  * Mouse and pen hover replace the one hovered target. Plain clicks replace
  * selection, while Control/Meta clicks toggle it. Completed box selections use
- * `Viewport.pickRegion` by default; plain boxes replace selection and
+ * `viewport.interaction.pickRegion` by default; plain boxes replace selection and
  * Control/Meta boxes append through one duplicate-safe immutable transition.
  * Hosts can replace point/region discovery or return their own
  * interaction state from `applyInteraction`; returning `undefined` suppresses
@@ -114,7 +114,7 @@ class ViewportInteraction {
     if (event.pointerType === "touch") return;
     if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive) return;
     this.generation += 1;
-    const current = this.options.viewport.interaction;
+    const current = this.options.viewport.interaction.state;
     const next = setTargetHovered(current, undefined);
     if (next !== current)
       void this.apply(
@@ -201,7 +201,7 @@ class ViewportInteraction {
       return;
     }
     if (!this.isCurrent(generation)) return;
-    const current = this.options.viewport.interaction;
+    const current = this.options.viewport.interaction.state;
     const next =
       phase === "hover"
         ? setTargetHovered(current, target)
@@ -249,7 +249,7 @@ class ViewportInteraction {
     let frustum: BoxSelectionFrustum;
     let targets: readonly InteractionTarget[];
     try {
-      frustum = boxSelectionFrustum(this.options.viewport.camera, event.rect);
+      frustum = boxSelectionFrustum(this.options.viewport.view.camera, event.rect);
       targets = this.options.resolveRegion
         ? await this.options.resolveRegion({
             rect: event.rect,
@@ -257,7 +257,7 @@ class ViewportInteraction {
             granularity,
             frustum,
           })
-        : await this.options.viewport.pickRegion(event.rect, granularity);
+        : await this.options.viewport.interaction.pickRegion(event.rect, granularity);
       for (const target of targets) assertTarget(target, granularity);
     } catch (error: unknown) {
       if (this.isCurrent(generation)) this.reportError(error, "box");
@@ -266,7 +266,7 @@ class ViewportInteraction {
     if (!this.isCurrent(generation)) return;
     const selection = { event, granularity, frustum, targets };
     this.reportBoxSelection(selection);
-    const current = this.options.viewport.interaction;
+    const current = this.options.viewport.interaction.state;
     const next = boxInteraction(current, targets, event.modifiers);
     await this.apply(
       {
@@ -294,7 +294,11 @@ class ViewportInteraction {
     y: number,
     granularity: InteractionGranularity,
   ): Promise<InteractionTarget | undefined> {
-    const hit = await this.options.viewport.pick(x, y, granularity === "edge" ? "edge" : undefined);
+    const hit = await this.options.viewport.interaction.pick(
+      x,
+      y,
+      granularity === "edge" ? "edge" : undefined,
+    );
     return hit === undefined ? undefined : interactionTargetFromHit(hit, granularity);
   }
 
@@ -309,7 +313,7 @@ class ViewportInteraction {
       return;
     }
     if (!this.isCurrent(generation) || result === undefined) return;
-    if (result !== request.current) this.options.viewport.setInteraction(result);
+    if (result !== request.current) this.options.viewport.interaction.set(result);
   }
 
   private isPointPointer(event: PointerEvent): boolean {

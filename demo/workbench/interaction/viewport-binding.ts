@@ -39,7 +39,7 @@ export async function resolveViewportPoint(
   const granularity = selectionGranularity(request.granularity);
   const hit = await options
     .viewport()
-    .pick(request.x, request.y, granularity === "edge" ? "edge" : undefined);
+    .interaction.pick(request.x, request.y, granularity === "edge" ? "edge" : undefined);
   const target =
     hit === undefined
       ? undefined
