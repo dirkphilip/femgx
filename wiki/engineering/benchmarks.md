@@ -136,7 +136,7 @@ quadratic). They are not a micro-benchmark signal.
 To recalibrate (e.g. when model sizes change, or after a large optimization):
 
 ```sh
-PERF_REPORT=1 npx vitest run --config vitest.budget.config.ts --reporter=verbose
+PERF_REPORT=1 npx vitest run --config config/vitest.budget.config.ts --reporter=verbose
 ```
 
 The printed medians are the reference numbers; update `budgetMs` in
@@ -163,7 +163,7 @@ that case before changing the algorithm:
 ```sh
 mkdir -p /tmp/femgx-profile
 node --cpu-prof --cpu-prof-dir=/tmp/femgx-profile \
-  node_modules/vitest/vitest.mjs run --config vitest.budget.config.ts \
+  node_modules/vitest/vitest.mjs run --config config/vitest.budget.config.ts \
   --pool=threads --maxWorkers=1 -t "case name"
 ```
 

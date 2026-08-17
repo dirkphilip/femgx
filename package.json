@@ -110,10 +110,10 @@
     "pre-commit": "lint-staged",
     "test:package": "node scripts/package-smoke.mjs",
     "prepublishOnly": "npm run test:package",
-    "dev": "vite --config vite.demo.config.ts",
+    "dev": "vite --config config/vite.demo.config.ts",
     "build": "npm run typecheck && vite build",
-    "build:demo": "npm run typecheck && vite build --config vite.demo.config.ts",
-    "build:docs": "typedoc",
+    "build:demo": "npm run typecheck && vite build --config config/vite.demo.config.ts",
+    "build:docs": "typedoc --options config/typedoc.json",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "typecheck:ts": "tsc --noEmit",
     "typecheck": "npm run typecheck:ts && npm run check:svelte",
@@ -134,11 +134,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:demo:coverage": "npm run test:demo:coverage:core && npm run test:demo:coverage:components",
-    "test:demo:coverage:core": "vitest run --config vitest.demo.core.config.ts --coverage",
-    "test:demo:coverage:components": "vitest run --config vitest.demo.components.config.ts --coverage",
+    "test:demo:coverage:core": "vitest run --config config/vitest.demo.core.config.ts --coverage",
+    "test:demo:coverage:components": "vitest run --config config/vitest.demo.components.config.ts --coverage",
     "bench": "vitest bench",
-    "bench:budget": "vitest run --config vitest.budget.config.ts",
-    "bench:scaling:large": "vitest run --config vitest.large-scaling.config.ts",
+    "bench:budget": "vitest run --config config/vitest.budget.config.ts",
+    "bench:scaling:large": "vitest run --config config/vitest.large-scaling.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",
     "test:e2e": "npm run test:e2e:combined",
     "test:e2e:core": "playwright test --project=chrome e2e/core",
@@ -151,6 +151,15 @@
     "test:e2e:ci": "npm run test:e2e:no-gpu",
     "test:e2e:install": "playwright install chrome",
     "preview": "vite preview"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,svelte}": [
+      "eslint --fix --max-warnings 0 --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{json,jsonc,md,yml,yaml,html,css,scss,svelte}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",

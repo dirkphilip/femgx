@@ -96,7 +96,7 @@ describe("renderer host-variant reconciliation scaling", () => {
           expect(fixture.attachment.instances).toHaveLength(PLACEMENT_COUNTS[index] ?? 0);
         },
       })),
-      { warmup: 1, samples: 3 },
+      { iterations: 5 },
     );
     const normalized = measurements.map(({ millisecondsPerUnit }) => millisecondsPerUnit);
     const spread = Math.max(...normalized) / Math.min(...normalized);

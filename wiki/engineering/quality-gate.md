@@ -58,7 +58,7 @@ outside this policy.
 cleans the ignored API output, validates links and paths, requires documentation
 for selected public declaration kinds, and treats validation warnings as errors.
 Internal union helpers that are intentionally absent from the package entry
-facades are listed explicitly in `typedoc.json`; that exception does not weaken
+facades are listed explicitly in `config/typedoc.json`; that exception does not weaken
 public API coverage.
 
 `npm run review:diff` is a successful, advisory review step. It reports when a

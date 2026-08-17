@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
-    // The performance budget gate runs standalone (see vitest.budget.config.ts)
+    // The performance budget gate runs standalone (see config/vitest.budget.config.ts)
     // so wall-clock budgets are not distorted by coverage instrumentation.
     exclude: [
       "test/bench/budget.test.ts",
