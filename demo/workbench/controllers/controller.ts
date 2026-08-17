@@ -394,12 +394,14 @@ export class WorkbenchController {
 
   reset(): void {
     this.touchInteractionMode = "navigate";
+    this.modelSession.cancel();
     this.activateModel(this.model);
   }
 
   destroy(): void {
     if (this.disposed) return;
     this.resultPlaybackActions.stop();
+    this.modelSession.cancel();
     this.disposed = true;
     this.boxSelectionDisposer?.();
     this.listenerController.abort();

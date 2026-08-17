@@ -10,10 +10,12 @@ describe("workbench model session", () => {
     const ordinary = createExampleModel(createBoltedPlatePreset());
     const loaded = { ...ordinary, id: "lazy-loaded", name: "Loaded benchmark" };
     let resolveLoad: ((model: WorkbenchModel) => void) | undefined;
+    const cancelDeferredLoad = vi.fn();
     const deferred = {
       ...ordinary,
       id: "lazy",
       name: "Lazy benchmark",
+      cancelDeferredLoad,
       deferredLoad: () =>
         new Promise<WorkbenchModel>((resolve) => {
           resolveLoad = resolve;
@@ -45,6 +47,7 @@ describe("workbench model session", () => {
 
     expect(activate).not.toHaveBeenCalled();
     expect(current).toBe(ordinary);
+    expect(cancelDeferredLoad).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
   });
 

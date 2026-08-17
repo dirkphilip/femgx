@@ -49,6 +49,28 @@ function benchmarkLines(context: WorkbenchSceneContext): string[] {
   if (retentionReason !== undefined) {
     lines.push(`Performance model retention ${retentionReason}`);
   }
+  const build = context.model.benchmarkBuildTelemetry;
+  if (build !== undefined) {
+    lines.push(`Benchmark build ${build.path}`);
+    if (build.generationMs !== undefined) {
+      lines.push(`Benchmark generation ${formatMilliseconds(build.generationMs)}`);
+    }
+    if (build.topologyMs !== undefined) {
+      lines.push(`Benchmark topology ${formatMilliseconds(build.topologyMs)}`);
+    }
+    if (build.tessellationMs !== undefined) {
+      lines.push(`Benchmark tessellation ${formatMilliseconds(build.tessellationMs)}`);
+    }
+    if (build.mainReconstructionMs !== undefined) {
+      lines.push(`Benchmark reconstruction ${formatMilliseconds(build.mainReconstructionMs)}`);
+    }
+    if (build.transferredBytes !== undefined) {
+      lines.push(`Benchmark transferred ${formatBytes(build.transferredBytes)}`);
+    }
+    if (build.finalRetainedTypedBytes !== undefined) {
+      lines.push(`Benchmark retained typed ${formatBytes(build.finalRetainedTypedBytes)}`);
+    }
+  }
   return lines;
 }
 
@@ -154,4 +176,9 @@ function formatOptionalMilliseconds(value: number | undefined): string {
 
 function formatRate(value: number): string {
   return value.toFixed(1);
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KiB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MiB`;
 }

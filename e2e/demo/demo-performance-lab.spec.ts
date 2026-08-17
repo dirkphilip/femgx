@@ -48,3 +48,24 @@ test("keeps the Performance Lab switch reachable in the phone drawer", async ({ 
   await expect(labSwitch).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("#navigation-drawer")).toHaveAttribute("aria-hidden", "false");
 });
+
+test("cancels a stale heavy FE build and completes the selected case", async ({ page }) => {
+  test.setTimeout(40_000);
+  await loadWebGpuPage(page);
+  const modelSelect = page.getByTestId("model-select");
+  const labSwitch = page.getByTestId("performance-lab");
+  const canvas = page.getByTestId("view-canvas");
+
+  await labSwitch.click();
+  await modelSelect.selectOption("fe-tet4-solid-132k");
+  await labSwitch.click();
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await page.waitForTimeout(2_000);
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+
+  await labSwitch.click();
+  await modelSelect.selectOption("fe-tet4-solid-132k");
+  await expect(canvas).toHaveAttribute("data-model", "fe-tet4-solid-132k", {
+    timeout: 30_000,
+  });
+});
