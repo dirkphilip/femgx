@@ -18,10 +18,9 @@ framework does not install its own git hook; only Husky owns
 - `check-toml` — syntax validation for committed TOML configuration files.
 - `check-merge-conflict` — leftover conflict markers.
 - `detect-private-key` — prevent accidental private-key commits.
-- `end-of-file-fixer` — require final newline (matches `.editorconfig`).
+- `end-of-file-fixer` — require final newline.
 - `trailing-whitespace` — trim trailing whitespace, with
-  `--markdown-linebreak-ext=md` so double-space markdown hard breaks survive
-  (matches `.editorconfig`, which disables trimming for `*.md`).
+  `--markdown-linebreak-ext=md` so double-space markdown hard breaks survive.
 - The local `actionlint` hook — validate GitHub Actions workflow semantics
   with the pinned release used by `scripts/actionlint.mjs`.
 - The pinned `codespell` hook — check repository-owned prose and source text

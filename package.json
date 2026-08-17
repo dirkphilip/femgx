@@ -129,7 +129,7 @@
     "lint:styles": "stylelint \"**/*.{css,svelte}\" --allow-empty-input",
     "lint:wgsl": "vitest run test/scripts/wgsl-validation.test.ts --reporter=dot",
     "lint:package": "npm run build && publint run --strict --pack=false",
-    "lint:dependencies": "depcruise src --config .dependency-cruiser.mjs",
+    "lint:dependencies": "depcruise src --config config/dependency-cruiser.mjs",
     "lint:dead-code": "knip --include files,dependencies,unlisted,unresolved,binaries",
     "review:diff": "node scripts/review-diff.mjs",
     "format": "prettier --write .",
