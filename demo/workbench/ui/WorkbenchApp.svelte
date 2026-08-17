@@ -170,7 +170,7 @@
         </svg>
       {:else}
         <svg viewBox="0 0 24 24" focusable="false">
-          <path d="M4 6h16M4 12h16M4 18h16" />
+          <path d="M4 5h16v14H4zM9 5v14" />
         </svg>
       {/if}
     </span>
