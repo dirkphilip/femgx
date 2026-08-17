@@ -144,6 +144,48 @@ describe("renderer runtime state", () => {
     expect(layout.visibleCount).toBe(3);
   });
 
+  it("retains part-local slots for surviving placements across a part rebind", () => {
+    const first = createScene()
+      .addPart(part(1))
+      .addPart(part(2))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", placementId: "move", partId: 1, transform: identity() },
+          { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+          { kind: "part", placementId: "other", partId: 2, transform: translation(2, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const firstRuntime = createPackedSceneRuntime(first);
+    const firstLayout = buildInstanceLayout(firstRuntime);
+    const second = createScene()
+      .addPart(part(1))
+      .addPart(part(2))
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", placementId: "move", partId: 2, transform: identity() },
+          { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+          { kind: "part", placementId: "other", partId: 2, transform: translation(2, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const secondRuntime = createPackedSceneRuntime(second);
+    const secondLayout = buildInstanceLayout(secondRuntime, {
+      runtime: firstRuntime,
+      layout: firstLayout,
+    });
+
+    expect(Array.from(secondLayout.slotPartLocal)).toEqual([1, 1, 0]);
+    expect(Array.from(secondLayout.partSlots.get(1) ?? [])).toEqual([1]);
+    expect(Array.from(secondLayout.partSlots.get(2) ?? [])).toEqual([0, 2]);
+  });
+
   it("derives compacted draw order from the visibility bits", () => {
     const scene = createScene()
       .addPart(part(1))

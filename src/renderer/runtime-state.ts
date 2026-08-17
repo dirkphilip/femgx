@@ -36,7 +36,19 @@ export interface InstanceLayout {
 }
 
 /** Builds the stable slot/part layout and current visibility counts. */
-export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout {
+export interface PreviousInstanceLayout {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+}
+
+/**
+ * Builds the current slot layout, retaining part-local slots for surviving
+ * placement identities when a host scene revision changes.
+ */
+export function buildInstanceLayout(
+  runtime: PackedSceneRuntime,
+  previous?: PreviousInstanceLayout,
+): InstanceLayout {
   const instanceCount = runtime.instanceCount;
   const slotPartLocal = new Int32Array(instanceCount).fill(-1);
   const partOrder = Array.from(runtime.sortedPartIds);
@@ -44,11 +56,9 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
   for (const partId of partOrder) {
     const slots = runtime.getPartInstanceSlots(partId);
     partSlots.set(partId, slots);
-    for (let local = 0; local < slots.length; local += 1) {
-      const slot = slots[local];
-      if (slot !== undefined) slotPartLocal[slot] = local;
-    }
   }
+  if (previous === undefined) assignInitialPartLocals(partSlots, slotPartLocal);
+  else assignPartLocals(runtime, partSlots, slotPartLocal, previous);
   const partVisibleCounts = new Map<PartId, number>();
   const partEdgeCounts = new Map<PartId, number>();
   const partNodeCounts = new Map<PartId, number>();
@@ -83,6 +93,78 @@ export function buildInstanceLayout(runtime: PackedSceneRuntime): InstanceLayout
     partSelectionDrawCalls,
     visibleCount: drawList.length,
   };
+}
+
+function assignInitialPartLocals(
+  partSlots: ReadonlyMap<PartId, Uint32Array>,
+  slotPartLocal: Int32Array,
+): void {
+  for (const slots of partSlots.values()) {
+    for (let local = 0; local < slots.length; local += 1) {
+      const slot = slots[local];
+      if (slot !== undefined) slotPartLocal[slot] = local;
+    }
+  }
+}
+
+function assignPartLocals(
+  runtime: PackedSceneRuntime,
+  partSlots: ReadonlyMap<PartId, Uint32Array>,
+  slotPartLocal: Int32Array,
+  previous: PreviousInstanceLayout | undefined,
+): void {
+  const localByInstanceId = previousInstanceLocals(previous);
+  const usedLocals = new Map<PartId, Set<number>>();
+  for (const [partId, slots] of partSlots) {
+    const used = new Set<number>();
+    usedLocals.set(partId, used);
+    for (const slot of slots) {
+      const instanceId = runtime.getInstanceId(slot);
+      const previousLocal =
+        instanceId === undefined ? undefined : localByInstanceId.get(instanceId);
+      if (previousLocal?.partId !== partId || previousLocal.local < 0) continue;
+      slotPartLocal[slot] = previousLocal.local;
+      used.add(previousLocal.local);
+    }
+  }
+  for (const [partId, slots] of partSlots) {
+    const used = usedLocals.get(partId);
+    if (used === undefined) continue;
+    for (const slot of slots) {
+      const currentLocal = slotPartLocal[slot];
+      if (currentLocal !== undefined && currentLocal >= 0) continue;
+      const local = nextFreeLocal(used);
+      slotPartLocal[slot] = local;
+      used.add(local);
+    }
+  }
+}
+
+interface PreviousInstanceLocal {
+  readonly partId: PartId;
+  readonly local: number;
+}
+
+function previousInstanceLocals(
+  previous: PreviousInstanceLayout | undefined,
+): ReadonlyMap<string, PreviousInstanceLocal> {
+  if (previous === undefined) return new Map();
+  const locals = new Map<string, PreviousInstanceLocal>();
+  for (let slot = 0; slot < previous.runtime.instanceCount; slot += 1) {
+    const instanceId = previous.runtime.getInstanceId(slot);
+    const partId = previous.runtime.instancePartIds[slot];
+    const local = previous.layout.slotPartLocal[slot];
+    if (instanceId !== undefined && partId !== undefined && local !== undefined && local >= 0) {
+      locals.set(instanceId, { partId, local });
+    }
+  }
+  return locals;
+}
+
+function nextFreeLocal(used: ReadonlySet<number>): number {
+  let local = 0;
+  while (used.has(local)) local += 1;
+  return local;
 }
 
 /**

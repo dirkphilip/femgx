@@ -45,6 +45,17 @@ renderer may transfer and retain content-addressed immutable chunks so variants
 share unchanged bytes, but chunks are private storage: they have no scene,
 selection, visibility, style, result, or picking identity.
 
+The existing `FemViewport.updateScene(scene)` path applies these revisions
+incrementally after the next packed runtime is available. Stable placement
+identities retain their part-local instance slots; a transform/style-only
+change patches that occurrence, a rebind patches only the source and
+destination part storage/orders, and a new variant uploads only when its part
+geometry is first drawn. Unchanged part resources and unrelated occurrence
+buffers retain their object identity. Removing a part from the authoritative
+scene releases its old geometry and placement resources; femgx does not keep an
+implicit historical variant cache. Results, deformation, picks, and interaction
+references continue to be reconciled by the existing public identity rules.
+
 Variant residency uses byte budgets. Identical variants are deduplicated,
 current variants are pinned, and inactive revisions may be evicted
 least-recently-used. If many simultaneous variants approach the cost of a full
