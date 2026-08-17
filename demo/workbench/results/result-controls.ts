@@ -42,13 +42,22 @@ export function vectorTransformLabel(
   return transform === "direction" ? "Spatial direction" : "Surface normal";
 }
 
-const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<
-  string,
-  Pick<VectorDisplayState, "glyph" | "transform">
-> = new Map([
+type CanonicalVectorPresentation = Pick<VectorDisplayState, "glyph" | "transform"> &
+  Partial<Pick<VectorDisplayState, "lengthScale" | "widthPixels">>;
+
+const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<string, CanonicalVectorPresentation> = new Map([
   ["demo-normals", { glyph: "arrow", transform: "normal" }],
   ["demo-fibers", { glyph: "axis", transform: "direction" }],
   ["demo-element-frames", { glyph: "triad", transform: "direction" }],
+  [
+    "gallery-shell-normals",
+    { glyph: "arrow", transform: "normal", lengthScale: 0.7, widthPixels: 3 },
+  ],
+  [
+    "gallery-fibre-axis",
+    { glyph: "axis", transform: "direction", lengthScale: 0.7, widthPixels: 3 },
+  ],
+  ["gallery-element-frames", { glyph: "triad", transform: "direction" }],
 ]);
 
 /** Resolves the display mode represented by a scalar-field selection. */
@@ -170,6 +179,7 @@ export function vectorConfigForDisplay(
   const field = resultVectorFieldsForModel(model).find(
     (candidate) => candidate.id === display.fieldId,
   );
+  const partId = field === undefined ? undefined : model.resultVectorPartIds?.get(field.id);
   return field === undefined
     ? undefined
     : field.shape === "frame"
@@ -181,6 +191,7 @@ export function vectorConfigForDisplay(
         }
       : {
           field,
+          ...(partId === undefined ? {} : { partId }),
           glyph: display.glyph === "triad" ? "axis" : display.glyph,
           transform: display.transform,
           lengthScale: display.lengthScale,

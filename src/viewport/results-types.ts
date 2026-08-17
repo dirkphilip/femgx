@@ -1,5 +1,11 @@
+import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
-import type { ElementFrameField, ScalarField, VectorField } from "../results/fields";
+import type {
+  ElementFrameField,
+  NodalLoadField,
+  ScalarField,
+  VectorField,
+} from "../results/fields";
 import type { ScalarColorMap } from "../results/mapping";
 import type { ValueRange } from "../results/range";
 
@@ -33,6 +39,8 @@ export interface ViewportDeformationConfig {
  */
 export interface ViewportScalarConfig {
   readonly field: ViewportResultField;
+  /** Optional reusable part receiving this field; omit for scene-wide ids. */
+  readonly partId?: PartId;
   readonly range?: ValueRange;
   readonly colorMap?: ScalarColorMap;
 }
@@ -47,6 +55,8 @@ export interface ViewportScalarConfig {
  */
 export interface ViewportElementVectorConfig {
   readonly field: VectorField<"elemental">;
+  /** Optional reusable part owner; omitted fields apply to all rendered parts. */
+  readonly partId?: PartId;
   readonly glyph: "arrow" | "axis";
   readonly transform: "direction" | "normal";
   readonly lengthScale?: number;
@@ -59,6 +69,17 @@ export interface ViewportElementFrameConfig {
   readonly field: ElementFrameField;
   readonly glyph: "triad";
   readonly lengthScale?: number;
+  /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
+  readonly widthPixels?: number;
+}
+
+/** Configuration for authored nodal forces and moments. */
+export interface ViewportLoadConfig {
+  readonly field: NodalLoadField;
+  /** Part-local length units rendered per authored force unit. */
+  readonly forceLengthScale?: number;
+  /** Part-local radius units rendered per authored moment unit. */
+  readonly momentLengthScale?: number;
   /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
   readonly widthPixels?: number;
 }
@@ -83,6 +104,7 @@ export interface ViewportResultsConfig {
   readonly scalar?: ViewportScalarConfig;
   readonly deformation?: ViewportDeformationConfig;
   readonly vectors?: ViewportElementVectorConfig | ViewportElementFrameConfig;
+  readonly loads?: ViewportLoadConfig;
 }
 
 /**
@@ -127,4 +149,5 @@ export interface ViewportResultsState {
   readonly scalar: ViewportScalarState | undefined;
   readonly deformation: DeformationState | undefined;
   readonly vectors: ViewportElementVectorState | undefined;
+  readonly loads?: ViewportLoadConfig;
 }

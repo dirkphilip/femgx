@@ -39,6 +39,18 @@ export interface WorkbenchResultLegendSnapshot {
         readonly widthPixels: number;
       }
     | undefined;
+  readonly loads?:
+    | {
+        readonly field: {
+          readonly id: string;
+          readonly name: string;
+          readonly location: "nodal";
+          readonly forceUnit: string;
+          readonly momentUnit: string;
+        };
+        readonly widthPixels: number;
+      }
+    | undefined;
   readonly section: {
     readonly axis: SectionAxis;
     readonly offset: number;
@@ -52,6 +64,7 @@ export function emptyResultLegend(): WorkbenchResultLegendSnapshot {
     scalar: undefined,
     deformation: undefined,
     orientation: undefined,
+    loads: undefined,
     section: { axis: "off", offset: 0 },
   };
 }

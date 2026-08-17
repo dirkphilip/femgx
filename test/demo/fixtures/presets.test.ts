@@ -69,7 +69,7 @@ describe("createGalleryPreset", () => {
     expect(preset.partColors.get(15)).toEqual({ r: 0.28, g: 0.68, b: 0.64, a: 1 });
   });
 
-  it("offers static elemental colors, nodal interpolation, and element frames", () => {
+  it("offers static scalar, orientation, and load examples", () => {
     const preset = createGalleryPreset();
     expect(preset.resultSequence).toBeUndefined();
     expect(preset.results?.deformation).toBeUndefined();
@@ -77,11 +77,25 @@ describe("createGalleryPreset", () => {
     expect(preset.resultScalarFields?.map((field) => [field.id, field.location])).toEqual([
       ["gallery-element-colors", "elemental"],
       ["gallery-nodal-interpolation", "nodal"],
+      ["gallery-shell-thickness", "elemental"],
     ]);
     expect(preset.results?.vectors).toMatchObject({
       glyph: "triad",
       field: { id: "gallery-element-frames", partId: 6, shape: "frame" },
     });
+    expect(preset.results?.loads?.field).toMatchObject({
+      id: "gallery-nodal-loads",
+      partId: 1,
+      shape: "load",
+    });
+    expect(preset.resultVectorFields?.map((field) => field.id)).toEqual([
+      "gallery-element-frames",
+      "gallery-shell-normals",
+      "gallery-fibre-axis",
+    ]);
+    expect(preset.resultVectorPartIds?.get("gallery-shell-normals")).toBe(8);
+    expect(preset.resultVectorPartIds?.get("gallery-fibre-axis")).toBe(11);
+    expect(preset.resultScalarPartIds?.get("gallery-shell-thickness")).toBe(12);
   });
 
   it("resolves complete gallery coverage for the Hex8 examples", () => {

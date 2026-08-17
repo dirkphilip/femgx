@@ -64,6 +64,25 @@ describe("viewport results workflow", () => {
     expect(colors?.slice(12, 16)).toEqual(new Float32Array([0.75, 0.05, 0.1, 1]));
   });
 
+  it("can bind a dense scalar field to one reusable part", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const resolved = resolveViewportResults(
+      { scalar: { field: elementalScalar(), partId: 1 } },
+      scene,
+      runtime,
+    );
+
+    expect([...(viewportResultColors(resolved)?.keys() ?? [])]).toEqual([1]);
+    expect(() =>
+      resolveViewportResults({ scalar: { field: elementalScalar(), partId: 2 } }, scene, runtime),
+    ).toThrow("part 2 is not rendered");
+  });
+
   it("reuses derived result buffers when authored arrays are unchanged", () => {
     const scene = createTestScene();
     const runtime = {

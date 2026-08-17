@@ -50,6 +50,7 @@ export type {
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
+  ViewportLoadConfig,
   ViewportResultField,
   ViewportScalarConfig,
   ViewportScalarState,
@@ -126,7 +127,9 @@ export type {
 } from "../picking/types";
 export {
   FRAME_COMPONENT_COUNT,
+  LOAD_COMPONENT_COUNT,
   createElementFrameField,
+  createNodalLoadField,
   FIELD_COMPONENT_COUNT,
   createResultField,
   frameAt,
@@ -135,6 +138,8 @@ export {
   type AnyResultField,
   type ElementFrameField,
   type ElementFrameFieldOptions,
+  type NodalLoadField,
+  type NodalLoadFieldOptions,
   type FieldLocation,
   type FieldShape,
   type ResultField,

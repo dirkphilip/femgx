@@ -37,7 +37,9 @@ overlay.
 The gallery is the demo landing view. Its Analysis inspector is intentionally a
 small static results example: the active elemental scalar colors elements, a
 second nodal scalar demonstrates tessellation interpolation, and an authored
-Hex8 frame field renders one RGB X/Y/Z triad per element. It has no deformation,
+Hex8 frame field renders one coherent RGB X/Y/Z triad per element. The gallery
+also includes shell thickness, authored shell normals, fibre axes, and a
+part-local point load with straight force and curved moment arrows. It has no deformation,
 playback, or movie controls; the larger results workflow remains in the separate
 static results preset.
 

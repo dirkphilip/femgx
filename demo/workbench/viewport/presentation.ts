@@ -189,6 +189,7 @@ function resultLegendSnapshot(
   const scalar = results?.scalar;
   const deformation = results?.config.deformation?.field;
   const orientation = results?.vectors;
+  const loads = results?.loads;
   return Object.freeze({
     visible: results !== undefined || sectionAxis !== "off",
     scalar:
@@ -228,7 +229,22 @@ function resultLegendSnapshot(
             lengthScale: orientation.lengthScale,
             widthPixels: orientation.widthPixels,
           }),
+    loads: loadLegend(loads),
     section: Object.freeze({ axis: sectionAxis, offset: sectionOffset }),
+  });
+}
+
+function loadLegend(loads: ViewportResultsState["loads"]): WorkbenchResultLegendSnapshot["loads"] {
+  if (loads === undefined) return undefined;
+  return Object.freeze({
+    field: Object.freeze({
+      id: loads.field.id,
+      name: loads.field.name,
+      location: "nodal" as const,
+      forceUnit: loads.field.forceUnit,
+      momentUnit: loads.field.momentUnit,
+    }),
+    widthPixels: loads.widthPixels ?? 2,
   });
 }
 

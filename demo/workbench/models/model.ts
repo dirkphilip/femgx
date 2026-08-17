@@ -53,7 +53,9 @@ export interface WorkbenchModel {
   readonly results: ModelPreset["results"];
   readonly resultSequence?: ModelPreset["resultSequence"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
+  readonly resultScalarPartIds?: ReadonlyMap<string, PartId>;
   readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
+  readonly resultVectorPartIds?: ReadonlyMap<string, PartId>;
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Deterministic CPU-byte estimate used by the demo-private Performance Lab retention policy. */
@@ -109,9 +111,15 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
     ...(preset.resultScalarFields === undefined
       ? {}
       : { resultScalarFields: preset.resultScalarFields }),
+    ...(preset.resultScalarPartIds === undefined
+      ? {}
+      : { resultScalarPartIds: preset.resultScalarPartIds }),
     ...(preset.resultVectorFields === undefined
       ? {}
       : { resultVectorFields: preset.resultVectorFields }),
+    ...(preset.resultVectorPartIds === undefined
+      ? {}
+      : { resultVectorPartIds: preset.resultVectorPartIds }),
     issues: [],
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createResultsPreset } from "../../demo/fixtures/results-preset";
-import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
+import { createBoltedPlatePreset, createGalleryPreset } from "../../demo/fixtures/presets";
 import { createExampleModel } from "../../demo/workbench/models/model";
 import { setResultField } from "../../demo/workbench/results/result-actions";
 import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
@@ -54,6 +54,28 @@ describe("demo orientation result controls", () => {
     expect(vectorConfigForDisplay(model, display)).toMatchObject({
       field: { id: "demo-element-frames", shape: "frame" },
       glyph: "triad",
+    });
+  });
+
+  it("installs readable canonical presentations for gallery shell vectors", () => {
+    const model = createExampleModel(createGalleryPreset());
+    const current = vectorDisplayForModel(model);
+    const normal = vectorDisplayForField(model, "gallery-shell-normals", current);
+    const fibre = vectorDisplayForField(model, "gallery-fibre-axis", current);
+
+    expect(vectorConfigForDisplay(model, normal)).toMatchObject({
+      partId: 8,
+      glyph: "arrow",
+      transform: "normal",
+      lengthScale: 0.7,
+      widthPixels: 3,
+    });
+    expect(vectorConfigForDisplay(model, fibre)).toMatchObject({
+      partId: 11,
+      glyph: "axis",
+      transform: "direction",
+      lengthScale: 0.7,
+      widthPixels: 3,
     });
   });
 
