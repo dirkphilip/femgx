@@ -133,6 +133,14 @@ suites under `test/bench`, `test/demo`, `test/public-api`, and `test/scripts`.
 The demo is split between user-facing `demo/workbench/`, diagnostics and browser
 harness code in `demo/devtools/`, and the opt-in `demo/benchmark/`.
 
+Test and e2e TypeScript files have the same 400 effective-line ceiling as
+production code. Split suites by behavioral contract rather than arbitrary
+chunks; table or golden data may exceed the ceiling only with a narrow,
+documented reason that semantic splitting would reduce clarity. Suite callbacks
+in `*.test.ts` and `*.spec.ts` are not measured by the core function-length
+rule, but helper modules under `test/` and `e2e/` retain the 60-line function
+ceiling and should extract long helpers.
+
 ### Public API north star
 
 The canonical workflow is part definitions and assembly placements registered
