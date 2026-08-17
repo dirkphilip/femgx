@@ -40,15 +40,20 @@ export function drawSelectionPass(
 ): void {
   if (frame.selectionCalls.length > 0) {
     pushDebugGroup(pass, "selection");
+    const useSelectionSkin =
+      frame.usesExteriorFaceSubsets &&
+      frame.sectionPlane === undefined &&
+      frame.transparentCalls.length === 0;
     if (variant === "selection-visible") {
       drawAuthoredPrimitiveGroups(pass, frame.draw, context, frame.selectionCalls, {
         pass: variant,
-        surfaceSubset: frame.sectionPlane === undefined && frame.transparentCalls.length === 0,
+        surfaceSubset: useSelectionSkin,
       });
     } else {
       drawBatches(pass, frame.draw, context, frame.selectionCalls, {
         kind: "surface",
         pass: variant,
+        surfaceSubset: useSelectionSkin,
       });
     }
     popDebugGroup(pass);

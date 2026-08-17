@@ -210,12 +210,15 @@ explicit large run also includes the optional 2m-unique local case. Each
 and records invalid-snapshot timing, cached readback, interaction-state mutation,
 interaction synchronization, first selected frame, steady selected-frame p50/p95,
 clearing, selected occurrence count, renderer cost counters, and selected
-element-record byte count. The `fe-tet4-solid-132k` case adds an `all-authored`
-phase that selects all 131,712 retained element identities directly; its raster
-readback fields are zero because no box query is involved. Its target count,
-dense-selection bytes, interaction timings, clearing, and first selected-frame
-cost snapshot guard the full authored-selection path separately from the
-4,704-target raster-visible broad-box result. The selected-frame snapshot is captured after the
+element-record byte count. The `fe-tet4-solid-132k` case adds `all-but-one` and
+`all-authored` phases that select 131,711 and 131,712 retained element identities
+directly; their raster readback fields are zero because no box query is involved.
+Dense element-only selection uses one selected-region skin: the validated exterior
+subset plus authored faces whose selected owner borders an unselected neighbor.
+Fragmented skins that exceed the bounded range-draw budget retain the full exact
+fallback. The phases' target counts, dense-selection bytes, interaction timings,
+clearing, and first selected-frame cost snapshots guard this path separately from
+the 4,704-target raster-visible broad-box result. The selected-frame snapshot is captured after the
 first selected render, so `selection-visible` and `selection-hidden` draw/index
 counts expose x-ray amplification. Schema 5 captures `interactionGpuCost` after
 the first selected render, rather than on the pre-selection synchronization

@@ -8,9 +8,14 @@ import {
   setTargetsSelected,
   type InteractionState,
 } from "../../../src/entries/root";
-import { selectedTargetSummary } from "../../../src/interaction/selection-queries";
+import {
+  selectedTargetCount,
+  selectedTargetSummary,
+} from "../../../src/interaction/selection-queries";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
+
+const MAX_EXACT_SELECTION_DATASET_TARGETS = 256;
 
 /** Applies one selection toggle without coupling it to the DOM or renderer. */
 export function toggleSelection(
@@ -70,6 +75,19 @@ export function toggleHighlight(
 /** Stable selection keys used by demo diagnostics and e2e assertions. */
 export function selectedKeys(interaction: InteractionState): string[] {
   return selectedTargets(interaction).map(targetKey);
+}
+
+/** Counts selection without materializing target objects for presentation-only status. */
+export function selectedCount(interaction: InteractionState): number {
+  return selectedTargetCount(interaction);
+}
+
+/** Keeps the browser-test seam bounded when a dense selection contains many identities. */
+export function selectionDatasetValue(interaction: InteractionState): string {
+  const count = selectedCount(interaction);
+  return count > MAX_EXACT_SELECTION_DATASET_TARGETS
+    ? `count:${count}`
+    : selectedKeys(interaction).join(",");
 }
 
 /** Returns whether the current selection contains geometry in a visible occurrence. */

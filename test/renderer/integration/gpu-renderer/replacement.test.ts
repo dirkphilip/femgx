@@ -213,10 +213,12 @@ describe("WebGPU renderer", () => {
     );
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(3);
+    expect(readGpuCostSnapshot(renderer).draws["selection-hidden"].indices).toBe(3);
 
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: 0 });
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
+    expect(readGpuCostSnapshot(renderer).draws["selection-hidden"].indices).toBe(6);
     expect(gpu.drawCalls.some((call) => call.indexCount === 6)).toBe(true);
 
     renderer.setSectionPlane(undefined);
@@ -225,6 +227,7 @@ describe("WebGPU renderer", () => {
     renderer.updateElements(runtime, selected);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
+    expect(readGpuCostSnapshot(renderer).draws["selection-hidden"].indices).toBe(6);
     renderer.destroy();
   });
 

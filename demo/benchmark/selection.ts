@@ -45,7 +45,9 @@ export async function measureSelectionBenchmark(
     phases.push(await measureScenario(options, scenario.id, scenario.rect));
   }
   if (options.benchmarkCase.id === "fe-tet4-solid-132k") {
-    phases.push(await measureAllAuthoredScenario(options));
+    const authored = authoredElementTargets(options.benchmarkCase, options.runtime);
+    phases.push(await measureAuthoredScenario(options, "all-but-one", authored.slice(0, -1)));
+    phases.push(await measureAuthoredScenario(options, "all-authored", authored));
   }
   return { selectedTargetGranularity: "element", phases };
 }
@@ -83,18 +85,18 @@ async function measureScenario(
   });
 }
 
-async function measureAllAuthoredScenario(
+async function measureAuthoredScenario(
   options: SelectionMeasureOptions,
+  id: "all-but-one" | "all-authored",
+  targets: readonly InteractionTarget[],
 ): Promise<SelectionBenchmarkPhase> {
   const { renderer, device, benchmarkCase, runtime, camera } = options;
   renderer.render(runtime, camera, benchmarkCase.scene.parts);
   await device.queue.onSubmittedWorkDone();
-  return measureSelectedTargets(
-    options,
-    "all-authored",
-    authoredElementTargets(benchmarkCase, runtime),
-    { invalidSnapshotMs: 0, cachedReadbackMs: 0 },
-  );
+  return measureSelectedTargets(options, id, targets, {
+    invalidSnapshotMs: 0,
+    cachedReadbackMs: 0,
+  });
 }
 
 /** Builds the complete occurrence-scoped authored-element selection for the Tet4 guardrail. */

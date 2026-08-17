@@ -14,45 +14,10 @@ import {
   setTargetsSelected,
   buildSelectionDrawCalls,
   part,
-  rangedSelectionPart,
   fragmentedSelectionPart,
 } from "./support";
 
 describe("renderer runtime state", () => {
-  it("falls back when ranges retain at least half of the full index work", () => {
-    const scene = createScene()
-      .addPart(rangedSelectionPart)
-      .addAssembly({
-        id: 1,
-        name: "root",
-        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identity() }],
-      })
-      .withRoot(1)
-      .build();
-    const runtime = createPackedSceneRuntime(scene);
-    const layout = buildInstanceLayout(runtime);
-    const interaction = setTargetsSelected(
-      createInteractionState(),
-      [
-        { kind: "element", instanceId: "1/0", elementId: 101 },
-        { kind: "element", instanceId: "1/0", elementId: 103 },
-      ],
-      true,
-    );
-    const order = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, interaction);
-
-    expect(
-      buildSelectionDrawCalls({
-        layout,
-        runtime,
-        partId: rangedSelectionPart.id,
-        interaction,
-        part: rangedSelectionPart,
-        order,
-      }),
-    ).toBeUndefined();
-  });
-
   it("merges a large out-of-order contiguous selection into one bounded range", () => {
     const scene = createScene()
       .addPart(fragmentedSelectionPart)

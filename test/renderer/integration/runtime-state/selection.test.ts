@@ -18,6 +18,8 @@ import {
   buildSelectionDrawCalls,
   part,
   rangedSelectionPart,
+  interiorSubsetPart,
+  denseSelectionPart,
   fragmentedSelectionPart,
 } from "./support";
 
@@ -150,6 +152,69 @@ describe("renderer runtime state", () => {
       }),
     ).toBeUndefined();
 
+    const allElements = setTargetsSelected(
+      createInteractionState(),
+      [101, 102, 103].map((elementId) => ({
+        kind: "element" as const,
+        instanceId: "1/0",
+        elementId,
+      })),
+      true,
+    );
+    const allElementOrder = buildSelectionOrder(
+      layout,
+      runtime,
+      rangedSelectionPart.id,
+      allElements,
+    );
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: allElements,
+        part: rangedSelectionPart,
+        order: allElementOrder,
+      }),
+    ).toEqual([
+      {
+        partId: rangedSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        surfaceSubset: true,
+      },
+    ]);
+    const allElementsAndFace = setFaceSelected(
+      allElements,
+      { instanceId: "1/0", elementId: 103, faceIndex: 0 },
+      true,
+    );
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: allElementsAndFace,
+        part: rangedSelectionPart,
+        order: allElementOrder,
+      }),
+    ).toBeUndefined();
+    const allElementsAndUnknown = setElementSelected(
+      allElements,
+      { instanceId: "1/0", elementId: 999 },
+      true,
+    );
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: rangedSelectionPart.id,
+        interaction: allElementsAndUnknown,
+        part: rangedSelectionPart,
+        order: allElementOrder,
+      }),
+    ).toBeUndefined();
+
     runtime.setInstanceVisible(0, false);
     expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedInstance)).toEqual(
       new Uint32Array(),
@@ -195,5 +260,84 @@ describe("renderer runtime state", () => {
         order,
       }),
     ).toBeUndefined();
+  });
+
+  it("retains full hidden selection when an explicit face subset contains interior faces", () => {
+    const scene = createScene()
+      .addPart(interiorSubsetPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: interiorSubsetPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const interaction = setTargetsSelected(
+      createInteractionState(),
+      [101, 102, 103].map((elementId) => ({
+        kind: "element" as const,
+        instanceId: "1/0",
+        elementId,
+      })),
+      true,
+    );
+    const order = buildSelectionOrder(layout, runtime, interiorSubsetPart.id, interaction);
+
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: interiorSubsetPart.id,
+        interaction,
+        part: interiorSubsetPart,
+        order,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("builds one selected-region skin when a dense selection omits an element", () => {
+    const scene = createScene()
+      .addPart(denseSelectionPart)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [{ kind: "part", partId: denseSelectionPart.id, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const interaction = setTargetsSelected(
+      createInteractionState(),
+      [101, 102].map((elementId) => ({
+        kind: "element" as const,
+        instanceId: "1/0",
+        elementId,
+      })),
+      true,
+    );
+    const order = buildSelectionOrder(layout, runtime, denseSelectionPart.id, interaction);
+
+    expect(
+      buildSelectionDrawCalls({
+        layout,
+        runtime,
+        partId: denseSelectionPart.id,
+        interaction,
+        part: denseSelectionPart,
+        order,
+      }),
+    ).toEqual([
+      { partId: denseSelectionPart.id, instanceCount: 1, firstInstance: 0, surfaceSubset: true },
+      {
+        partId: denseSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        surfaceSubset: true,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 9, indexCount: 3 }],
+      },
+    ]);
   });
 });

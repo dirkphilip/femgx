@@ -1,5 +1,5 @@
 import { cameraSnapshot } from "./presentation";
-import { selectedKeys } from "../selection/selection";
+import { selectionDatasetValue } from "../selection/selection";
 import type { InteractionState } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
@@ -74,7 +74,7 @@ function syncPaneDataset(
   const state = options.showState(slot.id);
   canvas.dataset["model"] = options.model.id;
   canvas.dataset["dragging"] = String(slot.dragging);
-  canvas.dataset["selected"] = selectedKeys(state.interaction).join(",");
+  canvas.dataset["selected"] = selectionDatasetValue(state.interaction);
   canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(slot.viewport.view.camera));
   canvas.dataset["cameraBounds"] = JSON.stringify(options.model.bounds);
   canvas.dataset["edges"] = String(state.toggles.edges);

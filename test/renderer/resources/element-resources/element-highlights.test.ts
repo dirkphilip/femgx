@@ -263,7 +263,7 @@ describe("writeElementHighlights", () => {
     }
   });
 
-  it("does not repack unchanged dense membership for a sparse emphasis update", () => {
+  it("preserves dense GPU membership when sparse emphasis grows storage", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();

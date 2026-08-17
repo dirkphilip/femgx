@@ -137,6 +137,7 @@ function prepareBatch(batch: {
   const { draw, context, call, geometry, intent, range } = batch;
   const { overlay, edgePick, nodes } = drawIntentState(intent);
   if (range !== undefined && range.primitive !== geometry?.primitive) return undefined;
+  if (inactiveSelectionSkinRange(call, intent, context, range)) return undefined;
   const storage = draw.storages.get(call.partId);
   const part = context.parts.get(call.partId);
   if (part === undefined || storage === undefined) return undefined;
@@ -183,6 +184,19 @@ function prepareBatch(batch: {
     visibilitySkin,
     range,
   };
+}
+
+function inactiveSelectionSkinRange(
+  call: DrawCall,
+  intent: DrawIntent,
+  context: DrawCallContext,
+  range: SelectionDrawRange | undefined,
+): boolean {
+  return (
+    range !== undefined &&
+    call.surfaceSubset === true &&
+    (intent.kind !== "surface" || intent.surfaceSubset !== true || !context.usesExteriorFaceSubsets)
+  );
 }
 
 function prepareBatchDraw(
@@ -355,7 +369,14 @@ function usesFaceSubset(options: {
     intent.kind === "surface" &&
     intent.pass === "selection-visible" &&
     intent.surfaceSubset === true &&
-    useExteriorSubset;
+    useExteriorSubset &&
+    exteriorSubsets;
+  const selectedHiddenSubset =
+    intent.kind === "surface" &&
+    intent.pass === "selection-hidden" &&
+    intent.surfaceSubset === true &&
+    callSurfaceSubset === true &&
+    exteriorSubsets;
   const ordinarySubset =
     intent.kind === "surface" &&
     !intent.pass.startsWith("selection-") &&
@@ -364,7 +385,7 @@ function usesFaceSubset(options: {
   return (
     !nodes &&
     range === undefined &&
-    (selectedVisibleSubset || ordinarySubset) &&
+    (selectedVisibleSubset || selectedHiddenSubset || ordinarySubset) &&
     geometry?.primitive === "triangles" &&
     geometry.faceSubset !== undefined
   );

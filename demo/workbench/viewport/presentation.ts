@@ -6,7 +6,7 @@ import {
 import type { Camera } from "../../../src/entries/camera";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchModel } from "../models/model";
-import { selectedKeys } from "../selection/selection";
+import { selectedCount, selectionDatasetValue } from "../selection/selection";
 import { statsText } from "../../devtools/diagnostics";
 import type { DisplayToggles, RenderLoopStats, RendererStats, ResultDisplayMode } from "../types";
 import { resultVectorFieldsForModel, VECTOR_OFF_VALUE } from "../results/result-controls";
@@ -119,6 +119,7 @@ export class WorkbenchPresentation {
     renderLoop: RenderLoopStats,
   ): void {
     const model = this.options.getModel();
+    const interaction = this.options.getInteraction();
     const cameraMode = camera.mode === "perspective" ? "perspective" : "orthographic";
     const renderer = rendererState
       ? `${this.options.rendererName} · ${rendererState}`
@@ -131,17 +132,17 @@ export class WorkbenchPresentation {
       {
         model,
         runtime: this.options.getRuntime(),
-        interaction: this.options.getInteraction(),
+        interaction,
       },
       {
         rendererName: this.options.rendererName,
         toggles: this.options.getToggles(),
         stats,
         renderLoop,
-        selectedCount: selectedKeys(this.options.getInteraction()).length,
+        selectedCount: selectedCount(interaction),
       },
     );
-    this.options.canvas.dataset["selected"] = selectedKeys(this.options.getInteraction()).join(",");
+    this.options.canvas.dataset["selected"] = selectionDatasetValue(interaction);
     this.options.canvas.dataset["camera"] = JSON.stringify(cameraSnapshot(camera));
     this.options.canvas.dataset["cameraBounds"] = JSON.stringify(model.bounds);
     this.reflectSectionPlane();
