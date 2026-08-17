@@ -73,13 +73,15 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   const primaryPane = page.getByRole("region", { name: "Primary viewport" });
   const secondaryPane = page.getByRole("region", { name: "Secondary viewport" });
   await waitForRenderer(page, primary);
+  await expect(primaryPane).not.toHaveAttribute("data-active");
+  await expect(primaryPane).toHaveCSS("outline-width", "1px");
 
   await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
   await waitForRenderer(page, secondary);
   await expect(secondaryPane).toHaveAttribute("data-active", "true");
   await expect(secondaryPane).toHaveCSS("outline-color", "rgb(255, 138, 0)");
-  await expect(secondaryPane).toHaveCSS("outline-width", "5px");
+  await expect(secondaryPane).toHaveCSS("outline-width", "3px");
   await expect(primaryPane).toHaveCSS("outline-width", "1px");
 
   await requireHit(
@@ -114,7 +116,7 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await page.mouse.click(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2);
   await expect(primaryPane).toHaveAttribute("data-active", "true");
   await expect(primaryPane).toHaveCSS("outline-color", "rgb(255, 138, 0)");
-  await expect(primaryPane).toHaveCSS("outline-width", "5px");
+  await expect(primaryPane).toHaveCSS("outline-width", "3px");
   const primaryBounds = await primaryPane.boundingBox();
   const primaryInspection = await page.getByTestId("inspection-panel").boundingBox();
   if (primaryBounds === null || primaryInspection === null) {
@@ -122,6 +124,10 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   }
   expect(primaryInspection.x).toBeGreaterThanOrEqual(primaryBounds.x);
   expect(primaryInspection.y).toBeGreaterThanOrEqual(primaryBounds.y);
+  await openCommandPanel(page, "view");
+  await page.getByTestId("viewport-toggle").click();
+  await expect(secondaryPane).toBeHidden();
+  await expect(primaryPane).not.toHaveAttribute("data-active");
 });
 test("fits only the active viewport to its own selection", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
