@@ -123,4 +123,19 @@ export default tseslint.config(
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
     },
   },
+  {
+    files: ["test/**/*.ts", "e2e/**/*.ts"],
+    rules: {
+      "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["test/**/*.test.ts", "test/**/*.spec.ts", "e2e/**/*.test.ts", "e2e/**/*.spec.ts"],
+    rules: {
+      // Suite callbacks describe behavioral contracts; helper functions in
+      // support modules remain subject to the short-function ceiling above.
+      "max-lines-per-function": "off",
+    },
+  },
 );

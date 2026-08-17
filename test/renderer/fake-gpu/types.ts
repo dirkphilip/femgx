@@ -38,6 +38,24 @@ export interface BufferCopy {
   readonly size: number;
 }
 
+export interface FakeGpuOptions {
+  readonly pickValue?: number;
+  readonly elementPickValue?: number;
+  readonly facePickValue?: number;
+  readonly nodePickValue?: number;
+  readonly ndcDepth?: number;
+  readonly mapAsync?: () => Promise<void>;
+  readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;
+  readonly shaderMessages?: readonly GPUCompilationMessage[];
+  readonly shaderCompilationInfo?: () => Promise<GPUCompilationInfo>;
+  readonly renderPipelineError?: string;
+  readonly computePipelineError?: string;
+  readonly textureCreationErrorAt?: number;
+  readonly features?: readonly GPUFeatureName[];
+  readonly timestampValues?: readonly bigint[];
+  readonly timestampPeriod?: number;
+}
+
 export interface FakeGpu {
   readonly device: GPUDevice;
   readonly lost: Promise<GPUDeviceLostInfo>;

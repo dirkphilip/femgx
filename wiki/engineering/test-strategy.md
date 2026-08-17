@@ -37,6 +37,18 @@ lifecycle behavior remains in the Playwright suites. The local
 `npm run test:e2e:layout` lane then checks all ordinary stories at desktop and
 390×844 with real system Chrome/WebGPU, including nonblank canvas evidence.
 
+## Structural limits
+
+All repository-owned TypeScript under `test/` and `e2e/` is subject to the
+400-line effective file ceiling (`max-lines` skips blank lines and comments).
+Suites are split by behavioral contract, not arbitrary chunks. Table or golden
+data may use a narrow, documented exception only when splitting it would reduce
+clarity. The 60-line function ceiling applies to support modules and helpers;
+ordinary `*.test.ts` and `*.spec.ts` suite callbacks are exempt because the
+core rule measures those callbacks as functions rather than test helpers. No
+custom rule or parallel size-check script is needed; `npm run lint` is the
+single enforcement path.
+
 ## Audit decisions
 
 - Removed `e2e/visual.spec.ts`. Its three settled-pixel assertions duplicated

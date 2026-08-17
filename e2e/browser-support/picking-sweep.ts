@@ -77,10 +77,7 @@ export async function sweepForHit(
   const anyHit = (key: string): boolean => key !== "";
 
   // Warm a frame so pick attachments are current after navigations/screenshots.
-  const center: readonly [number, number] = [
-    Math.round(box.x + box.width / 2),
-    Math.round(box.y + box.height / 2),
-  ];
+  const center = centerOf(box);
   if (fresh || prefix !== "") await clearKey();
   await page.mouse.move(center[0], center[1]);
   const centerKey = await waitForKey(keyOf, anyHit, settleMs, page);
@@ -94,31 +91,91 @@ export async function sweepForHit(
   });
   if (localized !== undefined) return localized;
 
-  if (prefix !== "") {
-    const local = gridCells(box, { rows: 8, cols: 10, reverse: false });
-    const direct = await probeCells(canvas, canvasBox, [center, ...local], attribute, prefix);
-    if (direct.available) {
-      if (direct.hit !== undefined) {
-        await clearKey();
-        await page.mouse.move(direct.hit.x, direct.hit.y);
-        const key = await waitForKey(keyOf, matches, settleMs, page);
-        if (matches(key)) return { ...direct.hit, key };
-      }
-      // Software adapters can expose a stale pick attachment to the direct
-      // probe. Give real pointer events a chance before reporting no hit.
-      return sweepCells(page, local, {
-        clearKey,
-        keyOf,
-        matches,
-        settleMs: Math.min(settleMs, 100),
-      });
-    }
-    return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
-  }
+  const context: SweepContext = {
+    page,
+    canvas,
+    canvasBox,
+    box,
+    attribute,
+    prefix,
+    rows,
+    cols,
+    settleMs,
+    reverse,
+    step,
+    fresh,
+    keyOf,
+    clearKey,
+    matches,
+  };
+  return prefix === "" ? sweepAnyKey(context, center) : sweepMatchingPrefix(context, center);
+}
 
+interface SweepContext {
+  readonly page: Page;
+  readonly canvas: Locator;
+  readonly canvasBox: Box;
+  readonly box: Box;
+  readonly attribute: "pick" | "hovered";
+  readonly prefix: string;
+  readonly rows: number;
+  readonly cols: number;
+  readonly settleMs: number;
+  readonly reverse: boolean;
+  readonly step: number | undefined;
+  readonly fresh: boolean;
+  readonly keyOf: () => Promise<string>;
+  readonly clearKey: () => Promise<void>;
+  readonly matches: (key: string) => boolean;
+}
+
+function centerOf(box: Box): readonly [number, number] {
+  return [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)];
+}
+
+async function sweepMatchingPrefix(
+  context: SweepContext,
+  center: readonly [number, number],
+): Promise<SweepHit | undefined> {
+  const { page, canvas, canvasBox, box, attribute, prefix, settleMs, keyOf, clearKey, matches } =
+    context;
+  const local = gridCells(box, { rows: 8, cols: 10, reverse: false });
+  const direct = await probeCells(canvas, canvasBox, [center, ...local], attribute, prefix);
+  if (direct.available) {
+    if (direct.hit !== undefined) {
+      await clearKey();
+      await page.mouse.move(direct.hit.x, direct.hit.y);
+      const key = await waitForKey(keyOf, matches, settleMs, page);
+      if (matches(key)) return { ...direct.hit, key };
+    }
+    // Software adapters can expose a stale pick attachment to the direct
+    // probe. Give real pointer events a chance before reporting no hit.
+    return sweepCells(page, local, {
+      clearKey,
+      keyOf,
+      matches,
+      settleMs: Math.min(settleMs, 100),
+    });
+  }
+  return sweepCells(page, local, { clearKey, keyOf, matches, settleMs });
+}
+
+async function sweepAnyKey(
+  context: SweepContext,
+  center: readonly [number, number],
+): Promise<SweepHit | undefined> {
+  const { page, canvas, canvasBox, box, attribute, prefix, settleMs, reverse, step, fresh } =
+    context;
   const grid = gridCells(
     box,
-    step === undefined ? { rows, cols, reverse } : { rows, cols, reverse, step },
+    step === undefined
+      ? { rows: context.rows, cols: context.cols, reverse }
+      : {
+          rows: context.rows,
+          cols: context.cols,
+          reverse,
+          step,
+        },
   );
   const coarse = fresh
     ? [[Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)] as const, ...grid]
@@ -131,31 +188,20 @@ export async function sweepForHit(
           Math.hypot(b[0] - center[0], b[1] - center[1]),
       );
   const direct = await probeCells(canvas, canvasBox, directCells, attribute, prefix);
-  if (direct.available) {
-    if (direct.hit !== undefined) {
-      await clearKey();
-      await page.mouse.move(direct.hit.x, direct.hit.y);
-      const key = await waitForKey(keyOf, matches, settleMs, page);
-      if (matches(key)) return { ...direct.hit, key };
-    }
-    // A probe can observe a stale or unavailable pick attachment on a
-    // software adapter. Fall back to real pointer events before declaring
-    // that the exposed canvas has no hit.
-    return sweepCells(page, coarse, {
-      ...(fresh ? { clearKey } : {}),
-      keyOf,
-      matches,
-      settleMs,
-    });
+  if (direct.available && direct.hit !== undefined) {
+    await context.clearKey();
+    await page.mouse.move(direct.hit.x, direct.hit.y);
+    const key = await waitForKey(context.keyOf, context.matches, settleMs, page);
+    if (context.matches(key)) return { ...direct.hit, key };
   }
-  const sweep = (cells: ReadonlyArray<readonly [number, number]>) =>
-    sweepCells(page, cells, {
-      ...(fresh ? { clearKey } : {}),
-      keyOf,
-      matches,
-      settleMs,
-    });
-  return sweep(coarse);
+  // A probe can observe a stale or unavailable pick attachment on a software
+  // adapter. Fall back to real pointer events before declaring no hit.
+  return sweepCells(page, coarse, {
+    ...(fresh ? { clearKey: context.clearKey } : {}),
+    keyOf: context.keyOf,
+    matches: context.matches,
+    settleMs,
+  });
 }
 
 /** A sweep that must resolve on the required hardware-WebGPU Chrome lane. */

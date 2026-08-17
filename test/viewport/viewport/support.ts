@@ -264,82 +264,88 @@ export function orientationResult() {
 
 /** Shared core test helper. */
 export function identityScene(withSecondElement: boolean): Scene {
-  const geometry = withSecondElement
-    ? ({
-        positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
-        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-        primitive: "triangles" as const,
-        elements: [
-          {
-            id: 10,
-            primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
-            bodyId: 1,
-          },
-          {
-            id: 11,
-            primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
-            bodyId: 1,
-          },
-        ],
-        faces: [
-          {
-            elementId: 10,
-            faceIndex: 0,
-            primitiveStart: 0,
-            primitiveCount: 1,
-            key: "0/1/2",
-            nodeIds: [0, 1, 2],
-            bodyId: 1,
-          },
-          {
-            elementId: 11,
-            faceIndex: 0,
-            primitiveStart: 1,
-            primitiveCount: 1,
-            key: "0/2/3",
-            nodeIds: [0, 2, 3],
-            bodyId: 1,
-          },
-        ],
-        nodePickIds: new Uint32Array([1, 2, 3, 4]),
-        nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
-        bodies: [{ id: 1, elementIds: [10, 11] }],
-      } satisfies SemanticGeometry)
-    : ({
-        positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
-        indices: new Uint32Array([0, 1, 2]),
-        primitive: "triangles" as const,
-        elements: [
-          {
-            id: 10,
-            primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
-          },
-        ],
-        faces: [
-          {
-            elementId: 10,
-            faceIndex: 0,
-            primitiveStart: 0,
-            primitiveCount: 1,
-            key: "0/1/2",
-            nodeIds: [0, 1, 2],
-          },
-        ],
-        nodePickIds: new Uint32Array([1, 2, 3]),
-        nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
-      } satisfies SemanticGeometry);
+  const geometry = withSecondElement ? twoElementGeometry() : oneElementGeometry();
   const { elements, nodePositions, bodies, ...localGeometry } = geometry;
   return explicitScene(
     [
       createPart(1, {
         geometries: [localGeometry],
-        elements,
-        nodePositions,
+        ...(elements === undefined ? {} : { elements }),
+        ...(nodePositions === undefined ? {} : { nodePositions }),
         ...(bodies === undefined ? {} : { bodies }),
       }),
     ],
     [{ kind: "part", placementId: "keep", partId: 1, transform: translation(0, 0, 0) }],
   );
+}
+
+function twoElementGeometry(): SemanticGeometry {
+  return {
+    positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
+    indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    primitive: "triangles",
+    elements: [
+      {
+        id: 10,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        bodyId: 1,
+      },
+      {
+        id: 11,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        bodyId: 1,
+      },
+    ],
+    faces: [
+      {
+        elementId: 10,
+        faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 1,
+        key: "0/1/2",
+        nodeIds: [0, 1, 2],
+        bodyId: 1,
+      },
+      {
+        elementId: 11,
+        faceIndex: 0,
+        primitiveStart: 1,
+        primitiveCount: 1,
+        key: "0/2/3",
+        nodeIds: [0, 2, 3],
+        bodyId: 1,
+      },
+    ],
+    nodePickIds: new Uint32Array([1, 2, 3, 4]),
+    nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0, 1, 1, 0]),
+    bodies: [{ id: 1, elementIds: [10, 11] }],
+  };
+}
+
+function oneElementGeometry(): SemanticGeometry {
+  return {
+    positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles",
+    elements: [
+      {
+        id: 10,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+    ],
+    faces: [
+      {
+        elementId: 10,
+        faceIndex: 0,
+        primitiveStart: 0,
+        primitiveCount: 1,
+        key: "0/1/2",
+        nodeIds: [0, 1, 2],
+      },
+    ],
+    nodePickIds: new Uint32Array([1, 2, 3]),
+    nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+  };
 }
 
 /** Shared core test helper. */
