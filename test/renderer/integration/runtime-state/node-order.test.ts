@@ -12,7 +12,7 @@ import {
   createInteractionState,
   setNodeSelected,
   setTargetsSelected,
-  buildSelectionDrawCalls,
+  buildSelectionDrawCallsForTest,
   part,
   fragmentedSelectionPart,
 } from "./support";
@@ -39,7 +39,7 @@ describe("renderer runtime state", () => {
     const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
 
     expect(
-      buildSelectionDrawCalls({
+      buildSelectionDrawCallsForTest({
         layout,
         runtime,
         partId: fragmentedSelectionPart.id,

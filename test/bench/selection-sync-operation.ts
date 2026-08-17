@@ -11,6 +11,7 @@ import {
   collectDenseElementSelections,
   denseSelectionContains,
   type DenseElementSelection,
+  type DenseElementSelections,
 } from "../../src/renderer/selection/element-selection";
 import {
   writeDenseSelectionData,
@@ -20,6 +21,7 @@ import { createHighlightStorage } from "../../src/renderer/selection/highlight-s
 import { HIGHLIGHT_HEADER } from "../../src/renderer/selection/highlight-layout";
 import { fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 import type { OperationSpec } from "./operation-report";
+import { countDenseSkinNeighborFaceEntries } from "./selection-sync-probe";
 
 const ELEMENT_COUNT = 131_712;
 const HALF_COUNT = ELEMENT_COUNT / 2;
@@ -28,11 +30,17 @@ const DENSE_PAYLOAD_BYTES = 4 + DENSE_WORD_COUNT * Uint32Array.BYTES_PER_ELEMENT
 const PART_ID = 1;
 const CASES = ["half", "all-but-one", "all"] as const;
 type CaseId = (typeof CASES)[number];
+const EXPECTED_NEIGHBOR_FACE_ENTRIES: Readonly<Record<CaseId, number>> = {
+  half: 12_159,
+  "all-but-one": 3,
+  all: 0,
+};
+const EXPECTED_NEIGHBOR_CSR_BYTES = 2_596_612;
 
 interface SelectionCase {
   readonly id: CaseId;
   readonly interaction: InteractionState;
-  readonly dense: DenseElementSelection | undefined;
+  readonly denseSelections: DenseElementSelections;
   readonly order: Uint32Array;
   readonly selectedCount: number;
 }
@@ -43,7 +51,7 @@ interface SelectionFixture {
   readonly layout: ReturnType<typeof buildInstanceLayout>;
   readonly instanceId: string;
   readonly cases: ReadonlyMap<CaseId, SelectionCase>;
-  readonly denseSkinFaceIterations: ReadonlyMap<CaseId, number>;
+  readonly denseSkinNeighborFaceEntries: ReadonlyMap<CaseId, number>;
 }
 
 /** Builds the Tet4 selection fixture and all immutable operation inputs. */
@@ -64,7 +72,6 @@ export function createSelectionFixture(): SelectionFixture {
     elementId: element.id,
   }));
   if (targets.length !== ELEMENT_COUNT) throw new Error("Tet4 element count changed");
-  getPartSemanticIndex(part);
   const interactions = new Map<CaseId, InteractionState>([
     ["half", setTargetsSelected(createInteractionState(), targets.slice(0, HALF_COUNT), true)],
     ["all-but-one", setTargetsSelected(createInteractionState(), targets.slice(0, -1), true)],
@@ -74,24 +81,37 @@ export function createSelectionFixture(): SelectionFixture {
   for (const id of CASES) {
     const interaction = interactions.get(id);
     if (interaction === undefined) throw new Error(`Missing ${id} interaction`);
-    const dense = collectDenseElementSelections(runtime, layout, parts, interaction).get(PART_ID);
+    const denseSelections = collectDenseElementSelections(runtime, layout, parts, interaction);
     const order = buildSelectionOrder(layout, runtime, PART_ID, interaction);
     cases.set(id, {
       id,
       interaction,
-      dense,
+      denseSelections,
       order,
       selectedCount:
         id === "half" ? HALF_COUNT : id === "all-but-one" ? ELEMENT_COUNT - 1 : ELEMENT_COUNT,
     });
   }
-  const denseSkinFaceIterations = new Map<CaseId, number>();
-  for (const id of CASES) {
-    const selected = cases.get(id);
-    if (selected === undefined) throw new Error(`Missing ${id} selection case`);
-    denseSkinFaceIterations.set(id, countDenseSkinFaceIterations(part, runtime, layout, selected));
-  }
-  return { part, parts, runtime, layout, instanceId, cases, denseSkinFaceIterations };
+  const denseSkinNeighborFaceEntries = new Map(
+    CASES.map((id) => {
+      const selected = cases.get(id);
+      if (selected === undefined) throw new Error(`Missing ${id} selection case`);
+      return [
+        id,
+        countDenseSkinNeighborFaceEntries({
+          part,
+          runtime,
+          layout,
+          partId: PART_ID,
+          interaction: selected.interaction,
+          order: selected.order,
+          denseSelections: selected.denseSelections,
+        }),
+      ] as const;
+    }),
+  );
+  assertNeighborFixture(part, denseSkinNeighborFaceEntries);
+  return { part, parts, runtime, layout, instanceId, cases, denseSkinNeighborFaceEntries };
 }
 
 /** Returns the dense selection operation matrix. */
@@ -145,14 +165,34 @@ function drawRangeOperation(fixture: SelectionFixture, selected: SelectionCase):
     workloadCount: selected.selectedCount,
     workloadDetails: details(fixture, selected),
     run: () => {
-      buildSelectionDrawCalls({
+      const calls = buildSelectionDrawCalls({
         layout: fixture.layout,
         runtime: fixture.runtime,
         partId: PART_ID,
         interaction: selected.interaction,
         part: fixture.part,
         order: selected.order,
+        denseSelections: selected.denseSelections,
       });
+      if (selected.id === "half" && calls !== undefined) {
+        throw new Error("Half selection should retain the range-cap fallback");
+      }
+      if (
+        selected.id === "all-but-one" &&
+        (calls?.length !== 2 ||
+          calls[0]?.surfaceSubset !== true ||
+          (calls[1]?.selectionRanges?.length ?? 0) === 0)
+      ) {
+        throw new Error("All-but-one selection did not build the expected skin ranges");
+      }
+      if (
+        selected.id === "all" &&
+        (calls?.length !== 1 ||
+          calls[0]?.surfaceSubset !== true ||
+          calls[0].selectionRanges !== undefined)
+      ) {
+        throw new Error("All selection did not build the expected surface skin");
+      }
     },
   };
 }
@@ -187,9 +227,10 @@ function createSelectionStorage(selected: SelectionCase) {
   const device = fakeGpuDevice().device;
   const storage = createHighlightStorage(device, 1, 1, 1, DENSE_WORD_COUNT);
   const header = new Uint8Array(HIGHLIGHT_HEADER);
-  writeSelectionHeader(new Uint32Array(header.buffer), storage, selected.dense, undefined);
+  const dense = selected.denseSelections.get(PART_ID);
+  writeSelectionHeader(new Uint32Array(header.buffer), storage, dense, undefined);
   storage.data.set(header);
-  writeDenseSelectionData(storage.data, storage, selected.dense);
+  writeDenseSelectionData(storage.data, storage, dense);
   return storage;
 }
 
@@ -252,6 +293,7 @@ function details(
     triangles?.primitive === "triangles" ? (triangles.faces?.length ?? 0) : 0;
   const boundaryFaceCount =
     triangles?.primitive === "triangles" ? (triangles.faceSubset?.faceIds.length ?? 0) : 0;
+  const semantic = getPartSemanticIndex(fixture.part);
   return {
     selectedElements: selected.selectedCount,
     occurrenceCount: 1,
@@ -260,41 +302,22 @@ function details(
     boundaryFaceCount,
     densePayloadBytes: DENSE_PAYLOAD_BYTES,
     denseWordCount: DENSE_WORD_COUNT,
-    denseSkinFaceIterations: fixture.denseSkinFaceIterations.get(selected.id) ?? 0,
+    denseSkinNeighborFaceEntries: fixture.denseSkinNeighborFaceEntries.get(selected.id) ?? 0,
+    neighborTriangleCsrBytes:
+      semantic.neighborTriangleFaceOffsets.byteLength + semantic.neighborTriangleFaceIds.byteLength,
   };
 }
 
-function countDenseSkinFaceIterations(
-  part: Part,
-  runtime: SelectionFixture["runtime"],
-  layout: SelectionFixture["layout"],
-  selected: SelectionCase,
-): number {
-  const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  if (triangles?.primitive !== "triangles" || triangles.faces === undefined) return 0;
-  let iterations = 0;
-  const countedFaces = new Proxy(triangles.faces, {
-    get(target, property, receiver) {
-      if (typeof property === "string" && /^\d+$/.test(property)) iterations += 1;
-      const value: unknown = Reflect.get(target, property, receiver);
-      return value;
-    },
-  });
-  const countedPart: Part = {
-    ...part,
-    geometries: part.geometries.map((geometry) =>
-      geometry === triangles ? { ...geometry, faces: countedFaces } : geometry,
-    ),
-  };
-  getPartSemanticIndex(countedPart);
-  iterations = 0;
-  buildSelectionDrawCalls({
-    layout,
-    runtime,
-    partId: PART_ID,
-    interaction: selected.interaction,
-    part: countedPart,
-    order: selected.order,
-  });
-  return iterations;
+function assertNeighborFixture(part: Part, entries: ReadonlyMap<CaseId, number>): void {
+  const semantic = getPartSemanticIndex(part);
+  const retainedBytes =
+    semantic.neighborTriangleFaceOffsets.byteLength + semantic.neighborTriangleFaceIds.byteLength;
+  if (retainedBytes !== EXPECTED_NEIGHBOR_CSR_BYTES) {
+    throw new Error(`Neighbor CSR bytes changed: expected ${EXPECTED_NEIGHBOR_CSR_BYTES}`);
+  }
+  for (const id of CASES) {
+    if (entries.get(id) !== EXPECTED_NEIGHBOR_FACE_ENTRIES[id]) {
+      throw new Error(`Neighbor CSR entries changed for ${id}`);
+    }
+  }
 }

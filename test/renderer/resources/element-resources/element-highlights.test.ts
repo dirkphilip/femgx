@@ -234,8 +234,8 @@ describe("writeElementHighlights", () => {
         selection: {
           elementCount: 65,
           occurrences: [
-            { slot: 2, words: new Uint32Array([1, 1, 0]) },
-            { slot: 5, words: new Uint32Array([0, 0, 1]) },
+            { slot: 2, selectedCount: 2, words: new Uint32Array([1, 1, 0]) },
+            { slot: 5, selectedCount: 1, words: new Uint32Array([0, 0, 1]) },
           ],
         },
         selectedTheme: {
@@ -270,7 +270,7 @@ describe("writeElementHighlights", () => {
       const storage = makeStorage(gpu);
       const selection = {
         elementCount: 65,
-        occurrences: [{ slot: 2, words: new Uint32Array([1, 1, 0]) }],
+        occurrences: [{ slot: 2, selectedCount: 2, words: new Uint32Array([1, 1, 0]) }],
       };
 
       writeElementHighlights(gpu.device, storage, [], { selection, slotCapacity: 4 });
@@ -297,7 +297,7 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, [], {
         selection: {
           elementCount: 2,
-          occurrences: [{ slot: 1, words: new Uint32Array([2]) }],
+          occurrences: [{ slot: 1, selectedCount: 1, words: new Uint32Array([2]) }],
         },
         slotCapacity: 4,
       });
