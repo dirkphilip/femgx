@@ -199,10 +199,11 @@ function installWorkbenchHarness(
         ...(caseId === undefined ? {} : { caseId }),
       });
     },
-    pickPoint: async (x: number, y: number) => (await state.viewport?.pick(x, y))?.worldPosition,
+    pickPoint: async (x: number, y: number) =>
+      (await state.viewport?.interaction.pick(x, y))?.worldPosition,
     probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
-      (await state.viewport?.pickRegion(rect, granularity)) ?? [],
+      (await state.viewport?.interaction.pickRegion(rect, granularity)) ?? [],
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
 }
@@ -213,7 +214,7 @@ async function probePickKeys(
   x: number,
   y: number,
 ) {
-  const hit = await state.viewport?.pick(
+  const hit = await state.viewport?.interaction.pick(
     x,
     y,
     controller.selectionGranularity === "edge" ? "edge" : undefined,

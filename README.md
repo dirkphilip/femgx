@@ -38,8 +38,9 @@ deferred boundaries.
 - An **Assembly** places parts and nested assemblies without copying geometry.
 - A **Scene** owns the part and assembly registries plus the root hierarchy.
 - A **SceneRuntime** is the derived packed CPU snapshot with stable host identities.
-- **Viewport** owns the current runtime, camera, WebGPU renderer, interaction,
-  results, recovery, resize, and teardown.
+- **Viewport** owns the current runtime, WebGPU renderer, recovery, resize, and
+  teardown; stable `view`, `interaction`, `visibility`, `results`, and
+  `presentation` facades expose each host responsibility.
 
 Geometry is uploaded once per part and drawn for each placement. Runtime slots,
 GPU layouts, and renderer construction remain internal. See the
@@ -70,6 +71,8 @@ Choose the narrowest entry point:
 
 For direct 0.x import changes, see the
 [entry-point migration map](docs/migration-0.x-entry-points.md).
+For the viewport surface migration, see the
+[capability migration map](docs/migration-0.x-viewport.md).
 
 ## Canonical workflow
 
@@ -92,12 +95,12 @@ const scene = createScene()
   .build();
 
 const viewport = await createViewport({ canvas, scene });
-viewport.setInteraction(interaction);
-viewport.setResults({
+viewport.interaction.set(interaction);
+viewport.results.set({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
 });
-viewport.setSectionPlane({ normal: [1, 0, 0], distance: 0 });
+viewport.presentation.setSectionPlane({ normal: [1, 0, 0], distance: 0 });
 viewport.updateScene(nextScene);
 viewport.destroy();
 ```
@@ -112,12 +115,12 @@ and identity resolution do not require a GPU.
 preserves compatible camera, interaction, visibility, and result state. Re-read
 `viewport.runtime` after either operation because it installs a new snapshot.
 
-Picking is viewport-owned. `pick()` resolves the nearest physical hit, while
-`pickRegion()` returns deterministic visible-region interaction targets. Edge
-granularity uses occurrence-scoped authored topology; tessellation diagonals are
-never interaction targets.
+Picking is owned by `viewport.interaction`. `pick()` resolves the nearest
+physical hit, while `pickRegion()` returns deterministic visible-region
+interaction targets. Edge granularity uses occurrence-scoped authored topology;
+tessellation diagonals are never interaction targets.
 
-Results are exact authored snapshots. Repeated `setResults()` calls can present
+Results are exact authored snapshots. Repeated `viewport.results.set()` calls can present
 a host-owned sequence, but FemGx retains only the current snapshot and does not
 interpolate time steps or derive stress, magnitude, or other engineering values.
 

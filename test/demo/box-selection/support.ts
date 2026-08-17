@@ -14,6 +14,7 @@ import {
   type PickHit,
   type ViewportInteractionBoxEvent,
   type BoxSelectionFrustum,
+  type InteractionState,
 } from "../../../src/entries/root";
 import { WorkbenchBoxPreview } from "../../../demo/workbench/selection/box-preview";
 import { WorkbenchInteraction } from "../../../demo/workbench/interaction/interaction";
@@ -80,6 +81,21 @@ const rect = (overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect => ({
   height: 60,
   ...overrides,
 });
+
+function createViewportFixture(
+  interaction: () => InteractionState,
+  pick: ReturnType<typeof vi.fn>,
+  pickRegion: ReturnType<typeof vi.fn>,
+  setInteraction: (next: InteractionState) => void,
+): Viewport {
+  return {
+    view: { camera: { width: 300, height: 200 } },
+    interaction: { state: interaction(), pick, pickRegion, set: setInteraction },
+    results: { state: undefined },
+    presentation: { sectionPlane: undefined },
+  } as unknown as Viewport;
+}
+
 /** Builds an interaction controller with deterministic pick and render spies. */
 function harness(
   pick: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve(undefined)),
@@ -101,16 +117,18 @@ function harness(
   const render = vi.fn();
   const selectionFeedback = vi.fn();
   const inspectionPanel = { textContent: "" };
+  const setCurrentInteraction = (next: InteractionState): void => {
+    interaction = next;
+  };
   const workbench = new WorkbenchInteraction({
     canvas: canvas as unknown as HTMLCanvasElement,
     setInspection: (text) => {
       inspectionPanel.textContent = text;
     },
-    viewport: () => ({ pick, pickRegion }) as unknown as Viewport,
+    viewport: () =>
+      createViewportFixture(() => interaction, pick, pickRegion, setCurrentInteraction),
     getInteraction: () => interaction,
-    setInteraction: (next) => {
-      interaction = next;
-    },
+    setInteraction: setCurrentInteraction,
     partName: () => undefined,
     menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
     render,

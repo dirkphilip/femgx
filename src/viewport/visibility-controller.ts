@@ -2,9 +2,12 @@ import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
+import type { Scene } from "../scene/scene";
 import type { SceneNavigationBoundsCache } from "./scene-bounds";
+import { UnknownSceneIdentityError } from "./visibility-error";
 
 interface VisibilityControllerOptions {
+  readonly scene: () => Scene;
   readonly runtime: () => PackedSceneRuntime;
   readonly renderer: WebGpuRenderer;
   readonly isBatching: () => boolean;
@@ -18,30 +21,35 @@ export class ViewportVisibilityController {
 
   constructor(private readonly options: VisibilityControllerOptions) {}
 
-  setPartVisible(partId: PartId, visible: boolean): void {
+  setPart(partId: PartId, visible: boolean): void {
+    if (!this.options.scene().parts.has(partId)) {
+      throw new UnknownSceneIdentityError("part", partId);
+    }
     this.applyChanged(this.options.runtime().setPartVisible(partId, visible).changedInstanceIds);
   }
 
-  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
+  setAssemblyOccurrence(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
     const runtime = this.options.runtime();
     const node = runtime.getNodeSlot(occurrenceId);
-    this.applyChanged(
-      node === undefined ? [] : runtime.setAssemblyNodeVisible(node, visible).changedInstanceIds,
-    );
+    if (node === undefined)
+      throw new UnknownSceneIdentityError("assembly-occurrence", occurrenceId);
+    this.applyChanged(runtime.setAssemblyNodeVisible(node, visible).changedInstanceIds);
   }
 
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
+  setAssembly(assemblyId: AssemblyId, visible: boolean): void {
+    if (!this.options.scene().assemblies.has(assemblyId)) {
+      throw new UnknownSceneIdentityError("assembly", assemblyId);
+    }
     this.applyChanged(
       this.options.runtime().setAssemblyVisible(assemblyId, visible).changedInstanceIds,
     );
   }
 
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
+  setInstance(instanceId: InstanceId, visible: boolean): void {
     const runtime = this.options.runtime();
     const slot = runtime.getInstanceSlot(instanceId);
-    this.applyChanged(
-      slot === undefined ? [] : runtime.setInstanceVisible(slot, visible).changedInstanceIds,
-    );
+    if (slot === undefined) throw new UnknownSceneIdentityError("instance", instanceId);
+    this.applyChanged(runtime.setInstanceVisible(slot, visible).changedInstanceIds);
   }
 
   reset(): void {

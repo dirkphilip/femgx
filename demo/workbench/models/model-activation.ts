@@ -154,7 +154,7 @@ function setModelScene(slots: readonly WorkbenchViewportSlot[], model: Workbench
   for (const slot of slots) {
     slot.interaction.clearContext();
     slot.viewport.batch(() => {
-      slot.viewport.clearSectionPlane();
+      slot.viewport.presentation.clearSectionPlane();
       slot.viewport.setScene(model.scene);
     });
   }
@@ -165,14 +165,14 @@ function resetSlotVisibility(slots: readonly WorkbenchViewportSlot[], model: Wor
     const runtime = slot.viewport.runtime;
     slot.viewport.batch(() => {
       for (const occurrenceId of runtime.getOccurrenceIds()) {
-        slot.viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
+        slot.viewport.visibility.setAssemblyOccurrence(occurrenceId, true);
       }
-      for (const partId of model.scene.parts.keys()) slot.viewport.setPartVisible(partId, true);
+      for (const partId of model.scene.parts.keys()) slot.viewport.visibility.setPart(partId, true);
       for (const instanceId of runtime.getInstanceIds()) {
-        slot.viewport.setInstanceVisible(instanceId, true);
+        slot.viewport.visibility.setInstance(instanceId, true);
       }
-      slot.viewport.setCamera(setProjection(slot.viewport.camera, "orthographic"));
-      slot.viewport.fitView();
+      slot.viewport.view.setCamera(setProjection(slot.viewport.view.camera, "orthographic"));
+      slot.viewport.view.fit();
     });
   }
 }

@@ -31,15 +31,15 @@ describe("viewport results workflow", () => {
       },
     });
 
-    expect(viewport.results?.scalar?.field.name).toBe("Authored stress");
-    expect(viewport.interaction).toBe(base);
+    expect(viewport.results.state?.scalar?.field.name).toBe("Authored stress");
+    expect(viewport.interaction.state).toBe(base);
     expect(
       gpu.writes.some((write) => write.bytes.byteLength === nodalDisplacement().values.byteLength),
     ).toBe(true);
 
-    viewport.clearResults();
-    expect(viewport.results).toBeUndefined();
-    expect(viewport.interaction).toBe(base);
+    viewport.results.clear();
+    expect(viewport.results.state).toBeUndefined();
+    expect(viewport.interaction.state).toBe(base);
     viewport.destroy();
   });
 
@@ -98,19 +98,19 @@ describe("viewport results workflow", () => {
     const beforeScale = displacementWrites();
     const beforeUniform = uniformWrites();
 
-    viewport.setResults({
+    viewport.results.set({
       scalar: { field: scalarA },
       deformation: { field: displacementA, scale: 2 },
     });
 
     expect(displacementWrites()).toBe(beforeScale);
     expect(uniformWrites()).toBeGreaterThan(beforeUniform);
-    viewport.setResults({ scalar: { field: elementalA }, deformation: { field: displacementA } });
-    viewport.setResults({ scalar: { field: elementalB }, deformation: { field: displacementB } });
+    viewport.results.set({ scalar: { field: elementalA }, deformation: { field: displacementA } });
+    viewport.results.set({ scalar: { field: elementalB }, deformation: { field: displacementB } });
     const bufferCount = gpu.buffers.length;
     for (let step = 0; step < 100; step += 1) {
       const alternate = step % 2 === 1;
-      viewport.setResults({
+      viewport.results.set({
         scalar: { field: alternate ? scalarB : scalarA },
         deformation: {
           field: alternate ? displacementB : displacementA,
@@ -140,15 +140,15 @@ describe("viewport results workflow", () => {
       results: { scalar: { field: elementalScalar() } },
     });
 
-    expect(viewport.interaction).toBe(base);
-    expect(viewport.results).not.toHaveProperty("interaction");
+    expect(viewport.interaction.state).toBe(base);
+    expect(viewport.results.state).not.toHaveProperty("interaction");
     const next = setPartOverride(base, 1, { emissive: 0.4 });
-    viewport.setInteraction(next);
-    expect(viewport.interaction).toBe(next);
-    expect(viewport.results).not.toHaveProperty("interaction");
+    viewport.interaction.set(next);
+    expect(viewport.interaction.state).toBe(next);
+    expect(viewport.results.state).not.toHaveProperty("interaction");
 
-    viewport.clearResults();
-    expect(viewport.interaction).toBe(next);
+    viewport.results.clear();
+    expect(viewport.interaction.state).toBe(next);
     viewport.destroy();
   });
 });

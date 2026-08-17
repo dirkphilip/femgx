@@ -153,7 +153,7 @@ export class WorkbenchPresentation {
     const vectorFieldId = fields.some((field) => field.id === this.options.getVectorFieldId())
       ? this.options.getVectorFieldId()
       : VECTOR_OFF_VALUE;
-    const results = this.options.getViewport().results;
+    const results = this.options.getViewport().results.state;
     this.resultLegend = resultLegendSnapshot(
       results,
       this.options.getSectionAxis(),

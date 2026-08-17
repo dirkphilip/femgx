@@ -45,8 +45,8 @@ export function setSectionOffset(owner: SectionPlaneActionOwner, value: string):
 export function applySectionPlane(owner: SectionPlaneActionOwner, render: boolean): void {
   const plane = sectionPlaneFor(owner.sectionAxis, owner.sectionOffset);
   const viewport = owner.activeViewport();
-  if (plane === undefined) viewport.clearSectionPlane();
-  else viewport.setSectionPlane(plane);
+  if (plane === undefined) viewport.presentation.clearSectionPlane();
+  else viewport.presentation.setSectionPlane(plane);
   owner.presentation.reflectSectionPlane();
   if (render) owner.render();
 }

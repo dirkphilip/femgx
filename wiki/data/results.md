@@ -52,7 +52,7 @@ interpolates those colors on the GPU. Both paths preserve host interaction state
 
 ## Canonical viewport workflow
 
-`Viewport.setResults({ scalar, deformation, vectors })` composes these
+`ViewportResults.set({ scalar, deformation, vectors })` composes these
 helpers into one atomic authored result snapshot. Each role is optional, but
 at least one must be present. An authored scalar field may be nodal or
 elemental. Nodal values map through exact node pick ids and interpolate over

@@ -29,22 +29,22 @@ describe("Viewport", () => {
 
     expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([12.5, 3.25, 1, 8]));
     expect(() => {
-      viewport.setPointSizePixels(0);
+      viewport.presentation.setPointSizePixels(0);
     }).toThrow(/pointSizePixels/);
     expect(() => {
-      viewport.setNodeSizePixels(Number.POSITIVE_INFINITY);
+      viewport.presentation.setNodeSizePixels(Number.POSITIVE_INFINITY);
     }).toThrow(/nodeSizePixels/);
     expect(onRender).toHaveBeenCalledOnce();
 
-    viewport.setPointSizePixels(16);
+    viewport.presentation.setPointSizePixels(16);
     expect(onRender).toHaveBeenCalledTimes(2);
-    viewport.setPointSizePixels(16);
+    viewport.presentation.setPointSizePixels(16);
     expect(onRender).toHaveBeenCalledTimes(2);
-    viewport.setNodeSizePixels(12);
+    viewport.presentation.setNodeSizePixels(12);
     expect(onRender).toHaveBeenCalledTimes(3);
     viewport.batch(() => {
-      viewport.setPointSizePixels(20);
-      viewport.setNodeSizePixels(24);
+      viewport.presentation.setPointSizePixels(20);
+      viewport.presentation.setNodeSizePixels(24);
     });
     expect(onRender).toHaveBeenCalledTimes(4);
     expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 8]));
@@ -69,18 +69,18 @@ describe("Viewport", () => {
       device: gpu.device,
     });
 
-    viewport.setSectionPlane({ normal: [0, 0, 2], distance: 4 });
-    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+    viewport.presentation.setSectionPlane({ normal: [0, 0, 2], distance: 4 });
+    expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
     expect(latestSectionPlaneUniform(gpu)).toEqual(new Float32Array([0, 0, 1, 2]));
     expect(() => {
-      viewport.setSectionPlane({ normal: [0, 0, 0], distance: 0 });
+      viewport.presentation.setSectionPlane({ normal: [0, 0, 0], distance: 0 });
     }).toThrow("Section plane");
-    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+    expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
 
     viewport.setScene(scene(10));
-    expect(viewport.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
-    viewport.clearSectionPlane();
-    expect(viewport.sectionPlane).toBeUndefined();
+    expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+    viewport.presentation.clearSectionPlane();
+    expect(viewport.presentation.sectionPlane).toBeUndefined();
     expect(latestSectionPlaneUniform(gpu)).toEqual(new Float32Array([0, 0, 0, 0]));
     viewport.destroy();
   });
@@ -99,13 +99,13 @@ describe("Viewport", () => {
     });
     expect(onRender).toHaveBeenCalledOnce();
     const pipelineCount = gpu.renderPipelineDescriptors.length;
-    viewport.setBackground("dark");
+    viewport.presentation.setBackground("dark");
     expect(onRender).toHaveBeenCalledTimes(2);
     expect(gpu.renderPipelineDescriptors).toHaveLength(pipelineCount);
-    viewport.setBackground("dark");
+    viewport.presentation.setBackground("dark");
     expect(onRender).toHaveBeenCalledTimes(2);
     expect(() => {
-      viewport.setBackground("invalid" as never);
+      viewport.presentation.setBackground("invalid" as never);
     }).toThrow("Invalid viewport background");
     expect(onRender).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -134,24 +134,24 @@ describe("Viewport", () => {
 
     const finalInteraction = viewport.batch(() => {
       let interaction = setBodyVisible(
-        viewport.interaction,
+        viewport.interaction.state,
         { instanceId: "1/0", bodyId: 0 },
         false,
       );
-      viewport.setInteraction(interaction);
+      viewport.interaction.set(interaction);
       interaction = setBodyOverride(
         interaction,
         { instanceId: "1/0", bodyId: 0 },
         { emissive: 0.5 },
       );
-      viewport.setInteraction(interaction);
-      viewport.setPartVisible(1, false);
-      viewport.setPartVisible(1, true);
+      viewport.interaction.set(interaction);
+      viewport.visibility.setPart(1, false);
+      viewport.visibility.setPart(1, true);
       expect(onRender).toHaveBeenCalledOnce();
       return interaction;
     });
 
-    expect(finalInteraction).toBe(viewport.interaction);
+    expect(finalInteraction).toBe(viewport.interaction.state);
     expect(viewport.runtime.visibleCount).toBe(1);
     expect(onRender).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -171,7 +171,7 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    first.setPartVisible(1, false);
+    first.visibility.setPart(1, false);
     expect(first.runtime.visibleCount).toBe(0);
     expect(second.runtime.visibleCount).toBe(1);
     expect(second.runtime.isInstanceVisible("1/0")).toBe(true);

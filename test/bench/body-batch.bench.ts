@@ -50,10 +50,10 @@ function currentViewport(): Viewport {
 function updateBodies(batched: boolean): void {
   visible = !visible;
   const apply = (): void => {
-    let interaction = currentViewport().interaction;
+    let interaction = currentViewport().interaction.state;
     for (let bodyId = 0; bodyId < BODY_COUNT; bodyId += 1) {
       interaction = setBodyVisible(interaction, { instanceId: "1/0", bodyId }, visible);
-      currentViewport().setInteraction(interaction);
+      currentViewport().interaction.set(interaction);
     }
   };
   if (batched) currentViewport().batch(apply);

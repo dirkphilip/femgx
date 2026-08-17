@@ -11,7 +11,7 @@ import { invariantValue } from "./invariants";
  * `instanceId` identifies an expanded placement; `partId` identifies the
  * reusable definition it references. The transform is a defensive world-space
  * snapshot. Visibility fields describe effective runtime state and are not
- * mutation handles; use {@link root.Viewport.setInstanceVisible} for live
+ * mutation handles; use {@link root.ViewportVisibility.setInstance} for live
  * changes.
  * @category Advanced runtime and WebGPU platform
  */

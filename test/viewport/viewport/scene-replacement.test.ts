@@ -34,7 +34,7 @@ describe("Viewport", () => {
 
     viewport.setScene(resultScene(6));
     expect(() => {
-      viewport.setResults(nodalResult(6));
+      viewport.results.set(nodalResult(6));
     }).not.toThrow();
     expect(() => {
       viewport.render();
@@ -63,7 +63,7 @@ describe("Viewport", () => {
     expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
     expect(setDeformation).toHaveBeenLastCalledWith(undefined);
     expect(setResultColors).toHaveBeenLastCalledWith(undefined);
-    expect(viewport.results).toBeUndefined();
+    expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
 
@@ -83,12 +83,12 @@ describe("Viewport", () => {
     expect(setOrientationGlyphs).toHaveBeenLastCalledWith(
       expect.objectContaining({ mode: "arrow", transform: "direction" }),
     );
-    expect(viewport.results?.vectors).toBeDefined();
+    expect(viewport.results.state?.vectors).toBeDefined();
 
     setOrientationGlyphs.mockClear();
     expect(viewport.updateScene(scene())).toMatchObject({ results: "cleared" });
     expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
-    expect(viewport.results).toBeUndefined();
+    expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
 
@@ -103,22 +103,26 @@ describe("Viewport", () => {
       scene: initial,
       device: fakeGpuDevice().device,
     });
-    const camera = viewport.camera;
-    viewport.setInstanceVisible("1/keep", false);
-    viewport.setInteraction(
-      setTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" }, true),
+    const camera = viewport.view.camera;
+    viewport.visibility.setInstance("1/keep", false);
+    viewport.interaction.set(
+      setTargetSelected(
+        viewport.interaction.state,
+        { kind: "instance", instanceId: "1/keep" },
+        true,
+      ),
     );
 
     const outcome = viewport.updateScene(replacement);
 
     expect(outcome).toEqual({ results: "none" });
     expect(viewport.scene).toBe(replacement);
-    expect(viewport.camera).toBe(camera);
+    expect(viewport.view.camera).toBe(camera);
     expect(viewport.runtime.getInstanceIds()).toEqual(["1/keep"]);
     expect(viewport.runtime.isInstanceVisible("1/keep")).toBe(false);
-    expect(isTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" })).toBe(
-      true,
-    );
+    expect(
+      isTargetSelected(viewport.interaction.state, { kind: "instance", instanceId: "1/keep" }),
+    ).toBe(true);
     expect(resetScene).not.toHaveBeenCalled();
     viewport.destroy();
   });
@@ -132,7 +136,7 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
     const instanceId = "1/keep" as const;
-    let interaction = viewport.interaction;
+    let interaction = viewport.interaction.state;
     interaction = setTargetSelected(interaction, { kind: "body", instanceId, bodyId: 1 }, true);
     interaction = setTargetSelected(
       interaction,
@@ -145,21 +149,21 @@ describe("Viewport", () => {
       { kind: "face", instanceId, elementId: 11, faceIndex: 0 },
       true,
     );
-    viewport.setInteraction(interaction);
+    viewport.interaction.set(interaction);
 
     viewport.updateScene(identityScene(false));
 
-    expect(isTargetSelected(viewport.interaction, { kind: "body", instanceId, bodyId: 1 })).toBe(
-      false,
-    );
     expect(
-      isTargetSelected(viewport.interaction, { kind: "element", instanceId, elementId: 11 }),
+      isTargetSelected(viewport.interaction.state, { kind: "body", instanceId, bodyId: 1 }),
     ).toBe(false);
-    expect(isTargetSelected(viewport.interaction, { kind: "node", instanceId, nodeId: 3 })).toBe(
-      false,
-    );
     expect(
-      isTargetSelected(viewport.interaction, {
+      isTargetSelected(viewport.interaction.state, { kind: "element", instanceId, elementId: 11 }),
+    ).toBe(false);
+    expect(
+      isTargetSelected(viewport.interaction.state, { kind: "node", instanceId, nodeId: 3 }),
+    ).toBe(false);
+    expect(
+      isTargetSelected(viewport.interaction.state, {
         kind: "face",
         instanceId,
         elementId: 11,
@@ -180,11 +184,11 @@ describe("Viewport", () => {
     });
 
     expect(viewport.updateScene(resultScene(3))).toEqual({ results: "preserved" });
-    expect(viewport.results).toBeDefined();
+    expect(viewport.results.state).toBeDefined();
     const cleared = viewport.updateScene(resultScene(6));
     expect(cleared.results).toBe("cleared");
     expect(cleared.reason).toMatch(/no value/);
-    expect(viewport.results).toBeUndefined();
+    expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
 });
@@ -220,26 +224,29 @@ describe("Viewport", () => {
       scene: initial,
       device: fakeGpuDevice().device,
     });
-    viewport.setCamera({ ...viewport.camera, target: [4, 5, 6] as [number, number, number] });
-    const camera = viewport.camera;
-    viewport.setInstanceVisible("1/keep", false);
+    viewport.view.setCamera({
+      ...viewport.view.camera,
+      target: [4, 5, 6] as [number, number, number],
+    });
+    const camera = viewport.view.camera;
+    viewport.visibility.setInstance("1/keep", false);
     let interaction = setTargetSelected(
-      viewport.interaction,
+      viewport.interaction.state,
       { kind: "instance", instanceId: "1/keep" },
       true,
     );
     interaction = setTargetSelected(interaction, { kind: "part", partId: 2 }, true);
-    viewport.setInteraction(interaction);
+    viewport.interaction.set(interaction);
 
     viewport.setScene(replacement);
 
-    expect(viewport.camera).toBe(camera);
+    expect(viewport.view.camera).toBe(camera);
     expect(viewport.runtime.getInstanceIds()).toEqual(["1/keep", "1/added"]);
     expect(viewport.runtime.isInstanceVisible("1/keep")).toBe(false);
-    expect(isTargetSelected(viewport.interaction, { kind: "instance", instanceId: "1/keep" })).toBe(
-      true,
-    );
-    expect(isTargetSelected(viewport.interaction, { kind: "part", partId: 2 })).toBe(false);
+    expect(
+      isTargetSelected(viewport.interaction.state, { kind: "instance", instanceId: "1/keep" }),
+    ).toBe(true);
+    expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 2 })).toBe(false);
     viewport.destroy();
   });
 
@@ -253,11 +260,11 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
       onRender,
     });
-    const previous = viewport.camera;
+    const previous = viewport.view.camera;
     expect(() => {
-      viewport.setCamera({ ...previous, near: 0 });
+      viewport.view.setCamera({ ...previous, near: 0 });
     }).toThrow(/near\/far/);
-    expect(viewport.camera).toBe(previous);
+    expect(viewport.view.camera).toBe(previous);
     expect(onRender).toHaveBeenCalledOnce();
     viewport.destroy();
   });
@@ -271,11 +278,11 @@ describe("Viewport", () => {
       scene: scene(),
       device: gpu.device,
     });
-    const interaction = setPartOverride(viewport.interaction, 1, { emissive: 0.4 });
-    viewport.setInteraction(interaction);
+    const interaction = setPartOverride(viewport.interaction.state, 1, { emissive: 0.4 });
+    viewport.interaction.set(interaction);
     const previous = {
-      camera: viewport.camera,
-      interaction: viewport.interaction,
+      camera: viewport.view.camera,
+      interaction: viewport.interaction.state,
       runtime: viewport.runtime,
       scene: viewport.scene,
       submissions: gpu.submissionCount,
@@ -285,8 +292,8 @@ describe("Viewport", () => {
     expect(() => {
       viewport.setScene(invalidScene());
     }).toThrow(/transform must contain exactly 16 components/);
-    expect(viewport.camera).toBe(previous.camera);
-    expect(viewport.interaction).toBe(previous.interaction);
+    expect(viewport.view.camera).toBe(previous.camera);
+    expect(viewport.interaction.state).toBe(previous.interaction);
     expect(viewport.runtime).toBe(previous.runtime);
     expect(viewport.scene).toBe(previous.scene);
     expect(gpu.submissionCount).toBe(previous.submissions);

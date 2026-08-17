@@ -1,7 +1,7 @@
 # FE inspection workbench
 
 The demo is an FE model inspection workbench: deterministic model presets,
-GPU picking via `Viewport.pick` (node → face → element, with explicit authored-edge
+GPU picking via `ViewportInteraction.pick` (node → face → element, with explicit authored-edge
 granularity), a shared workbench controller, and per-node/face/element/edge selection and highlighting that
 never rebuilds geometry or clones materials. The WebGPU renderer drives the
 controller, so camera and interaction behavior is stable
@@ -38,10 +38,10 @@ controller, so camera and interaction behavior is stable
 ## GPU picking
 
 - Interaction picking is asynchronous GPU readback: `RendererHooks.pick` →
-  `Viewport.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
+  `ViewportInteraction.pick(x, y)` returning a complete host-mappable `PickHit`; hosts
   use `interactionTargetFromHit` to choose part / instance / body / element /
   face / node selection policy. The workbench's Edge mode requests
-  `Viewport.pick(x, y, "edge")` and retains occurrence-scoped authored keys.
+  `ViewportInteraction.pick(x, y, "edge")` and retains occurrence-scoped authored keys.
 - Default granularity prefers the **most specific available target**
   (`node` > `face` > `element` > `instance`). Modifier keys promote/narrow the
   selection: shift → element, alt → instance, ctrl → part (see
@@ -55,7 +55,7 @@ controller, so camera and interaction behavior is stable
   targets. Inspection reports canonical nodes, incident elements/faces, hit position,
   and tangent; it never invents one owning element for a shared edge. Through remains
   unavailable in Edge mode, while Visible region selection uses the same edge granularity.
-- A completed primary-button box drag calls `Viewport.pickRegion` once at
+- A completed primary-button box drag calls `ViewportInteraction.pickRegion` once at
   element granularity. Plain drags replace selection with the returned visible
   elements; Ctrl/Meta drags append them. Shift and Alt do not add select-through
   behavior, and stale or rejected region readbacks cannot overwrite newer
@@ -67,7 +67,7 @@ controller, so camera and interaction behavior is stable
 
 ## Section-plane inspection
 
-- `Viewport.setSectionPlane({ normal, distance })` keeps the world-space
+- `ViewportPresentation.setSectionPlane({ normal, distance })` keeps the world-space
   positive half-space `dot(normal, worldPosition) + distance >= 0`. The viewport
   validates and normalizes one finite non-zero normal; `clearSectionPlane()`
   restores the unclipped scene. While active, supported solid FE occurrences

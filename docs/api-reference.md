@@ -22,7 +22,7 @@ Part definitions + assembly placements
                  ↓
        createViewport({ canvas, scene })
                  ↓
-       viewport.runtime / interaction / results
+       viewport.runtime + capability facades
 ```
 
 There are four important ownership boundaries:
@@ -33,8 +33,9 @@ There are four important ownership boundaries:
   not copy geometry.
 - A `Scene` is the authoritative registry of parts and assembly definitions,
   together with its root assembly and visibility state.
-- `Viewport` owns the current compiled runtime, WebGPU resources, camera,
-  interaction state, result snapshot, recovery, resize, and teardown.
+- `Viewport` owns the current compiled runtime, WebGPU resources, recovery,
+  resize, and teardown. Stable `view`, `interaction`, `visibility`, `results`,
+  and `presentation` facades expose the host-facing capabilities.
 
 `SceneRuntime` is a read-only query facade over the compiled scene. It exposes
 stable instance and assembly-occurrence handles, not renderer slots or GPU
@@ -45,9 +46,48 @@ installs a new runtime snapshot.
 `Scene.visiblePartIds` and `Scene.visibleAssemblyIds` are the authored initial
 visibility sets. `addPart` and `addAssembly` add new definitions to those sets
 by default; the sets are read-only snapshots once `build()` returns. After a
-scene enters a viewport, use `setPartVisible` or `setAssemblyVisible` for
-definition-wide live changes, and `setInstanceVisible` or
-`setAssemblyOccurrenceVisible` when only one expanded placement should change.
+scene enters a viewport, use `viewport.visibility.setPart` or
+`viewport.visibility.setAssembly` for definition-wide live changes, and
+`viewport.visibility.setInstance` or
+`viewport.visibility.setAssemblyOccurrence` when only one expanded placement
+should change.
+
+### Composed viewport surface
+
+Capability objects are stable non-owning views into the live viewport state:
+
+```ts
+viewport.view.camera;
+viewport.interaction.state;
+viewport.visibility.setPart(partId, false);
+viewport.results.state;
+viewport.presentation.setBackground("dark");
+
+viewport.batch(() => {
+  viewport.interaction.set(nextInteraction);
+  viewport.visibility.setInstance(instanceId, true);
+  viewport.presentation.setSectionPlane(plane);
+});
+```
+
+The facades remain valid across scene replacement, resize, rendering, and
+recovery. They fail consistently after `viewport.destroy()`. See the complete
+[0.x viewport capability migration map](migration-0.x-viewport.md) for the
+old-to-new member table.
+
+Visibility ids are checked at the active scene/runtime boundary:
+
+```ts
+import { UnknownSceneIdentityError } from "femgx";
+
+try {
+  viewport.visibility.setInstance("stale-instance", false);
+} catch (error) {
+  if (error instanceof UnknownSceneIdentityError) {
+    console.warn("Stale", error.kind, error.id);
+  }
+}
+```
 
 ## Choose the entry point
 
@@ -138,7 +178,7 @@ const scene = createScene()
 
 const viewport = await createViewport({ canvas, scene });
 // The viewport owns rendering and camera fitting from this point onward.
-viewport.fitView();
+viewport.view.fit();
 ```
 
 A raw part has no implicit FE element or node semantics. Consequently, it is
@@ -300,14 +340,15 @@ for (const instance of viewport.runtime.getInstances()) {
 
 const [firstInstance] = viewport.runtime.getInstanceIds();
 if (firstInstance !== undefined) {
-  viewport.setInstanceVisible(firstInstance, false);
+  viewport.visibility.setInstance(firstInstance, false);
 }
 ```
 
-`setPartVisible(partId, false)` hides every occurrence of a definition;
-`setInstanceVisible(instanceId, false)` hides one placement. Similarly,
-`setAssemblyVisible` affects an assembly definition, while
-`setAssemblyOccurrenceVisible` affects one expanded occurrence.
+`viewport.visibility.setPart(partId, false)` hides every occurrence of a
+definition; `viewport.visibility.setInstance(instanceId, false)` hides one
+placement. Similarly, `setAssembly` affects an assembly definition, while
+`setAssemblyOccurrence` affects one expanded occurrence. An unknown id throws
+`UnknownSceneIdentityError` before any runtime or renderer mutation.
 
 ## Workflow 4: viewport lifecycle, picking, and structural updates
 
@@ -370,10 +411,10 @@ bindings:
 
 ```text
 point pick → interactionTargetFromHit → setTargetHovered / setTargetHighlighted
-           → setInteraction
-point click → interactionTargetFromHit → setTargetSelected → setInteraction
-box complete → pickRegion(rect) OR boxSelectionFrustum(camera, rect) + Through query
-             → setTargetsSelected → setInteraction
+           → viewport.interaction.set
+point click → interactionTargetFromHit → setTargetSelected → viewport.interaction.set
+box complete → interaction.pickRegion(rect) OR boxSelectionFrustum(view.camera, rect)
+             + Through query → setTargetsSelected → viewport.interaction.set
 ```
 
 `setTargetsSelected` and `setTargetsHighlighted` perform one duplicate-safe
@@ -385,11 +426,11 @@ into one immutable state transition.
 Candidate resolvers are generation-safe: results from an older pointer,
 gesture, viewport, or policy are discarded. The installer keeps box selection
 renderer-independent and adds no GPU pass or readback path beyond the
-viewport's existing `pick` and `pickRegion` operations.
+viewport's existing `interaction.pick` and `interaction.pickRegion` operations.
 
 Here is a complete click-to-select loop. `pick` returns physical information;
 `interactionTargetFromHit` maps it to a stable host-facing identity, and the
-immutable interaction transition is installed with `setInteraction`. The
+immutable interaction transition is installed with `viewport.interaction.set`. The
 handlers are named because they belong to the host and must be removable. A
 monotonic request number drops stale hover results when pointer moves outpace
 GPU readbacks:
@@ -402,11 +443,11 @@ let hoverRequest = 0;
 const handlePointerMove = (event: PointerEvent): void => {
   const request = ++hoverRequest;
   const bounds = canvas.getBoundingClientRect();
-  void viewport.pick(event.clientX - bounds.left, event.clientY - bounds.top).then(
+  void viewport.interaction.pick(event.clientX - bounds.left, event.clientY - bounds.top).then(
     (hit) => {
       if (disposed || request !== hoverRequest) return;
       const target = hit === undefined ? undefined : interactionTargetFromHit(hit, "element");
-      viewport.setInteraction(setTargetHovered(viewport.interaction, target));
+      viewport.interaction.set(setTargetHovered(viewport.interaction.state, target));
     },
     () => {
       // A pending pick may reject while the viewport is being destroyed.
@@ -416,13 +457,13 @@ const handlePointerMove = (event: PointerEvent): void => {
 
 const handleClick = (event: MouseEvent): void => {
   const bounds = canvas.getBoundingClientRect();
-  void viewport.pick(event.clientX - bounds.left, event.clientY - bounds.top).then(
+  void viewport.interaction.pick(event.clientX - bounds.left, event.clientY - bounds.top).then(
     (hit) => {
       if (disposed || hit === undefined) return;
       const target =
         interactionTargetFromHit(hit, "element") ?? interactionTargetFromHit(hit, "instance");
       if (target !== undefined) {
-        viewport.setInteraction(setTargetSelected(viewport.interaction, target, true));
+        viewport.interaction.set(setTargetSelected(viewport.interaction.state, target, true));
       }
     },
     () => {
@@ -450,12 +491,16 @@ transition with `setTargetsSelected`.
 ```ts
 import { clearSelection, setTargetsSelected } from "femgx";
 
-const targets = await viewport.pickRegion(
+const targets = await viewport.interaction.pickRegion(
   { left: 20, top: 20, right: 320, bottom: 240 },
   "element",
 );
-const nextInteraction = setTargetsSelected(clearSelection(viewport.interaction), targets, true);
-viewport.setInteraction(nextInteraction);
+const nextInteraction = setTargetsSelected(
+  clearSelection(viewport.interaction.state),
+  targets,
+  true,
+);
+viewport.interaction.set(nextInteraction);
 ```
 
 `pickRegion` is nearest-visible raster discovery. For the Core-now Through
@@ -532,7 +577,7 @@ const displacement = createResultField({
 });
 
 const range = scalarRange(temperature);
-viewport.setResults({
+viewport.results.set({
   scalar: { field: temperature, ...(range === undefined ? {} : { range }) },
   deformation: { field: displacement, scale: 1.5 },
 });
@@ -543,9 +588,9 @@ typed-array length. Before replacing the previous snapshot, the viewport
 checks structural coverage: `count` must address every node or element id that
 the rendered scene references. Structural coverage is separate from authored
 data completeness: `NaN` is an allowed missing value, including for a rendered
-entity, and is not treated as zero. One `setResults` call is atomic across
+entity, and is not treated as zero. One `viewport.results.set` call is atomic across
 scalar, deformation, and optional orientation roles. To show a host-owned
-sequence, call `setResults` again with the next complete snapshot; FemGx retains
+sequence, call `viewport.results.set` again with the next complete snapshot; FemGx retains
 only the current one.
 
 Elemental scalar coloring uses element ids rather than tessellated triangle
@@ -564,7 +609,7 @@ const stress = createResultField({
   unit: "MPa",
   values: stressValues,
 });
-viewport.setResults({ scalar: { field: stress } });
+viewport.results.set({ scalar: { field: stress } });
 ```
 
 The dense id contract allows one field to address mixed primitive groups
@@ -591,7 +636,7 @@ const directions = createResultField({
   unit: "unit-vector",
   values: directionValues,
 });
-viewport.setResults({
+viewport.results.set({
   scalar: { field: temperature },
   vectors: {
     field: directions,
@@ -644,7 +689,7 @@ const viewport = await createViewport({ canvas, scene });
 Node ids must be dense and in coordinate order for the conversion. Element ids
 remain authored identities, and the conversion creates dense single-precision
 coordinates for rendering. Host-supplied result fields can be converted with
-`createResultFieldFromModelResult` before calling `viewport.setResults()`.
+`createResultFieldFromModelResult` before calling `viewport.results.set()`.
 
 ## Workflow 7: import a GLB display scene
 
@@ -683,9 +728,10 @@ The viewport's properties are intentionally narrow:
 ```ts
 console.log(viewport.scene); // authoritative current Scene
 console.log(viewport.runtime); // current stable query facade
-console.log(viewport.camera); // current immutable camera value
-console.log(viewport.interaction); // current immutable interaction state
-console.log(viewport.results); // current resolved authored snapshot
+console.log(viewport.view.camera); // current immutable camera value
+console.log(viewport.interaction.state); // current immutable interaction state
+console.log(viewport.results.state); // current resolved authored snapshot
+console.log(viewport.presentation.sectionPlane); // current clipping plane
 ```
 
 For a CPU-only inspection with no canvas or GPU, use the separate runtime entry:
@@ -715,11 +761,11 @@ import { createCamera, setProjection } from "femgx/camera";
 
 const camera = setProjection(createCamera({ width: 800, height: 480 }), "perspective");
 const viewport = await createViewport({ canvas, scene, camera });
-viewport.setCamera(camera, { durationMs: 250 });
+viewport.view.setCamera(camera, { durationMs: 250 });
 ```
 
 When the host changes the canvas layout, call `viewport.resize()` after the
-new CSS size is applied. `fitView` and `fitSelection` use the viewport's one
+new CSS size is applied. `view.fit` and `view.fitSelection` use the viewport's one
 interruptible transition path; a positive finite `durationMs` animates and a
 zero or omitted duration applies immediately. A host may provide
 `keyboardTarget` to opt into the core `Z` fit-selection shortcut; FemGx does

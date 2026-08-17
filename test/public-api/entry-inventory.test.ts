@@ -14,6 +14,7 @@ describe("public package entries", () => {
     expect(inventory(root)).toEqual([
       "FIELD_COMPONENT_COUNT",
       "GeometryValidationError",
+      "UnknownSceneIdentityError",
       "WebGpuUnsupportedError",
       "bodyOverride",
       "boxSelectionFrustum",

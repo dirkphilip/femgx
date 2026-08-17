@@ -67,17 +67,17 @@ export class WorkbenchVisibilityActions {
   }
 
   setPart(partId: PartId, visible: boolean): void {
-    this.options.viewport().setPartVisible(partId, visible);
+    this.options.viewport().visibility.setPart(partId, visible);
     this.finish();
   }
 
   setInstance(instanceId: InstanceId, visible: boolean): void {
-    this.options.viewport().setInstanceVisible(instanceId, visible);
+    this.options.viewport().visibility.setInstance(instanceId, visible);
     this.finish();
   }
 
   setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
-    this.options.viewport().setAssemblyOccurrenceVisible(occurrenceId, visible);
+    this.options.viewport().visibility.setAssemblyOccurrence(occurrenceId, visible);
     this.finish();
   }
 
@@ -179,16 +179,16 @@ export class WorkbenchVisibilityActions {
     const viewport = this.options.viewport();
     viewport.batch(() => {
       for (const assemblyId of scene.assemblies.keys()) {
-        viewport.setAssemblyVisible(assemblyId, true);
+        viewport.visibility.setAssembly(assemblyId, true);
       }
       for (const occurrenceId of runtime.getOccurrenceIds()) {
-        viewport.setAssemblyOccurrenceVisible(occurrenceId, true);
+        viewport.visibility.setAssemblyOccurrence(occurrenceId, true);
       }
       for (const partId of scene.parts.keys()) {
-        viewport.setPartVisible(partId, true);
+        viewport.visibility.setPart(partId, true);
       }
       for (const instanceId of runtime.getInstanceIds()) {
-        viewport.setInstanceVisible(instanceId, true);
+        viewport.visibility.setInstance(instanceId, true);
       }
     });
     this.finish();

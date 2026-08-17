@@ -114,7 +114,7 @@ renderer-owned edge and node overlays remain separate post-composite stages.
 A per-instance `edge` style override (see
 [[rendering/element-interaction|Element-level interaction]]) overlays a part's edges as
 lines on its solid surface. Hosts may choose the public
-`Viewport.setEdgeDepthTest` policy, so a model can be shown solid with a
+`ViewportPresentation.setEdgeDepthTest` policy, so a model can be shown solid with a
 wireframe overlay instead of edges-only.
 
 The inspection demo presents a single `Solid` display and optional edge

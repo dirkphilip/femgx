@@ -84,7 +84,7 @@ export function applyControllerDisplayStateForSlot(
     },
     applyDisplayedInteraction: () => {
       if (slotId === owner.viewportSlots.activeSlot().id) owner.applyDisplayedInteraction();
-      else slot.viewport.setInteraction(state.interaction);
+      else slot.viewport.interaction.set(state.interaction);
     },
     reflect: () => {
       if (slotId === owner.viewportSlots.activeSlot().id) owner.presentation.reflectResults();
@@ -113,7 +113,7 @@ export function setBackgroundForOwner(owner: ControllerDisplayOwner, value: stri
   const background = parseViewportBackground(value);
   if (background === undefined) return;
   try {
-    owner.activeViewport().setBackground(background);
+    owner.activeViewport().presentation.setBackground(background);
   } catch (error) {
     owner.presentation.setFeedback(
       `Background could not be changed: ${errorMessage(error)}`,
@@ -137,7 +137,7 @@ export function applyActiveStateForOwner(owner: ControllerDisplayOwner): void {
   owner.applyResultMode(false);
   owner.applyCurrentDisplayState();
   applySectionPlane(owner, false);
-  owner.activeSlot().viewport.setBackground(owner.background);
+  owner.activeSlot().viewport.presentation.setBackground(owner.background);
   owner.activeSlot().renderLoop.setEnabled(owner.continuousEnabled, performance.now());
 }
 
@@ -149,8 +149,8 @@ export function applyStateForOwner(owner: ControllerDisplayOwner, slotId: Viewpo
   applyControllerResultModeForSlot(owner, slotId, false);
   applyControllerDisplayStateForSlot(owner, slotId);
   const plane = sectionPlaneFor(state.sectionAxis, state.sectionOffset);
-  if (plane === undefined) slot.viewport.clearSectionPlane();
-  else slot.viewport.setSectionPlane(plane);
-  slot.viewport.setBackground(state.background);
+  if (plane === undefined) slot.viewport.presentation.clearSectionPlane();
+  else slot.viewport.presentation.setSectionPlane(plane);
+  slot.viewport.presentation.setBackground(state.background);
   slot.renderLoop.setEnabled(state.continuousEnabled, performance.now());
 }

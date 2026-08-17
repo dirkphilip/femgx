@@ -1,5 +1,4 @@
 import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
-import { installCameraControlsWithProtectedBounds } from "../camera/controls";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -8,34 +7,47 @@ import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-rende
 import { changedInstanceSlots } from "./interaction-diff";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
-import type { PartId } from "../geometry/part";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
-import { SceneNavigationBoundsCache, type SceneNavigationBounds } from "./scene-bounds";
+import { SceneNavigationBoundsCache } from "./scene-bounds";
 import {
+  assertPixelSize,
   assertViewportBackground,
   cssSize,
-  installResize,
-  installViewportKeyboard,
+  installViewportCanvasBindings,
   validateOrientationGizmo,
 } from "./dom";
 import { CameraFocusController } from "./camera-focus";
 import { normalizeSectionPlane, type SectionPlane } from "../math/section-plane";
 import { assertOriginTriad } from "./origin-triad";
 import type { DeformationState } from "../results/deform";
-import { createOrientationGizmo, type OrientationGizmoHandle } from "./orientation-gizmo";
-import type { ViewportResultsConfig, ViewportResultsState } from "./results";
+import type { ViewportResultsConfig } from "./results";
 import type {
   CameraTransitionOptions,
   Viewport,
   ViewportOptions,
   SceneUpdateOutcome,
   ViewportBackground,
+  ViewportInteraction,
+  ViewportPresentation,
+  ViewportResults,
+  ViewportView,
+  ViewportVisibility,
 } from "./types";
+import { createViewportCapabilities } from "./capabilities";
 import { ViewportSceneController } from "./scene-controller";
 import { ViewportVisibilityController } from "./visibility-controller";
 import { ViewportLifecycleController } from "./lifecycle-controller";
-export type { Viewport, ViewportOptions, SceneUpdateOutcome, ViewportBackground } from "./types";
+export type {
+  Viewport,
+  ViewportInteraction,
+  ViewportOptions,
+  ViewportPresentation,
+  ViewportResults,
+  ViewportView,
+  ViewportVisibility,
+  SceneUpdateOutcome,
+  ViewportBackground,
+} from "./types";
 
 /**
  * Creates a fitted, interactive FEM viewport backed only by WebGPU.
@@ -103,13 +115,18 @@ export async function createViewport(options: ViewportOptions): Promise<Viewport
 }
 
 class ViewportCore implements Viewport {
-  private cameraRef: { camera: Camera };
+  private cameraRef!: { camera: Camera };
   private currentSectionPlane: SectionPlane | undefined;
   private appliedInteraction = createInteractionState();
-  private readonly cameraFocus: CameraFocusController;
-  private readonly sceneController: ViewportSceneController;
-  private readonly visibility: ViewportVisibilityController;
-  private readonly lifecycle: ViewportLifecycleController;
+  private readonly cameraFocus!: CameraFocusController;
+  private sceneController!: ViewportSceneController;
+  private visibilityController!: ViewportVisibilityController;
+  private readonly lifecycle!: ViewportLifecycleController;
+  readonly view!: ViewportView;
+  readonly interaction!: ViewportInteraction;
+  readonly visibility!: ViewportVisibility;
+  readonly results!: ViewportResults;
+  readonly presentation!: ViewportPresentation;
   private autoFitOnResize = false;
   private background: ViewportBackground;
   private pointSizePixels: number;
@@ -123,19 +140,7 @@ class ViewportCore implements Viewport {
     this.background = options.background ?? "studio";
     this.pointSizePixels = options.pointSizePixels ?? 8;
     this.nodeSizePixels = options.nodeSizePixels ?? 6;
-    this.sceneController = new ViewportSceneController({
-      scene: options.scene,
-      interaction: options.interaction,
-      renderer,
-    });
-    this.cameraRef = { camera: options.camera ?? createCamera() };
-    this.visibility = new ViewportVisibilityController({
-      runtime: () => this.sceneController.runtime,
-      renderer,
-      isBatching: () => this.lifecycle.isBatching,
-      invalidate: this.invalidate.bind(this),
-      navigationBoundsCache: this.navigationBoundsCache,
-    });
+    this.initializeControllers(options, renderer);
     const deformation = () => this.sceneController.results?.deformation;
     const navigationBounds = () =>
       this.navigationBoundsCache.get(
@@ -145,21 +150,32 @@ class ViewportCore implements Viewport {
       );
     this.cameraFocus = this.createCameraFocus(options, deformation);
     assertValidCamera(this.cameraRef.camera);
-    const bindings = this.installCanvasBindings(options, navigationBounds);
-    this.lifecycle = new ViewportLifecycleController({
+    const bindings = installViewportCanvasBindings({
+      options,
       renderer,
-      cameraFocus: this.cameraFocus,
-      removeControls: bindings.removeControls,
-      removeResize: bindings.removeResize,
-      removeKeyboard: bindings.removeKeyboard,
-      orientationGizmo: bindings.orientationGizmo,
-      resetInteraction: () => {
-        this.appliedInteraction = createInteractionState();
+      cameraRef: this.cameraRef,
+      navigationBounds,
+      fitSelection: this.fitSelection.bind(this),
+      invalidate: this.invalidate.bind(this),
+      resize: this.resize.bind(this),
+      onGestureChange: (active) => {
+        if (active) {
+          this.autoFitOnResize = false;
+          this.cameraFocus.cancel();
+        }
+        options.onGestureChange?.(active);
       },
-      render: this.render.bind(this),
-      onRecovered: options.onRecovered,
-      onError: options.onError,
+      onOrientationAction: (action) => {
+        this.cameraFocus.applyOrientationAction(action);
+      },
     });
+    this.lifecycle = this.createLifecycle(options, bindings);
+    const capabilities = this.createCapabilities();
+    this.view = capabilities.view;
+    this.interaction = capabilities.interaction;
+    this.visibility = capabilities.visibility;
+    this.results = capabilities.results;
+    this.presentation = capabilities.presentation;
     this.resize(false);
     try {
       if (options.results !== undefined) this.sceneController.setResults(options.results);
@@ -174,43 +190,66 @@ class ViewportCore implements Viewport {
     }
   }
 
-  private installCanvasBindings(
+  private initializeControllers(options: ViewportOptions, renderer: WebGpuRenderer): void {
+    this.sceneController = new ViewportSceneController({
+      scene: options.scene,
+      interaction: options.interaction,
+      renderer,
+    });
+    this.cameraRef = { camera: options.camera ?? createCamera() };
+    this.visibilityController = new ViewportVisibilityController({
+      scene: () => this.sceneController.scene,
+      runtime: () => this.sceneController.runtime,
+      renderer,
+      isBatching: () => this.lifecycle.isBatching,
+      invalidate: this.invalidate.bind(this),
+      navigationBoundsCache: this.navigationBoundsCache,
+    });
+  }
+
+  private createLifecycle(
     options: ViewportOptions,
-    navigationBounds: () => SceneNavigationBounds,
-  ): {
-    readonly removeControls: () => void;
-    readonly removeResize: () => void;
-    readonly removeKeyboard: () => void;
-    readonly orientationGizmo: OrientationGizmoHandle | undefined;
-  } {
-    const removeKeyboard = installViewportKeyboard(options.keyboardTarget, () => {
-      this.fitSelection();
-    });
-    const removeControls = installCameraControlsWithProtectedBounds({
-      canvas: options.canvas,
-      cameraRef: this.cameraRef,
-      navigation: this.renderer,
-      bounds: () => navigationBounds().bounds,
-      protectedBounds: () => navigationBounds().protectedBounds,
-      onRender: this.invalidate.bind(this),
-      onGestureChange: (active) => {
-        if (active) {
-          this.autoFitOnResize = false;
-          this.cameraFocus.cancel();
-        }
-        options.onGestureChange?.(active);
+    bindings: ReturnType<typeof installViewportCanvasBindings>,
+  ): ViewportLifecycleController {
+    return new ViewportLifecycleController({
+      renderer: this.renderer,
+      cameraFocus: this.cameraFocus,
+      removeControls: bindings.removeControls,
+      removeResize: bindings.removeResize,
+      removeKeyboard: bindings.removeKeyboard,
+      orientationGizmo: bindings.orientationGizmo,
+      resetInteraction: () => {
+        this.appliedInteraction = createInteractionState();
       },
+      render: this.render.bind(this),
+      onRecovered: options.onRecovered,
+      onError: options.onError,
     });
-    const removeResize = installResize(options.canvas, () => {
-      this.resize();
+  }
+
+  private createCapabilities(): ReturnType<typeof createViewportCapabilities> {
+    return createViewportCapabilities({
+      ensureAlive: this.ensureAlive.bind(this),
+      camera: () => this.cameraRef.camera,
+      setCamera: this.setCamera.bind(this),
+      fit: this.fitView.bind(this),
+      fitSelection: this.fitSelection.bind(this),
+      state: () => this.sceneController.interaction,
+      set: this.setInteraction.bind(this),
+      pick: this.pick.bind(this),
+      pickRegion: this.pickRegion.bind(this),
+      visibilityController: this.visibilityController,
+      resultsState: () => this.sceneController.results,
+      setResults: this.setResults.bind(this),
+      clearResults: this.clearResults.bind(this),
+      sectionPlane: () => this.currentSectionPlane,
+      setSectionPlane: this.setSectionPlane.bind(this),
+      clearSectionPlane: this.clearSectionPlane.bind(this),
+      setBackground: this.setBackground.bind(this),
+      setPointSizePixels: this.setPointSizePixels.bind(this),
+      setNodeSizePixels: this.setNodeSizePixels.bind(this),
+      setEdgeDepthTest: this.setEdgeDepthTest.bind(this),
     });
-    const orientationGizmo =
-      options.orientationGizmo === undefined
-        ? undefined
-        : createOrientationGizmo(options.orientationGizmo, (action) => {
-            this.cameraFocus.applyOrientationAction(action);
-          });
-    return { removeControls, removeResize, removeKeyboard, orientationGizmo };
   }
 
   private createCameraFocus(
@@ -237,23 +276,10 @@ class ViewportCore implements Viewport {
   get runtime(): SceneRuntime {
     return this.sceneController.publicRuntime;
   }
-  get camera(): Camera {
-    return this.cameraRef.camera;
-  }
-  get interaction(): InteractionState {
-    return this.sceneController.interaction;
-  }
-  get results(): ViewportResultsState | undefined {
-    return this.sceneController.results;
-  }
-  get sectionPlane(): SectionPlane | undefined {
-    return this.currentSectionPlane;
-  }
-
   setScene(scene: Scene): void {
     this.ensureAlive();
     this.sceneController.setScene(scene, this.cameraFocus.cancel.bind(this.cameraFocus));
-    this.visibility.reset();
+    this.visibilityController.reset();
     this.appliedInteraction = createInteractionState();
     this.invalidate();
   }
@@ -264,31 +290,31 @@ class ViewportCore implements Viewport {
       scene,
       this.cameraFocus.cancel.bind(this.cameraFocus),
     );
-    this.visibility.reset();
+    this.visibilityController.reset();
     this.appliedInteraction = createInteractionState();
     this.invalidate();
     return outcome;
   }
 
-  setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
+  private setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
     this.autoFitOnResize = false;
     this.cameraFocus.setCamera(camera, transitionOptions);
   }
 
-  fitView(transitionOptions?: CameraTransitionOptions): void {
+  private fitView(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
     this.autoFitOnResize = true;
     this.cameraFocus.fitView(transitionOptions, true);
   }
 
-  fitSelection(transitionOptions?: CameraTransitionOptions): void {
+  private fitSelection(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
     this.autoFitOnResize = false;
     this.cameraFocus.fitSelection(transitionOptions);
   }
 
-  setInteraction(interaction: InteractionState): void {
+  private setInteraction(interaction: InteractionState): void {
     this.ensureAlive();
     this.sceneController.setInteraction(interaction);
     this.invalidate();
@@ -296,22 +322,25 @@ class ViewportCore implements Viewport {
 
   batch<T>(operation: () => T): T {
     this.ensureAlive();
-    return this.lifecycle.batch(operation, this.visibility.flush.bind(this.visibility));
+    return this.lifecycle.batch(
+      operation,
+      this.visibilityController.flush.bind(this.visibilityController),
+    );
   }
 
-  setResults(results: ViewportResultsConfig): void {
+  private setResults(results: ViewportResultsConfig): void {
     this.ensureAlive();
     this.sceneController.setResults(results);
     this.invalidate();
   }
 
-  clearResults(): void {
+  private clearResults(): void {
     this.ensureAlive();
     this.sceneController.clearResults();
     this.invalidate();
   }
 
-  setSectionPlane(plane: SectionPlane): void {
+  private setSectionPlane(plane: SectionPlane): void {
     this.ensureAlive();
     const normalized = normalizeSectionPlane(plane);
     this.currentSectionPlane = normalized;
@@ -319,7 +348,7 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  clearSectionPlane(): void {
+  private clearSectionPlane(): void {
     this.ensureAlive();
     if (this.currentSectionPlane === undefined) return;
     this.currentSectionPlane = undefined;
@@ -327,7 +356,7 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  setBackground(background: ViewportBackground): void {
+  private setBackground(background: ViewportBackground): void {
     this.ensureAlive();
     assertViewportBackground(background);
     if (this.background === background) return;
@@ -336,7 +365,7 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  setPointSizePixels(size: number): void {
+  private setPointSizePixels(size: number): void {
     this.ensureAlive();
     assertPixelSize("pointSizePixels", size);
     if (this.pointSizePixels === size) return;
@@ -345,7 +374,7 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  setNodeSizePixels(size: number): void {
+  private setNodeSizePixels(size: number): void {
     this.ensureAlive();
     assertPixelSize("nodeSizePixels", size);
     if (this.nodeSizePixels === size) return;
@@ -354,34 +383,17 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  setEdgeDepthTest(enabled: boolean): void {
+  private setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.renderer.setEdgeDepthTest(enabled);
     this.invalidate();
   }
 
-  setPartVisible(partId: PartId, visible: boolean): void {
-    this.ensureAlive();
-    this.visibility.setPartVisible(partId, visible);
-  }
-  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
-    this.ensureAlive();
-    this.visibility.setAssemblyOccurrenceVisible(occurrenceId, visible);
-  }
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
-    this.ensureAlive();
-    this.visibility.setAssemblyVisible(assemblyId, visible);
-  }
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): void {
-    this.ensureAlive();
-    this.visibility.setInstanceVisible(instanceId, visible);
-  }
-
-  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
+  private pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
     this.ensureAlive();
     return this.renderer.pick(x, y, granularity);
   }
-  pickRegion(
+  private pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
   ): Promise<readonly InteractionTarget[]> {
@@ -450,12 +462,5 @@ class ViewportCore implements Viewport {
 
   private ensureAlive(): void {
     this.lifecycle.ensureAlive();
-  }
-}
-
-function assertPixelSize(name: string, value: number | undefined): void {
-  if (value === undefined) return;
-  if (!Number.isFinite(value) || value < 1 || value > 64) {
-    throw new RangeError(`${name} must be finite and in [1, 64] CSS pixels`);
   }
 }

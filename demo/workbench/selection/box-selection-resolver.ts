@@ -27,7 +27,7 @@ export class BoxSelectionResolverContractError extends TypeError {
 
 /** Creates the default nearest-visible resolver around the active viewport. */
 export function visibleSurfaceBoxSelectionResolver(viewport: () => Viewport): BoxSelectionResolver {
-  return ({ event, granularity }) => viewport().pickRegion(event.rect, granularity);
+  return ({ event, granularity }) => viewport().interaction.pickRegion(event.rect, granularity);
 }
 
 /** Verifies custom candidates at the boundary before selection policy consumes them. */

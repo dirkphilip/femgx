@@ -28,10 +28,10 @@ describe("workbench select all", () => {
   });
 });
 
-function fakeViewport(interaction: Viewport["interaction"]): Viewport {
+function fakeViewport(interaction: Viewport["interaction"]["state"]): Viewport {
   const part = mixedPart();
   return {
-    interaction,
+    interaction: { state: interaction } as Viewport["interaction"],
     scene: { parts: new Map([[part.id, part]]) },
     runtime: {
       getVisibleInstanceIds: () => [instanceId],

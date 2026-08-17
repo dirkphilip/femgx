@@ -93,17 +93,94 @@ export interface ViewportOptions {
   readonly fitContentInset?: () => CameraContentInset;
 }
 
+/** Camera navigation and focus operations owned by one viewport. */
+export interface ViewportView {
+  /** Current immutable camera value. */
+  readonly camera: Camera;
+  /** Replaces the camera, optionally over a finite transition. */
+  setCamera(camera: Camera, options?: CameraTransitionOptions): void;
+  /** Fits the full placed scene in the viewport. */
+  fit(options?: CameraTransitionOptions): void;
+  /** Fits the currently selected targets, or the scene when none are selected. */
+  fitSelection(options?: CameraTransitionOptions): void;
+}
+
+/** Interaction state and physical picking operations owned by one viewport. */
+export interface ViewportInteraction {
+  /** Current immutable host interaction snapshot. */
+  readonly state: InteractionState;
+  /** Replaces the immutable host interaction snapshot. */
+  set(interaction: InteractionState): void;
+  /** Reads the topmost rendered target at canvas CSS coordinates. */
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
+  /** Resolves unique visible targets intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]>;
+}
+
+/** Visibility mutations against the active scene and expanded runtime. */
+export interface ViewportVisibility {
+  /**
+   * Changes live visibility for every occurrence of one part definition.
+   * @throws {UnknownSceneIdentityError} when `partId` is not registered.
+   */
+  setPart(partId: PartId, visible: boolean): void;
+  /**
+   * Changes live visibility for one expanded assembly occurrence.
+   * @throws {UnknownSceneIdentityError} when `occurrenceId` is absent.
+   */
+  setAssemblyOccurrence(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
+  /**
+   * Changes live visibility for every expanded occurrence of one assembly definition.
+   * @throws {UnknownSceneIdentityError} when `assemblyId` is not registered.
+   */
+  setAssembly(assemblyId: AssemblyId, visible: boolean): void;
+  /**
+   * Changes live visibility for one expanded placed-part occurrence.
+   * @throws {UnknownSceneIdentityError} when `instanceId` is absent.
+   */
+  setInstance(instanceId: InstanceId, visible: boolean): void;
+}
+
+/** Authored result state and atomic result replacement operations. */
+export interface ViewportResults {
+  /** Current resolved authored result snapshot, or `undefined` when cleared. */
+  readonly state: ViewportResultsState | undefined;
+  /** Atomically replaces the active authored result snapshot. */
+  set(results: ViewportResultsConfig): void;
+  /** Clears every active authored result role. */
+  clear(): void;
+}
+
+/** Renderer-owned presentation and clipping controls. */
+export interface ViewportPresentation {
+  /** Current world-space clipping plane, or `undefined` when clipping is cleared. */
+  readonly sectionPlane: SectionPlane | undefined;
+  /** Clips scene geometry to the positive side of one world-space plane. */
+  setSectionPlane(plane: SectionPlane): void;
+  /** Clears the active world-space section plane. */
+  clearSectionPlane(): void;
+  /** Updates the renderer-owned background presentation. */
+  setBackground(background: ViewportBackground): void;
+  /** Sets the point-element screen-space diameter in CSS pixels. */
+  setPointSizePixels(size: number): void;
+  /** Sets the FE node-annotation screen-space diameter in CSS pixels. */
+  setNodeSizePixels(size: number): void;
+  /** Enables or disables depth testing for rendered edges. */
+  setEdgeDepthTest(enabled: boolean): void;
+}
+
 /**
- * Canonical scene, camera, interaction, rendering, and lifecycle owner.
+ * Canonical scene, rendering, and lifecycle owner.
  *
  * `Viewport` is the sole public rendering lifecycle. It consumes one
  * immutable {@link Scene}, owns its derived live {@link SceneRuntime}, and
- * exposes host-facing mutations for visibility, interaction, results, camera,
- * and structural scene updates. Runtime slots, GPU buffers, and renderer
- * construction are intentionally not public API.
+ * exposes stable, non-owning capability facades for camera/navigation,
+ * interaction/picking, visibility, results, and presentation. Runtime slots,
+ * GPU buffers, and renderer construction are intentionally not public API.
  *
- * Picking returns physical hits; use {@link interactionTargetFromHit} to map a
- * hit to the stable target identity that the host wants to select or hover.
  * Call {@link destroy} when the host removes the viewport. `destroy` releases
  * viewport-owned listeners and resources; listeners installed by the host must
  * be removed by the host.
@@ -119,18 +196,16 @@ export interface Viewport {
    * slots or renderer draw order.
    */
   readonly runtime: SceneRuntime;
-  /** Current immutable camera value; use {@link setCamera} to replace it. */
-  readonly camera: Camera;
-  /** Current immutable interaction snapshot; use {@link setInteraction} to replace it. */
-  readonly interaction: InteractionState;
-  /** Current resolved authored result snapshot, or `undefined` when cleared. */
-  readonly results: ViewportResultsState | undefined;
-  /** Current world-space clipping plane, or `undefined` when clipping is cleared. */
-  readonly sectionPlane: SectionPlane | undefined;
-  /** Sets the point-element screen-space diameter in CSS pixels. */
-  setPointSizePixels(size: number): void;
-  /** Sets the FE node-annotation screen-space diameter in CSS pixels. */
-  setNodeSizePixels(size: number): void;
+  /** Stable camera and navigation capability view. */
+  readonly view: ViewportView;
+  /** Stable interaction and picking capability view. */
+  readonly interaction: ViewportInteraction;
+  /** Stable scene visibility capability view. */
+  readonly visibility: ViewportVisibility;
+  /** Stable authored results capability view. */
+  readonly results: ViewportResults;
+  /** Stable renderer presentation capability view. */
+  readonly presentation: ViewportPresentation;
   /**
    * Applies a structural scene update while preserving the camera and valid
    * placement-scoped state; invalid interaction references are pruned.
@@ -142,67 +217,12 @@ export interface Viewport {
   updateScene(scene: Scene): SceneUpdateOutcome;
   /** Replaces the scene and resets placement-scoped state; re-read {@link runtime}. */
   setScene(scene: Scene): void;
-  /** Applies a camera change, optionally over a finite transition. */
-  setCamera(camera: Camera, options?: CameraTransitionOptions): void;
-  /** Fits the full placed scene in the viewport. */
-  fitView(options?: CameraTransitionOptions): void;
-  /** Fits the currently selected targets, or the scene when none are selected. */
-  fitSelection(options?: CameraTransitionOptions): void;
-  /**
-   * Replaces the immutable host interaction snapshot and synchronizes the
-   * renderer. Use {@link setTargetSelected}, {@link setTargetsSelected},
-   * {@link setTargetHighlighted}, or {@link setTargetsHighlighted} to build
-   * duplicate-safe transitions before installing them here; this method does
-   * not mutate the supplied snapshot.
-   */
-  setInteraction(interaction: InteractionState): void;
   /**
    * Groups synchronous mutations into one deferred invalidation and render.
    * This coalesces viewport work only; it does not replace immutable bulk
    * interaction helpers such as {@link setTargetsSelected}.
    */
   batch<T>(operation: () => T): T;
-  /** Atomically replaces the active authored scalar/deformation/vector result snapshot. */
-  setResults(results: ViewportResultsConfig): void;
-  /** Clears every active authored result role. */
-  clearResults(): void;
-  /** Clips scene geometry to the positive side of one world-space plane. */
-  setSectionPlane(plane: SectionPlane): void;
-  /** Clears the active world-space section plane. */
-  clearSectionPlane(): void;
-  /** Updates the renderer-owned background presentation. */
-  setBackground(background: ViewportBackground): void;
-  /** Enables or disables depth testing for rendered edges. */
-  setEdgeDepthTest(enabled: boolean): void;
-  /** Changes live visibility for every occurrence of one part definition. */
-  setPartVisible(partId: PartId, visible: boolean): void;
-  /** Changes live visibility for one expanded assembly occurrence. */
-  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
-  /** Changes live visibility for every expanded occurrence of one assembly definition. */
-  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
-  /** Changes live visibility for one expanded placed-part occurrence. */
-  setInstanceVisible(instanceId: InstanceId, visible: boolean): void;
-  /**
-   * Reads the topmost rendered target at canvas CSS coordinates.
-   *
-   * The optional `"edge"` granularity requests authored FE-edge identity;
-   * tessellation diagonals are never returned as edges. The promise resolves
-   * to `undefined` when no visible rendered target is under the coordinate.
-   */
-  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
-  /**
-   * Resolves unique visible targets intersecting a canvas-space rectangle.
-   *
-   * This is nearest-visible GPU region discovery and does not mutate selection.
-   * A host that needs element Through selection should combine
-   * {@link boxSelectionFrustum} with authoritative placed FE geometry instead;
-   * that host-side query ignores raster occlusion while respecting scene
-   * visibility, section planes, deformation, and occurrence transforms.
-   */
-  pickRegion(
-    rect: BoxSelectionRect,
-    granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]>;
   /** Synchronizes the canvas backing size with its host layout. */
   resize(): void;
   /** Schedules one render without changing scene or interaction state. */
@@ -216,3 +236,11 @@ export interface Viewport {
   /** Returns lightweight visible-instance and draw-batch counts. */
   stats(): { readonly visibleInstances: number; readonly drawBatches: number };
 }
+
+/**
+ * A visibility identity was not present in the active viewport scene/runtime.
+ * Catch this error to distinguish a stale or misspelled host id from a valid
+ * visibility no-op.
+ * @category Viewport lifecycle
+ */
+export type { UnknownSceneIdentityError } from "./visibility-error";

@@ -33,9 +33,9 @@ export function applyResultState(options: ResultStateOptions): void {
     playback: options.playback,
   });
   if (roles === undefined) {
-    options.viewport.clearResults();
+    options.viewport.results.clear();
   } else {
-    options.viewport.setResults(roles);
+    options.viewport.results.set(roles);
   }
   options.reflect();
 }
@@ -100,6 +100,6 @@ export function applyDisplayState(options: DisplayStateOptions): void {
   }
   options.setInteraction(state);
   options.applyDisplayedInteraction();
-  options.viewport.setEdgeDepthTest(true);
+  options.viewport.presentation.setEdgeDepthTest(true);
   options.reflect();
 }
