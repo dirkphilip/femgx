@@ -51,7 +51,7 @@ ordinary rendering path small and makes ownership visible in application code.
 | ---------------- | --------------------------------------------------------------------------------- |
 | `femgx`          | Parts, scenes, viewport lifecycle, interaction, picking, results, and common math |
 | `femgx/model`    | FE elements, typed models, `elementPart`, `surfacePart`, shapes, faces, and edges |
-| `femgx/io`       | Serializable FEM models, validation, diagnostics, VTK, and result conversion      |
+| `femgx/io`       | Serializable FEM models, validation, diagnostics, and result conversion           |
 | `femgx/io/glb`   | Self-contained GLB 2.0 display-scene import                                       |
 | `femgx/camera`   | Camera construction, fitting, projection, coordinates, and custom controls        |
 | `femgx/runtime`  | Intentional standalone CPU runtime inspection                                     |
@@ -530,31 +530,32 @@ The vector role is deliberately bounded: authored elemental data only,
 does not compute engineering vectors, magnitudes, tensor glyphs, legends, or
 playback controls.
 
-## Workflow 6: import VTK, convert results, and render
+## Workflow 6: ingest a host-supplied FE model
 
-`femgx/io` owns the ASCII VTK legacy adapter. `parseVtk` returns a `FemModel`
-and diagnostics; it does not return a ready viewport scene. Convert the model
-to the typed render model, compile a part, then follow the normal scene path:
+`femgx/io` provides a serializable `FemModel` staging boundary for hosts that
+already own model ingestion. Validate the payload, convert it once to the typed
+render model, compile a part, and follow the normal scene path:
 
 ```ts
 import { createFemViewport, createScene, identity } from "femgx";
-import { createElementModelFromFemModel, parseVtk } from "femgx/io";
-import { elementPart } from "femgx/model";
+import { createElementModelFromFemModel, createModelBuilder, validateModel } from "femgx/io";
+import { TRIANGLE_SHAPE, elementPart } from "femgx/model";
 
-const vtkText = await fetch("/models/plate.vtk").then((response) => {
-  if (!response.ok) throw new Error(`VTK request failed: ${response.status}`);
-  return response.text();
-});
-const parsed = parseVtk(vtkText, { strict: true });
-// strict mode throws IoError for malformed/unsupported input; non-strict mode
-// returns parsed.model plus parsed.issues for host diagnostics.
-const model = createElementModelFromFemModel(parsed.model);
-const part = elementPart(70, model);
+const builder = createModelBuilder();
+builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+builder.openElementShapeBlock(TRIANGLE_SHAPE);
+builder.appendElements([100], [0, 1, 2]);
+const model = builder.build();
+const issues = validateModel(model);
+if (issues.some((issue) => issue.severity === "error")) {
+  throw new Error("Invalid host-supplied model");
+}
+const part = elementPart(70, createElementModelFromFemModel(model));
 const scene = createScene()
   .addPart(part)
   .addAssembly({
     id: 71,
-    name: "VTK plate",
+    name: "host model",
     placements: [{ kind: "part", partId: part.id, transform: identity() }],
   })
   .withRoot(71)
@@ -562,27 +563,10 @@ const scene = createScene()
 const viewport = await createFemViewport({ canvas, scene });
 ```
 
-VTK node ids must be in coordinate order for `createElementModelFromFemModel`;
-the conversion preserves element ids and creates dense single-precision
-coordinates for rendering. VTK is the FE interchange path, not the GLB path.
-If VTK contains scalar or vector result arrays, convert one explicitly:
-
-```ts
-import { createResultFieldFromModelResult } from "femgx/io";
-
-const temperatureResult = parsed.model.results.find((result) => result.name === "Temperature");
-if (temperatureResult === undefined) throw new Error("Missing Temperature result");
-const temperature = createResultFieldFromModelResult(parsed.model, temperatureResult, {
-  id: "temperature",
-  unit: "degC",
-  shape: "scalar",
-});
-viewport.setResults({ scalar: { field: temperature } });
-```
-
-The conversion maps source node ids to dense nodal indices and keeps elemental
-identity addressable by element id. A vector conversion is only valid for a
-three-component nodal result and can then be used as the deformation field.
+Node ids must be dense and in coordinate order for the conversion. Element ids
+remain authored identities, and the conversion creates dense single-precision
+coordinates for rendering. Host-supplied result fields can be converted with
+`createResultFieldFromModelResult` before calling `viewport.setResults()`.
 
 ## Workflow 7: import a GLB display scene
 

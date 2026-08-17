@@ -118,7 +118,7 @@
     data-testid="model-file"
     class="visually-hidden"
     type="file"
-    accept=".vtk,.glb,text/plain,model/gltf-binary"
+    accept=".glb,model/gltf-binary"
     tabindex="-1"
     bind:this={modelFileInput}
     onchange={openSelectedModel}

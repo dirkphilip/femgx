@@ -1,8 +1,8 @@
 /**
  * Extraction of element faces as oriented polygon loops.
  *
- * Volume shapes (tet/wedge/pyramid/hex) have a fixed set of faces taken from the VTK
- * convention, listed as corner loops whose right-hand-rule winding gives an
+ * Volume shapes (tet/wedge/pyramid/hex) have a fixed set of faces in the
+ * canonical convention, listed as corner loops whose right-hand-rule winding gives an
  * outward normal for a right-handed (positive-Jacobian) element. Quadratic
  * shapes expand each face with its mid-edge nodes, interleaving corners and
  * mid-edge nodes around the loop, so coincident faces share one canonical

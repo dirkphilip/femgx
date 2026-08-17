@@ -6,21 +6,20 @@ import type { FemModel } from "../fem-model";
 import { validateModel } from "../model-validation";
 
 /**
- * Converts one serializable interchange model into the dense render model used
- * by {@link model.elementPart} tessellation.
+ * Converts one host-supplied serializable model into the dense render model
+ * used by {@link model.elementPart} tessellation.
  *
  * The interchange node table must already use ids in coordinate order
- * (`0..count - 1`). Validation is shared with the VTK/model boundary; errors
- * are reported as {@link IoError} rather than producing a partially renderable
+ * (`0..count - 1`). Validation is performed at the model boundary; errors are
+ * reported as {@link IoError} rather than producing a partially renderable
  * part. The conversion preserves element ids and shape blocks while allocating
  * the renderer-facing `Float32Array` coordinate table once.
- * @example Complete VTK-to-part handoff.
+ * @example Complete host-model-to-part handoff.
  * ```ts
- * import { createElementModelFromFemModel, parseVtk } from "femgx/io";
+ * import { createElementModelFromFemModel } from "femgx/io";
  * import { elementPart } from "femgx/model";
  *
- * const parsed = parseVtk(vtkText, { strict: true });
- * const part = elementPart(10, createElementModelFromFemModel(parsed.model));
+ * const part = elementPart(10, createElementModelFromFemModel(model));
  * ```
  * @category Import and export
  */

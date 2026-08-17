@@ -180,7 +180,7 @@ describe("startWebGpuDemo", () => {
 
     await startWebGpuDemo(startOptions(fakeCanvas()));
 
-    expect(mocks.receivedPresets).toHaveLength(7);
+    expect(mocks.receivedPresets).toHaveLength(6);
     expect(mocks.receivedPresets.some((model) => model.id === "unique-250k")).toBe(false);
   });
 

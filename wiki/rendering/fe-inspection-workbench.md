@@ -10,8 +10,8 @@ controller, so camera and interaction behavior is stable
 
 ## Model presets
 
-- `demo/fixtures/presets.ts` builds seven deterministic product-story cases from fixed data:
-  the **bolted plate assembly**, imported **VTK sample**, **element tessellation and mapping gallery**,
+- `demo/fixtures/presets.ts` builds six deterministic product-story cases from fixed data:
+  the **bolted plate assembly**, **element tessellation and mapping gallery**,
   linearly tessellated **Hex20 cylinder**, **section-plane volume**, **static results** workflow, and
   **order-independent transparency** demonstration. Every preset is derived from fixed data, so the demo
   and tests share identical structure.

@@ -45,27 +45,3 @@ export class IoError extends Error {
     this.issues = issues ?? [];
   }
 }
-
-/**
- * Stable failure categories emitted by the VTK writer boundary.
- * @category Import and export
- */
-export type VtkWriteErrorCode =
-  | "invalid-model"
-  | "incomplete-result-coverage"
-  | "duplicate-result-identity"
-  | "unsupported-writer-state";
-
-/**
- * Typed error thrown when a FemModel cannot be represented safely as VTK.
- * @category Import and export
- */
-export class VtkWriteError extends IoError {
-  readonly code: VtkWriteErrorCode;
-
-  constructor(code: VtkWriteErrorCode, message: string, issues?: readonly Issue[]) {
-    super(message, issues ?? [{ code, severity: "error", message }]);
-    this.name = "VtkWriteError";
-    this.code = code;
-  }
-}

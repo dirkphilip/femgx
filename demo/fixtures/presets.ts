@@ -15,7 +15,6 @@ import { createElementFixture, createHex20CylinderFixture } from "./element-fixt
 import { sceneBounds } from "../scene-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
-import { createVtkFixture } from "./vtk-fixture";
 
 /** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
@@ -95,24 +94,6 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.mixed, "Mixed point, line, and triangle element"],
     ]),
     bounds: sceneBounds(fixture.scene),
-  };
-}
-
-/** Builds the imported ASCII VTK finite-element sample. */
-export function createVtkPreset(): ModelPreset {
-  const fixture = createVtkFixture();
-  const { solid } = fixture.partIds;
-  return {
-    id: "vtk",
-    name: "Imported VTK sample",
-    scene: fixture.scene,
-    elementModels: fixture.elementModels,
-    partColors: new Map<PartId, Color>([[solid, { r: 0.23, g: 0.57, b: 0.84, a: 1 }]]),
-    fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
-    partNames: new Map<PartId, string>([[solid, "VTK Hex8 exterior"]]),
-    bounds: sceneBounds(fixture.scene),
-    results: fixture.results,
-    resultScalarFields: fixture.resultScalarFields,
   };
 }
 
@@ -248,7 +229,6 @@ export function createModelPresets(
 ): readonly ModelPreset[] {
   return [
     createBoltedPlatePreset(),
-    createVtkPreset(),
     createGalleryPreset(),
     createHex20CylinderPreset(),
     createSectionPlanePreset(),

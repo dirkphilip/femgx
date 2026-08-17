@@ -15,7 +15,7 @@ performance budget is measured separately without coverage instrumentation.
 | Scene and runtime           | `test/scene`, `test/scene-runtime`               | Hierarchy validation, packed state, culling, batching, and stress budgets                             |
 | Interaction and picking     | `test/interaction`, `test/picking`               | Immutable state, precedence, adjacency, and GPU-id resolution                                         |
 | Renderer and platform       | `test/renderer`, `test/platform`                 | Fake-device lifecycle, buffer writes, shaders, picking, and unsupported paths                         |
-| IO                          | `test/io`                                        | VTK round trips, diagnostics, validation, and malformed input                                         |
+| IO                          | `test/io`                                        | Model builder, conversions, diagnostics, validation, and malformed input                              |
 | Viewport and public API     | `test/viewport`, `test/public-api`               | Canonical facade workflow and deliberate root exports                                                 |
 | Demo fixtures and workbench | `test/demo`, `test/demo/ui-interactions.test.ts` | Fixture construction, plain-core transitions, Svelte bindings, lifecycle cleanup, and preset behavior |
 | Engineering safeguards      | `test/scripts`, `test/bench`                     | Repository policy and deterministic CPU budgets                                                       |
@@ -46,10 +46,8 @@ lifecycle behavior remains in the Playwright suites. The local
 - Removed a stale `results.spec.ts` reference from the smoke-suite comment;
   static results coverage is owned by `test/results`, viewport tests, and
   `e2e/demo/demo-results.spec.ts`.
-- No test asserts the removed CPU renderer, library-owned `CasePlayer`, non-VTK
-  adapters, or streaming subsystem. Mentions of those terms in policy tests and
-  authoritative scope notes are intentional contract/deletion checks, not obsolete
-  product expectations. Host-driven authored snapshot sequencing continues to
+- No test asserts the removed CPU renderer, library-owned `CasePlayer`, solver
+  file adapters, or streaming subsystem. Host-driven authored snapshot sequencing continues to
   use the tested repeated-`setResults()` boundary.
 - No coverage threshold was lowered and no retained test was deleted solely to
   improve runtime or reported coverage. New feature issues must add focused

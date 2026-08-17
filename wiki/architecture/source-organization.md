@@ -32,9 +32,8 @@ canonical description.
   and renderer-independent pick target types. It may depend on scene,
   geometry, elements, and math.
 - `src/platform/` — explicit WebGPU unsupported/error reporting with typed reasons (`capabilities.ts`), plus device request, loss reporting, and re-creation focused on the supported path (`device.ts`); see [[rendering/platform-support|Platform support]].
-- `src/io/` — VTK legacy interchange and the narrow GLB display-scene importer.
-  Shared model contracts and validation live at the IO root; VTK parser/writer
-  modules live under `io/vtk/`, GLB importer modules under `io/glb/`, and
+- `src/io/` — generic model contracts, validation, conversions, and the narrow
+  GLB display-scene importer. GLB importer modules live under `io/glb/`, and
   interchange-to-runtime conversions under `io/conversions/`.
 - `src/renderer/` — WebGPU renderer split by responsibility: `frame/` owns
   command encoding and frame resources, `resources/` owns reusable GPU buffers,

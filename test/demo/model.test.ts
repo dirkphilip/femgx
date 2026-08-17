@@ -40,15 +40,15 @@ describe("demo workbench model boundary", () => {
       results: preset.results,
       issues: [],
     } as const;
-    expect(importFeedback("model.vtk", base)).toBe("Opened model.vtk.");
+    expect(importFeedback("model.glb", base)).toBe("Opened model.glb.");
     expect(
-      importFeedback("model.vtk", {
+      importFeedback("model.glb", {
         ...base,
         issues: [{ code: "ignored", severity: "warning", message: "Ignored field" }],
       }),
     ).toContain("with 1 warning: Ignored field");
     expect(
-      importFeedback("model.vtk", {
+      importFeedback("model.glb", {
         ...base,
         issues: [
           { code: "one", severity: "warning", message: "First" },
@@ -60,7 +60,7 @@ describe("demo workbench model boundary", () => {
 
   it("keeps imported identity and applies topology-aware display overrides", () => {
     const preset = createBoltedPlatePreset();
-    const imported = createImportedModel("opened.vtk", {
+    const imported = createImportedModel("opened.glb", {
       scene: preset.scene,
       elementModels: preset.elementModels,
       partNames: preset.partNames,
@@ -69,7 +69,7 @@ describe("demo workbench model boundary", () => {
       results: preset.results,
       issues: [],
     });
-    expect(imported).toMatchObject({ id: "opened-model", name: "opened.vtk", source: "file" });
+    expect(imported).toMatchObject({ id: "opened-model", name: "opened.glb", source: "file" });
 
     const gallery = createExampleModel(createGalleryPreset());
     const pointPart = [...gallery.scene.parts.values()].find(

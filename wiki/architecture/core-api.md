@@ -113,7 +113,7 @@ while renderer-owned edge helpers retain their separate line-list path.
 | Camera      | `femgx/camera`: `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                                   | Immutable camera values and projection/navigation math.                                                                                                                                                                           |
 | Picking     | `FemViewport.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                                      | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                                             | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                                                               |
-| IO          | `femgx/io`: `parseVtk`, `writeVtk`, `validateModel`, `createResultFieldFromModelResult`                                                                                                                                                  | The single supported VTK legacy interchange boundary, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                    |
+| IO          | `femgx/io`: `createModelBuilder`, `validateModel`, `createElementModelFromFemModel`, `createResultFieldFromModelResult`                                                                                                                  | Host-supplied serializable model staging, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                                |
 | Platform    | `femgx/platform`: `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                                  | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                                                             |
 
 ## Ownership and identity rules
@@ -143,8 +143,8 @@ while renderer-owned edge helpers retain their separate line-list path.
   after `setScene` or `updateScene` and never manually synchronize packed
   runtime state.
 
-For imported data, `createElementModelFromFemModel` is the validated conversion
-from the serializable VTK-backed `FemModel` into the dense `ElementModel`
+For host-supplied data, `createElementModelFromFemModel` is the validated
+conversion from the serializable `FemModel` into the dense `ElementModel`
 consumed by element tessellation. Hosts then call
 `elementPart` once and register the returned semantic part in an `Assembly`;
 its homogeneous primitive groups remain internal draw partitions, not

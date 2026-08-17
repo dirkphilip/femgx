@@ -97,7 +97,7 @@ The large browser surfaces are partitioned by ownership rather than by runner:
   and target/view context-menu semantics.
 - `e2e/demo/demo-interaction.spec.ts` — selection, inspection, edge controls, and
   the smallest context-menu selection routes.
-- `e2e/demo/demo-import.spec.ts` — GLB/VTK file input, import errors, reset, and
+- `e2e/demo/demo-import.spec.ts` — GLB file input, import errors, reset, and
   responsive source controls.
 - `e2e/demo/mobile.spec.ts` — phone drawer, reachable controls, stacked viewport routing,
   overflow, context menus, and exposed-canvas layout.
