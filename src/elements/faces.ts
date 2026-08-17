@@ -37,6 +37,7 @@ export interface ElementFace {
  * @category Elements and model editing
  */
 export interface FaceIdRef {
+  /** Authored element owning the face. */
   readonly elementId: ElementId;
   /** Index of the face within the element's canonical face list. */
   readonly faceIndex: number;
@@ -53,6 +54,7 @@ export type FaceSelectionErrorCode = "invalid-element-id" | "invalid-face-index"
  * @category Elements and model editing
  */
 export class FaceSelectionError extends Error {
+  /** Machine-readable face-selection validation code. */
   readonly code: FaceSelectionErrorCode;
 
   constructor(code: FaceSelectionErrorCode, message: string) {
@@ -67,6 +69,7 @@ export class FaceSelectionError extends Error {
  * @category Elements and model editing
  */
 export interface ElementFaceRef extends FaceIdRef {
+  /** Oriented face topology. */
   readonly face: ElementFace;
 }
 
@@ -87,7 +90,9 @@ export function facesOfElement(element: Element): readonly ElementFaceRef[] {
  * @category Elements and model editing
  */
 export interface ClassifiedFace {
+  /** One element incident to the face. */
   readonly elementId: ElementId;
+  /** Canonical identity shared by coincident faces. */
   readonly key: FaceKey;
   /** The oriented loop for this element's copy of the face. */
   readonly nodeIds: readonly NodeId[];

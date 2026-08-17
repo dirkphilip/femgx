@@ -8,15 +8,57 @@ import type { InstanceId } from "../scene/types";
  * @category Interaction and picking
  */
 export type InteractionTarget =
-  | { readonly kind: "part"; readonly partId: PartId }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId }
-  | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId }
-  | { readonly kind: "element"; readonly instanceId: InstanceId; readonly elementId: ElementId }
   | {
-      readonly kind: "face";
+      /** Part-level interaction target. */
+      readonly kind: "part";
+      /** Stable reusable part identifier. */
+      readonly partId: PartId;
+    }
+  | {
+      /** Placed-instance interaction target. */
+      readonly kind: "instance";
+      /** Stable expanded instance identifier. */
       readonly instanceId: InstanceId;
+    }
+  | {
+      /** Body-occurrence interaction target. */
+      readonly kind: "body";
+      /** Stable expanded instance identifier. */
+      readonly instanceId: InstanceId;
+      /** Stable body identifier within the part. */
+      readonly bodyId: BodyId;
+    }
+  | {
+      /** Element-occurrence interaction target. */
+      readonly kind: "element";
+      /** Stable expanded instance identifier. */
+      readonly instanceId: InstanceId;
+      /** Stable authored element identifier. */
       readonly elementId: ElementId;
+    }
+  | {
+      /** Face-occurrence interaction target. */
+      readonly kind: "face";
+      /** Stable expanded instance identifier. */
+      readonly instanceId: InstanceId;
+      /** Stable authored element identifier. */
+      readonly elementId: ElementId;
+      /** Zero-based face index in the element's canonical topology. */
       readonly faceIndex: number;
     }
-  | { readonly kind: "node"; readonly instanceId: InstanceId; readonly nodeId: NodeId }
-  | { readonly kind: "edge"; readonly instanceId: InstanceId; readonly key: EdgeKey };
+  | {
+      /** Node-occurrence interaction target. */
+      readonly kind: "node";
+      /** Stable expanded instance identifier. */
+      readonly instanceId: InstanceId;
+      /** Stable authored node identifier. */
+      readonly nodeId: NodeId;
+    }
+  | {
+      /** Authored-edge occurrence interaction target. */
+      readonly kind: "edge";
+      /** Stable expanded instance identifier. */
+      readonly instanceId: InstanceId;
+      /** Canonical authored edge key. */
+      readonly key: EdgeKey;
+    };

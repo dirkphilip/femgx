@@ -1,15 +1,82 @@
-# FemGx API reference
+# FemGx · build a WebGPU model viewer
 
-This is the workflow-first guide to the experimental FemGx 0.x API. The
-generated pages below this introduction document every exported symbol, but
-the examples here are the useful starting point: each one follows data from
-authoring or import through a `Scene` and into one `Viewport`.
+> **The shortest path to a rendered model**
+>
+> `model → reusable Part → hierarchical Scene → Viewport`
 
-The package is intentionally WebGPU-only. A browser without a working WebGPU
+Welcome to the FemGx 0.x API reference. This page is the friendly front door;
+the generated symbol reference begins below it. Start with the five-minute
+workflow, then jump to the focused recipes when you need interaction, results,
+camera control, or import.
+
+<div class="femgx-hero-links">
+  <a class="femgx-card" href="#five-minute-workflow"><span class="femgx-card-kicker">01 · Start here</span><strong>Render a typed FE part</strong><span>Create one model, place it once, and hand it to a viewport.</span></a>
+  <a class="femgx-card" href="#the-mental-model"><span class="femgx-card-kicker">02 · Understand</span><strong>Follow ownership</strong><span>See where geometry, placement, identity, and GPU state live.</span></a>
+  <a class="femgx-card" href="#workflow-4-viewport-lifecycle-picking-and-structural-updates"><span class="femgx-card-kicker">03 · Compose</span><strong>Add interaction</strong><span>Pick, select, hide, update, recover, and keep host policy in your app.</span></a>
+</div>
+
+FemGx is intentionally WebGPU-only. A browser without a working WebGPU
 device receives a typed unsupported result or error; there is no CPU renderer
-or compatibility backend. The public API is also intentionally unstable in
-0.x, so treat these examples as the current contract rather than a promise of
-backwards compatibility.
+or compatibility backend. The public API is intentionally unstable in 0.x, so
+treat these examples as the current contract rather than a promise of backwards
+compatibility.
+
+## Five-minute workflow
+
+This is the complete happy path for a small finite-element plate. The model is
+authored once, compiled into reusable geometry once, and then placed through a
+scene. Paste the snippet into a browser module after adding a canvas with the
+id `femgx-viewport`.
+
+```ts
+import { createScene, createViewport, identity } from "femgx";
+import { ElementShape, createElement, createElementModel, elementPart } from "femgx/model";
+
+const model = createElementModel(
+  new Float32Array([
+    0,
+    0,
+    0, // node 0
+    1,
+    0,
+    0, // node 1
+    1,
+    1,
+    0, // node 2
+    0,
+    1,
+    0, // node 3
+  ]),
+  [
+    createElement(100, ElementShape.Triangle, [0, 1, 2]),
+    createElement(101, ElementShape.Triangle, [0, 2, 3]),
+  ],
+  { bodies: [{ id: 1, name: "plate", elementIds: [100, 101] }] },
+);
+const plate = elementPart(10, model);
+
+const scene = createScene()
+  .addPart(plate)
+  .addAssembly({
+    id: 20,
+    name: "root",
+    placements: [{ kind: "part", partId: plate.id, transform: identity() }],
+  })
+  .withRoot(20)
+  .build();
+
+const canvas = document.querySelector<HTMLCanvasElement>("#femgx-viewport");
+if (canvas === null) throw new Error("Missing #femgx-viewport canvas");
+const viewport = await createViewport({ canvas, scene });
+
+viewport.view.fit();
+// When the host removes the canvas, call viewport.destroy() once.
+```
+
+`createViewport` is asynchronous because it requests a real WebGPU adapter and
+device. Keep the viewport for as long as the canvas is mounted; call
+`destroy()` when the host removes it. For a non-throwing capability check before
+loading data, jump to [WebGPU support and recovery](#webgpu-support-and-recovery).
 
 ## The mental model
 
@@ -244,20 +311,23 @@ identities used by element picking, selection, and elemental result fields.
 This split is why the host authors FE semantics once and does not manually
 maintain renderer triangles.
 
-Bodies and blocks are optional model metadata. A block-defined body aggregates
-blocks, while a body with direct `elementIds` owns those elements directly; a
-body cannot mix both forms. For example:
+Bodies are optional model metadata. A body owns its elements directly through
+`elementIds`; omit `bodies` when the host does not need semantic groups. For
+example:
 
 ```ts
 const modelWithOwnership = createElementModel(nodes, elements, {
-  blocks: [
+  bodies: [
     { id: 7, name: "left half", elementIds: [100] },
     { id: 8, name: "right half", elementIds: [101] },
   ],
-  bodies: [{ id: 9, name: "plate", blockIds: [7, 8] }],
 });
 const ownedPart = elementPart(30, modelWithOwnership);
 ```
+
+There is no semantic block layer in the public model API. Import adapters may
+use private shape-grouping records while validating a payload, but those
+records do not become scene identities, visibility targets, or pick results.
 
 Keep the source model and part local to the application. The part owns the
 compiled arrays after `elementPart`; the viewport owns only the derived runtime

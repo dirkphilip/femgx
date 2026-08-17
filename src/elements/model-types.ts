@@ -8,8 +8,11 @@ export type BodyId = number;
 
 /** A non-overlapping, immutable group of authored finite elements. */
 export interface Body {
+  /** Stable body identifier. */
   readonly id: BodyId;
+  /** Optional host-facing display name. */
   readonly name?: string;
+  /** Elements directly owned by this body, in ascending order. */
   readonly elementIds: readonly ElementId[];
 }
 
@@ -18,5 +21,6 @@ export interface Body {
  * @category Elements and model editing
  */
 export interface ElementModelOptions {
+  /** Optional direct body ownership groups. */
   readonly bodies?: readonly Body[];
 }

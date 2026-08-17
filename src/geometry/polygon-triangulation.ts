@@ -19,6 +19,7 @@ export type SurfacePartValidationCode =
 
 /** Typed failure raised before invalid compact topology reaches a renderer. */
 export class SurfacePartError extends Error {
+  /** Machine-readable surface-part validation code. */
   readonly code: SurfacePartValidationCode;
 
   constructor(code: SurfacePartValidationCode, message: string) {

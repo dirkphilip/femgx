@@ -6,7 +6,9 @@ import type { WebGpuQueryOptions } from "./capabilities";
  * @category Advanced runtime and WebGPU platform
  */
 export interface RequestedWebGpuDevice {
+  /** Adapter selected for the device. */
   readonly adapter: GPUAdapter;
+  /** Supported WebGPU device owned by the caller. */
   readonly device: GPUDevice;
 }
 
@@ -48,6 +50,7 @@ export async function requestWebGpuDevice(
 export interface DeviceLostInfo {
   /** `"destroyed"` when the device was destroyed, otherwise `"unknown"`. */
   readonly reason: GPUDeviceLostReason;
+  /** Browser-provided diagnostic message for the loss. */
   readonly message: string;
 }
 

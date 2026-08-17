@@ -23,7 +23,9 @@ export type ViewportResultField = ScalarField<"nodal"> | ScalarField<"elemental"
  * @category Results
  */
 export interface ViewportDeformationConfig {
+  /** Authored three-component displacement at every model node. */
   readonly field: VectorField<"nodal">;
+  /** Presentation multiplier applied to the authored displacement vectors. */
   readonly scale?: number;
 }
 
@@ -38,10 +40,13 @@ export interface ViewportDeformationConfig {
  * @category Results
  */
 export interface ViewportScalarConfig {
+  /** Authored scalar values at nodes or elements. */
   readonly field: ViewportResultField;
   /** Optional reusable part receiving this field; omit for scene-wide ids. */
   readonly partId?: PartId;
+  /** Shared display range; omitted to derive a finite range from the field. */
   readonly range?: ValueRange;
+  /** Color map used to turn scalar values into surface colors. */
   readonly colorMap?: ScalarColorMap;
 }
 
@@ -54,11 +59,15 @@ export interface ViewportScalarConfig {
  * @category Results
  */
 export interface ViewportElementVectorConfig {
+  /** Authored three-component orientation vector for each element. */
   readonly field: VectorField<"elemental">;
   /** Optional reusable part owner; omitted fields apply to all rendered parts. */
   readonly partId?: PartId;
+  /** Renderer-owned glyph shape. */
   readonly glyph: "arrow" | "axis";
+  /** Interpret the vector as a directed axis or an unoriented normal. */
   readonly transform: "direction" | "normal";
+  /** Positive element-relative glyph length multiplier. */
   readonly lengthScale?: number;
   /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
   readonly widthPixels?: number;
@@ -66,8 +75,11 @@ export interface ViewportElementVectorConfig {
 
 /** Configuration for the renderer-owned RGB triad of an authored element frame. */
 export interface ViewportElementFrameConfig {
+  /** Authored orthonormal X/Y/Z frame for each element. */
   readonly field: ElementFrameField;
+  /** The frame presentation is always the RGB triad glyph. */
   readonly glyph: "triad";
+  /** Positive element-relative triad length multiplier. */
   readonly lengthScale?: number;
   /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
   readonly widthPixels?: number;
@@ -75,6 +87,7 @@ export interface ViewportElementFrameConfig {
 
 /** Configuration for authored nodal forces and moments. */
 export interface ViewportLoadConfig {
+  /** Authored nodal force and moment values. */
   readonly field: NodalLoadField;
   /** Part-local length units rendered per authored force unit. */
   readonly forceLengthScale?: number;
@@ -101,9 +114,13 @@ export interface ViewportLoadConfig {
  * @category Results
  */
 export interface ViewportResultsConfig {
+  /** Optional scalar coloring role. */
   readonly scalar?: ViewportScalarConfig;
+  /** Optional nodal deformation role. */
   readonly deformation?: ViewportDeformationConfig;
+  /** Optional authored elemental orientation role. */
   readonly vectors?: ViewportElementVectorConfig | ViewportElementFrameConfig;
+  /** Optional authored nodal force and moment role. */
   readonly loads?: ViewportLoadConfig;
 }
 
@@ -112,9 +129,13 @@ export interface ViewportResultsConfig {
  * @category Results
  */
 export interface ViewportScalarState {
+  /** Original scalar-role configuration. */
   readonly config: ViewportScalarConfig;
+  /** Validated scalar field installed for rendering. */
   readonly field: ViewportResultField;
+  /** Effective range used by the color mapper. */
   readonly range: ValueRange;
+  /** Effective color map used by the renderer. */
   readonly colorMap: ScalarColorMap;
 }
 
@@ -124,19 +145,31 @@ export interface ViewportScalarState {
  */
 export type ViewportElementVectorState =
   | {
+      /** Original vector-role configuration. */
       readonly config: ViewportElementVectorConfig;
+      /** Validated authored elemental vectors. */
       readonly field: VectorField<"elemental">;
+      /** Renderer-owned glyph shape. */
       readonly glyph: "arrow" | "axis";
+      /** Direction or normal interpretation selected by the host. */
       readonly transform: "direction" | "normal";
+      /** Resolved positive element-relative glyph length. */
       readonly lengthScale: number;
+      /** Resolved shaft width in CSS pixels. */
       readonly widthPixels: number;
     }
   | {
+      /** Original frame-role configuration. */
       readonly config: ViewportElementFrameConfig;
+      /** Validated authored elemental frames. */
       readonly field: ElementFrameField;
+      /** Renderer-owned RGB triad glyph. */
       readonly glyph: "triad";
+      /** Frame axes use the directed-axis transform. */
       readonly transform: "direction";
+      /** Resolved positive element-relative triad length. */
       readonly lengthScale: number;
+      /** Resolved shaft width in CSS pixels. */
       readonly widthPixels: number;
     };
 
@@ -145,9 +178,14 @@ export type ViewportElementVectorState =
  * @category Results
  */
 export interface ViewportResultsState {
+  /** Atomic configuration from the latest installed snapshot. */
   readonly config: ViewportResultsConfig;
+  /** Resolved scalar role, when scalar coloring is active. */
   readonly scalar: ViewportScalarState | undefined;
+  /** Resolved nodal deformation, when deformation is active. */
   readonly deformation: DeformationState | undefined;
+  /** Resolved elemental orientation role, when active. */
   readonly vectors: ViewportElementVectorState | undefined;
+  /** Resolved authored loads, when active. */
   readonly loads?: ViewportLoadConfig;
 }

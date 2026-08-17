@@ -1,0 +1,155 @@
+/* FemGx documentation skin: a quiet canvas for the generated TypeDoc UI. */
+:root {
+  --femgx-ink: #172033;
+  --femgx-muted: #53627a;
+  --femgx-line: #d9e1ec;
+  --femgx-paper: #f7f9fc;
+  --femgx-card: rgba(255, 255, 255, 0.88);
+  --femgx-blue: #2855d9;
+  --femgx-cyan: #0f9eaa;
+}
+
+body {
+  background-color: var(--femgx-paper);
+  background-image: radial-gradient(circle at 12% 0%, rgba(40, 85, 217, 0.1), transparent 34rem);
+}
+
+.tsd-page-toolbar {
+  border-bottom: 1px solid var(--femgx-line);
+  box-shadow: 0 0.35rem 1.2rem rgba(22, 35, 62, 0.07);
+  backdrop-filter: blur(14px);
+}
+
+.tsd-page-toolbar .title {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.container-main > .col-content > .tsd-page-title + .tsd-panel.tsd-typography {
+  max-width: 68rem;
+  padding: clamp(1.4rem, 3vw, 3.5rem);
+  border: 1px solid var(--femgx-line);
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 2.5rem rgba(22, 35, 62, 0.08);
+  background: var(--femgx-card);
+}
+
+/* The landing page supplies its own product headline; keep generated titles on symbol pages. */
+.col-content:has(.femgx-hero-links) > .tsd-page-title {
+  display: none;
+}
+
+.tsd-typography :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+
+.tsd-typography h1 {
+  color: var(--femgx-ink);
+  font-size: clamp(2.2rem, 5vw, 4.3rem);
+  letter-spacing: -0.055em;
+  line-height: 1.02;
+  max-width: 13ch;
+}
+
+.tsd-typography h2 {
+  color: var(--femgx-ink);
+  letter-spacing: -0.035em;
+}
+
+.tsd-typography blockquote {
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  border-left: 0.28rem solid var(--femgx-cyan);
+  border-radius: 0 0.65rem 0.65rem 0;
+  background: linear-gradient(90deg, rgba(15, 158, 170, 0.1), transparent);
+  color: var(--femgx-ink);
+}
+
+.femgx-hero-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 2rem 0 2.4rem;
+}
+
+.femgx-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: 9rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid var(--femgx-line);
+  border-radius: 0.85rem;
+  background: var(--femgx-card);
+  color: var(--femgx-ink);
+  text-decoration: none;
+  box-shadow: 0 0.5rem 1.2rem rgba(22, 35, 62, 0.05);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.femgx-card:hover,
+.femgx-card:focus-visible {
+  border-color: var(--femgx-blue);
+  box-shadow: 0 0.8rem 1.6rem rgba(40, 85, 217, 0.14);
+  transform: translateY(-2px);
+}
+
+.femgx-card strong {
+  font-size: 1.02rem;
+}
+
+.femgx-card > span:last-child {
+  color: var(--femgx-muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.femgx-card-kicker {
+  color: var(--femgx-blue);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.tsd-typography pre {
+  border: 1px solid rgba(104, 123, 155, 0.2);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.8rem 1.7rem rgba(22, 35, 62, 0.1);
+}
+
+@media (max-width: 760px) {
+  .femgx-hero-links {
+    grid-template-columns: 1fr;
+  }
+
+  .container-main > .col-content > .tsd-page-title + .tsd-panel.tsd-typography {
+    border-radius: 0.8rem;
+    padding: 1.15rem;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="os"] {
+    --femgx-ink: #f3f6ff;
+    --femgx-muted: #b1bdd3;
+    --femgx-line: #344158;
+    --femgx-paper: #121827;
+    --femgx-card: rgba(24, 34, 53, 0.84);
+    --femgx-blue: #91aaff;
+    --femgx-cyan: #6de0e3;
+  }
+}
+
+:root[data-theme="dark"] {
+  --femgx-ink: #f3f6ff;
+  --femgx-muted: #b1bdd3;
+  --femgx-line: #344158;
+  --femgx-paper: #121827;
+  --femgx-card: rgba(24, 34, 53, 0.84);
+  --femgx-blue: #91aaff;
+  --femgx-cyan: #6de0e3;
+}

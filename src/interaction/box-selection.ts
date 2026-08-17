@@ -5,11 +5,17 @@ import { clientToCanvasCss, type CanvasCssPoint } from "../camera/coordinates";
  * @category Interaction and picking
  */
 export interface BoxSelectionRect {
+  /** Left edge in canvas-local CSS pixels. */
   readonly left: number;
+  /** Top edge in canvas-local CSS pixels. */
   readonly top: number;
+  /** Right edge in canvas-local CSS pixels. */
   readonly right: number;
+  /** Bottom edge in canvas-local CSS pixels. */
   readonly bottom: number;
+  /** Non-negative normalized width. */
   readonly width: number;
+  /** Non-negative normalized height. */
   readonly height: number;
 }
 
@@ -18,9 +24,13 @@ export interface BoxSelectionRect {
  * @category Interaction and picking
  */
 export interface BoxSelectionModifiers {
+  /** Whether Shift was held. */
   readonly shift: boolean;
+  /** Whether Control was held. */
   readonly control: boolean;
+  /** Whether Alt was held. */
   readonly alt: boolean;
+  /** Whether Meta was held. */
   readonly meta: boolean;
 }
 
@@ -41,15 +51,23 @@ export type BoxSelectionCancelReason =
  */
 export type BoxSelectionEvent =
   | {
+      /** Gesture lifecycle phase. */
       readonly type: "start" | "change" | "complete";
+      /** Initial pointer position. */
       readonly anchor: CanvasCssPoint;
+      /** Current pointer position. */
       readonly current: CanvasCssPoint;
+      /** Normalized rectangle covered by the gesture. */
       readonly rect: BoxSelectionRect;
+      /** Modifier keys captured for this event. */
       readonly modifiers: BoxSelectionModifiers;
     }
   | {
+      /** Cancellation lifecycle phase. */
       readonly type: "cancel";
+      /** Last normalized rectangle. */
       readonly rect: BoxSelectionRect;
+      /** Why the gesture was cancelled. */
       readonly reason: BoxSelectionCancelReason;
     };
 

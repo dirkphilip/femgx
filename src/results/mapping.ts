@@ -7,6 +7,7 @@ import type { Color } from "../interaction/interaction";
 export interface ColorStop {
   /** Normalized position within `[0, 1]` of the map range. */
   readonly offset: number;
+  /** RGBA color at this normalized offset. */
   readonly color: Color;
 }
 
@@ -17,7 +18,9 @@ export interface ColorStop {
  * @category Results
  */
 export interface ScalarColorMap {
+  /** Lower clipping bound. */
   readonly min: number;
+  /** Upper clipping bound. */
   readonly max: number;
   /** Gradient stops, sorted by ascending offset. */
   readonly stops: readonly ColorStop[];
@@ -32,7 +35,9 @@ export interface ScalarColorMap {
  * @category Results
  */
 export interface ScalarColorMapOptions {
+  /** Lower clipping bound. */
   readonly min: number;
+  /** Upper clipping bound. */
   readonly max: number;
   /** Continuous gradient stops; defaults to a blue-cyan-yellow-red ramp. */
   readonly stops?: readonly ColorStop[];
