@@ -186,7 +186,7 @@
     "@gltf-transform/extensions": "^4.4.2",
     "@playwright/test": "^1.62.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.0",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@vitest/coverage-v8": "^4.1.10",
     "@webgpu/types": "^0.1.71",
     "dependency-cruiser": "^18.2.0",
