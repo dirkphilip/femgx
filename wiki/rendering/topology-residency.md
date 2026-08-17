@@ -64,16 +64,28 @@ silently expand a surface contract.
 
 ## Fully resident visibility
 
-The current fully resident strategy uploads complete reusable geometry and may
-use an exterior `faceSubset` for ordinary submission. Hiding a body or element
-switches affected draws to retained complete topology and filters faces in the
-shader. This is a correctness path for the full contract, not surface streaming.
+The fully resident strategy uploads complete reusable geometry and uses the
+validated exterior `faceSubset` for ordinary all-visible submission. When body
+or element visibility changes, the attachment derives a sparse deterministic
+visibility signature for each affected occurrence. Occurrences with the same
+signature share one compact index order; unaffected occurrences remain on the
+immutable exterior subset. The compact order references the canonical expanded
+vertex, node, and topology buffers, so it does not duplicate semantic geometry.
 
-A future internal compact-skin strategy may group occurrences of the same part
-by immutable body/element visibility signature and share one draw order per
-signature. It must remain observationally equivalent to full residency and use
+The per-part skin cache is bounded to two resident full-order equivalents,
+clamped to 64 KiB–16 MiB. Current signatures are pinned while calls are
+rebuilt. Inactive entries are released immediately, and a new signature that
+would exceed the budget uses the existing complete-topology shader path rather
+than producing an incomplete skin. A single hidden element remains sparse
+interaction state; the skin builder scans authoritative oriented faces only on
+the visibility transition, never on an unchanged frame.
+
+The compact path is observationally equivalent to full residency and preserves
 the same stable identities for color, transparency, selection, picking, nodes,
-and edges. It is not a public hierarchy or renderer mode.
+and edges. It is an internal renderer optimization, not a public hierarchy or
+renderer mode. Section planes still clip the selected triangles after skin
+selection, and restoring visibility releases the skin and returns to the
+exterior subset.
 
 ## Optional bodies and interaction resources
 
@@ -129,6 +141,8 @@ target.
   steady-frame work.
 - Fast and feature paths preserve exact visible, picking, and interaction
   semantics for the capabilities admitted to that path.
+- A visibility skin never invents omitted topology, duplicates canonical
+  vertices, or evicts an index buffer used by the current frame's calls.
 
 ## Decision gate
 

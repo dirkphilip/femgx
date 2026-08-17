@@ -31,6 +31,8 @@ export interface InstanceLayout {
   readonly partSelectedNodeCounts: Map<PartId, number>;
   /** Ranged selected calls, when all selected targets map to authored ranges. */
   readonly partSelectionDrawCalls: Map<PartId, readonly DrawCall[]>;
+  /** Surface calls split by active visibility signature when compact skins exist. */
+  readonly partSurfaceDrawCalls: Map<PartId, readonly DrawCall[]>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -66,6 +68,7 @@ export function buildInstanceLayout(
   const partSelectionCounts = new Map<PartId, number>();
   const partSelectedNodeCounts = new Map<PartId, number>();
   const partSelectionDrawCalls = new Map<PartId, readonly DrawCall[]>();
+  const partSurfaceDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
@@ -91,6 +94,7 @@ export function buildInstanceLayout(
     partSelectionCounts,
     partSelectedNodeCounts,
     partSelectionDrawCalls,
+    partSurfaceDrawCalls,
     visibleCount: drawList.length,
   };
 }
@@ -354,7 +358,9 @@ export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
   for (const partId of layout.partOrder) {
     const count = layout.partVisibleCounts.get(partId);
     if (count !== undefined && count > 0) {
-      calls.push({ partId, instanceCount: count });
+      const surfaceCalls = layout.partSurfaceDrawCalls.get(partId);
+      if (surfaceCalls === undefined) calls.push({ partId, instanceCount: count });
+      else calls.push(...surfaceCalls);
     }
     const edgeCount = layout.partEdgeCounts.get(partId);
     if (edgeCount !== undefined && edgeCount > 0) {

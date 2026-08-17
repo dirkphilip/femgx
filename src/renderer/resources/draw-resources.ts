@@ -24,6 +24,7 @@ import { createColorTargets } from "../resources/color-targets";
 import { GpuCostAccumulator } from "../diagnostics/cost";
 import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
 import type { DrawResources } from "./draw-types";
+import type { VisibilitySkin } from "../visibility/types";
 
 export type { DrawResources } from "./draw-types";
 
@@ -61,6 +62,10 @@ export interface DrawCall {
   readonly firstInstance?: number;
   /** Optional selected primitive ranges reused from the main index buffer. */
   readonly selectionRanges?: readonly SelectionDrawRange[];
+  /** Optional compact fully-resident visibility skin for this occurrence group. */
+  readonly visibilitySkin?: VisibilitySkin;
+  /** Per-call exterior subset override when another occurrence needs a skin. */
+  readonly surfaceSubset?: boolean;
 }
 
 /** One index-buffer range for a selected primitive group. */
@@ -103,6 +108,7 @@ export function createDrawResources(
     primitiveParts: new Map(),
     nodeParts: new Map(),
     storages: new Map(),
+    visibilitySkins: new Map(),
     admissionCache: new Map(),
     emptyOrderBuffer,
     emptyHighlight,

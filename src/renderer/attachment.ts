@@ -23,10 +23,11 @@ import { writeNodeOrders, type SelectionState } from "./selection-state";
 import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
   rebuildTransparentOrders as rebuildTransparentOrdersForParts,
-} from "./attachment-orders";
+} from "./attachment/orders";
 import { changedPartDefinitions, reconcilePartResources } from "./resources/part-resources";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { rebuildAttachmentCalls } from "./attachment-calls";
+import { rebuildAttachmentCalls } from "./attachment/calls";
+import { destroyVisibilitySkinCaches, rebuildVisibilitySurface } from "./visibility/skins";
 import {
   syncAttachmentInteraction,
   type AttachmentInteractionState,
@@ -70,8 +71,25 @@ export class RendererAttachment {
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
     const changedPartIds = changedPartDefinitions(this.attachedParts, parts);
-    changedPartIds?.forEach((partId) => this.layout?.partSelectionDrawCalls.delete(partId));
+    changedPartIds?.forEach((partId) => {
+      this.layout?.partSelectionDrawCalls.delete(partId);
+      this.layout?.partSurfaceDrawCalls.delete(partId);
+    });
     this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
+    if (changedPartIds !== undefined && this.runtime !== undefined && this.layout !== undefined) {
+      for (const partId of changedPartIds) {
+        const part = parts.get(partId);
+        if (part === undefined) continue;
+        rebuildVisibilitySurface({
+          runtime: this.runtime,
+          layout: this.layout,
+          part,
+          interaction: this.interactionState,
+          draw: bundle.draw,
+        });
+      }
+      this.rebuildCalls(bundle.draw.cost);
+    }
     // Region queries reuse this immutable index; prepare it outside their timed readback path.
     for (const part of parts.values()) getPartSemanticIndex(part);
   }
@@ -207,6 +225,9 @@ export class RendererAttachment {
     this.appliedHiddenIds = state.appliedHiddenIds;
     this.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
     if (result.calls !== undefined) Object.assign(this, result.calls);
+    if (result.visibilityParts !== undefined) {
+      this.rebuildVisibilitySurface(runtime, layout, result.visibilityParts, bundle);
+    }
     return result.changed;
   }
 
@@ -223,7 +244,8 @@ export class RendererAttachment {
     return attached || changedInstanceIds.length > 0;
   }
 
-  public clear(): void {
+  public clear(bundle?: GpuBundle): void {
+    if (bundle !== undefined) destroyVisibilitySkinCaches(bundle.draw);
     this.runtime = this.layout = undefined;
     this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
     this.selectionCalls = this.selectedNodeCalls = [];
@@ -234,6 +256,8 @@ export class RendererAttachment {
     this.selection.selectedNodeFlags.length = 0;
     this.interactionState = createInteractionState();
     this.interactionBeforeLastInstanceUpdate = undefined;
+    this.appliedHiddenIds = [undefined, undefined];
+    this.usesExteriorFaceSubsets = true;
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
@@ -333,5 +357,25 @@ export class RendererAttachment {
 
   private rebuildCalls(cost: GpuCostAccumulator): void {
     Object.assign(this, rebuildAttachmentCalls(this.layout, cost));
+  }
+
+  private rebuildVisibilitySurface(
+    runtime: PackedSceneRuntime,
+    layout: InstanceLayout,
+    parts: ReadonlySet<PartId>,
+    bundle: GpuBundle,
+  ): void {
+    for (const partId of parts) {
+      const part = this.attachedParts.get(partId);
+      if (part === undefined) continue;
+      rebuildVisibilitySurface({
+        runtime,
+        layout,
+        part,
+        interaction: this.interactionState,
+        draw: bundle.draw,
+      });
+    }
+    this.rebuildCalls(bundle.draw.cost);
   }
 }

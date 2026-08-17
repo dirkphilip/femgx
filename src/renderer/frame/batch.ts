@@ -24,6 +24,7 @@ import {
   type SelectionDrawRange,
 } from "../resources/draw-resources";
 import type { PartResource } from "../resources/foundation";
+import { bindDrawGeometry } from "./geometry-binding";
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -87,37 +88,101 @@ function drawOneBatch(
     readonly range?: SelectionDrawRange;
   },
 ): GPURenderPipeline | undefined {
-  const { draw, context, call, geometry, intent, current, range } = batch;
-  const { overlay, edgePick, nodes } = drawIntentState(intent);
-  if (range !== undefined && range.primitive !== geometry?.primitive) return current;
-  const storage = draw.storages.get(call.partId);
-  const part = context.parts.get(call.partId);
-  if (part === undefined || storage === undefined) return current;
-  if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
-    return current;
-  const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
-  const subset = usesFaceSubset(intent, geometry, nodes, range, context.usesExteriorFaceSubsets);
-  if (!hasBatchResources({ draw, part, geometry, resource, overlay, edgePick, subset }))
-    return current;
-  const prepared = prepareBatchDraw(pass, {
-    draw,
-    context,
-    call,
-    part,
-    geometry,
-    intent,
-    current,
-    storage,
-    resource,
+  const preparedBatch = prepareBatch(batch);
+  if (preparedBatch === undefined) return batch.current;
+  const { draw, call, intent, range, resource, overlay, subset, edgePick, visibilitySkin } =
+    preparedBatch;
+  const prepared = prepareBatchDraw(pass, preparedBatch);
+  const geometryCount = bindDrawGeometry(pass, {
+    geometry: resource,
+    overlay,
     subset,
+    edgePick,
+    visibilitySkin,
   });
-  const geometryCount = bindDrawGeometry(pass, resource, overlay, subset, edgePick);
-  if (geometryCount === undefined) return current;
+  if (geometryCount === undefined) return batch.current;
   const count = range?.indexCount ?? geometryCount;
   pass.drawIndexed(count, call.instanceCount, range?.firstIndex ?? 0, 0, call.firstInstance ?? 0);
   draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
   draw.cost.admission(prepared.admission);
   return prepared.pipeline;
+}
+
+interface PreparedBatch {
+  readonly draw: DrawResources;
+  readonly context: DrawCallContext;
+  readonly call: DrawCall;
+  readonly part: Part;
+  readonly geometry: Geometry | undefined;
+  readonly intent: DrawIntent;
+  readonly current: GPURenderPipeline | undefined;
+  readonly storage: InstanceStorage;
+  readonly resource: PartResource;
+  readonly subset: boolean;
+  readonly overlay: boolean;
+  readonly edgePick: boolean;
+  readonly visibilitySkin: DrawCall["visibilitySkin"];
+  readonly range: SelectionDrawRange | undefined;
+}
+
+function prepareBatch(batch: {
+  readonly draw: DrawResources;
+  readonly context: DrawCallContext;
+  readonly call: DrawCall;
+  readonly geometry: Geometry | undefined;
+  readonly intent: DrawIntent;
+  readonly current: GPURenderPipeline | undefined;
+  readonly range?: SelectionDrawRange;
+}): PreparedBatch | undefined {
+  const { draw, context, call, geometry, intent, range } = batch;
+  const { overlay, edgePick, nodes } = drawIntentState(intent);
+  if (range !== undefined && range.primitive !== geometry?.primitive) return undefined;
+  const storage = draw.storages.get(call.partId);
+  const part = context.parts.get(call.partId);
+  if (part === undefined || storage === undefined) return undefined;
+  if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
+    return undefined;
+  const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
+  const visibilitySkin =
+    geometry?.primitive === "triangles" &&
+    !overlay &&
+    !edgePick &&
+    intent.kind === "surface" &&
+    intent.pass !== "selection-visible"
+      ? call.visibilitySkin
+      : undefined;
+  const subset = usesFaceSubset({
+    intent,
+    geometry,
+    nodes,
+    range,
+    exteriorSubsets: context.usesExteriorFaceSubsets,
+    callSurfaceSubset: call.surfaceSubset,
+  });
+  if (
+    !hasBatchResources({
+      draw,
+      part,
+      geometry,
+      resource,
+      overlay,
+      edgePick,
+      subset,
+      visibilitySkin,
+    })
+  )
+    return undefined;
+  return {
+    ...batch,
+    part,
+    storage,
+    resource,
+    subset,
+    overlay,
+    edgePick,
+    visibilitySkin,
+    range,
+  };
 }
 
 function prepareBatchDraw(
@@ -228,8 +293,9 @@ function hasBatchResources(options: {
   readonly overlay: boolean;
   readonly edgePick: boolean;
   readonly subset: boolean;
+  readonly visibilitySkin?: DrawCall["visibilitySkin"];
 }): boolean {
-  const { draw, part, geometry, resource, overlay, edgePick, subset } = options;
+  const { draw, part, geometry, resource, overlay, edgePick, subset, visibilitySkin } = options;
   if (
     edgePick &&
     geometry?.primitive === "triangles" &&
@@ -245,7 +311,10 @@ function hasBatchResources(options: {
     return false;
   if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return false;
   if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) return false;
-  return !(!overlay && subset && resource.subsetIndexCount === 0);
+  return !(
+    (!overlay && subset && resource.subsetIndexCount === 0) ||
+    (!overlay && !subset && visibilitySkin !== undefined && visibilitySkin.indexCount === 0)
+  );
 }
 
 function drawCostCategory(
@@ -272,22 +341,25 @@ function drawCostCategory(
   return intent.primitive === "points" ? "point-replay" : "opaque";
 }
 
-function usesFaceSubset(
-  intent: DrawIntent,
-  geometry: Geometry | undefined,
-  nodes: boolean,
-  range: SelectionDrawRange | undefined,
-  exteriorSubsets: boolean,
-): boolean {
+function usesFaceSubset(options: {
+  readonly intent: DrawIntent;
+  readonly geometry: Geometry | undefined;
+  readonly nodes: boolean;
+  readonly range: SelectionDrawRange | undefined;
+  readonly exteriorSubsets: boolean;
+  readonly callSurfaceSubset: boolean | undefined;
+}): boolean {
+  const { intent, geometry, nodes, range, exteriorSubsets, callSurfaceSubset } = options;
+  const useExteriorSubset = callSurfaceSubset ?? exteriorSubsets;
   const selectedVisibleSubset =
     intent.kind === "surface" &&
     intent.pass === "selection-visible" &&
     intent.surfaceSubset === true &&
-    exteriorSubsets;
+    useExteriorSubset;
   const ordinarySubset =
     intent.kind === "surface" &&
     !intent.pass.startsWith("selection-") &&
-    exteriorSubsets &&
+    useExteriorSubset &&
     intent.surfaceSubset !== false;
   return (
     !nodes &&
@@ -313,39 +385,4 @@ function uploadBatchGeometry(
           throw new Error("Surface draw requires an explicit geometry group");
         })()
       : uploadGeometryPart(draw, part, geometry, colors);
-}
-
-function bindDrawGeometry(
-  pass: GPURenderPassEncoder,
-  geometry: PartResource,
-  overlay: boolean,
-  subset: boolean,
-  edgePick: boolean,
-): number | undefined {
-  const vertexBuffer = edgePick
-    ? geometry.edgePick?.vertexBuffer
-    : overlay
-      ? geometry.edge?.edgeVertexBuffer
-      : subset
-        ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
-        : geometry.vertexBuffer;
-  const indexBuffer = edgePick
-    ? geometry.edgePick?.indexBuffer
-    : overlay
-      ? geometry.edge?.edgeIndexBuffer
-      : subset
-        ? geometry.subsetIndexBuffer
-        : geometry.indexBuffer;
-  const count = edgePick
-    ? geometry.edgePick?.indexCount
-    : overlay
-      ? geometry.edge?.edgeIndexCount
-      : subset
-        ? geometry.subsetIndexCount
-        : geometry.indexCount;
-  if (indexBuffer === undefined || vertexBuffer === undefined || count === undefined)
-    return undefined;
-  pass.setVertexBuffer(0, vertexBuffer);
-  pass.setIndexBuffer(indexBuffer, "uint32");
-  return count;
 }

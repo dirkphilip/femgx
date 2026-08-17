@@ -1,11 +1,11 @@
-import type { PartId } from "../geometry/part";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import { buildEdgeOrder, buildTransparentOrder, type InstanceLayout } from "./runtime-state";
+import type { PartId } from "../../geometry/part";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
+import { buildEdgeOrder, buildTransparentOrder, type InstanceLayout } from "../runtime-state";
 import {
   writeEdgeOrder,
   writeTransparentOrder,
   type DrawResources,
-} from "./resources/draw-resources";
+} from "../resources/draw-resources";
 
 /** Rebuilds transparent instance orders for the affected reusable parts. */
 export function rebuildTransparentOrders(

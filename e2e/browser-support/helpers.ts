@@ -96,7 +96,6 @@ export function regionGranularityForKey(
   if (kind === "n") return "node";
   if (kind === "f") return "face";
   if (kind === "e") return "element";
-  if (kind === "b") return "block";
   if (kind === "i") return "instance";
   if (kind === "p") return "part";
   if (kind === "ed") return "edge";
@@ -128,10 +127,6 @@ export function regionTargetKey(target: unknown): string | undefined {
       return instanceId === undefined || text("elementId") === undefined
         ? undefined
         : `e:${instanceId}:${text("elementId")}`;
-    case "block":
-      return instanceId === undefined || text("blockId") === undefined
-        ? undefined
-        : `b:${instanceId}:${text("blockId")}`;
     case "instance":
       return instanceId === undefined ? undefined : `i:${instanceId}`;
     case "part": {

@@ -87,7 +87,7 @@ test("defaults to element selection and can switch to exact node picks", async (
   );
 });
 
-test("selects authored bodies and blocks through the selection granularity", async ({ page }) => {
+test("selects authored bodies through the selection granularity", async ({ page }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const selection = page.getByTestId("selection-granularity");
@@ -110,19 +110,6 @@ test("selects authored bodies and blocks through the selection granularity", asy
   await primaryBoxDrag(page, canvas, { fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 });
   await page.mouse.up({ button: "left" });
   await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);
-
-  await openCommandPanel(page, "selection");
-  await selection.selectOption("block");
-  await expect(selection).toHaveValue("block");
-  await page.getByTestId("clear-selection").click();
-  const blockHit = await requireHit(
-    page,
-    canvas,
-    { prefix: "f:", fresh: true, step: 24 },
-    "block GPU picking must resolve from authored element metadata",
-  );
-  await page.mouse.click(blockHit.x, blockHit.y);
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^b:/);
 });
 
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {
@@ -205,55 +192,6 @@ test("promotes face and element context targets to the exact element", async ({ 
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
 });
 
-test("selects an authored block from an element context menu", async ({ page }) => {
-  await loadWebGpuPage(page);
-  const canvas = page.getByTestId("view-canvas");
-  const menu = page.getByTestId("context-menu");
-  const candidates = [
-    { prefix: "f:", fresh: true },
-    { prefix: "f:", fresh: true, reverse: true },
-    { prefix: "f:", fresh: true, step: 24 },
-  ] as const;
-  let blockHit: { readonly x: number; readonly y: number } | undefined;
-  for (const options of candidates) {
-    const hit = await requireHit(
-      page,
-      canvas,
-      options,
-      "element GPU picking must resolve before selecting an authored block",
-    );
-    await page.mouse.click(hit.x, hit.y, { button: "right" });
-    await expect(menu).toBeVisible();
-    if ((await menu.locator('button[data-action="select-block"]').count()) > 0) {
-      blockHit = hit;
-      break;
-    }
-    await page.keyboard.press("Escape");
-  }
-  if (blockHit === undefined)
-    throw new Error("Could not resolve a plate element with authored block metadata");
-
-  await expect(menu.locator('button[data-action="select-block"]')).toHaveText("Select block");
-  await menu.locator('button[data-action="select-block"]').click();
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^b:/);
-  const [, instanceId, blockId] = (await dataset(page, "selected")).split(":");
-  if (instanceId === undefined || blockId === undefined)
-    throw new Error("block selection is malformed");
-
-  const visibilityPanel = page.getByTestId("visibility-panel");
-  await visibilityPanel.evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-    element.dispatchEvent(new Event("scroll"));
-  });
-  const block = page.locator(
-    `input[data-block-instance-id="${instanceId}"][data-block-id="${blockId}"]`,
-  );
-  await expect(block).toBeVisible();
-  await block.uncheck();
-  await expect(block).not.toBeChecked();
-  await expect.poll(() => dataset(page, "selected")).toBe(`b:${instanceId}:${blockId}`);
-  void blockHit;
-});
 test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
   await loadWebGpuPage(page);
   await setSelectionGranularity(page, "node");

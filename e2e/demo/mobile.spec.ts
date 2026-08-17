@@ -508,21 +508,3 @@ test("restores hidden body and placement visibility through Show all on a phone"
   await expect(body).toBeEnabled();
   await expect(instance).toBeChecked();
 });
-
-test("keeps authored block controls keyboard accessible on a phone", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-  await page.goto("/");
-  await openNavigation(page);
-  const block = page.locator('input[data-testid^="block-vis-"]').first();
-  await expect(block).toBeVisible();
-  await block.focus();
-  await page.keyboard.press("Space");
-  await expect(block).not.toBeChecked();
-  await page.keyboard.press("Space");
-  await expect(block).toBeChecked();
-
-  const highlight = page.locator('button[data-block-highlight="true"]').first();
-  await highlight.focus();
-  await page.keyboard.press("Enter");
-  await expect(highlight).toHaveAttribute("aria-pressed", "true");
-});
