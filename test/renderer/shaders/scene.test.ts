@@ -78,7 +78,7 @@ function normalizedDerivativeNormal(
     : undefined;
 }
 
-function mirroredSurfaceLighting(
+function viewFacingSurfaceLighting(
   normal: readonly [number, number, number] | undefined,
   baseColor: readonly [number, number, number],
   light: readonly [number, number, number],
@@ -102,13 +102,24 @@ function mirroredSurfaceLighting(
     unitLight[1] + unitViewer[1],
     unitLight[2] + unitViewer[2],
   ]);
-  const response = Math.abs(
-    normal[0] * unitLight[0] + normal[1] * unitLight[1] + normal[2] * unitLight[2],
+  const facesViewer =
+    normal[0] * unitViewer[0] + normal[1] * unitViewer[1] + normal[2] * unitViewer[2] >= 0;
+  const facingNormal = facesViewer ? normal : normal.map((value) => -value);
+  const response = Math.max(
+    0,
+    facingNormal[0] * unitLight[0] +
+      facingNormal[1] * unitLight[1] +
+      facingNormal[2] * unitLight[2],
   );
-  const halfResponse = Math.abs(normal[0] * half[0] + normal[1] * half[1] + normal[2] * half[2]);
+  const halfResponse = Math.max(
+    0,
+    facingNormal[0] * half[0] + facingNormal[1] * half[1] + facingNormal[2] * half[2],
+  );
   const diffuse = ambient + diffuseCoefficient * Math.min(1, response);
   const specular =
-    Math.hypot(...half) > 0 ? specularStrength * Math.pow(Math.min(1, halfResponse), exponent) : 0;
+    response > 0 && Math.hypot(...half) > 0
+      ? specularStrength * Math.pow(Math.min(1, halfResponse), exponent)
+      : 0;
   return [
     baseColor[0] * diffuse + specular,
     baseColor[1] * diffuse + specular,
@@ -338,7 +349,11 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
     expect(triangleColorFragmentShader).toContain("@location(8) worldPosition: vec3<f32>");
     expect(triangleColorFragmentShader).toContain("surfaceLighting(");
-    expect(surfaceLightingFunction).toContain("abs(dot(normal, light))");
+    expect(surfaceLightingFunction).toContain(
+      "select(-normal, normal, dot(normal, viewer) >= 0.0)",
+    );
+    expect(surfaceLightingFunction).toContain("clamp(dot(facingNormal, light), 0.0, 1.0)");
+    expect(surfaceLightingFunction).not.toContain("abs(dot(");
     expect(surfaceLightingFunction).toContain("SURFACE_SPECULAR_STRENGTH");
     expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
     expect(triangleColorFragmentShader).toContain("displayedColor.a");
@@ -371,7 +386,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(nodeOverlayFragmentShader).not.toContain("surfaceLighting");
   });
 
-  it("keeps the mirrored derivative normal invariant across scale and finite fallbacks", () => {
+  it("keeps the derivative normal invariant across scale and finite fallbacks", () => {
     const base = normalizedDerivativeNormal([1, 0.25, 0], [0, 1, 0.5]);
     for (const scale of [1e-30, 1e-12, 1, 1e12, 1e30]) {
       const scaled = normalizedDerivativeNormal([scale, scale * 0.25, 0], [0, scale, scale * 0.5]);
@@ -386,12 +401,12 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(normalizedDerivativeNormal([Number.POSITIVE_INFINITY, 0, 0], [0, 1, 0])).toBeUndefined();
   });
 
-  it("keeps the highlight neutral, two-sided, and absent for invalid normals", () => {
+  it("keeps the highlight neutral, winding-independent, and absent for invalid normals", () => {
     const color: readonly [number, number, number] = [0.2, 0.4, 0.6];
-    const front = mirroredSurfaceLighting([0, 0, 1], color, [0, 0, 1], [0, 0, 1]);
-    const back = mirroredSurfaceLighting([0, 0, -1], color, [0, 0, 1], [0, 0, 1]);
-    const side = mirroredSurfaceLighting([1, 0, 0], color, [0, 0, 1], [0, 0, 1]);
-    const invalid = mirroredSurfaceLighting(undefined, color, [0, 0, 1], [0, 0, 1]);
+    const front = viewFacingSurfaceLighting([0, 0, 1], color, [0, 0, 1], [0, 0, 1]);
+    const back = viewFacingSurfaceLighting([0, 0, -1], color, [0, 0, 1], [0, 0, 1]);
+    const side = viewFacingSurfaceLighting([1, 0, 0], color, [0, 0, 1], [0, 0, 1]);
+    const invalid = viewFacingSurfaceLighting(undefined, color, [0, 0, 1], [0, 0, 1]);
     expect(back).toEqual(front);
     expect(front[0] - color[0] * 0.9).toBeCloseTo(front[1] - color[1] * 0.9, 12);
     expect(front[1] - color[1] * 0.9).toBeCloseTo(front[2] - color[2] * 0.9, 12);
@@ -401,6 +416,15 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(invalid[0]).toBeCloseTo(0.11);
     expect(invalid[1]).toBeCloseTo(0.22);
     expect(invalid[2]).toBeCloseTo(0.33);
+  });
+
+  it("does not mirror the key light onto a view-facing surface turned away from it", () => {
+    const color: readonly [number, number, number] = [0.2, 0.4, 0.6];
+    const awayFromKey = viewFacingSurfaceLighting([0, -0.8, 0.6], color, [0, 1, 0.4], [0, 0, 1]);
+
+    expect(awayFromKey[0]).toBeCloseTo(0.11);
+    expect(awayFromKey[1]).toBeCloseTo(0.22);
+    expect(awayFromKey[2]).toBeCloseTo(0.33);
   });
 });
 

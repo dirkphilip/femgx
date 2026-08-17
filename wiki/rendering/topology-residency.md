@@ -109,8 +109,8 @@ The renderer selects the cheapest correct pipeline per occurrence group.
 Ordinary occurrences can use minimal presentation shaders; occurrences with
 body/element visibility, section clipping, or fine-grained emphasis use feature
 paths. Admission changes only when authoritative state changes and must not scan
-the full scene each frame. Pipeline objects are cached per device, not rebuilt
-per model or Performance Lab case.
+the full scene each frame. Pipeline objects are owned and cached per renderer,
+not rebuilt per model or Performance Lab case.
 
 Dense exterior presentation uses the measured overlay path:
 

@@ -48,10 +48,11 @@ uses its own endpoint-aligned node-id buffer for deformation.
 Visible triangle surfaces use one internal flat-lighting fragment path. It
 derives a geometric normal from the displayed world position, applies a
 camera-following key direction fixed to the upper-left of the camera frame with
-strong ambient fill, and uses an absolute two-sided response so shell geometry
-remains readable from either side. Line, point, edge, node-overlay, and picking
-paths remain unlit; lighting does not alter alpha or the existing interaction
-emissive.
+strong ambient fill, and orients the normal toward the viewer before applying a
+one-sided key response so shell geometry remains readable from either side
+without mirroring the key light through the surface. Line, point, edge,
+node-overlay, and picking paths remain unlit; lighting does not alter alpha or
+the existing interaction emissive.
 
 Parts carry an `ElementTessellation` table, whose `primitiveRanges` qualify
 each owned range by primitive group, so every triangle maps to its element id.
@@ -63,7 +64,7 @@ highlight records, making elements and nodes selectable through GPU picking
 ## Flat-lighting numerical contract
 
 The opaque and translucent triangle passes use the same displayed-geometry
-`surfaceLighting` helper. It combines two-sided derivative-normal diffuse
+`surfaceLighting` helper. It combines viewer-oriented derivative-normal diffuse
 lighting with a small neutral camera-relative specular lobe, then adds the
 existing interaction emissive. Lines, points, edges, node annotations, and
 picking remain unlit. The view direction is uploaded in the shared camera
@@ -75,8 +76,9 @@ the geometric normal invariant when perspective zoom or pan changes derivative
 magnitude. The only remaining magnitude check is on the normalized cross
 product, so nearly parallel or non-finite derivatives return the ambient-only
 response instead of producing NaN pixels; there is no scene-scale derivative
-cutoff. Lighting remains two-sided and camera-following, so zoom, pan, and
-projection changes do not alter a face's orientation response.
+cutoff. Surface visibility remains two-sided and lighting remains
+camera-following, so zoom, pan, and projection changes do not alter a face's
+orientation response.
 
 ## Primitive groups and overlays
 

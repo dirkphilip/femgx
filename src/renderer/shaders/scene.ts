@@ -295,7 +295,7 @@ struct VertexOutput {
 };
 `;
 
-/** Shared scale-robust two-sided surface lighting for opaque and transparent triangles. */
+/** Shared scale-robust view-facing surface lighting for opaque and transparent triangles. */
 export const surfaceLightingFunction = /* wgsl */ `
 const SURFACE_AMBIENT: f32 = 0.55;
 const SURFACE_DIFFUSE: f32 = 0.35;
@@ -343,14 +343,15 @@ fn surfaceLighting(
   }
   let light = safeDirection(keyLightDirection);
   let viewer = safeDirection(viewDirection);
-  let keyResponse = abs(dot(normal, light));
-  let diffuse = SURFACE_AMBIENT + SURFACE_DIFFUSE * clamp(keyResponse, 0.0, 1.0);
+  let facingNormal = select(-normal, normal, dot(normal, viewer) >= 0.0);
+  let keyResponse = clamp(dot(facingNormal, light), 0.0, 1.0);
+  let diffuse = SURFACE_AMBIENT + SURFACE_DIFFUSE * keyResponse;
   let halfVector = safeDirection(light + viewer);
-  let halfResponse = abs(dot(normal, halfVector));
+  let halfResponse = dot(facingNormal, halfVector);
   let specular = select(
     0.0,
     SURFACE_SPECULAR_STRENGTH * pow(clamp(halfResponse, 0.0, 1.0), SURFACE_SPECULAR_EXPONENT),
-    length(halfVector) > 0.0,
+    keyResponse > 0.0 && length(halfVector) > 0.0,
   );
   return baseColor * diffuse + vec3<f32>(specular);
 }
