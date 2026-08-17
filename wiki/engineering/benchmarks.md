@@ -183,7 +183,17 @@ the measured workload. Open the latter in Chrome DevTools' Performance panel.
 sparse element visibility and restore, 256-body recolor and clear, elemental
 result snapshot builds for 1/8/64 placements, one CPU hover/identity transition
 on one active-result fixture, a high-water sparse-highlight one-record hover
-after 131,712 active records, and 200,000-placement scene/runtime operations.
+after 131,712 active records, direct near-last-element inspection and a
+controller-like deepest triangle pick on the 131,712-element Tet4 fixture, and
+200,000-placement scene/runtime operations. Pick setup, subset/index expansion,
+and renderer-side 1-based ID preparation happen before timing; the deepest row
+validates the returned node and element identity and resolves adjacency. The
+6,419,736-byte figure covers only the two retained node-to-triangle-face CSR
+typed arrays for this fixture; Maps and object overhead are excluded. One
+observed cold, unsampled `PartSemanticIndex` construction for this distinct
+`Part` identity took 250.930250 ms. Attachment eagerly pays that construction
+for each distinct or replacement `Part` identity; it is not part of per-pick
+timings.
 It emits one fingerprinted JSON report. Set `PERF_BASELINE_FILE` to write it to
 an explicit path; otherwise the report is printed only. Its CPU/fake-GPU
 highlight case measures renderer CPU table encoding/diff plus fake queue writes;

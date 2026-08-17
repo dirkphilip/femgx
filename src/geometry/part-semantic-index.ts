@@ -21,6 +21,10 @@ export interface PartSemanticIndex {
   readonly faces: ReadonlyMap<string, FaceMetadata>;
   readonly edges: ReadonlyMap<string, GeometryEdge>;
   readonly nodeCount: number;
+  /** CSR offsets for authored triangle-face incidence by part-local node id. */
+  readonly nodeTriangleFaceOffsets: Uint32Array;
+  /** Face ids referenced by the CSR node-incidence ranges above. */
+  readonly nodeTriangleFaceIds: Uint32Array;
 }
 
 const indexByPart = new WeakMap<Part, PartSemanticIndex>();
@@ -50,16 +54,38 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
   }
   const faces = new Map<string, FaceMetadata>();
   const triangleGeometry = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  if (triangleGeometry?.primitive === "triangles") {
-    for (const [faceId, face] of (triangleGeometry.faces ?? []).entries()) {
+  const nodeCount = Math.floor((part.nodePositions?.length ?? 0) / 3);
+  const triangleFaces =
+    triangleGeometry?.primitive === "triangles" ? triangleGeometry.faces : undefined;
+  const nodeTriangleFaceOffsets =
+    triangleFaces === undefined || triangleFaces.length === 0
+      ? new Uint32Array(0)
+      : new Uint32Array(nodeCount + 1);
+  if (triangleFaces !== undefined) {
+    for (let faceId = 0; faceId < triangleFaces.length; faceId += 1) {
+      const face = triangleFaces[faceId];
+      if (face === undefined) continue;
       faces.set(faceIdentity(face.elementId, face.faceIndex), { face, faceId });
+      if (nodeCount === 0) continue;
+      for (const nodeId of face.nodeIds) {
+        const offset = nodeId + 1;
+        nodeTriangleFaceOffsets[offset] = (nodeTriangleFaceOffsets[offset] ?? 0) + 1;
+      }
     }
   }
-  const edges = new Map(
-    part.geometries.flatMap((geometry) =>
-      (geometry.edges ?? []).map((edge) => [edge.key, edge] as const),
-    ),
+  const nodeTriangleFaceIds = buildNodeTriangleFaceIds(
+    triangleFaces,
+    nodeTriangleFaceOffsets,
+    nodeCount,
   );
+  const edges = new Map<string, GeometryEdge>();
+  for (const geometry of part.geometries) {
+    for (const edge of geometry.edges ?? []) {
+      // Preserve resolveEdgePickHit's historical first geometry match when
+      // independent primitive groups happen to reuse an authored edge key.
+      if (!edges.has(edge.key)) edges.set(edge.key, edge);
+    }
+  }
   return {
     elements,
     elementOrdinalById,
@@ -67,6 +93,31 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     bodyByElement,
     faces,
     edges,
-    nodeCount: Math.floor((part.nodePositions?.length ?? 0) / 3),
+    nodeCount,
+    nodeTriangleFaceOffsets,
+    nodeTriangleFaceIds,
   };
+}
+
+function buildNodeTriangleFaceIds(
+  faces: readonly FaceTessellation[] | undefined,
+  offsets: Uint32Array,
+  nodeCount: number,
+): Uint32Array {
+  if (faces === undefined || nodeCount === 0) return new Uint32Array(0);
+  for (let nodeId = 1; nodeId < offsets.length; nodeId += 1) {
+    offsets[nodeId] = (offsets[nodeId] ?? 0) + (offsets[nodeId - 1] ?? 0);
+  }
+  const faceIds = new Uint32Array(offsets[nodeCount] ?? 0);
+  const cursors = offsets.slice(0, nodeCount);
+  for (let faceId = 0; faceId < faces.length; faceId += 1) {
+    const face = faces[faceId];
+    if (face === undefined) continue;
+    for (const nodeId of face.nodeIds) {
+      const cursor = cursors[nodeId] ?? 0;
+      faceIds[cursor] = faceId;
+      cursors[nodeId] = cursor + 1;
+    }
+  }
+  return faceIds;
 }

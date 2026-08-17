@@ -12,6 +12,7 @@ import {
   elementPart,
   createPart,
   type TriangleGeometry,
+  shared,
   resolvePick,
   resolvePickHit,
   type PickContext,
@@ -93,6 +94,17 @@ describe("resolvePickHit", () => {
     ).toBeUndefined();
   });
 
+  it("falls back to the instance for an unknown element id", () => {
+    expect(
+      resolvePickHit(context, ids({ instancePickId: 1, elementPickId: 99 }), [0, 0, 0]),
+    ).toEqual({
+      kind: "instance",
+      partId: 1,
+      instanceId: "1/0",
+      worldPosition: [0, 0, 0],
+    });
+  });
+
   it("resolves a face hit to a face target with ordered vertices and normal", () => {
     const target = resolvePickHit(
       context,
@@ -120,6 +132,22 @@ describe("resolvePickHit", () => {
     expect(target.elementId).toBe(1);
     expect(target.localPosition).toEqual([1, 0, 0]);
     expect(target.worldPosition).toEqual([0, 0, 0]);
+  });
+
+  it("resolves exact adjacency for a shared node across multiple elements", () => {
+    const sharedPart = elementPart(1, shared());
+    const target = resolvePickHit(
+      { instances: [instanceAt(0)], parts: new Map([[1, sharedPart]]) },
+      ids({ instancePickId: 1, elementPickId: 2, nodePickId: 1 }),
+      [0, 0, 0],
+    );
+    expect(target).toMatchObject({
+      kind: "node",
+      elementId: 1,
+      nodeId: 0,
+      neighborElementIds: [1, 2],
+      neighborNodeIds: [1, 2, 3, 4],
+    });
   });
 
   it("falls back to the owning element for renderer-private cap node ids", () => {
