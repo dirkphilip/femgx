@@ -60,6 +60,8 @@ class ViewportInteraction {
   private boxActive = false;
   private skipNextClick = false;
   private boxQueryActive = false;
+  private touchDown:
+    { readonly pointerId: number; readonly clientX: number; readonly clientY: number } | undefined;
   private queuedBox:
     { readonly event: ViewportInteractionBoxEvent; readonly generation: number } | undefined;
 
@@ -74,6 +76,7 @@ class ViewportInteraction {
     options.canvas.addEventListener("pointermove", this.pointerMove, listener);
     options.canvas.addEventListener("pointerleave", this.pointerLeave, listener);
     options.canvas.addEventListener("pointerup", this.pointerUp, listener);
+    options.canvas.addEventListener("pointercancel", this.pointerCancel, listener);
     options.canvas.addEventListener("click", this.click, listener);
   }
 
@@ -87,6 +90,14 @@ class ViewportInteraction {
   };
 
   private readonly pointerDown = (event: PointerEvent): void => {
+    this.skipNextClick = false;
+    if (event.pointerType === "touch") {
+      this.touchDown = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+    }
     if (event.pointerType === "touch" && this.touchMode() !== "navigate") {
       event.preventDefault();
     }
@@ -100,6 +111,7 @@ class ViewportInteraction {
   };
 
   private readonly pointerLeave = (event: PointerEvent): void => {
+    if (event.pointerType === "touch") return;
     if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive) return;
     this.generation += 1;
     const current = this.options.viewport.interaction;
@@ -122,9 +134,23 @@ class ViewportInteraction {
 
   private readonly pointerUp = (event: PointerEvent): void => {
     if (event.pointerType !== "touch") return;
+    const down = this.touchDown;
+    this.touchDown = undefined;
     this.skipNextClick = true;
-    if (this.touchMode() !== "hover") return;
-    void this.resolvePoint("hover", event);
+    if (
+      down === undefined ||
+      down.pointerId !== event.pointerId ||
+      Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) > 10
+    ) {
+      return;
+    }
+    void this.resolvePoint(this.touchMode() === "hover" ? "hover" : "click", event);
+  };
+
+  private readonly pointerCancel = (event: PointerEvent): void => {
+    if (event.pointerType !== "touch" || this.touchDown?.pointerId !== event.pointerId) return;
+    this.touchDown = undefined;
+    this.skipNextClick = true;
   };
 
   private readonly click = (event: MouseEvent): void => {
@@ -139,6 +165,7 @@ class ViewportInteraction {
     if (event.type === "start" || event.type === "change") this.boxActive = true;
     else this.boxActive = false;
     this.reportBoxEvent(event);
+    if (event.type === "cancel") this.skipNextClick = true;
     if (!isCompletedBoxEvent(event)) return;
     this.skipNextClick = true;
     this.resolveBox(event);
