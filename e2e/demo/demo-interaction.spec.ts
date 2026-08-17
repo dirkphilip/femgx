@@ -15,6 +15,51 @@ interface PointHit {
   readonly key: string;
 }
 
+interface BoxFraction {
+  readonly fx: number;
+  readonly fy: number;
+}
+
+async function visibleRegionKeys(
+  canvas: Locator,
+  start: BoxFraction,
+  end: BoxFraction,
+): Promise<string[]> {
+  return canvas.evaluate(
+    async (element, points) => {
+      const bounds = element.getBoundingClientRect();
+      const left = Math.min(points.start.fx, points.end.fx) * bounds.width;
+      const right = Math.max(points.start.fx, points.end.fx) * bounds.width;
+      const top = Math.min(points.start.fy, points.end.fy) * bounds.height;
+      const bottom = Math.max(points.start.fy, points.end.fy) * bounds.height;
+      const targets = await (
+        window as typeof window & {
+          femgxDemo?: {
+            pickRegion?: (
+              rect: {
+                readonly left: number;
+                readonly top: number;
+                readonly right: number;
+                readonly bottom: number;
+                readonly width: number;
+                readonly height: number;
+              },
+              granularity: string,
+            ) => Promise<readonly Record<string, unknown>[]>;
+          };
+        }
+      ).femgxDemo?.pickRegion?.(
+        { left, top, right, bottom, width: right - left, height: bottom - top },
+        "element",
+      );
+      return (targets ?? [])
+        .map((target) => `e:${String(target["instanceId"])}:${String(target["elementId"])}`)
+        .sort();
+    },
+    { start, end },
+  );
+}
+
 /** Uses the browser pick seam so small gallery sprites are not skipped by a coarse sweep. */
 async function requirePointHit(
   page: Page,
@@ -112,22 +157,61 @@ test("selects authored bodies through the selection granularity", async ({ page 
   await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);
 });
 
-test("repeats box selection deterministically in both drag directions", async ({ page }) => {
+test("keeps repeated partial, empty, and Control-append box selections complete", async ({
+  page,
+}) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
   const drag = async (
-    start: { readonly fx: number; readonly fy: number },
-    end: { readonly fx: number; readonly fy: number },
-  ): Promise<string> => {
+    start: BoxFraction,
+    end: BoxFraction,
+    expected: readonly string[],
+    control = false,
+  ): Promise<void> => {
+    if (control) await page.keyboard.down("Control");
     await primaryBoxDrag(page, canvas, start, end);
     await page.mouse.up({ button: "left" });
-    await expect.poll(() => dataset(page, "selected"), { timeout: 10_000 }).not.toBe("");
-    return dataset(page, "selected");
+    if (control) await page.keyboard.up("Control");
+    const bounds = await canvas.boundingBox();
+    if (bounds === null) throw new Error("canvas has no box-selection bounds");
+    await page.mouse.move(
+      Math.round(bounds.x + end.fx * bounds.width + 1),
+      Math.round(bounds.y + end.fy * bounds.height + 1),
+    );
+    await expect
+      .poll(async () => (await dataset(page, "selected")).split(",").filter(Boolean).sort())
+      .toEqual(expected);
   };
 
-  const forward = await drag({ fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 });
-  expect(await drag({ fx: 0.85, fy: 0.8 }, { fx: 0.15, fy: 0.25 })).toBe(forward);
-  expect(await drag({ fx: 0.15, fy: 0.25 }, { fx: 0.85, fy: 0.8 })).toBe(forward);
+  const left = [
+    { fx: 0.12, fy: 0.2 },
+    { fx: 0.52, fy: 0.82 },
+  ] as const;
+  const right = [
+    { fx: 0.48, fy: 0.2 },
+    { fx: 0.88, fy: 0.82 },
+  ] as const;
+  const expectedLeft = await visibleRegionKeys(canvas, left[0], left[1]);
+  const expectedRight = await visibleRegionKeys(canvas, right[0], right[1]);
+  const expectedFull = await visibleRegionKeys(
+    canvas,
+    { fx: 0.08, fy: 0.15 },
+    { fx: 0.92, fy: 0.88 },
+  );
+  expect(expectedLeft.length).toBeGreaterThan(1);
+  expect(expectedLeft.length).toBeLessThan(expectedFull.length);
+
+  await drag(left[0], left[1], expectedLeft);
+
+  const empty = [
+    { fx: 0.88, fy: 0.12 },
+    { fx: 0.98, fy: 0.2 },
+  ] as const;
+  expect(await visibleRegionKeys(canvas, empty[0], empty[1])).toEqual([]);
+  await drag(empty[0], empty[1], []);
+
+  await drag(left[1], left[0], expectedLeft);
+  await drag(right[0], right[1], [...new Set([...expectedLeft, ...expectedRight])].sort(), true);
 });
 
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {

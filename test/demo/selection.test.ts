@@ -10,7 +10,7 @@ import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/s
 import {
   replaceSelection,
   replaceTargets,
-  toggleTargets,
+  appendTargets,
   toggleElementSelection,
   toggleSelection,
   hasVisibleSelection,
@@ -243,16 +243,17 @@ describe("demo selection policy", () => {
     expect(isTargetSelected(state, other)).toBe(true);
   });
 
-  it("applies box replacement and toggle policies once per target identity", () => {
+  it("applies box replacement and append policies once per target identity", () => {
     const targets = [part, element, element];
     const replaced = replaceTargets(createInteractionState(), targets);
     expect(isTargetSelected(replaced, part)).toBe(true);
     expect(isTargetSelected(replaced, element)).toBe(true);
 
-    const toggled = toggleTargets(replaced, targets);
-    expect(isTargetSelected(toggled, part)).toBe(false);
-    expect(isTargetSelected(toggled, element)).toBe(false);
-    expect(toggleTargets(toggled, [])).toBe(toggled);
+    const appended = appendTargets(replaced, targets);
+    expect(appended).toBe(replaced);
+    expect(isTargetSelected(appended, part)).toBe(true);
+    expect(isTargetSelected(appended, element)).toBe(true);
+    expect(appendTargets(appended, [])).toBe(appended);
   });
 
   it("only advertises framing for selected geometry in visible occurrences", () => {

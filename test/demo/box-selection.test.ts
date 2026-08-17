@@ -738,7 +738,7 @@ describe("workbench click selection", () => {
     expect(render).toHaveBeenCalledOnce();
   });
 
-  it("toggles distinct visible elements for Control or Meta without changing other selection", async () => {
+  it("appends distinct visible elements for Control or Meta without changing other selection", async () => {
     const first = element("instance-a", 2);
     const second = element("instance-b", 1);
     const initial = setTargetSelected(createInteractionState(), first, true);
@@ -747,8 +747,8 @@ describe("workbench click selection", () => {
 
     await workbench.selectBox(complete({ control: true }));
 
-    expect(selectedKeys(getInteraction())).toEqual(["e:instance-b:1"]);
-    expect(isTargetSelected(getInteraction(), first)).toBe(false);
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2", "e:instance-b:1"]);
+    expect(isTargetSelected(getInteraction(), first)).toBe(true);
     expect(render).toHaveBeenCalledOnce();
   });
 

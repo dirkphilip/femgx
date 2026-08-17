@@ -6,7 +6,7 @@ import {
   type BoxSelectionRequest,
   type BoxSelectionResolver,
 } from "../selection/box-selection-resolver";
-import { replaceTargets, toggleTargets } from "../selection/selection";
+import { appendTargets, replaceTargets } from "../selection/selection";
 import type { SelectionGranularity, SelectTarget } from "../selection/pick";
 
 export interface WorkbenchBoxSelectionControllerOptions {
@@ -109,7 +109,7 @@ export class WorkbenchBoxSelectionController {
     const current = this.options.getInteraction();
     const next =
       request.event.modifiers.control || request.event.modifiers.meta
-        ? toggleTargets(current, selectable)
+        ? appendTargets(current, selectable)
         : replaceTargets(current, selectable);
     const selectedCount = selectedTargetCount(next, request.granularity);
     this.options.selectionFeedback?.(

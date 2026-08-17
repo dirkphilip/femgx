@@ -80,11 +80,13 @@ event and captured Element/Face/Node granularity to its workbench-private box
 selection resolver. The default visible-surface resolver makes one
 `pickRegion(event.rect, granularity)` call; a workbench-owned resolver may
 replace candidate discovery without taking over selection mutation. Plain completion
-replaces selection with distinct returned targets; Ctrl/Meta toggles them, while
+replaces selection with distinct returned targets; Ctrl/Meta appends them, while
 Shift and Alt remain reserved without select-through behavior. The pending query
 is generation-checked, so newer clicks, context actions, model changes, resets,
-teardown, resolver changes, and rejected promises cannot mutate selection;
-cancellation and below-threshold gestures never query.
+teardown, resolver changes, and rejected promises cannot mutate selection.
+Post-drag hover stays suspended until that query settles, so ordinary pointer
+motion cannot discard a completed box. Cancellation and below-threshold gestures
+never query.
 
 The workbench's **Visible** strategy is the default. Its **Through** strategy is
 available only at Element granularity and uses the public frustum helper to test

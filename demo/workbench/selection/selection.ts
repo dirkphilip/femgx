@@ -51,18 +51,12 @@ export function replaceTargets(
   return setTargetsSelected(clearSelection(interaction), targets, true);
 }
 
-/** Toggles each distinct visible target returned by one box pick. */
-export function toggleTargets(
+/** Appends each distinct visible target returned by one modified box pick. */
+export function appendTargets(
   interaction: InteractionState,
   targets: readonly SelectTarget[],
 ): InteractionState {
-  const selected: SelectTarget[] = [];
-  const cleared: SelectTarget[] = [];
-  for (const target of uniqueTargets(targets)) {
-    if (isSelected(interaction, target)) cleared.push(target);
-    else selected.push(target);
-  }
-  return setTargetsSelected(setTargetsSelected(interaction, cleared, false), selected, true);
+  return setTargetsSelected(interaction, uniqueTargets(targets), true);
 }
 
 /** Applies one highlight toggle without coupling it to the DOM or renderer. */
