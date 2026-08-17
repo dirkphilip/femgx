@@ -12,6 +12,8 @@ import {
   type Viewport,
   type InteractionTarget,
   type PickHit,
+  type ViewportInteractionBoxEvent,
+  type BoxSelectionFrustum,
 } from "../../src/entries/root";
 import { WorkbenchBoxPreview } from "../../demo/workbench/selection/box-preview";
 import { WorkbenchInteraction } from "../../demo/workbench/interaction/interaction";
@@ -314,6 +316,65 @@ describe("workbench click selection", () => {
     await workbench.click(touch);
 
     expect(selectedKeys(getInteraction())).toEqual([]);
+  });
+
+  it("exposes workbench-owned point, region, application, and error bindings", async () => {
+    const resolver = vi.fn<BoxSelectionResolver>(() => Promise.resolve([element("instance-a", 2)]));
+    const pick = vi.fn(() => Promise.resolve(nodeHit));
+    const { workbench, getInteraction, render, selectionFeedback } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      "node",
+      { boxSelectionResolver: resolver },
+    );
+    const bindings = workbench.viewportInteractionOptions();
+    const modifiers = { shift: false, control: false, alt: false, meta: false } as const;
+    const point = await bindings.resolvePoint?.({
+      phase: "click",
+      x: 10,
+      y: 20,
+      granularity: "node",
+      modifiers,
+      event: {} as MouseEvent,
+    });
+    expect(point?.kind).toBe("node");
+
+    const event: ViewportInteractionBoxEvent = {
+      type: "complete",
+      anchor: { x: 20, y: 30 },
+      current: { x: 120, y: 90 },
+      rect: rect(),
+      modifiers,
+    };
+    const region = await bindings.resolveRegion?.({
+      event,
+      rect: event.rect,
+      granularity: "element",
+      frustum: {} as BoxSelectionFrustum,
+    });
+    expect(region).toEqual([element("instance-a", 2)]);
+
+    const target = element("instance-a", 2);
+    const current = getInteraction();
+    const next = setTargetSelected(current, target, true);
+    await bindings.applyInteraction?.({
+      phase: "click",
+      granularity: "element",
+      current,
+      defaultInteraction: next,
+      target,
+      targets: [target],
+      modifiers,
+      event: {} as MouseEvent,
+    });
+    bindings.onError?.(new Error("test failure"), "click");
+
+    expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
+    expect(render).toHaveBeenCalledOnce();
+    expect(selectionFeedback).toHaveBeenLastCalledWith(
+      "Viewport click interaction failed: test failure",
+    );
   });
 
   it("does not select or mutate inspection for a drag beyond the threshold", async () => {
