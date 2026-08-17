@@ -6,6 +6,36 @@ import type {
 } from "./model";
 import type { BenchmarkMemoryEstimate } from "./memory";
 
+/** Deterministic counts for semantic allocations retained by a dense Part. */
+export interface DenseSemanticAllocationCounts {
+  readonly elementDescriptors: number;
+  readonly primitiveRangeArrays: number;
+  readonly primitiveRangeDescriptors: number;
+  readonly faceDescriptors: number;
+  readonly faceNodeArrays: number;
+  readonly faceNodeReferences: number;
+  readonly faceKeyReferences: number;
+  readonly faceSubsetReferences: number;
+  readonly edgeDescriptors: number;
+  readonly edgeNodeArrays: number;
+  readonly edgeNodeReferences: number;
+  readonly edgeIncidentElementReferences: number;
+  readonly edgeFaceReferenceArrays: number;
+  readonly edgeFaceReferences: number;
+  readonly bodyDescriptors: number;
+  readonly bodyElementReferences: number;
+  readonly semanticIndex: {
+    readonly elementEntries: number;
+    readonly elementOrdinalEntries: number;
+    readonly bodyEntries: number;
+    readonly bodyByElementEntries: number;
+    readonly faceEntries: number;
+    readonly edgeEntries: number;
+    readonly nodeTriangleFaceOffsetsBytes: number;
+    readonly nodeTriangleFaceIdsBytes: number;
+  };
+}
+
 export interface BenchmarkGpuTimestampPass {
   readonly sampleCount: number;
   readonly p50: number | null;
@@ -103,6 +133,8 @@ export interface DenseBenchmarkBuild {
   readonly mainReconstructionMs: number;
   readonly transferredBytes: number;
   readonly finalRetainedTypedBytes: number;
+  /** Deterministic semantic allocation counts; JS object bytes are not inferred. */
+  readonly semanticAllocationCounts: DenseSemanticAllocationCounts;
 }
 
 export interface WebGpuBenchmarkCaseResult {
@@ -146,7 +178,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 9;
+  readonly schemaVersion: 10;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
