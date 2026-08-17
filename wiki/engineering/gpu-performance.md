@@ -108,6 +108,11 @@ does not establish the bottleneck.
 
 - Empty and inactive interaction use fixed shared resources, not capacity-sized
   per-element records.
+- Per-part instance residency contains only the transform/style/identity record
+  and ordinary visible order. Transparent, selection, node, edge, and emphasis
+  storage is admitted independently, grows to its active order/table demand,
+  and is released when that state returns to empty; the device retains only
+  fixed valid empty bindings.
 - Sparse state stores exceptions; dense state may use ordinal bitsets. Density
   transitions preserve state and are measured for allocation/upload peaks.
 - Exact edge-pick geometry remains separate and lazy even when presentation

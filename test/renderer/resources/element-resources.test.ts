@@ -604,8 +604,11 @@ describe("createHighlightStorage", () => {
 
 describe("writeElementHighlights", () => {
   function makeStorage(gpu: ReturnType<typeof fakeGpuDevice>): InstanceStorage {
+    const emptyHighlight = createHighlightStorage(gpu.device, 1);
     return {
-      highlight: createHighlightStorage(gpu.device),
+      highlight: emptyHighlight,
+      emptyHighlight,
+      highlightOwned: false,
       bindGroup: undefined,
     } as unknown as InstanceStorage;
   }
@@ -719,7 +722,7 @@ describe("writeElementHighlights", () => {
         }
         expect(found).toBe(true);
       }
-      expect(gpu.buffers[0]?.destroyed).toBe(true);
+      expect(gpu.buffers[0]?.destroyed).toBe(false);
       expect(gpu.buffers[1]?.size).toBeGreaterThan(
         HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
       );
@@ -741,7 +744,7 @@ describe("writeElementHighlights", () => {
       expect(table[0]).toBe(updates.length);
       expect(table[1]).toBe(1_024);
       expect(gpu.buffers).toHaveLength(2);
-      expect(gpu.buffers[0]?.destroyed).toBe(true);
+      expect(gpu.buffers[0]?.destroyed).toBe(false);
       expect(gpu.buffers[1]?.size).toBe(
         HIGHLIGHT_HEADER + 1_024 * HIGHLIGHT_BUCKET_SIZE * ELEMENT_RECORD_STRIDE,
       );
@@ -903,9 +906,8 @@ describe("writeElementHighlights", () => {
       writeElementHighlights(gpu.device, storage, []);
       const table = new Uint32Array(storage.highlight.data.buffer);
       expect(table[6]).toBe(0);
-      expect(storage.highlight.data.byteLength).toBe(
-        HIGHLIGHT_HEADER + INITIAL_ELEMENT_HIGHLIGHTS * ELEMENT_RECORD_STRIDE,
-      );
+      expect(storage.highlight.data.byteLength).toBe(HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE);
+      expect(storage.highlightOwned).toBe(false);
       expect(storage.highlight.selectionSlotCapacity).toBe(0);
       expect(storage.highlight.selectionRecordCapacity).toBe(0);
       expect(storage.highlight.selectionWordCapacity).toBe(0);

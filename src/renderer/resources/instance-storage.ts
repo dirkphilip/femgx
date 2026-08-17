@@ -1,5 +1,5 @@
 import type { ResolvedStyle } from "../../interaction/interaction";
-import { createHighlightStorage, type HighlightStorage } from "../selection/highlight-storage";
+import type { HighlightStorage } from "../selection/highlight-storage";
 import { writeChangedRecordRanges, writeOrderBuffer } from "./buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 
@@ -37,23 +37,41 @@ export interface InstanceUpdate {
   readonly data: ArrayBuffer;
 }
 
+/** One compacted optional order list and its CPU mirror. */
+export interface InstanceOrderStorage {
+  readonly buffer: GPUBuffer;
+  readonly data: Uint32Array;
+  readonly capacity: number;
+  length: number;
+}
+
+/** Optional presentation and interaction storage admitted for one part. */
+export interface InstanceSidecars {
+  transparent: InstanceOrderStorage | undefined;
+  selection: InstanceOrderStorage | undefined;
+  nodeSelection: InstanceOrderStorage | undefined;
+  edge: InstanceOrderStorage | undefined;
+  node: InstanceOrderStorage | undefined;
+}
+
 /**
- * Persistent per-part GPU storage: a slot-stable record buffer, compacted
- * opaque, transparent, edge-overlay, and node-annotation order buffers, and a
- * bounded-bucket emphasis buffer. Hidden instances stay in the record buffer
- * but are removed from the draw-order lists, so only visible geometry is ever
- * drawn. The edge order holds the subset of visible instances whose resolved
- * style requests the line-overlay pass.
+ * Persistent per-part GPU storage: a slot-stable record buffer and compacted
+ * ordinary visible order. Hidden instances stay in the record buffer but are
+ * removed from that order, so only visible geometry is ever drawn. Transparent,
+ * selection, edge, node, and emphasis resources are explicit sidecars admitted
+ * by their active state and bound to fixed device sentinels while inactive.
  */
 export interface InstanceStorage {
   readonly buffer: GPUBuffer;
   readonly orderBuffer: GPUBuffer;
-  readonly selectionOrderBuffer: GPUBuffer;
-  readonly nodeSelectionOrderBuffer: GPUBuffer;
-  readonly transparentOrderBuffer: GPUBuffer;
-  readonly edgeOrderBuffer: GPUBuffer;
-  readonly nodeOrderBuffer: GPUBuffer;
+  /** Device-scoped valid binding used by inactive order sidecars. */
+  readonly emptyOrderBuffer: GPUBuffer;
+  /** Device-scoped zero-entry emphasis binding used while inactive. */
+  readonly emptyHighlight: HighlightStorage;
+  readonly sidecars: InstanceSidecars;
   highlight: HighlightStorage;
+  /** True when `highlight` is a part-owned optional allocation. */
+  highlightOwned: boolean;
   readonly capacity: number;
   /** CPU mirror of the record buffer, kept in sync by the patch functions. */
   data: ArrayBuffer;
@@ -65,26 +83,6 @@ export interface InstanceStorage {
   orderData: Uint32Array;
   /** Number of meaningful draw-order entries. */
   orderLength: number;
-  /** CPU mirror of the selected-instance draw-order buffer. */
-  readonly selectionOrderData: Uint32Array;
-  /** Number of meaningful selected-instance draw-order entries. */
-  selectionOrderLength: number;
-  /** CPU mirror of the selected-node draw-order buffer. */
-  readonly nodeSelectionOrderData: Uint32Array;
-  /** Number of meaningful selected-node draw-order entries. */
-  nodeSelectionOrderLength: number;
-  /** CPU mirror of the transparent draw-order buffer. */
-  transparentOrderData: Uint32Array;
-  /** Number of meaningful transparent draw-order entries. */
-  transparentOrderLength: number;
-  /** CPU mirror of the edge-overlay order buffer. */
-  edgeOrderData: Uint32Array;
-  /** Number of meaningful edge-overlay order entries. */
-  edgeOrderLength: number;
-  /** CPU mirror of the node-annotation order buffer. */
-  nodeOrderData: Uint32Array;
-  /** Number of meaningful node-annotation order entries. */
-  nodeOrderLength: number;
   /** Cached bind group; invalidated whenever the storage buffers grow. */
   bindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing node-sprite geometry and its node-id table. */
@@ -109,37 +107,11 @@ interface InstanceStorageOwner {
   readonly device: GPUDevice;
   readonly cost: GpuCostAccumulator;
   readonly storages: Map<number, InstanceStorage>;
+  readonly emptyOrderBuffer: GPUBuffer;
+  readonly emptyHighlight: HighlightStorage;
 }
 
-type OrderKind = "draw" | "transparent" | "selection" | "nodeSelection" | "edge" | "node";
-
-const orderFields = {
-  draw: { buffer: "orderBuffer", data: "orderData", length: "orderLength" },
-  transparent: {
-    buffer: "transparentOrderBuffer",
-    data: "transparentOrderData",
-    length: "transparentOrderLength",
-  },
-  selection: {
-    buffer: "selectionOrderBuffer",
-    data: "selectionOrderData",
-    length: "selectionOrderLength",
-  },
-  nodeSelection: {
-    buffer: "nodeSelectionOrderBuffer",
-    data: "nodeSelectionOrderData",
-    length: "nodeSelectionOrderLength",
-  },
-  edge: { buffer: "edgeOrderBuffer", data: "edgeOrderData", length: "edgeOrderLength" },
-  node: { buffer: "nodeOrderBuffer", data: "nodeOrderData", length: "nodeOrderLength" },
-} as const satisfies Record<
-  OrderKind,
-  {
-    readonly buffer: keyof InstanceStorage;
-    readonly data: keyof InstanceStorage;
-    readonly length: keyof InstanceStorage;
-  }
->;
+type OrderKind = "draw" | keyof InstanceSidecars;
 
 /**
  * Encodes one instance record: column-major world transform, resolved color
@@ -285,15 +257,26 @@ function writeOrder(
   order: Uint32Array,
   kind: OrderKind,
 ): void {
-  const storage = ensureStorage(draw, partId, Math.max(1, order.length));
-  const fields = orderFields[kind];
-  storage[fields.length] = writeOrderBuffer(
-    draw.device,
-    storage[fields.buffer],
-    storage[fields.data],
-    order,
-    { previousLength: storage[fields.length], cost: draw.cost },
-  );
+  const storage = ensureStorage(draw, partId, kind === "draw" ? Math.max(1, order.length) : 1);
+  if (kind === "draw") {
+    storage.orderLength = writeOrderBuffer(
+      draw.device,
+      storage.orderBuffer,
+      storage.orderData,
+      order,
+      { previousLength: storage.orderLength, cost: draw.cost },
+    );
+    return;
+  }
+  if (order.length === 0) {
+    releaseOrderSidecar(draw, storage, kind);
+    return;
+  }
+  const sidecar = ensureOrderSidecar(draw, storage, kind, order.length);
+  sidecar.length = writeOrderBuffer(draw.device, sidecar.buffer, sidecar.data, order, {
+    previousLength: sidecar.length,
+    cost: draw.cost,
+  });
 }
 
 /** Returns the existing per-part storage, creating or growing it as needed. */
@@ -307,8 +290,9 @@ function ensureStorage(
   const size = Math.max(capacity, existing === undefined ? 1 : existing.capacity * 2);
   const storage = createStorage(draw, size, existing);
   if (existing !== undefined) {
-    copyStorageData(draw, existing, storage);
-    destroyStorageBuffers(existing);
+    copyCoreData(draw, existing, storage);
+    destroyCoreBuffers(draw, existing);
+    draw.cost.invalidateBindGroups();
   }
   draw.storages.set(partId, storage);
   return storage;
@@ -320,39 +304,30 @@ function createStorage(
   existing: InstanceStorage | undefined,
 ): InstanceStorage {
   const mirror = new Uint8Array(size * INSTANCE_STRIDE);
-  const orderLength = existing?.orderLength ?? 0;
-  const transparentOrderLength = existing?.transparentOrderLength ?? 0;
-  const edgeOrderLength = existing?.edgeOrderLength ?? 0;
-  const nodeOrderLength = existing?.nodeOrderLength ?? 0;
-  return {
+  const storage: InstanceStorage = {
     buffer: draw.device.createBuffer({
       label: "femgx instance storage",
       size: size * INSTANCE_STRIDE,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
     orderBuffer: createOrderBuffer(draw.device, size, "femgx instance order"),
-    selectionOrderBuffer: createOrderBuffer(draw.device, size, "femgx selection order"),
-    nodeSelectionOrderBuffer: createOrderBuffer(draw.device, size, "femgx node selection order"),
-    transparentOrderBuffer: createOrderBuffer(draw.device, size, "femgx transparent order"),
-    edgeOrderBuffer: createOrderBuffer(draw.device, size, "femgx edge order"),
-    nodeOrderBuffer: createOrderBuffer(draw.device, size, "femgx node order"),
-    highlight: existing?.highlight ?? createHighlightStorage(draw.device),
+    emptyOrderBuffer: draw.emptyOrderBuffer,
+    emptyHighlight: draw.emptyHighlight,
+    sidecars: existing?.sidecars ?? {
+      transparent: undefined,
+      selection: undefined,
+      nodeSelection: undefined,
+      edge: undefined,
+      node: undefined,
+    },
+    highlight: existing?.highlight ?? draw.emptyHighlight,
+    highlightOwned: existing?.highlightOwned ?? false,
     capacity: size,
     data: mirror.buffer,
     emphasisSlots: new Set(existing?.emphasisSlots),
     edgeEmphasisSlots: new Set(existing?.edgeEmphasisSlots),
     orderData: new Uint32Array(size),
-    orderLength,
-    selectionOrderData: new Uint32Array(size),
-    selectionOrderLength: existing?.selectionOrderLength ?? 0,
-    nodeSelectionOrderData: new Uint32Array(size),
-    nodeSelectionOrderLength: existing?.nodeSelectionOrderLength ?? 0,
-    transparentOrderData: new Uint32Array(size),
-    transparentOrderLength,
-    edgeOrderData: new Uint32Array(size),
-    edgeOrderLength,
-    nodeOrderData: new Uint32Array(size),
-    nodeOrderLength,
+    orderLength: existing?.orderLength ?? 0,
     bindGroup: undefined,
     nodeBindGroup: undefined,
     edgeBindGroup: undefined,
@@ -363,59 +338,21 @@ function createStorage(
     subsetBindGroup: undefined,
     subsetTransparentBindGroup: undefined,
   };
+  draw.cost.allocateBuffer(storage.buffer.size);
+  draw.cost.allocateBuffer(storage.orderBuffer.size);
+  return storage;
 }
 
-function copyStorageData(
+function copyCoreData(
   draw: InstanceStorageOwner,
   existing: InstanceStorage,
   storage: InstanceStorage,
 ): void {
   new Uint8Array(storage.data).set(new Uint8Array(existing.data));
   storage.orderData.set(existing.orderData.subarray(0, existing.orderLength));
-  storage.selectionOrderData.set(
-    existing.selectionOrderData.subarray(0, existing.selectionOrderLength),
-  );
-  storage.nodeSelectionOrderData.set(
-    existing.nodeSelectionOrderData.subarray(0, existing.nodeSelectionOrderLength),
-  );
-  storage.transparentOrderData.set(
-    existing.transparentOrderData.subarray(0, existing.transparentOrderLength),
-  );
-  storage.edgeOrderData.set(existing.edgeOrderData.subarray(0, existing.edgeOrderLength));
-  storage.nodeOrderData.set(existing.nodeOrderData.subarray(0, existing.nodeOrderLength));
   draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
   draw.cost.write("instance", storage.data.byteLength);
   writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
-  writeExistingOrder(
-    draw,
-    storage.selectionOrderBuffer,
-    storage.selectionOrderData,
-    existing.selectionOrderLength,
-  );
-  writeExistingOrder(
-    draw,
-    storage.nodeSelectionOrderBuffer,
-    storage.nodeSelectionOrderData,
-    existing.nodeSelectionOrderLength,
-  );
-  writeExistingOrder(
-    draw,
-    storage.transparentOrderBuffer,
-    storage.transparentOrderData,
-    existing.transparentOrderLength,
-  );
-  writeExistingOrder(
-    draw,
-    storage.edgeOrderBuffer,
-    storage.edgeOrderData,
-    existing.edgeOrderLength,
-  );
-  writeExistingOrder(
-    draw,
-    storage.nodeOrderBuffer,
-    storage.nodeOrderData,
-    existing.nodeOrderLength,
-  );
 }
 
 function writeExistingOrder(
@@ -431,14 +368,87 @@ function writeExistingOrder(
   }
 }
 
-function destroyStorageBuffers(storage: InstanceStorage): void {
+function destroyCoreBuffers(draw: InstanceStorageOwner, storage: InstanceStorage): void {
+  draw.cost.releaseBuffer(storage.buffer.size);
+  draw.cost.releaseBuffer(storage.orderBuffer.size);
   storage.buffer.destroy();
   storage.orderBuffer.destroy();
-  storage.selectionOrderBuffer.destroy();
-  storage.nodeSelectionOrderBuffer.destroy();
-  storage.transparentOrderBuffer.destroy();
-  storage.edgeOrderBuffer.destroy();
-  storage.nodeOrderBuffer.destroy();
+}
+
+/** Creates the fixed valid order binding used by every inactive sidecar. */
+export function createEmptyOrderBuffer(device: GPUDevice): GPUBuffer {
+  return createOrderBuffer(device, 1, "femgx empty instance order");
+}
+
+/** Returns the active order buffer or the device-scoped empty sentinel. */
+export function orderBufferFor(
+  storage: InstanceStorage,
+  kind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
+): GPUBuffer {
+  if (kind === "opaque") return storage.orderBuffer;
+  const sidecar = storage.sidecars[sidecarKind(kind)];
+  return sidecar?.buffer ?? storage.emptyOrderBuffer;
+}
+
+function sidecarKind(
+  kind: Exclude<Parameters<typeof orderBufferFor>[1], "opaque">,
+): keyof InstanceSidecars {
+  if (kind === "node-selection") return "nodeSelection";
+  return kind;
+}
+
+function ensureOrderSidecar(
+  draw: InstanceStorageOwner,
+  storage: InstanceStorage,
+  kind: keyof InstanceSidecars,
+  minimumCapacity: number,
+): InstanceOrderStorage {
+  const existing = storage.sidecars[kind];
+  if (existing !== undefined && existing.capacity >= minimumCapacity) return existing;
+  const capacity = Math.max(minimumCapacity, (existing?.capacity ?? 0) * 2 || 1);
+  const next: InstanceOrderStorage = {
+    buffer: createOrderBuffer(draw.device, capacity, `femgx ${kind} order`),
+    data: new Uint32Array(capacity),
+    capacity,
+    length: existing?.length ?? 0,
+  };
+  if (existing !== undefined) {
+    next.data.set(existing.data.subarray(0, existing.length));
+    writeExistingOrder(draw, next.buffer, next.data, existing.length);
+    draw.cost.releaseBuffer(existing.buffer.size);
+    existing.buffer.destroy();
+  }
+  draw.cost.allocateBuffer(next.buffer.size);
+  storage.sidecars[kind] = next;
+  invalidateBindGroups(storage, draw.cost);
+  return next;
+}
+
+function releaseOrderSidecar(
+  draw: InstanceStorageOwner,
+  storage: InstanceStorage,
+  kind: keyof InstanceSidecars,
+): void {
+  const sidecar = storage.sidecars[kind];
+  if (sidecar === undefined) return;
+  draw.cost.releaseBuffer(sidecar.buffer.size);
+  sidecar.buffer.destroy();
+  storage.sidecars[kind] = undefined;
+  invalidateBindGroups(storage, draw.cost);
+}
+
+/** Invalidates every cached group when a storage binding changes. */
+export function invalidateBindGroups(storage: InstanceStorage, cost?: GpuCostAccumulator): void {
+  cost?.invalidateBindGroups();
+  storage.bindGroup = undefined;
+  storage.nodeBindGroup = undefined;
+  storage.edgeBindGroup = undefined;
+  storage.transparentBindGroup = undefined;
+  storage.selectionBindGroup = undefined;
+  storage.subsetSelectionBindGroup = undefined;
+  storage.nodeSelectionBindGroup = undefined;
+  storage.subsetBindGroup = undefined;
+  storage.subsetTransparentBindGroup = undefined;
 }
 
 /** Creates a u32 storage buffer sized to the part's slot capacity. */

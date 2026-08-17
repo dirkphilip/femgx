@@ -66,12 +66,22 @@ export interface GpuTargetCost {
   readonly estimatedBytes: number;
 }
 
+/** Resource lifecycle deltas observed while encoding the current frame. */
+export interface GpuMemoryCost {
+  readonly allocatedBytes: number;
+  readonly releasedBytes: number;
+  readonly bufferCreates: number;
+  readonly bufferDestroys: number;
+  readonly bindGroupInvalidations: number;
+}
+
 /** Immutable snapshot used by tests and the opt-in benchmark report. */
 export interface GpuCostSnapshot {
   readonly passes: Readonly<Record<GpuCostPass, number>>;
   readonly draws: Readonly<Record<GpuCostDraw, GpuDrawCost>>;
   readonly writes: Readonly<Record<GpuCostWrite, GpuWriteCost>>;
   readonly cpu: Readonly<Record<GpuCostCpu, number>>;
+  readonly memory: GpuMemoryCost;
   readonly targets: GpuTargetCost | undefined;
 }
 
@@ -86,12 +96,21 @@ interface MutableWriteCost {
   bytes: number;
 }
 
+interface MutableMemoryCost {
+  allocatedBytes: number;
+  releasedBytes: number;
+  bufferCreates: number;
+  bufferDestroys: number;
+  bindGroupInvalidations: number;
+}
+
 /** Mutable owner of one frame's internal rendering cost counters. */
 export class GpuCostAccumulator {
   private readonly passCounts = emptyPassCounts();
   private readonly drawCounts = emptyDrawCounts();
   private readonly writeCounts = emptyWriteCounts();
   private readonly cpuCounts = emptyCpuCounts();
+  private readonly memoryCounts = emptyMemoryCounts();
   private targetCost: GpuTargetCost | undefined;
 
   /** Clears all counters before encoding a new visible frame. */
@@ -101,6 +120,11 @@ export class GpuCostAccumulator {
       this.drawCounts[draw] = { calls: 0, indices: 0, instances: 0 };
     for (const write of GPU_COST_WRITES) this.writeCounts[write] = { calls: 0, bytes: 0 };
     for (const work of GPU_COST_CPU) this.cpuCounts[work] = 0;
+    this.memoryCounts.allocatedBytes = 0;
+    this.memoryCounts.releasedBytes = 0;
+    this.memoryCounts.bufferCreates = 0;
+    this.memoryCounts.bufferDestroys = 0;
+    this.memoryCounts.bindGroupInvalidations = 0;
     this.targetCost = undefined;
   }
 
@@ -123,6 +147,20 @@ export class GpuCostAccumulator {
 
   public cpu(work: GpuCostCpu, count: number): void {
     this.cpuCounts[work] += count;
+  }
+
+  public allocateBuffer(bytes: number): void {
+    this.memoryCounts.allocatedBytes += bytes;
+    this.memoryCounts.bufferCreates += 1;
+  }
+
+  public releaseBuffer(bytes: number): void {
+    this.memoryCounts.releasedBytes += bytes;
+    this.memoryCounts.bufferDestroys += 1;
+  }
+
+  public invalidateBindGroups(count = 1): void {
+    this.memoryCounts.bindGroupInvalidations += count;
   }
 
   public targets(
@@ -152,9 +190,20 @@ export class GpuCostAccumulator {
       draws: cloneDrawCounts(this.drawCounts),
       writes: cloneWriteCounts(this.writeCounts),
       cpu: { ...this.cpuCounts },
+      memory: { ...this.memoryCounts },
       targets: this.targetCost === undefined ? undefined : { ...this.targetCost },
     };
   }
+}
+
+function emptyMemoryCounts(): MutableMemoryCost {
+  return {
+    allocatedBytes: 0,
+    releasedBytes: 0,
+    bufferCreates: 0,
+    bufferDestroys: 0,
+    bindGroupInvalidations: 0,
+  };
 }
 
 function emptyPassCounts(): Record<GpuCostPass, number> {

@@ -12,6 +12,7 @@ export interface FakeBuffer {
   readonly size: number;
   readonly usage: number;
   destroyed: boolean;
+  destroyCount: number;
   /** The GPUBuffer object returned to the caller, for write matching. */
   resource: GPUBuffer;
 }
@@ -209,12 +210,14 @@ export function fakeGpuDevice(
         size: descriptor.size,
         usage: descriptor.usage,
         destroyed: false,
+        destroyCount: 0,
         resource: {} as GPUBuffer,
       };
       buffers.push(record);
       const buffer = {
         size: descriptor.size,
         destroy: () => {
+          record.destroyCount += 1;
           record.destroyed = true;
         },
         mapAsync: () => {

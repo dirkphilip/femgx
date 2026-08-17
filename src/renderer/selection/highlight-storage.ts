@@ -26,16 +26,16 @@ import type {
   DenseElementSelection,
   DenseElementSelections,
 } from "./element-selection";
-import { denseSelectionContains, collectDenseElementSelections } from "./element-selection";
+import { collectDenseElementSelections } from "./element-selection";
 import {
   highlightByteLength,
   writeChangedSelectionRanges,
   writeDenseSelectionData,
   writeSelectionHeader,
 } from "./highlight-selection-storage";
-import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import { readInteractionState } from "../../interaction/state";
 import type { PrimitiveStyleOverride } from "../../interaction/interaction";
+import { sparseUpdatesForPart } from "./highlight-filter";
 
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
 export interface HighlightStorage {
@@ -95,11 +95,16 @@ export function writeElementHighlights(
   const entries = updates.map(toTableEntry);
   const table = buildHighlightTable(entries);
   const selection = options.selection;
+  if (table.entries.length === 0 && selection === undefined) {
+    releaseHighlightStorage(device, storage, options.cost);
+    return;
+  }
   ensureHighlightStorage(device, storage, {
     minimumRecords: table.entries.length,
     selectionSlotCapacity: selection === undefined ? 0 : (options.slotCapacity ?? 0),
     selectionRecordCapacity: selection?.occurrences.length ?? 0,
     selectionWordCapacity: selection === undefined ? 0 : Math.ceil(selection.elementCount / 32),
+    cost: options.cost,
   });
   const highlight = storage.highlight;
   const selectionChanged = highlight.denseSelection !== selection;
@@ -168,6 +173,7 @@ interface HighlightCapacityOptions {
   readonly selectionSlotCapacity: number;
   readonly selectionRecordCapacity: number;
   readonly selectionWordCapacity: number;
+  readonly cost: GpuCostAccumulator | undefined;
 }
 
 function ensureHighlightStorage(
@@ -175,29 +181,42 @@ function ensureHighlightStorage(
   storage: HighlightTarget,
   options: HighlightCapacityOptions,
 ): void {
-  const highlight = storage.highlight;
+  const current = storage.highlight;
   const releasesSelection =
     options.selectionSlotCapacity === 0 &&
     options.selectionRecordCapacity === 0 &&
     options.selectionWordCapacity === 0;
   const nextSparseCapacity =
-    options.minimumRecords <= highlight.sparseCapacity
-      ? highlight.sparseCapacity
-      : Math.max(options.minimumRecords, highlight.sparseCapacity * 2);
+    options.minimumRecords <= current.sparseCapacity
+      ? current.sparseCapacity
+      : Math.max(options.minimumRecords, current.sparseCapacity * 2);
   const nextSlotCapacity = releasesSelection
     ? 0
-    : Math.max(highlight.selectionSlotCapacity, options.selectionSlotCapacity);
+    : Math.max(current.selectionSlotCapacity, options.selectionSlotCapacity);
   const nextRecordCapacity = releasesSelection
     ? 0
-    : Math.max(highlight.selectionRecordCapacity, options.selectionRecordCapacity);
+    : Math.max(current.selectionRecordCapacity, options.selectionRecordCapacity);
   const nextWordCapacity = releasesSelection
     ? 0
-    : Math.max(highlight.selectionWordCapacity, options.selectionWordCapacity);
+    : Math.max(current.selectionWordCapacity, options.selectionWordCapacity);
+  if (!storage.highlightOwned) {
+    storage.highlight = createHighlightStorage(
+      device,
+      nextSparseCapacity,
+      nextSlotCapacity,
+      nextRecordCapacity,
+      nextWordCapacity,
+    );
+    storage.highlightOwned = true;
+    options.cost?.allocateBuffer(storage.highlight.buffer.size);
+    invalidateHighlightBindGroups(storage, options.cost);
+    return;
+  }
   if (
-    nextSparseCapacity === highlight.sparseCapacity &&
-    nextSlotCapacity === highlight.selectionSlotCapacity &&
-    nextRecordCapacity === highlight.selectionRecordCapacity &&
-    nextWordCapacity === highlight.selectionWordCapacity
+    nextSparseCapacity === current.sparseCapacity &&
+    nextSlotCapacity === current.selectionSlotCapacity &&
+    nextRecordCapacity === current.selectionRecordCapacity &&
+    nextWordCapacity === current.selectionWordCapacity
   ) {
     return;
   }
@@ -208,8 +227,64 @@ function ensureHighlightStorage(
     nextRecordCapacity,
     nextWordCapacity,
   );
-  highlight.buffer.destroy();
+  preserveDenseSelection(current, grown);
+  options.cost?.releaseBuffer(current.buffer.size);
+  current.buffer.destroy();
+  options.cost?.allocateBuffer(grown.buffer.size);
   storage.highlight = grown;
+  storage.highlightOwned = true;
+  invalidateHighlightBindGroups(storage, options.cost);
+}
+
+function preserveDenseSelection(current: HighlightStorage, next: HighlightStorage): void {
+  if (current.denseSelection === undefined) return;
+  if (
+    current.selectionSlotCapacity !== next.selectionSlotCapacity ||
+    current.selectionRecordCapacity !== next.selectionRecordCapacity ||
+    current.selectionWordCapacity !== next.selectionWordCapacity
+  ) {
+    return;
+  }
+  const oldOffset = current.sparseCapacity * (ELEMENT_RECORD_STRIDE / 4);
+  const nextOffset = next.sparseCapacity * (ELEMENT_RECORD_STRIDE / 4);
+  const slotBytes = current.selectionSlotCapacity * Uint32Array.BYTES_PER_ELEMENT;
+  const bitBytes =
+    current.selectionRecordCapacity * current.selectionWordCapacity * Uint32Array.BYTES_PER_ELEMENT;
+  next.data.set(
+    current.data.subarray(
+      HIGHLIGHT_HEADER + oldOffset * 4,
+      HIGHLIGHT_HEADER + oldOffset * 4 + slotBytes,
+    ),
+    HIGHLIGHT_HEADER + nextOffset * 4,
+  );
+  next.data.set(
+    current.data.subarray(
+      HIGHLIGHT_HEADER + (oldOffset + current.selectionSlotCapacity) * 4,
+      HIGHLIGHT_HEADER + (oldOffset + current.selectionSlotCapacity) * 4 + bitBytes,
+    ),
+    HIGHLIGHT_HEADER + (nextOffset + next.selectionSlotCapacity) * 4,
+  );
+  next.denseSelection = current.denseSelection;
+}
+
+function releaseHighlightStorage(
+  device: GPUDevice,
+  storage: HighlightTarget,
+  cost?: GpuCostAccumulator,
+): void {
+  if (!storage.highlightOwned) return;
+  const current = storage.highlight;
+  device.queue.writeBuffer(current.buffer, 0, new Uint32Array(4));
+  cost?.write("highlight", HIGHLIGHT_HEADER);
+  cost?.releaseBuffer(current.buffer.size);
+  current.buffer.destroy();
+  storage.highlight = storage.emptyHighlight;
+  storage.highlightOwned = false;
+  invalidateHighlightBindGroups(storage, cost);
+}
+
+function invalidateHighlightBindGroups(storage: HighlightTarget, cost?: GpuCostAccumulator): void {
+  cost?.invalidateBindGroups();
   storage.bindGroup = undefined;
   storage.nodeBindGroup = undefined;
   storage.edgeBindGroup = undefined;
@@ -257,6 +332,8 @@ export interface ElementHighlightSync {
 
 interface HighlightTarget {
   highlight: HighlightStorage;
+  emptyHighlight: HighlightStorage;
+  highlightOwned: boolean;
   readonly capacity: number;
   bindGroup: GPUBindGroup | undefined;
   nodeBindGroup: GPUBindGroup | undefined;
@@ -310,44 +387,4 @@ export function syncElementHighlights(
       },
     );
   }
-}
-
-interface SparseUpdateOptions {
-  readonly partId: PartId;
-  readonly updates: readonly EmphasisUpdate[];
-  readonly selection: DenseElementSelection | undefined;
-  readonly runtime: PackedSceneRuntime;
-  readonly layout: DenseElementLayout;
-  readonly parts: ReadonlyMap<PartId, Part>;
-  readonly interaction: InteractionState;
-}
-
-function sparseUpdatesForPart(options: SparseUpdateOptions): readonly EmphasisUpdate[] {
-  if (options.selection === undefined) return options.updates;
-  const part = options.parts.get(options.partId);
-  if (part === undefined) return options.updates;
-  const metadata = getPartSemanticIndex(part);
-  const data = readInteractionState(options.interaction);
-  const globalSlots = options.layout.partSlots.get(options.partId);
-  return options.updates.filter((update) => {
-    if (update.selected !== true || update.elementPickId === 0) return true;
-    const elementId = update.elementPickId - 1;
-    const ordinal = metadata.elementOrdinalById.get(elementId);
-    if (ordinal === undefined || !denseSelectionContains(options.selection, update.slot, ordinal)) {
-      return true;
-    }
-    const globalSlot = globalSlots?.[update.slot];
-    const instanceId =
-      globalSlot === undefined ? undefined : options.runtime.getInstanceId(globalSlot);
-    if (instanceId === undefined) return true;
-    return (
-      update.hidden === true ||
-      data.highlightedElementIds.get(instanceId)?.has(elementId) === true ||
-      data.hiddenElementIds.get(instanceId)?.has(elementId) === true ||
-      data.elementOverrides.get(instanceId)?.has(elementId) === true ||
-      (data.hoveredTarget?.kind === "element" &&
-        data.hoveredTarget.instanceId === instanceId &&
-        data.hoveredTarget.elementId === elementId)
-    );
-  });
 }

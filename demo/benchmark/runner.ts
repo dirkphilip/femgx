@@ -9,7 +9,7 @@ const HEIGHT = 600;
 const WARMUP_SAMPLES = 2;
 const TIMED_SAMPLES = 7;
 const MEMORY_ESTIMATE_SCOPE =
-  "retained renderer-owned buffers and fixed render targets including inactive result-color tails; optional edge bytes are included only for materialized part ids; cpuSceneTypedArrayBytes and uploadStagingBytes are reported separately; driver allocations are excluded; edge and topology storage are upper bounds";
+  "retained renderer-owned buffers and fixed render targets including shared empty order, highlight, and deformation sentinels; optional interaction and presentation sidecars are included only when admitted; optional edge bytes are included only for materialized part ids; cpuSceneTypedArrayBytes and uploadStagingBytes are reported separately; driver allocations are excluded; edge and topology storage are upper bounds";
 
 /** Runs the opt-in, hardware-dependent WebGPU capacity benchmark. */
 export async function runWebGpuBenchmark(
