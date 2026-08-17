@@ -34,6 +34,13 @@ the 390×844 mobile viewport. Triangle, line, and point outputs remain separate
 only where WebGPU primitive topology requires it; edge display is a renderer-owned
 overlay.
 
+The gallery is the demo landing view. Its Analysis inspector is intentionally a
+small static results example: the active elemental scalar colors elements, a
+second nodal scalar demonstrates tessellation interpolation, and an authored
+Hex8 frame field renders one RGB X/Y/Z triad per element. It has no deformation,
+playback, or movie controls; the larger results workflow remains in the separate
+static results preset.
+
 ## Hex20 cylinder
 
 `createHex20CylinderFixture` builds a small 12-sector, two-ring annular
@@ -44,14 +51,14 @@ approximation with no curved interpolation.
 
 ## Bolted plate assembly
 
-`createBoltedPlateFixture` builds the default showcase: two overlapping plates
+`createBoltedPlateFixture` builds the bolted assembly showcase: two overlapping plates
 clamped by eight fasteners. Four reusable component parts are shared by the
 nested assembly definitions at every fastener location; edge display is a
 renderer-owned overlay rather than duplicate geometry.
 
 The deterministic defaults span X `-15..21`, Y `-4..4.35`, and Z `-7..7`, with
-34 visible part instances in the default view. The preset is the landing view, so
-changes to these defaults require matching e2e updates.
+34 visible part instances in its showcase view. The element gallery is the landing
+view; changes to either landing fixture require matching e2e updates.
 
 Related: [[data/elements-topology|Element topology]],
 [[data/io-import-export|IO import/export]],

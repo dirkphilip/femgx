@@ -126,8 +126,8 @@ test("keeps the active model when a local model file fails to open", async ({ pa
     buffer: Buffer.from("not a GLB file"),
   });
 
-  await expect(canvas).toHaveAttribute("data-model", "bolted");
-  await expect(page.getByTestId("model-select")).toHaveValue("bolted");
+  await expect(canvas).toHaveAttribute("data-model", "gallery");
+  await expect(page.getByTestId("model-select")).toHaveValue("gallery");
   await expect(page.getByTestId("model-feedback")).toContainText("could not be opened");
 });
 
