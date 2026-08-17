@@ -33,7 +33,7 @@ export interface WorkbenchResultLegendSnapshot {
   readonly orientation:
     | {
         readonly field: WorkbenchResultLegendField;
-        readonly glyph: "arrow" | "axis";
+        readonly glyph: "arrow" | "axis" | "triad";
         readonly transform: "direction" | "normal";
         readonly lengthScale: number;
         readonly widthPixels: number;

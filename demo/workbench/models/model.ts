@@ -2,6 +2,7 @@ import {
   createScene,
   type Bounds,
   type Color,
+  type ElementFrameField,
   type PartId,
   type Scene,
   type ScalarField,
@@ -50,7 +51,7 @@ export interface WorkbenchModel {
   readonly results: ModelPreset["results"];
   readonly resultSequence?: ModelPreset["resultSequence"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
   readonly issues: readonly Issue[];
   readonly benchmarkElementFamily?: WebGpuBenchmarkElementFamily;
   /** Deterministic CPU-byte estimate used by the demo-private Performance Lab retention policy. */
@@ -78,7 +79,7 @@ export interface ImportedModelData {
   readonly bounds?: Bounds;
   readonly results: ModelPreset["results"];
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
   readonly issues: readonly Issue[];
 }
 

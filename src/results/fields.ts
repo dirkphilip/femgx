@@ -1,3 +1,5 @@
+import type { PartId } from "../geometry/part";
+
 /**
  * Where a result field stores its values: one per node or one per element.
  * @category Results
@@ -9,6 +11,40 @@ export type FieldLocation = "nodal" | "elemental";
  * @category Results
  */
 export type FieldShape = "scalar" | "vector";
+
+/** Number of components in one authored elemental orthonormal frame row. */
+export const FRAME_COMPONENT_COUNT = 9;
+
+/**
+ * An authored X/Y/Z frame for each element. Values are stored row-major as
+ * three consecutive xyz axes (`x`, `y`, `z`) per dense part-local element id.
+ * `NaN` in any component marks the complete frame row as missing.
+ * @category Results
+ */
+export interface ElementFrameField {
+  /** Reusable part whose dense element ids index this field. */
+  readonly partId: PartId;
+  readonly id: string;
+  readonly name: string;
+  readonly location: "elemental";
+  readonly shape: "frame";
+  readonly count: number;
+  readonly unit: string;
+  readonly values: Float32Array;
+}
+
+/**
+ * Inputs for {@link createElementFrameField}.
+ * @category Results
+ */
+export interface ElementFrameFieldOptions {
+  readonly partId: PartId;
+  readonly id: string;
+  readonly name: string;
+  readonly count: number;
+  readonly unit: string;
+  readonly values: Float32Array;
+}
 
 /**
  * Number of scalar components each shape stores per entity.
@@ -71,7 +107,7 @@ export type VectorField<L extends FieldLocation> = ResultField<"vector", L>;
  * Any scalar or vector field at either location.
  * @category Results
  */
-export type AnyResultField = ResultField<FieldShape, FieldLocation>;
+export type AnyResultField = ResultField<FieldShape, FieldLocation> | ElementFrameField;
 
 /**
  * Inputs for {@link createResultField}.
@@ -119,6 +155,61 @@ export function createResultField<S extends FieldShape, L extends FieldLocation>
 ): ResultField<S, L> {
   validateResultField(options);
   return { ...options };
+}
+
+/** Creates a validated authored elemental X/Y/Z frame field. */
+export function createElementFrameField(options: ElementFrameFieldOptions): ElementFrameField {
+  if (options.id.length === 0) throw new Error("Element frame field id must not be empty");
+  if (options.name.length === 0) throw new Error("Element frame field name must not be empty");
+  if (!Number.isInteger(options.count) || options.count < 0) {
+    throw new Error(
+      `Element frame field count must be a non-negative integer, got ${options.count}`,
+    );
+  }
+  if (options.unit.length === 0) throw new Error("Element frame field unit must not be empty");
+  const expected = options.count * FRAME_COMPONENT_COUNT;
+  if (options.values.length !== expected) {
+    throw new Error(
+      `Element frame field ${options.id} expects ${expected} values but got ${options.values.length}`,
+    );
+  }
+  for (let element = 0; element < options.count; element += 1) {
+    const base = element * FRAME_COMPONENT_COUNT;
+    const row = options.values.subarray(base, base + FRAME_COMPONENT_COUNT);
+    const missing = row.some((value) => !Number.isFinite(value));
+    if (missing) continue;
+    const x = Math.hypot(row[0] ?? 0, row[1] ?? 0, row[2] ?? 0);
+    const y = Math.hypot(row[3] ?? 0, row[4] ?? 0, row[5] ?? 0);
+    const z = Math.hypot(row[6] ?? 0, row[7] ?? 0, row[8] ?? 0);
+    if (x <= 1e-12 || y <= 1e-12 || z <= 1e-12) {
+      throw new Error(`Element frame field ${options.id} has a zero axis at element ${element}`);
+    }
+  }
+  return { ...options, location: "elemental", shape: "frame" };
+}
+
+/** Returns one element's authored X/Y/Z axes, or NaNs for a missing row. */
+export function frameAt(
+  field: ElementFrameField,
+  entity: number,
+): readonly [number, number, number, number, number, number, number, number, number] {
+  if (!Number.isInteger(entity) || entity < 0 || entity >= field.count) {
+    throw new Error(
+      `Entity ${entity} is out of range for element frame field ${field.id} (count ${field.count})`,
+    );
+  }
+  const base = entity * FRAME_COMPONENT_COUNT;
+  return [
+    field.values[base] ?? NaN,
+    field.values[base + 1] ?? NaN,
+    field.values[base + 2] ?? NaN,
+    field.values[base + 3] ?? NaN,
+    field.values[base + 4] ?? NaN,
+    field.values[base + 5] ?? NaN,
+    field.values[base + 6] ?? NaN,
+    field.values[base + 7] ?? NaN,
+    field.values[base + 8] ?? NaN,
+  ];
 }
 
 /**

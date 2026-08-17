@@ -1,5 +1,5 @@
 import type { Part } from "../geometry/part";
-import type { VectorField } from "./fields";
+import type { ElementFrameField, VectorField } from "./fields";
 import { getOrientationTopology, resolveOrientationAnchor } from "./orientation-topology";
 
 /** The deterministic threshold below which an authored direction is omitted. */
@@ -18,6 +18,8 @@ export interface ElementalOrientationRecords {
   readonly anchors: Float32Array;
   readonly referenceLengths: Float32Array;
   readonly directions: Float32Array;
+  /** RGB axis index per record; zero for ordinary vector glyph records. */
+  readonly axisIndices?: Uint32Array;
   readonly anchorDeltas: Float32Array | undefined;
 }
 
@@ -54,6 +56,66 @@ export function resolveElementalOrientationRecords(
   return { ...cached, anchorDeltas };
 }
 
+/** Resolves an authored X/Y/Z frame into three renderer-owned axis records per element. */
+export function resolveElementalFrameRecords(
+  part: Part,
+  field: ElementFrameField,
+  displacements?: Float32Array,
+): ElementalOrientationRecords {
+  validateFrameCoverage(part, field);
+  const topology = getOrientationTopology(part);
+  const active = topology.elements.filter((element) => hasActiveFrameAt(field, element.id));
+  const nodePositions = part.nodePositions;
+  if (active.length > 0 && nodePositions === undefined) {
+    throw new Error(
+      `Element frame field ${field.id} cannot anchor part ${part.id}: geometry has no nodePositions`,
+    );
+  }
+  if (nodePositions === undefined) return emptyRecords();
+  const elementIds = new Uint32Array(active.length * 3);
+  const bodyIds = new Uint32Array(active.length * 3);
+  const anchors = new Float32Array(active.length * 9);
+  const referenceLengths = new Float32Array(active.length * 3);
+  const directions = new Float32Array(active.length * 9);
+  const axisIndices = new Uint32Array(active.length * 3);
+  active.forEach((element, elementIndex) => {
+    const anchor = resolveOrientationAnchor(part, field, element, nodePositions);
+    const fieldBase = element.id * 9;
+    for (let axis = 0; axis < 3; axis += 1) {
+      const recordIndex = elementIndex * 3 + axis;
+      const recordBase = recordIndex * 3;
+      const axisBase = fieldBase + axis * 3;
+      elementIds[recordIndex] = element.id;
+      bodyIds[recordIndex] = element.bodyId === undefined ? 0 : element.bodyId + 1;
+      axisIndices[recordIndex] = axis;
+      anchors[recordBase] = anchor.x;
+      anchors[recordBase + 1] = anchor.y;
+      anchors[recordBase + 2] = anchor.z;
+      referenceLengths[recordIndex] = anchor.referenceLength;
+      const length = Math.hypot(
+        field.values[axisBase] ?? NaN,
+        field.values[axisBase + 1] ?? NaN,
+        field.values[axisBase + 2] ?? NaN,
+      );
+      directions[recordBase] = (field.values[axisBase] ?? NaN) / length;
+      directions[recordBase + 1] = (field.values[axisBase + 1] ?? NaN) / length;
+      directions[recordBase + 2] = (field.values[axisBase + 2] ?? NaN) / length;
+    }
+  });
+  const records = {
+    elementIds,
+    bodyIds,
+    anchors,
+    referenceLengths,
+    directions,
+    axisIndices,
+    anchorDeltas: undefined,
+  };
+  return displacements === undefined
+    ? records
+    : { ...records, anchorDeltas: anchorDeltasFor(part, records, displacements) };
+}
+
 function validateElementCoverage(part: Part, field: VectorField<"elemental">): void {
   const elements = part.elements;
   if (elements === undefined || elements.length === 0) {
@@ -71,6 +133,32 @@ function validateElementCoverage(part: Part, field: VectorField<"elemental">): v
       );
     }
   }
+}
+
+function validateFrameCoverage(part: Part, field: ElementFrameField): void {
+  const elements = part.elements;
+  if (elements === undefined || elements.length === 0) {
+    if (hasActiveFrame(field)) {
+      throw new Error(
+        `Element frame field ${field.id} cannot resolve part ${part.id}: geometry has no element metadata`,
+      );
+    }
+    return;
+  }
+  for (const element of elements) {
+    if (element.id >= field.count) {
+      throw new Error(
+        `Element frame field ${field.id} (count ${field.count}) has no value for element ${element.id} in part ${part.id}`,
+      );
+    }
+  }
+}
+
+function hasActiveFrame(field: ElementFrameField): boolean {
+  for (let element = 0; element < field.count; element += 1) {
+    if (hasActiveFrameAt(field, element)) return true;
+  }
+  return false;
 }
 
 function vectorRecordsFor(
@@ -146,6 +234,7 @@ function emptyRecords(): ElementalOrientationRecords {
     anchors: new Float32Array(),
     referenceLengths: new Float32Array(),
     directions: new Float32Array(),
+    axisIndices: new Uint32Array(),
     anchorDeltas: undefined,
   };
 }
@@ -210,6 +299,22 @@ function hasActiveVectorAt(field: VectorField<"elemental">, element: number): bo
     Number.isFinite(z) &&
     Math.hypot(x, y, z) > VECTOR_ZERO_TOLERANCE
   );
+}
+
+function hasActiveFrameAt(field: ElementFrameField, element: number): boolean {
+  const base = element * 9;
+  return [0, 1, 2].every((axis) => {
+    const axisBase = base + axis * 3;
+    const x = field.values[axisBase] ?? NaN;
+    const y = field.values[axisBase + 1] ?? NaN;
+    const z = field.values[axisBase + 2] ?? NaN;
+    return (
+      Number.isFinite(x) &&
+      Number.isFinite(y) &&
+      Number.isFinite(z) &&
+      Math.hypot(x, y, z) > VECTOR_ZERO_TOLERANCE
+    );
+  });
 }
 
 function finiteOrZero(value: number | undefined): number {

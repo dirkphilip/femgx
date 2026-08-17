@@ -1,5 +1,5 @@
 import type { DeformationState } from "../results/deform";
-import type { ScalarField, VectorField } from "../results/fields";
+import type { ElementFrameField, ScalarField, VectorField } from "../results/fields";
 import type { ScalarColorMap } from "../results/mapping";
 import type { ValueRange } from "../results/range";
 
@@ -54,6 +54,15 @@ export interface ViewportElementVectorConfig {
   readonly widthPixels?: number;
 }
 
+/** Configuration for the renderer-owned RGB triad of an authored element frame. */
+export interface ViewportElementFrameConfig {
+  readonly field: ElementFrameField;
+  readonly glyph: "triad";
+  readonly lengthScale?: number;
+  /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
+  readonly widthPixels?: number;
+}
+
 /**
  * One atomic, non-empty combination of authored result roles.
  *
@@ -73,7 +82,7 @@ export interface ViewportElementVectorConfig {
 export interface ViewportResultsConfig {
   readonly scalar?: ViewportScalarConfig;
   readonly deformation?: ViewportDeformationConfig;
-  readonly vectors?: ViewportElementVectorConfig;
+  readonly vectors?: ViewportElementVectorConfig | ViewportElementFrameConfig;
 }
 
 /**
@@ -91,14 +100,23 @@ export interface ViewportScalarState {
  * Resolved elemental vector role installed on a viewport.
  * @category Results
  */
-export interface ViewportElementVectorState {
-  readonly config: ViewportElementVectorConfig;
-  readonly field: VectorField<"elemental">;
-  readonly glyph: "arrow" | "axis";
-  readonly transform: "direction" | "normal";
-  readonly lengthScale: number;
-  readonly widthPixels: number;
-}
+export type ViewportElementVectorState =
+  | {
+      readonly config: ViewportElementVectorConfig;
+      readonly field: VectorField<"elemental">;
+      readonly glyph: "arrow" | "axis";
+      readonly transform: "direction" | "normal";
+      readonly lengthScale: number;
+      readonly widthPixels: number;
+    }
+  | {
+      readonly config: ViewportElementFrameConfig;
+      readonly field: ElementFrameField;
+      readonly glyph: "triad";
+      readonly transform: "direction";
+      readonly lengthScale: number;
+      readonly widthPixels: number;
+    };
 
 /**
  * Resolved authored result roles installed on a viewport.

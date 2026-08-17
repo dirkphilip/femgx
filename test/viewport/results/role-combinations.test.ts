@@ -17,6 +17,7 @@ import {
   fakeGpuDevice,
   installTestGpuGlobals,
 } from "./support";
+import { createElementFrameField } from "../../../src/results/fields";
 
 describe("viewport results workflow", () => {
   it("accepts every non-empty combination of independent result roles", () => {
@@ -78,6 +79,29 @@ describe("viewport results workflow", () => {
     expect(viewportOrientationRecords(second)?.get(1)?.directions).toBe(
       viewportOrientationRecords(first)?.get(1)?.directions,
     );
+  });
+
+  it("resolves complete authored element frames as three RGB triad records", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const field = createElementFrameField({
+      partId: 1,
+      id: "frame",
+      name: "Frame",
+      count: 1,
+      unit: "unitless",
+      values: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+    });
+    const result = resolveViewportResults({ vectors: { field, glyph: "triad" } }, scene, runtime);
+    expect(result.vectors?.glyph).toBe("triad");
+    const records = viewportOrientationRecords(result)?.get(1);
+    expect(records?.elementIds).toEqual(new Uint32Array([0, 0, 0]));
+    expect(records?.axisIndices).toEqual(new Uint32Array([0, 1, 2]));
+    expect(records?.directions).toEqual(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
   });
 
   it("accepts bounded fractional vector widths and rejects invalid replacements atomically", async () => {

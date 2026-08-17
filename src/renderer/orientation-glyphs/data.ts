@@ -13,6 +13,7 @@ export interface OrientationGlyphRecordSource {
   readonly anchors: Float32Array;
   readonly referenceLengths: Float32Array;
   readonly directions: Float32Array;
+  readonly axisIndices?: Uint32Array;
   readonly anchorDeltas: Float32Array | undefined;
 }
 
@@ -39,6 +40,7 @@ export function packOrientationRecords(
     floats[target + 10] = delta?.[source + 2] ?? 0;
     ids[target + 12] = records.elementIds[index] ?? 0;
     ids[target + 13] = records.bodyIds[index] ?? 0;
+    ids[target + 14] = records.axisIndices?.[index] ?? 0;
   }
   return new Uint8Array(packed);
 }
@@ -53,6 +55,7 @@ export function orientationGlyphRecordSource(
     anchors: records.anchors,
     referenceLengths: records.referenceLengths,
     directions: records.directions,
+    ...(records.axisIndices === undefined ? {} : { axisIndices: records.axisIndices }),
     anchorDeltas: records.anchorDeltas,
   };
 }
@@ -68,6 +71,7 @@ export function sameOrientationGlyphRecordSource(
     source.anchors === records.anchors &&
     source.referenceLengths === records.referenceLengths &&
     source.directions === records.directions &&
+    source.axisIndices === records.axisIndices &&
     source.anchorDeltas === records.anchorDeltas
   );
 }

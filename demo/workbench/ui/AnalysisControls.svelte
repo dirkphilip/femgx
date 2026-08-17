@@ -145,6 +145,15 @@
     return hasVectorFields() && !(snapshot?.analysis.vectorControlsDisabled ?? true);
   }
 
+  function hasActiveFrame(): boolean {
+    const fieldId = snapshot?.analysis.vector.fieldId;
+    return (
+      snapshot?.analysis.vectorFields.some(
+        (field) => field.id === fieldId && field.shape === "frame",
+      ) ?? false
+    );
+  }
+
   function hasResultFields(): boolean {
     return hasScalarFields() || hasDeformationFields() || hasVectorFields();
   }
@@ -353,7 +362,7 @@
         {/each}
       </select>
     </label>
-    <label for="vector-glyph" hidden={!hasActiveVector()}>
+    <label for="vector-glyph" hidden={!hasActiveVector() || hasActiveFrame()}>
       <span>Glyph</span>
       <select
         id="vector-glyph"
@@ -367,7 +376,7 @@
         <option value="axis">{vectorGlyphLabel("axis")}</option>
       </select>
     </label>
-    <label for="vector-transform" hidden={!hasActiveVector()}>
+    <label for="vector-transform" hidden={!hasActiveVector() || hasActiveFrame()}>
       <span>Transform as</span>
       <select
         id="vector-transform"
@@ -416,8 +425,9 @@
       class="result-orientation-help"
       hidden={!hasActiveVector()}
     >
-      Arrow preserves sign and starts at the element anchor; Axis is centered and treats opposite
-      signs as the same orientation.
+      {hasActiveFrame()
+        ? "RGB lines show the authored positive X, Y, and Z axes at each element anchor."
+        : "Arrow preserves sign and starts at the element anchor; Axis is centered and treats opposite signs as the same orientation."}
     </span>
     <span
       id="vector-transform-help"
@@ -425,9 +435,9 @@
       class="result-orientation-help"
       hidden={!hasActiveVector()}
     >
-      Spatial direction follows the occurrence's linear transform for fibers and tangents; Surface
-      normal uses the inverse-transpose transform for shell normals, including non-uniform or
-      mirrored transforms.
+      {hasActiveFrame()
+        ? "The complete part-local frame follows every occurrence of its reusable part."
+        : "Spatial direction follows the occurrence's linear transform for fibers and tangents; Surface normal uses the inverse-transpose transform for shell normals, including non-uniform or mirrored transforms."}
     </span>
     <span
       id="vector-help"
@@ -435,8 +445,9 @@
       class="result-orientation-help"
       hidden={!hasActiveVector()}
     >
-      Authored vectors are normalized for display; magnitude is not displayed. Faded fragments are
-      behind opaque model geometry.
+      {hasActiveFrame()
+        ? "Frame axes are normalized for display and are not pick targets. Faded fragments are behind opaque model geometry."
+        : "Authored vectors are normalized for display; magnitude is not displayed. Faded fragments are behind opaque model geometry."}
     </span>
   </section>
 

@@ -7,7 +7,8 @@ a vector field does not by itself enable a viewport glyph presentation.
 
 ## Result fields
 
-`createResultField` builds a typed `ResultField<shape, location>`:
+`createResultField` builds a typed `ResultField<shape, location>`. Full
+element orientation uses the separate `createElementFrameField` constructor:
 
 - Locations are `nodal` or `elemental`; retained result shapes are `scalar` and
   `vector`. Viewport coloring accepts authored scalar fields at either location;
@@ -23,6 +24,12 @@ a vector field does not by itself enable a viewport glyph presentation.
   map treat `NaN` as missing rather than as zero.
 - Accessors `scalarAt` / `vectorAt` read one entity and throw on
   out-of-range indices.
+- `ElementFrameField` identifies its owning reusable `partId` and stores nine
+  floats per dense part-local element id in
+  X/Y/Z axis order. `frameAt` reads one row. A row containing any non-finite
+  component is missing and emits no triad; finite rows must have three
+  non-zero axes. Frames are authored data, not derived normals or engineering
+  quantities, and are shared by every occurrence of the part.
 
 Host-supplied `FemModel` results enter this same authored-field path through
 `createResultFieldFromModelResult`. It maps model node identities to dense
@@ -79,6 +86,12 @@ node pick id or private element ordinal; they never appear in interaction state
 or in `ViewportResultsState`. One table belongs to each reusable part and is
 shared by all placements. Replacing results reuses the same scene/runtime and
 updates only renderer-owned color, deformation, and glyph state.
+An `ElementFrameField` may instead be supplied with `glyph: "triad"`; each
+complete dense row renders one positive RGB X/Y/Z line set through the same
+anchor, transform, deformation, visibility, section, depth-visible/weighted
+ghost, instancing, and recovery path. Triads are renderer-owned presentation
+and never pickable. Forces/loads and occurrence-specific result overrides stay
+deferred; copying a part is the current workaround for distinct authored rows.
 Repeated `setResults()` calls are the host-owned snapshot-sequencing boundary:
 the host may step or play an ordered collection of exact authored states while
 reusing the same scene/runtime. Scalar, deformation, and vector roles change
@@ -99,9 +112,10 @@ The `results` demo preset exercises the scalar/deformation/orientation workflow
 with a static 4-by-2 Hex8 block placed once directly and once through a reflected,
 non-uniform occurrence. Its eight elements share the 30 nodes of one conforming
 block, use dense element ids aligned directly with eight authored scalar values,
-and apply a small curved/tapered nodal displacement. It also carries two
-elemental fields: signed shell-normal rows (including missing and zero rows) and
-sign-invariant fiber rows. This makes the demo visibly show multiple scalar bands
+and apply a small curved/tapered nodal displacement. It also carries three
+elemental fields: signed shell-normal rows (including missing and zero rows),
+sign-invariant fiber rows, and complete RGB X/Y/Z element-frame rows. This makes
+the demo visibly show multiple scalar bands
 and repeated orientation semantics while retaining the same static viewport path:
 the public API supports the undeformed/base state via `clearResults()`, the
 colored state via `setResults({ scalar: { field } })`, and the combined

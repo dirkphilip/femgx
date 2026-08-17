@@ -2,6 +2,7 @@ import {
   createResultField,
   type Bounds,
   type Color,
+  type ElementFrameField,
   type PartId,
   type Scene,
   type ScalarField,
@@ -31,7 +32,7 @@ export interface ModelPreset {
   readonly resultSequence?: AuthoredResultSequence;
   /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
 }
 
 /** One exact authored scalar/deformation snapshot in the demo sequence. */

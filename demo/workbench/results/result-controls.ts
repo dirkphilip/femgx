@@ -1,6 +1,8 @@
 import type {
+  ElementFrameField,
   ScalarField,
   VectorField,
+  ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportResultsConfig,
 } from "../../../src/entries/root";
@@ -15,8 +17,9 @@ const DEFAULT_VECTOR_WIDTH_PIXELS = 2;
 const MIN_VECTOR_WIDTH_PIXELS = 1;
 const MAX_VECTOR_WIDTH_PIXELS = 8;
 
-export type VectorGlyph = ViewportElementVectorConfig["glyph"];
+export type VectorGlyph = ViewportElementVectorConfig["glyph"] | "triad";
 export type VectorTransform = ViewportElementVectorConfig["transform"];
+export type OrientationField = VectorField<"elemental"> | ElementFrameField;
 export type WorkbenchScalarField = ScalarField<"nodal"> | ScalarField<"elemental">;
 
 export interface VectorDisplayState {
@@ -28,8 +31,8 @@ export interface VectorDisplayState {
 }
 
 /** Returns the user-facing name for an orientation glyph presentation. */
-export function vectorGlyphLabel(glyph: VectorGlyph): "Arrow" | "Axis" {
-  return glyph === "arrow" ? "Arrow" : "Axis";
+export function vectorGlyphLabel(glyph: VectorGlyph): "Arrow" | "Axis" | "RGB triad" {
+  return glyph === "arrow" ? "Arrow" : glyph === "axis" ? "Axis" : "RGB triad";
 }
 
 /** Returns the user-facing name for an occurrence transform presentation. */
@@ -45,6 +48,7 @@ const CANONICAL_VECTOR_PRESENTATIONS: ReadonlyMap<
 > = new Map([
   ["demo-normals", { glyph: "arrow", transform: "normal" }],
   ["demo-fibers", { glyph: "axis", transform: "direction" }],
+  ["demo-element-frames", { glyph: "triad", transform: "direction" }],
 ]);
 
 /** Resolves the display mode represented by a scalar-field selection. */
@@ -94,9 +98,7 @@ export function parseVectorWidthPixels(value: string): number | undefined {
 }
 
 /** Returns the demo-owned elemental vector choices, including an active imported role. */
-export function resultVectorFieldsForModel(
-  model: WorkbenchModel,
-): readonly VectorField<"elemental">[] {
+export function resultVectorFieldsForModel(model: WorkbenchModel): readonly OrientationField[] {
   const fields = [...(model.resultVectorFields ?? [])];
   const active = model.results?.vectors?.field;
   if (active !== undefined && !fields.some((field) => field.id === active.id)) fields.push(active);
@@ -137,7 +139,7 @@ export function vectorDisplayForModel(model: WorkbenchModel): VectorDisplayState
   return {
     fieldId: active?.field.id ?? first?.id ?? VECTOR_OFF_VALUE,
     glyph: active?.glyph ?? "arrow",
-    transform: active?.transform ?? "direction",
+    transform: active?.glyph === "triad" ? "direction" : (active?.transform ?? "direction"),
     lengthScale: active?.lengthScale ?? 1,
     widthPixels: active?.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS,
   };
@@ -163,23 +165,30 @@ export function vectorDisplayForField(
 export function vectorConfigForDisplay(
   model: WorkbenchModel,
   display: VectorDisplayState,
-): ViewportElementVectorConfig | undefined {
+): ViewportElementVectorConfig | ViewportElementFrameConfig | undefined {
   if (display.fieldId === VECTOR_OFF_VALUE) return undefined;
   const field = resultVectorFieldsForModel(model).find(
     (candidate) => candidate.id === display.fieldId,
   );
   return field === undefined
     ? undefined
-    : {
-        field,
-        glyph: display.glyph,
-        transform: display.transform,
-        lengthScale: display.lengthScale,
-        widthPixels: display.widthPixels,
-      };
+    : field.shape === "frame"
+      ? {
+          field,
+          glyph: "triad",
+          lengthScale: display.lengthScale,
+          widthPixels: display.widthPixels,
+        }
+      : {
+          field,
+          glyph: display.glyph === "triad" ? "axis" : display.glyph,
+          transform: display.transform,
+          lengthScale: display.lengthScale,
+          widthPixels: display.widthPixels,
+        };
 }
 
-/** Accepts only the two renderer-owned glyph presentations. */
+/** Accepts only the user-selectable single-vector glyph presentations. */
 export function parseVectorGlyph(value: string): VectorGlyph | undefined {
   return value === "arrow" || value === "axis" ? value : undefined;
 }

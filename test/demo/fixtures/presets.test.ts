@@ -35,7 +35,7 @@ describe("createModelPresets", () => {
       "Element tessellation and mapping gallery",
       "Hex20 cylinder",
       "Section-plane volume",
-      "Static results · scalar + deformation + orientation",
+      "Results and element-orientation gallery",
       "Order-independent transparency",
     ]);
     expect(new Set(presets.map((preset) => preset.name)).size).toBe(6);
@@ -139,6 +139,7 @@ describe("results preset", () => {
     expect(preset.resultVectorFields?.map((field) => field.id)).toEqual([
       "demo-normals",
       "demo-fibers",
+      "demo-element-frames",
     ]);
     expect(preset.scene.assemblies.get(20)?.placements).toHaveLength(2);
     expect(model?.elements).toHaveLength(8);
@@ -284,6 +285,9 @@ describe("results preset", () => {
     expect(preset.resultVectorFields?.[1]?.values.slice(0, 6)).toEqual(
       new Float32Array([1, 0.25, 0, -1, -0.25, 0]),
     );
+    const frames = preset.resultVectorFields?.find((field) => field.id === "demo-element-frames");
+    expect(frames?.shape).toBe("frame");
+    expect(frames?.values).toHaveLength(72);
   });
 });
 

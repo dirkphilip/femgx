@@ -53,6 +53,8 @@ ${ownerVisibilityBindings}
 struct GlyphVertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) worldPosition: vec3<f32>,
+  @location(1) @interpolate(flat) axis: u32,
+  @location(2) @interpolate(flat) triad: u32,
 };
 
 fn finiteDirection(direction: vec3<f32>) -> vec3<f32> {
@@ -173,6 +175,8 @@ fn glyphVertex(
   var output: GlyphVertexOutput;
   output.position = position;
   output.worldPosition = select(anchor, end, vertexIndex >= 6u);
+  output.axis = record.ids.z;
+  output.triad = select(0u, 1u, glyphParams.mode == 2u);
   return output;
 }
 
@@ -194,8 +198,11 @@ ${sectionPlaneBindings}
 ${sectionPlaneFunction}
 
 @fragment
-fn fragmentMain(@location(0) worldPosition: vec3<f32>) -> @location(0) vec4<f32> {
+fn fragmentMain(@location(0) worldPosition: vec3<f32>, @location(1) @interpolate(flat) axis: u32, @location(2) @interpolate(flat) triad: u32) -> @location(0) vec4<f32> {
   if (!sectionPlaneVisible(worldPosition)) { discard; }
+  if (triad == 1u && axis == 0u) { return vec4<f32>(0.9, 0.15, 0.12, 1.0); }
+  if (triad == 1u && axis == 1u) { return vec4<f32>(0.15, 0.8, 0.25, 1.0); }
+  if (triad == 1u && axis == 2u) { return vec4<f32>(0.2, 0.4, 0.95, 1.0); }
   return vec4<f32>(0.98, 0.72, 0.12, 1.0);
 }
 `;
@@ -207,8 +214,12 @@ ${sectionPlaneFunction}
 ${transparencyOutput}
 
 @fragment
-fn fragmentMain(@builtin(position) position: vec4<f32>, @location(0) worldPosition: vec3<f32>) -> TransparencyOutput {
+fn fragmentMain(@builtin(position) position: vec4<f32>, @location(0) worldPosition: vec3<f32>, @location(1) @interpolate(flat) axis: u32, @location(2) @interpolate(flat) triad: u32) -> TransparencyOutput {
   if (!sectionPlaneVisible(worldPosition)) { discard; }
-  return weightedPresentationTransparency(vec3<f32>(0.98, 0.72, 0.12), 0.35);
+  var color = vec3<f32>(0.98, 0.72, 0.12);
+  if (triad == 1u && axis == 0u) { color = vec3<f32>(0.9, 0.15, 0.12); }
+  if (triad == 1u && axis == 1u) { color = vec3<f32>(0.15, 0.8, 0.25); }
+  if (triad == 1u && axis == 2u) { color = vec3<f32>(0.2, 0.4, 0.95); }
+  return weightedPresentationTransparency(color, 0.35);
 }
 `;
