@@ -151,7 +151,7 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await expect(page.getByTestId("result-controls")).toBeVisible();
   await expect(vectorField).toHaveValue("demo-normals");
   await expect(page.getByTestId("vector-help")).toHaveText(
-    "Authored vectors are normalized for display; magnitude is not displayed",
+    "Authored vectors are normalized for display; magnitude is not displayed. Faded fragments are behind opaque model geometry.",
   );
   await expect(canvas).toHaveAttribute("data-vector-field", "demo-normals");
 
@@ -175,7 +175,9 @@ test("validates signed normals and sign-invariant fibers in one shared results p
     "Authored vectors normalized for display",
   );
   await expect(page.getByTestId("result-legend")).toContainText("Magnitude not displayed");
-  await expect(page.getByTestId("result-legend-orientation")).toContainText("Axis / Direction");
+  await expect(page.getByTestId("result-legend-orientation")).toContainText(
+    "Axis · Spatial direction",
+  );
   await expect(page.getByTestId("result-legend-deformation")).toContainText("Scale 1");
 
   const beforeBase = await canvas.getAttribute("data-frames");
@@ -193,6 +195,43 @@ test("validates signed normals and sign-invariant fibers in one shared results p
   await vectorWidth.press("Enter");
   await expect(vectorWidth).toHaveValue("2");
   await expect(vectorWidth).toBeVisible();
+});
+
+test("keeps orientation controls and summary scoped to the active viewport", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  await page.getByTestId("model-select").selectOption("results");
+  await openCommandPanel(page, "analysis");
+
+  const primary = page.getByTestId("view-canvas");
+  await expect(page.getByTestId("vector-field")).toHaveValue("demo-normals");
+  await page.getByTestId("vector-glyph").selectOption("arrow");
+  await page.getByTestId("vector-transform").selectOption("normal");
+
+  await openCommandPanel(page, "view");
+  await page.getByTestId("viewport-toggle").click();
+  const secondary = page.getByTestId("secondary-view-canvas");
+  await waitForRenderer(page, secondary);
+  await page.getByRole("region", { name: "Secondary viewport" }).focus();
+  await openCommandPanel(page, "analysis");
+  await page.getByTestId("vector-field").selectOption("demo-fibers");
+  await page.getByTestId("vector-glyph").selectOption("axis");
+  await page.getByTestId("vector-transform").selectOption("direction");
+
+  await expect(secondary).toHaveAttribute("data-vector-field", "demo-fibers");
+  await expect(secondary).toHaveAttribute("data-vector-glyph", "axis");
+  await expect(secondary).toHaveAttribute("data-vector-transform", "direction");
+  await expect(page.getByTestId("vector-field")).toHaveValue("demo-fibers");
+  await expect(page.getByTestId("result-legend-orientation")).toContainText("Spatial direction");
+
+  await page.getByRole("region", { name: "Primary viewport" }).focus();
+  await expect(page.getByTestId("vector-field")).toHaveValue("demo-normals");
+  await expect(page.getByTestId("vector-glyph")).toHaveValue("arrow");
+  await expect(page.getByTestId("vector-transform")).toHaveValue("normal");
+  await expect(primary).toHaveAttribute("data-vector-field", "demo-normals");
+  await expect(primary).toHaveAttribute("data-vector-glyph", "arrow");
+  await expect(primary).toHaveAttribute("data-vector-transform", "normal");
+  await expect(page.getByTestId("result-legend-orientation")).toContainText("Surface normal");
 });
 
 test("keeps section planes local to the active viewport", async ({ page }) => {

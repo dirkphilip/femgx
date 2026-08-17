@@ -21,6 +21,8 @@ import {
   vectorConfigForDisplay,
   vectorDisplayForField,
   vectorDisplayForModel,
+  vectorGlyphLabel,
+  vectorTransformLabel,
   VECTOR_OFF_VALUE,
 } from "../../demo/workbench/results/result-controls";
 
@@ -121,6 +123,10 @@ describe("demo orientation result controls", () => {
     expect(parseVectorTransform("direction")).toBe("direction");
     expect(parseVectorTransform("normal")).toBe("normal");
     expect(parseVectorTransform("world")).toBeUndefined();
+    expect(vectorGlyphLabel("arrow")).toBe("Arrow");
+    expect(vectorGlyphLabel("axis")).toBe("Axis");
+    expect(vectorTransformLabel("direction")).toBe("Spatial direction");
+    expect(vectorTransformLabel("normal")).toBe("Surface normal");
   });
 
   it("keeps scalar, deformation, and base-mode transitions mutually explicit", () => {

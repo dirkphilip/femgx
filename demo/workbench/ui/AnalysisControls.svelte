@@ -3,6 +3,8 @@
     BASE_RESULT_VALUE,
     DEFORMATION_OFF_VALUE,
     VECTOR_OFF_VALUE,
+    vectorGlyphLabel,
+    vectorTransformLabel,
   } from "../results/result-controls";
   import type { WorkbenchController } from "../controllers/controller";
   import type { WorkbenchResultField, WorkbenchSnapshot } from "../results/snapshot";
@@ -329,25 +331,27 @@
       <select
         id="vector-glyph"
         data-testid="vector-glyph"
-        aria-label="Vector glyph"
+        aria-label="Orientation glyph"
+        aria-describedby="vector-glyph-help"
         value={snapshot?.analysis.vector.glyph ?? "arrow"}
         onchange={setVectorGlyph}
       >
-        <option value="arrow">Arrow</option>
-        <option value="axis">Axis</option>
+        <option value="arrow">{vectorGlyphLabel("arrow")}</option>
+        <option value="axis">{vectorGlyphLabel("axis")}</option>
       </select>
     </label>
     <label for="vector-transform" hidden={!hasActiveVector()}>
-      <span>Transform</span>
+      <span>Transform as</span>
       <select
         id="vector-transform"
         data-testid="vector-transform"
-        aria-label="Vector transform"
+        aria-label="Transform as"
+        aria-describedby="vector-transform-help"
         value={snapshot?.analysis.vector.transform ?? "direction"}
         onchange={setVectorTransform}
       >
-        <option value="direction">Direction</option>
-        <option value="normal">Normal</option>
+        <option value="direction">{vectorTransformLabel("direction")}</option>
+        <option value="normal">{vectorTransformLabel("normal")}</option>
       </select>
     </label>
     <label for="vector-length-scale" hidden={!hasActiveVector()}>
@@ -380,12 +384,32 @@
       />
     </label>
     <span
+      id="vector-glyph-help"
+      data-testid="vector-glyph-help"
+      class="result-orientation-help"
+      hidden={!hasActiveVector()}
+    >
+      Arrow preserves sign and starts at the element anchor; Axis is centered and treats opposite
+      signs as the same orientation.
+    </span>
+    <span
+      id="vector-transform-help"
+      data-testid="vector-transform-help"
+      class="result-orientation-help"
+      hidden={!hasActiveVector()}
+    >
+      Spatial direction follows the occurrence's linear transform for fibers and tangents; Surface
+      normal uses the inverse-transpose transform for shell normals, including non-uniform or
+      mirrored transforms.
+    </span>
+    <span
       id="vector-help"
       data-testid="vector-help"
       class="result-orientation-help"
       hidden={!hasActiveVector()}
     >
-      Authored vectors are normalized for display; magnitude is not displayed
+      Authored vectors are normalized for display; magnitude is not displayed. Faded fragments are
+      behind opaque model geometry.
     </span>
   </section>
 

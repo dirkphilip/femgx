@@ -189,6 +189,7 @@
   min-width: 0;
   color: #91a6bc;
   font-size: 11px;
+  line-height: 1.35;
 }
 .section-controls {
   align-self: start;
