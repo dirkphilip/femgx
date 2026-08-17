@@ -1,4 +1,5 @@
 import { expect, it, describe } from "vitest";
+import { resultColorFunctions } from "../../../../src/renderer/shaders/scene";
 import {
   EMISSIVE_BYTE_OFFSET,
   INSTANCE_STRIDE,
@@ -91,9 +92,24 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   });
 
   it("keeps the displayed color for emissive-only primitive emphasis", () => {
-    expect(instanceVertexShader).toContain("highlight.preservesDisplayedColor");
+    expect(instanceVertexShader).toContain("highlight.keepsResultColor");
     expect(instanceVertexShader).toContain(
-      "if (!highlight.preservesDisplayedColor) { color = highlight.color; }",
+      "if (!highlight.keepsResultColor) { color = highlight.color; }",
+    );
+    expect(instanceVertexShader).toContain("color = highlight.color;");
+  });
+
+  it("composes result alpha with the resolved instance alpha", () => {
+    expect(resultColorFunctions).toContain("resultColors[base + 3u] * fallback.a");
+    expect(resultColorFunctions).toContain("resultColors[base]");
+    expect(resultColorFunctions).toContain("resultColors[base + 1u]");
+    expect(resultColorFunctions).toContain("resultColors[base + 2u]");
+  });
+
+  it("does not globally re-enable results after an element override disables them", () => {
+    expect(instanceVertexShader).not.toContain("selectionKeepsResult");
+    expect(instanceVertexShader).toContain(
+      "resultColorEnabled = select(\n          false,\n          resultColorActive(nodePickId, elementOrdinal),\n          highlight.keepsResultColor,\n        );",
     );
   });
 

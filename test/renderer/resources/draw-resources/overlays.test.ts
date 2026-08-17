@@ -41,7 +41,7 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const resource = uploadPart(draw, part);
       expect(resource.edge).toBeUndefined();
-      expect(gpu.buffers).toHaveLength(8);
+      expect(gpu.buffers).toHaveLength(9);
       patchInstances(draw, part.id, [
         { slot: 0, data: record(0) },
         { slot: 1, data: record(1) },

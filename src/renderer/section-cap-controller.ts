@@ -5,6 +5,7 @@ import type { SectionPlane } from "../math/section-plane";
 import type { DeformationState } from "../results/deform";
 import { buildSectionCapFrame, destroySectionCapFrame, type SectionCapFrame } from "./section-caps";
 import type { DrawResources } from "./resources/draw-resources";
+import type { ResultColorMap } from "../results/colors";
 
 interface SectionCapSyncOptions {
   readonly runtime: PackedSceneRuntime;
@@ -12,7 +13,7 @@ interface SectionCapSyncOptions {
   readonly plane: SectionPlane | undefined;
   readonly interaction: InteractionState;
   readonly deformation: DeformationState | undefined;
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly resultColors: ResultColorMap | undefined;
   readonly draw: DrawResources;
 }
 
@@ -22,7 +23,7 @@ export class SectionCapController {
   private runtime: PackedSceneRuntime | undefined;
   private dirty = true;
   private renderedParts: ReadonlyMap<PartId, Part> = new Map();
-  private renderedColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  private renderedColors: ResultColorMap | undefined;
 
   public get currentFrame(): SectionCapFrame | undefined {
     return this.frame;
@@ -32,7 +33,7 @@ export class SectionCapController {
     return this.renderedParts;
   }
 
-  public get resultColors(): ReadonlyMap<PartId, Float32Array> | undefined {
+  public get resultColors(): ResultColorMap | undefined {
     return this.renderedColors;
   }
 
@@ -80,10 +81,7 @@ export class SectionCapController {
   }
 
   /** Drops stale references after the lifecycle has destroyed the old bundle. */
-  public recover(
-    parts: ReadonlyMap<PartId, Part>,
-    colors: ReadonlyMap<PartId, Float32Array> | undefined,
-  ): void {
+  public recover(parts: ReadonlyMap<PartId, Part>, colors: ResultColorMap | undefined): void {
     this.frame = undefined;
     this.runtime = undefined;
     this.dirty = true;

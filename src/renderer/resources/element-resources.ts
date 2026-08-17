@@ -53,8 +53,8 @@ export interface EmphasisUpdate {
   readonly hidden?: boolean;
   /** Marks the matching primitive for the renderer-owned x-ray selection pass. */
   readonly selected?: boolean;
-  /** Leaves the instance material or active result color beneath this emphasis. */
-  readonly preservesDisplayedColor?: boolean;
+  /** Keeps the active scalar result color beneath this emphasis. */
+  readonly keepsResultColor?: boolean;
   readonly style: ResolvedStyle;
 }
 
@@ -95,7 +95,7 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
   floats[8] = update.style.emissive;
   ids[9] = update.hidden === true ? 1 : 0;
   ids[10] = update.selected === true ? 1 : 0;
-  ids[11] = update.preservesDisplayedColor === true ? 1 : 0;
+  ids[11] = update.keepsResultColor === true ? 1 : 0;
   return data;
 }
 
@@ -166,7 +166,9 @@ function collectBodyEmphasis(
     const part = parts.get(occurrence.instance.partId);
     const body = part === undefined ? undefined : getPartSemanticIndex(part).bodies.get(ref.bodyId);
     if (body === undefined) continue;
+    const explicitOverride = data.bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
     const style = resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction);
+    const selected = data.selectedBodyIds.get(ref.instanceId)?.has(ref.bodyId) === true;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -174,8 +176,11 @@ function collectBodyEmphasis(
       nodePickId: 0,
       bodyPickId: ref.bodyId + 1,
       hidden: !isBodyVisible(interaction, ref),
-      selected: data.selectedBodyIds.get(ref.instanceId)?.has(ref.bodyId) === true,
-      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      selected,
+      keepsResultColor:
+        explicitOverride?.color === undefined &&
+        explicitOverride?.opacity === undefined &&
+        (selected || keepsResultColor(occurrence.instance, style, interaction)),
       style,
     });
   }
@@ -207,6 +212,7 @@ function collectElementEmphasis(
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const bodyId = metadata?.bodyByElement.get(ref.elementId);
+    const explicitOverride = data.elementOverrides.get(ref.instanceId)?.get(ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
       ref.elementId,
@@ -214,14 +220,18 @@ function collectElementEmphasis(
       interaction,
       bodyId,
     );
+    const selected = data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: ref.elementId + 1,
       facePickId: 0,
       nodePickId: 0,
       hidden: !isElementVisible(interaction, ref),
-      selected: data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true,
-      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      selected,
+      keepsResultColor:
+        explicitOverride?.color === undefined &&
+        explicitOverride?.opacity === undefined &&
+        (selected || keepsResultColor(occurrence.instance, style, interaction)),
       style,
     });
   }
@@ -257,7 +267,7 @@ function collectFaceEmphasis(
       nodePickId: 0,
       selected:
         data.selectedFaces.get(ref.instanceId)?.has(faceKey(ref.elementId, ref.faceIndex)) === true,
-      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
       style,
     });
   }
@@ -280,13 +290,13 @@ function collectNodeEmphasis(
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
       selected: data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true,
-      preservesDisplayedColor: preservesDisplayedColor(occurrence.instance, style, interaction),
+      keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
       style,
     });
   }
 }
 
-function preservesDisplayedColor(
+function keepsResultColor(
   instance: Instance,
   style: ResolvedStyle,
   interaction: InteractionState,

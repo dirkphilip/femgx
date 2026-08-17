@@ -108,6 +108,7 @@ describe("viewport results workflow", () => {
     viewport.results.set({ scalar: { field: elementalA }, deformation: { field: displacementA } });
     viewport.results.set({ scalar: { field: elementalB }, deformation: { field: displacementB } });
     const bufferCount = gpu.buffers.length;
+    const liveBufferCount = gpu.buffers.filter((buffer) => !buffer.destroyed).length;
     for (let step = 0; step < 100; step += 1) {
       const alternate = step % 2 === 1;
       viewport.results.set({
@@ -119,7 +120,8 @@ describe("viewport results workflow", () => {
       });
     }
 
-    expect(gpu.buffers.length).toBe(bufferCount);
+    expect(gpu.buffers.length).toBe(bufferCount + 1);
+    expect(gpu.buffers.filter((buffer) => !buffer.destroyed)).toHaveLength(liveBufferCount);
     expect(displacementBuffer?.destroyed).toBe(false);
     expect(viewport.scene).toBe(scene);
     expect(viewport.runtime).toBe(runtime);

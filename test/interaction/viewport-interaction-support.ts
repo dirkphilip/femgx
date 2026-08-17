@@ -10,6 +10,21 @@ import { createCamera } from "../../src/camera/camera";
 
 type Listener = (event: unknown) => void;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
+interface ScheduledFrame {
+  readonly handle: number;
+  readonly callback: FrameRequestCallback;
+}
+
+type RuntimeWithAnimationFrame = {
+  requestAnimationFrame?: typeof requestAnimationFrame;
+  cancelAnimationFrame?: typeof cancelAnimationFrame;
+};
+
+const runtime = globalThis as RuntimeWithAnimationFrame;
+const originalRequestAnimationFrame = runtime.requestAnimationFrame;
+const originalCancelAnimationFrame = runtime.cancelAnimationFrame;
+let scheduledFrames: ScheduledFrame[] = [];
+let nextFrameHandle = 0;
 
 /** Minimal event target used to exercise listener lifecycle without a browser. */
 export class FakeEventTarget {
@@ -152,10 +167,18 @@ export const pointer = (overrides: Partial<PointerInput> = {}): PointerInput => 
 
 export const click = (overrides: Partial<PointerInput> = {}): PointerInput => pointer(overrides);
 
-/** Flushes the two promise turns used by asynchronous interaction handlers. */
+/** Flushes one queued animation frame and the two promise turns used by interaction handlers. */
 export async function settle(): Promise<void> {
+  flushAnimationFrame();
   await Promise.resolve();
   await Promise.resolve();
+}
+
+/** Runs one queued animation-frame batch from the interaction harness. */
+export function flushAnimationFrame(): void {
+  const frames = scheduledFrames;
+  scheduledFrames = [];
+  for (const frame of frames) frame.callback(0);
 }
 
 const originalWindow = (globalThis as { readonly window?: unknown }).window;
@@ -163,10 +186,25 @@ const originalWindow = (globalThis as { readonly window?: unknown }).window;
 /** Installs the fake global window used by viewport interaction registration. */
 export function installFakeWindow(): void {
   (globalThis as { window?: unknown }).window = new FakeEventTarget();
+  scheduledFrames = [];
+  nextFrameHandle = 0;
+  runtime.requestAnimationFrame = (callback) => {
+    const handle = ++nextFrameHandle;
+    scheduledFrames.push({ handle, callback });
+    return handle;
+  };
+  runtime.cancelAnimationFrame = (handle) => {
+    scheduledFrames = scheduledFrames.filter((frame) => frame.handle !== handle);
+  };
 }
 
 /** Restores the global window captured before the interaction suite. */
 export function restoreFakeWindow(): void {
+  scheduledFrames = [];
+  if (originalRequestAnimationFrame === undefined) delete runtime.requestAnimationFrame;
+  else runtime.requestAnimationFrame = originalRequestAnimationFrame;
+  if (originalCancelAnimationFrame === undefined) delete runtime.cancelAnimationFrame;
+  else runtime.cancelAnimationFrame = originalCancelAnimationFrame;
   if (originalWindow === undefined) delete (globalThis as { window?: unknown }).window;
   else (globalThis as { window?: unknown }).window = originalWindow;
 }

@@ -258,16 +258,15 @@ describe("WebGPU benchmark models", () => {
     }).scene;
     const memory = estimateBenchmarkMemory(scene, 3, 800, 600);
     expect(memory.geometryBytes).toBe(384);
-    expect(memory.resultColorBytes).toBe(176);
     expect(memory.pickMetadataBytes).toBe(400);
     expect(memory.edgeIndexBytes).toBe(0);
     expect(memory.subsetBytes).toBe(0);
     expect(memory.deformationBytes).toBe(4);
     expect(memory.pickReadbackBytes).toBe(1280);
     expect(memory.cpuSceneTypedArrayBytes).toBe(412);
+    expect(memory.fixedBufferBytes).toBe(324);
     expect(memory.totalBufferBytes).toBe(
       memory.geometryBytes +
-        memory.resultColorBytes +
         memory.pickMetadataBytes +
         memory.edgeIndexBytes +
         memory.subsetBytes +
@@ -290,7 +289,7 @@ describe("WebGPU benchmark models", () => {
       materializedEdgePartIds: new Set([1]),
     });
     expect(warmMemory.geometryBytes).toBeGreaterThan(memory.geometryBytes);
-    expect(warmMemory.resultColorBytes).toBeGreaterThan(memory.resultColorBytes);
+    expect(warmMemory.fixedBufferBytes).toBe(memory.fixedBufferBytes);
     expect(warmMemory.pickMetadataBytes).toBeGreaterThan(memory.pickMetadataBytes);
     expect(warmMemory.edgeIndexBytes).toBeGreaterThan(0);
   });

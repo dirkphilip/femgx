@@ -9,6 +9,7 @@ import { destroyColorTargets } from "./color-targets";
 import type { PartResource } from "./foundation";
 import { destroyInstanceResources } from "./instance-lifecycle";
 import { destroyVisibilitySkinCache, destroyVisibilitySkinCaches } from "../visibility/skins";
+import { destroyResultColorBuffer, destroyResultColorBuffers } from "./result-colors";
 
 /** Releases one uploaded part geometry resource, including optional overlays. */
 export function destroyPartResource(resource: PartResource): void {
@@ -54,12 +55,15 @@ export function destroyDrawResources(draw: DrawResources): void {
   destroyInstanceResources(draw);
   destroyDeformationBuffers(draw.deformations, draw.cost);
   draw.deformations.clear();
+  destroyResultColorBuffers(draw);
   draw.cost.releaseBuffer(draw.emptyOrderBuffer.size);
   draw.cost.releaseBuffer(draw.emptyHighlight.buffer.size);
   draw.cost.releaseBuffer(draw.emptyDeformationBuffer.size);
+  draw.cost.releaseBuffer(draw.emptyResultColorBuffer.size);
   draw.emptyOrderBuffer.destroy();
   draw.emptyHighlight.buffer.destroy();
   draw.emptyDeformationBuffer.destroy();
+  draw.emptyResultColorBuffer.destroy();
   destroyOrientationGlyphDrawResources(draw.orientationGlyphs);
   destroyColorTargets(draw.targets);
 }
@@ -83,5 +87,6 @@ export function destroyPartResources(draw: DrawResources, partId: PartId): void 
     draw.nodeParts.delete(partId);
   }
   destroyDeformationBuffer(draw.deformations, partId, draw.cost);
+  destroyResultColorBuffer(draw, partId);
   destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }

@@ -1,14 +1,14 @@
 import { clientToCanvasCss } from "../camera/coordinates";
 import { boxSelectionFrustum } from "./box-frustum";
 import { installBoxSelection, type BoxSelectionEvent } from "./box-selection";
+import { interactionTargetFromHit, setTargetHovered } from "./targets";
 import {
-  clearSelection,
-  isTargetSelected,
-  interactionTargetFromHit,
-  setTargetHovered,
-  setTargetSelected,
-  setTargetsSelected,
-} from "./targets";
+  assertTarget,
+  boxInteraction,
+  clickInteraction,
+  isCompletedBoxEvent,
+  modifiersOf,
+} from "./viewport-interaction-helpers";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity } from "../picking/types";
@@ -17,7 +17,6 @@ import type {
   ViewportInteractionApplyRequest,
   ViewportInteractionBoxEvent,
   ViewportInteractionBoxSelection,
-  ViewportInteractionModifiers,
   ViewportInteractionOptions,
   ViewportInteractionPhase,
   ViewportInteractionTouchMode,
@@ -44,6 +43,8 @@ export type {
  * interaction state from `applyInteraction`; returning `undefined` suppresses
  * the default policy. A completed-box callback receives the normalized CSS
  * rectangle, six inward frustum planes, captured granularity, and candidates.
+ * Buttonless mouse and pen hover is sampled at the animation-frame boundary;
+ * only one hover query runs at a time and only its newest queued event is kept.
  * Region queries are serialized: while one is pending, only the newest
  * completed box is retained for the next query.
  * @category Interaction and picking
@@ -60,10 +61,13 @@ class ViewportInteraction {
   private boxActive = false;
   private skipNextClick = false;
   private boxQueryActive = false;
+  private hoverFrame: number | undefined;
+  private hoverInFlight = false;
   private touchDown:
     { readonly pointerId: number; readonly clientX: number; readonly clientY: number } | undefined;
   private queuedBox:
     { readonly event: ViewportInteractionBoxEvent; readonly generation: number } | undefined;
+  private queuedHover: { readonly event: PointerEvent; readonly generation: number } | undefined;
 
   constructor(private readonly options: ViewportInteractionOptions) {
     this.boxDisposer = installBoxSelection({
@@ -83,6 +87,7 @@ class ViewportInteraction {
   dispose = (): void => {
     if (this.disposed) return;
     this.boxDisposer();
+    this.clearQueuedHover();
     this.disposed = true;
     this.generation += 1;
     this.queuedBox = undefined;
@@ -90,6 +95,7 @@ class ViewportInteraction {
   };
 
   private readonly pointerDown = (event: PointerEvent): void => {
+    this.clearQueuedHover();
     this.skipNextClick = false;
     if (event.pointerType === "touch") {
       this.touchDown = {
@@ -107,12 +113,16 @@ class ViewportInteraction {
   private readonly pointerMove = (event: PointerEvent): void => {
     if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive || event.buttons !== 0)
       return;
-    void this.resolvePoint("hover", event);
+    const generation = ++this.generation;
+    this.queuedHover = { event, generation };
+    this.scheduleHover();
   };
 
   private readonly pointerLeave = (event: PointerEvent): void => {
     if (event.pointerType === "touch") return;
-    if (!this.isPointPointer(event) || this.boxActive || this.boxQueryActive) return;
+    if (!this.isPointPointer(event)) return;
+    this.clearQueuedHover();
+    if (this.boxActive || this.boxQueryActive) return;
     this.generation += 1;
     const current = this.options.viewport.interaction.state;
     const next = setTargetHovered(current, undefined);
@@ -144,6 +154,7 @@ class ViewportInteraction {
     ) {
       return;
     }
+    this.clearQueuedHover();
     void this.resolvePoint(this.touchMode() === "hover" ? "hover" : "click", event);
   };
 
@@ -162,8 +173,16 @@ class ViewportInteraction {
   };
 
   private readonly boxEvent = (event: BoxSelectionEvent): void => {
-    if (event.type === "start" || event.type === "change") this.boxActive = true;
-    else this.boxActive = false;
+    this.clearQueuedHover();
+    if (event.type === "start") {
+      this.boxActive = true;
+      this.generation += 1;
+    } else if (event.type === "change") {
+      this.boxActive = true;
+    } else {
+      this.boxActive = false;
+      if (event.type === "cancel") this.generation += 1;
+    }
     this.reportBoxEvent(event);
     if (event.type === "cancel") this.skipNextClick = true;
     if (!isCompletedBoxEvent(event)) return;
@@ -174,8 +193,8 @@ class ViewportInteraction {
   private async resolvePoint(
     phase: "hover" | "click",
     event: PointerEvent | MouseEvent,
+    generation = ++this.generation,
   ): Promise<void> {
-    const generation = ++this.generation;
     const granularity = this.options.granularity();
     const modifiers = modifiersOf(event);
     const point = clientToCanvasCss(
@@ -219,6 +238,57 @@ class ViewportInteraction {
       },
       generation,
     );
+  }
+
+  private scheduleHover(): void {
+    if (
+      this.hoverFrame !== undefined ||
+      this.hoverInFlight ||
+      this.queuedHover === undefined ||
+      this.boxActive ||
+      this.boxQueryActive ||
+      this.disposed
+    ) {
+      return;
+    }
+    this.hoverFrame = requestAnimationFrame(this.runScheduledHover);
+  }
+
+  private readonly runScheduledHover = (): void => {
+    this.hoverFrame = undefined;
+    const queued = this.queuedHover;
+    this.queuedHover = undefined;
+    if (
+      queued === undefined ||
+      !this.isCurrent(queued.generation) ||
+      this.boxActive ||
+      this.boxQueryActive
+    ) {
+      return;
+    }
+    this.hoverInFlight = true;
+    void this.runHover(queued);
+  };
+
+  private async runHover(queued: {
+    readonly event: PointerEvent;
+    readonly generation: number;
+  }): Promise<void> {
+    try {
+      await this.resolvePoint("hover", queued.event, queued.generation);
+    } catch (error: unknown) {
+      if (this.isCurrent(queued.generation)) this.reportError(error, "hover");
+    } finally {
+      this.hoverInFlight = false;
+      if (this.queuedHover !== undefined) this.scheduleHover();
+    }
+  }
+
+  private clearQueuedHover(): void {
+    this.queuedHover = undefined;
+    if (this.hoverFrame === undefined) return;
+    cancelAnimationFrame(this.hoverFrame);
+    this.hoverFrame = undefined;
   }
 
   private resolveBox(event: ViewportInteractionBoxEvent): void {
@@ -352,93 +422,4 @@ class ViewportInteraction {
       // Error observers must not create an unhandled event-listener rejection.
     }
   }
-}
-
-function clickInteraction(
-  current: InteractionState,
-  target: InteractionTarget | undefined,
-  modifiers: ViewportInteractionModifiers,
-): InteractionState {
-  const withoutHover = setTargetHovered(current, undefined);
-  if (modifiers.control || modifiers.meta) {
-    if (target === undefined) return withoutHover;
-    return setTargetSelected(withoutHover, target, !isTargetSelected(current, target));
-  }
-  return setTargetsSelected(
-    clearSelection(withoutHover),
-    target === undefined ? [] : [target],
-    true,
-  );
-}
-
-function boxInteraction(
-  current: InteractionState,
-  targets: readonly InteractionTarget[],
-  modifiers: { readonly control: boolean; readonly meta: boolean },
-): InteractionState {
-  const withoutHover = setTargetHovered(current, undefined);
-  if (!modifiers.control && !modifiers.meta) {
-    return setTargetsSelected(clearSelection(withoutHover), targets, true);
-  }
-  return setTargetsSelected(withoutHover, uniqueTargets(targets), true);
-}
-
-function uniqueTargets(targets: readonly InteractionTarget[]): InteractionTarget[] {
-  const seen = new Set<string>();
-  const unique: InteractionTarget[] = [];
-  for (const target of targets) {
-    const key = targetKey(target);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(target);
-  }
-  return unique;
-}
-
-function targetKey(target: InteractionTarget): string {
-  switch (target.kind) {
-    case "part":
-      return `part:${target.partId}`;
-    case "instance":
-      return `instance:${target.instanceId}`;
-    case "body":
-      return `body:${target.instanceId}:${target.bodyId}`;
-    case "element":
-      return `element:${target.instanceId}:${target.elementId}`;
-    case "face":
-      return `face:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
-    case "node":
-      return `node:${target.instanceId}:${target.nodeId}`;
-    case "edge":
-      return `edge:${target.instanceId}:${target.key}`;
-  }
-}
-
-function modifiersOf(event: {
-  readonly shiftKey: boolean;
-  readonly ctrlKey: boolean;
-  readonly altKey: boolean;
-  readonly metaKey: boolean;
-}): ViewportInteractionModifiers {
-  return {
-    shift: event.shiftKey,
-    control: event.ctrlKey,
-    alt: event.altKey,
-    meta: event.metaKey,
-  };
-}
-
-function assertTarget(
-  target: InteractionTarget | undefined,
-  granularity: InteractionGranularity,
-): void {
-  if (target !== undefined && target.kind !== granularity) {
-    throw new TypeError(
-      `Viewport interaction resolver returned ${target.kind} target; expected ${granularity} target`,
-    );
-  }
-}
-
-function isCompletedBoxEvent(event: BoxSelectionEvent): event is ViewportInteractionBoxEvent {
-  return event.type === "complete";
 }

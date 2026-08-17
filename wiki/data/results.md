@@ -45,10 +45,11 @@ default blue-cyan-yellow-red ramp. `mapScalar`:
 - optionally maps into discrete bands via ascending `thresholds`,
 - returns `missingColor` (default gray) for `NaN`.
 
-Mapped colors are plain `Color` values. Elemental results layer them into the
-viewport's private element styles; nodal results upload one color table per part
-indexed by exact one-based node pick id, and the existing tessellation
-interpolates those colors on the GPU. Both paths preserve host interaction state.
+Mapped colors are plain `Color` values. Elemental and nodal results resolve into
+one dense renderer-owned color table per reusable part: elemental values use
+private element ordinals, while nodal values use exact one-based node pick ids
+and the existing tessellation interpolates them on the GPU. Both paths preserve
+host interaction state and share the table across placements.
 
 ## Canonical viewport workflow
 
@@ -70,13 +71,14 @@ authored elemental vector field plus renderer-owned `arrow`/`axis`,
 1 through 8, defaults to 2, and may be fractional; device-pixel-ratio scaling
 is renderer-owned. The role does not expose anchors, records, glyph meshes, or GPU resources. All configured
 roles are resolved and validated before the renderer or public state changes; a
-failed replacement preserves the previous state. `clearResults()` restores the
-base interaction state, disables deformation and glyphs, and leaves the
+failed replacement preserves the previous state. `clearResults()` disables
+scalar colors, deformation, and glyphs and leaves the
 authoritative scene geometry untouched. `Viewport.interaction` always returns the exact
-host-supplied base value; result colors are an internal effective render state
-and never appear in that getter or in
-`ViewportResultsState`. Replacing results reuses the same scene/runtime and
-only updates the effective interaction colors and deformation state.
+host-supplied value. Result colors are dense renderer-owned tables keyed by
+node pick id or private element ordinal; they never appear in interaction state
+or in `ViewportResultsState`. One table belongs to each reusable part and is
+shared by all placements. Replacing results reuses the same scene/runtime and
+updates only renderer-owned color, deformation, and glyph state.
 Repeated `setResults()` calls are the host-owned snapshot-sequencing boundary:
 the host may step or play an ordered collection of exact authored states while
 reusing the same scene/runtime. Scalar, deformation, and vector roles change
@@ -86,7 +88,7 @@ snapshots with one shared range, while the static elemental stress field remains
 available as a separate choice. For a visually comparable sequence, the host
 supplies one explicit scalar range for
 every snapshot rather than allowing per-snapshot automatic ranges. Derived
-nodal color tables and per-part displacement arrays are reused when their
+nodal or elemental color tables and per-part displacement arrays are reused when their
 authored typed-array references are unchanged, while a scale-only deformation
 change rewrites only the small deformation uniform. A new same-sized array is
 written into the existing GPU storage; device recovery retains and re-uploads

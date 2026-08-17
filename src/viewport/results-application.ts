@@ -1,9 +1,11 @@
-import type { InteractionState } from "../interaction/interaction";
-import { setRendererOrientationGlyphs, type WebGpuRenderer } from "../renderer/gpu-renderer";
+import {
+  setRendererOrientationGlyphs,
+  setRendererResultColors,
+  type WebGpuRenderer,
+} from "../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import {
-  resolveViewportInteraction,
   resolveViewportResults,
   viewportOrientationRecords,
   viewportResultColors,
@@ -15,33 +17,22 @@ interface ViewportResultsApplication {
   readonly results: ViewportResultsConfig;
   readonly scene: Scene;
   readonly runtime: PackedSceneRuntime;
-  readonly interaction: InteractionState;
   readonly renderer: WebGpuRenderer;
   readonly previous?: ViewportResultsState;
 }
 
-/** Applies authored results to the renderer and returns the effective interaction state. */
-export function applyViewportResults(application: ViewportResultsApplication): {
-  readonly results: ViewportResultsState;
-  readonly interaction: InteractionState;
-} {
+/** Applies authored results to the renderer and returns the resolved result state. */
+export function applyViewportResults(
+  application: ViewportResultsApplication,
+): ViewportResultsState {
   const resolved = resolveViewportResults(
     application.results,
     application.scene,
     application.runtime,
     application.previous,
   );
-  const interaction = resolveViewportInteraction(
-    application.interaction,
-    resolved,
-    application.scene,
-    application.runtime,
-  );
   applyResolvedViewportResults(application.renderer, resolved);
-  return {
-    results: resolved,
-    interaction,
-  };
+  return resolved;
 }
 
 /** Applies one resolved result state to all renderer-owned result roles. */
@@ -64,5 +55,8 @@ export function applyResolvedViewportResults(
         },
   );
   renderer.setDeformation(results?.deformation);
-  renderer.setResultColors(results === undefined ? undefined : viewportResultColors(results));
+  setRendererResultColors(
+    renderer,
+    results === undefined ? undefined : viewportResultColors(results),
+  );
 }

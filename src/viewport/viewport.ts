@@ -423,7 +423,7 @@ class ViewportCore implements Viewport {
       return;
     }
     const runtime = this.sceneController.runtime;
-    const interaction = this.sceneController.effectiveInteractionState;
+    const interaction = this.sceneController.interaction;
     const interactionChanged = this.appliedInteraction !== interaction;
     const changed = interactionChanged
       ? changedInstanceSlots(runtime, this.appliedInteraction, interaction)

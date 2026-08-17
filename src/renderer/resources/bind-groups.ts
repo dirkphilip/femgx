@@ -6,6 +6,8 @@ export interface PartDrawInputs {
   readonly geometry: PartResource;
   /** Nodal displacement buffer; empty for parts without deformation data. */
   readonly deformation: GPUBuffer;
+  /** Dense nodal or elemental scalar colors; inactive header when absent. */
+  readonly resultColors: GPUBuffer;
   /** Binds endpoint-aligned node ids for the wireframe pass. */
   readonly edge?: boolean;
   /** Binds the optional widened authored-edge pick geometry. */
@@ -140,6 +142,7 @@ function instanceBindGroup(
       { binding: 5, resource: { buffer: topologyBuffer } },
       { binding: 6, resource: { buffer: nodePickIdsBuffer } },
       { binding: 7, resource: { buffer: geometryPositionsBuffer } },
+      { binding: 8, resource: { buffer: part.resultColors } },
     ],
   });
 }

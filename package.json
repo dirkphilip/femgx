@@ -138,6 +138,7 @@
     "test:demo:coverage:components": "vitest run --config config/vitest.demo.components.config.ts --coverage",
     "bench": "vitest bench",
     "bench:budget": "vitest run --config config/vitest.budget.config.ts",
+    "bench:operations": "vitest run --config config/vitest.operations.config.ts",
     "bench:scaling:large": "vitest run --config config/vitest.large-scaling.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",
     "test:e2e": "npm run test:e2e:combined",

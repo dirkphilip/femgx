@@ -25,6 +25,7 @@ import {
 } from "../resources/draw-resources";
 import type { PartResource } from "../resources/foundation";
 import { bindDrawGeometry } from "./geometry-binding";
+import { resultColorBuffer } from "../resources/result-colors";
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -143,7 +144,7 @@ function prepareBatch(batch: {
   if (part === undefined || storage === undefined) return undefined;
   if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
     return undefined;
-  const resource = uploadBatchGeometry(draw, context, part, geometry, nodes);
+  const resource = uploadBatchGeometry(draw, part, geometry, nodes);
   const visibilitySkin =
     geometry?.primitive === "triangles" &&
     !overlay &&
@@ -291,6 +292,7 @@ function createBatchBindGroup(options: {
   return orderBindGroup(draw.device, instanceLayout, storage, orderKind, {
     geometry: resource,
     deformation,
+    resultColors: resultColorBuffer(draw, call.partId),
     edge: overlay,
     surfaceSubset: !overlay && subset,
     edgePick,
@@ -393,17 +395,15 @@ function usesFaceSubset(options: {
 
 function uploadBatchGeometry(
   draw: DrawResources,
-  context: DrawCallContext,
   part: Part,
   geometry: Geometry | undefined,
   nodes: boolean,
 ): PartResource {
-  const colors = context.resultColors?.get(part.id);
   return nodes
-    ? uploadNodePart(draw, part, colors)
+    ? uploadNodePart(draw, part)
     : geometry === undefined
       ? (() => {
           throw new Error("Surface draw requires an explicit geometry group");
         })()
-      : uploadGeometryPart(draw, part, geometry, colors);
+      : uploadGeometryPart(draw, part, geometry);
 }

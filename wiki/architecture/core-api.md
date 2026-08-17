@@ -182,9 +182,9 @@ without exposing the internal collections. Body visibility and explicit style
 overrides remain separate, placement-scoped layers.
 
 When result visualization is active, `viewport.interaction.state` remains the exact
-host-owned value passed to `viewport.interaction.set`. The viewport derives a private
-effective render interaction by layering result colors over that base value;
-hosts never receive or need to round-trip the derived element overrides.
+host-owned value passed to `viewport.interaction.set`. The viewport derives dense
+per-part scalar tables for the renderer, independently of interaction state;
+hosts never receive or need to round-trip generated element overrides.
 
 `updateScene` is the live-edit boundary for a scene whose part definitions or
 placements changed. Stable placement ids retain visibility and surviving

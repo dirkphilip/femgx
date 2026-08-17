@@ -58,7 +58,12 @@ describe("GPU draw path", () => {
       drawBatches(
         pass,
         draw,
-        { ...context, resultColors: new Map([[part.id, new Float32Array([1, 0, 0, 1])]]) },
+        {
+          ...context,
+          resultColors: new Map([
+            [part.id, { location: "elemental" as const, values: new Float32Array(8) }],
+          ]),
+        },
         [{ partId: part.id, instanceCount: 1 }],
         { kind: "surface", pass: "color" },
       );
@@ -113,12 +118,13 @@ describe("GPU draw path", () => {
       const second = uploadPart(draw, part);
       expect(second).toBe(first);
       expect(second.indexCount).toBe(3);
-      expect(gpu.buffers).toHaveLength(8);
-      expect(gpu.buffers[3]?.size).toBe(68);
-      expect(gpu.buffers[4]?.size).toBe(12);
-      expect(gpu.buffers[5]?.size).toBe(4);
-      expect(gpu.buffers[6]?.size).toBe(12);
-      expect(gpu.buffers[7]?.size).toBe(56);
+      expect(gpu.buffers).toHaveLength(9);
+      expect(gpu.buffers[3]?.size).toBe(16);
+      expect(gpu.buffers[4]?.size).toBe(36);
+      expect(gpu.buffers[5]?.size).toBe(12);
+      expect(gpu.buffers[6]?.size).toBe(4);
+      expect(gpu.buffers[7]?.size).toBe(12);
+      expect(gpu.buffers[8]?.size).toBe(56);
       expect(first.edge).toBeUndefined();
     } finally {
       restore();
@@ -157,7 +163,7 @@ describe("GPU draw path", () => {
       expect(resource.subsetIndexCount).toBe(3);
       expect(resource.subsetIndexBuffer).toBeDefined();
       expect(resource.edge).toBeUndefined();
-      expect(gpu.buffers).toHaveLength(12);
+      expect(gpu.buffers).toHaveLength(13);
 
       patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
       writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));

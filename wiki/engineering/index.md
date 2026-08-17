@@ -2,6 +2,8 @@
 
 - [[engineering/benchmarks|Benchmarks and performance budgets]] — deterministic
   CPU benchmarks and budget gates.
+- [[engineering/performance-baselines|Performance baselines]] — local
+  interaction targets and fingerprinted operation reports.
 - [[engineering/gpu-performance|GPU rendering performance]] — CPU/GPU
   measurement boundaries, internal mode taxonomy, reference frame budgets, and
   optional-resource memory rules.
@@ -20,6 +22,7 @@
   CAD/FEM viewer contracts mapped to non-visual, GPU, and browser evidence.
 
 [engineering/benchmarks|Benchmarks and performance budgets]: benchmarks.md
+[engineering/performance-baselines|Performance baselines]: performance-baselines.md
 [engineering/gpu-performance|GPU rendering performance]: gpu-performance.md
 [engineering/e2e-policy|E2E test classification and skip policy]: e2e-policy.md
 [engineering/packaging|Packaging]: packaging.md

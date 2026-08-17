@@ -86,6 +86,7 @@ export async function createRenderResources(
       { binding: 5, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 6, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
       { binding: 7, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
+      { binding: 8, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } },
     ],
   });
   const minimalInstanceLayout = device.createBindGroupLayout({

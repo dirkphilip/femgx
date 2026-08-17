@@ -1,10 +1,10 @@
-import type { PartId } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
 import type { SectionPlane } from "../../math/section-plane";
 import type { DrawCall, DrawResources } from "../resources/draw-resources";
 import type { PickTargets } from "../picking/pick";
 import type { RenderResources } from "./pipelines";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
+import type { ResultColorMap } from "../../results/colors";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -38,8 +38,8 @@ export interface FrameOptions {
   readonly deformation: DeformationState | undefined;
   /** Single world-space section plane; `undefined` leaves the scene unclipped. */
   readonly sectionPlane: SectionPlane | undefined;
-  /** Per-part nodal scalar colors, or `undefined` when result coloring is off. */
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  /** Per-part dense scalar colors, or `undefined` when result coloring is off. */
+  readonly resultColors: ResultColorMap | undefined;
   /** Active world-space camera spin pivot. */
   readonly orbitPivot: readonly [number, number, number] | undefined;
   /** Whether the construction-time world-origin triad is enabled. */

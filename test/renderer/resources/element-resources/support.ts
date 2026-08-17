@@ -13,7 +13,11 @@ import {
   setElementSelected,
 } from "../../../../src/interaction/interaction";
 
-import { setBodyOverride, setBodyVisible } from "../../../../src/interaction/bodies";
+import {
+  setBodyOverride,
+  setBodySelected,
+  setBodyVisible,
+} from "../../../../src/interaction/bodies";
 
 import { setFaceSelected } from "../../../../src/interaction/faces";
 
@@ -212,6 +216,7 @@ export {
   setElementOverride,
   setElementSelected,
   setBodyOverride,
+  setBodySelected,
   setBodyVisible,
   setFaceSelected,
   setEdgeSelected,

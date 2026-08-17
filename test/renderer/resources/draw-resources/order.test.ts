@@ -28,7 +28,7 @@ describe("GPU draw path", () => {
           writeDrawOrder(draw, partId, new Uint32Array([0]));
         }
         expect(gpu.buffers.reduce((bytes, buffer) => bytes + buffer.size, 0)).toBe(
-          HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE + 8 + partCount * (96 + 4),
+          HIGHLIGHT_HEADER + ELEMENT_RECORD_STRIDE + 24 + partCount * (96 + 4),
         );
         expect(
           [...draw.storages.values()].every(
@@ -60,13 +60,13 @@ describe("GPU draw path", () => {
       expect(storage?.sidecars.selection).toBeUndefined();
       expect(storage?.sidecars.edge).toBeUndefined();
       expect(storage?.highlightOwned).toBe(false);
-      expect(gpu.buffers).toHaveLength(5);
+      expect(gpu.buffers).toHaveLength(6);
 
       writeTransparentOrder(draw, part.id, new Uint32Array([0, 1]));
       const transparent = storage?.sidecars.transparent;
       expect(transparent?.capacity).toBe(2);
       expect(transparent?.buffer.size).toBe(8);
-      expect(gpu.buffers).toHaveLength(6);
+      expect(gpu.buffers).toHaveLength(7);
 
       writeTransparentOrder(draw, part.id, new Uint32Array());
       expect(storage?.sidecars.transparent).toBeUndefined();

@@ -88,11 +88,12 @@ conditions remain in compact topology storage, where face ranges can share one
 retained record across all of a face's triangles. Subset surface positions use
 cached subset buffers; placements never receive geometry or topology copies.
 
-Presentation edge endpoints, topology, and their result-color tail are
-materialized only on first edge display. Exact wider authored edge-pick geometry
-is a separate lazy resource created only when edge granularity is requested.
-Repeated placements share both resources by part, and leaving presentation
-enabled never implies exact edge-pick residency. Node presentation addresses the
+Presentation edge endpoints and topology are materialized only on first edge
+display. Dense result colors remain in the separate per-part scalar table and
+are never appended to geometry or edge resources. Exact wider authored
+edge-pick geometry is a separate lazy resource created only when edge
+granularity is requested. Repeated placements share both resources by part, and
+leaving presentation enabled never implies exact edge-pick residency. Node presentation addresses the
 canonical node-pick table through its own node order sidecar; it does not create
 an element-scaled selection table merely because nodes are visible.
 

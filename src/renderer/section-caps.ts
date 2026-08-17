@@ -17,6 +17,8 @@ import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import type { SectionPlane } from "../math/section-plane";
 import { identity } from "../math/mat4";
 import { defaultStyle } from "./resources/foundation";
+import type { ResultColorMap, ResultColorTable } from "../results/colors";
+import { readInteractionState } from "../interaction/state";
 import {
   destroyInstancePartResources,
   destroyPartResources,
@@ -33,7 +35,7 @@ interface CapBuildOptions {
   readonly plane: SectionPlane;
   readonly interaction: InteractionState;
   readonly deformation: DeformationState | undefined;
-  readonly resultColors: ReadonlyMap<PartId, Float32Array> | undefined;
+  readonly resultColors: ResultColorMap | undefined;
   readonly draw: DrawResources;
 }
 
@@ -42,7 +44,7 @@ export interface SectionCapFrame {
   readonly calls: readonly DrawCall[];
   readonly transparentCalls: readonly DrawCall[];
   readonly allCalls: readonly DrawCall[];
-  readonly resultColors: ReadonlyMap<PartId, Float32Array>;
+  readonly resultColors: ResultColorMap;
 }
 
 const CAP_TRANSFORM = identity();
@@ -53,7 +55,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
-  const resultColors = new Map<PartId, Float32Array>();
+  const resultColors = new Map<PartId, ResultColorTable>();
   const usedIds = new Set(options.parts.keys());
   let ordinal = 0;
   for (const sourcePart of options.parts.values()) {
@@ -93,20 +95,31 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         allCalls.push(call);
         if (style.color.a * style.opacity < 1) transparentCalls.push(call);
         else calls.push(call);
-        patchInstances(options.draw, capId, [
-          { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, slot + 1) },
-        ]);
-        writeDrawOrder(options.draw, capId, new Uint32Array([0]));
+        installCapInstance(options.draw, capId, style, slot);
         const colors = capColors(
           options.resultColors?.get(sourcePart.id),
           cap,
           sourcePositions.length / 3,
+          metadata.elementOrdinalById.get(element.id),
+          elementColorOverridden(options.interaction, instanceId, element.id),
         );
         if (colors !== undefined) resultColors.set(capId, colors);
       }
     }
   }
   return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+}
+
+function installCapInstance(
+  draw: DrawResources,
+  capId: PartId,
+  style: ReturnType<typeof resolveElementStyle>,
+  sourceSlot: number,
+): void {
+  patchInstances(draw, capId, [
+    { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, sourceSlot + 1) },
+  ]);
+  writeDrawOrder(draw, capId, new Uint32Array([0]));
 }
 
 /** Releases only renderer-private cap geometry and instance buffers. */
@@ -161,13 +174,21 @@ function makeCapPart(
 }
 
 function capColors(
-  source: Float32Array | undefined,
+  source: ResultColorTable | undefined,
   cap: SectionCap,
   sourceNodeCount: number,
-): Float32Array | undefined {
-  if (source === undefined) return undefined;
+  sourceElementOrdinal: number | undefined,
+  colorOverridden: boolean,
+): ResultColorTable | undefined {
+  if (source === undefined || colorOverridden) return undefined;
+  if (source.location === "elemental") {
+    if (sourceElementOrdinal === undefined) return undefined;
+    const values = new Float32Array(8);
+    values.set(source.values.subarray(sourceElementOrdinal * 4, sourceElementOrdinal * 4 + 4), 4);
+    return { location: "elemental", values };
+  }
   const result = new Float32Array((sourceNodeCount + cap.vertices.length + 1) * 4);
-  result.set(source.subarray(0, Math.min(source.length, (sourceNodeCount + 1) * 4)));
+  result.set(source.values.subarray(0, Math.min(source.values.length, (sourceNodeCount + 1) * 4)));
   for (const [index, vertex] of cap.vertices.entries()) {
     const target = (sourceNodeCount + index + 1) * 4;
     const a = (vertex.nodeA + 1) * 4;
@@ -175,10 +196,22 @@ function capColors(
     const weight = vertex.weightB;
     for (let channel = 0; channel < 4; channel += 1) {
       result[target + channel] =
-        (source[a + channel] ?? 0) * (1 - weight) + (source[b + channel] ?? 0) * weight;
+        (source.values[a + channel] ?? 0) * (1 - weight) +
+        (source.values[b + channel] ?? 0) * weight;
     }
   }
-  return result;
+  return { location: "nodal", values: result };
+}
+
+function elementColorOverridden(
+  interaction: InteractionState,
+  instanceId: string,
+  elementId: number,
+): boolean {
+  const override = readInteractionState(interaction)
+    .elementOverrides.get(instanceId)
+    ?.get(elementId);
+  return override?.color !== undefined || override?.opacity !== undefined;
 }
 
 function nextCapId(used: Set<PartId>, ordinal: number): PartId {

@@ -1,10 +1,13 @@
 import { expect, it, describe } from "vitest";
+import { setBodyHighlighted } from "../../../../src/interaction/bodies";
 import {
   createPart,
   createInteractionState,
   setElementHighlighted,
   setElementOverride,
   setElementSelected,
+  setBodyOverride,
+  setBodySelected,
   setFaceSelected,
   setEdgeSelected,
   setNodeSelected,
@@ -13,6 +16,7 @@ import {
   createPackedSceneRuntime,
   createScene,
   collectEmphasisUpdates,
+  collectDenseElementSelections,
   buildInstanceLayout,
   elementScene,
   partsMap,
@@ -31,8 +35,197 @@ describe("collectEmphasisUpdates", () => {
       parts: partsMap(scene),
       interaction,
     });
-    expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1 }]);
+    expect(updates.get(1)).toMatchObject([{ slot: 0, elementPickId: 1, keepsResultColor: true }]);
   });
+
+  it.each([
+    {
+      emphasis: "highlighted",
+      override: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 } },
+      expectedStyle: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 }, opacity: 1 },
+      name: "highlighted color",
+    },
+    {
+      emphasis: "highlighted",
+      override: { opacity: 0.4 },
+      expectedStyle: { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, opacity: 0.4 },
+      name: "highlighted opacity",
+    },
+    {
+      emphasis: "hovered",
+      override: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 } },
+      expectedStyle: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 }, opacity: 1 },
+      name: "hovered color",
+    },
+    {
+      emphasis: "hovered",
+      override: { opacity: 0.4 },
+      expectedStyle: { color: { r: 0.23, g: 0.51, b: 0.96, a: 1 }, opacity: 0.4 },
+      name: "hovered opacity",
+    },
+  ])(
+    "does not keep scalar colors for unselected custom $name emphasis",
+    ({ emphasis, override, expectedStyle }) => {
+      for (const scope of ["body", "element"] as const) {
+        const { scene, runtime } = elementScene();
+        let interaction = createInteractionState({ highlighted: override, selected: {} });
+        if (emphasis === "highlighted") {
+          interaction =
+            scope === "body"
+              ? setBodyHighlighted(interaction, { instanceId: "1/0", bodyId: 3 }, true)
+              : setElementHighlighted(interaction, { instanceId: "1/0", elementId: 0 }, true);
+        } else {
+          interaction = setTargetHovered(
+            interaction,
+            scope === "body"
+              ? { kind: "body", instanceId: "1/0", bodyId: 3 }
+              : { kind: "element", instanceId: "1/0", elementId: 0 },
+          );
+        }
+        const updates = collectEmphasisUpdates(
+          runtime,
+          buildInstanceLayout(runtime),
+          new Map([["1/0", 0]]),
+          { parts: partsMap(scene), interaction },
+        );
+        const update = (updates.get(1) ?? []).find((candidate) =>
+          scope === "body" ? candidate.bodyPickId === 4 : candidate.elementPickId === 1,
+        );
+        expect(update).toMatchObject({ keepsResultColor: false, style: expectedStyle });
+      }
+    },
+  );
+
+  it("keeps result colors for ordinary element selection", () => {
+    const { scene, runtime } = elementScene();
+    const interaction = setElementSelected(
+      createInteractionState(),
+      { instanceId: "1/0", elementId: 0 },
+      true,
+    );
+    const updates = collectEmphasisUpdates(
+      runtime,
+      buildInstanceLayout(runtime),
+      new Map([["1/0", 0]]),
+      {
+        parts: partsMap(scene),
+        interaction,
+      },
+    );
+    expect(updates.get(1)).toMatchObject([
+      {
+        selected: true,
+        keepsResultColor: true,
+        style: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "color",
+      override: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 } },
+      expectedColor: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 },
+    },
+    {
+      name: "opacity",
+      override: { opacity: 0.4 },
+      expectedColor: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+    },
+  ])(
+    "disables result colors for selected dense element $name overrides",
+    ({ override, expectedColor }) => {
+      const { scene, runtime } = elementScene();
+      const layout = buildInstanceLayout(runtime);
+      let interaction = setElementSelected(
+        createInteractionState(),
+        { instanceId: "1/0", elementId: 0 },
+        true,
+      );
+      interaction = setElementOverride(interaction, { instanceId: "1/0", elementId: 0 }, override);
+      const denseSelections = collectDenseElementSelections(
+        runtime,
+        layout,
+        partsMap(scene),
+        interaction,
+      );
+      const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
+        parts: partsMap(scene),
+        interaction,
+        denseSelections,
+      });
+      expect(denseSelections.get(1)?.occurrences).toEqual([{ slot: 0, ordinals: [1] }]);
+      expect(updates.get(1)).toMatchObject([
+        {
+          selected: true,
+          keepsResultColor: false,
+          elementPickId: 1,
+          style: { color: expectedColor },
+        },
+      ]);
+    },
+  );
+
+  it("keeps scalar colors for ordinary body selection while carrying selection color", () => {
+    const { scene, runtime } = elementScene();
+    const interaction = setBodySelected(
+      createInteractionState(),
+      { instanceId: "1/0", bodyId: 3 },
+      true,
+    );
+    const updates = collectEmphasisUpdates(
+      runtime,
+      buildInstanceLayout(runtime),
+      new Map([["1/0", 0]]),
+      { parts: partsMap(scene), interaction },
+    );
+    expect(updates.get(1)).toMatchObject([
+      {
+        selected: true,
+        keepsResultColor: true,
+        style: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      name: "color",
+      override: { color: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 } },
+      expectedColor: { r: 0.1, g: 0.2, b: 0.3, a: 0.8 },
+      expectedOpacity: 1,
+    },
+    {
+      name: "opacity",
+      override: { opacity: 0.4 },
+      expectedColor: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+      expectedOpacity: 0.4,
+    },
+  ])(
+    "disables result colors for selected body $name overrides",
+    ({ override, expectedColor, expectedOpacity }) => {
+      const { scene, runtime } = elementScene();
+      let interaction = setBodySelected(
+        createInteractionState(),
+        { instanceId: "1/0", bodyId: 3 },
+        true,
+      );
+      interaction = setBodyOverride(interaction, { instanceId: "1/0", bodyId: 3 }, override);
+      const updates = collectEmphasisUpdates(
+        runtime,
+        buildInstanceLayout(runtime),
+        new Map([["1/0", 0]]),
+        { parts: partsMap(scene), interaction },
+      );
+      expect(updates.get(1)).toMatchObject([
+        {
+          selected: true,
+          keepsResultColor: false,
+          style: { color: expectedColor, opacity: expectedOpacity },
+        },
+      ]);
+    },
+  );
 
   it("maps selected edges through the rendered resource keys", () => {
     const { scene, runtime } = elementScene();
