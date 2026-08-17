@@ -65,6 +65,36 @@ test("defaults to the bolted plate assembly showcase", async ({ page }) => {
   await expect(page.getByTestId("status")).toContainText("Bolted plate assembly");
   await expect(page.getByTestId("status")).toContainText("34 visible");
 });
+test("keeps toolbar commands bound to the deliberately active viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const primary = page.getByTestId("view-canvas");
+  const secondary = page.getByTestId("secondary-view-canvas");
+  const primaryPane = page.getByRole("region", { name: "Primary viewport" });
+  const secondaryPane = page.getByRole("region", { name: "Secondary viewport" });
+  await waitForRenderer(page, primary);
+
+  await openCommandPanel(page, "view");
+  await page.getByTestId("viewport-toggle").click();
+  await waitForRenderer(page, secondary);
+  await expect(secondaryPane).toHaveAttribute("data-active", "true");
+  await expect(secondaryPane).toHaveCSS("outline-color", "rgb(96, 165, 250)");
+  await expect(secondaryPane).toHaveCSS("outline-width", "2px");
+  await expect(primaryPane).toHaveCSS("outline-width", "1px");
+
+  const primaryBox = await primary.boundingBox();
+  if (primaryBox === null) throw new Error("primary canvas has no bounding box");
+  await page.mouse.move(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2);
+  await expect(secondaryPane).toHaveAttribute("data-active", "true");
+
+  await page.getByTestId("background-select").selectOption("dark");
+  await expect(secondary).toHaveAttribute("data-background", "dark");
+  await expect(primary).toHaveAttribute("data-background", "studio");
+
+  await page.mouse.click(primaryBox.x + primaryBox.width / 2, primaryBox.y + primaryBox.height / 2);
+  await expect(primaryPane).toHaveAttribute("data-active", "true");
+  await expect(primaryPane).toHaveCSS("outline-color", "rgb(96, 165, 250)");
+});
 test("opens isolated viewports and keeps teardown state deterministic", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
