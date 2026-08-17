@@ -67,7 +67,7 @@ function validateBlock(
       code: "element-block-shape",
       severity: "error",
       message:
-        `Element shape block ${block.shape.family} order ${block.shape.order} holds ` +
+        `Element shape block ${block.shape} holds ` +
         `${block.ids.length} ids for ${block.count} elements`,
     });
     return;
@@ -77,7 +77,7 @@ function validateBlock(
       code: "element-block-shape",
       severity: "error",
       message:
-        `Element shape block ${block.shape.family} order ${block.shape.order} holds ` +
+        `Element shape block ${block.shape} holds ` +
         `${block.connectivity.length} connectivity values for ${block.count} elements`,
     });
     return;

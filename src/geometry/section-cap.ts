@@ -3,6 +3,7 @@ import type { Mat4 } from "../math/mat4";
 import { transformPoint } from "../math/mat4";
 import type { SectionPlane } from "../math/section-plane";
 import { cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
+import { ElementShape } from "../elements/shapes";
 
 /** A generated cap vertex and its two authored nodal result endpoints. */
 export interface SectionCapVertex {
@@ -45,12 +46,19 @@ interface WorldEdge {
   readonly b: Vec3;
 }
 
-const SOLID_FAMILIES = new Set(["tet", "wedge", "pyramid", "hex"]);
+const SOLID_SHAPES: ReadonlySet<ElementShape> = new Set([
+  ElementShape.Tet4,
+  ElementShape.Tet10,
+  ElementShape.Wedge6,
+  ElementShape.Pyramid5,
+  ElementShape.Hex8,
+  ElementShape.Hex20,
+]);
 
 /** Builds one deterministic, outward-facing cap polygon from authored face edges. */
 export function buildElementSectionCap(input: SectionCapBuildInput): SectionCap | undefined {
   const { part, element, plane, transform } = input;
-  if (element.shape === undefined || !isSupportedSolid(element.shape.family, element.shape.order)) {
+  if (element.shape === undefined || !SOLID_SHAPES.has(element.shape)) {
     return undefined;
   }
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
@@ -123,13 +131,6 @@ function collectCandidates(
     }
   }
   return { candidates, hasPositive, hasNegative };
-}
-
-function isSupportedSolid(family: string, order: number): boolean {
-  return (
-    SOLID_FAMILIES.has(family) &&
-    (family === "wedge" || family === "pyramid" ? order === 1 : order === 1 || order === 2)
-  );
 }
 
 function authoredEdges(

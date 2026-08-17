@@ -45,8 +45,7 @@ interface ElementGroups {
  * The compiler supports the product's linear and quadratic element families;
  * quadratic elements are tessellated into deterministic straight primitives.
  * `faceSubset` can restrict the emitted solid faces while preserving their
- * authored face identities. Unsupported element shapes fail at this boundary
- * rather than silently producing incomplete geometry.
+ * authored face identities.
  * @example Compile a model and place its reusable part.
  * ```ts
  * import { createScene, identity } from "femgx";
@@ -108,11 +107,7 @@ function mergeElements(elements: readonly ElementTessellation[]): readonly Eleme
       merged.set(element.id, element);
       continue;
     }
-    if (
-      previous.shape?.family !== element.shape?.family ||
-      previous.shape?.order !== element.shape?.order ||
-      previous.bodyId !== element.bodyId
-    ) {
+    if (previous.shape !== element.shape || previous.bodyId !== element.bodyId) {
       throw new Error(`Element ${element.id} has inconsistent semantic metadata across groups`);
     }
     merged.set(element.id, {
@@ -133,26 +128,16 @@ function classifyElements(model: ElementModel): ElementGroups {
       throw new Error(`Element model repeats element id ${element.id}`);
     }
     seen.add(element.id);
-    const group = supportedGroup(element);
+    const group = elementGroup(element);
     if (group === "triangle") triangle.push(element);
     else if (group === "line") line.push(element);
-    else if (group === "point") point.push(element);
-    else {
-      throw new Error(
-        `Element ${element.id} shape ${element.shape.family} order ${element.shape.order} is not supported by elementPart`,
-      );
-    }
+    else point.push(element);
   }
   return { triangle, line, point };
 }
 
-function supportedGroup(element: Element): "triangle" | "line" | "point" | undefined {
-  try {
-    topologyFor(element.shape);
-  } catch {
-    return undefined;
-  }
-  switch (element.shape.family) {
+function elementGroup(element: Element): "triangle" | "line" | "point" {
+  switch (topologyFor(element.shape).family) {
     case "point":
       return "point";
     case "line":

@@ -31,6 +31,10 @@ not a formal or universally standardized methodology.
 - Use TypeScript types for structural constraints. Use runtime checks for
   numeric, cardinality, referential, and lifecycle constraints types cannot
   express.
+- Treat a closed TypeScript union or const-derived discriminant as the complete
+  admission rule in trusted TypeScript paths. Do not add repeated runtime
+  membership checks for states the type excludes; validate separately only at
+  a genuinely untyped data boundary that owns conversion into the typed domain.
 - Keep internal helpers small and assume validated input unless they are
   independently public.
 - Centralize a domain invariant in its owning subsystem; do not create a
@@ -53,8 +57,9 @@ not a formal or universally standardized methodology.
 
 ## Repository examples
 
-- `createElement` validates an element's id, connectivity cardinality, and node
-  uniqueness; see [[data/elements-topology|Element topology]].
+- `ElementShape` makes unsupported shapes unrepresentable in typed callers;
+  `createElement` validates the numeric and cardinality constraints its type
+  cannot express. See [[data/elements-topology|Element topology]].
 - Scene construction validates references and rejects a cyclic assembly
   hierarchy before creating its packed runtime; see
   [[architecture/packed-runtime|Packed runtime]].

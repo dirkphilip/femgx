@@ -1,21 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type ElementTessellation, type Part } from "../../src/geometry/part";
-import {
-  HEX20_SHAPE,
-  HEX8_SHAPE,
-  LINE3_SHAPE,
-  LINE_SHAPE,
-  POINT_SHAPE,
-  PYRAMID5_SHAPE,
-  QUAD8_SHAPE,
-  QUAD_SHAPE,
-  TRI6_SHAPE,
-  TRIANGLE_SHAPE,
-  TET10_SHAPE,
-  TET4_SHAPE,
-  WEDGE6_SHAPE,
-  type ElementShape,
-} from "../../src/elements/shapes";
+import { ElementShape } from "../../src/elements/shapes";
 import { createResultField } from "../../src/results/fields";
 import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
 
@@ -50,7 +35,7 @@ function makePart(
     descriptors.push({
       id: element.id,
       primitiveRanges: [{ primitive, primitiveStart, primitiveCount }],
-      shape: element.shape ?? TRIANGLE_SHAPE,
+      shape: element.shape ?? ElementShape.Triangle,
       ...(element.bodyId === undefined ? {} : { bodyId: element.bodyId }),
     });
     if (element.bodyId !== undefined) {
@@ -142,18 +127,18 @@ describe("elemental orientation records", () => {
   });
 
   it.each([
-    ["Line", LINE_SHAPE, "lines"],
-    ["Line3", LINE3_SHAPE, "lines"],
-    ["Triangle", TRIANGLE_SHAPE, "triangles"],
-    ["Tri6", TRI6_SHAPE, "triangles"],
-    ["Quad", QUAD_SHAPE, "triangles"],
-    ["Quad8", QUAD8_SHAPE, "triangles"],
-    ["Tet4", TET4_SHAPE, "triangles"],
-    ["Tet10", TET10_SHAPE, "triangles"],
-    ["Wedge6", WEDGE6_SHAPE, "triangles"],
-    ["Pyramid5", PYRAMID5_SHAPE, "triangles"],
-    ["Hex8", HEX8_SHAPE, "triangles"],
-    ["Hex20", HEX20_SHAPE, "triangles"],
+    ["Line", ElementShape.Line, "lines"],
+    ["Line3", ElementShape.Line3, "lines"],
+    ["Triangle", ElementShape.Triangle, "triangles"],
+    ["Tri6", ElementShape.Tri6, "triangles"],
+    ["Quad", ElementShape.Quad, "triangles"],
+    ["Quad8", ElementShape.Quad8, "triangles"],
+    ["Tet4", ElementShape.Tet4, "triangles"],
+    ["Tet10", ElementShape.Tet10, "triangles"],
+    ["Wedge6", ElementShape.Wedge6, "triangles"],
+    ["Pyramid5", ElementShape.Pyramid5, "triangles"],
+    ["Hex8", ElementShape.Hex8, "triangles"],
+    ["Hex20", ElementShape.Hex20, "triangles"],
   ] as const)("resolves a non-degenerate %s element", (_name, shape, primitive) => {
     const nodePickIds = primitive === "lines" ? [1, 2] : [1, 2, 3];
     const part = makePart([{ id: 0, nodePickIds, shape }], { primitive });
@@ -264,7 +249,7 @@ describe("elemental orientation records", () => {
       ),
     ).toThrow(/no nodePositions/);
 
-    const point = makePart([{ id: 0, nodePickIds: [1], shape: POINT_SHAPE }], {
+    const point = makePart([{ id: 0, nodePickIds: [1], shape: ElementShape.Point }], {
       primitive: "points",
     });
     expect(() =>

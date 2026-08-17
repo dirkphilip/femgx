@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TRIANGLE_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 import { createModelBuilder } from "../../../src/io/model-builder";
 import { createResultFieldFromModelResult } from "../../../src/io/conversions/result-field";
 import { IoError } from "../../../src/io/diagnostics";
@@ -8,7 +8,7 @@ import type { FemModel, ModelResultField } from "../../../src/io/fem-model";
 function model(): FemModel {
   const builder = createModelBuilder();
   builder.appendNodes([10, 20, 30], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
-  builder.openElementShapeBlock(TRIANGLE_SHAPE);
+  builder.openElementShapeBlock(ElementShape.Triangle);
   builder.appendElements([100, 300], [10, 20, 30, 10, 30, 20]);
   return builder.build();
 }

@@ -346,6 +346,50 @@ describe("installViewportInteraction", () => {
     disposer();
   });
 
+  it("does not swallow a real click when no synthetic click followed a box drag", async () => {
+    const clicked: InteractionTarget = { ...target, elementId: 3 };
+    const harness = viewportHarness();
+    harness.pick.mockResolvedValue({ ...hit, elementId: 3 });
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+    });
+
+    harness.canvas.dispatch("pointerdown", pointer({ clientX: 30, clientY: 40, buttons: 1 }));
+    harness.canvas.dispatch("pointermove", pointer({ clientX: 80, clientY: 90, buttons: 1 }));
+    harness.canvas.dispatch("pointerup", pointer({ clientX: 80, clientY: 90 }));
+    await settle();
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([target]);
+
+    harness.canvas.dispatch("pointerdown", pointer({ clientX: 70, clientY: 70, buttons: 1 }));
+    harness.canvas.dispatch("pointerup", pointer({ clientX: 70, clientY: 70 }));
+    harness.canvas.dispatch("click", click({ clientX: 70, clientY: 70 }));
+    await settle();
+
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([clicked]);
+    disposer();
+  });
+
+  it("swallows the click synthesized after an active box is cancelled", async () => {
+    const harness = viewportHarness();
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+    });
+
+    harness.canvas.dispatch("pointerdown", pointer({ clientX: 30, clientY: 40, buttons: 1 }));
+    harness.canvas.dispatch("pointermove", pointer({ clientX: 80, clientY: 90, buttons: 1 }));
+    harness.canvas.dispatch("pointercancel", pointer({ clientX: 80, clientY: 90 }));
+    harness.canvas.dispatch("click", click({ clientX: 80, clientY: 90 }));
+    await settle();
+
+    expect(harness.pick).not.toHaveBeenCalled();
+    expect(harness.setInteraction).not.toHaveBeenCalled();
+    disposer();
+  });
+
   it("reports a current region failure without changing interaction state", async () => {
     const error = new Error("region failed");
     const errors: Array<{ readonly error: unknown; readonly phase: string }> = [];
@@ -417,7 +461,7 @@ describe("installViewportInteraction", () => {
     expect(harness.setInteraction).not.toHaveBeenCalled();
   });
 
-  it("ignores the synthetic click when touch stays routed to navigation", async () => {
+  it("selects a touch tap once and ignores its synthetic click", async () => {
     const harness = viewportHarness();
     const disposer = installViewportInteraction({
       canvas: harness.canvas as unknown as HTMLCanvasElement,
@@ -429,6 +473,50 @@ describe("installViewportInteraction", () => {
     harness.canvas.dispatch("pointerdown", touch);
     harness.canvas.dispatch("pointerup", touch);
     harness.canvas.dispatch("click", click());
+    await settle();
+
+    expect(harness.pick).toHaveBeenCalledOnce();
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([target]);
+    disposer();
+  });
+
+  it("keeps a Highlight-mode touch result current after contact leave", async () => {
+    const harness = viewportHarness();
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+      touchMode: () => "hover",
+    });
+
+    const touch = pointer({ pointerType: "touch" });
+    harness.canvas.dispatch("pointerdown", touch);
+    harness.canvas.dispatch("pointerup", touch);
+    harness.canvas.dispatch("pointerleave", touch);
+    await settle();
+
+    expect(hoveredTarget(harness.viewport.interaction)).toEqual(target);
+    expect(selectedTargets(harness.viewport.interaction)).toEqual([]);
+    disposer();
+  });
+
+  it("does not select after a touch moves beyond the tap threshold", async () => {
+    const harness = viewportHarness();
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+    });
+
+    harness.canvas.dispatch(
+      "pointerdown",
+      pointer({ pointerType: "touch", clientX: 40, clientY: 50 }),
+    );
+    harness.canvas.dispatch(
+      "pointerup",
+      pointer({ pointerType: "touch", clientX: 60, clientY: 50 }),
+    );
+    harness.canvas.dispatch("click", click({ clientX: 60, clientY: 50 }));
     await settle();
 
     expect(harness.pick).not.toHaveBeenCalled();

@@ -1,11 +1,11 @@
-import { TRIANGLE_SHAPE, TRI6_SHAPE, QUAD_SHAPE, QUAD8_SHAPE } from "../../../src/elements/shapes";
+import { ElementShape } from "../../../src/elements/shapes";
 
 import type { GoldenElementConvention } from "./types";
 
 export const surfaceConventions: readonly GoldenElementConvention[] = [
   {
     name: "triangle",
-    shape: TRIANGLE_SHAPE,
+    shape: ElementShape.Triangle,
     nodeCount: 3,
     corners: [0, 1, 2],
     edges: [
@@ -30,7 +30,7 @@ export const surfaceConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "tri6",
-    shape: TRI6_SHAPE,
+    shape: ElementShape.Tri6,
     nodeCount: 6,
     corners: [0, 1, 2],
     edges: [
@@ -58,7 +58,7 @@ export const surfaceConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "quad",
-    shape: QUAD_SHAPE,
+    shape: ElementShape.Quad,
     nodeCount: 4,
     corners: [0, 1, 2, 3],
     edges: [
@@ -86,7 +86,7 @@ export const surfaceConventions: readonly GoldenElementConvention[] = [
   },
   {
     name: "quad8",
-    shape: QUAD8_SHAPE,
+    shape: ElementShape.Quad8,
     nodeCount: 8,
     corners: [0, 1, 2, 3],
     edges: [
