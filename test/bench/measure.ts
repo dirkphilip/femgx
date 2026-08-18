@@ -15,6 +15,13 @@ export function median(values: readonly number[]): number {
   return sorted[middle] ?? 0;
 }
 
+/** Returns the nearest-rank percentile of a numeric sample set. */
+export function percentile(values: readonly number[], fraction: number): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1);
+  return sorted[index] ?? 0;
+}
+
 /** Options for {@link measureMs}; defaults are the documented warmup rules. */
 export interface MeasureOptions {
   readonly warmup?: number;

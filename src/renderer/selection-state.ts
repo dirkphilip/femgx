@@ -7,12 +7,8 @@ import {
   writeSelectionOrder,
   type DrawResources,
 } from "./resources/draw-resources";
-import {
-  buildNodeOrder,
-  buildNodeSelectionOrder,
-  buildSelectionOrder,
-  type InstanceLayout,
-} from "./runtime-state";
+import { buildNodeOrder, buildNodeSelectionOrder, type InstanceLayout } from "./runtime-state";
+import { buildSelectionOrders } from "./selection/order";
 import { buildSelectionDrawCalls } from "./selection/draw-ranges";
 import {
   collectDenseElementSelections,
@@ -159,8 +155,15 @@ function syncSelectedInstanceOrders(options: {
   readonly denseSelections: DenseElementSelections;
 }): boolean {
   const { runtime, layout, interaction, draw, parts, partDefinitions } = options;
+  const orders = buildSelectionOrders({
+    runtime,
+    layout,
+    partIds: parts,
+    interaction,
+    parts: partDefinitions,
+  });
   for (const partId of parts) {
-    const order = buildSelectionOrder(layout, runtime, partId, interaction, partDefinitions);
+    const order = orders.get(partId) ?? new Uint32Array();
     writeSelectionOrder(draw, partId, order);
     layout.partSelectionCounts.set(partId, order.length);
     const part = partDefinitions.get(partId);

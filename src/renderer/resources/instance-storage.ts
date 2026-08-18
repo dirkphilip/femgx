@@ -1,33 +1,26 @@
-import type { ResolvedStyle } from "../../interaction/interaction";
 import type { HighlightStorage } from "../selection/highlight-storage";
 import { writeChangedRecordRanges, writeOrderBuffer } from "./buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import {
+  INSTANCE_EDGE_EMPHASIS_FLAG,
+  INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_STRIDE,
+} from "./instance-record";
 
-/** Byte size of one instance record in the per-part storage buffer. */
-export const INSTANCE_STRIDE = 96;
-
-/** Selection and overlay-membership flags packed into one instance word. */
-export const INSTANCE_SELECTED_FLAG = 1;
-export const INSTANCE_EMPHASIS_FLAG = 2;
-export const INSTANCE_EDGE_EMPHASIS_FLAG = 4;
-export const INSTANCE_EDGE_OVERLAY_FLAG = 8;
-
-/**
- * Byte offset of the `emissive` scalar within an instance record. The record
- * layout is mirrored by the `Instance` struct in `shaders/scene.ts`:
- *
- * | offset | size | field |
- * | ------ | ---- | ----- |
- * | 0      | 64   | world transform (`mat4x4<f32>`) |
- * | 64     | 16   | resolved color, opacity folded into alpha (`vec4<f32>`) |
- * | 80     | 4    | stable pick id (`u32`) |
- * | 84     | 4    | emissive (`f32`) |
- * | 88     | 4    | selected/emphasis flags (`u32`) |
- * | 92     | 4    | line width (`f32`) |
- */
-export const EMISSIVE_BYTE_OFFSET = 84;
-/** Byte offset of the resolved authored line width in CSS pixels. */
-export const LINE_WIDTH_BYTE_OFFSET = 92;
+export {
+  createInstanceRecordTarget,
+  EMISSIVE_BYTE_OFFSET,
+  encodeInstanceRecord,
+  INSTANCE_EDGE_EMPHASIS_FLAG,
+  INSTANCE_EDGE_OVERLAY_FLAG,
+  INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_SELECTED_FLAG,
+  INSTANCE_STRIDE,
+  LINE_WIDTH_BYTE_OFFSET,
+  writeInstanceRecord,
+  type InstanceRecordTarget,
+  type InstanceRecordValues,
+} from "./instance-record";
 
 /** One pre-encoded instance record written into a per-part buffer. */
 export interface InstanceUpdate {
@@ -118,29 +111,6 @@ export interface InstanceStorageOwner {
 type OrderKind = "draw" | keyof InstanceSidecars;
 
 /**
- * Encodes one instance record: column-major world transform, resolved color
- * (with opacity folded into alpha), a stable pick id derived from the
- * instance slot, and the resolved emissive used for hover/highlight glow.
- */
-export function encodeInstanceRecord(
-  transform: Float32Array,
-  style: ResolvedStyle,
-  pickId: number,
-  selected = false,
-): ArrayBuffer {
-  const data = new ArrayBuffer(INSTANCE_STRIDE);
-  const floats = new Float32Array(data);
-  new Uint32Array(data)[20] = pickId;
-  floats.set(transform, 0);
-  floats.set([style.color.r, style.color.g, style.color.b, style.color.a * style.opacity], 16);
-  floats[EMISSIVE_BYTE_OFFSET / 4] = style.emissive;
-  new Uint32Array(data)[22] =
-    (selected ? INSTANCE_SELECTED_FLAG : 0) | (style.edge ? INSTANCE_EDGE_OVERLAY_FLAG : 0);
-  floats[LINE_WIDTH_BYTE_OFFSET / 4] = style.lineWidthPixels;
-  return data;
-}
-
-/**
  * Writes changed fixed-size records, coalescing adjacent slots into one upload
  * range without scanning the byte span between distant updates.
  */
@@ -180,6 +150,30 @@ export function patchInstances(
     cost: draw.cost,
     category: "instance",
   });
+}
+
+/**
+ * Owns the exact mirrors and initial uploads for one newly attached part. The
+ * cold attachment path has already established slot uniqueness and ordering,
+ * so it does not need the incremental patcher's copy, merge, or sort work.
+ */
+export function initializeInstancePart(
+  draw: InstanceStorageOwner,
+  partId: number,
+  data: ArrayBuffer,
+  orderData: Uint32Array,
+  orderLength: number,
+): void {
+  const capacity = data.byteLength / INSTANCE_STRIDE;
+  const storage = createStorage(draw, capacity, undefined, { data, orderData, orderLength });
+  draw.storages.set(partId, storage);
+  draw.device.queue.writeBuffer(storage.buffer, 0, data);
+  draw.cost.write("instance", data.byteLength);
+  if (orderLength > 0) {
+    const order = orderData.subarray(0, orderLength);
+    draw.device.queue.writeBuffer(storage.orderBuffer, 0, order);
+    draw.cost.write("order", order.byteLength);
+  }
 }
 
 function sameRecord(
@@ -306,8 +300,13 @@ function createStorage(
   draw: InstanceStorageOwner,
   size: number,
   existing: InstanceStorage | undefined,
+  initial?: {
+    readonly data: ArrayBuffer;
+    readonly orderData: Uint32Array;
+    readonly orderLength: number;
+  },
 ): InstanceStorage {
-  const mirror = new Uint8Array(size * INSTANCE_STRIDE);
+  const mirror = initial?.data ?? new ArrayBuffer(size * INSTANCE_STRIDE);
   const storage: InstanceStorage = {
     buffer: draw.device.createBuffer({
       label: "femgx instance storage",
@@ -327,11 +326,11 @@ function createStorage(
     highlight: existing?.highlight ?? draw.emptyHighlight,
     highlightOwned: existing?.highlightOwned ?? false,
     capacity: size,
-    data: mirror.buffer,
+    data: mirror,
     emphasisSlots: new Set(existing?.emphasisSlots),
     edgeEmphasisSlots: new Set(existing?.edgeEmphasisSlots),
-    orderData: new Uint32Array(size),
-    orderLength: existing?.orderLength ?? 0,
+    orderData: initial?.orderData ?? new Uint32Array(size),
+    orderLength: initial?.orderLength ?? existing?.orderLength ?? 0,
     bindGroup: undefined,
     minimalBindGroup: undefined,
     minimalTransparentBindGroup: undefined,

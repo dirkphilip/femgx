@@ -25,8 +25,9 @@ export function syncInstanceEmphasisAdmission(
   denseSelections?: DenseElementSelections,
   denseNodeSelections?: DenseNodeSelections,
 ): void {
-  for (const [partId, storage] of sync.storages) {
-    if (!affectedParts.has(partId)) continue;
+  for (const partId of affectedParts) {
+    const storage = sync.storages.get(partId);
+    if (storage === undefined) continue;
     const partUpdates = updates.get(partId) ?? [];
     const nextSlots = new Set(partUpdates.map((update) => update.slot));
     const nextEdgeSlots = new Set(

@@ -397,7 +397,98 @@ Triangle elements, 1,002,001 nodes, and one placement; it exposes unique-ownersh
 scene construction, dense selection, and presentation-resource construction
 that instancing deliberately amortizes.
 
-### Schema-12 many-piece evidence
+### Current affected-part and cold-attachment evidence
+
+Four clean artifacts were recorded from implementation SHA
+`c52e4ea9d8648436f6c24500b61b8241f09cf278` on the same Apple M3 Pro.
+`perf-reports/32-local-affected-part-sync.json` and
+`perf-reports/33-local-cold-attachment.json` are Node CPU/fake-GPU owning-seam
+reports, not frame or hardware-GPU evidence. They use seven samples and assert
+exact resource identities, bytes, calls, and draw outcomes. The affected-part
+runner warms one active/clear pair before timing each active transition. The
+cold runner constructs seven independent fixtures per tier and times scene
+build, runtime compile, semantic-index preparation, GPU-resource preparation,
+and full attachment separately. Its byte-for-byte record and order validation
+runs outside the timed boundary.
+
+The affected-part report contains all 30 shape/tier/operation rows. At the
+largest shared-placement tier, one-target work and broad selection are:
+
+| 100,000 shared placements |  CPU p50/p95 ms | Queue writes / bytes | Selection instances | Order / highlight bytes |
+| ------------------------- | --------------: | -------------------: | ------------------: | ----------------------: |
+| Hover one                 |   0.463 / 0.574 |              3 / 240 |                   0 |                 0 / 144 |
+| Select one                |   0.466 / 0.510 |              4 / 244 |                   1 |                 4 / 144 |
+| Recolor one               |   1.595 / 1.629 |               1 / 96 |                   0 |                   0 / 0 |
+| Hide one element          |   2.343 / 6.637 |              3 / 240 |                   0 |                 0 / 144 |
+| Select half               | 46.469 / 48.548 |        4 / 5,600,096 |              50,000 |       200,000 / 600,096 |
+| Select all                | 81.295 / 83.760 |       4 / 10,800,096 |             100,000 |       400,000 / 800,096 |
+
+The pre-edit one-selection observation at 100,000 shared placements was
+7.621/7.734 ms p50/p95 and 400,200 bytes. It has no durable clean artifact.
+The clean current result is 0.466/0.510 ms and 244 bytes: 16.37×/15.15× faster
+at the CPU p50/p95 boundaries and 1,640× fewer submitted bytes. Broad half/all
+selection remains proportional to the selected targets and its asserted exact
+payload; it is not represented as constant-time.
+
+The cold report controls geometry volume with one tiny Triangle occurrence per
+part or placement. Instance/order upload is always exactly 96/4 bytes per
+occurrence. Shared tiers own one storage and one instance plus one order write;
+distinct tiers own `partCount` storages and that many instance/order writes.
+
+| Shape / occurrences | Scene / runtime / semantic / prepare p50 ms | Full attach p50/p95 ms | Storages | Instance / order calls | Instance / order bytes |
+| ------------------- | ------------------------------------------: | ---------------------: | -------: | ---------------------: | ---------------------: |
+| Shared 100          |               0.092 / 0.150 / 0.013 / 0.004 |          0.099 / 0.609 |        1 |                  1 / 1 |            9,600 / 400 |
+| Shared 1,000        |               0.189 / 0.441 / 0.014 / 0.005 |          0.306 / 0.459 |        1 |                  1 / 1 |         96,000 / 4,000 |
+| Shared 4,000        |               0.499 / 1.486 / 0.013 / 0.004 |          0.955 / 1.489 |        1 |                  1 / 1 |       384,000 / 16,000 |
+| Distinct 100        |               0.265 / 0.071 / 0.089 / 0.021 |          0.289 / 0.328 |      100 |              100 / 100 |            9,600 / 400 |
+| Distinct 1,000      |               1.574 / 0.460 / 0.813 / 0.118 |          1.727 / 3.291 |    1,000 |          1,000 / 1,000 |         96,000 / 4,000 |
+| Distinct 4,000      |               3.646 / 1.677 / 2.311 / 0.413 |         6.503 / 19.302 |    4,000 |          4,000 / 4,000 |       384,000 / 16,000 |
+
+The same-session pre-edit cold attachment observations used only three samples,
+so the p50 comparison is directional rather than a matched statistical pair.
+Shared 100/1,000/4,000 fell from 0.296/1.490/4.569 ms to
+0.099/0.306/0.955 ms (3.00×/4.88×/4.78×). Distinct
+100/1,000/4,000 fell from 0.427/4.649/18.563 ms to
+0.289/1.727/6.503 ms (1.48×/2.69×/2.85×). The seven-sample 4,000-distinct p95
+contains a 19.302 ms outlier and is retained rather than hidden.
+
+Fresh system-Chrome schema-12 artifacts
+`perf-reports/34-local-many-parts-1000-after-affected-sync.json` and
+`perf-reports/35-local-placements-10k-after-affected-sync.json` provide the
+real hardware boundary: Apple Metal 3, Chrome 151, 800×600 DPR 1, non-fallback
+WebGPU, two steady warmups, and seven steady samples. Cold attachment/first
+frame is one queue-drained sample, while steady values are p50/p95.
+
+| Case              | Model / runtime / renderer ms | Attach estimate / first CPU / first queue ms | Steady CPU p50/p95 ms | Steady queue p50/p95 ms |    Retained / peak bytes |
+| ----------------- | ----------------------------: | -------------------------------------------: | --------------------: | ----------------------: | -----------------------: |
+| Many parts 1,000  |            128.0 / 1.3 / 34.8 |                        410.2 / 390.9 / 417.2 |             0.8 / 1.0 |               5.9 / 6.1 | 93,045,752 / 185,989,752 |
+| Placements 10,000 |              5.8 / 6.5 / 34.9 |                             9.5 / 4.0 / 13.9 |             0.1 / 0.1 |               2.6 / 4.4 |    1,014,056 / 1,026,360 |
+
+Against reports 30/31, the cold attachment estimate / synchronous first CPU /
+queue-drained first frame improved from 464.3/450.0/472.4 to
+410.2/390.9/417.2 ms for 1,000 distinct parts (1.13×/1.15×/1.13×), and from
+25.3/14.3/29.1 to 9.5/4.0/13.9 ms for 10,000 shared placements
+(2.66×/3.58×/2.09×). Geometry upload still dominates the distinct-part case.
+
+| Current hardware selection | Targets | Target / state / slot / sync ms | First / steady p50/p95 / clear ms | Apply / clear bytes | Selected visible and hidden draw tuple |
+| -------------------------- | ------: | ------------------------------: | --------------------------------: | ------------------: | -------------------------------------: |
+| Parts one                  |       1 |           0.0 / 0.1 / 0.0 / 0.6 |               6.0 · 5.7/6.1 · 5.9 |             96 / 96 |                          1 / 2,904 / 1 |
+| Parts half                 |     500 |           0.0 / 0.2 / 0.0 / 3.6 |              14.6 · 9.2/9.4 · 9.7 |     48,000 / 48,000 |                  500 / 1,452,000 / 500 |
+| Parts all                  |   1,000 |           0.0 / 0.1 / 0.2 / 4.6 |           20.9 · 12.3/12.6 · 11.3 |     96,000 / 96,000 |              1,000 / 2,904,000 / 1,000 |
+| Placements one             |       1 |           0.0 / 0.1 / 0.1 / 0.5 |               2.8 · 2.3/2.7 · 2.8 |             96 / 96 |                            1 / 384 / 1 |
+| Placements half            |   5,000 |          0.2 / 0.5 / 0.4 / 10.7 |              4.1 · 3.3/3.7 · 10.1 |   480,000 / 480,000 |                        1 / 384 / 5,000 |
+| Placements all             |  10,000 |          0.1 / 0.7 / 0.6 / 14.2 |              4.6 · 4.1/4.9 · 16.4 |   960,000 / 960,000 |                       1 / 384 / 10,000 |
+
+Retained memory accounting is unchanged from reports 30/31 because the package
+removes temporary CPU attachment objects rather than GPU resources. The
+renderer estimate includes geometry, pick metadata, instance, highlight,
+deformation, fixed sentinels, and pick-readback buffers. Upload staging and
+48,480,000-byte render targets are separate. Node-presentation sidecars,
+interaction growth, attachment/build temporaries, JavaScript heap, and driver
+allocations remain excluded. The desktop and 390×844 combined-overlay Chrome
+captures passed their nonblank checks and were visually inspected.
+
+### Pre-package schema-12 many-piece reference
 
 The clean system-Chrome reports
 `perf-reports/30-local-many-parts-1000.json` and

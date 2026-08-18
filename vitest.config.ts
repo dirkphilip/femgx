@@ -12,6 +12,8 @@ export default defineConfig({
       "test/bench/selection-sync.test.ts",
       "test/bench/scene-update-scaling.test.ts",
       "test/bench/node-selection-sync.test.ts",
+      "test/bench/affected-part-sync.test.ts",
+      "test/bench/cold-attachment.test.ts",
       // Svelte component tests run with the plugin in the demo component gate.
       "test/demo/ui*.test.ts",
       "test/demo/ui/**/*.test.ts",

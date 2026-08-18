@@ -247,7 +247,7 @@ export function syncInteractionEmphasis(
       interaction: options.interaction,
       denseSelections: options.denseSelections,
       denseNodeSelections: options.denseNodeSelections,
-      edgeKeysByPart: renderedEdgeKeys(options.bundle.draw),
+      edgeKeysByPart: renderedEdgeKeys(options.bundle.draw, options.affectedParts),
     },
   );
   syncElementHighlights(
@@ -291,9 +291,14 @@ export function syncInteractionEmphasis(
   });
 }
 
-function renderedEdgeKeys(draw: GpuBundle["draw"]): ReadonlyMap<PartId, readonly string[]> {
+function renderedEdgeKeys(
+  draw: GpuBundle["draw"],
+  affectedParts: ReadonlySet<PartId>,
+): ReadonlyMap<PartId, readonly string[]> {
   const keys = new Map<PartId, readonly string[]>();
-  for (const [partId, resources] of draw.primitiveParts) {
+  for (const partId of affectedParts) {
+    const resources = draw.primitiveParts.get(partId);
+    if (resources === undefined) continue;
     const triangles = resources.get("triangles");
     const edgeKeys = triangles?.edgePick?.edgeKeys ?? triangles?.edge?.edgeKeys;
     if (edgeKeys !== undefined) keys.set(partId, edgeKeys);
