@@ -323,6 +323,7 @@ export class WorkbenchController {
     const publish = this.viewportSlots.onRender(slotId, timestamp);
     if (!this.continuousEnabled || publish) {
       this.syncViewportPresentation();
+      if (this.continuousEnabled && !this.disposed) this.publishSnapshot();
     }
   }
 
