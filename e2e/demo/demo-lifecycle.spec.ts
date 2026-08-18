@@ -78,6 +78,9 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await waitForRenderer(page, primary);
   await expect(primaryPane).not.toHaveAttribute("data-active");
   await expect(primaryPane).toHaveCSS("outline-width", "1px");
+  await primaryPane.focus();
+  await expect(primaryPane).toHaveCSS("outline-color", "rgb(96, 165, 250)");
+  await expect(primaryPane).toHaveCSS("outline-width", "2px");
 
   await openCommandPanel(page, "view");
   await page.getByTestId("viewport-toggle").click();
@@ -86,6 +89,14 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await expect(secondaryPane).toHaveCSS("outline-color", "rgb(255, 138, 0)");
   await expect(secondaryPane).toHaveCSS("outline-width", "3px");
   await expect(primaryPane).toHaveCSS("outline-width", "1px");
+  await expect(page.getByTestId("secondary-box-selection-overlay")).toHaveCSS(
+    "position",
+    "absolute",
+  );
+  await expect(page.getByTestId("secondary-box-selection-overlay")).toHaveCSS(
+    "border-top-width",
+    "1px",
+  );
 
   await requireHit(
     page,
@@ -131,6 +142,15 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await page.getByTestId("viewport-toggle").click();
   await expect(secondaryPane).toBeHidden();
   await expect(primaryPane).not.toHaveAttribute("data-active");
+});
+
+test("hides the empty result legend instead of painting its heading", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
+  await waitForRenderer(page);
+  const legend = page.getByTestId("result-legend");
+  await expect(legend).toBeHidden();
+  await expect(legend).toHaveCSS("display", "none");
 });
 test("fits only the active viewport to its own selection", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });

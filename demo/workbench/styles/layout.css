@@ -306,29 +306,39 @@ h1 {
   outline: 1px solid #53647a;
   outline-offset: -1px;
 }
-.scene[data-active="true"],
-.scene-pane[data-active="true"] {
+#viewport-workspace[data-secondary-open="true"] .scene[data-active="true"],
+#viewport-workspace[data-secondary-open="true"] .scene-pane[data-active="true"] {
   outline: 3px solid var(--workbench-active-viewport);
   outline-offset: -3px;
 }
 .scene:focus-visible,
 .scene-pane:focus-visible {
-  outline: 5px solid var(--workbench-active-viewport);
-  outline-offset: -5px;
+  outline: 2px solid var(--workbench-accent);
+  outline-offset: -2px;
 }
-.scene[data-active="true"]::after,
-.scene-pane[data-active="true"]::after {
+#viewport-workspace[data-secondary-open="true"] .scene[data-active="true"]::after,
+#viewport-workspace[data-secondary-open="true"] .scene-pane[data-active="true"]::after {
   border: 3px solid var(--workbench-active-viewport);
 }
 .scene:focus-visible::after,
 .scene-pane:focus-visible::after {
   position: absolute;
   z-index: 8;
-  border: 5px solid var(--workbench-active-viewport);
-  box-shadow: inset 0 0 0 1px #ffd08a;
+  border: 2px solid var(--workbench-accent);
+  box-shadow: inset 0 0 0 1px #dbe7f5;
   pointer-events: none;
   content: "";
   inset: 0;
+}
+#viewport-workspace[data-secondary-open="true"] .scene:focus-visible,
+#viewport-workspace[data-secondary-open="true"] .scene-pane:focus-visible {
+  outline: 5px solid var(--workbench-active-viewport);
+  outline-offset: -5px;
+}
+#viewport-workspace[data-secondary-open="true"] .scene:focus-visible::after,
+#viewport-workspace[data-secondary-open="true"] .scene-pane:focus-visible::after {
+  border: 5px solid var(--workbench-active-viewport);
+  box-shadow: inset 0 0 0 1px #ffd08a;
 }
 
 @media (min-width: 721px) and (max-width: 1023px) {
@@ -374,7 +384,8 @@ canvas {
   background: var(--workbench-scene-background);
   touch-action: none;
 }
-#box-selection-overlay {
+#box-selection-overlay,
+#secondary-box-selection-overlay {
   position: absolute;
   z-index: 3;
   border: 1px solid #3b82f6;

@@ -38,7 +38,7 @@
   padding: 10px 12px;
 }
 .result-legend {
-  display: grid;
+  display: none;
   min-width: 0;
   z-index: 6;
   right: 358px;
@@ -52,6 +52,9 @@
     Menlo,
     monospace;
   pointer-events: none;
+}
+.result-legend:not([hidden]) {
+  display: grid;
 }
 .result-legend-ramp {
   display: block;
