@@ -218,5 +218,6 @@ export function resetViewportRenderLoop(
   timestamp: number,
   observed: Map<ViewportSlotId, ObservedPaneSize>,
 ): void {
+  if (slot.renderLoop.stats.state === "Idle") return;
   if (viewportPresentationChanged(slot, observed)) slot.renderLoop.reset(timestamp);
 }

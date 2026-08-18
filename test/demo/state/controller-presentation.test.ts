@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { WorkbenchController } from "../../../demo/workbench/controllers/controller";
 import { IDLE_RENDER_LOOP_STATS } from "../../../demo/workbench/viewport/render-loop";
+import { resetViewportRenderLoop } from "../../../demo/workbench/controllers/controller-viewport";
 import type { WorkbenchViewportSlot } from "../../../demo/workbench/viewport/viewport-slots";
 import type { ViewportSlotId } from "../../../demo/workbench/viewport/view";
 
@@ -31,6 +32,39 @@ describe("workbench controller presentation publication", () => {
     controller.onViewportRender("primary", 1_000);
 
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("does not read idle pane layout during static rendering", () => {
+    const getBoundingClientRect = vi.fn(() => ({ width: 300, height: 200 }));
+    const reset = vi.fn();
+    const slot = {
+      id: "primary" as const,
+      pane: { canvas: { getBoundingClientRect } },
+      renderLoop: { reset, stats: IDLE_RENDER_LOOP_STATS },
+    } as unknown as WorkbenchViewportSlot;
+
+    resetViewportRenderLoop(slot, 1_000, new Map());
+
+    expect(getBoundingClientRect).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("still measures pane layout for an active render loop", () => {
+    const getBoundingClientRect = vi.fn(() => ({ width: 300, height: 200 }));
+    const reset = vi.fn();
+    const slot = {
+      id: "primary" as const,
+      pane: { canvas: { getBoundingClientRect } },
+      renderLoop: {
+        reset,
+        stats: { ...IDLE_RENDER_LOOP_STATS, state: "Warming up" },
+      },
+    } as unknown as WorkbenchViewportSlot;
+
+    resetViewportRenderLoop(slot, 1_000, new Map());
+
+    expect(getBoundingClientRect).toHaveBeenCalledOnce();
+    expect(reset).toHaveBeenCalledOnce();
   });
 });
 
