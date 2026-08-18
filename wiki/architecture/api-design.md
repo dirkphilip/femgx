@@ -132,6 +132,18 @@ const part = surfacePart(10, {
 });
 ```
 
+Future host-authored CAD topology is explicitly Deferred by the
+[[requirements/product-scope#semantic-cad-topology-is-deferred|scope contract]].
+Its minimum useful slice should reuse this definition/occurrence lifecycle and
+map tessellated triangle ranges back to stable CAD body and face identities for
+picking, visibility, and emphasis. Face-boundary curves may remain display
+lines. It must not encode CAD faces as finite elements, introduce a second
+scene graph, or require a generic shell/loop/edge/vertex topology model. Exact
+B-rep geometry and kernel operations remain host-owned; future finer display
+tessellations may arrive as complete part revisions with preserved source
+identities rather than renderer-owned adaptive tessellation or LOD. A later
+product decision must establish any narrower boundary.
+
 ## Registry and identity rules
 
 - `Scene.parts` is the part-definition registry, keyed by `PartId`.
@@ -224,3 +236,4 @@ Related: [[architecture/architecture-overview|Architecture overview]],
 [architecture/packed-runtime|Packed scene runtime]: packed-runtime.md
 [data/vector-field-visualization|Authored elemental orientation visualization]: ../data/vector-field-visualization.md
 [requirements/surface-derived-part-authoring|surface-derived part authoring]: ../requirements/surface-derived-part-authoring.md
+[requirements/product-scope#semantic-cad-topology-is-deferred|scope contract]: ../requirements/product-scope.md#semantic-cad-topology-is-deferred
