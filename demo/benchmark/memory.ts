@@ -11,12 +11,12 @@ import type { Scene } from "../../src/scene/scene";
 const EMPTY_RESULT_COLOR_BUFFER_BYTES = 16;
 
 export interface BenchmarkMemoryEstimate {
-  /** Mandatory surface, line, and point geometry buffers. */
+  /** Retained full geometry for parts without an exterior subset. */
   readonly geometryBytes: number;
   readonly pickMetadataBytes: number;
   /** Canonical optional edge index buffers; subset edge indices are in subsetBytes. */
   readonly edgeIndexBytes: number;
-  /** Optional face-subset buffers; zero when no part declares a subset. */
+  /** Exterior-subset buffers retained as the ordinary surface path. */
   readonly subsetBytes: number;
   /** One device-scoped empty deformation storage buffer. */
   readonly deformationBytes: number;
@@ -131,26 +131,31 @@ export function estimateBenchmarkMemory(
           : 0;
       const mainPositionBytes = expandedVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
       const mainIndexBytes = expandedIndexCountFor(geometry) * Uint32Array.BYTES_PER_ELEMENT;
-      geometryBytes +=
-        gpuBufferBytes(mainPositionBytes) +
-        gpuBufferBytes(mainIndexBytes) +
-        (canonicalEdge === 0
-          ? 0
-          : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
       const topologyUpperBound = topologyBytesUpperBound(
         primitiveCount,
         expandedVertexCount,
         canonicalEdge,
       );
-      pickMetadataBytes +=
-        gpuBufferBytes(primitiveCount * Uint32Array.BYTES_PER_ELEMENT) +
-        gpuBufferBytes(expandedVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-        (canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT)) +
-        topologyUpperBound;
-      edgeIndexBytes +=
-        canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
       const subset = subsetEstimate(geometry, edgeMaterialized);
-      subsetBytes += subset.bufferBytes;
+      if (subset.bufferBytes > 0) {
+        subsetBytes += subset.bufferBytes;
+      } else {
+        geometryBytes +=
+          gpuBufferBytes(mainPositionBytes) +
+          gpuBufferBytes(mainIndexBytes) +
+          (canonicalEdge === 0
+            ? 0
+            : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
+        pickMetadataBytes +=
+          gpuBufferBytes(primitiveCount * Uint32Array.BYTES_PER_ELEMENT) +
+          gpuBufferBytes(expandedVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+          (canonicalEdge === 0
+            ? 0
+            : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT)) +
+          topologyUpperBound;
+        edgeIndexBytes +=
+          canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
+      }
     }
     cpuSceneTypedArrayBytes += scenePartTypedArrayBytes(part);
   }
@@ -278,6 +283,7 @@ function subsetEstimate(
       primitiveCount += face?.primitiveCount ?? 0;
     }
   }
+  if (primitiveCount === 0) return { bufferBytes: 0 };
   const vertexCount = primitiveCount * 3;
   const edgeEndpointUpperBound = edgeMaterialized ? primitiveCount * 6 : 0;
   const surfaceBufferBytes =

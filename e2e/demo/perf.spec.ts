@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
 import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
+import { expectDenseTet4HoverReport } from "./perf-tet4-assertions";
 import { expectTwoMillionInteractions } from "./perf-two-million-assertions";
 import { expectManyPieceReport } from "./perf-many-piece-assertions";
 
@@ -11,11 +12,9 @@ const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
 const PHONE_FREE_VIEWPORT = { width: 1_000, height: 760 };
-const DPR2_READBACK_CASE_ID = "unique-250k";
 const CASE_TIMEOUT_MS = includeLarge ? 5 * 60_000 : 2 * 60_000;
 let caseArtifactDirectory: string | undefined;
 
-// Keep browser-only benchmark dependencies out of ordinary e2e collection.
 const benchmarkCaseSpecs = enabled
   ? (await import("../../demo/benchmark/model")).benchmarkCaseSpecs
   : () => [];
@@ -69,7 +68,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
     const context = await browser.newContext({
       baseURL,
       viewport: PHONE_FREE_VIEWPORT,
-      deviceScaleFactor: spec.id === DPR2_READBACK_CASE_ID ? 2 : 1,
+      deviceScaleFactor: spec.id === "unique-250k" ? 2 : 1,
     });
     const page = await context.newPage();
     try {
@@ -109,7 +108,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       expect(report.resolution).toEqual({
         width: 800,
         height: 600,
-        dpr: spec.id === DPR2_READBACK_CASE_ID ? 2 : 1,
+        dpr: spec.id === "unique-250k" ? 2 : 1,
       });
       expect(entry?.estimatedMemory.visibleColorBytes).toBeGreaterThan(0);
       if (entry === undefined) throw new Error("Benchmark report case is missing");
@@ -238,6 +237,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.nodeCount).toBeGreaterThan(0);
         expect(entry.faceCount).toBeGreaterThan(0);
       }
+      if (entry.elementFamily === "tet4") expectDenseTet4HoverReport(entry);
       if (entry.id === "fe-tet4-solid-132k") {
         expectDenseNodeSelectionReport(entry);
         expect(entry.denseBuild).toMatchObject({

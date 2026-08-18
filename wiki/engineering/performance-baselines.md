@@ -70,23 +70,32 @@ Each workflow is split into state construction, renderer synchronization,
 first response, and steady-frame cost where those phases exist. A fast steady
 frame never substitutes for a slow mutation immediately before it.
 
-| Workflow                | Reference load                                                              | Evidence now                                                           | Missing next evidence                             |
-| ----------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------- |
-| Select half/all         | 65,856 / 131,712 Tet4 elements                                              | CPU dense payload/range construction; real-WebGPU all-selection phases | Half-selection first/steady WebGPU frame          |
-| Hover over selection    | 131,712 unchanged selected elements                                         | CPU viewport/renderer diff; bounded scheduler                          | Coalesced GPU readback and hit resolution         |
-| Element inspection/pick | 131,712 elements; 526,848 faces; 24,389 nodes; 9,408 exterior triangles     | CPU direct/deepest `resolvePickHit`; cached dense identity/adjacency   | Real GPU/readback evidence; 1M-element scaling    |
-| Hide/show elements      | 8 sparse elements; up to 262,144 faces                                      | CPU state; renderer skin scaling                                       | Absolute half-hidden sync and first frame         |
-| Recolor bodies          | 256 bodies / 16,384 elements                                                | CPU override construction and clear                                    | Renderer sync, first frame, 1,024-body tier       |
-| Apply scalar results    | 16,384 unique authored elements per scalar table; 1/8/64 placement fixtures | CPU snapshot build and one CPU hover transition                        | Renderer sync, GPU upload, and first/steady frame |
-| Visible box selection   | narrow, shell, broad rectangles                                             | Real-WebGPU readback/application phases                                | Hover-adjacent repeated-query latency             |
-| Through box selection   | 131,712 Tet4 elements                                                       | Existing completed-gesture host timings                                | Stable local baseline row on this machine         |
-| Section and cap rebuild | solid FE part with active results                                           | Correctness coverage                                                   | Bounded absolute and scaling benchmark            |
-| Structural scene update | 200,000 placements                                                          | Packed-runtime rebuild                                                 | Viewport reconciliation and first frame           |
-| Model build/upload      | 131,712 Tet4; local larger tiers                                            | Existing browser build/upload and CPU scaling                          | Post-optimization million-element capacity        |
+| Workflow                | Reference load                                                              | Evidence now                                                                | Missing next evidence                             |
+| ----------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------- |
+| Select half/all         | 65,856 / 131,712 Tet4 elements                                              | CPU dense payload/range construction; real-WebGPU all-selection phases      | Half-selection first/steady WebGPU frame          |
+| Hover over selection    | 131,712 unchanged selected elements                                         | CPU viewport/renderer diff; bounded scheduler; dense Tet4 WebGPU hover gate | Adapter-specific dense hover baselines            |
+| Element inspection/pick | 131,712 elements; 526,848 faces; 24,389 nodes; 9,408 exterior triangles     | CPU direct/deepest `resolvePickHit`; cached dense identity/adjacency        | Real GPU/readback evidence; 1M-element scaling    |
+| Hide/show elements      | 8 sparse elements; up to 262,144 faces                                      | CPU state; renderer skin scaling                                            | Absolute half-hidden sync and first frame         |
+| Recolor bodies          | 256 bodies / 16,384 elements                                                | CPU override construction and clear                                         | Renderer sync, first frame, 1,024-body tier       |
+| Apply scalar results    | 16,384 unique authored elements per scalar table; 1/8/64 placement fixtures | CPU snapshot build and one CPU hover transition                             | Renderer sync, GPU upload, and first/steady frame |
+| Visible box selection   | narrow, shell, broad rectangles                                             | Real-WebGPU readback/application phases                                     | Hover-adjacent repeated-query latency             |
+| Through box selection   | 131,712 Tet4 elements                                                       | Existing completed-gesture host timings                                     | Stable local baseline row on this machine         |
+| Section and cap rebuild | solid FE part with active results                                           | Correctness coverage                                                        | Bounded absolute and scaling benchmark            |
+| Structural scene update | 200,000 placements                                                          | Packed-runtime rebuild                                                      | Viewport reconciliation and first frame           |
+| Model build/upload      | 131,712 Tet4; local larger tiers                                            | Existing browser build/upload and CPU scaling                               | Post-optimization million-element capacity        |
 
 The next benchmark should be added when its owning implementation problem is
 taken up; this keeps the matrix truthful without constructing a second mock
 renderer or expanding product scope.
+
+### Dense Tet4 hover gate
+
+The real-WebGPU performance lane measures element hover for the canonical
+131,712-element Tet4 case and the opt-in 24,576- and 257,250-element local
+tiers. The gate keeps the cold pick/readback, first hovered frame, and clear
+transition below 250 ms, and keeps steady hover p95 below 33.3 ms. The cold
+budgets are intentionally loose because adapter and driver upload behavior is
+machine-dependent; the steady-frame budget protects the interaction experience.
 
 ### Current local reference
 

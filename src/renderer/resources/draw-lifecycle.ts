@@ -13,22 +13,34 @@ import { destroyResultColorBuffer, destroyResultColorBuffers } from "./result-co
 
 /** Releases one uploaded part geometry resource, including optional overlays. */
 export function destroyPartResource(resource: PartResource): void {
-  resource.vertexBuffer.destroy();
-  resource.indexBuffer.destroy();
-  resource.facePickIdsBuffer.destroy();
-  resource.nodePickIdsBuffer.destroy();
-  resource.edge?.edgeNodePickIdsBuffer.destroy();
-  resource.edge?.edgeVertexBuffer.destroy();
-  resource.edge?.edgeIndexBuffer.destroy();
-  resource.edge?.edgeTopologyBuffer.destroy();
-  resource.edgePick?.vertexBuffer.destroy();
-  resource.edgePick?.indexBuffer.destroy();
-  resource.edgePick?.nodePickIdsBuffer.destroy();
-  resource.edgePick?.topologyBuffer.destroy();
-  resource.subsetIndexBuffer?.destroy();
-  resource.subsetVertexBuffer?.destroy();
-  resource.subsetNodePickIdsBuffer?.destroy();
-  resource.subsetTopologyBuffer?.destroy();
+  const buffers = [
+    resource.vertexBuffer,
+    resource.indexBuffer,
+    resource.facePickIdsBuffer,
+    resource.nodePickIdsBuffer,
+    resource.fullVertexBuffer,
+    resource.fullIndexBuffer,
+    resource.fullFacePickIdsBuffer,
+    resource.fullNodePickIdsBuffer,
+    resource.edge?.edgeNodePickIdsBuffer,
+    resource.edge?.edgeVertexBuffer,
+    resource.edge?.edgeIndexBuffer,
+    resource.edge?.edgeTopologyBuffer,
+    resource.edgePick?.vertexBuffer,
+    resource.edgePick?.indexBuffer,
+    resource.edgePick?.nodePickIdsBuffer,
+    resource.edgePick?.topologyBuffer,
+    resource.subsetIndexBuffer,
+    resource.subsetVertexBuffer,
+    resource.subsetNodePickIdsBuffer,
+    resource.subsetTopologyBuffer,
+  ];
+  const uniqueBuffers = new Set(
+    buffers.filter((candidate): candidate is GPUBuffer => candidate !== undefined),
+  );
+  for (const buffer of uniqueBuffers) {
+    buffer.destroy();
+  }
 }
 
 /** Releases every resource owned by the draw path. */

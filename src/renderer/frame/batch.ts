@@ -145,15 +145,6 @@ function prepareBatch(batch: {
   if (part === undefined || storage === undefined) return undefined;
   if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
     return undefined;
-  const resource = uploadBatchGeometry(draw, part, geometry, nodes);
-  const visibilitySkin =
-    geometry?.primitive === "triangles" &&
-    !overlay &&
-    !edgePick &&
-    intent.kind === "surface" &&
-    intent.pass !== "selection-visible"
-      ? call.visibilitySkin
-      : undefined;
   const subset = usesFaceSubset({
     intent,
     geometry,
@@ -162,6 +153,15 @@ function prepareBatch(batch: {
     exteriorSubsets: context.usesExteriorFaceSubsets,
     callSurfaceSubset: call.surfaceSubset,
   });
+  const resource = uploadBatchGeometry(draw, part, geometry, nodes, subset);
+  const visibilitySkin =
+    geometry?.primitive === "triangles" &&
+    !overlay &&
+    !edgePick &&
+    intent.kind === "surface" &&
+    intent.pass !== "selection-visible"
+      ? call.visibilitySkin
+      : undefined;
   if (
     !hasBatchResources({
       draw,
@@ -399,6 +399,7 @@ function uploadBatchGeometry(
   part: Part,
   geometry: Geometry | undefined,
   nodes: boolean,
+  subset: boolean,
 ): PartResource {
   return nodes
     ? uploadNodePart(draw, part)
@@ -406,5 +407,5 @@ function uploadBatchGeometry(
       ? (() => {
           throw new Error("Surface draw requires an explicit geometry group");
         })()
-      : uploadGeometryPart(draw, part, geometry);
+      : uploadGeometryPart(draw, part, geometry, subset);
 }

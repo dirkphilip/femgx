@@ -12,9 +12,11 @@ import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometr
 import { createBuffer, type PartResource } from "./foundation";
 import { createEmptyResultColorBuffer } from "./result-colors";
 import {
+  buildPartSubsetGeometryData,
   buildPartEdgePickResources,
   buildPartEdgeResources,
   buildPartGeometryData,
+  materializeFullGeometry,
 } from "../resources/geometry-upload";
 import { createColorTargets } from "../resources/color-targets";
 import { GpuCostAccumulator } from "../diagnostics/cost";
@@ -156,10 +158,26 @@ export function uploadGeometryPart(
   draw: DrawResources,
   part: Part,
   geometry: Geometry,
+  preferSubset = false,
 ): PartResource {
   const resources = draw.primitiveParts.get(part.id) ?? new Map<Primitive, PartResource>();
   const existing = resources.get(geometry.primitive);
-  if (existing !== undefined) return existing;
+  if (existing !== undefined) {
+    if (!preferSubset && geometry.primitive !== "points") {
+      materializeFullGeometry(draw.device, part, geometry, existing);
+    }
+    return existing;
+  }
+  if (preferSubset && geometry.primitive === "triangles") {
+    const subset = buildPartSubsetGeometryData(draw.device, part, geometry);
+    if (subset !== undefined) {
+      const resource = subsetResource(subset.subsetBuffers, subset.subsetIndices.length);
+      resources.set(geometry.primitive, resource);
+      draw.primitiveParts.set(part.id, resources);
+      if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
+      return resource;
+    }
+  }
   const vertexData: SurfaceVertexData | PointVertexData =
     geometry.primitive === "points"
       ? expandPointGeometry(geometry)
@@ -179,6 +197,11 @@ export function uploadGeometryPart(
     edge: undefined,
     edgePick: undefined,
     indexCount: vertexData.indices.length,
+    fullVertexBuffer: vertexBuffer,
+    fullIndexBuffer: indexBuffer,
+    fullFacePickIdsBuffer: geometryData.facePickIdsBuffer,
+    fullNodePickIdsBuffer: geometryData.nodePickIdsBuffer,
+    fullIndexCount: vertexData.indices.length,
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
   };
@@ -186,6 +209,30 @@ export function uploadGeometryPart(
   draw.primitiveParts.set(part.id, resources);
   if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
   return resource;
+}
+
+function subsetResource(
+  buffers: NonNullable<ReturnType<typeof buildPartSubsetGeometryData>>["subsetBuffers"],
+  indexCount: number,
+): PartResource {
+  if (
+    buffers.subsetVertexBuffer === undefined ||
+    buffers.subsetIndexBuffer === undefined ||
+    buffers.subsetNodePickIdsBuffer === undefined ||
+    buffers.subsetTopologyBuffer === undefined
+  ) {
+    throw new Error("Subset geometry did not produce complete GPU buffers");
+  }
+  return {
+    vertexBuffer: buffers.subsetVertexBuffer,
+    indexBuffer: buffers.subsetIndexBuffer,
+    nodePickIdsBuffer: buffers.subsetNodePickIdsBuffer,
+    facePickIdsBuffer: buffers.subsetTopologyBuffer,
+    edge: undefined,
+    edgePick: undefined,
+    indexCount,
+    subsetIndexCount: indexCount,
+  };
 }
 
 /** Returns a cached resource for one primitive leaf, when it has been uploaded. */

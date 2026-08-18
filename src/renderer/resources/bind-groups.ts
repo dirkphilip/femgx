@@ -113,7 +113,7 @@ function instanceBindGroup(
         ? edgeResource.edgeNodePickIdsBuffer
         : part.surfaceSubset
           ? (geometry.subsetNodePickIdsBuffer ?? geometry.nodePickIdsBuffer)
-          : geometry.nodePickIdsBuffer;
+          : (geometry.fullNodePickIdsBuffer ?? geometry.nodePickIdsBuffer);
   const topologyBuffer =
     edgePickResource !== undefined
       ? edgePickResource.topologyBuffer
@@ -121,7 +121,7 @@ function instanceBindGroup(
         ? edgeResource.edgeTopologyBuffer
         : part.surfaceSubset
           ? (geometry.subsetTopologyBuffer ?? geometry.facePickIdsBuffer)
-          : geometry.facePickIdsBuffer;
+          : (geometry.fullFacePickIdsBuffer ?? geometry.facePickIdsBuffer);
   const geometryPositionsBuffer =
     edgePickResource !== undefined
       ? edgePickResource.vertexBuffer
@@ -129,7 +129,7 @@ function instanceBindGroup(
         ? edgeResource.edgeVertexBuffer
         : part.surfaceSubset
           ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
-          : geometry.vertexBuffer;
+          : (geometry.fullVertexBuffer ?? geometry.vertexBuffer);
   return device.createBindGroup({
     label: "femgx part draw bind group",
     layout,
