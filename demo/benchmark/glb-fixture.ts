@@ -1,8 +1,11 @@
 /** Builds one self-contained GLB containing many independent triangle primitives. */
-export function makeManyPrimitiveGlb(primitiveCount: number): Uint8Array {
+export function makeManyPrimitiveGlb(primitiveCount: number): Uint8Array<ArrayBuffer> {
   const positions = new Float32Array(primitiveCount * 9);
+  const columns = Math.ceil(Math.sqrt(primitiveCount));
   for (let primitive = 0; primitive < primitiveCount; primitive += 1) {
-    positions.set([primitive, 0, 0, primitive, 1, 0, primitive, 0, 1], primitive * 9);
+    const x = primitive % columns;
+    const y = Math.floor(primitive / columns);
+    positions.set([x, y, 0, x + 0.8, y, 0, x, y + 0.8, 0], primitive * 9);
   }
   const binary = new Uint8Array(positions.buffer);
   const json = {
@@ -34,7 +37,30 @@ export function makeManyPrimitiveGlb(primitiveCount: number): Uint8Array {
   return makeGlb(json, binary);
 }
 
-function makeGlb(json: object, binary: Uint8Array): Uint8Array {
+/** Builds one GLB scene containing many single-primitive meshes in a flat node list. */
+export function makeManyPartGlb(partCount: number): Uint8Array<ArrayBuffer> {
+  const positions = new Float32Array([0, 0, 0, 0.8, 0, 0, 0, 0.8, 0]);
+  const binary = new Uint8Array(positions.buffer);
+  const columns = Math.ceil(Math.sqrt(partCount));
+  const json = {
+    asset: { version: "2.0" },
+    scene: 0,
+    scenes: [{ nodes: Array.from({ length: partCount }, (_, index) => index) }],
+    nodes: Array.from({ length: partCount }, (_, index) => ({
+      mesh: index,
+      translation: [index % columns, Math.floor(index / columns), 0],
+    })),
+    meshes: Array.from({ length: partCount }, () => ({
+      primitives: [{ attributes: { POSITION: 0 } }],
+    })),
+    buffers: [{ byteLength: binary.byteLength }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: binary.byteLength }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: "VEC3" }],
+  };
+  return makeGlb(json, binary);
+}
+
+function makeGlb(json: object, binary: Uint8Array): Uint8Array<ArrayBuffer> {
   const jsonBytes = new TextEncoder().encode(JSON.stringify(json));
   const jsonLength = (jsonBytes.byteLength + 3) & ~3;
   const binaryLength = (binary.byteLength + 3) & ~3;

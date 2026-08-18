@@ -1,5 +1,6 @@
 import type { BoxSelectionRect, InteractionGranularity } from "../../src/entries/root";
 import type { BenchmarkCapture } from "../benchmark/capture";
+import type { GlbViewportBenchmarkReport } from "../benchmark/glb-viewport";
 
 export interface DemoHarnessOptions {
   readonly testAlphaZero: boolean;
@@ -18,6 +19,10 @@ export interface DemoHarness {
     caseId?: string,
     capture?: BenchmarkCapture,
   ) => Promise<unknown>;
+  readonly runGlbViewportBenchmark: (
+    primitiveCount?: number,
+    holdMilliseconds?: number,
+  ) => Promise<GlbViewportBenchmarkReport>;
   readonly pickPoint: (x: number, y: number) => Promise<readonly number[] | undefined>;
   readonly probePick: (x: number, y: number) => Promise<DemoPickProbe>;
   readonly pickRegion: (

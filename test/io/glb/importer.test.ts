@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createSceneRuntime } from "../../../src/scene-runtime/public-runtime";
 import type { IoError } from "../../../src/io/diagnostics";
 import { importGlb } from "../../../src/io/glb/importer";
+import { makeManyPartGlb } from "../../../demo/benchmark/glb-fixture";
 
 const ONShapeCylinder = readFileSync(
   new URL("../fixtures/glb/onshape-cylinder-uncompressed.glb", import.meta.url),
@@ -18,9 +19,8 @@ describe("importGlb", () => {
 
     expect(result.scene.rootAssemblyId).toBe(0);
     expect(result.scene.parts).toHaveLength(1);
-    expect(result.scene.assemblies).toHaveLength(2);
+    expect(result.scene.assemblies).toHaveLength(1);
     expect(result.scene.assemblies.get(0)?.placements).toHaveLength(1);
-    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(1);
     expect([...result.partNames.values()]).toEqual(["mesh0_mesh (4 primitives)"]);
     expect(result.partStyles.get(0)).toEqual({
       color: { r: 0.615686297416687, g: 0.8117647171020508, b: 0.929411768913269, a: 1 },
@@ -34,7 +34,7 @@ describe("importGlb", () => {
     const result = await importGlb(compressedOnshapeCylinder);
 
     expect(result.scene.parts).toHaveLength(1);
-    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(1);
+    expect(result.scene.assemblies.get(0)?.placements).toHaveLength(1);
     expect(
       [...result.scene.parts.values()].map((part) => part.geometries[0]?.indices.length),
     ).toEqual([684]);
@@ -66,13 +66,24 @@ describe("importGlb", () => {
     expect(result.partNames.get(0)).toBe("Shared mesh (128 primitives)");
   });
 
-  it("reuses one validated POSITION array across material groups", async () => {
+  it("flattens single-use root meshes with their node transforms", async () => {
+    const result = await importGlb(makeManyPartGlb(4));
+    const geometry = result.scene.parts.get(0)?.geometries[0];
+
+    expect(result.scene.parts).toHaveLength(1);
+    expect(result.scene.assemblies).toHaveLength(1);
+    expect(geometry?.positions).toHaveLength(36);
+    expect(geometry?.indices).toHaveLength(12);
+    expect(geometry?.positions.slice(9, 12)).toEqual(new Float32Array([1, 0, 0]));
+  });
+
+  it("retains equal POSITION values across flattened material groups", async () => {
     const result = await importGlb(makeSharedAccessorPrimitiveGlb(2, true));
     const first = result.scene.parts.get(0)?.geometries[0]?.positions;
     const second = result.scene.parts.get(1)?.geometries[0]?.positions;
 
     expect(result.scene.parts).toHaveLength(2);
-    expect(first).toBe(second);
+    expect(first).toStrictEqual(second);
   });
 
   it("reuses imported parts through the canonical runtime", async () => {

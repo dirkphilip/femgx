@@ -93,6 +93,16 @@ for the default gate. A bottleneck found in one measured path does not authorize
 a speculative repository-wide rewrite: profile the named path, fix the owning
 boundary, and retain focused evidence for that regression.
 
+The opt-in `npm run bench:webgpu:glb` lane measures the complete browser path
+for a generated GLB with 100,000 flat single-use mesh parts: `File.arrayBuffer`,
+GLB import, workbench interaction-state construction, public `createViewport`,
+the first WebGPU queue drain, and a steady queue-drained frame. It requires a
+real system-Chrome WebGPU adapter, captures the rendered 800×600 canvas, and
+budgets file-to-visible completion below five seconds and the steady frame below
+100 milliseconds. The default large CPU scaling lane separately verifies that
+flat-part import and coalescing remain approximately linear at 25k, 50k, and
+100k source parts.
+
 ## Budget gate (runs in default CI)
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any
