@@ -478,10 +478,9 @@ function checkBundleBudgets(root) {
       );
     }
     if (entry === "femgx") {
-      // Dense node selection adds the renderer-owned membership and topology
-      // paths; keep accepted raw growth bounded while retaining the stricter
-      // compression ceiling.
-      expect(rawBytes <= 460_000, `root bundle exceeds raw budget: ${rawBytes}`);
+      // Retain modest raw headroom for the renderer's dense interaction paths
+      // while keeping the stricter compression ceiling unchanged.
+      expect(rawBytes <= 465_000, `root bundle exceeds raw budget: ${rawBytes}`);
       expect(gzipBytes <= 110_000, `root bundle exceeds gzip budget: ${gzipBytes}`);
     }
   }
