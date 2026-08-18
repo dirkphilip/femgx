@@ -277,26 +277,26 @@ function writePrimitivePoints(
     const dz = displacementBase < 0 ? undefined : displacements?.[displacementBase + 2];
     const hasDisplacement = Number.isFinite(dx) && Number.isFinite(dy) && Number.isFinite(dz);
     const localX = hasDisplacement ? x + (dx ?? 0) * scale : x;
-    const localY = hasDisplacement ? y + (dy ?? 0) * scale : y;
+    const localYValue = hasDisplacement ? y + (dy ?? 0) * scale : y;
     const localZ = hasDisplacement ? z + (dz ?? 0) * scale : z;
     const transformedX =
       matrixValue(query.transform, 0) * localX +
-      matrixValue(query.transform, 4) * localY +
+      matrixValue(query.transform, 4) * localYValue +
       matrixValue(query.transform, 8) * localZ +
       matrixValue(query.transform, 12);
     const transformedY =
       matrixValue(query.transform, 1) * localX +
-      matrixValue(query.transform, 5) * localY +
+      matrixValue(query.transform, 5) * localYValue +
       matrixValue(query.transform, 9) * localZ +
       matrixValue(query.transform, 13);
     const transformedZ =
       matrixValue(query.transform, 2) * localX +
-      matrixValue(query.transform, 6) * localY +
+      matrixValue(query.transform, 6) * localYValue +
       matrixValue(query.transform, 10) * localZ +
       matrixValue(query.transform, 14);
     const w =
       matrixValue(query.transform, 3) * localX +
-      matrixValue(query.transform, 7) * localY +
+      matrixValue(query.transform, 7) * localYValue +
       matrixValue(query.transform, 11) * localZ +
       matrixValue(query.transform, 15);
     const divisor = w === 0 ? 1 : w;
