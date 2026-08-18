@@ -214,10 +214,8 @@ function benchmarkRunner(
   controller: WorkbenchController,
   state: StartState,
 ): DemoHarness["runBenchmark"] {
-  return async (includeLarge, caseId, holdNodeSelectionForCapture) => {
-    if (holdNodeSelectionForCapture === true) {
-      delete canvas.dataset["benchmarkNodeSelectionError"];
-    }
+  return async (includeLarge, caseId, capture) => {
+    if (capture !== undefined) delete canvas.dataset["benchmarkCaptureError"];
     controller.destroy();
     state.viewport = undefined;
     const { runWebGpuBenchmark } = await import("../benchmark/runner");
@@ -225,12 +223,10 @@ function benchmarkRunner(
       return await runWebGpuBenchmark(canvas, {
         includeLarge,
         ...(caseId === undefined ? {} : { caseId }),
-        ...(holdNodeSelectionForCapture === undefined ? {} : { holdNodeSelectionForCapture }),
+        ...(capture === undefined ? {} : { capture }),
       });
     } catch (error) {
-      if (holdNodeSelectionForCapture === true) {
-        canvas.dataset["benchmarkNodeSelectionError"] = errorMessage(error);
-      }
+      if (capture !== undefined) canvas.dataset["benchmarkCaptureError"] = errorMessage(error);
       throw error;
     }
   };

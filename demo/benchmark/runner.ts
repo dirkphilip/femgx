@@ -2,7 +2,7 @@ import { benchmarkCaseSpecs, createBenchmarkCase } from "./model";
 import { measureBenchmarkCase } from "./measurement";
 import { reconstructBenchmarkScene } from "./transfer";
 import { createBenchmarkWorkerLoad } from "./worker-client";
-import { holdNodeSelectionCapture } from "./capture";
+import { holdBenchmarkCapture, type BenchmarkCapture } from "./capture";
 import type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
 import type { WebGpuBenchmarkCase, WebGpuBenchmarkSpec } from "./model";
 
@@ -13,7 +13,7 @@ const HEIGHT = 600;
 const WARMUP_SAMPLES = 2;
 const TIMED_SAMPLES = 7;
 const MEMORY_ESTIMATE_SCOPE =
-  "retained renderer-owned buffers and fixed render targets including shared empty result-color, order, highlight, and deformation sentinels; optional interaction and presentation sidecars are included only when admitted; optional edge bytes are included only for materialized part ids; cpuSceneTypedArrayBytes and uploadStagingBytes are typed-array/staging accounting only; dense semanticAllocationCounts report descriptor/reference counts and exact CSR bytes, while JavaScript object heap and driver allocations are excluded; edge and topology storage are upper bounds";
+  "retained renderer-owned base buffers and fixed render targets including shared empty result-color, order, highlight, and deformation sentinels; optional edge-presentation bytes are included only for materialized part ids; node-presentation sidecars, interaction growth, build temporaries, JavaScript object heap, and driver allocations are excluded; cpuSceneTypedArrayBytes and uploadStagingBytes are typed-array/staging accounting only; dense semanticAllocationCounts report descriptor/reference counts and exact CSR bytes; edge and topology storage are upper bounds";
 
 /** Runs the opt-in, hardware-dependent WebGPU capacity benchmark. */
 export async function runWebGpuBenchmark(
@@ -21,7 +21,7 @@ export async function runWebGpuBenchmark(
   options: {
     readonly includeLarge: boolean;
     readonly caseId?: string;
-    readonly holdNodeSelectionForCapture?: boolean;
+    readonly capture?: BenchmarkCapture;
   },
 ): Promise<WebGpuBenchmarkReport> {
   if (devicePixelRatio !== 1 && devicePixelRatio !== 2)
@@ -59,8 +59,17 @@ export async function runWebGpuBenchmark(
             {
               timestampQueriesRequested: timestampQueriesEnabled,
               ...(built.denseBuild === undefined ? {} : { denseBuild: built.denseBuild }),
-              ...(options.holdNodeSelectionForCapture === true && spec.id === "fe-tet4-solid-132k"
-                ? { holdNodeSelectionForCapture: () => holdNodeSelectionCapture(canvas) }
+              ...(options.capture === "node-selection" && spec.id === "fe-tet4-solid-132k"
+                ? {
+                    holdNodeSelectionForCapture: () =>
+                      holdBenchmarkCapture(canvas, "node-selection"),
+                  }
+                : {}),
+              ...(options.capture === "combined-overlay" && spec.id === "instanced-2.10m"
+                ? {
+                    holdCombinedOverlayForCapture: () =>
+                      holdBenchmarkCapture(canvas, "combined-overlay"),
+                  }
                 : {}),
             },
           ),
@@ -81,7 +90,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {

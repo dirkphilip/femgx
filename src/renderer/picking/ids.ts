@@ -1,6 +1,5 @@
 import {
   logicalPrimitiveCount,
-  primitiveRangesForElement,
   type ElementTessellation,
   type Geometry,
 } from "../../geometry/part";
@@ -87,9 +86,10 @@ function buildElementPrimitiveMetadata(
   for (const element of elements) {
     const value = resolveValue(element);
     if (value === undefined) continue;
-    for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-      const end = range.start + range.count;
-      for (let primitiveIndex = range.start; primitiveIndex < end; primitiveIndex++) {
+    for (const range of element.primitiveRanges) {
+      if (range.primitive !== geometry.primitive) continue;
+      const end = range.primitiveStart + range.primitiveCount;
+      for (let primitiveIndex = range.primitiveStart; primitiveIndex < end; primitiveIndex++) {
         metadata[primitiveIndex] = value;
       }
     }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildMeshEdgeData, type MeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
+import {
+  buildMeshEdgeData,
+  buildUnownedMeshEdgePresentation,
+  type MeshEdgeData,
+} from "../../../src/renderer/edges/mesh-edge";
 import {
   expandMeshEdgeData,
   meshEdgeEndpointData,
@@ -194,9 +198,56 @@ describe("buildMeshEdgeData", () => {
     };
 
     const data = buildSemanticEdgeData(geometry);
+    const presentation = buildUnownedMeshEdgePresentation(
+      geometry,
+      geometry.indices,
+      geometry.elements,
+    ).edgeData;
 
     expect(data.bodyRanges).toEqual(new Uint32Array([0, 1, 1, 1, 2, 2, 4, 1, 5, 1]));
     expect(data.elementIds).toEqual(new Uint32Array([5, 0, 5, 0, 5, 0, 6, 0, 6, 0, 6, 0]));
+    expect(presentation).toMatchObject({
+      indices: data.indices,
+      sourceVertexIndices: data.sourceVertexIndices,
+      edgeIds: data.edgeIds,
+      positions: data.positions,
+      bodyRanges: data.bodyRanges,
+      bodyIds: data.bodyIds,
+      elementIds: data.elementIds,
+    });
+    expect(presentation.edgeKeys).toBeUndefined();
+  });
+
+  it("deduplicates presentation edges by arbitrary authored node ids", () => {
+    const geometry = {
+      positions: new Float32Array(18),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      primitive: "triangles" as const,
+      nodePickIds: new Uint32Array([11, 101, 301, 11, 101, 401]),
+      elements: [
+        {
+          id: 20,
+          primitiveRanges: [
+            { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
+          ],
+        },
+        {
+          id: 8,
+          primitiveRanges: [
+            { primitive: "triangles" as const, primitiveStart: 1, primitiveCount: 1 },
+          ],
+        },
+      ],
+    };
+
+    const build = buildUnownedMeshEdgePresentation(geometry, geometry.indices, geometry.elements);
+    const data = build.edgeData;
+
+    expect(data.indices).toHaveLength(10);
+    expect(data.sourceVertexIndices.slice(0, 2)).toEqual(new Uint32Array([0, 1]));
+    expect(data.bodyRanges.slice(0, 2)).toEqual(new Uint32Array([0, 2]));
+    expect(data.elementIds.slice(0, 4)).toEqual(new Uint32Array([9, 0, 21, 0]));
+    expect(build.primitiveElementPickIds).toEqual(new Uint32Array([21, 9]));
   });
 
   it("maps expanded endpoints to source vertices and one logical edge", () => {

@@ -1,12 +1,21 @@
 import type { Geometry, Part } from "../../geometry/part";
-import { buildMeshEdgeData, type MeshEdgeData } from "../edges/mesh-edge";
+import {
+  buildMeshEdgeData,
+  buildUnownedMeshEdgePresentation,
+  type MeshEdgePresentationBuild,
+  type MeshEdgeData,
+} from "../edges/mesh-edge";
 import {
   expandMeshEdgeData,
   meshEdgeEndpointData,
   type MeshEdgeDrawData,
 } from "../edges/edge-expansion";
 import { buildFaceSubsetIndices } from "../selection/face-subset";
-import { emptyMeshEdgeData, packTopologyData } from "./geometry-buffers";
+import {
+  emptyMeshEdgeData,
+  packTopologyData,
+  packUnownedEdgeTopologyData,
+} from "./geometry-buffers";
 import { buildElementPrimitiveOrdinals, buildPrimitiveFaceBodyPickData } from "../picking/ids";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "../resources/surface-geometry";
 import {
@@ -78,10 +87,14 @@ export function buildPartEdgeResources(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
 ): NonNullable<PartResource["edge"]> | undefined {
-  const edgeData = buildPartMeshEdgeData(part, geometry);
+  const edgeBuild = buildPartMeshEdgeData(part, geometry, true);
+  const edgeData = edgeBuild.edgeData;
   return uploadEdgeResourceData(device, part, geometry, {
     edgeData,
     drawData: meshEdgeEndpointData(edgeData, geometry.nodePickIds),
+    ...(edgeBuild.primitiveElementPickIds === undefined
+      ? {}
+      : { primitiveElementPickIds: edgeBuild.primitiveElementPickIds }),
   });
 }
 
@@ -91,7 +104,7 @@ export function buildPartEdgePickResources(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
 ): PartEdgePickResource | undefined {
-  const edgeData = buildPartMeshEdgeData(part, geometry);
+  const edgeData = buildPartMeshEdgeData(part, geometry, false).edgeData;
   if ((edgeData.edgeKeys?.length ?? 0) === 0) return undefined;
   const upload = uploadEdgeResourceData(device, part, geometry, {
     edgeData,
@@ -110,17 +123,20 @@ export function buildPartEdgePickResources(
 function buildPartMeshEdgeData(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
-): MeshEdgeData {
-  return buildMeshEdgeData(
-    geometry,
-    getSubsetIndices(geometry) ?? geometry.indices,
-    part.elements ?? [],
-  );
+  presentationOnly: boolean,
+): MeshEdgePresentationBuild {
+  const indices = getSubsetIndices(geometry) ?? geometry.indices;
+  const elements = part.elements ?? [];
+  if (presentationOnly && (part.bodies?.length ?? 0) === 0) {
+    return buildUnownedMeshEdgePresentation(geometry, indices, elements);
+  }
+  return { edgeData: buildMeshEdgeData(geometry, indices, elements) };
 }
 
 interface EdgeUploadOptions {
   readonly edgeData: MeshEdgeData;
   readonly drawData: MeshEdgeDrawData;
+  readonly primitiveElementPickIds?: Uint32Array;
 }
 
 function uploadEdgeResourceData(
@@ -144,11 +160,23 @@ function uploadEdgeResourceData(
     edgeVertexBuffer: vertexBuffer,
     edgeIndexBuffer: createIndexBuffer(device, drawData.indices),
     edgeNodePickIdsBuffer: createBuffer(device, drawData.nodePickIds, GPUBufferUsage.STORAGE),
-    edgeTopologyBuffer: createTopologyBuffer(
+    edgeTopologyBuffer: createBuffer(
       device,
-      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
-      { ...edgeData, ...drawData },
-      { elementOrdinals, primitiveIds: [], edgeIds: drawData.edgeIds },
+      options.primitiveElementPickIds === undefined
+        ? packTopologyData(
+            buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
+            edgeData.bodyRanges,
+            edgeData.bodyIds,
+            edgeData.elementIds,
+            { elementOrdinals, primitiveIds: [], edgeIds: drawData.edgeIds },
+          )
+        : packUnownedEdgeTopologyData(
+            edgeData,
+            elementOrdinals,
+            options.primitiveElementPickIds,
+            drawData.edgeIds,
+          ),
+      GPUBufferUsage.STORAGE,
     ),
     edgeIndexCount: drawData.indices.length,
     edgeKeys: edgeData.edgeKeys,

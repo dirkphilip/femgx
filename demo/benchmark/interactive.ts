@@ -15,6 +15,7 @@ const VERY_LONG_FRAME_MS = 33.3;
 const INTERACTIVE_CASE_IDS = new Set([
   "instanced-2.10m",
   "unique-1m",
+  "unique-2m-local",
   "many-parts-100",
   "fe-tet4-solid-132k",
 ]);

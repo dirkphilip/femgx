@@ -4,6 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
 import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
+import { expectTwoMillionInteractions } from "./perf-two-million-assertions";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -95,7 +96,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(11);
+      expect(report.schemaVersion).toBe(12);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -147,6 +148,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       expect(entry.timings.visibleFrameCpuMs.p95).toBeGreaterThanOrEqual(
         entry.timings.visibleFrameCpuMs.p50,
       );
+      expect(entry.rendererCreateMs).toBeGreaterThanOrEqual(0);
       for (const timing of Object.values(entry.timings) as Array<{
         readonly p50: number;
         readonly p95: number;
@@ -164,14 +166,19 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         ].includes(entry.id)
       ) {
         const phases = entry.selection?.phases;
-        expect(phases).toHaveLength(entry.id === "fe-tet4-solid-132k" ? 5 : 3);
+        const authoredTwoMillionCase =
+          entry.id === "instanced-2.10m" || entry.id === "unique-2m-local";
+        expect(phases).toHaveLength(
+          entry.id === "fe-tet4-solid-132k" ? 5 : authoredTwoMillionCase ? 6 : 3,
+        );
         if (phases === undefined) throw new Error("selection benchmark phases are missing");
         expect(entry.estimatedMemory.highlightBytes).toBeGreaterThan(0);
         expect(entry.estimatedMemory.pickReadbackBytes).toBeGreaterThan(0);
         for (const phase of phases) {
-          const authoredPhase = phase.id === "all-authored" || phase.id === "all-but-one";
+          const authoredPhase = phase.id.endsWith("-authored") || phase.id === "all-but-one";
           expect(phase.returnedTargetCount).toBeGreaterThan(0);
           expect(phase.selectedOccurrenceCount).toBeGreaterThan(0);
+          expect(phase.targetConstructionMs).toBeGreaterThanOrEqual(0);
           if (authoredPhase) {
             expect(phase.invalidSnapshotMs).toBe(0);
             expect(phase.cachedReadbackMs).toBe(0);
@@ -191,6 +198,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
             expect(phase.interactionSyncMs).toBeGreaterThan(0);
             expect(phase.firstSelectedFrameMs).toBeGreaterThan(0);
           }
+          expect(phase.interactionHighlightWriteBytes).toBeGreaterThan(0);
           expect(phase.steadySelectedFrameMs.p95).toBeGreaterThanOrEqual(
             phase.steadySelectedFrameMs.p50,
           );
@@ -199,9 +207,6 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           } else {
             expect(phase.clearSelectionMs).toBeGreaterThan(0);
           }
-          expect(phase.interactionGpuCost.writes["highlight"]?.bytes ?? 0).toBeGreaterThanOrEqual(
-            0,
-          );
           expect(phase.denseSelectionBytes).toBeGreaterThanOrEqual(0);
           expect(phase.selectedElementRecordBytes).toBeGreaterThan(0);
           if (phase.denseSelectionBytes > 0) {
@@ -211,7 +216,21 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
             expect(phase.selectedOccurrenceCount).toBe(1);
           }
         }
+        if (authoredTwoMillionCase) {
+          const one = phases.find((phase) => phase.id === "one-authored");
+          const half = phases.find((phase) => phase.id === "half-authored");
+          const all = phases.find((phase) => phase.id === "all-authored");
+          expect(one?.returnedTargetCount).toBe(1);
+          expect(half?.returnedTargetCount).toBe(Math.ceil(entry.uniqueElementCount / 2));
+          expect(all?.returnedTargetCount).toBe(entry.uniqueElementCount);
+          expect(one?.selectedOccurrenceCount).toBe(1);
+          expect(half?.selectedOccurrenceCount).toBe(1);
+          expect(all?.selectedOccurrenceCount).toBe(1);
+          expect(half?.denseSelectionBytes).toBeGreaterThan(0);
+          expect(all?.denseSelectionBytes).toBeGreaterThan(0);
+        }
       }
+      expectTwoMillionInteractions(entry);
       if (entry.kind === "structured-fe") {
         expect(entry.structuredFamily).toBeDefined();
         expect(entry.nodeCount).toBeGreaterThan(0);

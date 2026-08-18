@@ -1,4 +1,8 @@
-import type { InteractiveSamples, OverlayInteractiveSamples } from "./interactive";
+import type {
+  InteractiveSample,
+  InteractiveSamples,
+  OverlayInteractiveSamples,
+} from "./interactive";
 import type {
   WebGpuBenchmarkCase,
   WebGpuBenchmarkElementFamily,
@@ -104,13 +108,23 @@ export interface BenchmarkPercentiles {
 }
 
 export interface SelectionBenchmarkPhase {
-  readonly id: "narrow" | "one-shell" | "broad" | "all-but-one" | "all-authored";
+  readonly id:
+    | "narrow"
+    | "one-shell"
+    | "broad"
+    | "one-authored"
+    | "half-authored"
+    | "all-but-one"
+    | "all-authored";
   readonly returnedTargetCount: number;
   readonly selectedOccurrenceCount: number;
+  /** Host target-object construction, separate from immutable state construction. */
+  readonly targetConstructionMs: number;
   readonly invalidSnapshotMs: number;
   readonly cachedReadbackMs: number;
   readonly interactionStateMs: number;
   readonly interactionSyncMs: number;
+  readonly interactionHighlightWriteBytes: number;
   readonly firstSelectedFrameMs: number;
   readonly steadySelectedFrameMs: BenchmarkPercentiles;
   readonly clearSelectionMs: number;
@@ -158,6 +172,77 @@ export interface NodeSelectionBenchmarkReport {
   readonly phases: readonly NodeSelectionBenchmarkPhase[];
 }
 
+export interface HoverBenchmarkReport {
+  readonly targetKind: "element";
+  readonly selectedOccurrenceCount: 1;
+  /** Pick snapshot and readback wall time before the hover transition. */
+  readonly pickMs: number;
+  readonly interactionStateMs: number;
+  readonly interactionSyncMs: number;
+  readonly interactionHighlightWriteBytes: number;
+  readonly firstHoveredFrameMs: number;
+  readonly steadyHoveredFrameMs: BenchmarkPercentiles;
+  readonly clearHoverMs: number;
+  readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+}
+
+export interface VisibilityBenchmarkPhase {
+  readonly id: "one" | "half" | "all";
+  readonly hiddenOccurrenceCount: number;
+  readonly remainingVisibleTriangles: number;
+  /** Submitted opaque surface indices after occurrence visibility is applied. */
+  readonly visibleSurfaceSubmittedIndices: number;
+  readonly runtimeMutationMs: number;
+  readonly rendererSyncMs: number;
+  readonly firstHiddenFrameMs: number;
+  readonly steadyHiddenFrameMs: BenchmarkPercentiles;
+  readonly restoreMs: number;
+  /** Submitted opaque surface indices after all hidden occurrences are restored. */
+  readonly restoredSurfaceSubmittedIndices: number;
+  readonly hiddenGpuCost: BenchmarkGpuCostSnapshot;
+}
+
+export interface VisibilityBenchmarkReport {
+  readonly phases: readonly VisibilityBenchmarkPhase[];
+}
+
+export interface CombinedOverlaySelectionSample {
+  readonly targetCount: number;
+  readonly targetConstructionMs: number;
+  readonly interactionStateMs: number;
+  readonly interactionSyncMs: number;
+  readonly interactionHighlightWriteBytes: number;
+  readonly firstSelectedFrameMs: number;
+  readonly gpuCost: BenchmarkGpuCostSnapshot;
+}
+
+export interface CombinedOverlayBenchmarkReport {
+  readonly nodes: true;
+  readonly presentationEdges: true;
+  readonly coldNodeInteractionSyncMs: number;
+  readonly coldNodeFirstFrameMs: number;
+  readonly coldNodeFirstFrameCpuMs: number;
+  readonly coldNodeGpuCost: BenchmarkGpuCostSnapshot;
+  readonly coldEdgeInteractionSyncMs: number;
+  readonly coldEdgeFirstFrameMs: number;
+  readonly coldEdgeFirstFrameCpuMs: number;
+  readonly coldEdgeGpuCost: BenchmarkGpuCostSnapshot;
+  readonly estimatedRetainedEdgeBufferUpperBoundBytes: number;
+  /** Exact dense edge-builder typed arrays allocated before finalization. */
+  readonly edgeConstructionTypedArrayBytes?: number;
+  /** Exact final CPU `MeshEdgeData` typed-array bytes. */
+  readonly edgeFinalTypedArrayBytes?: number;
+  /** Final data, builder state, and reused primitive ids live together during finalization. */
+  readonly edgeGuaranteedTypedArrayOverlapBytes?: number;
+  /** Construction plus final data when no dead intermediate is collected before return. */
+  readonly edgeNoIntermediateGcTypedArrayUpperBoundBytes?: number;
+  readonly materializedEdgePartCount: number;
+  readonly fixedCamera: InteractiveSample;
+  readonly movingCamera: InteractiveSample;
+  readonly hover: HoverBenchmarkReport;
+  readonly largeSelection: CombinedOverlaySelectionSample;
+}
+
 export interface DenseBenchmarkBuild {
   readonly generationMs: number;
   readonly topologyMs: number;
@@ -191,12 +276,17 @@ export interface WebGpuBenchmarkCaseResult {
   readonly modelBuildMs: number;
   readonly denseBuild?: DenseBenchmarkBuild;
   readonly runtimeCompileMs: number;
+  /** Renderer/device-owned setup before any scene geometry attachment or upload. */
+  readonly rendererCreateMs: number;
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
   readonly overlayInteractive?: OverlayInteractiveSamples;
   readonly selection?: SelectionBenchmarkReport;
   readonly nodeSelection?: NodeSelectionBenchmarkReport;
+  readonly hover?: HoverBenchmarkReport;
+  readonly visibility?: VisibilityBenchmarkReport;
+  readonly combinedOverlay?: CombinedOverlayBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
   readonly gpuCost: BenchmarkGpuCostSnapshot;
@@ -213,7 +303,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 11;
+  readonly schemaVersion: 12;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
