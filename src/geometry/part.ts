@@ -259,6 +259,29 @@ function validateGeometryArrays(geometry: Geometry): void {
   for (const index of geometry.indices) {
     if (index >= vertexCount) throw new Error(`Geometry index ${index} is outside positions`);
   }
+  if (geometry.primitive === "triangles") {
+    const primitiveCount = geometry.indices.length / 3;
+    if (geometry.primitiveColors !== undefined) {
+      if (geometry.primitiveColors.length !== primitiveCount * 4) {
+        throw new Error("Triangle primitiveColors must contain four values per triangle");
+      }
+      for (const color of geometry.primitiveColors) {
+        if (!Number.isFinite(color) || color < 0 || color > 1) {
+          throw new Error("Triangle primitiveColors must be finite and in [0, 1]");
+        }
+      }
+    }
+    if (geometry.presentationEdges !== undefined) {
+      if (geometry.presentationEdges.length % 2 !== 0) {
+        throw new Error("Triangle presentationEdges must contain endpoint pairs");
+      }
+      for (const index of geometry.presentationEdges) {
+        if (index >= vertexCount) {
+          throw new Error(`Triangle presentation edge index ${index} is outside positions`);
+        }
+      }
+    }
+  }
 }
 
 /** Returns whether every component of a bounding box is finite. */

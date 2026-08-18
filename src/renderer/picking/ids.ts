@@ -36,6 +36,14 @@ export function buildElementPrimitiveOrdinals(
   elementOrdinalById: { get(key: number): number | undefined },
 ): Uint32Array {
   const packed = packedSemanticStorageForGeometry(geometry);
+  if (
+    packed === undefined &&
+    geometry.primitive === "triangles" &&
+    geometry.primitiveColors !== undefined &&
+    elements.length === 0
+  ) {
+    return Uint32Array.from({ length: logicalPrimitiveCount(geometry) }, (_, index) => index + 1);
+  }
   if (packed === undefined && elements.length === 0) return new Uint32Array();
   if (packed !== undefined) {
     return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => ordinal + 1);

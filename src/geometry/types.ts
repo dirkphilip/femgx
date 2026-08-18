@@ -154,6 +154,14 @@ export interface TriangleGeometry extends GeometryBase {
   readonly primitive: "triangles";
   /** Indexed triangles; three indices per triangle. */
   readonly indices: Uint32Array;
+  /** Optional RGBA color for each logical triangle, in triangle order. */
+  readonly primitiveColors?: Float32Array;
+  /**
+   * Optional renderer-ready display edge endpoint pairs. Each pair indexes
+   * `positions`; this is for generic display geometry without authored FE
+   * edge identities.
+   */
+  readonly presentationEdges?: Uint32Array;
   /** Optional oriented face descriptors with exact triangle ranges. */
   readonly faces?: readonly FaceTessellation[];
   /** Optional render-time subset of the declared triangle faces. */

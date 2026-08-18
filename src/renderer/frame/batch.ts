@@ -293,7 +293,7 @@ function createBatchBindGroup(options: {
   return orderBindGroup(draw.device, instanceLayout, storage, orderKind, {
     geometry: resource,
     deformation,
-    resultColors: resultColorBuffer(draw, call.partId),
+    resultColors: resultColorBuffer(draw, call.partId, resource.primitiveColorBuffer),
     edge: overlay,
     surfaceSubset: !overlay && subset,
     edgePick,

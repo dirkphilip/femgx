@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createSceneRuntime } from "../../../src/scene-runtime/public-runtime";
 import type { IoError } from "../../../src/io/diagnostics";
 import { importGlb } from "../../../src/io/glb/importer";
-import { makeManyPartGlb } from "../../../demo/benchmark/glb-fixture";
+import { makeManyPartGlb, makeMechanicalAssemblyGlb } from "../../../demo/benchmark/glb-fixture";
 
 const ONShapeCylinder = readFileSync(
   new URL("../fixtures/glb/onshape-cylinder-uncompressed.glb", import.meta.url),
@@ -77,13 +77,26 @@ describe("importGlb", () => {
     expect(geometry?.positions.slice(9, 12)).toEqual(new Float32Array([1, 0, 0]));
   });
 
+  it("flattens a depth-two assembly while retaining per-triangle colors and edges", async () => {
+    const result = await importGlb(makeMechanicalAssemblyGlb(4));
+    const geometry = result.scene.parts.get(0)?.geometries[0];
+    const triangles = geometry?.primitive === "triangles" ? geometry : undefined;
+
+    expect(result.scene.parts).toHaveLength(1);
+    expect(result.scene.assemblies).toHaveLength(1);
+    expect(triangles).toBeDefined();
+    expect(triangles?.primitiveColors).toHaveLength(4 * 56 * 4);
+    expect(triangles?.presentationEdges?.length).toBeGreaterThan(0);
+    expect(result.partStyles.get(0)?.color).toEqual({ r: 1, g: 1, b: 1, a: 1 });
+  });
+
   it("retains equal POSITION values across flattened material groups", async () => {
     const result = await importGlb(makeSharedAccessorPrimitiveGlb(2, true));
-    const first = result.scene.parts.get(0)?.geometries[0]?.positions;
-    const second = result.scene.parts.get(1)?.geometries[0]?.positions;
+    const positions = result.scene.parts.get(0)?.geometries[0]?.positions;
 
-    expect(result.scene.parts).toHaveLength(2);
-    expect(first).toStrictEqual(second);
+    expect(result.scene.parts).toHaveLength(1);
+    expect(positions).toHaveLength(18);
+    expect(positions?.slice(0, 9)).toStrictEqual(positions?.slice(9, 18));
   });
 
   it("reuses imported parts through the canonical runtime", async () => {

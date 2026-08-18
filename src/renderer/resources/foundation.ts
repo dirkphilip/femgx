@@ -27,6 +27,8 @@ export interface PartResource {
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
   readonly nodePickIdsBuffer: GPUBuffer;
+  /** Optional per-triangle display colors encoded like elemental result colors. */
+  readonly primitiveColorBuffer?: GPUBuffer;
   /** Full interior geometry, materialized only when a full-surface draw needs it. */
   fullVertexBuffer?: GPUBuffer;
   fullIndexBuffer?: GPUBuffer;

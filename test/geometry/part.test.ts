@@ -164,6 +164,24 @@ describe("part geometry", () => {
     ).toThrow(/Duplicate element id 7/);
   });
 
+  it("validates optional triangle colors and presentation edges", () => {
+    expect(() =>
+      createPart(1, {
+        geometries: [{ ...triangle(), primitiveColors: new Float32Array([1, 0, 0]) }],
+      }),
+    ).toThrow(/four values per triangle/);
+    expect(() =>
+      createPart(1, {
+        geometries: [{ ...triangle(), primitiveColors: new Float32Array([1, 0, 0, 2]) }],
+      }),
+    ).toThrow(/finite and in \[0, 1\]/);
+    expect(() =>
+      createPart(1, {
+        geometries: [{ ...triangle(), presentationEdges: new Uint32Array([0, 4]) }],
+      }),
+    ).toThrow(/presentation edge index 4 is outside positions/);
+  });
+
   it("rejects incomplete, missing-group, and overlapping semantic ranges", () => {
     expect(() =>
       createPart(1, {

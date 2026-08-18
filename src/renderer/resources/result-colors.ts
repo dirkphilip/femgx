@@ -52,8 +52,12 @@ export function syncResultColors(
 }
 
 /** Returns the active part table or the shared inactive binding. */
-export function resultColorBuffer(draw: ResultColorDrawResources, partId: PartId): GPUBuffer {
-  return draw.resultColors.get(partId)?.buffer ?? draw.emptyResultColorBuffer;
+export function resultColorBuffer(
+  draw: ResultColorDrawResources,
+  partId: PartId,
+  fallback?: GPUBuffer,
+): GPUBuffer {
+  return draw.resultColors.get(partId)?.buffer ?? fallback ?? draw.emptyResultColorBuffer;
 }
 
 /** Destroys every dense result buffer owned by the draw path. */

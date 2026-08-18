@@ -3,7 +3,7 @@ import { importGlb } from "../../src/entries/io/glb";
 import { createImportedModel } from "../workbench/models/model";
 import { createModelInteraction } from "../workbench/state/preset";
 import { createDefaultDisplayToggles } from "../workbench/types";
-import { makeManyPartGlb } from "./glb-fixture";
+import { makeMechanicalAssemblyGlb } from "./glb-fixture";
 
 const WIDTH = 800;
 const HEIGHT = 600;
@@ -22,6 +22,12 @@ export interface GlbViewportBenchmarkReport {
     readonly firstQueueDrainMs: number;
     readonly steadyFrameCpuMs: number;
     readonly steadyFrameQueueMs: number;
+    readonly edgeToggleCpuMs: number;
+    readonly edgeFirstQueueMs: number;
+    readonly edgeSteadyQueueMs: number;
+    readonly nodeToggleCpuMs: number;
+    readonly nodeFirstQueueMs: number;
+    readonly nodeSteadyQueueMs: number;
     readonly fileToVisibleMs: number;
   };
 }
@@ -33,7 +39,7 @@ export async function runGlbViewportBenchmark(
   holdMilliseconds = 0,
 ): Promise<GlbViewportBenchmarkReport> {
   const sourceStart = performance.now();
-  const source = makeManyPartGlb(sourcePartCount);
+  const source = makeMechanicalAssemblyGlb(sourcePartCount);
   const sourceBuildMs = performance.now() - sourceStart;
   const file = new File([source], `many-parts-${sourcePartCount}.glb`, {
     type: "model/gltf-binary",
@@ -83,6 +89,14 @@ export async function runGlbViewportBenchmark(
     const steadyFrameCpuMs = performance.now() - steadyStart;
     await device.queue.onSubmittedWorkDone();
     const steadyFrameQueueMs = performance.now() - steadyStart;
+    const edge = await measureOverlay(viewport, device, createModelInteraction(model, true, false));
+    const nodes = await measureOverlay(
+      viewport,
+      device,
+      createModelInteraction(model, false, true),
+    );
+    viewport.interaction.set(createModelInteraction(model, true, false));
+    viewport.render();
     if (holdMilliseconds > 0) {
       await new Promise((resolve) => window.setTimeout(resolve, holdMilliseconds));
     }
@@ -100,6 +114,12 @@ export async function runGlbViewportBenchmark(
         firstQueueDrainMs,
         steadyFrameCpuMs,
         steadyFrameQueueMs,
+        edgeToggleCpuMs: edge.toggleCpuMs,
+        edgeFirstQueueMs: edge.firstQueueMs,
+        edgeSteadyQueueMs: edge.steadyQueueMs,
+        nodeToggleCpuMs: nodes.toggleCpuMs,
+        nodeFirstQueueMs: nodes.firstQueueMs,
+        nodeSteadyQueueMs: nodes.steadyQueueMs,
         fileToVisibleMs,
       },
     };
@@ -108,6 +128,32 @@ export async function runGlbViewportBenchmark(
     device.destroy();
     canvas.remove();
   }
+}
+
+type BenchmarkViewport = Awaited<ReturnType<typeof createViewport>>;
+
+interface OverlayTimings {
+  readonly toggleCpuMs: number;
+  readonly firstQueueMs: number;
+  readonly steadyQueueMs: number;
+}
+
+async function measureOverlay(
+  viewport: BenchmarkViewport,
+  device: GPUDevice,
+  interaction: Parameters<BenchmarkViewport["interaction"]["set"]>[0],
+): Promise<OverlayTimings> {
+  const toggleStart = performance.now();
+  viewport.interaction.set(interaction);
+  viewport.render();
+  const toggleCpuMs = performance.now() - toggleStart;
+  const firstStart = performance.now();
+  await device.queue.onSubmittedWorkDone();
+  const firstQueueMs = performance.now() - firstStart;
+  const steadyStart = performance.now();
+  viewport.render();
+  await device.queue.onSubmittedWorkDone();
+  return { toggleCpuMs, firstQueueMs, steadyQueueMs: performance.now() - steadyStart };
 }
 
 function benchmarkCanvas(host: HTMLElement): HTMLCanvasElement {

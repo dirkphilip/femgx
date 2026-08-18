@@ -89,6 +89,21 @@ export function buildPartGeometryData(
   };
 }
 
+/** Uploads imported per-triangle display colors in the result-color layout. */
+export function createPrimitiveColorBuffer(
+  device: GPUDevice,
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+): GPUBuffer | undefined {
+  const colors = geometry.primitiveColors;
+  if (colors === undefined) return undefined;
+  const primitiveCount = geometry.indices.length / 3;
+  const data = new Float32Array((primitiveCount + 1) * 4);
+  data[0] = 1;
+  data[1] = primitiveCount + 1;
+  data.set(colors, 4);
+  return createBuffer(device, data, GPUBufferUsage.STORAGE, "femgx primitive display colors");
+}
+
 /** Builds only the exterior geometry and metadata needed by a subset-first draw. */
 export function buildPartSubsetGeometryData(
   device: GPUDevice,

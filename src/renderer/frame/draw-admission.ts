@@ -45,7 +45,7 @@ export function pipelineAdmission(options: {
   readonly cache: Map<PartId, PipelineAdmissionCacheEntry>;
 }): GpuCostAdmission {
   const { context, storage, call, geometry, intent, cache } = options;
-  const featureState = hasFeatureState(context, storage, call);
+  const featureState = hasFeatureState(context, storage, call, geometry);
   if (intent.kind === "edge" || (intent.kind === "nodes" && intent.selection === undefined)) {
     return featureState ? "feature" : "topology";
   }
@@ -95,13 +95,15 @@ function hasFeatureState(
   context: DrawCallContext,
   storage: InstanceStorage,
   call: DrawCall,
+  geometry: Geometry | undefined,
 ): boolean {
   return (
     context.sectionPlane !== undefined ||
     context.resultColors?.has(call.partId) === true ||
     context.deformation?.displacements.has(call.partId) === true ||
     !context.usesExteriorFaceSubsets ||
-    storage.highlightOwned
+    storage.highlightOwned ||
+    (geometry?.primitive === "triangles" && geometry.primitiveColors !== undefined)
   );
 }
 

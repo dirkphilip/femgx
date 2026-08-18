@@ -29,6 +29,13 @@ export function buildMeshEdgeData(
 ): MeshEdgeData {
   if (
     geometry.primitive === "triangles" &&
+    geometry.presentationEdges !== undefined &&
+    sourceIndices === geometry.indices
+  ) {
+    return directPresentationEdges(geometry);
+  }
+  if (
+    geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
     elements.length === 0 &&
     sourceIndices === geometry.indices
@@ -53,6 +60,13 @@ export function buildUnownedMeshEdgePresentation(
 ): MeshEdgePresentationBuild {
   if (
     geometry.primitive === "triangles" &&
+    geometry.presentationEdges !== undefined &&
+    sourceIndices === geometry.indices
+  ) {
+    return { edgeData: directPresentationEdges(geometry) };
+  }
+  if (
+    geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
     geometry.edges === undefined &&
     sourceIndices === geometry.indices
@@ -60,6 +74,34 @@ export function buildUnownedMeshEdgePresentation(
     return buildDenseUnownedEdges(geometry, elements);
   }
   return { edgeData: buildMeshEdgeData(geometry, sourceIndices, elements) };
+}
+
+function directPresentationEdges(
+  geometry: Extract<Geometry, { primitive: "triangles" }>,
+): MeshEdgeData {
+  const presentationEdges = geometry.presentationEdges ?? new Uint32Array();
+  const edgeCount = presentationEdges.length / 2;
+  const positions = new Float32Array(presentationEdges.length * 3);
+  const sourceVertexIndices = new Uint32Array(presentationEdges.length);
+  const indices = new Uint32Array(presentationEdges.length);
+  const edgeIds = new Uint32Array(presentationEdges.length);
+  for (let endpoint = 0; endpoint < presentationEdges.length; endpoint += 1) {
+    const source = presentationEdges[endpoint] ?? 0;
+    sourceVertexIndices[endpoint] = source;
+    indices[endpoint] = endpoint;
+    edgeIds[endpoint] = Math.floor(endpoint / 2);
+    const sourceOffset = source * 3;
+    positions.set(geometry.positions.subarray(sourceOffset, sourceOffset + 3), endpoint * 3);
+  }
+  return {
+    indices,
+    sourceVertexIndices,
+    edgeIds,
+    positions,
+    bodyRanges: new Uint32Array(edgeCount * 2),
+    bodyIds: new Uint32Array([0]),
+    elementIds: new Uint32Array([0]),
+  };
 }
 
 function remapTriangleOwnerPairs(

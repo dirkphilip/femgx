@@ -19,6 +19,22 @@ function buildSemanticEdgeData(geometry: SemanticGeometry) {
 }
 
 describe("buildMeshEdgeData", () => {
+  it("uses importer-owned presentation edges without global topology hashing", () => {
+    const geometry = {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+      presentationEdges: new Uint32Array([0, 1, 1, 2, 2, 0]),
+    };
+
+    const build = buildUnownedMeshEdgePresentation(geometry);
+
+    expect(build.edgeData.sourceVertexIndices).toEqual(geometry.presentationEdges);
+    expect(build.edgeData.indices).toEqual(new Uint32Array([0, 1, 2, 3, 4, 5]));
+    expect(build.edgeData.edgeIds).toEqual(new Uint32Array([0, 0, 1, 1, 2, 2]));
+    expect(build.edgeData.edgeKeys).toBeUndefined();
+  });
+
   it("reuses endpoint geometry for the native presentation line list", () => {
     const data = {
       indices: new Uint32Array([0, 1]),
