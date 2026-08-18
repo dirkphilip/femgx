@@ -3,6 +3,7 @@ import {
   createPart,
   identity,
   setElementVisible,
+  translation,
   type Viewport,
   type ElementTessellation,
   type Geometry,
@@ -54,6 +55,21 @@ describe("through box selection", () => {
     await expect(resolver(request("element"))).resolves.toEqual([
       { kind: "element", partOccurrenceId, elementId: 3 },
       { kind: "element", partOccurrenceId, elementId: 4 },
+    ]);
+  });
+
+  it("applies occurrence transforms before frustum intersection", async () => {
+    const { part, interaction } = fixture();
+    const scene = sceneFor(part, translation(10, 0, 0));
+    const runtime = createSceneRuntime(scene);
+    const resolver = throughIntersectionBoxSelectionResolver(() =>
+      viewport(scene, runtime, interaction, undefined, 10),
+    );
+
+    await expect(resolver(request("element"))).resolves.toEqual([
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 1 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 3 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 4 },
     ]);
   });
 
@@ -131,6 +147,7 @@ function viewport(
   runtime: ReturnType<typeof createSceneRuntime>,
   interaction: InteractionState,
   sectionPlane?: { readonly normal: readonly [number, number, number]; readonly distance: number },
+  targetX = 0,
 ): Viewport {
   return {
     scene,
@@ -138,8 +155,8 @@ function viewport(
     view: {
       camera: createCamera({
         mode: "orthographic",
-        position: [0, 0, 10],
-        target: [0, 0, 0],
+        position: [targetX, 0, 10],
+        target: [targetX, 0, 0],
         up: [0, 1, 0],
         width: 100,
         height: 100,
@@ -163,6 +180,7 @@ function viewport(
 }
 
 function fixture(): {
+  readonly part: ReturnType<typeof createPart>;
   readonly scene: Scene;
   readonly runtime: ReturnType<typeof createSceneRuntime>;
   readonly interaction: InteractionState;
@@ -192,10 +210,10 @@ function fixture(): {
     nodePositions: point.nodePositions,
   });
   const scene = sceneFor(part);
-  return { scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };
+  return { part, scene, runtime: createSceneRuntime(scene), interaction: createInteractionState() };
 }
 
-function sceneFor(part: ReturnType<typeof createPart>): Scene {
+function sceneFor(part: ReturnType<typeof createPart>, transform = identity()): Scene {
   const scene: Scene = {
     rootAssemblyId: 0,
     parts: new Map([[part.id, part]]),
@@ -205,9 +223,7 @@ function sceneFor(part: ReturnType<typeof createPart>): Scene {
         {
           id: 0,
           name: "root",
-          placements: [
-            { kind: "part", placementId: "part", partId: part.id, transform: identity() },
-          ],
+          placements: [{ kind: "part", placementId: "part", partId: part.id, transform }],
         },
       ],
     ]),
