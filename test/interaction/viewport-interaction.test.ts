@@ -81,6 +81,32 @@ describe("installViewportInteraction", () => {
     disposer();
   });
 
+  it("accepts modifier-promoted targets returned by the resolver", async () => {
+    const harness = viewportHarness();
+    harness.pick.mockResolvedValue(hit);
+    const disposer = installViewportInteraction({
+      canvas: harness.canvas as unknown as HTMLCanvasElement,
+      viewport: harness.viewport,
+      granularity: () => "face",
+      resolvePoint: async ({ modifiers }) =>
+        modifiers.alt
+          ? { kind: "partOccurrence", partOccurrenceId: "1/0" }
+          : { kind: "element", partOccurrenceId: "1/0", elementId: 2 },
+    });
+
+    harness.canvas.dispatch("click", click({ altKey: true }));
+    await settle();
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([
+      { kind: "partOccurrence", partOccurrenceId: "1/0" },
+    ]);
+    harness.canvas.dispatch("click", click({ shiftKey: true }));
+    await settle();
+    expect(selectedTargets(harness.viewport.interaction.state)).toEqual([
+      { kind: "element", partOccurrenceId: "1/0", elementId: 2 },
+    ]);
+    disposer();
+  });
+
   it("resolves a box once, reports its frustum, and applies one bulk transition", async () => {
     const harness = viewportHarness();
     const boxEvents: BoxSelectionEvent[] = [];

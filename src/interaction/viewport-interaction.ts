@@ -214,7 +214,7 @@ class ViewportInteraction {
             event,
           })
         : await this.defaultPointTarget(point.x, point.y, granularity);
-      assertTarget(target, granularity);
+      assertTarget(target, granularity, modifiers);
     } catch (error: unknown) {
       if (this.isCurrent(generation)) this.reportError(error, phase);
       return;
