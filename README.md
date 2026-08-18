@@ -3,39 +3,18 @@
 An experimental TypeScript library for rendering finite-element (FE) models
 with **WebGPU** and **GPU instancing**.
 
-FemGx lets applications define reusable parts, place them through hierarchical
-assemblies, compile one scene, and render it through a single viewport
-lifecycle. WebGPU is the only rendering backend; unsupported environments
-receive a typed result or clear error, never a CPU renderer or compatibility
+Define reusable FE parts, place them through hierarchical assemblies, and render
+the compiled scene through one viewport lifecycle. FemGx is WebGPU-only:
+unsupported environments receive a typed result or clear error, never a CPU
 fallback.
 
 **[Try the live workbench →](https://dirkphilip.github.io/femgx/)** ·
 [Read the API reference](https://dirkphilip.github.io/femgx/api/)
 
-## Status
+## Get started
 
-Version 0.1.0 is an experimental release with no stable API. It supports the
-core path from authored FE data to an instanced WebGPU viewport, including:
-
-- reusable typed FE parts and compact host-reduced surface parts;
-- hierarchical assemblies, stable occurrence identities, visibility, selection,
-  hover, highlight, and picking;
-- camera fitting and navigation, section planes, and a world-origin X/Y/Z
-  orientation triad;
-- authored nodal and elemental scalar results, nodal-vector deformation, and
-  bounded elemental orientation glyphs; and
-- host-supplied model validation/conversion and narrow, display-only GLB 2.0
-  import.
-
-FemGx does not derive engineering quantities, own result timelines, import GLB
-materials/textures/animation, or provide a non-WebGPU renderer. See the
-[product scope](wiki/requirements/product-scope.md) for the supported and
-deferred boundaries.
-
-## Installation
-
-FemGx is not published to npm yet. Install a local package tarball while the
-package is still experimental:
+Version 0.1.0 is experimental and not yet published to npm. Build and install a
+local package tarball:
 
 ```sh
 git clone https://github.com/dirkphilip/femgx.git
@@ -45,35 +24,22 @@ npm run build
 npm pack --ignore-scripts
 ```
 
-The build creates the package output and `npm pack` creates
-`femgx-0.1.0.tgz`. From your application directory, install that tarball:
+Then, from your application directory:
 
 ```sh
 npm install ../femgx/femgx-0.1.0.tgz
 ```
 
-The package ships ESM and CommonJS builds with TypeScript declarations.
-WebGPU types come from the TypeScript 6 DOM library; consumers do not need
-`@webgpu/types`. Once FemGx is published, this section will switch to the
-normal registry installation command.
+FemGx ships ESM and CommonJS builds with TypeScript declarations. Applications
+need a modern WebGPU browser and TypeScript 6.0 or newer.
 
 ## First render
 
-The canonical flow is:
+The canonical flow keeps reusable geometry separate from its placements:
 
 ```text
-reusable Part → hierarchical AssemblyDefinition → Scene → Viewport
+Part → AssemblyDefinition → Scene → Viewport
 ```
-
-A part owns immutable local geometry. Assembly definitions place parts without
-copying geometry. A scene owns those definitions and its root hierarchy. The
-viewport compiles the scene into a packed runtime and owns WebGPU resources,
-interaction, results, camera state, resize, recovery, and teardown.
-
-For a complete, runnable browser example that creates a small typed FE plate,
-adds a canvas, and calls `createViewport`, follow the [five-minute workflow in
-the API reference](docs/api-reference.md#five-minute-workflow). The essential
-application shape is:
 
 ```ts
 import { createScene, createViewport, identity } from "femgx";
@@ -94,70 +60,49 @@ const viewport = await createViewport({ canvas, scene });
 viewport.view.fit();
 ```
 
-The snippet shows the composition shape; `partId`, `model`, `assemblyId`, and
-`canvas` are host-owned values. Use the linked workflow when you want code that
-can be pasted directly into a browser module.
+Here, `partId`, `model`, `assemblyId`, and `canvas` are host-owned values. The
+[five-minute workflow](docs/api-reference.md#five-minute-workflow) provides a
+complete, pasteable browser example and explains capability probing, interaction,
+results, scene updates, and teardown.
 
-`createViewport()` requests a real WebGPU adapter and device. Use
-`queryWebGpuSupport()` for a non-throwing capability probe before loading data.
-Call `viewport.destroy()` when the host removes the canvas.
+## API model
 
-### Public vocabulary at a glance
+| Concept              | Responsibility                                            |
+| -------------------- | --------------------------------------------------------- |
+| `Part`               | Immutable local geometry that can be placed many times    |
+| `AssemblyDefinition` | A reusable hierarchy of part and assembly placements      |
+| `Scene`              | The authoritative definitions and root assembly           |
+| `Viewport`           | Rendering, camera, interaction, results, and GPU lifetime |
 
-| Concept                                      | Use it for                                                                 |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
-| `Part`                                       | One reusable local geometry definition                                     |
-| `PartPlacement`                              | One authored reference to a part inside an assembly                        |
-| `AssemblyDefinition`                         | A reusable hierarchy of part and assembly placements                       |
-| `RuntimePartOccurrence` / `PartOccurrenceId` | One query record and stable id for an expanded placed part                 |
-| `AssemblyPlacement` / `AssemblyOccurrenceId` | One nested assembly reference and its expanded runtime occurrence          |
-| `replaceScene(scene)`                        | Full replacement; placement-scoped state resets                            |
-| `reconcileScene(scene)`                      | Structural edit; compatible state is preserved and results are revalidated |
+Use `replaceScene()` for a new model. Use `reconcileScene()` for structural
+edits that should preserve compatible camera, interaction, visibility, and
+result state. Re-read `viewport.runtime` after either operation because the
+viewport installs a new compiled snapshot.
 
-Use `replaceScene()` for a new model and `reconcileScene()` for structural
-edits whose compatible camera, interaction, visibility, and result state should
-survive. Re-read `viewport.runtime` after either operation because it installs a
-new snapshot.
+The primary entry points are:
 
-The API uses the string value `"partOccurrence"` for occurrence-level picking
-and interaction targets. `InteractionGranularity.PartOccurrence` is the
-discoverable const-object member when a host wants a named choice.
+| Import        | Use it for                                                  |
+| ------------- | ----------------------------------------------------------- |
+| `femgx`       | Scene composition, viewport lifecycle, interaction, results |
+| `femgx/model` | FE elements, model editing, and part construction           |
+| `femgx/io`    | FEM validation, diagnostics, and authored-result conversion |
 
-## Public entry points
+Specialized entry points for camera math, runtime inspection, WebGPU device
+ownership, and optional display-only GLB import are documented in the
+[API reference](docs/api-reference.md). For 0.x import changes, see the
+[entry-point migration map](docs/migration-0.x-entry-points.md) and
+[viewport migration map](docs/migration-0.x-viewport.md).
 
-Import the narrowest entry point for the domain you use:
+## Scope
 
-| Import           | Use                                                                               |
-| ---------------- | --------------------------------------------------------------------------------- |
-| `femgx`          | Parts, scenes, viewport lifecycle, interaction, picking, results, and common math |
-| `femgx/model`    | FE shapes/elements, model editing, `elementPart`, and `surfacePart`               |
-| `femgx/io`       | FEM model validation, diagnostics, and authored-result conversion                 |
-| `femgx/io/glb`   | Optional bytes-only GLB display-scene import                                      |
-| `femgx/camera`   | Camera construction, fitting, projection, and navigation helpers                  |
-| `femgx/runtime`  | Advanced standalone CPU scene-runtime inspection                                  |
-| `femgx/platform` | Supported-path WebGPU adapter and device ownership                                |
-
-For 0.x import changes, see the [entry-point migration map](docs/migration-0.x-entry-points.md)
-and [viewport migration map](docs/migration-0.x-viewport.md).
-
-## Supported environments and boundaries
-
-- A modern browser with a working WebGPU implementation is required. There is
-  no CPU rendering fallback.
-- TypeScript 6.0+ is supported with `bundler`, `node16`, `nodenext`, or legacy
-  `node10` module resolution.
-- Node 24+ is required for repository tooling; the library is browser-first.
-- GLB import accepts self-contained GLB 2.0 bytes for display geometry only.
-  Textures, PBR materials, animation, lights, FE identities, external
-  resources, unit conversion, and mesh compression remain outside that boundary.
-- Results are authored scalar/vector snapshots. FemGx retains the current
-  snapshot and does not interpolate time steps or derive stress, magnitude, or
-  other engineering values.
+FemGx renders authored FE geometry, scalar results, nodal-vector deformation,
+and bounded elemental orientation glyphs. It does not derive engineering
+quantities, own result timelines, or provide a non-WebGPU renderer. See the
+[product scope](wiki/requirements/product-scope.md) for the complete supported
+and deferred boundaries.
 
 ## Documentation
 
 - [API reference and five-minute workflow](docs/api-reference.md)
 - [Architecture and API design](wiki/architecture/api-design.md)
-- [Product scope and requirements](wiki/requirements/product-scope.md)
 - [Contributing and repository development](CONTRIBUTING.md)
-- [Internal wiki](wiki/index.md)
