@@ -1,5 +1,5 @@
 import { assertValidCamera, type Camera } from "../camera/camera";
-import { fitCamera, type CameraContentInset } from "../camera/fit";
+import { centerCameraOnBounds, fitCamera, type CameraContentInset } from "../camera/fit";
 import type { CameraRef } from "../camera/controls";
 import { applyViewCubeAction, type ViewCubeAction } from "../camera/view-cube";
 import { type Bounds } from "../geometry/part";
@@ -71,11 +71,17 @@ export class CameraFocusController {
       if (selectedBounds === undefined) return;
       fitBounds = padDegenerateBounds(selectedBounds, sceneBounds);
     }
-    const target = fitCameraForBounds(
+    const contentInset = this.options.fitContentInset?.();
+    const fitted = fitCameraForBounds(
       this.options.cameraRef.camera,
       fitBounds,
       this.options.canvas,
-      this.options.fitContentInset?.(),
+      contentInset,
+    );
+    const target = centerCameraOnBounds(
+      protectSceneCamera(fitted, scene, runtime, deformation),
+      fitBounds,
+      contentInset,
     );
     this.apply(target, duration, invalidate);
   }
