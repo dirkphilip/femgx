@@ -64,7 +64,9 @@ describe("public scene replacement scaling", () => {
           expect(viewport.runtime.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
         },
       })),
-      { warmup: 1, samples: 3 },
+      // Batch repeatable replacements so timer and scheduler noise does not
+      // dominate the smallest normalized measurement.
+      { warmup: 1, samples: 3, iterations: 5 },
     );
     const normalized = measurements.map(({ millisecondsPerUnit }) => millisecondsPerUnit);
     const spread = Math.max(...normalized) / Math.min(...normalized);
