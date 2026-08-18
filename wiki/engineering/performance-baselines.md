@@ -243,6 +243,89 @@ native queue copies. Direct construction into the final packed allocation and
 eventual one-center procedural sprite storage are the next measured memory and
 first-use targets; they are not claims of current one-million-node readiness.
 
+## Many-piece real-WebGPU reference
+
+The current clean many-piece source of truth is implementation SHA
+`ba7c04c31f506c358992cd974e03aca2bab23983` and schema-12 reports
+`30-local-many-parts-1000.json` and `31-local-placements-10k.json`. System
+Chrome 151 used the Apple Metal 3 adapter, 800×600 at DPR 1, two warmups, and
+seven timed steady samples. The distinct-part and shared-placement meanings are
+deliberately separate.
+
+| Case                     | Model / runtime / renderer ms | Attach / first CPU / queue ms | Steady CPU / queue p50/p95 ms | Final opaque calls / indices / instances |
+| ------------------------ | ----------------------------: | ----------------------------: | ----------------------------: | ---------------------------------------: |
+| 1,000 distinct parts     |            140.2 / 1.2 / 38.9 |         464.3 / 450.0 / 472.4 |             1.1/1.2 · 5.0/5.5 |                1,000 / 2,904,000 / 1,000 |
+| 10,000 shared placements |              6.1 / 7.2 / 41.0 |            25.3 / 14.3 / 29.1 |             0.1/0.2 · 2.3/2.5 |                         1 / 384 / 10,000 |
+
+The interaction tuple below is target/state/slot-resolution/sync, followed by
+first frame, steady queue p50/p95, and clear. Apply/clear writes are exact
+`targetCount × 96` bytes. Selection's draw tuple applies independently to
+selected-visible and selected-hidden; recolor retains the case's full opaque
+tuple.
+
+| Case / selection | Targets |   Interaction ms | First · steady · clear ms | Apply / clear bytes | Selected draw calls / indices / instances |
+| ---------------- | ------: | ---------------: | ------------------------: | ------------------: | ----------------------------------------: |
+| Parts one        |       1 |  0.0/0.2/0.0/0.8 |       6.0 · 5.2/6.1 · 6.6 |             96 / 96 |                             1 / 2,904 / 1 |
+| Parts half       |     500 |  0.0/0.1/0.0/3.6 |      13.3 · 8.7/8.9 · 9.2 |     48,000 / 48,000 |                     500 / 1,452,000 / 500 |
+| Parts all        |   1,000 |  0.1/0.1/0.1/5.0 |   21.3 · 13.1/16.2 · 13.0 |     96,000 / 96,000 |                 1,000 / 2,904,000 / 1,000 |
+| Placements one   |       1 |  0.1/0.2/0.1/1.8 |       2.7 · 2.6/2.8 · 3.0 |             96 / 96 |                               1 / 384 / 1 |
+| Placements half  |   5,000 | 0.2/0.6/0.5/10.9 |      3.8 · 3.1/3.9 · 10.5 |   480,000 / 480,000 |                           1 / 384 / 5,000 |
+| Placements all   |  10,000 | 0.1/0.7/0.7/17.3 |      4.8 · 4.0/5.6 · 19.7 |   960,000 / 960,000 |                          1 / 384 / 10,000 |
+
+| Case / recolor  | Targets |   Interaction ms | First · steady · clear ms | Apply / clear bytes |
+| --------------- | ------: | ---------------: | ------------------------: | ------------------: |
+| Parts one       |       1 |  0.0/0.1/0.0/0.2 |       5.1 · 5.2/5.5 · 5.7 |             96 / 96 |
+| Parts half      |     500 |  0.1/0.2/0.1/2.1 |       6.1 · 4.9/5.2 · 7.8 |     48,000 / 48,000 |
+| Parts all       |   1,000 |  0.0/0.3/0.0/3.2 |       6.3 · 5.9/6.4 · 9.4 |     96,000 / 96,000 |
+| Placements one  |       1 |  0.0/0.0/0.0/0.5 |       2.2 · 2.3/2.7 · 2.7 |             96 / 96 |
+| Placements half |   5,000 |  0.2/1.2/0.7/8.0 |      2.7 · 2.2/2.8 · 13.2 |   480,000 / 480,000 |
+| Placements all  |  10,000 | 0.1/1.2/0.8/18.3 |      2.8 · 2.3/2.7 · 15.6 |   960,000 / 960,000 |
+
+Visibility reports mutation/sync, first, steady p50/p95, restore, exact
+post-hide/restored indices, and the post-hide opaque tuple.
+
+| Case / visibility | Targets | Mutation / sync ms | First · steady · restore ms | Indices hidden / restored | Opaque calls / indices / instances |
+| ----------------- | ------: | -----------------: | --------------------------: | ------------------------: | ---------------------------------: |
+| Parts one         |       1 |          0.0 / 0.3 |         5.1 · 5.2/5.9 · 6.3 |     2,901,096 / 2,904,000 |              999 / 2,901,096 / 999 |
+| Parts half        |     500 |          0.3 / 1.5 |         4.0 · 3.1/3.7 · 7.7 |     1,452,000 / 2,904,000 |              500 / 1,452,000 / 500 |
+| Parts all         |   1,000 |          0.1 / 2.1 |         2.7 · 0.8/1.2 · 8.2 |             0 / 2,904,000 |                          0 / 0 / 0 |
+| Placements one    |       1 |          0.2 / 2.7 |         3.1 · 2.2/4.4 · 4.7 |     3,839,616 / 3,840,000 |                    1 / 384 / 9,999 |
+| Placements half   |   5,000 |          0.6 / 1.1 |         2.2 · 1.6/1.9 · 4.1 |     1,920,000 / 3,840,000 |                    1 / 384 / 5,000 |
+| Placements all    |  10,000 |          1.1 / 0.7 |         1.0 · 0.8/1.2 · 3.7 |             0 / 3,840,000 |                          0 / 0 / 0 |
+
+Replacement build includes validation; runtime, renderer CPU, and queue are
+separate. Apply/restore writes are exact and positive.
+
+| Case / replacement | Changed | Build+validation / runtime ms | Renderer CPU / queue ms | Steady p50/p95 · restore ms | Apply / restore bytes |
+| ------------------ | ------: | ----------------------------: | ----------------------: | --------------------------: | --------------------: |
+| Parts one          |       1 |                     0.7 / 0.9 |              4.5 / 10.3 |               6.6/8.3 · 8.4 |               96 / 96 |
+| Parts half         |     500 |                     0.5 / 0.7 |               3.7 / 8.6 |               4.9/5.2 · 8.2 |       48,000 / 48,000 |
+| Parts all          |   1,000 |                     0.4 / 0.5 |               4.1 / 9.2 |               5.3/9.0 · 8.9 |       96,000 / 96,000 |
+| Placements one     |       1 |                     8.5 / 7.7 |              7.0 / 10.0 |               2.3/3.0 · 7.6 |               96 / 96 |
+| Placements half    |   5,000 |                     3.8 / 4.9 |              8.7 / 11.6 |              2.2/2.7 · 11.6 |     480,000 / 480,000 |
+| Placements all     |  10,000 |                     1.8 / 6.2 |             12.2 / 15.1 |              2.2/2.7 · 14.4 |     960,000 / 960,000 |
+
+| Case                     |  Geometry / pick / instance bytes | Highlight / deformation / fixed / readback bytes |        Retained / CPU scene / staging / peak bytes | Render targets |
+| ------------------------ | --------------------------------: | -----------------------------------------------: | -------------------------------------------------: | -------------: |
+| 1,000 distinct parts     | 46,464,000 / 46,480,000 / 100,000 |                            144 / 4 / 324 / 1,280 | 93,045,752 / 26,492,000 / 92,944,000 / 185,989,752 |     48,480,000 |
+| 10,000 shared placements |         6,144 / 6,160 / 1,000,000 |                            144 / 4 / 324 / 1,280 |           1,014,056 / 643,804 / 12,304 / 1,026,360 |     48,480,000 |
+
+Edge-index and subset bytes are zero in both cases. The retained estimate
+excludes node sidecars, interaction growth, construction temporaries,
+JavaScript heap, and driver allocations; staging and render targets are
+separate. Full methodology, pick timings, remaining-triangle counts, and exact
+draw assertions are in [[engineering/benchmarks#schema-12-many-piece-evidence|Benchmarks]].
+
+The public `setInstanceOverrides` bulk immutable transition reduces the clean
+10,000-placement half/all state rows to 1.2/1.2 ms. Same-session pre-edit
+observations were 427.3/1,823.9 ms, or 356.1×/1,519.9× slower, but have no
+durable clean artifact. A synthetic CPU/fake-GPU attachment seam improved at
+1,024/4,096/16,384 placements from 1.113/4.274/19.276 ms to
+0.667/2.497/10.481 ms (1.67×/1.71×/1.84×). Neither is a clean hardware
+before/after pair. Public `Viewport.setScene` remained about 47 ms at 16,384
+placements before and after, with noisy variation; no end-to-end speedup is
+claimed.
+
 ## Two-million-triangle real-WebGPU reference
 
 Two capacity cases deliberately keep reuse and unique ownership separate:
@@ -319,6 +402,8 @@ number.
 | 2026-08-18 | `c5293aad5169aa0f7204bd262fb3e999b9170624` | Apple M3 Pro / 24.18.0    | Dense node selection and zero-churn node upload (26 node-sync rows)        | CPU sprite **0.331583 / 0.393375 ms**; topology **14.346292 / 99.124375 ms**; half state/dense/upload **0.687208 / 0.752959**, **0.136292 / 0.372167**, **0.007834 / 0.013583 ms**; all state/dense/upload **1.494875 / 1.669417**, **0.204208 / 0.225084**, **0.006625 / 0.009041 ms** | `28-local-node-selection-dense.json`, clean CPU/fake-GPU harness after integrating dense semantic storage; `gitDirty: false`. Final Metal 3 half-node cold first frame **311.9 → 125.6 ms (2.48×)**, with clean observations spanning **50.5–125.6 ms**; resident all-node first frame **2.4 ms**, steady **1.9 / 2.2 ms**. The cold path and projected 1M typed-array peak remain open.                   |
 | 2026-08-18 | —                                          | Apple M3 Pro / Chrome 151 | BEFORE dense presentation-edge builder, same-session observation           | Cold incremental presentation edges **25,026.7 ms CPU / 25,150.9 ms queue-drained**                                                                                                                                                                                                     | Observed pre-edit baseline only; no durable clean JSON artifact and no clean implementation SHA. Retained solely for comparison with the immediately following clean hardware result.                                                                                                                                                                                                                      |
 | 2026-08-18 | `b7ab6b37ce878626e52736b957ea54df1a2567b6` | Apple M3 Pro / Chrome 151 | AFTER integrated dense two-million-Triangle presentation path (schema 12)  | Cold incremental presentation edges **905.9 ms CPU / 1,003.8 ms queue-drained**; surface first **1,375.2 / 1,424.5 ms CPU/queue**; surface steady **3.3 / 24.3 ms**; combined moving RAF **9.80 ms p95**                                                                                | `29-local-two-million-triangle.json`, clean post-rebase real-WebGPU report. **27.63× CPU / 25.06× queue** versus the same-session observation. Exact edge allocation: 252,663,296 construction, 264,112,000 final, 416,112,000 guaranteed overlap, 516,775,296 no-GC upper bound bytes. Retained estimate excludes node sidecars, interaction growth, JS heap, driver, and general build temporaries.      |
+| 2026-08-18 | —                                          | Apple M3 Pro / Chrome 151 | BEFORE many-piece slot/recolor package, same-session observations          | Shared 10k-placement immutable recolor state half/all **427.3 / 1,823.9 ms**; synthetic renderer attachment at 1,024/4,096/16,384 placements **1.113 / 4.274 / 19.276 ms**                                                                                                              | No durable clean JSON or clean SHA for these observations. The recolor values are immutable state construction; attachment is a CPU/fake-GPU seam. Public `Viewport.setScene` at 16,384 placements stayed about **47 ms** before/after with noisy variation, so no end-to-end improvement is claimed.                                                                                                      |
+| 2026-08-18 | `ba7c04c31f506c358992cd974e03aca2bab23983` | Apple M3 Pro / Chrome 151 | Clean schema-12 distinct-part and shared-placement reference               | Parts: build/runtime/renderer **140.2 / 1.2 / 38.9 ms**, first CPU/queue **450.0 / 472.4 ms**, steady queue **5.0 / 5.5 ms**. Placements: **6.1 / 7.2 / 41.0 ms**, **14.3 / 29.1 ms**, **2.3 / 2.5 ms**. Shared recolor state half/all **1.2 / 1.2 ms**                                 | `30-local-many-parts-1000.json` and `31-local-placements-10k.json`, clean real-WebGPU artifacts. Public `setInstanceOverrides` is **356.1× / 1,519.9×** faster than the non-artifact recolor observations. Synthetic attachment after: **0.667 / 2.497 / 10.481 ms** (**1.67× / 1.71× / 1.84×**); it is not hardware evidence. Full operation, write, draw, replacement, and memory rows are above.        |
 
 To append a milestone, run the command with `PERF_BASELINE_FILE`, inspect the
 JSON, then add the exact fingerprint and selected p50/p95 values to this table.
