@@ -198,11 +198,12 @@ export class WorkbenchVisibilityActions {
   }
 
   partVisible(partId: PartId): boolean {
-    const instance = this.options
-      .runtime()
-      .getPartOccurrences()
-      .find((candidate) => candidate.partId === partId);
-    return instance?.partVisible ?? false;
+    const runtime = this.options.runtime();
+    for (const partOccurrenceId of runtime.getPartOccurrenceIds()) {
+      if (runtime.getPartId(partOccurrenceId) !== partId) continue;
+      return runtime.getPartOccurrence(partOccurrenceId)?.partVisible ?? false;
+    }
+    return false;
   }
 
   bodyVisible(partOccurrenceId: PartOccurrenceId, bodyId: BodyId): boolean {
