@@ -20,7 +20,8 @@ describe("workbench controller infrastructure", () => {
     const primaryHit = faceHit("primary-occurrence");
     const primaryPick = vi.fn(() => Promise.resolve(primaryHit));
     const secondaryPick = vi.fn(() => Promise.resolve(undefined));
-    const primaryViewport = viewport(primaryPick);
+    const primaryInteractionSet = vi.fn();
+    const primaryViewport = viewport(primaryPick, primaryInteractionSet);
     const secondaryViewport = viewport(secondaryPick);
     const states = new Map<ViewportSlotId, InteractionState>([
       ["primary", createInteractionState()],
@@ -67,7 +68,7 @@ describe("workbench controller infrastructure", () => {
 
     expect(isTargetSelected(states.get("primary") as InteractionState, target)).toBe(true);
     expect(isTargetSelected(states.get("secondary") as InteractionState, target)).toBe(false);
-    expect(vi.mocked(primaryViewport.interaction.set)).toHaveBeenCalledWith(states.get("primary"));
+    expect(primaryInteractionSet).toHaveBeenCalledWith(states.get("primary"));
     expect(inspections.get("primary")?.visible).toBe(true);
     expect(inspections.get("secondary")?.visible).toBe(false);
   });
@@ -179,12 +180,15 @@ function pane(id: ViewportSlotId): {
   };
 }
 
-function viewport(pick: (x: number, y: number) => Promise<PickHit | undefined>): Viewport {
+function viewport(
+  pick: (x: number, y: number) => Promise<PickHit | undefined>,
+  set = vi.fn(),
+): Viewport {
   return {
     interaction: {
       pick,
       state: createInteractionState(),
-      set: vi.fn(),
+      set,
     },
     results: { state: undefined },
     render: vi.fn(),
