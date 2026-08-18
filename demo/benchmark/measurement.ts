@@ -93,7 +93,7 @@ export async function measureBenchmarkCase(
   let manyPiece: WebGpuBenchmarkCaseResult["manyPiece"];
   let combinedOverlay: WebGpuBenchmarkCaseResult["combinedOverlay"];
   let rendererCreateMs: number;
-  let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
+  let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"] | undefined;
   let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
   let materializedEdgePartIds: ReadonlySet<number>;
   const samples = emptySamples();
@@ -114,15 +114,17 @@ export async function measureBenchmarkCase(
     renderer.resize(WIDTH, HEIGHT);
     installOrientationBenchmarkState(renderer, benchmarkCase);
     rendererCreateMs = performance.now() - rendererCreateStart;
-    coldSample = await measureIteration({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-      pickPoint,
-      phase: "first upload",
-    });
+    coldSample = (
+      await measureIteration({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        pickPoint,
+        phase: "first upload",
+      })
+    ).sample;
     phase = "frame";
     for (let index = 0; index < WARMUP_SAMPLES + TIMED_SAMPLES; index++) {
       const sample = await measureIteration({
@@ -134,9 +136,10 @@ export async function measureBenchmarkCase(
         pickPoint,
         phase: "frame",
       });
-      if (index >= WARMUP_SAMPLES) pushSample(samples, sample);
+      gpuCost = sample.gpuCost;
+      if (index >= WARMUP_SAMPLES) pushSample(samples, sample.sample);
     }
-    gpuCost = readGpuCostSnapshot(renderer);
+    if (gpuCost === undefined) throw new Error("Benchmark produced no visible frame cost");
     phase = "interactive sample";
     interactive = hasInteractiveSample(benchmarkCase)
       ? await measureInteractiveSamples({
@@ -474,9 +477,13 @@ interface IterationOptions {
   readonly phase: "first upload" | "frame";
 }
 
-async function measureIteration(
-  options: IterationOptions,
-): Promise<Record<keyof SampleSet, number>> {
+interface IterationResult {
+  readonly sample: Record<keyof SampleSet, number>;
+  readonly gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
+}
+
+/** Measures one iteration and captures visible-frame GPU cost before trailing pick passes. */
+export async function measureIteration(options: IterationOptions): Promise<IterationResult> {
   const { renderer, device, benchmarkCase, runtime, camera, pickPoint, phase } = options;
   let firstFrame: FrameTiming;
   try {
@@ -494,6 +501,7 @@ async function measureIteration(
   } catch (error) {
     throw withBenchmarkPhase("frame", error);
   }
+  const visibleCost = readGpuCostSnapshot(renderer);
   try {
     await timePick(renderer, pickPoint[0], pickPoint[1]);
   } catch (error) {
@@ -519,14 +527,17 @@ async function measureIteration(
     throw withBenchmarkPhase("pick readback", error);
   }
   return {
-    upload: Math.max(0, firstFrame.queueMs - visible.queueMs),
-    firstFrame: firstFrame.queueMs,
-    firstFrameCpu: firstFrame.cpuMs,
-    visible: visible.queueMs,
-    visibleCpu: visible.cpuMs,
-    pickSnapshot: Math.max(0, pickCombined - pickReadback),
-    pickCombined,
-    pickReadback,
+    sample: {
+      upload: Math.max(0, firstFrame.queueMs - visible.queueMs),
+      firstFrame: firstFrame.queueMs,
+      firstFrameCpu: firstFrame.cpuMs,
+      visible: visible.queueMs,
+      visibleCpu: visible.cpuMs,
+      pickSnapshot: Math.max(0, pickCombined - pickReadback),
+      pickCombined,
+      pickReadback,
+    },
+    gpuCost: visibleCost,
   };
 }
 
