@@ -71,6 +71,12 @@ export async function runWebGpuBenchmark(
                       holdBenchmarkCapture(canvas, "combined-overlay"),
                   }
                 : {}),
+              ...(options.capture === "element-selection" && spec.id === "fe-tet4-solid-132k"
+                ? {
+                    holdElementSelectionForCapture: (phase: "all-but-one" | "all-authored") =>
+                      holdBenchmarkCapture(canvas, "element-selection", phase),
+                  }
+                : {}),
             },
           ),
         );

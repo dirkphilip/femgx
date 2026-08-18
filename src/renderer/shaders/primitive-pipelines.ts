@@ -45,6 +45,7 @@ interface PipelineSpec {
   readonly sampleCount: number;
   readonly depthCompare?: GPUCompareFunction;
   readonly depthWriteEnabled?: boolean;
+  readonly vertexBuffers?: GPUVertexBufferLayout[];
 }
 
 interface PrimitiveSpec {
@@ -53,6 +54,7 @@ interface PrimitiveSpec {
   readonly primitive: GPUPrimitiveTopology;
   readonly cullMode: GPUCullMode;
   readonly depthCompare?: GPUCompareFunction;
+  readonly vertexBuffers?: GPUVertexBufferLayout[];
 }
 
 interface PrimitivePipelines {
@@ -135,6 +137,7 @@ function primitiveVariants(
       vertexEntry: "vertexMain",
       primitive: "triangle-list" as const,
       cullMode: "none" as const,
+      vertexBuffers: [],
     },
     lines: {
       vertexModule: shaders.lineVertex,
@@ -211,7 +214,7 @@ function createPipeline(
     vertex: {
       module: spec.vertexModule,
       entryPoint: spec.vertexEntry,
-      buffers: [vertexLayout],
+      buffers: spec.vertexBuffers ?? [vertexLayout],
     },
     fragment: {
       module: spec.fragmentModule,

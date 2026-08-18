@@ -87,10 +87,11 @@ const bodyAndElementHighlighting = /* wgsl */ `
   }
 `;
 
-const instanceHighlighting = /* wgsl */ `
+function instanceHighlighting(nodeIndex: string): string {
+  return /* wgsl */ `
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
-  let nodePickId = vertexNodePickIds[vertexIndex];
+  let nodePickId = vertexNodePickIds[${nodeIndex}];
   let baseResultColor = resultColorFor(nodePickId, elementOrdinal, instance.color);
   var color = baseResultColor;
   var resultColorEnabled = resultColorActive(nodePickId, elementOrdinal);
@@ -118,25 +119,31 @@ ${bodyAndElementHighlighting}
   }
   }
 `;
+}
 
 function createInstanceVertexMain(
   primitiveIndex: string,
   selectionPass: boolean,
   linePass: boolean,
 ): string {
+  const sourceIndex = linePass ? "vertexIndex" : "sourceVertexIndex";
+  const positionInput = linePass ? "  @location(0) position: vec3<f32>,\n" : "";
+  const positionPrelude = linePass
+    ? ""
+    : "  let sourceVertexIndex = geometrySourceIndex(vertexIndex);\n  let position = geometryPositionVec(sourceVertexIndex);\n";
   return /* wgsl */ `
 @vertex
 fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
+${positionInput}  @builtin(instance_index) instanceIndex: u32,
   @builtin(vertex_index) vertexIndex: u32,
 ) -> VertexOutput {
+${positionPrelude}
   let instance = instances[drawOrder[instanceIndex]];
   let elementPickId = primitiveElementId(${primitiveIndex});
   let elementOrdinal = primitiveElementOrdinal(${primitiveIndex});
   let faceBodyPickIds = primitiveFaceBodyPickIds(${primitiveIndex});
-${instanceHighlighting}
-${createInstanceVertexOutput(primitiveIndex, selectionPass, linePass)}
+${instanceHighlighting(sourceIndex)}
+${createInstanceVertexOutput(primitiveIndex, selectionPass, linePass, sourceIndex)}
 }
 `;
 }
@@ -145,13 +152,14 @@ function createInstanceVertexOutput(
   primitiveIndex: string,
   selectionPass: boolean,
   linePass: boolean,
+  sourceIndex: string,
 ): string {
   const visibility = selectionPass
     ? `primitiveSelectionVisible(drawOrder[instanceIndex], ${primitiveIndex}, exactSelection)`
     : `primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})`;
   return /* wgsl */ `
   var output: VertexOutput;
-  let displayedPosition = displaced(position, vertexIndex);
+  let displayedPosition = displaced(position, ${sourceIndex});
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
 ${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);"}
   if (hidden) {

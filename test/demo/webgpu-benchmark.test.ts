@@ -257,8 +257,8 @@ describe("WebGPU benchmark models", () => {
       elementFamily: "triangle",
     }).scene;
     const memory = estimateBenchmarkMemory(scene, 3, 800, 600);
-    expect(memory.geometryBytes).toBe(384);
-    expect(memory.pickMetadataBytes).toBe(400);
+    expect(memory.geometryBytes).toBe(204);
+    expect(memory.pickMetadataBytes).toBe(436);
     expect(memory.edgeIndexBytes).toBe(0);
     expect(memory.subsetBytes).toBe(0);
     expect(memory.deformationBytes).toBe(4);

@@ -1,4 +1,4 @@
-import { projectPoint, type Camera } from "../../src/camera/camera";
+import { orbitCamera, projectPoint, type Camera } from "../../src/camera/camera";
 import { transformPoint } from "../../src/math/mat4";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setTargetsSelected } from "../../src/interaction/targets";
@@ -17,6 +17,7 @@ import type {
   BenchmarkPercentiles,
   SelectionBenchmarkPhase,
   SelectionBenchmarkReport,
+  SelectionCameraTransition,
 } from "./types";
 import {
   assertElementEmphasisDraw,
@@ -41,6 +42,9 @@ interface SelectionMeasureOptions {
   readonly benchmarkCase: WebGpuBenchmarkCase;
   readonly runtime: PackedSceneRuntime;
   readonly camera: Camera;
+  readonly holdElementSelectionForCapture?: (
+    phase: "all-but-one" | "all-authored",
+  ) => Promise<void>;
 }
 
 /** Measures completed element box-selection phases on the opt-in GPU lane. */
@@ -199,6 +203,13 @@ async function measureSelectedTargets(
     `${benchmarkCase.id} ${id} selection`,
   );
   const firstSelectedFrameMs = await renderFrame(renderer, runtime, camera, parts, device);
+  if (
+    options.holdElementSelectionForCapture !== undefined &&
+    (id === "all-but-one" || id === "all-authored")
+  ) {
+    await options.holdElementSelectionForCapture(id);
+  }
+  const cameraTransition = await measureCameraTransition(renderer, runtime, camera, parts, device);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
   const selectionLabel = `${benchmarkCase.id} ${id} selection`;
   if (benchmarkCase.id === "unique-1m" && id === "all-authored") {
@@ -236,11 +247,38 @@ async function measureSelectedTargets(
     interactionSyncMs,
     interactionHighlightWriteBytes,
     firstSelectedFrameMs,
+    cameraTransition,
     steadySelectedFrameMs: percentiles(steadyFrames),
     clearSelectionMs,
     interactionGpuCost,
     denseSelectionBytes: dense.bytes,
     selectedElementRecordBytes: targets.length * ELEMENT_RECORD_STRIDE,
+  };
+}
+
+async function measureCameraTransition(
+  renderer: WebGpuRenderer,
+  runtime: PackedSceneRuntime,
+  camera: Camera,
+  parts: ReadonlyMap<PartId, Part>,
+  device: GPUDevice,
+): Promise<SelectionCameraTransition> {
+  const firstCamera = orbitCamera(camera, 0.02, 0.006, camera.target);
+  const firstFrameMs = await renderFrame(renderer, runtime, firstCamera, parts, device);
+  const firstFrameCpu = readGpuCostSnapshot(renderer).cpu;
+  const steadyFrames: number[] = [];
+  for (let index = 1; index <= STEADY_SAMPLES; index += 1) {
+    const movedCamera = orbitCamera(camera, 0.02 + index * 0.02, 0.006, camera.target);
+    steadyFrames.push(await renderFrame(renderer, runtime, movedCamera, parts, device));
+  }
+  return {
+    firstFrameMs,
+    steadyFrameMs: percentiles(steadyFrames),
+    firstFrameCpu: {
+      "instance-scan": firstFrameCpu["instance-scan"],
+      "order-rebuild": firstFrameCpu["order-rebuild"],
+      "call-rebuild": firstFrameCpu["call-rebuild"],
+    },
   };
 }
 

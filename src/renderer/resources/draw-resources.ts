@@ -19,6 +19,8 @@ import {
   buildPartGeometryData,
   createPrimitiveColorBuffer,
   materializeFullGeometry,
+  triangleUploadData,
+  type UploadVertexData,
 } from "../resources/geometry-upload";
 import { createColorTargets } from "../resources/color-targets";
 import { GpuCostAccumulator } from "../diagnostics/cost";
@@ -133,7 +135,7 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const vertexBuffer = createBuffer(draw.device, positions, GPUBufferUsage.STORAGE);
   const resource: PartResource = {
     vertexBuffer,
-    indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
+    indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE),
     facePickIdsBuffer: createBuffer(draw.device, nodeTopology, GPUBufferUsage.STORAGE),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edge: undefined,
@@ -182,16 +184,32 @@ export function uploadGeometryPart(
       return resource;
     }
   }
-  const vertexData: SurfaceVertexData | PointVertexData =
+  return uploadFullGeometry(draw, part, geometry, resources, primitiveColorBuffer);
+}
+
+function uploadFullGeometry(
+  draw: DrawResources,
+  part: Part,
+  geometry: Geometry,
+  resources: Map<Primitive, PartResource>,
+  primitiveColorBuffer: GPUBuffer | undefined,
+): PartResource {
+  const vertexData: SurfaceVertexData | PointVertexData | UploadVertexData =
     geometry.primitive === "points"
       ? expandPointGeometry(geometry)
-      : expandSurfaceGeometry(geometry);
+      : geometry.primitive === "triangles"
+        ? triangleUploadData(geometry)
+        : expandSurfaceGeometry(geometry);
   const vertexBuffer = createBuffer(
     draw.device,
     vertexData.positions,
     GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
   );
-  const indexBuffer = createBuffer(draw.device, vertexData.indices, GPUBufferUsage.INDEX);
+  const indexBuffer = createBuffer(
+    draw.device,
+    vertexData.indices,
+    GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE,
+  );
   const geometryData = buildPartGeometryData(draw.device, part, geometry, vertexData);
   const resource: PartResource = {
     vertexBuffer,
@@ -203,6 +221,14 @@ export function uploadGeometryPart(
     indexCount: vertexData.indices.length,
     fullVertexBuffer: vertexBuffer,
     fullIndexBuffer: indexBuffer,
+    ...(geometryData.cornerIndexOffset === undefined
+      ? {}
+      : {
+          minimalIndexBuffer: geometryData.facePickIdsBuffer,
+          minimalIndexOffset: geometryData.cornerIndexOffset,
+          fullMinimalIndexBuffer: geometryData.facePickIdsBuffer,
+          fullMinimalIndexOffset: geometryData.cornerIndexOffset,
+        }),
     fullFacePickIdsBuffer: geometryData.facePickIdsBuffer,
     fullNodePickIdsBuffer: geometryData.nodePickIdsBuffer,
     fullIndexCount: vertexData.indices.length,
@@ -262,12 +288,24 @@ function subsetResource(
   return {
     vertexBuffer: buffers.subsetVertexBuffer,
     indexBuffer: buffers.subsetIndexBuffer,
+    ...(buffers.subsetMinimalIndexBuffer === undefined
+      ? {}
+      : {
+          minimalIndexBuffer: buffers.subsetMinimalIndexBuffer,
+          minimalIndexOffset: buffers.subsetMinimalIndexOffset,
+        }),
     nodePickIdsBuffer: buffers.subsetNodePickIdsBuffer,
     facePickIdsBuffer: buffers.subsetTopologyBuffer,
     ...(primitiveColorBuffer === undefined ? {} : { primitiveColorBuffer }),
     edge: undefined,
     edgePick: undefined,
     indexCount,
+    ...(buffers.subsetMinimalIndexBuffer === undefined
+      ? {}
+      : {
+          subsetMinimalIndexBuffer: buffers.subsetMinimalIndexBuffer,
+          subsetMinimalIndexOffset: buffers.subsetMinimalIndexOffset,
+        }),
     subsetIndexCount: indexCount,
   };
 }

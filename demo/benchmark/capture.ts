@@ -1,8 +1,13 @@
-export type BenchmarkCapture = "node-selection" | "combined-overlay";
+export type BenchmarkCapture = "node-selection" | "combined-overlay" | "element-selection";
+
+export type ElementSelectionCapture = "all-but-one" | "all-authored";
 
 /** Event released by the opt-in visual lane after it captures a held benchmark frame. */
-export function benchmarkCaptureEvent(capture: BenchmarkCapture): string {
-  return `femgx-benchmark-${capture}-captured`;
+export function benchmarkCaptureEvent(
+  capture: BenchmarkCapture,
+  phase?: ElementSelectionCapture,
+): string {
+  return `femgx-benchmark-${capture}${phase === undefined ? "" : `-${phase}`}-captured`;
 }
 
 const CAPTURE_TIMEOUT_MS = 30_000;
@@ -11,9 +16,10 @@ const CAPTURE_TIMEOUT_MS = 30_000;
 export async function holdBenchmarkCapture(
   canvas: HTMLCanvasElement,
   capture: BenchmarkCapture,
+  phase?: ElementSelectionCapture,
 ): Promise<void> {
-  canvas.dataset["benchmarkCapture"] = capture;
-  const event = benchmarkCaptureEvent(capture);
+  canvas.dataset["benchmarkCapture"] = phase === undefined ? capture : `${capture}-${phase}`;
+  const event = benchmarkCaptureEvent(capture, phase);
   try {
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {

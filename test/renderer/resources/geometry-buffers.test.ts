@@ -75,4 +75,21 @@ describe("packed topology data", () => {
       packUnownedEdgeTopologyData(empty, new Uint32Array(), new Uint32Array(), new Uint32Array()),
     ).toEqual(expected);
   });
+
+  it("appends triangle corner connectivity after primitive metadata", () => {
+    const data = packTopologyData(
+      new Uint32Array([0, 0, 0, 7, 0]),
+      new Uint32Array([0, 1]),
+      new Uint32Array([0]),
+      new Uint32Array([0]),
+      {
+        elementOrdinals: new Uint32Array([2]),
+        primitiveIds: new Uint32Array([3]),
+        edgeIds: new Uint32Array(),
+        cornerIndices: new Uint32Array([4, 5, 6]),
+      },
+    );
+
+    expect(Array.from(data)).toEqual([1, 1, 0, 1, 0, 0, 0, 7, 0, 0, 1, 2, 1, 3, 4, 5, 6]);
+  });
 });

@@ -4,6 +4,8 @@ interface TopologyMetadata {
   readonly elementOrdinals: ArrayLike<number>;
   readonly primitiveIds: ArrayLike<number>;
   readonly edgeIds: ArrayLike<number>;
+  /** Optional triangle corner-to-source connectivity for feature draws. */
+  readonly cornerIndices?: ArrayLike<number>;
 }
 
 const EMPTY_TOPOLOGY_METADATA: TopologyMetadata = {
@@ -20,7 +22,7 @@ export function packTopologyData(
   elementIds: Uint32Array,
   metadata: TopologyMetadata = EMPTY_TOPOLOGY_METADATA,
 ): Uint32Array {
-  const { elementOrdinals, primitiveIds, edgeIds } = metadata;
+  const { elementOrdinals, primitiveIds, edgeIds, cornerIndices } = metadata;
   const faceStride = 5;
   const faceRecordCount = Math.floor(faceBodyPickIds.length / faceStride);
   const rangeCount = Math.floor(bodyRanges.length / 2);
@@ -36,7 +38,11 @@ export function packTopologyData(
   const metadataOffset =
     4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
   const primitiveIdsOffset = metadataOffset + elementOrdinals.length;
-  const data = new Uint32Array(primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length);
+  const cornerIndexCount = cornerIndices?.length ?? 0;
+  const cornerDataLength = cornerIndexCount;
+  const data = new Uint32Array(
+    primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length + cornerDataLength,
+  );
   data[0] = faceRecordCount;
   data[1] = rangeCount;
   data[2] = storedConditionCount;
@@ -49,6 +55,12 @@ export function packTopologyData(
   data[primitiveIdsOffset] = primitiveIds.length;
   data.set(primitiveIds, primitiveIdsOffset + 1);
   data.set(edgeIds, primitiveIdsOffset + 1 + primitiveIds.length);
+  if (cornerIndexCount > 0) {
+    const cornerOffset = primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length;
+    for (let index = 0; index < cornerIndexCount; index += 1) {
+      data[cornerOffset + index] = cornerIndices?.[index] ?? 0;
+    }
+  }
   return data;
 }
 

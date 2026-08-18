@@ -4,6 +4,7 @@ import { elementPart } from "../../../src/entries/model";
 import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
 import { buildPrimitiveFaceBodyPickData } from "../../../src/renderer/picking/ids";
 import { expandSurfaceGeometry } from "../../../src/renderer/resources/surface-geometry";
+import { triangleUploadData } from "../../../src/renderer/resources/geometry-upload";
 import { displayedPartBounds } from "../../../src/viewport/geometry-bounds";
 import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
 import { BENCH_BODY_COUNT, BENCH_BODY_ELEMENT_COUNT } from "../fixtures";
@@ -69,6 +70,14 @@ export const geometryBudgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       expandSurfaceGeometry(lineHeavyGeometry);
+    },
+  },
+  {
+    name: "triangle shared-source upload layout",
+    description: "20,000 triangle corners retain source positions and corner connectivity",
+    budgetMs: 100,
+    run: () => {
+      triangleUploadData(faceSubsetBenchmarkGeometry);
     },
   },
   {

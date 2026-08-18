@@ -91,7 +91,8 @@ function expandLineGeometry(
   return { positions, indices, nodePickIds, primitiveIds };
 }
 
-function primitiveIdsForSourceIndices(
+/** Returns logical primitive ids aligned with an indexed triangle draw order. */
+export function primitiveIdsForSourceIndices(
   geometry: Exclude<Geometry, Extract<Geometry, { primitive: "points" }>>,
   sourceIndices: Uint32Array,
 ): Uint32Array {

@@ -107,6 +107,17 @@ export interface BenchmarkPercentiles {
   readonly p95: number;
 }
 
+export interface SelectionCameraTransition {
+  /** Queue-drained first frame after moving the camera from an idle selection. */
+  readonly firstFrameMs: number;
+  readonly steadyFrameMs: BenchmarkPercentiles;
+  /** CPU counters for that first camera frame; selection sync must remain zero. */
+  readonly firstFrameCpu: Pick<
+    BenchmarkGpuCostSnapshot["cpu"],
+    "instance-scan" | "order-rebuild" | "call-rebuild"
+  >;
+}
+
 export interface SelectionBenchmarkPhase {
   readonly id:
     | "narrow"
@@ -126,6 +137,7 @@ export interface SelectionBenchmarkPhase {
   readonly interactionSyncMs: number;
   readonly interactionHighlightWriteBytes: number;
   readonly firstSelectedFrameMs: number;
+  readonly cameraTransition: SelectionCameraTransition;
   readonly steadySelectedFrameMs: BenchmarkPercentiles;
   readonly clearSelectionMs: number;
   readonly interactionGpuCost: BenchmarkGpuCostSnapshot;

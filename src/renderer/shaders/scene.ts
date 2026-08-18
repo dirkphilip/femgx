@@ -133,6 +133,17 @@ fn geometryPosition(index: u32) -> f32 {
   return geometryPositions[index];
 }
 
+fn geometryPositionVec(index: u32) -> vec3<f32> {
+  let base = index * 3u;
+  return vec3<f32>(geometryPositions[base], geometryPositions[base + 1u], geometryPositions[base + 2u]);
+}
+
+fn geometrySourceIndex(index: u32) -> u32 {
+  let primitiveBase = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
+  let cornerBase = primitiveBase + 1u + topologyData[primitiveBase];
+  return topologyData[cornerBase + index];
+}
+
 fn primitiveDrawId(index: u32) -> u32 {
   return topologyPrimitiveId(index);
 }
@@ -392,6 +403,7 @@ fn fragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
+  @location(9) @interpolate(flat) selected: u32,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
   @location(12) @interpolate(flat) edgeDepthRadius: f32,
@@ -413,8 +425,9 @@ fn fragmentMain(
     camera.keyLightDirection.xyz,
     camera.viewDirection.xyz,
   );
+  let resolvedColor = select(litColor, displayedColor.rgb, selected != 0u);
   var output: TriangleColorOutput;
-  output.color = vec4<f32>(litColor + vec3<f32>(emissive), displayedColor.a);
+  output.color = vec4<f32>(resolvedColor + vec3<f32>(emissive), displayedColor.a);
   output.depth = min(fragmentPosition.z + finiteDepthSlope * edgeDepthRadius, 1.0);
   return output;
 }

@@ -114,6 +114,7 @@ fn fragmentMain(
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
   @location(8) worldPosition: vec3<f32>,
+  @location(9) @interpolate(flat) selected: u32,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> TransparencyOutput {
@@ -125,7 +126,12 @@ fn fragmentMain(
     camera.keyLightDirection.xyz,
     camera.viewDirection.xyz,
   );
-  return weightedSceneTransparency(litColor + vec3<f32>(emissive), displayedColor.a, fragmentPosition.z);
+  let resolvedColor = select(litColor, displayedColor.rgb, selected != 0u);
+  return weightedSceneTransparency(
+    resolvedColor + vec3<f32>(emissive),
+    displayedColor.a,
+    fragmentPosition.z,
+  );
 }
 `;
 

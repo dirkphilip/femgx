@@ -76,7 +76,12 @@ function createNodePickVertexShader(variant: NodePickPrimitiveVariant): string {
   const primitiveIndex = "primitiveDrawId(vertexIndex)";
   const primitiveBase = `(vertexIndex - (vertexIndex % ${variant.verticesPerPrimitive}u))`;
   const cornerC = cornerData(variant);
-  const nodePickIds = variant.cornerC === "third" ? "vertexNodePickIds[base + 2u]" : "0u";
+  const nodePickIds =
+    variant.cornerC === "third"
+      ? variant.line
+        ? "vertexNodePickIds[base + 2u]"
+        : "vertexNodePickIds[geometrySourceIndex(base + 2u)]"
+      : "0u";
   return `${nodePickVertexHeader}${variant.line ? lineExpansionFn : ""}${createNodePickVertexMain({
     primitiveIndex,
     primitiveBase,
@@ -95,6 +100,10 @@ interface NodePickVertexMainOptions {
 }
 
 function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
+  const positionInput = options.line ? "  @location(0) position: vec3<f32>,\n" : "";
+  const positionPrelude = options.line
+    ? ""
+    : "  let sourceVertexIndex = geometrySourceIndex(vertexIndex);\n  let position = geometryPositionVec(sourceVertexIndex);\n";
   const linePosition = options.line
     ? `
   let lineA = vec3<f32>(
@@ -119,10 +128,10 @@ function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
   return /* wgsl */ `
 @vertex
 fn vertexMain(
-  @location(0) position: vec3<f32>,
-  @builtin(instance_index) instanceIndex: u32,
+${positionInput}  @builtin(instance_index) instanceIndex: u32,
   @builtin(vertex_index) vertexIndex: u32,
 ) -> NodeVertexOutput {
+${positionPrelude}
   let instance = instances[drawOrder[instanceIndex]];
   let base = ${options.primitiveBase};
   let base3 = base * 3u;
@@ -135,21 +144,12 @@ ${createNodePickVertexOutput(options, linePosition)}
 function trianglePickPositionCode(): string {
   return `
   let triangleBase = base * 3u;
-  let triangleA = displaced(vec3<f32>(
-    geometryPosition(triangleBase),
-    geometryPosition(triangleBase + 1u),
-    geometryPosition(triangleBase + 2u),
-  ), base);
-  let triangleB = displaced(vec3<f32>(
-    geometryPosition(triangleBase + 3u),
-    geometryPosition(triangleBase + 4u),
-    geometryPosition(triangleBase + 5u),
-  ), base + 1u);
-  let triangleC = displaced(vec3<f32>(
-    geometryPosition(triangleBase + 6u),
-    geometryPosition(triangleBase + 7u),
-    geometryPosition(triangleBase + 8u),
-  ), base + 2u);
+  let triangleSourceA = geometrySourceIndex(base);
+  let triangleSourceB = geometrySourceIndex(base + 1u);
+  let triangleSourceC = geometrySourceIndex(base + 2u);
+  let triangleA = displaced(geometryPositionVec(triangleSourceA), triangleSourceA);
+  let triangleB = displaced(geometryPositionVec(triangleSourceB), triangleSourceB);
+  let triangleC = displaced(geometryPositionVec(triangleSourceC), triangleSourceC);
   let triangleCenterClip = camera.viewProjection * instance.transform * vec4<f32>((triangleA + triangleB + triangleC) / 3.0, 1.0);
   output.position = trianglePickPosition(
     camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
@@ -164,6 +164,32 @@ function createNodePickVertexOutput(
   options: NodePickVertexMainOptions,
   linePosition: string,
 ): string {
+  const cornerA = options.line
+    ? `displaced(vec3<f32>(
+    geometryPosition(base3),
+    geometryPosition(base3 + 1u),
+    geometryPosition(base3 + 2u),
+  ), base)`
+    : "displaced(geometryPositionVec(geometrySourceIndex(base)), geometrySourceIndex(base))";
+  const cornerB = options.line
+    ? `displaced(vec3<f32>(
+    geometryPosition(base3 + 3u),
+    geometryPosition(base3 + 4u),
+    geometryPosition(base3 + 5u),
+  ), base + 1u)`
+    : "displaced(geometryPositionVec(geometrySourceIndex(base + 1u)), geometrySourceIndex(base + 1u))";
+  const localPosition = options.line
+    ? "displaced(position, vertexIndex)"
+    : "displaced(position, geometrySourceIndex(vertexIndex))";
+  const nodeA = options.line
+    ? "vertexNodePickIds[base]"
+    : "vertexNodePickIds[geometrySourceIndex(base)]";
+  const nodeB = options.line
+    ? "vertexNodePickIds[base + 1u]"
+    : "vertexNodePickIds[geometrySourceIndex(base + 1u)]";
+  const worldPosition = options.line
+    ? "displaced(position, vertexIndex)"
+    : "displaced(position, geometrySourceIndex(vertexIndex))";
   return /* wgsl */ `
   var output: NodeVertexOutput;
 ${linePosition}
@@ -175,32 +201,18 @@ ${linePosition}
   output.emissive = instance.emissive;
   output.elementPickId = primitiveElementId(${options.primitiveIndex});
   output.facePickId = faceBodyPickIds.x;
-  output.localPosition = displaced(position, vertexIndex);
-  output.cornerA = displaced(
-    vec3<f32>(
-      geometryPosition(base3),
-      geometryPosition(base3 + 1u),
-      geometryPosition(base3 + 2u),
-    ),
-    base,
-  );
-  output.cornerB = displaced(
-    vec3<f32>(
-      geometryPosition(base3 + 3u),
-      geometryPosition(base3 + 4u),
-      geometryPosition(base3 + 5u),
-    ),
-    base + 1u,
-  );
+  output.localPosition = ${localPosition};
+  output.cornerA = ${cornerA};
+  output.cornerB = ${cornerB};
   output.cornerC = displaced(
     ${options.cornerC},
   );
   output.nodePickIds = vec3<u32>(
-    vertexNodePickIds[base],
-    vertexNodePickIds[base + 1u],
+    ${nodeA},
+    ${nodeB},
     ${options.nodePickIds},
   );
-  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
+  output.worldPosition = (instance.transform * vec4<f32>(${worldPosition}, 1.0)).xyz;
   return output;
 `;
 }
@@ -208,12 +220,16 @@ ${linePosition}
 function cornerData(variant: NodePickPrimitiveVariant): string {
   const base = variant.cornerC === "third" ? 6 : 3;
   const nodeOffset = variant.cornerC === "third" ? 2 : 1;
-  return `vec3<f32>(
+  if (variant.line) {
+    return `vec3<f32>(
     geometryPosition(base3 + ${base}u),
     geometryPosition(base3 + ${base + 1}u),
     geometryPosition(base3 + ${base + 2}u),
   ),
   base + ${nodeOffset}u`;
+  }
+  return `geometryPositionVec(geometrySourceIndex(base + ${base / 3}u)),
+  geometrySourceIndex(base + ${nodeOffset}u)`;
 }
 
 export const nodePickVertexShader = createNodePickVertexShader({
