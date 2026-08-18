@@ -1,4 +1,4 @@
-import { COLOR_SAMPLE_COUNT, vertexLayout } from "../resources/foundation";
+import { COLOR_SAMPLE_COUNT } from "../resources/foundation";
 import { sectionPlaneFunction, sectionPlaneBindings } from "./scene";
 import {
   createValidatedRenderPipeline,
@@ -53,7 +53,7 @@ async function createNodePipelines(options: NodePipelineOptions): Promise<NodeOv
       vertex: {
         module: options.pointVertexModule,
         entryPoint: "nodeOverlayVertexMain",
-        buffers: [vertexLayout],
+        buffers: [],
       },
       fragment: {
         module: fragmentModule,

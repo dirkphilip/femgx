@@ -9,12 +9,20 @@ describe("point sprite expansion", () => {
     expect(
       buildNodeSpriteBuffers(new Float32Array([1, 2, 3, 4, 5, 6]), new Uint32Array([2, 1])),
     ).toEqual({
-      positions: new Float32Array([
-        4, 5, 6, 4, 5, 6, 4, 5, 6, 4, 5, 6, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3,
-      ]),
-      ids: new Uint32Array([2, 2, 2, 2, 1, 1, 1, 1]),
+      positions: new Float32Array([4, 5, 6, 1, 2, 3]),
+      ids: new Uint32Array([2, 1]),
       indices: new Uint32Array([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]),
     });
+  });
+
+  it("reuses sequential authored node centers and ids", () => {
+    const positions = new Float32Array([1, 2, 3, 4, 5, 6]);
+    const ids = new Uint32Array([1, 2]);
+
+    const compact = buildNodeSpriteBuffers(positions, ids);
+
+    expect(compact.positions).toBe(positions);
+    expect(compact.ids).toBe(ids);
   });
 
   it("uses indexed centers and metadata for ordinary point geometry", () => {

@@ -116,6 +116,16 @@ describe("GPU render resources", () => {
           (descriptor) => descriptor.label === "node selection visible",
         )?.vertex.entryPoint,
       ).toBe("nodeOverlayVertexMain");
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "node selection visible",
+        )?.vertex.buffers,
+      ).toEqual([]);
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "point selection visible",
+        )?.vertex.buffers,
+      ).toHaveLength(1);
       expect(resources.originTriad?.visiblePipeline).toBeDefined();
       expect(resources.originTriad?.hiddenPipeline).toBeDefined();
       const originVisible = gpu.renderPipelineDescriptors.find(
@@ -201,6 +211,7 @@ describe("GPU render resources", () => {
       });
       expect(nodePipeline?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
       expect(nodePipeline?.multisample?.alphaToCoverageEnabled).toBe(true);
+      expect(nodePipeline?.vertex.buffers).toEqual([]);
       expect(nodePipeline?.fragment?.targets[0]?.blend).toBeUndefined();
       const resolvedNodePipeline = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "resolved node annotation overlay",

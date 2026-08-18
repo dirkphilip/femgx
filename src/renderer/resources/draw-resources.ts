@@ -126,11 +126,7 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const spritePickIds = buildNodeSpritePickIds(part);
   const nodeTopology = buildPackedNodeTopologyData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
-  const vertexBuffer = createBuffer(
-    draw.device,
-    positions,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
+  const vertexBuffer = createBuffer(draw.device, positions, GPUBufferUsage.STORAGE);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),

@@ -45,6 +45,7 @@ interface PrimitiveSelectionOptions {
   readonly primitive: GPUPrimitiveTopology;
   readonly visibleFragment: GPUShaderModule;
   readonly hiddenFragment: GPUShaderModule;
+  readonly vertexBuffers?: GPUVertexBufferLayout[];
 }
 
 const SELECTION_BLEND_STATE: GPUBlendState = {
@@ -97,6 +98,7 @@ export async function createSelectionPipelines(
       primitive: "triangle-list",
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
+      vertexBuffers: [],
     }),
   ]);
   const [triangle, line, point, node] = variants;
@@ -181,7 +183,7 @@ function selectionPipelineBase(
     vertex: {
       module: options.vertexModule,
       entryPoint: options.vertexEntry,
-      buffers: [vertexLayout],
+      buffers: options.vertexBuffers ?? [vertexLayout],
     },
     primitive: { topology: options.primitive, cullMode: "none" },
     multisample: { count: COLOR_SAMPLE_COUNT },

@@ -1,9 +1,12 @@
 import { type Locator } from "@playwright/test";
 
 /** One screenshot's deterministic hash and distinct-color count. */
-export async function pixelMetrics(
-  canvas: Locator,
-): Promise<{ readonly distinctColors: number; readonly hash: string }> {
+export async function pixelMetrics(canvas: Locator): Promise<{
+  readonly distinctColors: number;
+  readonly saturatedPixels: number;
+  readonly orangePixels: number;
+  readonly hash: string;
+}> {
   const encoded = (await canvas.screenshot()).toString("base64");
   return canvas.page().evaluate(async (base64) => {
     const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
@@ -19,6 +22,8 @@ export async function pixelMetrics(
     bitmap.close();
 
     let hash = 0;
+    let saturatedPixels = 0;
+    let orangePixels = 0;
     const colors = new Set<number>();
     for (let index = 0; index < data.length; index += 4) {
       const red = data[index] ?? 0;
@@ -27,8 +32,10 @@ export async function pixelMetrics(
       const alpha = data[index + 3] ?? 0;
       hash = ((hash * 31 + red) * 31 + green * 7 + blue * 3 + alpha) >>> 0;
       colors.add((red << 16) | (green << 8) | blue);
+      if (Math.max(red, green, blue) - Math.min(red, green, blue) >= 64) saturatedPixels += 1;
+      if (red >= 200 && green >= 60 && green <= 190 && blue <= 80) orangePixels += 1;
     }
-    return { distinctColors: colors.size, hash: hash.toString(16) };
+    return { distinctColors: colors.size, saturatedPixels, orangePixels, hash: hash.toString(16) };
   }, encoded);
 }
 
