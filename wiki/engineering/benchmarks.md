@@ -247,6 +247,29 @@ lane does not claim fake queue writes, GPU completion, or frame smoothness.
 Method, targets, current numbers, and the before/after changelog live in
 [[engineering/performance-baselines|Performance baselines]].
 
+The opt-in `npm run bench:node-selection-sync` lane records 26 isolated CPU and
+fake-GPU seams for the same Tet4 part: cold node-sprite expansion, cold dense
+node-topology construction, immutable selection construction, profitable dense
+membership classification, sparse emphasis collection, fresh highlight-storage
+encoding/copy, selected-node order construction, and isolated node-order sync.
+It covers two nodes, half and all 24,389 nodes in one occurrence, plus one node
+across 32 occurrences. Fixture/model construction and semantic-index work are
+outside timing. Each cold topology sample writes 526,848 element-node owner
+occurrences into 9,112,460 bytes of raw typed output; each dense half/all
+selection uses a 3,056-byte payload in 3,200 bytes of fresh highlight storage.
+The rows are deliberately non-additive and do not claim real queue submission,
+upload completion, draw, or frame time. Those boundaries are measured by the
+schema-11 system-Chrome report's `nodeSelection` section.
+
+The real-WebGPU node lane is opt-in and limited to `fe-tet4-solid-132k`. It
+records half/all immutable-state and renderer-sync CPU time, queue-drained first
+frame, seven steady frames, clear, structural node draw work, and highlight
+storage bytes. A separate `RUN_PERF_NODE_VISUAL=1` Playwright lane reapplies all
+nodes and captures nonblank real-WebGPU screenshots at desktop and 390×844.
+The first half-node frame intentionally includes lazy node-overlay topology,
+sprite-buffer, GPU-buffer, and bind-group preparation; the following all-node
+phase is resident and must not be compared as another cold upload.
+
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
 prints their measured medians for human review and trend comparison. The
 opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs this same report

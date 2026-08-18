@@ -1,0 +1,746 @@
+{
+  "schemaVersion": 2,
+  "kind": "cpu-operation-baseline",
+  "generatedAt": "2026-08-18T00:49:12.943Z",
+  "gitSha": "7f7c16d1d852b5c61224774308b83786d239570e",
+  "gitDirty": false,
+  "node": "v24.18.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpuModel": "Apple M3 Pro",
+  "logicalCores": 11,
+  "warmupSamples": 2,
+  "timedSamples": 7,
+  "measurement": "wall-clock milliseconds; p50/p95 over timed samples",
+  "operations": [
+    {
+      "name": "node-build-sprite-buffers-cold",
+      "workload": {
+        "unit": "authored node centers expanded into four-vertex sprites",
+        "count": 24389,
+        "details": {
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "inputPositionBytes": 292668,
+          "outputPositionBytes": 1170672,
+          "outputIdBytes": 390224,
+          "outputIndexBytes": 585336
+        }
+      },
+      "timingsMs": {
+        "p50": 0.27283400000033,
+        "p95": 0.34066600000005565
+      }
+    },
+    {
+      "name": "node-build-topology-cold",
+      "workload": {
+        "unit": "element-node owner occurrences written into dense topology",
+        "count": 526848,
+        "details": {
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "faceRecordCount": 24389,
+          "rangeCount": 24389,
+          "ownerOccurrenceCount": 526848,
+          "outputBytes": 9112460,
+          "firstOwnerCount": 6,
+          "lastOwnerOffset": 526842,
+          "lastOwnerCount": 6,
+          "firstBodyPickId": 2,
+          "firstElementPickId": 2,
+          "lastBodyPickId": 2,
+          "lastElementPickId": 131713
+        }
+      },
+      "timingsMs": {
+        "p50": 14.00570800000014,
+        "p95": 136.40795900000012
+      }
+    },
+    {
+      "name": "node-small-build-interaction-state",
+      "workload": {
+        "unit": "node targets inserted into immutable interaction state",
+        "count": 2,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0038749999998799467,
+        "p95": 0.005375000000185537
+      }
+    },
+    {
+      "name": "node-small-build-dense-selection-cold",
+      "workload": {
+        "unit": "selected node ids classified and profitable bitsets constructed",
+        "count": 2,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192,
+          "denseOccurrenceCount": 0,
+          "denseNodeWordCount": 0,
+          "denseSelectionSlotBytes": 0,
+          "denseSelectionBitsetBytes": 0
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0007500000001527951,
+        "p95": 0.0016669999999976426
+      }
+    },
+    {
+      "name": "node-small-collect-emphasis-updates",
+      "workload": {
+        "unit": "selected node emphasis records collected on the CPU",
+        "count": 2,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192
+        }
+      },
+      "timingsMs": {
+        "p50": 0.008374999999887223,
+        "p95": 0.019708000000264292
+      }
+    },
+    {
+      "name": "node-small-encode-upload-highlights-cold",
+      "workload": {
+        "unit": "sparse node emphasis records plus dense node membership encoded and uploaded to fresh highlight storage",
+        "count": 2,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192,
+          "freshStoragePerSample": 1,
+          "sparseHighlightRecordBytes": 96,
+          "highlightHeaderBytes": 96,
+          "highlightStorageBytes": 288
+        }
+      },
+      "timingsMs": {
+        "p50": 0.023541000000022905,
+        "p95": 0.039874999999938154
+      }
+    },
+    {
+      "name": "node-small-build-selected-node-order",
+      "workload": {
+        "unit": "selected occurrence entries in the node-selection order",
+        "count": 1,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0008749999997235136,
+        "p95": 0.0017920000000231084
+      }
+    },
+    {
+      "name": "node-small-sync-node-visibility-selected-order-cold",
+      "workload": {
+        "unit": "isolated node visibility and selected-node orders synced to fresh fake GPU buffers",
+        "count": 1,
+        "details": {
+          "selectedNodes": 2,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 192,
+          "freshDrawResourcesPerSample": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 0.023458000000118773,
+        "p95": 0.03770799999983865
+      }
+    },
+    {
+      "name": "node-half-build-interaction-state",
+      "workload": {
+        "unit": "node targets inserted into immutable interaction state",
+        "count": 12194,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 0.6938330000002679,
+        "p95": 0.7770000000000437
+      }
+    },
+    {
+      "name": "node-half-build-dense-selection-cold",
+      "workload": {
+        "unit": "selected node ids classified and profitable bitsets constructed",
+        "count": 12194,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "denseOccurrenceCount": 1,
+          "denseNodeWordCount": 763,
+          "denseSelectionSlotBytes": 4,
+          "denseSelectionBitsetBytes": 3052
+        }
+      },
+      "timingsMs": {
+        "p50": 0.10804199999984121,
+        "p95": 0.3837499999999636
+      }
+    },
+    {
+      "name": "node-half-collect-emphasis-updates",
+      "workload": {
+        "unit": "selected node emphasis records collected on the CPU",
+        "count": 12194,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0023339999997915584,
+        "p95": 0.0027909999998882995
+      }
+    },
+    {
+      "name": "node-half-encode-upload-highlights-cold",
+      "workload": {
+        "unit": "sparse node emphasis records plus dense node membership encoded and uploaded to fresh highlight storage",
+        "count": 12194,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "freshStoragePerSample": 1,
+          "sparseHighlightRecordBytes": 0,
+          "highlightHeaderBytes": 96,
+          "highlightStorageBytes": 3200
+        }
+      },
+      "timingsMs": {
+        "p50": 0.006459000000177184,
+        "p95": 0.011625000000094587
+      }
+    },
+    {
+      "name": "node-half-build-selected-node-order",
+      "workload": {
+        "unit": "selected occurrence entries in the node-selection order",
+        "count": 1,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0003329999999550637,
+        "p95": 0.0004170000001977314
+      }
+    },
+    {
+      "name": "node-half-sync-node-visibility-selected-order-cold",
+      "workload": {
+        "unit": "isolated node visibility and selected-node orders synced to fresh fake GPU buffers",
+        "count": 1,
+        "details": {
+          "selectedNodes": 12194,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "freshDrawResourcesPerSample": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 0.004915999999866472,
+        "p95": 0.006957999999940512
+      }
+    },
+    {
+      "name": "node-all-build-interaction-state",
+      "workload": {
+        "unit": "node targets inserted into immutable interaction state",
+        "count": 24389,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 1.5318340000003445,
+        "p95": 1.6470840000001772
+      }
+    },
+    {
+      "name": "node-all-build-dense-selection-cold",
+      "workload": {
+        "unit": "selected node ids classified and profitable bitsets constructed",
+        "count": 24389,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "denseOccurrenceCount": 1,
+          "denseNodeWordCount": 763,
+          "denseSelectionSlotBytes": 4,
+          "denseSelectionBitsetBytes": 3052
+        }
+      },
+      "timingsMs": {
+        "p50": 0.20762500000000728,
+        "p95": 0.21383399999967878
+      }
+    },
+    {
+      "name": "node-all-collect-emphasis-updates",
+      "workload": {
+        "unit": "selected node emphasis records collected on the CPU",
+        "count": 24389,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 0.002375000000029104,
+        "p95": 0.0031249999997271516
+      }
+    },
+    {
+      "name": "node-all-encode-upload-highlights-cold",
+      "workload": {
+        "unit": "sparse node emphasis records plus dense node membership encoded and uploaded to fresh highlight storage",
+        "count": 24389,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "freshStoragePerSample": 1,
+          "sparseHighlightRecordBytes": 0,
+          "highlightHeaderBytes": 96,
+          "highlightStorageBytes": 3200
+        }
+      },
+      "timingsMs": {
+        "p50": 0.005791999999928521,
+        "p95": 0.010916000000179338
+      }
+    },
+    {
+      "name": "node-all-build-selected-node-order",
+      "workload": {
+        "unit": "selected occurrence entries in the node-selection order",
+        "count": 1,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0004169999997429841,
+        "p95": 0.0005000000001018634
+      }
+    },
+    {
+      "name": "node-all-sync-node-visibility-selected-order-cold",
+      "workload": {
+        "unit": "isolated node visibility and selected-node orders synced to fresh fake GPU buffers",
+        "count": 1,
+        "details": {
+          "selectedNodes": 24389,
+          "selectedOccurrenceCount": 1,
+          "occurrenceCount": 1,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 146334,
+          "denseSelectionBytes": 3056,
+          "sparseHighlightTableBytes": 48,
+          "freshDrawResourcesPerSample": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 0.00508399999989706,
+        "p95": 0.005333000000064203
+      }
+    },
+    {
+      "name": "node-multi-32x1-build-interaction-state",
+      "workload": {
+        "unit": "node targets inserted into immutable interaction state",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072
+        }
+      },
+      "timingsMs": {
+        "p50": 0.01025000000026921,
+        "p95": 0.013000000000374712
+      }
+    },
+    {
+      "name": "node-multi-32x1-build-dense-selection-cold",
+      "workload": {
+        "unit": "selected node ids classified and profitable bitsets constructed",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072,
+          "denseOccurrenceCount": 0,
+          "denseNodeWordCount": 0,
+          "denseSelectionSlotBytes": 0,
+          "denseSelectionBitsetBytes": 0
+        }
+      },
+      "timingsMs": {
+        "p50": 0.004041000000142958,
+        "p95": 0.004333000000315224
+      }
+    },
+    {
+      "name": "node-multi-32x1-collect-emphasis-updates",
+      "workload": {
+        "unit": "selected node emphasis records collected on the CPU",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072
+        }
+      },
+      "timingsMs": {
+        "p50": 0.06637499999987995,
+        "p95": 0.07708300000012969
+      }
+    },
+    {
+      "name": "node-multi-32x1-encode-upload-highlights-cold",
+      "workload": {
+        "unit": "sparse node emphasis records plus dense node membership encoded and uploaded to fresh highlight storage",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072,
+          "freshStoragePerSample": 1,
+          "sparseHighlightRecordBytes": 1536,
+          "highlightHeaderBytes": 96,
+          "highlightStorageBytes": 3168
+        }
+      },
+      "timingsMs": {
+        "p50": 0.03945800000019517,
+        "p95": 0.0540419999997539
+      }
+    },
+    {
+      "name": "node-multi-32x1-build-selected-node-order",
+      "workload": {
+        "unit": "selected occurrence entries in the node-selection order",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072
+        }
+      },
+      "timingsMs": {
+        "p50": 0.0027920000002268353,
+        "p95": 0.0028750000001309672
+      }
+    },
+    {
+      "name": "node-multi-32x1-sync-node-visibility-selected-order-cold",
+      "workload": {
+        "unit": "isolated node visibility and selected-node orders synced to fresh fake GPU buffers",
+        "count": 32,
+        "details": {
+          "selectedNodes": 32,
+          "selectedOccurrenceCount": 32,
+          "occurrenceCount": 32,
+          "nodeCount": 24389,
+          "elementCount": 131712,
+          "authoredFaceCount": 526848,
+          "boundaryFaceCount": 9408,
+          "nodePositionsBytes": 292668,
+          "nodePickIdsBytes": 97556,
+          "nodeSpriteVertexCount": 97556,
+          "nodeSpriteIndexCount": 146334,
+          "selectedNodeDrawIndexCount": 4682688,
+          "denseSelectionBytes": 0,
+          "sparseHighlightTableBytes": 3072,
+          "freshDrawResourcesPerSample": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 0.028707999999824096,
+        "p95": 0.03637499999967986
+      }
+    }
+  ]
+}
