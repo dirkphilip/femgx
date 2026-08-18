@@ -83,8 +83,8 @@
     return row.target.kind === "body" ? row.target.bodyId : undefined;
   }
 
-  function bodyInstanceId(row: WorkbenchVisibilityRowSnapshot): string | undefined {
-    return row.target.kind === "body" ? row.target.instanceId : undefined;
+  function bodyPartOccurrenceId(row: WorkbenchVisibilityRowSnapshot): string | undefined {
+    return row.target.kind === "body" ? row.target.partOccurrenceId : undefined;
   }
 
   function rowClass(row: WorkbenchVisibilityRowSnapshot): string {
@@ -114,9 +114,9 @@
         hidden={row.hidden}
         role="treeitem"
         data-visibility-target-kind={row.kind}
-        data-visibility-target-instance-id={row.target.kind === "assembly"
+        data-visibility-target-part-occurrence-id={row.target.kind === "assembly"
           ? undefined
-          : row.target.instanceId}
+          : row.target.partOccurrenceId}
         data-visibility-target-occurrence-id={row.target.kind === "assembly"
           ? row.target.occurrenceId
           : undefined}
@@ -160,11 +160,11 @@
             data-assembly-occurrence-id={row.target.kind === "assembly"
               ? row.target.occurrenceId
               : undefined}
-            data-instance-id={row.target.kind === "partOccurrence"
-              ? row.target.instanceId
+            data-part-occurrence-id={row.target.kind === "partOccurrence"
+              ? row.target.partOccurrenceId
               : undefined}
             data-body-id={bodyId(row)}
-            data-body-instance-id={bodyInstanceId(row)}
+            data-body-part-occurrence-id={bodyPartOccurrenceId(row)}
             aria-label={row.ariaLabel}
             onchange={() => toggleVisibility(row)}
           />
@@ -180,7 +180,7 @@
               class="visibility-body-elements"
               data-testid={`body-elements-${row.testId.replace("body-vis-", "")}`}
               data-body-elements="true"
-              data-body-instance-id={bodyInstanceId(row)}
+              data-body-part-occurrence-id={bodyPartOccurrenceId(row)}
               data-body-id={bodyId(row)}
               aria-label={`Inspect ${row.elementCount} elements in ${row.label}`}
               disabled={row.disabled}
@@ -193,7 +193,7 @@
             class="visibility-body-name"
             data-body-highlight="true"
             data-body-id={bodyId(row)}
-            data-body-instance-id={bodyInstanceId(row)}
+            data-body-part-occurrence-id={bodyPartOccurrenceId(row)}
             data-testid={`body-highlight-${row.testId.replace("body-vis-", "")}`}
             aria-label={`Highlight ${row.label}`}
             aria-pressed={row.highlighted}
