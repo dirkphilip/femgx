@@ -58,6 +58,7 @@ describe("public package entries", () => {
       "setBodyVisible",
       "setElementVisible",
       "setInstanceOverride",
+      "setInstanceOverrides",
       "setPartOverride",
       "setTargetHighlighted",
       "setTargetHovered",

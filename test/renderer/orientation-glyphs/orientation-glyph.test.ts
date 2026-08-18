@@ -197,6 +197,54 @@ describe("orientation glyph data", () => {
     renderer.destroy();
   });
 
+  it("keeps orientation transforms aligned with retained locals after shrink and reorder", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const { part, records } = orientationRecords();
+    const scene = (ids: readonly string[], transformed = false) =>
+      createScene()
+        .addPart(part)
+        .addAssembly({
+          id: 1,
+          name: "normal-root",
+          placements: ids.map((placementId, index) => ({
+            kind: "part" as const,
+            placementId,
+            partId: 1,
+            transform: transformed && index === 0 ? scale(2, 4, 8) : identity(),
+          })),
+        })
+        .withRoot(1)
+        .build();
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([[1, records]]),
+      mode: "arrow",
+      transform: "normal",
+      lengthScale: 1,
+      widthPixels: 2,
+    });
+    const first = scene(["a", "b", "c", "d"]);
+    renderer.render(createPackedSceneRuntime(first), camera, first.parts);
+    const second = scene(["d", "new", "b"], true);
+    renderer.render(createPackedSceneRuntime(second), camera, second.parts);
+
+    const normalWrite = [...gpu.writes]
+      .reverse()
+      .find((write) => write.bytes.byteLength === 4 * 12 * Float32Array.BYTES_PER_ELEMENT);
+    if (normalWrite === undefined) throw new Error("Orientation normal write is missing");
+    const matrices = new Float32Array(
+      normalWrite.bytes.buffer,
+      normalWrite.bytes.byteOffset,
+      normalWrite.bytes.byteLength / Float32Array.BYTES_PER_ELEMENT,
+    );
+    expect(Array.from(matrices.slice(3 * 12, 4 * 12))).toEqual([
+      0.5, 0, 0, 0, 0, 0.25, 0, 0, 0, 0, 0.125, 0,
+    ]);
+    renderer.destroy();
+  });
+
   it("draws one reusable record array across repeated part occurrences", async () => {
     restoreGpuGlobals = installGpuGlobals();
     const gpu = fakeGpuDevice();

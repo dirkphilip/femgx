@@ -96,6 +96,34 @@ describe("renderer runtime state", () => {
     expect(Array.from(secondLayout.partSlots.get(2) ?? [])).toEqual([0, 2]);
   });
 
+  it("retains surviving locals and fills the smallest hole after placement reordering", () => {
+    const scene = (placementIds: readonly string[]) =>
+      createScene()
+        .addPart(part(1))
+        .addAssembly({
+          id: 1,
+          name: "root",
+          placements: placementIds.map((placementId) => ({
+            kind: "part" as const,
+            placementId,
+            partId: 1,
+            transform: identity(),
+          })),
+        })
+        .withRoot(1)
+        .build();
+    const firstRuntime = createPackedSceneRuntime(scene(["a", "b", "c", "d"]));
+    const firstLayout = buildInstanceLayout(firstRuntime);
+    const secondRuntime = createPackedSceneRuntime(scene(["d", "new", "b"]));
+    const secondLayout = buildInstanceLayout(secondRuntime, {
+      runtime: firstRuntime,
+      layout: firstLayout,
+    });
+
+    expect(Array.from(secondLayout.slotPartLocal)).toEqual([3, 0, 1]);
+    expect(Array.from(secondLayout.partLocalSlots.get(1) ?? [])).toEqual([1, 2, -1, 0]);
+  });
+
   it("derives compacted draw order from the visibility bits", () => {
     const scene = createScene()
       .addPart(part(1))

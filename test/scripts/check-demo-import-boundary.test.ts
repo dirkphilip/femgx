@@ -84,6 +84,8 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/hover.ts",
       "demo/benchmark/interactive.ts",
       "demo/benchmark/measurement.ts",
+      "demo/benchmark/many-piece-replacement.ts",
+      "demo/benchmark/many-piece.ts",
       "demo/benchmark/node-selection.ts",
       "demo/benchmark/selection.ts",
       "demo/benchmark/structured-fe.ts",
@@ -109,6 +111,9 @@ describe("check-demo-import-boundary", () => {
       "benchmark/interactive.ts": 'import { orbitCamera } from "../src/interaction/interaction";\n',
       "benchmark/measurement.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/many-piece-replacement.ts":
+        'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/many-piece.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/node-selection.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/selection.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',

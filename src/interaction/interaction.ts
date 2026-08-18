@@ -23,6 +23,9 @@ import {
   updateNestedSet,
   updateSet,
 } from "./mechanics";
+import { setInstanceOverrides } from "./instance-overrides";
+
+export { setInstanceOverrides } from "./instance-overrides";
 
 export type {
   Color,
@@ -199,8 +202,7 @@ export function setInstanceOverride(
   instanceId: InstanceId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  validateStyleOverride(override);
-  return updateInstanceOverride(state, instanceId, override);
+  return setInstanceOverrides(state, [[instanceId, override]]);
 }
 
 /**
@@ -381,15 +383,4 @@ function updatePartOverride(
   const next = updateMapValue(data.partOverrides, value, override);
   if (next === data.partOverrides) return state;
   return updateInteractionState(state, { partOverrides: next });
-}
-
-function updateInstanceOverride(
-  state: InteractionState,
-  value: InstanceId,
-  override: StyleOverride | undefined,
-): InteractionState {
-  const data = readInteractionState(state);
-  const next = updateMapValue(data.instanceOverrides, value, override);
-  if (next === data.instanceOverrides) return state;
-  return updateInteractionState(state, { instanceOverrides: next });
 }

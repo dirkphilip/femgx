@@ -206,6 +206,44 @@ export interface VisibilityBenchmarkReport {
   readonly phases: readonly VisibilityBenchmarkPhase[];
 }
 
+export interface ManyPieceInteractionPhase {
+  readonly id: "one" | "half" | "all";
+  readonly targetCount: number;
+  /** Host target or override construction before immutable state construction. */
+  readonly targetConstructionMs: number;
+  readonly interactionStateMs: number;
+  /** Stable occurrence-id to packed-slot resolution. */
+  readonly changedSlotResolutionMs: number;
+  readonly interactionSyncMs: number;
+  readonly instanceWriteBytes: number;
+  readonly firstFrameMs: number;
+  readonly steadyFrameMs: BenchmarkPercentiles;
+  readonly clearMs: number;
+  readonly clearInstanceWriteBytes: number;
+  readonly gpuCost: BenchmarkGpuCostSnapshot;
+}
+
+export interface ManyPieceBenchmarkReport {
+  readonly selection: readonly ManyPieceInteractionPhase[];
+  readonly recolor: readonly ManyPieceInteractionPhase[];
+  readonly replacement: readonly ManyPieceReplacementPhase[];
+}
+
+export interface ManyPieceReplacementPhase {
+  readonly id: "one" | "half" | "all";
+  readonly changedOccurrenceCount: number;
+  /** Immutable scene authoring snapshot, including its owning validation. */
+  readonly sceneBuildIncludingValidationMs: number;
+  readonly runtimeCompileMs: number;
+  readonly rendererFirstFrameCpuMs: number;
+  readonly queueDrainedFirstFrameMs: number;
+  readonly instanceWriteBytes: number;
+  readonly steadyFrameMs: BenchmarkPercentiles;
+  readonly restoreMs: number;
+  readonly restoreInstanceWriteBytes: number;
+  readonly gpuCost: BenchmarkGpuCostSnapshot;
+}
+
 export interface CombinedOverlaySelectionSample {
   readonly targetCount: number;
   readonly targetConstructionMs: number;
@@ -286,6 +324,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly nodeSelection?: NodeSelectionBenchmarkReport;
   readonly hover?: HoverBenchmarkReport;
   readonly visibility?: VisibilityBenchmarkReport;
+  readonly manyPiece?: ManyPieceBenchmarkReport;
   readonly combinedOverlay?: CombinedOverlayBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */

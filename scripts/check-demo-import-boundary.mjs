@@ -10,6 +10,8 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/hover.ts",
   "demo/benchmark/interactive.ts",
   "demo/benchmark/measurement.ts",
+  "demo/benchmark/many-piece-replacement.ts",
+  "demo/benchmark/many-piece.ts",
   "demo/benchmark/node-selection.ts",
   "demo/benchmark/selection.ts",
   "demo/benchmark/structured-fe.ts",

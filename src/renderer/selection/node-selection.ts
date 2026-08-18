@@ -11,6 +11,7 @@ import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
 export interface DenseNodeLayout {
   readonly slotPartLocal: Int32Array;
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
 }
 
 /** One part-local occurrence's dense selected-node membership. */
@@ -180,7 +181,7 @@ function addInstanceSelection(
   if (builder === undefined) {
     builder = {
       nodeCount,
-      slotCount: layout.partSlots.get(partId)?.length ?? 0,
+      slotCount: layout.partLocalSlots.get(partId)?.length ?? 0,
       candidates: [],
     };
     byPart.set(partId, builder);

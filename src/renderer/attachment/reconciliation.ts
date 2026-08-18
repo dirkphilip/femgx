@@ -24,11 +24,11 @@ export function attachmentChangedSlots(
   previous: PackedSceneRuntime,
   runtime: PackedSceneRuntime,
 ): number[] {
-  const previousSlots = instanceSlots(previous);
   const changed: number[] = [];
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const instanceId = runtime.getInstanceId(slot);
-    const previousSlot = instanceId === undefined ? undefined : previousSlots.get(instanceId);
+    const previousSlot =
+      instanceId === undefined ? undefined : previous.getInstanceSlot(instanceId);
     if (previousSlot === undefined || instanceChanged(previous, previousSlot, runtime, slot)) {
       changed.push(slot);
     }
@@ -43,12 +43,11 @@ export function attachmentAffectedParts(
   layout: InstanceLayout,
 ): Set<PartId> {
   const affected = new Set<PartId>();
-  const currentSlots = instanceSlots(runtime);
   for (let slot = 0; slot < previous.runtime.instanceCount; slot += 1) {
     const instanceId = previous.runtime.getInstanceId(slot);
     const partId = previous.runtime.instancePartIds[slot];
     if (instanceId === undefined || partId === undefined) continue;
-    const currentSlot = currentSlots.get(instanceId);
+    const currentSlot = runtime.getInstanceSlot(instanceId);
     if (currentSlot === undefined || runtime.instancePartIds[currentSlot] !== partId) {
       affected.add(partId);
     }
@@ -79,26 +78,26 @@ export function remapAttachmentFlags(
   runtime: PackedSceneRuntime,
   state: AttachmentFlagState,
 ): void {
-  const previousSlots = instanceSlots(previousRuntime);
-  const remap = (previous: readonly boolean[]): boolean[] => {
-    const next = new Array<boolean>(runtime.instanceCount).fill(false);
-    for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-      const instanceId = runtime.getInstanceId(slot);
-      const previousSlot = instanceId === undefined ? undefined : previousSlots.get(instanceId);
-      if (previousSlot !== undefined) next[slot] = previous[previousSlot] === true;
-    }
-    return next;
-  };
-  replaceFlags(state.edgeFlags, remap(state.edgeFlags));
-  replaceFlags(state.edgeEmphasisFlags, remap(state.edgeEmphasisFlags));
-  replaceFlags(state.nodeFlags, remap(state.nodeFlags));
-  replaceFlags(state.transparentFlags, remap(state.transparentFlags));
-  replaceFlags(state.selectedNodeFlags, remap(state.selectedNodeFlags));
+  const previousSlotByCurrent = new Int32Array(runtime.instanceCount).fill(-1);
+  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+    const instanceId = runtime.getInstanceId(slot);
+    const previousSlot =
+      instanceId === undefined ? undefined : previousRuntime.getInstanceSlot(instanceId);
+    if (previousSlot !== undefined) previousSlotByCurrent[slot] = previousSlot;
+  }
+  remapFlags(state.edgeFlags, previousSlotByCurrent);
+  remapFlags(state.edgeEmphasisFlags, previousSlotByCurrent);
+  remapFlags(state.nodeFlags, previousSlotByCurrent);
+  remapFlags(state.transparentFlags, previousSlotByCurrent);
+  remapFlags(state.selectedNodeFlags, previousSlotByCurrent);
 }
 
-function replaceFlags(target: boolean[], next: readonly boolean[]): void {
-  target.length = 0;
-  target.push(...next);
+function remapFlags(target: boolean[], previousSlotByCurrent: Int32Array): void {
+  const previous = target.slice();
+  target.length = previousSlotByCurrent.length;
+  for (let slot = 0; slot < previousSlotByCurrent.length; slot += 1) {
+    target[slot] = previous[previousSlotByCurrent[slot] ?? -1] === true;
+  }
 }
 
 export interface AttachmentFlagState {
@@ -263,15 +262,6 @@ function rebuildSurfaceOrders(
       draw: options.bundle.draw,
     });
   }
-}
-
-function instanceSlots(runtime: PackedSceneRuntime): ReadonlyMap<string, number> {
-  const slots = new Map<string, number>();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined) slots.set(instanceId, slot);
-  }
-  return slots;
 }
 
 function instanceChanged(
