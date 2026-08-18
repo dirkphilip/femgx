@@ -12,7 +12,7 @@ import {
  * Duplicate ids use the last supplied value; `undefined` clears an override.
  * @category Interaction and picking
  */
-export function setInstanceOverrides(
+export function setPartOccurrenceOverrides(
   state: InteractionState,
   overrides: Iterable<readonly [PartOccurrenceId, StyleOverride | undefined]>,
 ): InteractionState {

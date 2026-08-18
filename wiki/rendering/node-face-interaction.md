@@ -80,8 +80,8 @@ oriented element faces are the finest-grained pickable units under
 
 ## Node glyph overlay
 
-- `StyleOverride.nodes` is an instance-level display flag. A part override
-  enables annotations for every placement of that part; an instance override
+- `StyleOverride.nodes` is a part-occurrence-level display flag. A part override
+  enables annotations for every placement of that part; a part-occurrence override
   wins for one placement. The renderer compacts enabled visible instances into
   a per-part node order and skips Point parts because their primary point
   sprite already represents the authored node.

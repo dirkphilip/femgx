@@ -23,8 +23,9 @@ import {
   updateNestedSet,
   updateSet,
 } from "./mechanics";
+import { setPartOccurrenceOverrides } from "./part-occurrence-overrides";
 
-export { setInstanceOverrides } from "./instance-overrides";
+export { setPartOccurrenceOverrides } from "./part-occurrence-overrides";
 
 export type {
   Color,
@@ -193,7 +194,7 @@ export function setPartOverride(
 }
 
 /**
- * Adds or replaces an explicit instance style override.
+ * Adds or replaces an explicit part-occurrence style override.
  * @category Interaction and picking
  */
 export function setPartOccurrenceOverride(
@@ -201,8 +202,7 @@ export function setPartOccurrenceOverride(
   partOccurrenceId: PartOccurrenceId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  validateStyleOverride(override);
-  return updateInstanceOverride(state, partOccurrenceId, override);
+  return setPartOccurrenceOverrides(state, [[partOccurrenceId, override]]);
 }
 
 /**
@@ -387,15 +387,4 @@ function updatePartOverride(
   const next = updateMapValue(data.partOverrides, value, override);
   if (next === data.partOverrides) return state;
   return updateInteractionState(state, { partOverrides: next });
-}
-
-function updateInstanceOverride(
-  state: InteractionState,
-  value: PartOccurrenceId,
-  override: StyleOverride | undefined,
-): InteractionState {
-  const data = readInteractionState(state);
-  const next = updateMapValue(data.partOccurrenceOverrides, value, override);
-  if (next === data.partOccurrenceOverrides) return state;
-  return updateInteractionState(state, { partOccurrenceOverrides: next });
 }

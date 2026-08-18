@@ -1,4 +1,7 @@
-import { createInteractionState, setInstanceOverrides } from "../../src/interaction/interaction";
+import {
+  createInteractionState,
+  setPartOccurrenceOverrides,
+} from "../../src/interaction/interaction";
 import { setTargetsSelected } from "../../src/interaction/targets";
 import type { InteractionTarget } from "../../src/interaction/target-types";
 import type { InteractionState } from "../../src/interaction/state";
@@ -77,7 +80,7 @@ async function measureRecolor(
   );
   const targetConstructionMs = performance.now() - targetStart;
   const stateStart = performance.now();
-  const interaction = setInstanceOverrides(createInteractionState(), overrides);
+  const interaction = setPartOccurrenceOverrides(createInteractionState(), overrides);
   const interactionStateMs = performance.now() - stateStart;
   return measureInteraction(options, id, overrides.length, interaction, {
     targetConstructionMs,

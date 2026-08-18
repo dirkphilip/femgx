@@ -101,7 +101,7 @@ export const sceneBudgets: readonly BudgetCase[] = [
   },
   {
     name: "setInstanceVisible toggle",
-    description: "single instance override, hide then show",
+    description: "single part-occurrence override, hide then show",
     budgetMs: 10,
     run: () => {
       runtime.setInstanceVisible(0, false);

@@ -194,7 +194,7 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { boxSelectionFrustum, createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOverride } from "femgx";',
+        'import { boxSelectionFrustum, createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } from "femgx";',
         'import { createCamera } from "femgx/camera";',
         'import * as model from "femgx/model";',
         'import * as io from "femgx/io";',
@@ -208,10 +208,11 @@ function main() {
         'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
         "const m = identity();",
         'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
-        'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function") throw new Error("part occurrence override exports failed");',
+        'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function" || typeof setPartOccurrenceOverrides !== "function") throw new Error("part-occurrence override exports failed");',
         "let interaction = createInteractionState();",
         "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
         'interaction = setPartOccurrenceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
+        'interaction = setPartOccurrenceOverrides(interaction, [["1/0", { emissive: 0.2 }]]);',
         'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
         "const builder = io.createModelBuilder();",
         "builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);",
@@ -233,7 +234,7 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.cjs"),
       [
-        'const { createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOverride } = require("femgx");',
+        'const { createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } = require("femgx");',
         'const { createCamera } = require("femgx/camera");',
         'const model = require("femgx/model");',
         'const io = require("femgx/io");',
@@ -244,10 +245,11 @@ function main() {
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
         'if (identity().length !== 16) throw new Error("identity() is not a 4x4 matrix");',
-        'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function") throw new Error("part occurrence override exports failed");',
+        'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function" || typeof setPartOccurrenceOverrides !== "function") throw new Error("part-occurrence override exports failed");',
         "let interaction = createInteractionState();",
         "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
         'interaction = setPartOccurrenceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
+        'interaction = setPartOccurrenceOverrides(interaction, [["1/0", { emissive: 0.2 }]]);',
         'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
         "const builder = io.createModelBuilder();",
         "builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);",
@@ -268,7 +270,7 @@ function main() {
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const smokeTs = [
-      'import { boxSelectionFrustum, createViewport, createInteractionState, createPart, createResultField, createScene, identity, setPartOccurrenceOverride, setPartOverride, setTargetHighlighted, setTargetSelected, translation, UnknownSceneIdentityError, type Viewport, type InteractionTarget, type StyleOverride } from "femgx";',
+      'import { boxSelectionFrustum, createViewport, createInteractionState, createPart, createResultField, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride, setTargetHighlighted, setTargetSelected, translation, UnknownSceneIdentityError, type Viewport, type InteractionTarget, type StyleOverride } from "femgx";',
       'import { createElement, createElementModel, elementPart, ElementShape } from "femgx/model";',
       'import { createElementModelFromFemModel, createModelBuilder, createResultFieldFromModelResult, validateModel } from "femgx/io";',
       'import { createCamera } from "femgx/camera";',
@@ -323,6 +325,7 @@ function main() {
       "const partStyle: StyleOverride = { lineWidthPixels: 2 };",
       "interaction = setPartOverride(interaction, part.id, partStyle);",
       'interaction = setPartOccurrenceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
+      'interaction = setPartOccurrenceOverrides(interaction, [["1/0", { emissive: 0.2 }]]);',
       "interaction = setTargetSelected(interaction, bodyTarget, true);",
       "interaction = setTargetHighlighted(interaction, bodyTarget, true);",
       'const stress = createResultField({ id: "stress", name: "Stress", location: "elemental", shape: "scalar", count: 1, unit: "MPa", values: new Float32Array([1]) });',

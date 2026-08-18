@@ -114,7 +114,7 @@ describe("instance style resolution", () => {
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
   });
 
-  it("resolves line width only through part and instance overrides", () => {
+  it("resolves line width only through part and part-occurrence overrides", () => {
     let state = setPartOverride(createInteractionState(), item.partId, { lineWidthPixels: 6 });
     expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(6);
     state = setPartOccurrenceOverride(state, item.partOccurrenceId, { lineWidthPixels: 3 });
@@ -123,7 +123,7 @@ describe("instance style resolution", () => {
       setElementOverride(createInteractionState(), { partOccurrenceId: "1/0", elementId: 2 }, {
         lineWidthPixels: 4,
       } as never),
-    ).toThrow("lineWidthPixels is only supported on part and instance overrides");
+    ).toThrow("lineWidthPixels is only supported on part and part-occurrence overrides");
   });
 
   it("rejects overlay membership on primitive-specific override boundaries", () => {
@@ -134,18 +134,18 @@ describe("instance style resolution", () => {
         { partOccurrenceId: "1/0", elementId: 2 },
         invalid,
       ),
-    ).toThrow("edge and nodes are only supported on part and instance overrides");
+    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
     expect(() =>
       createInteractionState({
         highlighted: invalid,
         selected: {},
       }),
-    ).toThrow("edge and nodes are only supported on part and instance overrides");
+    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
     expect(() =>
       setElementOverride(createInteractionState(), { partOccurrenceId: "1/0", elementId: 2 }, {
         edge: true,
       } as never),
-    ).toThrow("edge and nodes are only supported on part and instance overrides");
+    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
   });
 
   it("rejects non-finite and out-of-range alpha values at override boundaries", () => {

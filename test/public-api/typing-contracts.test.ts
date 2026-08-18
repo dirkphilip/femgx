@@ -1,7 +1,9 @@
 import { describe, expectTypeOf, it } from "vitest";
 import {
   InteractionGranularity,
+  createInteractionState,
   interactionTargetFromHit,
+  setPartOccurrenceOverrides,
   type EdgePickHit,
   type InteractionTargetFor,
   type PickHit,
@@ -23,6 +25,13 @@ async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise
 
   const faceTarget = interactionTargetFromHit(hit, InteractionGranularity.Face);
   expectTypeOf(faceTarget).toEqualTypeOf<InteractionTargetFor<"face"> | undefined>();
+}
+
+function assertPartOccurrenceOverrideContracts(): void {
+  const state = createInteractionState();
+  setPartOccurrenceOverrides(state, [["1/0", { emissive: 0.2 }]]);
+  // @ts-expect-error Part-occurrence override keys use stable string identities.
+  setPartOccurrenceOverrides(state, [[1, { emissive: 0.2 }]]);
 }
 
 function assertResultAndReconciliationContracts(outcome: SceneReconciliationOutcome): void {
@@ -52,5 +61,6 @@ describe("public compiler contracts", () => {
   it("keeps invalid states and mismatched picking results unrepresentable", () => {
     expectTypeOf(assertPickingContracts).toBeFunction();
     expectTypeOf(assertResultAndReconciliationContracts).toBeFunction();
+    expectTypeOf(assertPartOccurrenceOverrideContracts).toBeFunction();
   });
 });

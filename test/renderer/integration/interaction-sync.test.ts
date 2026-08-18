@@ -39,7 +39,7 @@ function sceneRuntime() {
 }
 
 describe("interactionDirtyParts", () => {
-  it("marks node orders dirty when part or instance style overrides change", () => {
+  it("marks node orders dirty when part or part-occurrence style overrides change", () => {
     const { runtime } = sceneRuntime();
     const layout = buildInstanceLayout(runtime);
     const empty = createInteractionState();

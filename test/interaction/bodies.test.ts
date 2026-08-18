@@ -53,10 +53,10 @@ describe("body interaction state", () => {
 
   it("rejects node membership on body overrides", () => {
     expect(() => setBodyOverride(createInteractionState(), ref, { nodes: true } as never)).toThrow(
-      "edge and nodes are only supported on part and instance overrides",
+      "edge and nodes are only supported on part and part-occurrence overrides",
     );
     expect(() => setBodyOverride(createInteractionState(), ref, { edge: true } as never)).toThrow(
-      "edge and nodes are only supported on part and instance overrides",
+      "edge and nodes are only supported on part and part-occurrence overrides",
     );
   });
 

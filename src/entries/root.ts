@@ -60,8 +60,8 @@ export type {
 export {
   createInteractionState,
   setPartOverride,
-  setInstanceOverrides,
   setPartOccurrenceOverride,
+  setPartOccurrenceOverrides,
   type Color,
   type InteractionState,
   type InteractionTheme,

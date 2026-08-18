@@ -65,13 +65,13 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
   }
 }
 
-/** Rejects instance-level overlay membership from primitive-specific layers. */
+/** Rejects part-occurrence overlay membership from primitive-specific layers. */
 export function validatePrimitiveStyleOverride(override: PrimitiveStyleOverride | undefined): void {
   if (override !== undefined && "lineWidthPixels" in override) {
-    throw new TypeError("lineWidthPixels is only supported on part and instance overrides");
+    throw new TypeError("lineWidthPixels is only supported on part and part-occurrence overrides");
   }
   if (override !== undefined && ("edge" in override || "nodes" in override)) {
-    throw new TypeError("edge and nodes are only supported on part and instance overrides");
+    throw new TypeError("edge and nodes are only supported on part and part-occurrence overrides");
   }
   validateStyleOverride(override);
 }

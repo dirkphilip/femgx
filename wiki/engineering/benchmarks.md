@@ -433,7 +433,7 @@ selected-visible and selected-hidden submissions.
 | Placements half  |   5,000 |          0.2 / 0.6 / 0.5 / 10.9 |              3.8 · 3.1/3.9 · 10.5 |   480,000 / 480,000 |                        1 / 384 / 5,000 |
 | Placements all   |  10,000 |          0.1 / 0.7 / 0.7 / 17.3 |              4.8 · 4.0/5.6 · 19.7 |   960,000 / 960,000 |                       1 / 384 / 10,000 |
 
-Recolor uses the canonical public `setInstanceOverrides` immutable bulk
+Recolor uses the canonical public `setPartOccurrenceOverrides` immutable bulk
 transition. Apply and clear again write exactly `targetCount × 96` bytes, and
 the full opaque draw remains unchanged: 1,000/2,904,000/1,000 for distinct
 parts and 1/384/10,000 for shared placements.
