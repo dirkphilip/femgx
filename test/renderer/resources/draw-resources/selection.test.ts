@@ -16,6 +16,49 @@ import {
 } from "./support";
 
 describe("GPU draw path", () => {
+  it("binds a visibility skin against the full expanded surface", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
+      const indexBuffer = gpu.device.createBuffer({ size: 12, usage: GPUBufferUsage.INDEX });
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      const context = { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) };
+      drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }]);
+      const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
+      if (resource === undefined) throw new Error("Subset resource was not uploaded");
+      expect(resource.fullVertexBuffer).toBeUndefined();
+      drawBatches(pass, draw, context, [
+        {
+          partId: subsetPart.id,
+          instanceCount: 1,
+          visibilitySkin: {
+            signature: { hash: 1, bodyIds: [], elementIds: [1], hasHidden: true },
+            indexBuffer,
+            indexCount: 3,
+            byteLength: 12,
+          },
+        },
+      ]);
+      pass.end();
+
+      expect(resource.fullVertexBuffer).toBeDefined();
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
   it("uses the face subset for visible and explicitly compact hidden selection", () => {
     const restore = installGpuGlobals();
     try {

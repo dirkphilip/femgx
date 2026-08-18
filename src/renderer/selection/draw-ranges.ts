@@ -61,8 +61,7 @@ export function buildSelectionDrawCalls(options: {
         globalSlot === undefined || globalSlot < 0 ? undefined : runtime.getInstanceId(globalSlot);
       if (instanceId === undefined) return undefined;
       geometry = selectionGeometryForInstance(data, instanceId, local, part, denseSelections);
-      if (geometry === undefined || (isSelectionRanges(geometry) && geometry.length === 0))
-        return undefined;
+      if (geometry === undefined) return undefined;
     }
     if (groupGeometry !== undefined && !sameSelectionGeometry(groupGeometry, geometry)) {
       // A grouped call is instanced, so its GPU cost is one draw per range,
@@ -110,6 +109,18 @@ function selectionGeometryForInstance(
   if ((selectedElements?.size ?? 0) === 0 && (selectedFaces?.size ?? 0) === 0) {
     return undefined;
   }
+  if (
+    denseFullSelectionUsesOrdinarySurface({
+      selectedElements,
+      selectedFaces,
+      localSlot,
+      part,
+      metadata,
+      denseSelection: denseSelections.get(part.id),
+    })
+  ) {
+    return [];
+  }
   const skin =
     selectedFaces === undefined || selectedFaces.size === 0
       ? denseSelectionSkin(
@@ -122,6 +133,28 @@ function selectionGeometryForInstance(
       : undefined;
   if (skin !== undefined) return skin;
   return fallbackSelectionGeometry(selectedElements, selectedFaces, metadata, part);
+}
+
+function denseFullSelectionUsesOrdinarySurface(options: {
+  readonly selectedElements: ReadonlySet<number> | undefined;
+  readonly selectedFaces: ReadonlyMap<string, unknown> | undefined;
+  readonly localSlot: number;
+  readonly part: Part;
+  readonly metadata: PartSemanticIndex;
+  readonly denseSelection: DenseElementSelection | undefined;
+}): boolean {
+  const { selectedElements, selectedFaces, localSlot, part, metadata, denseSelection } = options;
+  if (
+    (selectedFaces?.size ?? 0) > 0 ||
+    selectedElements?.size !== metadata.elements.size ||
+    part.geometries.some(
+      (geometry) => geometry.primitive !== "triangles" || geometry.faceSubset !== undefined,
+    )
+  ) {
+    return false;
+  }
+  const occurrence = denseOccurrenceAtSlot(denseSelection, localSlot);
+  return occurrence?.selectedCount === metadata.elements.size;
 }
 
 function fallbackSelectionGeometry(
@@ -361,6 +394,7 @@ function appendSelectionCalls(
   group: Pick<DrawCall, "partId" | "instanceCount" | "firstInstance">,
 ): void {
   if (isSelectionRanges(geometry)) {
+    if (geometry.length === 0) return;
     calls.push({ ...group, selectionRanges: geometry });
     return;
   }

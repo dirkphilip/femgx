@@ -35,6 +35,22 @@ export interface DrawIntentState {
   readonly nodes: boolean;
 }
 
+/** Returns a retained cut-surface skin only for compatible surface passes. */
+export function visibilitySkinForIntent(
+  call: DrawCall,
+  geometry: Geometry | undefined,
+  intent: DrawIntent,
+  state: Pick<DrawIntentState, "overlay" | "edgePick">,
+): DrawCall["visibilitySkin"] {
+  return geometry?.primitive === "triangles" &&
+    !state.overlay &&
+    !state.edgePick &&
+    intent.kind === "surface" &&
+    intent.pass !== "selection-visible"
+    ? call.visibilitySkin
+    : undefined;
+}
+
 /** Resolves the smallest internal shader/resource path for one batch. */
 export function pipelineAdmission(options: {
   readonly context: DrawCallContext;

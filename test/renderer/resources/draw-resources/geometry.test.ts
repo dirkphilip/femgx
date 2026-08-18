@@ -23,6 +23,40 @@ import { bindDrawGeometry } from "../../../../src/renderer/frame/geometry-bindin
 import { uploadNodePart } from "../../../../src/renderer/resources/draw-resources";
 
 describe("GPU draw path", () => {
+  it("binds retained visibility indices to the full surface vertices", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const resource = uploadPart(createDrawResources(gpu.device), part);
+      const fullVertexBuffer = gpu.device.createBuffer({ size: 36, usage: GPUBufferUsage.VERTEX });
+      resource.fullVertexBuffer = fullVertexBuffer;
+      let boundVertex: GPUBuffer | undefined;
+      const pass = {
+        setVertexBuffer: (_slot: number, buffer: GPUBuffer) => {
+          boundVertex = buffer;
+        },
+        setIndexBuffer: () => undefined,
+      } as unknown as GPURenderPassEncoder;
+      const indexBuffer = gpu.device.createBuffer({ size: 12, usage: GPUBufferUsage.INDEX });
+      bindDrawGeometry(pass, {
+        geometry: resource,
+        overlay: false,
+        subset: false,
+        edgePick: false,
+        bindVertexBuffer: true,
+        visibilitySkin: {
+          signature: { hash: 1, bodyIds: [], elementIds: [1], hasHidden: true },
+          indexBuffer,
+          indexCount: 3,
+          byteLength: 12,
+        },
+      });
+      expect(boundVertex).toBe(fullVertexBuffer);
+    } finally {
+      restore();
+    }
+  });
+
   it("does not bind compact node centers as a vertex buffer", () => {
     const restore = installGpuGlobals();
     try {
