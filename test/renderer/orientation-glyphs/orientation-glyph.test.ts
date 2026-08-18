@@ -90,6 +90,11 @@ describe("orientation glyph data", () => {
     expect(orientationGlyphVertexShader).toContain("max(width, 0.75 * camera.devicePixelRatio)");
   });
 
+  it("exposes the renderer-owned RGB triad mode", () => {
+    expect(orientationGlyphVertexShader).toContain("mode == 2u");
+    expect(orientationGlyphVertexShader).toContain("output.triad");
+  });
+
   it("packs anchors, directions, deltas, and ownership into aligned records", () => {
     const records = {
       elementIds: new Uint32Array([7]),
@@ -105,6 +110,22 @@ describe("orientation glyph data", () => {
       new Float32Array([1, 2, 3, 4, 0, 1, 0, 0, 0.5, 0.25, 0]),
     );
     expect(new Uint32Array(packed.buffer).slice(12, 14)).toEqual(new Uint32Array([7, 5]));
+  });
+
+  it("packs per-record glyph, transform, and length metadata", () => {
+    const packed = packOrientationRecords({
+      elementIds: new Uint32Array([1]),
+      bodyIds: new Uint32Array([2]),
+      anchors: new Float32Array([0, 0, 0]),
+      referenceLengths: new Float32Array([2]),
+      directions: new Float32Array([1, 0, 0]),
+      glyphModes: new Uint32Array([3]),
+      transformModes: new Uint32Array([1]),
+      lengthScales: new Float32Array([0.25]),
+      anchorDeltas: undefined,
+    });
+    expect(new Float32Array(packed.buffer)[3]).toBe(0.5);
+    expect(new Uint32Array(packed.buffer)[15]).toBe(259);
   });
 
   it("computes inverse-transpose matrices and rejects singular transforms", () => {

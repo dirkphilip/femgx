@@ -14,6 +14,7 @@ export type ElementModelValidationCode =
 
 /** Typed validation error for an invalid authored element model. */
 export class ElementModelValidationError extends Error {
+  /** Machine-readable model validation code. */
   readonly code: ElementModelValidationCode;
 
   constructor(code: ElementModelValidationCode, message: string) {

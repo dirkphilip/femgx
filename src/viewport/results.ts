@@ -1,4 +1,5 @@
 import { nodalDisplacements, type DeformationState } from "../results/deform";
+import type { ElementalOrientationRecords } from "../results/orientation-records";
 import { createScalarColorMap, type ScalarColorMap } from "../results/mapping";
 import { scalarRange, type ValueRange } from "../results/range";
 import type { Scene } from "../scene/scene";
@@ -6,6 +7,7 @@ import type { PartId } from "../geometry/part";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   renderedPartIds,
+  resolveLoads,
   resolveVectors,
   validateResultsConfig,
   type OrientationRecordMap,
@@ -27,8 +29,10 @@ import type {
 
 export type {
   ViewportDeformationConfig,
+  ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportElementVectorState,
+  ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,
   ViewportResultsState,
@@ -58,11 +62,88 @@ export function resolveViewportResults(
   const scalar = resolveScalar(config.scalar, scene, runtime, previous);
   const deformation = resolveDeformation(config.deformation, scene, runtime, previous);
   const resolvedVectors = resolveVectors(config.vectors, scene, runtime, deformation);
+  const resolvedLoads = resolveLoads(config.loads, scene, runtime, deformation);
   const vectors = resolvedVectors?.state;
-  const state = { config, scalar, deformation, vectors };
+  const state = {
+    config,
+    scalar,
+    deformation,
+    vectors,
+    ...(resolvedLoads === undefined ? {} : { loads: resolvedLoads.config }),
+  };
   resolveViewportResultColors(state, scalar, scene, runtime, previous);
-  orientationRecords.set(state, resolvedVectors?.records);
+  orientationRecords.set(state, mergeRecords(resolvedVectors?.records, resolvedLoads?.records));
   return state;
+}
+
+function mergeRecords(
+  vectors: OrientationRecordMap | undefined,
+  loads: OrientationRecordMap | undefined,
+): OrientationRecordMap | undefined {
+  if (vectors === undefined && loads === undefined) return undefined;
+  const merged = new Map(vectors);
+  for (const [partId, loadRecords] of loads ?? []) {
+    const vectorRecords = merged.get(partId);
+    merged.set(
+      partId,
+      vectorRecords === undefined ? loadRecords : appendRecords(vectorRecords, loadRecords),
+    );
+  }
+  return merged;
+}
+
+function appendRecords(
+  first: ElementalOrientationRecords,
+  second: ElementalOrientationRecords,
+): ElementalOrientationRecords {
+  const count = first.elementIds.length + second.elementIds.length;
+  const records = {
+    elementIds: new Uint32Array(count),
+    bodyIds: new Uint32Array(count),
+    anchors: new Float32Array(count * 3),
+    referenceLengths: new Float32Array(count),
+    directions: new Float32Array(count * 3),
+    glyphModes: new Uint32Array(count),
+    transformModes: new Uint32Array(count),
+    lengthScales: new Float32Array(count),
+    axisIndices: new Uint32Array(count),
+    anchorDeltas:
+      first.anchorDeltas === undefined && second.anchorDeltas === undefined
+        ? undefined
+        : new Float32Array(count * 3),
+  };
+  copyRecords(records, first, 0);
+  copyRecords(records, second, first.elementIds.length);
+  return records;
+}
+
+function copyRecords(
+  target: ElementalOrientationRecords,
+  source: ElementalOrientationRecords,
+  offset: number,
+): void {
+  target.elementIds.set(source.elementIds, offset);
+  target.bodyIds.set(source.bodyIds, offset);
+  target.anchors.set(source.anchors, offset * 3);
+  target.referenceLengths.set(source.referenceLengths, offset);
+  target.directions.set(source.directions, offset * 3);
+  target.glyphModes?.set(
+    source.glyphModes ?? new Uint32Array(source.elementIds.length).fill(0),
+    offset,
+  );
+  target.transformModes?.set(
+    source.transformModes ?? new Uint32Array(source.elementIds.length),
+    offset,
+  );
+  target.lengthScales?.set(
+    source.lengthScales ?? new Float32Array(source.elementIds.length).fill(1),
+    offset,
+  );
+  target.axisIndices?.set(source.axisIndices ?? new Uint32Array(source.elementIds.length), offset);
+  target.anchorDeltas?.set(
+    source.anchorDeltas ?? new Float32Array(source.elementIds.length * 3),
+    offset * 3,
+  );
 }
 
 function resolveScalar(
@@ -76,7 +157,7 @@ function resolveScalar(
   const range = resolveRange(field, config.range, config.colorMap);
   const colorMap = resolveColorMap(config, field, range, previous);
   validateMapRange(range, colorMap);
-  validateResultCoverage(field, scene, runtime);
+  validateResultCoverage(field, scene, runtime, config.partId);
   return { config, field, range, colorMap };
 }
 

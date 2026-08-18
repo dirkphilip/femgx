@@ -6,6 +6,38 @@ import type {
 } from "./model";
 import type { BenchmarkMemoryEstimate } from "./memory";
 
+/** Deterministic counts for semantic allocations retained by a dense Part. */
+export interface DenseSemanticAllocationCounts {
+  readonly elementDescriptors: number;
+  readonly primitiveRangeArrays: number;
+  readonly primitiveRangeDescriptors: number;
+  readonly faceDescriptors: number;
+  readonly faceNodeArrays: number;
+  readonly faceNodeReferences: number;
+  readonly faceKeyReferences: number;
+  readonly faceSubsetReferences: number;
+  readonly edgeDescriptors: number;
+  readonly edgeNodeArrays: number;
+  readonly edgeNodeReferences: number;
+  readonly edgeIncidentElementReferences: number;
+  readonly edgeFaceReferenceArrays: number;
+  readonly edgeFaceReferences: number;
+  readonly bodyDescriptors: number;
+  readonly bodyElementReferences: number;
+  readonly semanticIndex: {
+    readonly elementEntries: number;
+    readonly elementOrdinalEntries: number;
+    readonly bodyEntries: number;
+    readonly bodyByElementEntries: number;
+    readonly faceEntries: number;
+    readonly edgeEntries: number;
+    readonly nodeTriangleFaceOffsetsBytes: number;
+    readonly nodeTriangleFaceIdsBytes: number;
+    readonly neighborTriangleFaceOffsetsBytes: number;
+    readonly neighborTriangleFaceIdsBytes: number;
+  };
+}
+
 export interface BenchmarkGpuTimestampPass {
   readonly sampleCount: number;
   readonly p50: number | null;
@@ -94,6 +126,51 @@ export interface SelectionBenchmarkReport {
   readonly phases: readonly SelectionBenchmarkPhase[];
 }
 
+export interface NodeSelectionBenchmarkPhase {
+  readonly id: "half" | "all";
+  readonly targetCount: number;
+  readonly uniqueNodeCount: number;
+  readonly selectedOccurrenceCount: number;
+  /** Exact indices represented by the renderer node-selection order in each replay pass. */
+  readonly selectedNodeDrawIndices: number;
+  /** Exact instances represented by the renderer node-selection order in each replay pass. */
+  readonly selectedNodeDrawInstances: number;
+  /** Immutable interaction-state construction wall time. */
+  readonly interactionStateMs: number;
+  /** CPU-only renderer interaction synchronization wall time. */
+  readonly interactionSyncMs: number;
+  /** Queue-drained first selected frame wall time. */
+  readonly firstSelectedFrameMs: number;
+  readonly steadySelectedFrameMs: BenchmarkPercentiles;
+  /** Queue-drained clear transition wall time. */
+  readonly clearSelectionMs: number;
+  readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+  /** Exact part-local slot table plus selected-occurrence node bitset bytes. */
+  readonly denseNodePayloadBytes: number;
+  /** Exact fresh highlight allocation containing this dense node payload. */
+  readonly highlightStorageBytes: number;
+  /** Comparison estimate if every selected target used a sparse record. */
+  readonly selectedNodeRecordBytes: number;
+}
+
+export interface NodeSelectionBenchmarkReport {
+  readonly selectedTargetGranularity: "node";
+  readonly phases: readonly NodeSelectionBenchmarkPhase[];
+}
+
+export interface DenseBenchmarkBuild {
+  readonly generationMs: number;
+  readonly topologyMs: number;
+  readonly tessellationMs: number;
+  readonly transferPreparationMs: number;
+  readonly workerRoundTripMs: number;
+  readonly mainReconstructionMs: number;
+  readonly transferredBytes: number;
+  readonly finalRetainedTypedBytes: number;
+  /** Deterministic semantic allocation counts; JS object bytes are not inferred. */
+  readonly semanticAllocationCounts: DenseSemanticAllocationCounts;
+}
+
 export interface WebGpuBenchmarkCaseResult {
   readonly id: string;
   readonly name: string;
@@ -112,12 +189,14 @@ export interface WebGpuBenchmarkCaseResult {
   readonly submittedTriangles: number;
   readonly visibleTriangles: number;
   readonly modelBuildMs: number;
+  readonly denseBuild?: DenseBenchmarkBuild;
   readonly runtimeCompileMs: number;
   readonly instanceCount: number;
   readonly timings: BenchmarkTimings;
   readonly interactive?: InteractiveSamples;
   readonly overlayInteractive?: OverlayInteractiveSamples;
   readonly selection?: SelectionBenchmarkReport;
+  readonly nodeSelection?: NodeSelectionBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
   readonly gpuCost: BenchmarkGpuCostSnapshot;
@@ -134,7 +213,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 8;
+  readonly schemaVersion: 11;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {

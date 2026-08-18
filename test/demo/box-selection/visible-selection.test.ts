@@ -7,15 +7,55 @@ import {
   setTargetSelected,
   setTargetHovered,
   selectedKeys,
+  rect,
   harness,
   element,
   nodeHit,
   faceHit,
   edgeHit,
+  complete,
   createInteractionState,
 } from "./support";
 
 describe("workbench visible-selection", () => {
+  it.each([
+    ["part", { kind: "part", partId: 1 }, "p:1"],
+    ["instance", { kind: "instance", instanceId: "instance-a" }, "i:instance-a"],
+  ] as const)(
+    "supports %s visible-surface box selection",
+    async (granularity, target, expected) => {
+      const pickRegion = vi.fn(() => Promise.resolve([target]));
+      const { workbench, getInteraction } = harness(
+        undefined,
+        pickRegion,
+        createInteractionState(),
+        granularity,
+      );
+
+      await workbench.selectBox(complete());
+
+      expect(pickRegion).toHaveBeenCalledWith(rect(), granularity);
+      expect(selectedKeys(getInteraction())).toEqual([expected]);
+    },
+  );
+
+  it.each([
+    ["part", "p:1"],
+    ["instance", "i:instance-a"],
+  ] as const)("supports %s point selection", async (granularity, expected) => {
+    const pick = vi.fn(() => Promise.resolve(faceHit));
+    const { workbench, getInteraction } = harness(
+      pick,
+      undefined,
+      createInteractionState(),
+      granularity,
+    );
+
+    await workbench.click({ clientX: 100, clientY: 100 } as MouseEvent);
+
+    expect(selectedKeys(getInteraction())).toEqual([expected]);
+  });
+
   it("selects an owning element while keeping the exact pick in inspection", async () => {
     const pick = vi.fn(() => Promise.resolve(nodeHit));
     const { workbench, getInteraction, inspectionPanel } = harness(pick);

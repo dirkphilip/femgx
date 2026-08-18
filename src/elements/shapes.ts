@@ -73,7 +73,9 @@ export type ElementShape = (typeof ElementShape)[keyof typeof ElementShape];
  * @category Elements and model editing
  */
 export interface ElementTopology {
+  /** Element family. */
   readonly family: ElementFamily;
+  /** Interpolation order. */
   readonly order: ElementOrder;
   /** Number of nodes an element of this shape references. */
   readonly nodeCount: number;

@@ -68,7 +68,24 @@ function benchmarkLines(context: WorkbenchSceneContext): string[] {
       lines.push(`Benchmark transferred ${formatBytes(build.transferredBytes)}`);
     }
     if (build.finalRetainedTypedBytes !== undefined) {
-      lines.push(`Benchmark retained typed ${formatBytes(build.finalRetainedTypedBytes)}`);
+      lines.push(
+        `Benchmark retained typed arrays ${formatBytes(build.finalRetainedTypedBytes)} (semantic objects reported separately)`,
+      );
+    }
+    const semantic = build.semanticAllocationCounts;
+    if (semantic !== undefined) {
+      lines.push(
+        `Benchmark semantic descriptors ${formatCount(semantic.elementDescriptors)} elements · ${formatCount(semantic.faceDescriptors)} faces · ${formatCount(semantic.edgeDescriptors)} edges`,
+      );
+      lines.push(
+        `Benchmark semantic refs ${formatCount(semantic.faceNodeReferences)} face nodes · ${formatCount(semantic.edgeFaceReferences)} edge-face · ${formatCount(semantic.bodyElementReferences)} body elements`,
+      );
+      const csrBytes =
+        semantic.semanticIndex.nodeTriangleFaceOffsetsBytes +
+        semantic.semanticIndex.nodeTriangleFaceIdsBytes +
+        semantic.semanticIndex.neighborTriangleFaceOffsetsBytes +
+        semantic.semanticIndex.neighborTriangleFaceIdsBytes;
+      lines.push(`Benchmark semantic index capacity CSR ${formatBytes(csrBytes)}`);
     }
   }
   return lines;

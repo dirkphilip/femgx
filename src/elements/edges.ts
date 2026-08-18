@@ -24,6 +24,7 @@ export type EdgeKey = string;
  * @category Elements and model editing
  */
 export interface ElementEdge {
+  /** Canonical edge identity. */
   readonly key: EdgeKey;
   /** `[corner, mid?, corner]`; element-local in `edgesOf`, canonical in `uniqueEdges`. */
   readonly nodeIds: readonly NodeId[];

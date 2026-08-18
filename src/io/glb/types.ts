@@ -17,9 +17,13 @@ export interface GlbImportOptions {
  * @category Import and export
  */
 export interface GlbSceneImport {
+  /** Canonical scene assembled from imported display geometry. */
   readonly scene: Scene;
+  /** Imported part names keyed by stable part id. */
   readonly partNames: ReadonlyMap<PartId, string>;
+  /** Imported material styles keyed by stable part id. */
   readonly partStyles: ReadonlyMap<PartId, StyleOverride>;
+  /** Recoverable diagnostics emitted during import. */
   readonly issues: readonly Issue[];
 }
 

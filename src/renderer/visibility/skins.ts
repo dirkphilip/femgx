@@ -1,5 +1,7 @@
 import type { Part, TriangleGeometry } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
+import { packedSemanticStorage } from "../../geometry/packed/packed-semantic";
+import { buildPackedVisibilitySkinIndices } from "./packed-skin";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState } from "../../interaction/state";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
@@ -120,7 +122,7 @@ export function destroyVisibilitySkinCaches(draw: VisibilityDrawOwner): void {
 }
 
 interface VisibilityPartMetadata {
-  readonly elements: ReadonlyMap<number, unknown>;
+  readonly elements: { has(id: number): boolean };
   readonly knownBodies: ReadonlySet<number>;
 }
 
@@ -133,6 +135,15 @@ function buildVisibilityMetadata(
     ...metadata.bodies.keys(),
     ...metadata.bodyByElement.values(),
   ]);
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) {
+    for (const neighborOrdinal of packed.faceNeighborElementOrdinals) {
+      if (neighborOrdinal === 0) continue;
+      const bodyId = packed.elementBodyIds?.[neighborOrdinal - 1] ?? 0;
+      if (bodyId !== 0) knownBodies.add(bodyId);
+    }
+    return { elements: metadata.elements, knownBodies };
+  }
   for (const face of geometry?.faces ?? []) {
     if (face.bodyId !== undefined) knownBodies.add(face.bodyId);
     if (face.neighborElementId !== undefined) {
@@ -246,6 +257,8 @@ function buildSkinIndices(
   signature: VisibilitySignature,
 ): Uint32Array {
   const metadata = getPartSemanticIndex(part);
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) return buildPackedVisibilitySkinIndices(packed, signature);
   const indices: number[] = [];
   for (const face of geometry.faces ?? []) {
     const ownerBody = face.bodyId ?? metadata.bodyByElement.get(face.elementId);
@@ -350,7 +363,7 @@ function emptyBuffer(draw: VisibilityDrawOwner): GPUBuffer {
 
 function relevantIds(
   ids: ReadonlySet<number> | undefined,
-  known: ReadonlyMap<number, unknown> | ReadonlySet<number>,
+  known: { has(id: number): boolean },
 ): readonly number[] {
   if (ids === undefined || ids.size === 0) return [];
   const result = [...ids].filter((id) => known.has(id));

@@ -2,6 +2,7 @@ import { createCamera, projectPoint, type Camera } from "../../src/camera/camera
 import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
 import type { Geometry } from "../../src/geometry/part";
+import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
 import {
   createWebGpuRendererInternal,
   drainGpuTimestampSamples,
@@ -23,8 +24,10 @@ import {
 } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
 import { measureSelectionBenchmark } from "./selection";
+import { measureNodeSelectionBenchmark } from "./node-selection";
 import type {
   BenchmarkTimings,
+  NodeSelectionBenchmarkReport,
   SelectionBenchmarkReport,
   WebGpuBenchmarkCaseResult,
 } from "./types";
@@ -62,7 +65,11 @@ export async function measureBenchmarkCase(
   device: GPUDevice,
   benchmarkCase: WebGpuBenchmarkCase,
   modelBuildMs: number,
-  options: { readonly timestampQueriesRequested?: boolean } = {},
+  options: {
+    readonly timestampQueriesRequested?: boolean;
+    readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+    readonly holdNodeSelectionForCapture?: () => Promise<void>;
+  } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
   let runtimeCompileMs: number;
@@ -75,6 +82,7 @@ export async function measureBenchmarkCase(
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
   let overlayInteractive: WebGpuBenchmarkCaseResult["overlayInteractive"];
   let selection: SelectionBenchmarkReport | undefined;
+  let nodeSelection: NodeSelectionBenchmarkReport | undefined;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
   let materializedEdgePartIds: ReadonlySet<number>;
@@ -144,6 +152,17 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "authored node-selection sample";
+    nodeSelection = await measureNodeSelectionBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+      ...(options.holdNodeSelectionForCapture === undefined
+        ? {}
+        : { holdFinalSelection: options.holdNodeSelectionForCapture }),
+    });
     phase = "timestamp readback";
     await drainGpuTimestampSamples(renderer);
     gpuTimestamps = readGpuTimestampSnapshot(renderer);
@@ -172,12 +191,14 @@ export async function measureBenchmarkCase(
     submittedTriangles: submittedTriangleCount(benchmarkCase, runtime, false),
     visibleTriangles: submittedTriangleCount(benchmarkCase, runtime, true),
     modelBuildMs,
+    ...(options.denseBuild === undefined ? {} : { denseBuild: options.denseBuild }),
     runtimeCompileMs,
     instanceCount: runtime.instanceCount,
     timings: summarize(coldSample, samples),
     ...(interactive === undefined ? {} : { interactive }),
     ...(overlayInteractive === undefined ? {} : { overlayInteractive }),
     ...(selection === undefined ? {} : { selection }),
+    ...(nodeSelection === undefined ? {} : { nodeSelection }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,
       runtime.instanceCount,
@@ -252,6 +273,11 @@ function countSubmittedElementOccurrences(
     const submittedElementIds = new Set<number>();
     for (const geometry of part.geometries) {
       if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
+        const packed = packedSemanticStorageForGeometry(geometry);
+        if (packed?.faceSubsetOrdinals !== undefined) {
+          addPackedSubsetElementIds(submittedElementIds, packed);
+          continue;
+        }
         for (const face of geometry.faceSubset.faceIds) submittedElementIds.add(face.elementId);
         continue;
       }
@@ -268,6 +294,17 @@ function countSubmittedElementOccurrences(
     count += submittedElementIds.size;
   }
   return count;
+}
+
+function addPackedSubsetElementIds(
+  target: Set<number>,
+  packed: NonNullable<ReturnType<typeof packedSemanticStorageForGeometry>>,
+): void {
+  for (const faceOrdinal of packed.faceSubsetOrdinals ?? []) {
+    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal];
+    const elementId = ownerOrdinal === undefined ? undefined : packed.elementIds[ownerOrdinal];
+    if (elementId !== undefined) target.add(elementId);
+  }
 }
 
 function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
@@ -354,6 +391,14 @@ export function submittedTriangleCount(
 function submittedTrianglesForGeometry(geometry: Geometry): number {
   if (geometry.primitive !== "triangles") return 0;
   if (geometry.faceSubset === undefined) return geometry.indices.length / 3;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed?.faceSubsetOrdinals !== undefined) {
+    let count = 0;
+    for (const faceOrdinal of packed.faceSubsetOrdinals) {
+      count += packed.facePrimitiveCounts[faceOrdinal] ?? 0;
+    }
+    return count;
+  }
   const primitiveCountByFace = new Map(
     (geometry.faces ?? []).map(
       (face) => [`${face.elementId}:${face.faceIndex}`, face.primitiveCount] as const,

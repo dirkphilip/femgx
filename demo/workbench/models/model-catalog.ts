@@ -14,7 +14,7 @@ interface RetainedPerformanceModel {
 /** Owns the two demo-private model catalogs and the ordinary model selection. */
 export class WorkbenchModelCatalog {
   private ordinaryModels: readonly WorkbenchModel[];
-  private readonly performanceModels: readonly WorkbenchModel[];
+  private performanceModels: readonly WorkbenchModel[];
   private currentMode: WorkbenchCatalogMode = "ordinary";
   private ordinarySelectionId: string;
   private performanceSelectionId = "";
@@ -100,6 +100,12 @@ export class WorkbenchModelCatalog {
       }
     } else this.ordinarySelectionId = id;
     return true;
+  }
+
+  /** Adds a lazy Performance Lab entry when that size is not already listed. */
+  ensurePerformanceModel(model: WorkbenchModel): void {
+    if (this.performanceModels.some((candidate) => candidate.id === model.id)) return;
+    this.performanceModels = [...this.performanceModels, model];
   }
 }
 

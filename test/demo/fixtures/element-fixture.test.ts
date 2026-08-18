@@ -66,6 +66,7 @@ describe("createElementFixture", () => {
   it("builds one reusable part for each helper and mapping example", () => {
     const fixture = createElementFixture();
     expect(fixture.partIds).toEqual({
+      controlNode: 16,
       point: 1,
       line: 2,
       line3: 3,
@@ -82,9 +83,9 @@ describe("createElementFixture", () => {
       pyramid5: 14,
       mixed: 15,
     });
-    expect(fixture.instanceCount).toBe(15);
-    expect(fixture.scene.parts.size).toBe(15);
-    expect(runtimeInstances(fixture)).toHaveLength(15);
+    expect(fixture.instanceCount).toBe(16);
+    expect(fixture.scene.parts.size).toBe(16);
+    expect(runtimeInstances(fixture)).toHaveLength(16);
   });
 
   it("uses one complete, ordered inventory with unique comparison cells", () => {
@@ -176,6 +177,10 @@ describe("createElementFixture", () => {
 
   it("produces geometry for points, lines, surfaces, and linear/quadratic volumes", () => {
     const { scene, partIds } = createElementFixture();
+    const controlNode = scene.parts.get(partIds.controlNode);
+    expect(controlNode?.geometries[0]?.primitive).toBe("points");
+    expect(controlNode?.elements).toBeUndefined();
+    expect(controlNode?.geometries[0]?.nodePickIds).toEqual(new Uint32Array([1]));
     expect(scene.parts.get(partIds.point)?.geometries[0]?.primitive).toBe("points");
     expect(scene.parts.get(partIds.line)?.geometries[0]?.primitive).toBe("lines");
     expect(scene.parts.get(partIds.line3)?.geometries[0]?.primitive).toBe("lines");

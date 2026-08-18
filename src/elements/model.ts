@@ -27,6 +27,7 @@ const EMPTY_BODY_MEMBERSHIP = new Map<ElementId, BodyId>();
 export interface ElementModel {
   /** Flat xyz coordinates, three floats per node id. */
   readonly nodes: Float32Array;
+  /** Authored elements with stable ids and canonical connectivity. */
   readonly elements: readonly Element[];
   /** Optional bodies with direct element membership. */
   readonly bodies?: readonly Body[];

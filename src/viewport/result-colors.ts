@@ -33,14 +33,15 @@ export function resolveViewportResultColors(
     state,
     scalar === undefined
       ? undefined
-      : (reusable ?? buildResultColors(scalar.field, scalar.colorMap, scene, runtime)),
+      : (reusable ??
+          buildResultColors(scalar.field, scalar.colorMap, scene, runtime, scalar.config.partId)),
   );
   partsByState.set(
     state,
     scalar === undefined
       ? undefined
       : reusable === undefined
-        ? renderedParts(scene, runtime)
+        ? renderedParts(scene, runtime, scalar.config.partId)
         : previous === undefined
           ? undefined
           : partsByState.get(previous),
@@ -52,14 +53,15 @@ export function validateResultCoverage(
   field: ViewportResultField,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  partId?: PartId,
 ): void {
   if (field.location === "nodal") {
-    validateNodalCoverage(field, scene, runtime);
+    validateNodalCoverage(field, scene, runtime, partId);
     return;
   }
-  for (const partId of renderedPartIds(runtime)) {
-    for (const element of scene.parts.get(partId)?.elements ?? []) {
-      validateElementId(field, partId, element.id);
+  for (const renderedPartId of targetPartIds(runtime, partId)) {
+    for (const element of scene.parts.get(renderedPartId)?.elements ?? []) {
+      validateElementId(field, renderedPartId, element.id);
     }
   }
 }
@@ -91,6 +93,7 @@ function reusableResultColors(
   if (
     previous?.scalar === undefined ||
     previous.scalar.colorMap !== scalar.colorMap ||
+    previous.scalar.config.partId !== scalar.config.partId ||
     !sameFieldSource(previous.scalar.field, scalar.field) ||
     !sameRenderedParts(previous, scene, runtime)
   ) {
@@ -113,11 +116,15 @@ function sameRenderedParts(
   return true;
 }
 
-function renderedParts(scene: Scene, runtime: PackedSceneRuntime): ReadonlyMap<PartId, Part> {
+function renderedParts(
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  partId?: PartId,
+): ReadonlyMap<PartId, Part> {
   const parts = new Map<PartId, Part>();
-  for (const partId of renderedPartIds(runtime)) {
-    const part = scene.parts.get(partId);
-    if (part !== undefined) parts.set(partId, part);
+  for (const renderedPartId of targetPartIds(runtime, partId)) {
+    const part = scene.parts.get(renderedPartId);
+    if (part !== undefined) parts.set(renderedPartId, part);
   }
   return parts;
 }
@@ -127,10 +134,11 @@ function buildResultColors(
   colorMap: ScalarColorMap,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  partId?: PartId,
 ): ResultColorMap {
   return field.location === "nodal"
-    ? buildNodalResultColors(field, colorMap, scene, runtime)
-    : buildElementalResultColors(field, colorMap, scene, runtime);
+    ? buildNodalResultColors(field, colorMap, scene, runtime, partId)
+    : buildElementalResultColors(field, colorMap, scene, runtime, partId);
 }
 
 function buildElementalResultColors(
@@ -138,10 +146,11 @@ function buildElementalResultColors(
   colorMap: ScalarColorMap,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  partId?: PartId,
 ): ResultColorMap {
   const colors = new Map<PartId, ResultColorTable>();
-  for (const partId of renderedPartIds(runtime)) {
-    const elements = scene.parts.get(partId)?.elements;
+  for (const renderedPartId of targetPartIds(runtime, partId)) {
+    const elements = scene.parts.get(renderedPartId)?.elements;
     if (elements === undefined || elements.length === 0) continue;
     const values = new Float32Array((elements.length + 1) * 4);
     for (const [index, element] of elements.entries()) {
@@ -152,7 +161,7 @@ function buildElementalResultColors(
       values[offset + 2] = color.b;
       values[offset + 3] = color.a;
     }
-    colors.set(partId, { location: "elemental", values });
+    colors.set(renderedPartId, { location: "elemental", values });
   }
   if (colors.size === 0) {
     throw new Error(`Viewport results field ${field.id} has no element-bearing part in the scene`);
@@ -165,10 +174,11 @@ function buildNodalResultColors(
   colorMap: ScalarColorMap,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  partId?: PartId,
 ): ResultColorMap {
   const colors = new Map<PartId, ResultColorTable>();
-  for (const partId of renderedPartIds(runtime)) {
-    const part = scene.parts.get(partId);
+  for (const renderedPartId of targetPartIds(runtime, partId)) {
+    const part = scene.parts.get(renderedPartId);
     const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (nodePickIds === undefined) continue;
     const data = new Float32Array((maxNodePickId(nodePickIds) + 1) * 4);
@@ -180,7 +190,7 @@ function buildNodalResultColors(
       data[offset + 2] = color.b;
       data[offset + 3] = color.a;
     }
-    colors.set(partId, { location: "nodal", values: data });
+    colors.set(renderedPartId, { location: "nodal", values: data });
   }
   return colors;
 }
@@ -201,23 +211,33 @@ function validateNodalCoverage(
   field: ScalarField<"nodal">,
   scene: Scene,
   runtime: PackedSceneRuntime,
+  partId?: PartId,
 ): void {
-  for (const partId of renderedPartIds(runtime)) {
-    const part = scene.parts.get(partId);
+  for (const renderedPartId of targetPartIds(runtime, partId)) {
+    const part = scene.parts.get(renderedPartId);
     const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (part === undefined || nodePickIds === undefined) {
       throw new Error(
-        `Viewport nodal results field ${field.id} cannot map part ${partId}: geometry has no nodePickIds`,
+        `Viewport nodal results field ${field.id} cannot map part ${renderedPartId}: geometry has no nodePickIds`,
       );
     }
     for (const pickId of nodePickIds) {
       if (!Number.isInteger(pickId) || pickId <= 0 || pickId > field.count) {
         throw new Error(
-          `Viewport nodal results field ${field.id} (count ${field.count}) has no value for node pick id ${pickId} in part ${partId}`,
+          `Viewport nodal results field ${field.id} (count ${field.count}) has no value for node pick id ${pickId} in part ${renderedPartId}`,
         );
       }
     }
   }
+}
+
+function targetPartIds(runtime: PackedSceneRuntime, partId?: PartId): ReadonlySet<PartId> {
+  const rendered = renderedPartIds(runtime);
+  if (partId === undefined) return rendered;
+  if (!rendered.has(partId)) {
+    throw new Error(`Viewport scalar part ${partId} is not rendered by the current runtime`);
+  }
+  return new Set([partId]);
 }
 
 function maxNodePickId(nodePickIds: Uint32Array): number {

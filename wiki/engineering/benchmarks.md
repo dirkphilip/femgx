@@ -13,36 +13,68 @@ this CPU report does not claim that GPU/readback behavior.
 FE demo and benchmark topology follows [[requirements/demo-fixtures|the demo
 fixture requirements contract]].
 
+The Performance Lab offers structured Tet4 presets at 24,576, 131,712, and
+257,250 authored elements. Each preset builds dense typed-array topology and
+tessellation in the existing worker, transfers ownership of those buffers, and
+then reconstructs the canonical interactive `Part` on the main thread. The
+structured builder uses authored node ids directly as vertex indices, shares
+the node-position buffer with geometry, and uses packed numeric face identities
+instead of allocating string keys. Grid sizes are bounded to 35 cells per axis.
+The
+presets retain authored element, face, edge, and body identities while drawing
+only the exterior face subset. Their build telemetry separates generation,
+topology, tessellation, transfer preparation, transfer, and main-thread
+reconstruction so fast mesh generation is not confused with renderer attach or
+frame performance. Main-thread reconstruction supplies packed semantic columns
+directly to the canonical `Part`; its public `elements`, `faces`, and `edges`
+arrays remain available as lazy views for compatibility, while upload, picking,
+face-subset, visibility-skin, and semantic-index paths traverse the columns.
+
 The Performance Lab keeps its visible benchmark catalog lazy and may retain at
 most one authoritative CPU model. Retention is bounded by a demo-private 256
-MiB hard cap based on deterministic typed-array and 208-byte planar or
-3,072-byte structured-FE element-record estimates; the estimate excludes
-renderer-owned GPU resources. A successful under-cap case is reused after an
-ordinary-catalog round trip, selecting another case evicts the prior reference,
-and over-cap cases rebuild when explicitly selected again. The current outcome
-is available only in the development diagnostics HUD.
+MiB hard cap based on deterministic typed-array and conservative 208-byte
+planar or 3,072-byte structured-FE element-record estimates; the estimate
+excludes renderer-owned GPU resources and is a retention-policy estimate, not a
+measurement of JavaScript heap usage. A successful under-cap case is reused
+after an ordinary-catalog round trip, selecting another case evicts the prior
+reference, and over-cap cases rebuild when explicitly selected again. The
+current outcome is available only in the development diagnostics HUD.
 
 The over-budget `fe-tet4-solid-132k` case is generated through one lazily
 created demo-owned module Worker. The Worker receives only the deterministic
 benchmark spec and request id, builds a dense typed geometry/topology payload,
 transfers its buffers, and is terminated before the main thread reconstructs
 the validated immutable `Part` and `Scene`. Face neighbors and the exterior
-skin are transferred as compact typed arrays; authored face and edge objects
-are reconstructed once from the grid spec, so the authoritative model does
-not retain a second dense semantic representation. A new selection, catalog
-switch, file open, or controller destroy terminates the active Worker, and the
-session commits only the current request id. Smaller cases retain the simpler
-synchronous deferred path.
+skin are transferred as compact typed arrays; the packed `Part` retains those
+columns as the one authoritative semantic representation. A new selection,
+catalog switch, file open, or controller destroy terminates the active Worker,
+and the session commits only the current request id. Smaller cases retain the
+simpler synchronous deferred path.
 
 The Worker path records generation, topology, tessellation, transfer
 preparation, transfer, reconstruction, transferred bytes, and final retained
-typed bytes in development diagnostics. A full local 28-cell dense build
-measured about 0.25 s for construction, 1.53 s for main-thread reconstruction,
-9.15 MiB transferred, and 6.68 MiB retained typed payload in the focused
-Node/Vitest measurement. The transfer/reconstruction footprint is therefore
-about 1.3× the final retained typed payload; browser/driver memory is outside
-this estimate. The existing opt-in system-Chrome benchmark remains the
-authority for runtime compilation and first-upload measurements.
+typed bytes in development diagnostics. Dense cases also record deterministic
+semantic allocation counts: element and primitive-range descriptors, face
+descriptors and node/key references, edge descriptors and incidence
+references, body membership references, and semantic-index map entries plus
+exact node-to-face CSR bytes. These counts make the object-heavy portion
+visible without pretending that a portable byte count for JavaScript objects
+exists. With packed reconstruction, the 28-cell payload contains 131,712
+elements, 526,848 faces, 160,804 edges, 1,580,544 edge-face references,
+8,857,424 transferred typed bytes (8.45 MiB), and 47,372,404 retained typed
+bytes (45.18 MiB); the 35-cell payload contains 257,250 elements, 1,029,000
+faces, 311,255 edges, 3,087,000 edge-face references, 17,269,296 transferred
+typed bytes (16.47 MiB), and 92,437,480 retained typed bytes (88.16 MiB). The
+retained semantic columns are intentional: they preserve full-volume face,
+edge, neighbor, and body semantics without per-row JavaScript objects. The
+element, face, edge, primitive-range, and semantic-index entry counts are zero
+until a descriptor-consuming convenience or optional feature explicitly asks
+for them; body descriptors and typed references remain reported. The edge
+count includes the authored face and body diagonals introduced by the six-Tet
+cube split. Both typed-byte fields exclude JavaScript object heap and driver
+allocations; a browser or Node `usedJSHeapSize` value is neither portable nor
+authoritative. The existing opt-in system-Chrome benchmark remains the authority
+for runtime compilation and first-upload measurements.
 
 ## Budget gate (runs in default CI)
 
@@ -207,10 +239,36 @@ selection seam with stable CPU boundaries: fresh interaction identity through
 `collectDenseElementSelections` and packed highlight payload writing, separate
 draw-range construction, and one unchanged identity-cache repeat. It records
 the authored 526,848-face descriptor count, exterior 9,408-face subset, dense
-4,116-word/16,468-byte payload, and exact dense-skin descriptor reads; it does
-not claim fake queue writes, GPU completion, or frame smoothness. Method,
-targets, current numbers, and the before/after changelog live in
+4,116-word/16,468-byte payload, exact neighbor-face entries traversed, and the
+retained neighbor-CSR bytes. Timed draw samples assert the intentional half
+range-cap fallback and the all-but-one/all draw-call shapes. Fixture creation,
+semantic-index construction, and storage allocation remain outside timing. The
+lane does not claim fake queue writes, GPU completion, or frame smoothness.
+Method, targets, current numbers, and the before/after changelog live in
 [[engineering/performance-baselines|Performance baselines]].
+
+The opt-in `npm run bench:node-selection-sync` lane records 26 isolated CPU and
+fake-GPU seams for the same Tet4 part: cold node-sprite expansion, cold dense
+node-topology construction, immutable selection construction, profitable dense
+membership classification, sparse emphasis collection, fresh highlight-storage
+encoding/copy, selected-node order construction, and isolated node-order sync.
+It covers two nodes, half and all 24,389 nodes in one occurrence, plus one node
+across 32 occurrences. Fixture/model construction and semantic-index work are
+outside timing. Each cold topology sample writes 526,848 element-node owner
+occurrences into 9,112,460 bytes of raw typed output; each dense half/all
+selection uses a 3,056-byte payload in 3,200 bytes of fresh highlight storage.
+The rows are deliberately non-additive and do not claim real queue submission,
+upload completion, draw, or frame time. Those boundaries are measured by the
+schema-11 system-Chrome report's `nodeSelection` section.
+
+The real-WebGPU node lane is opt-in and limited to `fe-tet4-solid-132k`. It
+records half/all immutable-state and renderer-sync CPU time, queue-drained first
+frame, seven steady frames, clear, structural node draw work, and highlight
+storage bytes. A separate `RUN_PERF_NODE_VISUAL=1` Playwright lane reapplies all
+nodes and captures nonblank real-WebGPU screenshots at desktop and 390×844.
+The first half-node frame intentionally includes lazy node-overlay topology,
+sprite-buffer, GPU-buffer, and bind-group preparation; the following all-node
+phase is resident and must not be compared as another cold upload.
 
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
 prints their measured medians for human review and trend comparison. The
@@ -522,7 +580,10 @@ ordinary model catalog and a discoverable **Performance Lab** switch. The switch
 reveals the deterministic capacity cases from `demo/benchmark/model.ts` and the
 shared `demo/fixtures/planar-grid.ts` generator as lazy entries; ordinary startup
 creates no benchmark geometry or capacity work, and a case builds only after it
-is selected. The benchmark owns reproducible cost breakdowns, while diagnostics
+is selected. The workbench can mesh a cubic Tet4 solid on demand
+(`?tet4=<cells>` or the Cells control) through the same dense worker and
+canonical reconstruction used by the fixed Tet4 cases. Dynamic sizes remain
+outside the fixed `npm run bench:webgpu` matrix. The benchmark owns reproducible cost breakdowns, while diagnostics
 may still consume the retained `Performance · 2.10M triangles` fixture directly.
 The catalogs and benchmark are subject to [[requirements/demo-fixtures|the same
 fixture contract]]; issue #526 remains the work tracker until the migration is
@@ -591,6 +652,15 @@ Optimize the truthful admitted presentation first. If dense nodes cannot meet
 the reference budget without changing semantics, open an explicit product
 decision rather than silently reducing them. Do not infer a universal capacity
 guarantee from one adapter.
+
+## Package bundle budget
+
+The root package smoke test admits at most 445,000 raw bytes and 110,000 gzip
+bytes. The raw ceiling includes the internal packed semantic consumers required
+for dense upload, picking, visibility, selection, sections, bounds, and result
+orientation; their constructor and validation path remains outside the public
+facade. Keep the gzip ceiling unchanged and treat further growth as a design
+review trigger rather than weakening both limits together.
 
 [engineering/quality-gate|Quality gate]: quality-gate.md
 [engineering/gpu-performance|GPU rendering performance]: gpu-performance.md

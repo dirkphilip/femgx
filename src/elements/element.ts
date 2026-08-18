@@ -24,8 +24,11 @@ export type NodeId = number;
  * @category Elements and model editing
  */
 export interface Element {
+  /** Stable authored element identifier. */
   readonly id: ElementId;
+  /** Supported finite-element shape. */
   readonly shape: ElementShape;
+  /** Node ids in the shape's canonical connectivity order. */
   readonly nodeIds: readonly NodeId[];
 }
 

@@ -81,6 +81,19 @@ identity; element and body ids reserve the top raw value because `0` is
 the no-hit sentinel. Derived descriptors never become a second authoring
 source.
 
+Dense FE producers may supply validated authored semantic columns through the
+same internal `Part` construction boundary. The columns are the authoritative
+full-volume element, face, neighbor, edge, and body data; public `elements`,
+`faces`, and `edges` remain lazy convenience views and do not become a second
+runtime graph. Renderer upload, visibility skins, picking, section caps,
+selected bounds, and orientation topology use the columns directly. This is
+an implementation choice for dense producers, not a public `PackedPart` or
+renderer mode. Ordinary `createPart` object input remains available for raw or
+irregular authored geometry whose exact public keys cannot be normalized
+without changing its semantics. Optional descriptor-consuming features may
+still materialize their own feature-local records; the benchmark reports this
+separately from portable typed-array retention.
+
 Raw geometry follows this boundary directly:
 
 ```ts
@@ -169,7 +182,7 @@ decision and stable public lifecycle contract.
 ### Elemental orientation results
 
 The public results boundary supports authored scalar coloring, nodal deformation,
-and one orthogonal elemental vector presentation role. `Viewport` owns all
+and one orthogonal elemental vector or full-frame presentation role. `Viewport` owns all
 roles in the same atomic result replacement; `Part`, `Scene`, and
 `SceneRuntime` do not own glyph state. The vector role's public vocabulary is
 limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`
@@ -186,6 +199,14 @@ viewport.results.set({
 All present roles are validated before the previous state is replaced. Anchors,
 records, GPU resources, and fixed presentation policy stay internal; see
 [[data/vector-field-visualization|Authored elemental orientation visualization]].
+Full orientation uses the explicit `ElementFrameField` format: an owning
+reusable `partId` plus nine dense part-local floats per element row in X/Y/Z
+axis order. It is intentionally not
+a vector-field extension because roll cannot be represented by one direction.
+`glyph: "triad"` draws the renderer-owned non-pickable RGB axes and shares the
+part data across all placements. Applied loads, occurrence-specific overrides,
+and user glyph plugins remain deferred; copying a part is the current host
+workaround for distinct instance values.
 
 ## Design test for new features
 

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
+import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -94,7 +95,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(8);
+      expect(report.schemaVersion).toBe(11);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -217,12 +218,39 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.faceCount).toBeGreaterThan(0);
       }
       if (entry.id === "fe-tet4-solid-132k") {
+        expectDenseNodeSelectionReport(entry);
+        expect(entry.denseBuild).toMatchObject({
+          generationMs: expect.any(Number),
+          topologyMs: expect.any(Number),
+          tessellationMs: expect.any(Number),
+          transferPreparationMs: expect.any(Number),
+          workerRoundTripMs: expect.any(Number),
+          mainReconstructionMs: expect.any(Number),
+          transferredBytes: expect.any(Number),
+          finalRetainedTypedBytes: expect.any(Number),
+          semanticAllocationCounts: expect.objectContaining({
+            elementDescriptors: 0,
+            faceDescriptors: 0,
+            edgeDescriptors: 0,
+            semanticIndex: expect.objectContaining({
+              nodeTriangleFaceIdsBytes: expect.any(Number),
+              neighborTriangleFaceOffsetsBytes: expect.any(Number),
+              neighborTriangleFaceIdsBytes: expect.any(Number),
+            }),
+          }),
+        });
         expect(entry.uniqueElementCount).toBe(131_712);
         expect(entry.submittedElementOccurrences).toBe(9_240);
         expect(entry.nodeCount).toBe(24_389);
         expect(entry.faceCount).toBe(526_848);
         expect(entry.uniqueTriangles).toBe(526_848);
         expect(entry.submittedTriangles).toBe(9_408);
+        expect(
+          (entry.denseBuild?.semanticAllocationCounts.semanticIndex
+            .neighborTriangleFaceOffsetsBytes ?? 0) +
+            (entry.denseBuild?.semanticAllocationCounts.semanticIndex
+              .neighborTriangleFaceIdsBytes ?? 0),
+        ).toBe(2_596_612);
         expect(entry.interactive).toBeDefined();
         const broad = entry.selection?.phases.find((phase) => phase.id === "broad");
         expect(broad?.returnedTargetCount).toBe(4_704);

@@ -16,6 +16,7 @@ import {
 import { syncEdgeEmphasisFlags } from "../edges/emphasis-sync";
 import { syncSelectionState, type SelectionState } from "../selection-state";
 import { collectDenseElementSelections } from "../selection/element-selection";
+import { collectDenseNodeSelections } from "../selection/node-selection";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { rebuildAttachmentCalls } from "./calls";
 
@@ -199,6 +200,12 @@ function syncBuffers(options: {
     options.parts,
     options.interaction,
   );
+  const denseNodeSelections = collectDenseNodeSelections(
+    options.runtime,
+    options.layout,
+    options.parts,
+    options.interaction,
+  );
   const transparentChanged = syncInteractionEmphasis({
     runtime: options.runtime,
     layout: options.layout,
@@ -210,6 +217,7 @@ function syncBuffers(options: {
     changedSlots: options.changedSlots,
     affectedParts: options.affectedParts,
     denseSelections,
+    denseNodeSelections,
   });
   const selectionChanged = syncSelectionState({
     runtime: options.runtime,
@@ -222,6 +230,7 @@ function syncBuffers(options: {
     nodeParts: options.nodeParts,
     changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
     denseSelections,
+    denseNodeSelections,
   });
   const edgeChanged = syncEdgeBuffers(options);
   return { transparentChanged, selectionChanged, edgeChanged };

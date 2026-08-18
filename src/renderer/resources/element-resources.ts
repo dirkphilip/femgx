@@ -24,6 +24,11 @@ import {
   sparseElementEmphasisRefs,
   type DenseElementSelections,
 } from "../selection/element-selection";
+import {
+  partNodeCount,
+  sparseNodeEmphasisRefs,
+  type DenseNodeSelections,
+} from "../selection/node-selection";
 export {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
@@ -65,6 +70,7 @@ interface EmphasisCollectionOptions {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly interaction: InteractionState;
   readonly denseSelections?: DenseElementSelections;
+  readonly denseNodeSelections?: DenseNodeSelections;
   readonly edgeKeysByPart?: ReadonlyMap<PartId, readonly string[]>;
 }
 
@@ -112,7 +118,7 @@ export function collectEmphasisUpdates(
   options: EmphasisCollectionOptions,
 ): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
-  const { parts, interaction, denseSelections, edgeKeysByPart } = options;
+  const { parts, interaction, denseSelections, denseNodeSelections, edgeKeysByPart } = options;
   const byPart = new Map<PartId, EmphasisUpdate[]>();
   const push = (partId: PartId, update: EmphasisUpdate): void => {
     const list = byPart.get(partId);
@@ -122,7 +128,7 @@ export function collectEmphasisUpdates(
   collectBodyEmphasis(context, parts, interaction, push);
   collectElementEmphasis(context, parts, interaction, push, denseSelections);
   collectFaceEmphasis(context, parts, interaction, push);
-  collectNodeEmphasis(context, interaction, push);
+  collectNodeEmphasis(context, parts, interaction, push, denseNodeSelections);
   collectEdgeEmphasis(context, interaction, edgeKeysByPart, push);
   return byPart;
 }
@@ -276,13 +282,22 @@ function collectFaceEmphasis(
 /** Collects node-level emphasis records. */
 function collectNodeEmphasis(
   context: EmphasisContext,
+  parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
+  denseNodeSelections?: DenseNodeSelections,
 ): void {
   const data = readInteractionState(interaction);
-  for (const ref of emphasizedNodeRefs(interaction)) {
+  const refs =
+    denseNodeSelections === undefined
+      ? emphasizedNodeRefs(interaction)
+      : sparseNodeEmphasisRefs(context.runtime, context.layout, interaction, denseNodeSelections);
+  for (const ref of refs) {
     const occurrence = occurrenceAt(context, ref.instanceId);
     if (occurrence === undefined) continue;
+    const part = parts.get(occurrence.instance.partId);
+    const nodeCount = part === undefined ? 0 : partNodeCount(part);
+    if (!Number.isSafeInteger(ref.nodeId) || ref.nodeId < 0 || ref.nodeId >= nodeCount) continue;
     const style = resolveNodeStyle(occurrence.instance, ref, defaultStyle, interaction);
     push(occurrence.instance.partId, {
       slot: occurrence.local,

@@ -60,11 +60,12 @@ import {
   buildElementPrimitiveOrdinals,
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
-  buildNodeBodyPickData,
-  buildNodeBodyOwnerData,
-  buildNodeSpritePickIds,
   buildPrimitiveFaceBodyPickData,
 } from "../../../../src/renderer/picking/ids";
+import {
+  buildNodeSpritePickIds,
+  buildNodeTopologyData,
+} from "../../../../src/renderer/picking/node-topology";
 
 import { HIGHLIGHT_BUCKET_SIZE } from "../../../../src/renderer/selection/highlight-table";
 
@@ -242,9 +243,8 @@ export {
   buildElementPrimitiveOrdinals,
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
-  buildNodeBodyPickData,
-  buildNodeBodyOwnerData,
   buildNodeSpritePickIds,
+  buildNodeTopologyData,
   buildPrimitiveFaceBodyPickData,
   HIGHLIGHT_BUCKET_SIZE,
   createDrawResources,

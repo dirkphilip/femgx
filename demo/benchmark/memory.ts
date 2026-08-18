@@ -1,4 +1,5 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
+import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/frame/deformation";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/frame/pipelines";
 import {
@@ -203,12 +204,19 @@ function subsetEstimate(
     return { bufferBytes: 0 };
   }
   let primitiveCount = 0;
-  for (const faceId of geometry.faceSubset.faceIds) {
-    const face = geometry.faces?.find(
-      (candidate) =>
-        candidate.elementId === faceId.elementId && candidate.faceIndex === faceId.faceIndex,
-    );
-    primitiveCount += face?.primitiveCount ?? 0;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed?.faceSubsetOrdinals !== undefined) {
+    for (const faceOrdinal of packed.faceSubsetOrdinals) {
+      primitiveCount += packed.facePrimitiveCounts[faceOrdinal] ?? 0;
+    }
+  } else {
+    for (const faceId of geometry.faceSubset.faceIds) {
+      const face = geometry.faces?.find(
+        (candidate) =>
+          candidate.elementId === faceId.elementId && candidate.faceIndex === faceId.faceIndex,
+      );
+      primitiveCount += face?.primitiveCount ?? 0;
+    }
   }
   const vertexCount = primitiveCount * 3;
   const edgeEndpointUpperBound = edgeMaterialized ? primitiveCount * 6 : 0;

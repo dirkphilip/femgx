@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  createElementFrameField,
+  createNodalLoadField,
+  frameAt,
   createResultField,
   scalarAt,
   vectorAt,
@@ -10,6 +13,34 @@ import {
 } from "../../src/results/fields";
 
 describe("createResultField", () => {
+  it("creates a part-owned six-component nodal load", () => {
+    const field = createNodalLoadField({
+      partId: 7,
+      id: "loads",
+      name: "Nodal loads",
+      count: 2,
+      forceUnit: "N",
+      momentUnit: "N·m",
+      values: new Float32Array([1, 0, 0, NaN, NaN, NaN, NaN, NaN, NaN, 0, 0, 2]),
+    });
+    expect(field.partId).toBe(7);
+    expect(field.shape).toBe("load");
+    expect(field.values).toHaveLength(12);
+  });
+
+  it("rejects mixed finite and missing load triplets", () => {
+    expect(() =>
+      createNodalLoadField({
+        partId: 7,
+        id: "loads",
+        name: "Nodal loads",
+        count: 1,
+        forceUnit: "N",
+        momentUnit: "N·m",
+        values: new Float32Array([1, NaN, 0, NaN, NaN, NaN]),
+      }),
+    ).toThrow("mixed finite/missing");
+  });
   it("creates a nodal scalar field", () => {
     const field = createResultField({
       id: "disp-z",
@@ -172,6 +203,47 @@ describe("createResultField", () => {
   });
 });
 
+describe("createElementFrameField", () => {
+  it("stores dense part-local XYZ rows and reads one frame", () => {
+    const values = new Float32Array([
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      ...new Array<number>(9).fill(Number.NaN),
+    ]);
+    const field = createElementFrameField({
+      partId: 4,
+      id: "frames",
+      name: "Element frames",
+      count: 2,
+      unit: "unitless",
+      values,
+    });
+    expect(field.shape).toBe("frame");
+    expect(frameAt(field, 0)).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+    expect(frameAt(field, 1).every(Number.isNaN)).toBe(true);
+  });
+
+  it("rejects a finite row with a zero axis", () => {
+    expect(() =>
+      createElementFrameField({
+        partId: 1,
+        id: "frames",
+        name: "Element frames",
+        count: 1,
+        unit: "unitless",
+        values: new Float32Array(9),
+      }),
+    ).toThrow(/zero axis/);
+  });
+});
+
 describe("entity accessors", () => {
   const scalar = createResultField({
     id: "s",
@@ -210,7 +282,7 @@ describe("entity accessors", () => {
   it("exposes a field typed as AnyResultField", () => {
     const anyField: AnyResultField = scalar;
     expect(anyField.shape).toBe("scalar");
-    const generic: ResultField<FieldShape, FieldLocation> = anyField;
+    const generic: ResultField<FieldShape, FieldLocation> = scalar;
     expect(generic.count).toBe(3);
   });
 });

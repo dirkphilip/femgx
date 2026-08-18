@@ -13,6 +13,10 @@ export interface OrientationGlyphRecordSource {
   readonly anchors: Float32Array;
   readonly referenceLengths: Float32Array;
   readonly directions: Float32Array;
+  readonly axisIndices?: Uint32Array;
+  readonly glyphModes?: Uint32Array;
+  readonly transformModes?: Uint32Array;
+  readonly lengthScales?: Float32Array;
   readonly anchorDeltas: Float32Array | undefined;
 }
 
@@ -29,7 +33,8 @@ export function packOrientationRecords(
     floats[target] = records.anchors[source] ?? 0;
     floats[target + 1] = records.anchors[source + 1] ?? 0;
     floats[target + 2] = records.anchors[source + 2] ?? 0;
-    floats[target + 3] = records.referenceLengths[index] ?? 0;
+    floats[target + 3] =
+      (records.referenceLengths[index] ?? 0) * (records.lengthScales?.[index] ?? 1);
     floats[target + 4] = records.directions[source] ?? 0;
     floats[target + 5] = records.directions[source + 1] ?? 0;
     floats[target + 6] = records.directions[source + 2] ?? 0;
@@ -39,6 +44,13 @@ export function packOrientationRecords(
     floats[target + 10] = delta?.[source + 2] ?? 0;
     ids[target + 12] = records.elementIds[index] ?? 0;
     ids[target + 13] = records.bodyIds[index] ?? 0;
+    ids[target + 14] = records.axisIndices?.[index] ?? 0;
+    const mode = records.glyphModes?.[index];
+    const transform = records.transformModes?.[index];
+    ids[target + 15] =
+      mode === undefined && transform === undefined
+        ? 0xffffffff
+        : (mode ?? 0) | ((transform ?? 0) << 8);
   }
   return new Uint8Array(packed);
 }
@@ -53,6 +65,10 @@ export function orientationGlyphRecordSource(
     anchors: records.anchors,
     referenceLengths: records.referenceLengths,
     directions: records.directions,
+    ...(records.axisIndices === undefined ? {} : { axisIndices: records.axisIndices }),
+    ...(records.glyphModes === undefined ? {} : { glyphModes: records.glyphModes }),
+    ...(records.transformModes === undefined ? {} : { transformModes: records.transformModes }),
+    ...(records.lengthScales === undefined ? {} : { lengthScales: records.lengthScales }),
     anchorDeltas: records.anchorDeltas,
   };
 }
@@ -68,6 +84,10 @@ export function sameOrientationGlyphRecordSource(
     source.anchors === records.anchors &&
     source.referenceLengths === records.referenceLengths &&
     source.directions === records.directions &&
+    source.axisIndices === records.axisIndices &&
+    source.glyphModes === records.glyphModes &&
+    source.transformModes === records.transformModes &&
+    source.lengthScales === records.lengthScales &&
     source.anchorDeltas === records.anchorDeltas
   );
 }

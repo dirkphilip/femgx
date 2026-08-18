@@ -41,17 +41,19 @@ export function applyResolvedViewportResults(
   results: ViewportResultsState | undefined,
 ): void {
   const vectors = results?.vectors;
+  const load = results?.loads;
+  const widthPixels = Math.max(vectors?.widthPixels ?? 1, load?.widthPixels ?? 1);
   setRendererOrientationGlyphs(
     renderer,
-    vectors === undefined
+    vectors === undefined && load === undefined
       ? undefined
       : {
           parts:
             results === undefined ? new Map() : (viewportOrientationRecords(results) ?? new Map()),
-          mode: vectors.glyph,
-          transform: vectors.transform,
-          lengthScale: vectors.lengthScale,
-          widthPixels: vectors.widthPixels,
+          mode: vectors === undefined || load !== undefined ? "arrow" : vectors.glyph,
+          transform: vectors?.transform ?? "direction",
+          lengthScale: 1,
+          widthPixels,
         },
   );
   renderer.setDeformation(results?.deformation);

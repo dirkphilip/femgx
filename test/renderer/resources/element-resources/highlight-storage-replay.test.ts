@@ -1,0 +1,120 @@
+import { describe, expect, it } from "vitest";
+import {
+  ELEMENT_RECORD_STRIDE,
+  HIGHLIGHT_HEADER,
+  elementUpdate,
+  fakeGpuDevice,
+  installGpuGlobals,
+  makeStorage,
+  writeElementHighlights,
+} from "./support";
+
+describe("dense highlight GPU replay", () => {
+  it("reconstructs both dense kinds through growth, partial clear, release, and regrowth", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      const selection = denseSelection(2, [1, 1]);
+      const nodeSelection = denseSelection(3, [1, 4]);
+      writeElementHighlights(gpu.device, storage, [], {
+        selection,
+        nodeSelection,
+        slotCapacity: 4,
+      });
+      expectGpuMirror(gpu, storage.highlight);
+
+      const firstBuffer = storage.highlight.buffer;
+      writeElementHighlights(gpu.device, storage, [elementUpdate(2, 9)], {
+        selection,
+        nodeSelection,
+        slotCapacity: 4,
+      });
+      expect(storage.highlight.buffer).not.toBe(firstBuffer);
+      expect(storage.highlight.denseSelection).toBe(selection);
+      expect(storage.highlight.denseNodeSelection).toBe(nodeSelection);
+      const payloadOffset =
+        HIGHLIGHT_HEADER + storage.highlight.sparseCapacity * ELEMENT_RECORD_STRIDE;
+      expect(
+        gpu.writes.filter(
+          (write) => write.buffer === storage.highlight.buffer && write.offset === payloadOffset,
+        ),
+      ).toHaveLength(1);
+      expectDenseMirror(storage.highlight.data, selection, nodeSelection);
+      expectGpuMirror(gpu, storage.highlight);
+
+      writeElementHighlights(gpu.device, storage, [], { nodeSelection, slotCapacity: 4 });
+      expect(storage.highlight.denseSelection).toBeUndefined();
+      expect(storage.highlight.denseNodeSelection).toBe(nodeSelection);
+      expectDenseMirror(storage.highlight.data, undefined, nodeSelection);
+      expectGpuMirror(gpu, storage.highlight);
+
+      const releasedBuffer = storage.highlight.buffer;
+      writeElementHighlights(gpu.device, storage, []);
+      expect(storage.highlightOwned).toBe(false);
+      expect(gpu.buffers.find((buffer) => buffer.resource === releasedBuffer)?.destroyed).toBe(
+        true,
+      );
+      expect(gpu.writes.at(-1)?.bytes.byteLength).toBe(Uint32Array.BYTES_PER_ELEMENT * 4);
+
+      writeElementHighlights(gpu.device, storage, [], {
+        selection,
+        nodeSelection,
+        slotCapacity: 4,
+      });
+      expect(storage.highlightOwned).toBe(true);
+      expectDenseMirror(storage.highlight.data, selection, nodeSelection);
+      expectGpuMirror(gpu, storage.highlight);
+    } finally {
+      restore();
+    }
+  });
+});
+
+function denseSelection(slot: number, words: readonly number[]) {
+  return {
+    elementCount: words.length * 32,
+    nodeCount: words.length * 32,
+    occurrences: [{ slot, selectedCount: 2, words: new Uint32Array(words) }],
+  };
+}
+
+function expectDenseMirror(
+  data: Uint8Array,
+  selection:
+    | { readonly occurrences: readonly { readonly slot: number; readonly words: Uint32Array }[] }
+    | undefined,
+  nodeSelection:
+    | { readonly occurrences: readonly { readonly slot: number; readonly words: Uint32Array }[] }
+    | undefined,
+): void {
+  const values = new Uint32Array(data.buffer);
+  const payload = HIGHLIGHT_HEADER / 4;
+  const elementOffset = values[4] ?? 0;
+  const elementBits = values[5] ?? 0;
+  const nodeOffset = values[16] ?? 0;
+  const nodeBits = values[17] ?? 0;
+  expect(values[payload + elementOffset + (selection?.occurrences[0]?.slot ?? 0)]).toBe(
+    selection === undefined ? 0xffffffff : 0,
+  );
+  if (selection !== undefined) {
+    expect(values[payload + elementBits]).toBe(selection.occurrences[0]?.words[0]);
+  }
+  expect(values[payload + nodeOffset + (nodeSelection?.occurrences[0]?.slot ?? 0)]).toBe(
+    nodeSelection === undefined ? 0xffffffff : 0,
+  );
+  if (nodeSelection !== undefined) {
+    expect(values[payload + nodeBits]).toBe(nodeSelection.occurrences[0]?.words[0]);
+  }
+}
+
+function expectGpuMirror(
+  gpu: ReturnType<typeof fakeGpuDevice>,
+  storage: { readonly buffer: GPUBuffer; readonly data: Uint8Array },
+): void {
+  const replay = new Uint8Array(storage.data.byteLength);
+  for (const write of gpu.writes) {
+    if (write.buffer === storage.buffer) replay.set(write.bytes, write.offset);
+  }
+  expect(replay).toEqual(storage.data);
+}

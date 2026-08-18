@@ -17,6 +17,7 @@ import {
   fakeGpuDevice,
   installTestGpuGlobals,
 } from "./support";
+import { createElementFrameField, createNodalLoadField } from "../../../src/results/fields";
 
 describe("viewport results workflow", () => {
   it("accepts every non-empty combination of independent result roles", () => {
@@ -51,6 +52,77 @@ describe("viewport results workflow", () => {
     }
   });
 
+  it("composes a part-owned nodal load with scalar and orientation records", () => {
+    const scene = createTestScene();
+    const runtime = { instanceCount: 1, getPartId: () => 1, getInstanceId: () => "1/0" } as never;
+    const load = createNodalLoadField({
+      partId: 1,
+      id: "load",
+      name: "Load",
+      count: 3,
+      forceUnit: "N",
+      momentUnit: "N·m",
+      values: new Float32Array([
+        1,
+        0,
+        0,
+        NaN,
+        NaN,
+        NaN,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+        NaN,
+      ]),
+    });
+    const result = resolveViewportResults(
+      { scalar: { field: elementalScalar() }, loads: { field: load } },
+      scene,
+      runtime,
+    );
+    expect(result.loads?.field).toBe(load);
+    expect(viewportOrientationRecords(result)?.get(1)?.elementIds.length).toBe(8);
+  });
+
+  it("installs load-only and load-plus-normal snapshots", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const scene = createTestScene();
+    const load = createNodalLoadField({
+      partId: 1,
+      id: "load-only",
+      name: "Load only",
+      count: 3,
+      forceUnit: "N",
+      momentUnit: "N·m",
+      values: new Float32Array([1, 0, 0, NaN, NaN, NaN, ...missingValues(12)]),
+    });
+    const vector = elementalVector();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: gpu.device,
+      results: { loads: { field: load } },
+    });
+    expect(viewport.results.state?.loads?.field).toBe(load);
+    viewport.results.set({
+      loads: { field: load },
+      vectors: { field: vector, glyph: "arrow", transform: "normal" },
+    });
+    expect(viewport.results.state?.loads?.field).toBe(load);
+    expect(viewport.results.state?.vectors?.transform).toBe("normal");
+    viewport.destroy();
+  });
+
   it("keeps vector-only state independent and reuses records across presentation updates", () => {
     const scene = createTestScene();
     const runtime = {
@@ -78,6 +150,29 @@ describe("viewport results workflow", () => {
     expect(viewportOrientationRecords(second)?.get(1)?.directions).toBe(
       viewportOrientationRecords(first)?.get(1)?.directions,
     );
+  });
+
+  it("resolves complete authored element frames as three RGB triad records", () => {
+    const scene = createTestScene();
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+    const field = createElementFrameField({
+      partId: 1,
+      id: "frame",
+      name: "Frame",
+      count: 1,
+      unit: "unitless",
+      values: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+    });
+    const result = resolveViewportResults({ vectors: { field, glyph: "triad" } }, scene, runtime);
+    expect(result.vectors?.glyph).toBe("triad");
+    const records = viewportOrientationRecords(result)?.get(1);
+    expect(records?.elementIds).toEqual(new Uint32Array([0, 0, 0]));
+    expect(records?.axisIndices).toEqual(new Uint32Array([0, 1, 2]));
+    expect(records?.directions).toEqual(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
   });
 
   it("accepts bounded fractional vector widths and rejects invalid replacements atomically", async () => {
@@ -212,3 +307,7 @@ describe("viewport results workflow", () => {
     ).not.toThrow();
   });
 });
+
+function missingValues(count: number): number[] {
+  return Array.from({ length: count }, () => Number.NaN);
+}

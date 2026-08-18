@@ -14,6 +14,7 @@ import {
 } from "../geometry/part";
 import { buildElementSectionCap, type SectionCap } from "../geometry/section-cap";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
+import { packedElementTransient, packedSemanticStorage } from "../geometry/packed/packed-semantic";
 import type { SectionPlane } from "../math/section-plane";
 import { identity } from "../math/mat4";
 import { defaultStyle } from "./resources/foundation";
@@ -62,6 +63,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     const elements = sourcePart.elements;
     const sourcePositions = sourcePart.nodePositions;
     if (elements === undefined || sourcePositions === undefined) continue;
+    const packed = packedSemanticStorage(sourcePart);
     const metadata = getPartSemanticIndex(sourcePart);
     for (const slot of options.runtime.getPartInstanceSlots(sourcePart.id)) {
       if (!options.runtime.isInstanceVisible(slot)) continue;
@@ -69,7 +71,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
       if (instanceId === undefined) continue;
       const instance = instanceAt(options.runtime, slot, sourcePart.id);
       const displacements = options.deformation?.displacements.get(sourcePart.id);
-      for (const element of elements) {
+      for (const element of sectionElements(elements, packed)) {
         if (!capElementVisible(options.interaction, instanceId, element, metadata)) continue;
         const cap = buildElementSectionCap({
           part: sourcePart,
@@ -108,6 +110,19 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     }
   }
   return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+}
+
+function* sectionElements(
+  elements: readonly ElementTessellation[],
+  packed: ReturnType<typeof packedSemanticStorage>,
+): IterableIterator<ElementTessellation> {
+  if (packed === undefined) {
+    yield* elements;
+    return;
+  }
+  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
+    yield packedElementTransient(packed, ordinal);
+  }
 }
 
 function installCapInstance(

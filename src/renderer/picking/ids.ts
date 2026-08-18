@@ -3,10 +3,11 @@ import {
   primitiveRangesForElement,
   type ElementTessellation,
   type Geometry,
-  type Part,
 } from "../../geometry/part";
-
-type NodeMetadataSource = Geometry | Part;
+import {
+  packedSemanticStorageForGeometry,
+  type PackedSemanticStorage,
+} from "../../geometry/packed/packed-semantic";
 
 /**
  * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a
@@ -19,6 +20,13 @@ export function buildElementPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
+      const elementId = packed.elementIds[ordinal];
+      return elementId === undefined ? undefined : elementId + 1;
+    });
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) => element.id + 1);
 }
 
@@ -26,8 +34,12 @@ export function buildElementPrimitivePickIds(
 export function buildElementPrimitiveOrdinals(
   geometry: Geometry,
   elements: readonly ElementTessellation[],
-  elementOrdinalById: ReadonlyMap<number, number>,
+  elementOrdinalById: { get(key: number): number | undefined },
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => ordinal + 1);
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) =>
     elementOrdinalById.get(element.id),
   );
@@ -38,9 +50,32 @@ export function buildBodyPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
+      const bodyId = packed.elementBodyIds?.[ordinal] ?? 0;
+      return bodyId === 0 ? undefined : bodyId + 1;
+    });
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) =>
     element.bodyId === undefined ? undefined : element.bodyId + 1,
   );
+}
+
+function buildPackedPrimitiveMetadata(
+  geometry: Geometry,
+  packed: PackedSemanticStorage,
+  resolveValue: (ordinal: number) => number | undefined,
+): Uint32Array {
+  const metadata = new Uint32Array(logicalPrimitiveCount(geometry));
+  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
+    const value = resolveValue(ordinal);
+    if (value === undefined) continue;
+    const start = packed.elementPrimitiveStarts[ordinal] ?? 0;
+    const end = start + (packed.elementPrimitiveCounts[ordinal] ?? 0);
+    for (let primitive = start; primitive < end; primitive += 1) metadata[primitive] = value;
+  }
+  return metadata;
 }
 
 function buildElementPrimitiveMetadata(
@@ -67,6 +102,15 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
   if (geometry.primitive !== "triangles") return pickIds;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    for (let face = 0; face < packed.facePrimitiveStarts.length; face += 1) {
+      const start = packed.facePrimitiveStarts[face] ?? 0;
+      const end = start + (packed.facePrimitiveCounts[face] ?? 0);
+      for (let primitive = start; primitive < end; primitive += 1) pickIds[primitive] = face + 1;
+    }
+    return pickIds;
+  }
   for (let face = 0; face < (geometry.faces?.length ?? 0); face += 1) {
     const range = geometry.faces?.[face];
     if (range === undefined) continue;
@@ -86,6 +130,8 @@ export function buildTriangleOwnerPairs(
   elements: readonly ElementTessellation[] = [],
   facePickIds = buildFacePrimitivePickIds(geometry),
 ): TriangleOwnerPair[] {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) return buildPackedTriangleOwnerPairs(packed, facePickIds);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
   const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
   const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
@@ -99,6 +145,31 @@ export function buildTriangleOwnerPairs(
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
     const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
     return [owner, neighborPickId === owner ? 0 : neighborPickId, element, neighborElementPickId];
+  });
+}
+
+function buildPackedTriangleOwnerPairs(
+  packed: PackedSemanticStorage,
+  facePickIds: Uint32Array,
+): TriangleOwnerPair[] {
+  const bodyByElement = packed.elementBodyIds;
+  return Array.from(facePickIds, (facePickId): TriangleOwnerPair => {
+    const faceOrdinal = facePickId - 1;
+    if (faceOrdinal < 0 || faceOrdinal >= packed.faceOwnerElementOrdinals.length) {
+      return [0, 0, 0, 0];
+    }
+    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal] ?? 0;
+    const ownerElementId = packed.elementIds[ownerOrdinal] ?? 0;
+    const ownerBodyId = bodyByElement?.[ownerOrdinal] ?? 0;
+    const neighborOrdinal = packed.faceNeighborElementOrdinals[faceOrdinal] ?? 0;
+    const neighborElementId =
+      neighborOrdinal === 0 ? 0 : (packed.elementIds[neighborOrdinal - 1] ?? 0);
+    const neighborBodyId = neighborOrdinal === 0 ? 0 : (bodyByElement?.[neighborOrdinal - 1] ?? 0);
+    const ownerPickId = ownerBodyId === 0 ? 0 : ownerBodyId + 1;
+    const neighborPickId =
+      neighborBodyId === 0 || neighborBodyId === ownerBodyId ? 0 : neighborBodyId + 1;
+    const neighborElementPickId = neighborElementId === 0 ? 0 : neighborElementId + 1;
+    return [ownerPickId, neighborPickId, ownerElementId + 1, neighborElementPickId];
   });
 }
 
@@ -122,137 +193,4 @@ export function buildPrimitiveFaceBodyPickData(
     data[base + 4] = neighborElement;
   }
   return data;
-}
-
-/** Builds one face/owner/neighbor record per authored node sprite. */
-export function buildNodeBodyPickData(
-  source: NodeMetadataSource,
-  spritePickIds?: ArrayLike<number>,
-): Uint32Array {
-  const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
-  const elementOwners = nodeElementOwners(source);
-  // The shared binding is array<vec3<u32>>, whose minimum valid storage
-  // is one complete 12-byte record even when this part has no nodes. Node
-  // topology ownership remains an array of owner/neighbor pairs below.
-  const sprites =
-    spritePickIds ?? Uint32Array.from({ length: nodeCount }, (_, nodeId) => nodeId + 1);
-  const stride = 5;
-  const data = new Uint32Array(Math.max(stride, sprites.length * stride));
-  for (let sprite = 0; sprite < sprites.length; sprite += 1) {
-    const pickId = sprites[sprite] ?? 0;
-    const elements = elementOwners.get(pickId - 1);
-    const bodyIds = new Set((elements ?? []).map((owner) => owner.bodyId));
-    const base = sprite * stride;
-    const bodyId = bodyIds.size === 1 ? [...bodyIds][0] : undefined;
-    const elementId = elements?.length === 1 ? elements[0]?.elementId : undefined;
-    if (bodyId !== undefined) data[base + 1] = bodyId + 1;
-    if (elementId !== undefined) data[base + 3] = elementId + 1;
-  }
-  return data;
-}
-
-/** Builds variable-length body-owner ranges for each authored node sprite. */
-export function buildNodeBodyOwnerData(
-  source: NodeMetadataSource,
-  spritePickIds: ArrayLike<number>,
-): {
-  readonly bodyRanges: Uint32Array;
-  readonly bodyIds: Uint32Array;
-  readonly elementIds: Uint32Array;
-} {
-  const elementOwners = nodeElementOwners(source);
-  const bodyIds: number[] = [];
-  const elementIds: number[] = [];
-  const bodyRanges = new Uint32Array(spritePickIds.length * 2);
-  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
-    const pickId = spritePickIds[sprite] ?? 0;
-    const ownerIds = [...(elementOwners.get(pickId - 1) ?? [])].sort(
-      (a, b) => (a.bodyId ?? -1) - (b.bodyId ?? -1) || a.elementId - b.elementId,
-    );
-    bodyRanges[sprite * 2] = bodyIds.length / 2;
-    bodyRanges[sprite * 2 + 1] = ownerIds.length;
-    for (const { bodyId, elementId } of ownerIds) {
-      bodyIds.push(bodyId === undefined ? 0 : bodyId + 1, 0);
-      elementIds.push(elementId + 1, 0);
-    }
-  }
-  return {
-    bodyRanges: bodyRanges.length === 0 ? new Uint32Array([0, 0]) : bodyRanges,
-    bodyIds: bodyIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(bodyIds),
-    elementIds: elementIds.length === 0 ? new Uint32Array([0, 0]) : new Uint32Array(elementIds),
-  };
-}
-
-interface NodeElementOwner {
-  readonly bodyId: number | undefined;
-  readonly elementId: number;
-}
-
-function nodeElementOwners(source: NodeMetadataSource): Map<number, NodeElementOwner[]> {
-  const owners = new Map<number, Map<string, NodeElementOwner>>();
-  for (const geometry of sourceGeometries(source)) {
-    for (const element of sourceElements(source)) {
-      const bodyId = element.bodyId;
-      const verticesPerPrimitive =
-        geometry.primitive === "lines" ? 2 : geometry.primitive === "points" ? 1 : 3;
-      for (const range of primitiveRangesForElement(element, geometry.primitive)) {
-        appendNodeElementRangeOwners({
-          owners,
-          geometry,
-          element,
-          bodyId,
-          range,
-          verticesPerPrimitive,
-        });
-      }
-    }
-  }
-  return new Map([...owners].map(([nodeId, values]) => [nodeId, [...values.values()]]));
-}
-
-function appendNodeElementRangeOwners(input: {
-  readonly owners: Map<number, Map<string, NodeElementOwner>>;
-  readonly geometry: Geometry;
-  readonly element: ElementTessellation;
-  readonly bodyId: number | undefined;
-  readonly range: { readonly start: number; readonly count: number };
-  readonly verticesPerPrimitive: number;
-}): void {
-  const { owners, geometry, element, bodyId, range, verticesPerPrimitive } = input;
-  const start = range.start * verticesPerPrimitive;
-  const end = (range.start + range.count) * verticesPerPrimitive;
-  for (let vertex = start; vertex < end; vertex += 1) {
-    const vertexIndex = geometry.indices[vertex];
-    if (vertexIndex === undefined) continue;
-    const pickId = geometry.nodePickIds?.[vertexIndex] ?? 0;
-    if (pickId === 0) continue;
-    const byElement = owners.get(pickId - 1) ?? new Map<string, NodeElementOwner>();
-    byElement.set(`${bodyId ?? "unowned"}/${element.id}`, { bodyId, elementId: element.id });
-    owners.set(pickId - 1, byElement);
-  }
-}
-
-/** Builds deterministic, ascending 1-based ids for the node sprites a part uses. */
-export function buildNodeSpritePickIds(source: NodeMetadataSource): Uint32Array {
-  const nodeCount = (sourceNodePositions(source)?.length ?? 0) / 3;
-  const ids = new Set<number>();
-  for (const geometry of sourceGeometries(source)) {
-    if (geometry.primitive === "points") continue;
-    for (const pickId of geometry.nodePickIds ?? []) {
-      if (pickId > 0 && pickId <= nodeCount) ids.add(pickId);
-    }
-  }
-  return Uint32Array.from([...ids].sort((a, b) => a - b));
-}
-
-function sourceGeometries(source: NodeMetadataSource): readonly Geometry[] {
-  return "geometries" in source ? source.geometries : [source];
-}
-
-function sourceNodePositions(source: NodeMetadataSource): Float32Array | undefined {
-  return "geometries" in source ? source.nodePositions : undefined;
-}
-
-function sourceElements(source: NodeMetadataSource): readonly ElementTessellation[] {
-  return "geometries" in source ? (source.elements ?? []) : [];
 }

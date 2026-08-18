@@ -146,10 +146,12 @@
       data-testid="selection-granularity"
       aria-label="Selection granularity"
       aria-describedby="interaction-help"
-      title="Choose whether click and box selection targets bodies, elements, faces, nodes, or authored edges."
+      title="Choose whether point and box selection targets parts, instances, bodies, elements, faces, nodes, or authored edges."
       value={snapshot?.toolbar.selectionGranularity ?? "element"}
       onchange={setSelectionGranularity}
     >
+      <option value="part">Part</option>
+      <option value="instance">Instance</option>
       <option value="body">Body</option>
       <option value="element">Element</option>
       <option value="face">Face</option>
@@ -161,7 +163,7 @@
       data-testid="box-selection-strategy"
       aria-label="Box selection"
       aria-describedby="interaction-help"
-      title="Visible selects nearest visible samples; Through selects all intersecting elements through occlusion."
+      title="Visible selects nearest visible samples at the active granularity; Through selects intersecting visible elements through occlusion and is available only for Element."
       value={snapshot?.toolbar.boxSelectionStrategy ?? "through-intersection"}
       onchange={setBoxSelectionStrategy}
     >
@@ -325,11 +327,11 @@
     {snapshot?.overlays.feedback?.message ?? ""}
   </div>
   <p id="interaction-help" data-testid="interaction-help" class="interaction-help">
-    Body/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle a click or append a box.
-    Shift promotes Face/Node to the owning element. Alt selects an instance. Edge selects authored
-    occurrence-scoped topology; shared edges remain edges when Shift is held. Through is the default
-    for Element and Visible is used for other granularities. Point elements use their primary glyph
-    as the node marker, whether Nodes is enabled or hidden. Press Z to frame the visible selection,
-    or the complete model when none is eligible.
+    Part/Instance/Body/Element/Face/Node use the same gesture. Hold Ctrl or ⌘ to toggle a click or
+    append a box. Shift promotes Face/Node to the owning element. Alt selects an instance from any
+    mode. Edge selects authored occurrence-scoped topology; shared edges remain edges when Shift is
+    held. Through is the default for Element and Visible is used for other granularities. Point
+    elements use their primary glyph as the node marker, whether Nodes is enabled or hidden. Press Z
+    to frame the visible selection, or the complete model when none is eligible.
   </p>
 </div>

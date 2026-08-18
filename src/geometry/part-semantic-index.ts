@@ -1,21 +1,20 @@
 import type {
   ElementTessellation,
   FaceTessellation,
-  GeometryBody,
   GeometryEdge,
   TriangleGeometry,
 } from "./types";
 import type { BodyId, Part } from "./part";
 import { faceIdentity } from "./element-face-selection";
+import { packedSemanticStorage } from "./packed/packed-semantic";
+import { buildPackedSemanticIndex } from "./packed/packed-semantic-index";
+import type { FaceMetadata, PartSemanticIndex } from "./part-semantic-types";
+
+export type { FaceMetadata, PartSemanticIndex, SemanticMap } from "./part-semantic-types";
 
 export { compareNodeIds as compareEdgeNodeIds } from "../elements/edges";
 
 type ElementId = ElementTessellation["id"];
-
-interface FaceMetadata {
-  readonly face: FaceTessellation;
-  readonly faceId: number;
-}
 
 interface TriangleSemanticIndex {
   readonly faces: Map<string, FaceMetadata>;
@@ -27,33 +26,6 @@ interface TriangleSemanticIndex {
   readonly hasBoundaryFaceSubset: boolean;
   readonly hasCompleteNeighborTriangleIndex: boolean;
 }
-
-/** Immutable semantic lookups shared by renderer interaction and viewport reconciliation. */
-export interface PartSemanticIndex {
-  readonly elements: ReadonlyMap<ElementId, ElementTessellation>;
-  /** Stable private ordinal (`1..n`) for each authored element id. */
-  readonly elementOrdinalById: ReadonlyMap<ElementId, number>;
-  readonly bodies: ReadonlyMap<BodyId, GeometryBody>;
-  readonly bodyByElement: ReadonlyMap<ElementId, BodyId>;
-  readonly faces: ReadonlyMap<string, FaceMetadata>;
-  readonly edges: ReadonlyMap<string, GeometryEdge>;
-  readonly nodeCount: number;
-  /** CSR offsets for authored triangle-face incidence by part-local node id. */
-  readonly nodeTriangleFaceOffsets: Uint32Array;
-  /** Face ids referenced by the CSR node-incidence ranges above. */
-  readonly nodeTriangleFaceIds: Uint32Array;
-  /** CSR offsets for authored triangle faces grouped by their neighbor element. */
-  readonly neighborTriangleFaceOffsets: Uint32Array;
-  /** Authored face ids in the neighbor-element CSR ranges above. */
-  readonly neighborTriangleFaceIds: Uint32Array;
-  /** Private ordinals for elements that own any non-triangle primitive range. */
-  readonly nonTriangleElementOrdinals: Uint32Array;
-  /** Whether the declared triangle subset contains only exterior faces. */
-  readonly hasBoundaryFaceSubset: boolean;
-  /** Whether every authored triangle neighbor resolves to a local element. */
-  readonly hasCompleteNeighborTriangleIndex: boolean;
-}
-
 const indexByPart = new WeakMap<Part, PartSemanticIndex>();
 
 /** Returns the cached immutable semantic index for one validated part identity. */
@@ -66,6 +38,8 @@ export function getPartSemanticIndex(part: Part): PartSemanticIndex {
 }
 
 function buildPartSemanticIndex(part: Part): PartSemanticIndex {
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) return buildPackedSemanticIndex(packed);
   const { elements: partElements = [], bodies: partBodies = [] } = part;
   const elements = new Map(partElements.map((element) => [element.id, element]));
   const elementOrdinalById = new Map(partElements.map((element, index) => [element.id, index + 1]));
@@ -87,8 +61,6 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
   const edges = new Map<string, GeometryEdge>();
   for (const geometry of part.geometries) {
     for (const edge of geometry.edges ?? []) {
-      // Preserve resolveEdgePickHit's historical first geometry match when
-      // independent primitive groups happen to reuse an authored edge key.
       if (!edges.has(edge.key)) edges.set(edge.key, edge);
     }
   }

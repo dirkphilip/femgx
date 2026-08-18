@@ -2,6 +2,7 @@ import {
   createResultField,
   type Bounds,
   type Color,
+  type ElementFrameField,
   type PartId,
   type Scene,
   type ScalarField,
@@ -15,6 +16,7 @@ import { createElementFixture, createHex20CylinderFixture } from "./element-fixt
 import { sceneBounds } from "../scene-bounds";
 import { createResultsPreset } from "./results-preset";
 import { createTransparencyFixture } from "./transparency-fixture";
+import { createGalleryResults } from "./gallery-results";
 
 /** A deterministic demo model and its presentation metadata. */
 export interface ModelPreset {
@@ -31,7 +33,9 @@ export interface ModelPreset {
   readonly resultSequence?: AuthoredResultSequence;
   /** Authored scalar choices exposed by the workbench; the active result remains in `results`. */
   readonly resultScalarFields?: readonly (ScalarField<"nodal"> | ScalarField<"elemental">)[];
-  readonly resultVectorFields?: readonly VectorField<"elemental">[];
+  readonly resultScalarPartIds?: ReadonlyMap<string, PartId>;
+  readonly resultVectorFields?: readonly (VectorField<"elemental"> | ElementFrameField)[];
+  readonly resultVectorPartIds?: ReadonlyMap<string, PartId>;
 }
 
 /** One exact authored scalar/deformation snapshot in the demo sequence. */
@@ -53,12 +57,14 @@ export interface AuthoredResultSequence {
 export function createGalleryPreset(): ModelPreset {
   const fixture = createElementFixture();
   const partIds = fixture.partIds;
+  const results = createGalleryResults(fixture.scene, partIds.hex8, partIds.controlNode);
   return {
     id: "gallery",
     name: "Element tessellation and mapping gallery",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
+      [partIds.controlNode, { r: 1, g: 0.86, b: 0.18, a: 1 }],
       [partIds.point, { r: 0.98, g: 0.78, b: 0.24, a: 1 }],
       [partIds.line, { r: 0.18, g: 0.72, b: 0.98, a: 1 }],
       [partIds.line3, { r: 0.15, g: 0.92, b: 0.65, a: 1 }],
@@ -77,6 +83,7 @@ export function createGalleryPreset(): ModelPreset {
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
+      [partIds.controlNode, "Detached control node · Force + moment"],
       [partIds.point, "Built-in helper · Point"],
       [partIds.line, "Built-in helper · Line"],
       [partIds.line3, "Built-in helper · Line3"],
@@ -94,6 +101,14 @@ export function createGalleryPreset(): ModelPreset {
       [partIds.mixed, "Mixed point, line, and triangle element"],
     ]),
     bounds: sceneBounds(fixture.scene),
+    results: results.active,
+    resultScalarFields: results.scalarFields,
+    resultScalarPartIds: new Map([["gallery-shell-thickness", partIds.quad8]]),
+    resultVectorFields: [results.frame, ...results.vectorFields],
+    resultVectorPartIds: new Map([
+      ["gallery-shell-normals", partIds.triangle],
+      ["gallery-fibre-axis", partIds.tri6],
+    ]),
   };
 }
 
@@ -228,8 +243,8 @@ export function createModelPresets(
   options: { readonly transparencyOpacity?: number } = {},
 ): readonly ModelPreset[] {
   return [
-    createBoltedPlatePreset(),
     createGalleryPreset(),
+    createBoltedPlatePreset(),
     createHex20CylinderPreset(),
     createSectionPlanePreset(),
     createResultsPreset(),
@@ -239,7 +254,7 @@ export function createModelPresets(
   ];
 }
 
-/** The demo's default showcase preset (the bolted plate assembly). */
+/** The demo's default showcase preset (the element gallery). */
 export function createDefaultPreset(): ModelPreset {
   const preset = createModelPresets()[0];
   if (preset === undefined) throw new Error("The demo has no default model preset");

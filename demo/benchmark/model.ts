@@ -2,6 +2,7 @@ import { createPart, type Part } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createResultField, type VectorField } from "../../src/results/fields";
 import { createScene, type Scene } from "../../src/scene/scene";
+import { parseTet4Cells, TET4_DENSE_MAX_CELLS, tet4ElementCount } from "./dense-tet4";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
 import {
   createPlanarGridGeometry,
@@ -213,6 +214,30 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
     ...(includeLarge
       ? [
           {
+            id: "fe-tet4-solid-25k-local",
+            name: "Performance Lab · FE Tet4 solid · 24,576 authored elements · 3,072 submitted exterior triangles (local)",
+            kind: "structured-fe" as const,
+            gridCells: 16,
+            partCount: 1,
+            instanceCount: 1,
+            bodyCount: 1,
+            elementFamily: "tet4" as const,
+            structuredFamily: "tet4" as const,
+            ordinaryDemo: false,
+          },
+          {
+            id: "fe-tet4-solid-257k-local",
+            name: "Performance Lab · FE Tet4 solid · 257,250 authored elements · 14,700 submitted exterior triangles (local)",
+            kind: "structured-fe" as const,
+            gridCells: 35,
+            partCount: 1,
+            instanceCount: 1,
+            bodyCount: 1,
+            elementFamily: "tet4" as const,
+            structuredFamily: "tet4" as const,
+            ordinaryDemo: false,
+          },
+          {
             id: "fe-hex20-solid-local",
             name: "Performance Lab · FE Hex20 solid · 1,728 unique/submitted elements · 10,368 triangles (local)",
             kind: "structured-fe" as const,
@@ -238,6 +263,28 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
         ]
       : []),
   ];
+}
+
+/** Lazy cubic Tet4 solid built through the dense worker path. */
+export function denseTet4BenchmarkSpec(cells: number): WebGpuBenchmarkSpec {
+  const valid = parseTet4Cells(String(cells));
+  if (valid === undefined) {
+    throw new Error(`Tet4 cells must be an integer from 1 to ${TET4_DENSE_MAX_CELLS}`);
+  }
+  const elements = tet4ElementCount(valid, valid, valid);
+  const triangles = 12 * valid * valid;
+  return {
+    id: `fe-tet4-dense-${valid}`,
+    name: `Performance Lab · FE Tet4 solid · ${elements.toLocaleString("en-US")} authored elements · ${triangles.toLocaleString("en-US")} submitted exterior triangles`,
+    kind: "structured-fe",
+    gridCells: valid,
+    partCount: 1,
+    instanceCount: 1,
+    bodyCount: 1,
+    elementFamily: "tet4",
+    structuredFamily: "tet4",
+    ordinaryDemo: false,
+  };
 }
 
 /** Builds one deterministic benchmark scene without including generation in its timings. */

@@ -9,7 +9,9 @@ export type IssueSeverity = "error" | "warning" | "info";
  * @category Import and export
  */
 export interface SourcePosition {
+  /** One-based source line number. */
   readonly line: number;
+  /** Optional one-based source column number. */
   readonly column?: number;
 }
 
@@ -20,9 +22,13 @@ export interface SourcePosition {
  * @category Import and export
  */
 export interface Issue {
+  /** Stable machine-readable issue code. */
   readonly code: IssueCode;
+  /** Severity used to decide whether the result is trustworthy. */
   readonly severity: IssueSeverity;
+  /** Human-readable actionable description. */
   readonly message: string;
+  /** Optional source location. */
   readonly position?: SourcePosition;
 }
 
@@ -38,6 +44,7 @@ export type IssueCode = string;
  * @category Import and export
  */
 export class IoError extends Error {
+  /** Diagnostics that caused or accompanied the failure. */
   readonly issues: readonly Issue[];
   constructor(message: string, issues?: readonly Issue[]) {
     super(message);

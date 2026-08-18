@@ -263,6 +263,22 @@ describe("writeElementHighlights", () => {
     }
   });
 
+  it("encodes emissive-only dense node styling without color or opacity flags", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      writeElementHighlights(gpu.device, storage, [], {
+        nodeSelection: denseSelection(0, [1]),
+        selectedTheme: { emissive: 0.4 },
+        slotCapacity: 1,
+      });
+      expect(new Uint32Array(storage.highlight.data.buffer)[8]).toBe(4);
+    } finally {
+      restore();
+    }
+  });
+
   it("preserves dense GPU membership when sparse emphasis grows storage", () => {
     const restore = installGpuGlobals();
     try {
@@ -316,3 +332,11 @@ describe("writeElementHighlights", () => {
     }
   });
 });
+
+function denseSelection(slot: number, words: readonly number[]) {
+  return {
+    elementCount: words.length * 32,
+    nodeCount: words.length * 32,
+    occurrences: [{ slot, selectedCount: 2, words: new Uint32Array(words) }],
+  };
+}

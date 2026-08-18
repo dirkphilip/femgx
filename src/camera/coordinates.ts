@@ -3,7 +3,9 @@
  * @category Camera and math
  */
 export interface CanvasCssPoint {
+  /** Horizontal canvas-local CSS coordinate. */
   readonly x: number;
+  /** Vertical canvas-local CSS coordinate. */
   readonly y: number;
 }
 
@@ -12,7 +14,9 @@ export interface CanvasCssPoint {
  * @category Camera and math
  */
 export interface RenderPixel {
+  /** Horizontal render-target pixel coordinate. */
   readonly x: number;
+  /** Vertical render-target pixel coordinate. */
   readonly y: number;
 }
 

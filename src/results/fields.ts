@@ -1,3 +1,5 @@
+import type { PartId } from "../geometry/part";
+
 /**
  * Where a result field stores its values: one per node or one per element.
  * @category Results
@@ -9,6 +11,102 @@ export type FieldLocation = "nodal" | "elemental";
  * @category Results
  */
 export type FieldShape = "scalar" | "vector";
+
+/** Number of components in one authored elemental orthonormal frame row. */
+export const FRAME_COMPONENT_COUNT = 9;
+
+/** Number of authored nodal load components: force xyz followed by moment xyz. */
+export const LOAD_COMPONENT_COUNT = 6;
+
+/**
+ * An authored six-degree-of-freedom nodal load. The first three components
+ * are force (Fx, Fy, Fz); the final three are moment (Mx, My, Mz). Force and
+ * moment units are explicit because the two triplets are dimensionally distinct.
+ * Missing components are encoded as `NaN` independently.
+ * @category Results
+ */
+export interface NodalLoadField {
+  /** Reusable part whose dense node ids index this field. */
+  readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
+  readonly id: string;
+  /** Human-readable field name. */
+  readonly name: string;
+  /** Loads are always authored per node. */
+  readonly location: "nodal";
+  /** Load rows contain force and moment vectors. */
+  readonly shape: "load";
+  /** Number of dense node rows in `values`. */
+  readonly count: number;
+  /** Opaque unit label for the force components. */
+  readonly forceUnit: string;
+  /** Opaque unit label for the moment components. */
+  readonly momentUnit: string;
+  /** Row-major force xyz followed by moment xyz for every node. */
+  readonly values: Float32Array;
+}
+
+/** Inputs for {@link createNodalLoadField}. */
+export interface NodalLoadFieldOptions {
+  /** Reusable part whose dense node rows this field addresses. */
+  readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
+  readonly id: string;
+  /** Human-readable field name. */
+  readonly name: string;
+  /** Number of dense node rows supplied in `values`. */
+  readonly count: number;
+  /** Opaque unit label for the force components. */
+  readonly forceUnit: string;
+  /** Opaque unit label for the moment components. */
+  readonly momentUnit: string;
+  /** Row-major force xyz and moment xyz, six floats per node row. */
+  readonly values: Float32Array;
+}
+
+/**
+ * An authored X/Y/Z frame for each element. Values are stored row-major as
+ * three consecutive xyz axes (`x`, `y`, `z`) per dense part-local element id.
+ * `NaN` in any component marks the complete frame row as missing.
+ * @category Results
+ */
+export interface ElementFrameField {
+  /** Reusable part whose dense element ids index this field. */
+  readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
+  readonly id: string;
+  /** Human-readable field name. */
+  readonly name: string;
+  /** Frames are always authored per element. */
+  readonly location: "elemental";
+  /** Frames contain nine components per element row. */
+  readonly shape: "frame";
+  /** Number of dense element rows in `values`. */
+  readonly count: number;
+  /** Opaque unit label supplied by the host. */
+  readonly unit: string;
+  /** Row-major XYZ axes; any `NaN` marks that element frame as missing. */
+  readonly values: Float32Array;
+}
+
+/**
+ * Inputs for {@link createElementFrameField}.
+ * @category Results
+ */
+export interface ElementFrameFieldOptions {
+  /** Reusable part whose dense element rows this field addresses. */
+  readonly partId: PartId;
+  /** Stable application-addressable field identifier. */
+  readonly id: string;
+  /** Human-readable field name. */
+  readonly name: string;
+  /** Number of dense element rows supplied in `values`. */
+  readonly count: number;
+  /** Opaque unit label supplied by the host. */
+  readonly unit: string;
+  /** Row-major XYZ axes, nine floats per element row. */
+  readonly values: Float32Array;
+}
 
 /**
  * Number of scalar components each shape stores per entity.
@@ -45,7 +143,9 @@ export interface ResultField<S extends FieldShape, L extends FieldLocation> {
   readonly id: string;
   /** Human-readable display name, e.g. "Temperature" or "Authored stress". */
   readonly name: string;
+  /** Whether values are authored at nodes or elements. */
   readonly location: L;
+  /** Scalar or three-component vector values. */
   readonly shape: S;
   /** Number of entities (nodes or elements) the field describes. */
   readonly count: number;
@@ -71,7 +171,8 @@ export type VectorField<L extends FieldLocation> = ResultField<"vector", L>;
  * Any scalar or vector field at either location.
  * @category Results
  */
-export type AnyResultField = ResultField<FieldShape, FieldLocation>;
+export type AnyResultField =
+  ResultField<FieldShape, FieldLocation> | ElementFrameField | NodalLoadField;
 
 /**
  * Inputs for {@link createResultField}.
@@ -83,12 +184,19 @@ export type AnyResultField = ResultField<FieldShape, FieldLocation>;
  * @category Results
  */
 export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocation> {
+  /** Stable application-addressable field identifier. */
   readonly id: string;
+  /** Human-readable field name. */
   readonly name: string;
+  /** Whether values are authored at nodes or elements. */
   readonly location: L;
+  /** Scalar or three-component vector values. */
   readonly shape: S;
+  /** Number of entities addressed by the field. */
   readonly count: number;
+  /** Opaque unit label supplied by the host. */
   readonly unit: string;
+  /** `count * FIELD_COMPONENT_COUNT[shape]` floats; `NaN` marks missing data. */
   readonly values: Float32Array;
 }
 
@@ -119,6 +227,100 @@ export function createResultField<S extends FieldShape, L extends FieldLocation>
 ): ResultField<S, L> {
   validateResultField(options);
   return { ...options };
+}
+
+/** Creates a validated authored elemental X/Y/Z frame field. */
+export function createElementFrameField(options: ElementFrameFieldOptions): ElementFrameField {
+  if (options.id.length === 0) throw new Error("Element frame field id must not be empty");
+  if (options.name.length === 0) throw new Error("Element frame field name must not be empty");
+  if (!Number.isInteger(options.count) || options.count < 0) {
+    throw new Error(
+      `Element frame field count must be a non-negative integer, got ${options.count}`,
+    );
+  }
+  if (options.unit.length === 0) throw new Error("Element frame field unit must not be empty");
+  const expected = options.count * FRAME_COMPONENT_COUNT;
+  if (options.values.length !== expected) {
+    throw new Error(
+      `Element frame field ${options.id} expects ${expected} values but got ${options.values.length}`,
+    );
+  }
+  for (let element = 0; element < options.count; element += 1) {
+    const base = element * FRAME_COMPONENT_COUNT;
+    const row = options.values.subarray(base, base + FRAME_COMPONENT_COUNT);
+    const missing = row.some((value) => !Number.isFinite(value));
+    if (missing) continue;
+    const x = Math.hypot(row[0] ?? 0, row[1] ?? 0, row[2] ?? 0);
+    const y = Math.hypot(row[3] ?? 0, row[4] ?? 0, row[5] ?? 0);
+    const z = Math.hypot(row[6] ?? 0, row[7] ?? 0, row[8] ?? 0);
+    if (x <= 1e-12 || y <= 1e-12 || z <= 1e-12) {
+      throw new Error(`Element frame field ${options.id} has a zero axis at element ${element}`);
+    }
+  }
+  return { ...options, location: "elemental", shape: "frame" };
+}
+
+/** Creates a validated authored six-component nodal load field. */
+export function createNodalLoadField(options: NodalLoadFieldOptions): NodalLoadField {
+  if (options.id.length === 0) throw new Error("Nodal load field id must not be empty");
+  if (options.name.length === 0) throw new Error("Nodal load field name must not be empty");
+  if (!Number.isInteger(options.count) || options.count < 0) {
+    throw new Error(`Nodal load field count must be a non-negative integer, got ${options.count}`);
+  }
+  if (options.forceUnit.length === 0)
+    throw new Error("Nodal load field forceUnit must not be empty");
+  if (options.momentUnit.length === 0)
+    throw new Error("Nodal load field momentUnit must not be empty");
+  const expected = options.count * LOAD_COMPONENT_COUNT;
+  if (options.values.length !== expected) {
+    throw new Error(
+      `Nodal load field ${options.id} expects ${expected} values but got ${options.values.length}`,
+    );
+  }
+  for (let node = 0; node < options.count; node += 1) {
+    validateLoadVector(options.values, node * LOAD_COMPONENT_COUNT, options.id, node, "force");
+    validateLoadVector(options.values, node * LOAD_COMPONENT_COUNT + 3, options.id, node, "moment");
+  }
+  return { ...options, location: "nodal", shape: "load" };
+}
+
+function validateLoadVector(
+  values: Float32Array,
+  base: number,
+  id: string,
+  node: number,
+  name: string,
+): void {
+  const finite = [0, 1, 2].map((offset) => Number.isFinite(values[base + offset]));
+  if (finite.some(Boolean) && !finite.every(Boolean)) {
+    throw new Error(
+      `Nodal load field ${id} has a mixed finite/missing ${name} vector at node ${node}`,
+    );
+  }
+}
+
+/** Returns one element's authored X/Y/Z axes, or NaNs for a missing row. */
+export function frameAt(
+  field: ElementFrameField,
+  entity: number,
+): readonly [number, number, number, number, number, number, number, number, number] {
+  if (!Number.isInteger(entity) || entity < 0 || entity >= field.count) {
+    throw new Error(
+      `Entity ${entity} is out of range for element frame field ${field.id} (count ${field.count})`,
+    );
+  }
+  const base = entity * FRAME_COMPONENT_COUNT;
+  return [
+    field.values[base] ?? NaN,
+    field.values[base + 1] ?? NaN,
+    field.values[base + 2] ?? NaN,
+    field.values[base + 3] ?? NaN,
+    field.values[base + 4] ?? NaN,
+    field.values[base + 5] ?? NaN,
+    field.values[base + 6] ?? NaN,
+    field.values[base + 7] ?? NaN,
+    field.values[base + 8] ?? NaN,
+  ];
 }
 
 /**

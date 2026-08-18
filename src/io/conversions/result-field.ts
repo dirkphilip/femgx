@@ -9,13 +9,19 @@ import { validateModel } from "../model-validation";
  */
 export type ModelResultFieldConversionOptions =
   | {
+      /** Stable field id for the converted result. */
       readonly id: string;
+      /** Opaque display unit. */
       readonly unit: string;
+      /** Scalar conversion role. */
       readonly shape: "scalar";
     }
   | {
+      /** Stable field id for the converted result. */
       readonly id: string;
+      /** Opaque display unit. */
       readonly unit: string;
+      /** Nodal vector conversion role. */
       readonly shape: "vector";
     };
 

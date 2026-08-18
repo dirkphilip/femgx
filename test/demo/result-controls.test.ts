@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createResultsPreset } from "../../demo/fixtures/results-preset";
-import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
+import { createBoltedPlatePreset, createGalleryPreset } from "../../demo/fixtures/presets";
 import { createExampleModel } from "../../demo/workbench/models/model";
 import { setResultField } from "../../demo/workbench/results/result-actions";
 import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
@@ -32,6 +32,7 @@ describe("demo orientation result controls", () => {
     expect(resultVectorFieldsForModel(model).map((field) => field.id)).toEqual([
       "demo-normals",
       "demo-fibers",
+      "demo-element-frames",
     ]);
     expect(vectorDisplayForModel(model)).toMatchObject({
       fieldId: "demo-normals",
@@ -39,6 +40,42 @@ describe("demo orientation result controls", () => {
       transform: "normal",
       lengthScale: 1,
       widthPixels: 2,
+    });
+  });
+
+  it("maps the authored frame choice to a renderer-owned triad", () => {
+    const model = createExampleModel(createResultsPreset());
+    const display = vectorDisplayForField(
+      model,
+      "demo-element-frames",
+      vectorDisplayForModel(model),
+    );
+    expect(display.glyph).toBe("triad");
+    expect(vectorConfigForDisplay(model, display)).toMatchObject({
+      field: { id: "demo-element-frames", shape: "frame" },
+      glyph: "triad",
+    });
+  });
+
+  it("installs readable canonical presentations for gallery shell vectors", () => {
+    const model = createExampleModel(createGalleryPreset());
+    const current = vectorDisplayForModel(model);
+    const normal = vectorDisplayForField(model, "gallery-shell-normals", current);
+    const fibre = vectorDisplayForField(model, "gallery-fibre-axis", current);
+
+    expect(vectorConfigForDisplay(model, normal)).toMatchObject({
+      partId: 8,
+      glyph: "arrow",
+      transform: "normal",
+      lengthScale: 0.7,
+      widthPixels: 3,
+    });
+    expect(vectorConfigForDisplay(model, fibre)).toMatchObject({
+      partId: 11,
+      glyph: "axis",
+      transform: "direction",
+      lengthScale: 0.7,
+      widthPixels: 3,
     });
   });
 
@@ -119,6 +156,7 @@ describe("demo orientation result controls", () => {
     expect(parseVectorWidthPixels("8.1")).toBeUndefined();
     expect(parseVectorGlyph("arrow")).toBe("arrow");
     expect(parseVectorGlyph("axis")).toBe("axis");
+    expect(parseVectorGlyph("triad")).toBeUndefined();
     expect(parseVectorGlyph("cone")).toBeUndefined();
     expect(parseVectorTransform("direction")).toBe("direction");
     expect(parseVectorTransform("normal")).toBe("normal");

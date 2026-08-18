@@ -20,8 +20,11 @@ export type ModelSetKind = "node" | "element";
  * @category Import and export
  */
 export interface ModelNodes {
+  /** Number of nodes in the model. */
   readonly count: number;
+  /** Stable node ids aligned with coordinate rows. */
   readonly ids: Uint32Array;
+  /** Flat xyz coordinates, three values per node. */
   readonly coordinates: Float64Array;
 }
 
@@ -32,9 +35,13 @@ export interface ModelNodes {
  * @category Import and export
  */
 export interface ModelElementShapeBlock {
+  /** Shape shared by every element row in this block. */
   readonly shape: ElementShape;
+  /** Number of element rows. */
   readonly count: number;
+  /** Stable element ids aligned with connectivity rows. */
   readonly ids: Uint32Array;
+  /** Row-major node connectivity. */
   readonly connectivity: Uint32Array;
 }
 
@@ -43,8 +50,11 @@ export interface ModelElementShapeBlock {
  * @category Import and export
  */
 export interface ModelSet {
+  /** Entity kind addressed by this set. */
   readonly kind: ModelSetKind;
+  /** Host-facing set name. */
   readonly name: string;
+  /** Stable ids belonging to the set. */
   readonly ids: Uint32Array;
 }
 
@@ -68,10 +78,15 @@ export type ModelMetadata = Readonly<Record<string, MetadataValue>>;
  * @category Import and export
  */
 export interface ModelResultField {
+  /** Host-facing result name. */
   readonly name: string;
+  /** Whether rows address nodes or elements. */
   readonly location: ModelSetKind;
+  /** Number of numeric components per row. */
   readonly components: number;
+  /** Stable entity ids aligned with value rows. */
   readonly ids: Uint32Array;
+  /** Row-major result values. */
   readonly values: Float64Array;
 }
 
@@ -81,10 +96,16 @@ export interface ModelResultField {
  * @category Import and export
  */
 export interface FemModel {
+  /** Interchange layout version. */
   readonly formatVersion: number;
+  /** Node table. */
   readonly nodes: ModelNodes;
+  /** Shape-grouped element tables. */
   readonly elementShapeBlocks: readonly ModelElementShapeBlock[];
+  /** Named node or element sets. */
   readonly sets: readonly ModelSet[];
+  /** Host-defined metadata. */
   readonly metadata: ModelMetadata;
+  /** Authored result fields. */
   readonly results: readonly ModelResultField[];
 }

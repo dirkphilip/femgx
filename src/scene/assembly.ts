@@ -13,7 +13,9 @@ import type { AssemblyId } from "./types";
  * @category Scene and geometry
  */
 export interface PartPlacement {
+  /** Discriminator identifying a direct part placement. */
   readonly kind: "part";
+  /** Reusable part definition referenced by this occurrence. */
   readonly partId: PartId;
   /** Optional stable identity within the owning assembly. */
   readonly placementId?: string;
@@ -30,7 +32,9 @@ export interface PartPlacement {
  * @category Scene and geometry
  */
 export interface SubAssemblyPlacement {
+  /** Discriminator identifying a nested assembly placement. */
   readonly kind: "assembly";
+  /** Child assembly definition referenced by this occurrence. */
   readonly assemblyId: AssemblyId;
   /** Optional stable identity within the owning assembly. */
   readonly placementId?: string;
@@ -57,7 +61,9 @@ export type Placement = PartPlacement | SubAssemblyPlacement;
  * @category Scene and geometry
  */
 export interface Assembly {
+  /** Stable assembly-definition identifier. */
   readonly id: AssemblyId;
+  /** Direct part and child-assembly placements in local order. */
   readonly placements: readonly Placement[];
 }
 
@@ -70,5 +76,6 @@ export interface Assembly {
  * @category Scene and geometry
  */
 export interface NamedAssembly extends Assembly {
+  /** Host-facing display name. */
   readonly name: string;
 }

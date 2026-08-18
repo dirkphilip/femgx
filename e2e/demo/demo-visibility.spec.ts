@@ -44,6 +44,7 @@ test("uses stable runtime-occurrence and instance controls", async ({ page }) =>
 });
 test("collapses and expands assembly rows in the visibility tree", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await waitForRenderer(page);
   // The bolted tree starts fully expanded, so Fasteners shows each occurrence.
   await scrollVisibilityToEnd(page);
@@ -60,6 +61,7 @@ test("collapses and expands assembly rows in the visibility tree", async ({ page
 });
 test("exposes assembly occurrence and direct-part identity in the tree", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");
   await expect(page.getByTestId("assembly-occurrence-vis-0")).toHaveAttribute(
     "data-assembly-occurrence-id",
@@ -69,6 +71,7 @@ test("exposes assembly occurrence and direct-part identity in the tree", async (
 });
 test("hierarchy hover emphasizes the exact assembly occurrence", async ({ page }) => {
   await loadWebGpuPage(page);
+  await page.getByTestId("model-select").selectOption("bolted");
   const canvas = page.getByTestId("view-canvas");
   const before = await pixelHash(canvas);
   await scrollVisibilityToEnd(page);
@@ -80,6 +83,7 @@ test("hierarchy hover emphasizes the exact assembly occurrence", async ({ page }
 });
 test("gives body visibility controls distinct occurrence names", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await waitForRenderer(page);
   const bodyCheckboxes = page.locator('input[data-testid^="body-vis-"]');
   const names = await bodyCheckboxes.evaluateAll((inputs) =>
@@ -105,6 +109,7 @@ test("gives body visibility controls distinct occurrence names", async ({ page }
 
 test("hides the plate stack through the assembly tree", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await waitForRenderer(page);
   expect(await status(page)).toContain("34 visible");
   const plateStack = page.getByTestId("assembly-occurrence-vis-1");
@@ -120,6 +125,7 @@ test("hides the plate stack through the assembly tree", async ({ page }) => {
 });
 test("hides and restores all fasteners through the assembly tree", async ({ page }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await scrollVisibilityToEnd(page);
   const fasteners = page.getByTestId("assembly-occurrence-vis-2");
   await expect(fasteners).toBeChecked();
@@ -136,6 +142,7 @@ test("Show all restores bodies and other visibility layers without clearing sele
   page,
 }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(
@@ -178,6 +185,7 @@ test("keeps selected-element visibility and selection local to the active viewpo
   page,
 }) => {
   await page.goto("/");
+  await page.getByTestId("model-select").selectOption("bolted");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
   const hit = await requireHit(

@@ -162,6 +162,7 @@ export interface WorkbenchResultField {
 export interface WorkbenchVectorField {
   readonly id: string;
   readonly name: string;
+  readonly shape: "vector" | "frame";
 }
 
 export interface SectionRange {
@@ -237,6 +238,7 @@ export interface WorkbenchSnapshotOwner {
 export interface WorkbenchCommands {
   setProjection(): void;
   setCatalogMode(mode: WorkbenchCatalogMode): void;
+  meshTet4(cells: number): void;
   setBackground(value: string): void;
   toggleEdges(): void;
   toggleNodes(): void;

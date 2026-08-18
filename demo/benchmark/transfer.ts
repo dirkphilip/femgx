@@ -1,9 +1,10 @@
-import { createPart, type ElementTessellation } from "../../src/geometry/part";
+import { createPackedTet4Part } from "./packed-tet4";
+import type { Part } from "../../src/geometry/part";
+import { packedSemanticStorage } from "../../src/geometry/packed/packed-semantic";
 import { createScene, type Scene } from "../../src/scene/scene";
 import { translation } from "../../src/math/mat4";
-import { ElementShape } from "../../src/elements/shapes";
-import { canonicalKey } from "../../src/elements/keys";
-import { createTet4Edges, tet4FaceNodeIds, type DenseTet4Payload } from "./tet4-transfer";
+import type { DenseTet4Payload } from "./tet4-transfer";
+import type { DenseSemanticAllocationCounts } from "./types";
 
 export type BenchmarkTransferPayload = DenseTet4Payload;
 
@@ -26,49 +27,150 @@ export interface BenchmarkWorkerResult {
 }
 
 /** Reconstructs the canonical immutable scene from one transferred FE payload. */
-export function reconstructBenchmarkScene(payload: BenchmarkTransferPayload): {
+export function reconstructBenchmarkScene(
+  payload: BenchmarkTransferPayload,
+  assemblyName = `dense-tet4-${payload.elementCount}`,
+): {
   readonly scene: Scene;
   readonly finalRetainedTypedBytes: number;
+  readonly semanticAllocationCounts: DenseSemanticAllocationCounts;
 } {
-  const elements = createElements(payload.elementCount);
-  const faces = createFaces(payload);
-  const edges = createTet4Edges(payload.gridSize, payload.elementCount);
-  const boundaryFaces = Array.from(payload.boundaryFaceIndices, (faceNumber) => {
-    return { elementId: Math.floor(faceNumber / 4) + 1, faceIndex: faceNumber % 4 };
-  });
-  const part = createPart(1, {
-    geometries: [
-      {
-        primitive: "triangles",
-        positions: payload.positions,
-        indices: payload.indices,
-        nodePickIds: payload.nodePickIds,
-        edges,
-        faces,
-        faceSubset: { faceIds: boundaryFaces },
-      },
-    ],
-    elements,
-    nodePositions: payload.nodePositions,
-    bodies: [{ id: 1, name: "tet4 structured body", elementIds: elements.map(({ id }) => id) }],
-  });
+  const part = createPackedTet4Part(1, payload);
   const scene = createScene()
     .addPart(part)
     .addAssembly({
       id: 1,
-      name: "fe-tet4-solid-132k",
+      name: assemblyName,
       placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
     })
     .withRoot(1)
     .build();
   return {
     scene,
-    finalRetainedTypedBytes:
-      payload.positions.byteLength +
-      payload.indices.byteLength +
-      payload.nodePickIds.byteLength +
-      payload.nodePositions.byteLength +
-      16 * Float32Array.BYTES_PER_ELEMENT,
+    finalRetainedTypedBytes: retainedTypedBytes(part),
+    semanticAllocationCounts: countDenseSemanticAllocations(part),
+  };
+}
+
+function retainedTypedBytes(part: Part): number {
+  const buffers = new Set<ArrayBuffer>();
+  const add = (array: ArrayBufferView | undefined): void => {
+    if (array !== undefined && array.buffer instanceof ArrayBuffer) buffers.add(array.buffer);
+  };
+  for (const geometry of part.geometries) {
+    add(geometry.positions);
+    add(geometry.indices);
+    add(geometry.nodePickIds);
+  }
+  add(part.nodePositions);
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) {
+    add(packed.elementIds);
+    add(packed.elementPrimitiveStarts);
+    add(packed.elementPrimitiveCounts);
+    add(packed.elementFaceOffsets);
+    add(packed.elementIdOrdinalsSorted);
+    add(packed.elementBodyIds);
+    add(packed.faceOwnerElementOrdinals);
+    add(packed.faceIndices);
+    add(packed.facePrimitiveStarts);
+    add(packed.facePrimitiveCounts);
+    add(packed.faceNeighborElementOrdinals);
+    add(packed.faceNodeOffsets);
+    add(packed.faceNodeIds);
+    add(packed.edgeNodeOffsets);
+    add(packed.edgeNodeIds);
+    add(packed.edgeIncidentOffsets);
+    add(packed.edgeIncidentElementOrdinals);
+    add(packed.edgeFaceOffsets);
+    add(packed.edgeFaceOwnerElementOrdinals);
+    add(packed.edgeFaceIndices);
+    add(packed.faceSubsetOrdinals);
+  }
+  return (
+    [...buffers].reduce((total, buffer) => total + buffer.byteLength, 0) +
+    16 * Float32Array.BYTES_PER_ELEMENT
+  );
+}
+
+function countDenseSemanticAllocations(part: Part): DenseSemanticAllocationCounts {
+  const packed = packedSemanticStorage(part);
+  if (packed !== undefined) return countPackedSemanticAllocations(packed);
+  return countEmptySemanticAllocations();
+}
+
+function countPackedSemanticAllocations(
+  packed: NonNullable<ReturnType<typeof packedSemanticStorage>>,
+): DenseSemanticAllocationCounts {
+  const hasFaces = packed.faceOwnerElementOrdinals.length > 0;
+  let neighborFaceCount = 0;
+  for (const neighbor of packed.faceNeighborElementOrdinals) {
+    if (neighbor !== 0) neighborFaceCount += 1;
+  }
+  return {
+    elementDescriptors: 0,
+    primitiveRangeArrays: 0,
+    primitiveRangeDescriptors: 0,
+    faceDescriptors: 0,
+    faceNodeArrays: 0,
+    faceNodeReferences: packed.faceNodeIds.length,
+    faceKeyReferences: 0,
+    faceSubsetReferences: packed.faceSubsetOrdinals?.length ?? 0,
+    edgeDescriptors: 0,
+    edgeNodeArrays: 0,
+    edgeNodeReferences: packed.edgeNodeIds?.length ?? 0,
+    edgeIncidentElementReferences: packed.edgeIncidentElementOrdinals?.length ?? 0,
+    edgeFaceReferenceArrays: 0,
+    edgeFaceReferences: packed.edgeFaceOwnerElementOrdinals?.length ?? 0,
+    bodyDescriptors: packed.bodies?.length ?? 0,
+    bodyElementReferences: 0,
+    semanticIndex: {
+      elementEntries: 0,
+      elementOrdinalEntries: 0,
+      bodyEntries: packed.bodies?.length ?? 0,
+      bodyByElementEntries: 0,
+      faceEntries: 0,
+      edgeEntries: 0,
+      nodeTriangleFaceOffsetsBytes:
+        (hasFaces ? packed.nodeCount + 1 : 0) * Uint32Array.BYTES_PER_ELEMENT,
+      nodeTriangleFaceIdsBytes: packed.faceNodeIds.length * Uint32Array.BYTES_PER_ELEMENT,
+      neighborTriangleFaceOffsetsBytes:
+        (packed.elementIds.length + 1) * Uint32Array.BYTES_PER_ELEMENT,
+      neighborTriangleFaceIdsBytes: neighborFaceCount * Uint32Array.BYTES_PER_ELEMENT,
+    },
+  };
+}
+
+function countEmptySemanticAllocations(): DenseSemanticAllocationCounts {
+  return {
+    elementDescriptors: 0,
+    primitiveRangeArrays: 0,
+    primitiveRangeDescriptors: 0,
+    faceDescriptors: 0,
+    faceNodeArrays: 0,
+    faceNodeReferences: 0,
+    faceKeyReferences: 0,
+    faceSubsetReferences: 0,
+    edgeDescriptors: 0,
+    edgeNodeArrays: 0,
+    edgeNodeReferences: 0,
+    edgeIncidentElementReferences: 0,
+    edgeFaceReferenceArrays: 0,
+    edgeFaceReferences: 0,
+    bodyDescriptors: 0,
+    bodyElementReferences: 0,
+    semanticIndex: {
+      elementEntries: 0,
+      elementOrdinalEntries: 0,
+      bodyEntries: 0,
+      bodyByElementEntries: 0,
+      faceEntries: 0,
+      edgeEntries: 0,
+      nodeTriangleFaceOffsetsBytes: 0,
+      nodeTriangleFaceIdsBytes: 0,
+      neighborTriangleFaceOffsetsBytes: 0,
+      neighborTriangleFaceIdsBytes: 0,
+    },
   };
 }
 
@@ -95,34 +197,4 @@ export function transferBuffers(payload: BenchmarkTransferPayload): ArrayBuffer[
 /** Returns the bytes in one typed-array collection. */
 export function transferredByteLength(payload: BenchmarkTransferPayload): number {
   return transferBuffers(payload).reduce((total, buffer) => total + buffer.byteLength, 0);
-}
-
-function createElements(count: number): ElementTessellation[] {
-  return Array.from({ length: count }, (_, index) => ({
-    id: index + 1,
-    primitiveRanges: [
-      { primitive: "triangles" as const, primitiveStart: index * 4, primitiveCount: 4 },
-    ],
-    shape: ElementShape.Tet4,
-    bodyId: 1,
-  }));
-}
-
-function createFaces(payload: DenseTet4Payload) {
-  return Array.from({ length: payload.elementCount * 4 }, (_, faceNumber) => {
-    const elementId = Math.floor(faceNumber / 4) + 1;
-    const faceIndex = faceNumber % 4;
-    const nodeIds = tet4FaceNodeIds(Math.floor(faceNumber / 4), faceIndex, payload.gridSize);
-    const neighborElementId = payload.faceNeighborIds[faceNumber] ?? 0;
-    return {
-      elementId,
-      faceIndex,
-      primitiveStart: faceNumber,
-      primitiveCount: 1,
-      key: canonicalKey(nodeIds),
-      nodeIds,
-      ...(neighborElementId === 0 ? {} : { neighborElementId }),
-      bodyId: 1,
-    };
-  });
 }

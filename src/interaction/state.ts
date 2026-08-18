@@ -10,9 +10,13 @@ import type { EdgeRef, FaceRef } from "./refs";
  * @category Interaction and picking
  */
 export interface Color {
+  /** Red channel in the normalized range `[0, 1]`. */
   readonly r: number;
+  /** Green channel in the normalized range `[0, 1]`. */
   readonly g: number;
+  /** Blue channel in the normalized range `[0, 1]`. */
   readonly b: number;
+  /** Alpha channel in the normalized range `[0, 1]`; zero remains pickable. */
   readonly a: number;
 }
 
@@ -21,9 +25,11 @@ export interface Color {
  * @category Interaction and picking
  */
 export interface StyleOverride {
+  /** Replacement base color, including normalized alpha. */
   readonly color?: Color;
   /** Normalized emissive boost in the supported range `[0, 1]`. */
   readonly emissive?: number;
+  /** Fractional opacity in the normalized range `[0, 1]`. */
   readonly opacity?: number;
   /** Authored line width in CSS pixels. Supported only on part and instance layers. */
   readonly lineWidthPixels?: number;
@@ -87,8 +93,11 @@ function validateLineWidth(value: number): void {
  * @category Interaction and picking
  */
 export interface ResolvedStyle {
+  /** Final color after all style layers have been resolved. */
   readonly color: Color;
+  /** Final normalized emissive boost. */
   readonly emissive: number;
+  /** Final fractional opacity; zero remains an interaction target. */
   readonly opacity: number;
   /** Authored line width in CSS pixels. */
   readonly lineWidthPixels: number;
@@ -103,14 +112,24 @@ export interface ResolvedStyle {
  * @category Interaction and picking
  */
 export interface InteractionTheme {
+  /** Style applied while a target is highlighted. */
   readonly highlighted: PrimitiveStyleOverride;
+  /** Style applied while a target is selected. */
   readonly selected: PrimitiveStyleOverride;
 }
 
-/** Opaque immutable interaction value exposed by the public API. */
+/** Internal symbol used to keep the public interaction token nominal. */
 const interactionStateBrand: unique symbol = Symbol("InteractionState");
-/** @category Interaction and picking */
+/**
+ * Opaque immutable interaction value exposed by the public API.
+ *
+ * Create the initial value with {@link createInteractionState}; update it with
+ * the pure selection, hover, visibility, and override helpers. The token has
+ * no public mutable fields and is safe to retain between viewport updates.
+ * @category Interaction and picking
+ */
 export interface InteractionState {
+  /** Internal nominal marker; callers must not read or write this property. */
   readonly [interactionStateBrand]: "InteractionState";
 }
 

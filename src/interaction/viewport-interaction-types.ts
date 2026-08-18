@@ -4,6 +4,7 @@ import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { Camera } from "../camera/camera";
+import type { CanvasCssPoint } from "../camera/coordinates";
 
 /** Explicitly routed touch behavior for an installed viewport interaction. */
 export type ViewportInteractionTouchMode = "navigate" | "hover" | "box-select";
@@ -11,25 +12,41 @@ export type ViewportInteractionTouchMode = "navigate" | "hover" | "box-select";
 /** Interaction operation currently being resolved or applied. */
 export type ViewportInteractionPhase = "hover" | "click" | "box";
 
-/** The discriminated completed event delivered by the default box lifecycle. */
-export type ViewportInteractionBoxEvent = Extract<
-  BoxSelectionEvent,
-  { readonly type: "start" | "change" | "complete" }
-> & { readonly type: "complete" };
+/** The completed box event delivered by the default interaction lifecycle. */
+export interface ViewportInteractionBoxEvent {
+  /** Completion lifecycle discriminator. */
+  readonly type: "complete";
+  /** Initial pointer position in canvas CSS pixels. */
+  readonly anchor: CanvasCssPoint;
+  /** Final pointer position in canvas CSS pixels. */
+  readonly current: CanvasCssPoint;
+  /** Normalized completed selection rectangle. */
+  readonly rect: BoxSelectionRect;
+  /** Modifier keys captured for the completed gesture. */
+  readonly modifiers: ViewportInteractionModifiers;
+}
 
 /** Modifier state normalized across pointer and box-selection events. */
 export interface ViewportInteractionModifiers {
+  /** Whether Shift was held. */
   readonly shift: boolean;
+  /** Whether Control was held. */
   readonly control: boolean;
+  /** Whether Alt was held. */
   readonly alt: boolean;
+  /** Whether Meta was held. */
   readonly meta: boolean;
 }
 
 /** A completed box gesture plus its resolved, host-mappable candidates. */
 export interface ViewportInteractionBoxSelection {
+  /** Completed box lifecycle event. */
   readonly event: ViewportInteractionBoxEvent;
+  /** Requested target granularity. */
   readonly granularity: InteractionGranularity;
+  /** World-space frustum corresponding to the box. */
   readonly frustum: BoxSelectionFrustum;
+  /** Unique candidates returned by region discovery. */
   readonly targets: readonly InteractionTarget[];
 }
 
@@ -41,14 +58,23 @@ export interface ViewportInteractionBoxSelection {
  * still using the installer's candidate discovery and event ordering.
  */
 export interface ViewportInteractionApplyRequest {
+  /** Interaction operation being applied. */
   readonly phase: ViewportInteractionPhase;
+  /** Requested physical target granularity. */
   readonly granularity: InteractionGranularity;
+  /** Snapshot before the default mutation. */
   readonly current: InteractionState;
+  /** Snapshot the default policy would install. */
   readonly defaultInteraction: InteractionState;
+  /** Point candidate for hover/click phases. */
   readonly target: InteractionTarget | undefined;
+  /** Region candidates for box phase, or an empty list for point phases. */
   readonly targets: readonly InteractionTarget[];
+  /** Modifier keys captured for this operation. */
   readonly modifiers: ViewportInteractionModifiers;
+  /** Original browser or box lifecycle event. */
   readonly event: PointerEvent | MouseEvent | BoxSelectionEvent;
+  /** Derived world-space frustum for a box operation. */
   readonly frustum?: BoxSelectionFrustum;
 }
 
@@ -67,13 +93,19 @@ export type ViewportInteractionApplyResult =
  */
 export interface ViewportInteractionOptions {
   /**
-   * Existing viewport primitives used by the installer. The host owns this
+   * Existing viewport capabilities used by the binding. The host owns this
    * object and remains responsible for destroying the viewport after disposing
    * the binding.
    */
   readonly viewport: {
-    readonly view: { readonly camera: Camera };
+    /** Camera/navigation capability used to derive box-selection frusta. */
+    readonly view: {
+      /** Camera used to derive box-selection frusta. */
+      readonly camera: Camera;
+    };
+    /** Interaction and picking capabilities used by the binding. */
     readonly interaction: {
+      /** Current immutable interaction snapshot. */
       readonly state: InteractionState;
       /** Reads the physical target under canvas CSS coordinates. */
       pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
@@ -99,10 +131,15 @@ export interface ViewportInteractionOptions {
    */
   readonly resolvePoint?: (request: {
     readonly phase: "hover" | "click";
+    /** Canvas-local x coordinate. */
     readonly x: number;
+    /** Canvas-local y coordinate. */
     readonly y: number;
+    /** Requested target granularity. */
     readonly granularity: InteractionGranularity;
+    /** Modifier keys captured for the event. */
     readonly modifiers: ViewportInteractionModifiers;
+    /** Original pointer or mouse event. */
     readonly event: PointerEvent | MouseEvent;
   }) => Promise<InteractionTarget | undefined>;
   /**
@@ -112,9 +149,13 @@ export interface ViewportInteractionOptions {
    * serialized, with only the newest completed box queued while one is pending.
    */
   readonly resolveRegion?: (request: {
+    /** Normalized canvas-local selection rectangle. */
     readonly rect: BoxSelectionRect;
+    /** Completed box lifecycle event. */
     readonly event: ViewportInteractionBoxEvent;
+    /** Requested target granularity. */
     readonly granularity: InteractionGranularity;
+    /** World-space frustum derived from the rectangle. */
     readonly frustum: BoxSelectionFrustum;
   }) => Promise<readonly InteractionTarget[]>;
   /**

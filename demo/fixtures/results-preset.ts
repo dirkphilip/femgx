@@ -1,5 +1,6 @@
 import {
   createResultField,
+  createElementFrameField,
   createScene,
   identity,
   multiply,
@@ -72,11 +73,12 @@ export function createResultsPreset(): ModelPreset {
   });
   const normals = createNormalsField(model);
   const fibers = createFibersField(model.elements.length);
-  const vectorFields = [normals, fibers] as const;
+  const frames = createElementFramesField(model);
+  const vectorFields = [normals, fibers, frames] as const;
   const resultSequence = createResultSequence(model);
   return {
     id: "results",
-    name: "Static results · scalar + deformation + orientation",
+    name: "Results and element-orientation gallery",
     scene,
     elementModels: new Map([[RESULTS_PART_ID, model]]),
     partColors: new Map([[RESULTS_PART_ID, { r: 0.48, g: 0.55, b: 0.68, a: 1 }]]),
@@ -268,4 +270,33 @@ function createFibersField(elementCount: number): VectorField<"elemental"> {
       1, 0.25, 0, -1, -0.25, 0, 0, 1, 0, 0, -1, 0, 1, 1, 0, -1, -1, 0, 1, 0, 1, -1, 0, -1,
     ]),
   });
+}
+
+function createElementFramesField(model: ReturnType<typeof createResultsModel>) {
+  const values = new Float32Array(model.elements.length * 9);
+  for (const [index, element] of model.elements.entries()) {
+    const first = pointAt(model.nodes, element.nodeIds[0]);
+    const second = pointAt(model.nodes, element.nodeIds[1]);
+    const third = pointAt(model.nodes, element.nodeIds[2]);
+    const x = normalized(subtract(second, first));
+    const z = normalizedCross(subtract(second, first), subtract(third, first));
+    const y = normalizedCross(z, x);
+    values.set([...x, ...y, ...z], index * 9);
+  }
+  return createElementFrameField({
+    partId: RESULTS_PART_ID,
+    id: "demo-element-frames",
+    name: "Demo element frames · RGB X/Y/Z axes",
+    count: model.elements.length,
+    unit: "unitless",
+    values,
+  });
+}
+
+function normalized(vector: readonly [number, number, number]): [number, number, number] {
+  const length = Math.hypot(vector[0], vector[1], vector[2]);
+  if (!Number.isFinite(length) || length <= 1e-8) {
+    throw new Error("Element frame axis is degenerate");
+  }
+  return [vector[0] / length, vector[1] / length, vector[2] / length];
 }

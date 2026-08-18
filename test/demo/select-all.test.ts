@@ -11,6 +11,8 @@ const instanceId = "root/part";
 
 describe("workbench select all", () => {
   it.each([
+    ["part", ["part:1"]],
+    ["instance", ["instance:root/part"]],
     ["body", ["body:10"]],
     ["element", ["element:1"]],
     ["face", ["face:1:0"]],
@@ -25,6 +27,24 @@ describe("workbench select all", () => {
     const viewport = fakeViewport(interaction);
 
     expect(selectAllTargets(viewport, granularity).map(targetLabel)).toEqual(expected);
+  });
+
+  it("deduplicates a reusable part across visible instances", () => {
+    const part = mixedPart();
+    const viewport = {
+      interaction: { state: createInteractionState() },
+      scene: { parts: new Map([[part.id, part]]) },
+      runtime: {
+        getVisibleInstanceIds: () => ["root/first", "root/second"],
+        getInstance: (instanceId: string) => ({ instanceId, partId: part.id }),
+      },
+    } as unknown as Viewport;
+
+    expect(selectAllTargets(viewport, "part").map(targetLabel)).toEqual(["part:1"]);
+    expect(selectAllTargets(viewport, "instance").map(targetLabel)).toEqual([
+      "instance:root/first",
+      "instance:root/second",
+    ]);
   });
 });
 
@@ -98,7 +118,8 @@ function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): strin
     case "edge":
       return `edge:${target.key}`;
     case "part":
+      return `part:${target.partId}`;
     case "instance":
-      return target.kind;
+      return `instance:${target.instanceId}`;
   }
 }

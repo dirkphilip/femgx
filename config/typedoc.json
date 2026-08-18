@@ -28,13 +28,14 @@
   "navigationLinks": {
     "Demo": "../"
   },
-  "name": "FemGx API reference · experimental 0.x",
+  "name": "FemGx API · experimental 0.x",
   "navigation": {
     "includeCategories": true,
     "includeGroups": false,
     "includeFolders": true,
     "compactFolders": true
   },
+  "customCss": "../docs/assets/api-reference.css",
   "out": "../dist-demo/api",
   "readme": "../docs/api-reference.md",
   "requiredToBeDocumented": [
@@ -45,7 +46,9 @@
     "Class",
     "Interface",
     "TypeAlias",
-    "Method"
+    "Method",
+    "Property",
+    "Accessor"
   ],
   "treatValidationWarningsAsErrors": true,
   "validation": {

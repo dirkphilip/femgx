@@ -30,9 +30,13 @@ export interface WebGpuAdapterProfile {
   readonly limits: Readonly<Record<string, number>>;
   /** Whether the user agent selected a software (fallback) adapter. */
   readonly isFallbackAdapter: boolean;
+  /** Adapter-reported vendor string. */
   readonly vendor: string;
+  /** Adapter-reported architecture string. */
   readonly architecture: string;
+  /** Adapter-reported device string. */
   readonly device: string;
+  /** Adapter-reported human-readable description. */
   readonly description: string;
 }
 
@@ -41,6 +45,7 @@ export interface WebGpuAdapterProfile {
  * @category Advanced runtime and WebGPU platform
  */
 export interface WebGpuSupportReport {
+  /** Whether the environment can create a supported WebGPU device. */
   readonly status: WebGpuSupportStatus;
   /** Present when `status` is `"unsupported"`. */
   readonly reason?: WebGpuUnsupportedReason;
@@ -60,6 +65,7 @@ export interface WebGpuSupportReport {
  * @category Advanced runtime and WebGPU platform
  */
 export class WebGpuUnsupportedError extends Error {
+  /** Typed reason why adapter or device creation was unavailable. */
   readonly reason: WebGpuUnsupportedReason;
 
   constructor(reason: WebGpuUnsupportedReason, message: string) {

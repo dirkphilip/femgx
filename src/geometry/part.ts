@@ -44,12 +44,19 @@ export { MAX_PART_ID, validatePartId } from "./id-validation";
  * @category Start here
  */
 export interface Part {
+  /** Internal nominal marker; parts are created by {@link createPart}. */
   readonly [partBrand]: true;
+  /** Stable reusable-part identifier. */
   readonly id: PartId;
+  /** Indexed geometry groups, one group per primitive topology. */
   readonly geometries: readonly Geometry[];
+  /** Optional element-to-primitive ownership table. */
   readonly elements?: readonly ElementTessellation[];
+  /** Optional dense part-local node coordinates for nodal results/deformation. */
   readonly nodePositions?: Float32Array;
+  /** Optional semantic body table with direct element membership. */
   readonly bodies?: readonly GeometryBody[];
+  /** Derived axis-aligned bounds in local part coordinates. */
   readonly bounds: Bounds;
 }
 
@@ -122,14 +129,32 @@ export function createPart(
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
   });
-  return {
-    [partBrand]: true,
-    id,
+  return createPartRecord(id, {
     geometries: groups,
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
-    bounds: finitePartBounds(groups),
+  });
+}
+
+/** Internal branded record construction after an owning boundary has validated its inputs. */
+export function createPartRecord(
+  id: PartId,
+  input: {
+    readonly geometries: readonly Geometry[];
+    readonly elements?: readonly ElementTessellation[];
+    readonly nodePositions?: Float32Array;
+    readonly bodies?: readonly GeometryBody[];
+  },
+): Part {
+  return {
+    [partBrand]: true,
+    id,
+    geometries: input.geometries,
+    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
+    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+    bounds: finitePartBounds(input.geometries),
   };
 }
 

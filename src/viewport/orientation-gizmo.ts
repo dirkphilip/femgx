@@ -10,6 +10,7 @@ import {
  * @category Viewport lifecycle
  */
 export interface OrientationGizmoOptions {
+  /** DOM element that receives the renderer-owned orientation gizmo. */
   readonly container: HTMLElement;
 }
 

@@ -6,7 +6,8 @@ import {
   type InteractionGranularity,
 } from "../../src/entries/root";
 import { createModelPresets } from "../fixtures/presets";
-import { installDemoHarness } from "../devtools/harness";
+import { parseTet4CellsQuery } from "../benchmark/dense-tet4";
+import { installDemoHarness, type DemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controllers/controller";
 import { createExampleModel, type WorkbenchModel } from "./models/model";
 import { errorMessage } from "./models/model";
@@ -48,6 +49,7 @@ export async function startWebGpuDemo(
       presets: models,
       createViewport,
     });
+    meshTet4FromQuery(state.controller);
     state.viewport.render();
   } catch (error) {
     state.viewport?.destroy();
@@ -79,6 +81,13 @@ function createDemoModels(options: WebGpuDemoOptions): WorkbenchModel[] {
     options.testAlphaZero === true ? { transparencyOpacity: 0 } : undefined,
   );
   return presets.map(createExampleModel);
+}
+
+function meshTet4FromQuery(controller: WorkbenchController): void {
+  const search = (globalThis as { location?: { readonly search?: string } }).location?.search;
+  const cells = parseTet4CellsQuery(search ?? "");
+  if (cells === undefined) return;
+  controller.commands.meshTet4(cells);
 }
 
 function reportRendererFailure(
@@ -190,15 +199,7 @@ function installWorkbenchHarness(
         reportFailure(error);
       }
     },
-    runBenchmark: async (includeLarge: boolean, caseId?: string) => {
-      controller.destroy();
-      state.viewport = undefined;
-      const { runWebGpuBenchmark } = await import("../benchmark/runner");
-      return runWebGpuBenchmark(canvas, {
-        includeLarge,
-        ...(caseId === undefined ? {} : { caseId }),
-      });
-    },
+    runBenchmark: benchmarkRunner(canvas, controller, state),
     pickPoint: async (x: number, y: number) =>
       (await state.viewport?.interaction.pick(x, y))?.worldPosition,
     probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),
@@ -206,6 +207,33 @@ function installWorkbenchHarness(
       (await state.viewport?.interaction.pickRegion(rect, granularity)) ?? [],
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
+}
+
+function benchmarkRunner(
+  canvas: HTMLCanvasElement,
+  controller: WorkbenchController,
+  state: StartState,
+): DemoHarness["runBenchmark"] {
+  return async (includeLarge, caseId, holdNodeSelectionForCapture) => {
+    if (holdNodeSelectionForCapture === true) {
+      delete canvas.dataset["benchmarkNodeSelectionError"];
+    }
+    controller.destroy();
+    state.viewport = undefined;
+    const { runWebGpuBenchmark } = await import("../benchmark/runner");
+    try {
+      return await runWebGpuBenchmark(canvas, {
+        includeLarge,
+        ...(caseId === undefined ? {} : { caseId }),
+        ...(holdNodeSelectionForCapture === undefined ? {} : { holdNodeSelectionForCapture }),
+      });
+    } catch (error) {
+      if (holdNodeSelectionForCapture === true) {
+        canvas.dataset["benchmarkNodeSelectionError"] = errorMessage(error);
+      }
+      throw error;
+    }
+  };
 }
 
 async function probePickKeys(

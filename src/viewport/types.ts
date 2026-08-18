@@ -234,7 +234,12 @@ export interface Viewport {
   /** Releases viewport-owned renderer/runtime resources and library-installed listeners. */
   destroy(): void;
   /** Returns lightweight visible-instance and draw-batch counts. */
-  stats(): { readonly visibleInstances: number; readonly drawBatches: number };
+  stats(): {
+    /** Number of currently visible expanded instances. */
+    readonly visibleInstances: number;
+    /** Number of renderer draw batches in the latest frame. */
+    readonly drawBatches: number;
+  };
 }
 
 /**

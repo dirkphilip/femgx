@@ -10,6 +10,7 @@ import { length, subtract, type Vec3 } from "../math/vec3";
  * @category Camera and math
  */
 export interface CameraRef {
+  /** Current camera value; controls replace this reference immutably. */
   camera: Camera;
 }
 
@@ -29,8 +30,11 @@ export interface CameraNavigationTarget {
  * @category Camera and math
  */
 export interface CameraControlOptions {
+  /** Canvas receiving pointer and touch gestures. */
   readonly canvas: HTMLCanvasElement;
+  /** Mutable holder updated by the installed controls. */
   readonly cameraRef: CameraRef;
+  /** Host navigation capabilities used to resolve orbit pivots. */
   readonly navigation: CameraNavigationTarget;
   /** Supplies protected scene bounds for close-zoom navigation. */
   readonly bounds?: () => Bounds;
