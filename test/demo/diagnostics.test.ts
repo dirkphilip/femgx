@@ -112,6 +112,39 @@ describe("demo diagnostics", () => {
     expect(text).toContain("Submitted element occurrences 16,384");
   });
 
+  it("reports a reusable part as shown when any occurrence is visible", () => {
+    const preset = createPerformancePreset();
+    const model = createExampleModel(preset);
+    const runtime = {
+      getPartOccurrences: () => [
+        {
+          partOccurrenceId: "hidden-first",
+          partId: 1,
+          occurrenceId: "root/hidden",
+          visible: false,
+        },
+        {
+          partOccurrenceId: "visible-second",
+          partId: 1,
+          occurrenceId: "root/visible",
+          visible: true,
+        },
+      ],
+    } as unknown as WorkbenchSceneContext["runtime"];
+    const text = statsText(
+      { model, runtime, interaction: createInteractionState() },
+      {
+        rendererName: "webgpu",
+        toggles: { edges: true, nodes: true, diagnostics: true },
+        stats: { visibleInstances: 1, batches: 1 },
+        renderLoop: IDLE_RENDER_LOOP_STATS,
+        selectedCount: 0,
+      },
+    );
+
+    expect(text).toContain("Part 1 128 × 128 reusable shell · shown");
+  });
+
   it("reports Performance Lab retention outcomes in the diagnostics HUD", () => {
     const preset = createPerformancePreset();
     const context = {

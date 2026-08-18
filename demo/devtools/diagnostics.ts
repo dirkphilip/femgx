@@ -106,12 +106,15 @@ function renderLoopLines(stats: RenderLoopStats): string {
 
 function partLines(context: WorkbenchSceneContext): string[] {
   const lines: string[] = [];
-  const firstInstances = new Map<PartId, { readonly visible: boolean }>();
+  const partVisibility = new Map<PartId, boolean>();
   for (const instance of context.runtime.getPartOccurrences()) {
-    if (!firstInstances.has(instance.partId)) firstInstances.set(instance.partId, instance);
+    partVisibility.set(
+      instance.partId,
+      (partVisibility.get(instance.partId) ?? false) || instance.visible,
+    );
   }
-  for (const partId of sortedNumbers(firstInstances.keys())) {
-    const visible = firstInstances.get(partId)?.visible ?? false;
+  for (const partId of sortedNumbers(partVisibility.keys())) {
+    const visible = partVisibility.get(partId) ?? false;
     lines.push(
       `Part ${partId} ${context.model.partNames.get(partId) ?? ""} · ${visible ? "shown" : "hidden"}`,
     );
