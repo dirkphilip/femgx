@@ -151,7 +151,7 @@
     "bench:affected-part-sync": "vitest run --config config/vitest.affected-part-sync.config.ts",
     "bench:cold-attachment": "vitest run --config config/vitest.cold-attachment.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",
-    "bench:webgpu:glb": "RUN_GLB_VIEWPORT_PERF=1 playwright test --project=chrome e2e/demo/perf-glb-viewport.spec.ts",
+    "bench:webgpu:glb": "RUN_GLB_VIEWPORT_PERF=1 playwright test --project=chrome e2e/demo/perf-glb-{viewport,file-open}.spec.ts",
     "test:e2e": "npm run test:e2e:combined",
     "test:e2e:core": "playwright test --project=chrome e2e/core",
     "test:e2e:demo": "playwright test --project=chrome e2e/demo",

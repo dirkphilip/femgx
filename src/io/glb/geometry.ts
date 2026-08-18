@@ -2,7 +2,6 @@ import { Primitive } from "@gltf-transform/core";
 import type { Material, Mesh, vec4 } from "@gltf-transform/core";
 import { createPartRecord, type Bounds, type Part, type PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
-import { transformPoint, type Mat4 } from "../../math/mat4";
 import type { GlbDiagnostics } from "./diagnostics";
 import {
   readPositionData,
@@ -18,25 +17,6 @@ export interface GlbPartRecord {
   readonly part: Part;
   readonly name: string;
   readonly style: StyleOverride;
-}
-
-export interface GlbPlacedPartRecord {
-  readonly record: GlbPartRecord;
-  readonly transform: Mat4;
-}
-
-/** Coalesces single-use display parts by their complete imported style. */
-export function flattenPlacedParts(
-  placed: readonly GlbPlacedPartRecord[],
-): readonly GlbPartRecord[] {
-  const groups = new Map<string, GlbPlacedPartRecord[]>();
-  for (const entry of placed) {
-    const key = styleKey(entry.record.style);
-    const group = groups.get(key);
-    if (group === undefined) groups.set(key, [entry]);
-    else group.push(entry);
-  }
-  return [...groups.values()].map((group, partId) => flattenPlacedGroup(group, partId));
 }
 
 /** Imports the supported primitives of one reusable glTF mesh. */
@@ -87,6 +67,7 @@ interface PrimitiveImport {
 interface PrimitiveData extends PositionData {
   readonly primitiveIndex: number;
   readonly indices: Uint32Array;
+  readonly presentationEdges: Uint32Array;
 }
 
 function readPrimitive(input: PrimitiveImport): PrimitiveData | undefined {
@@ -116,7 +97,12 @@ function readPrimitive(input: PrimitiveImport): PrimitiveData | undefined {
     diagnostics,
     cache,
   );
-  return { ...positionData, primitiveIndex, indices };
+  return {
+    ...positionData,
+    primitiveIndex,
+    indices,
+    presentationEdges: presentationEdgesFor(indices),
+  };
 }
 
 interface PrimitiveGroupImport {
@@ -145,6 +131,7 @@ function importPrimitiveGroup(input: PrimitiveGroupImport): GlbPartRecord {
 
 function combinedGeometry(group: readonly PrimitiveData[]): PositionData & {
   readonly indices: Uint32Array;
+  readonly presentationEdges: Uint32Array;
 } {
   const first = group[0];
   if (first === undefined) throw new Error("GLB primitive group must not be empty");
@@ -156,22 +143,33 @@ function combinedGeometry(group: readonly PrimitiveData[]): PositionData & {
   const indexLength = group.reduce((total, primitive) => total + primitive.indices.length, 0);
   const positions = sharedPositions ? first.positions : new Float32Array(positionLength);
   const indices = new Uint32Array(indexLength);
+  const presentationEdgeLength = group.reduce(
+    (total, primitive) => total + primitive.presentationEdges.length,
+    0,
+  );
+  const presentationEdges = new Uint32Array(presentationEdgeLength);
   let positionOffset = 0;
   let indexOffset = 0;
+  let presentationEdgeOffset = 0;
   let bounds = first.bounds;
   for (const primitive of group) {
     if (sharedPositions) {
       indices.set(primitive.indices, indexOffset);
+      presentationEdges.set(primitive.presentationEdges, presentationEdgeOffset);
       indexOffset += primitive.indices.length;
+      presentationEdgeOffset += primitive.presentationEdges.length;
       continue;
     }
     positions.set(primitive.positions, positionOffset);
     const vertexOffset = positionOffset / 3;
     for (const index of primitive.indices) indices[indexOffset++] = index + vertexOffset;
+    for (const index of primitive.presentationEdges) {
+      presentationEdges[presentationEdgeOffset++] = index + vertexOffset;
+    }
     positionOffset += primitive.positions.length;
     bounds = mergeBounds(bounds, primitive.bounds);
   }
-  return { positions, indices, bounds };
+  return { positions, indices, presentationEdges, bounds };
 }
 
 function primitiveName(
@@ -215,58 +213,24 @@ function mergeBounds(first: Bounds, second: Bounds): Bounds {
   };
 }
 
-function flattenPlacedGroup(group: readonly GlbPlacedPartRecord[], partId: PartId): GlbPartRecord {
-  const first = group[0];
-  if (first === undefined) throw new Error("GLB placed-part group must not be empty");
-  const geometries = group.flatMap(({ record }) => record.part.geometries);
-  const positionLength = geometries.reduce(
-    (total, geometry) => total + geometry.positions.length,
-    0,
-  );
-  const indexLength = geometries.reduce((total, geometry) => total + geometry.indices.length, 0);
-  const positions = new Float32Array(positionLength);
-  const indices = new Uint32Array(indexLength);
-  let positionOffset = 0;
-  let indexOffset = 0;
-  for (const { record, transform } of group) {
-    for (const geometry of record.part.geometries) {
-      appendTransformedPositions(positions, positionOffset, geometry.positions, transform);
-      const vertexOffset = positionOffset / 3;
-      for (const index of geometry.indices) indices[indexOffset++] = index + vertexOffset;
-      positionOffset += geometry.positions.length;
+/** Produces source-local display edges once, before any flat-scene merge. */
+function presentationEdgesFor(indices: Uint32Array): Uint32Array {
+  const edgePairs: number[] = [];
+  const seen = new Set<string>();
+  for (let triangle = 0; triangle < indices.length / 3; triangle += 1) {
+    const base = triangle * 3;
+    for (let corner = 0; corner < 3; corner += 1) {
+      const a = indices[base + corner] ?? 0;
+      const b = indices[base + ((corner + 1) % 3)] ?? 0;
+      const first = Math.min(a, b);
+      const second = Math.max(a, b);
+      const key = `${first},${second}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edgePairs.push(a, b);
     }
   }
-  return {
-    part: createPartRecord(partId, {
-      geometries: [{ primitive: "triangles", positions, indices }],
-    }),
-    name: group.length === 1 ? first.record.name : `${group.length} GLB meshes`,
-    style: first.record.style,
-  };
-}
-
-function appendTransformedPositions(
-  target: Float32Array,
-  offset: number,
-  source: Float32Array,
-  transform: Mat4,
-): void {
-  for (let index = 0; index < source.length; index += 3) {
-    const point = transformPoint(
-      transform,
-      source[index] ?? 0,
-      source[index + 1] ?? 0,
-      source[index + 2] ?? 0,
-    );
-    target[offset + index] = point[0];
-    target[offset + index + 1] = point[1];
-    target[offset + index + 2] = point[2];
-  }
-}
-
-function styleKey(style: StyleOverride): string {
-  const color = style.color;
-  return color === undefined ? "default" : `${color.r},${color.g},${color.b},${color.a}`;
+  return Uint32Array.from(edgePairs);
 }
 
 function materialStyle(material: Material | null, diagnostics: GlbDiagnostics): StyleOverride {

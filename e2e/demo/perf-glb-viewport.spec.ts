@@ -4,7 +4,7 @@ import { rendererMode } from "./demo-support";
 
 const enabled = process.env["RUN_GLB_VIEWPORT_PERF"] === "1";
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:5173";
-const partCount = Number(process.env["GLB_VIEWPORT_PARTS"] ?? "100000");
+const partCount = Number(process.env["GLB_VIEWPORT_PARTS"] ?? "74433");
 
 interface GlbBenchmarkSeam {
   readonly runGlbViewportBenchmark: (
@@ -16,7 +16,9 @@ interface GlbBenchmarkSeam {
 test.skip(!enabled, "full GLB Viewport performance is opt-in");
 test.setTimeout(2 * 60_000);
 
-test("loads and presents a 100k-part GLB through Viewport", async ({ browser }, testInfo) => {
+test("loads and presents a representative flat assembly GLB through Viewport", async ({
+  browser,
+}, testInfo) => {
   const context = await browser.newContext({
     baseURL,
     viewport: { width: 1_000, height: 760 },
@@ -47,9 +49,11 @@ test("loads and presents a 100k-part GLB through Viewport", async ({ browser }, 
     const report = await reportPromise;
     console.log(`GLB_VIEWPORT_BENCHMARK_JSON ${JSON.stringify(report)}`);
     expect(report.sourcePartCount).toBe(partCount);
-    expect(report.partCount).toBe(1);
+    expect(report.partCount).toBeLessThanOrEqual(5);
     expect(report.timings.fileToVisibleMs).toBeLessThan(5_000);
     expect(report.timings.steadyFrameQueueMs).toBeLessThan(100);
+    expect(report.timings.edgeSteadyQueueMs).toBeLessThan(100);
+    expect(report.timings.nodeSteadyQueueMs).toBeLessThan(100);
   } finally {
     await context.close();
   }

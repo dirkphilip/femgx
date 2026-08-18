@@ -5,18 +5,14 @@ import draco3d, { type DracoDecoderOptions } from "draco3dgltf";
 import dracoDecoderWasmUrl from "../../../node_modules/draco3dgltf/draco_decoder_gltf.wasm?url";
 import { createScene, type Scene } from "../../scene/scene";
 import type { AssemblyDefinition, Placement } from "../../scene/assembly";
-import { identity, type Mat4 } from "../../math/mat4";
+import { identity, multiply, type Mat4 } from "../../math/mat4";
 import type { PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
 import { IoError } from "../diagnostics";
 import { createGlbGeometryCache } from "./accessors";
 import { GlbDiagnostics, parseFailure } from "./diagnostics";
-import {
-  flattenPlacedParts,
-  importMeshParts,
-  type GlbPartRecord,
-  type GlbPlacedPartRecord,
-} from "./geometry";
+import { importMeshParts, type GlbPartRecord } from "./geometry";
+import { flattenPlacedParts, type GlbPlacedPartRecord } from "./flatten";
 import type { GlbImportOptions, GlbSceneImport } from "./types";
 
 export type { GlbImportOptions, GlbIssueCode, GlbSceneImport } from "./types";
@@ -187,19 +183,37 @@ function flatSingleUseRootParts(
   diagnostics: GlbDiagnostics,
 ): readonly GlbPartRecord[] | undefined {
   const roots = selected.listChildren();
-  if (roots.length !== nodes.length || roots.some((node) => node.listChildren().length > 0)) {
+  const nested = roots.some((root) => root.listChildren().length > 0);
+  if (nested && roots.some((root) => root.listChildren().length === 0)) return undefined;
+  const placedNodes: FlatPlacedNode[] = roots.flatMap((root): FlatPlacedNode[] => {
+    const children = root.listChildren();
+    if (children.length === 0) return [{ node: root }];
+    if (root.getMesh() !== null || children.some((child) => child.listChildren().length > 0)) {
+      return [];
+    }
+    return children.map((node) => ({ node, parent: root }));
+  });
+  const expectedPlacedCount = nested ? nodes.length - roots.length : nodes.length;
+  if (placedNodes.length !== expectedPlacedCount || placedNodes.length === 0) {
     return undefined;
   }
   const seenMeshes = new Set<Mesh>();
   const placed: GlbPlacedPartRecord[] = [];
-  for (const node of roots) {
+  for (const { node, parent } of placedNodes) {
     const mesh = node.getMesh();
     if (mesh === null || seenMeshes.has(mesh)) return undefined;
     seenMeshes.add(mesh);
-    const transform = nodeTransform(node, diagnostics);
+    const local = nodeTransform(node, diagnostics);
+    const transform =
+      parent === undefined ? local : multiply(nodeTransform(parent, diagnostics), local);
     for (const record of collection.byMesh.get(mesh) ?? []) placed.push({ record, transform });
   }
   return flattenPlacedParts(placed);
+}
+
+interface FlatPlacedNode {
+  readonly node: Node;
+  readonly parent?: Node;
 }
 
 function reachableNodes(selected: GltfScene, diagnostics: GlbDiagnostics): readonly Node[] {

@@ -11,9 +11,12 @@ FE elements, nodes, bodies, results, or a parallel runtime graph.
   informational diagnostic.
 - A synthetic root assembly contains one named assembly per reachable glTF node. Node matrix/TRS
   transforms are preserved as column-major femgx matrices, and node order is deterministic. The
-  exception is a flat selected scene made entirely of single-use leaf meshes: their transforms are
-  baked once and equivalent display styles are coalesced directly under the synthetic root. Source
-  mesh boundaries carry no CAD, FE, or interaction identity in this display-only path.
+  exception is a flat selected scene made entirely of single-use leaf meshes, either directly under
+  the scene or under one mesh-free root node: their transforms are baked once and equivalent alpha
+  classes are coalesced into bounded display batches under the synthetic root. Per-triangle base
+  colors and source-local presentation edges preserve the visible material and wireframe result
+  without retaining one renderer resource per source mesh. Source mesh boundaries carry no CAD, FE,
+  or interaction identity in this display-only path.
 - Supported indexed or non-indexed `TRIANGLES` primitives with a FLOAT `POSITION` VEC3 are grouped
   by material within each reusable glTF mesh. Each material group becomes one reusable `Part`, so
   primitive-heavy display meshes retain their authored style boundaries without creating one scene
@@ -21,6 +24,9 @@ FE elements, nodes, bodies, results, or a parallel runtime graph.
   Unsigned byte, short, and int indices are promoted to `Uint32Array` when necessary.
 - Repeated glTF mesh references reuse those Parts through multiple assembly placements. No FE
   topology or pick ids are synthesized.
+- Packed single-use batches are capped before their renderer-expanded buffers approach WebGPU's
+  portable storage-binding limit. This produces a few draw batches for multi-million-triangle files
+  instead of one invalid oversized binding or tens of thousands of tiny resources.
 - `baseColorFactor` maps to the existing `StyleOverride.color`. OPAQUE ignores source alpha,
   BLEND preserves it, and MASK uses a documented primitive-wide cutoff approximation. Textures,
   UVs, normals, PBR extras, animation, lights, and double-sided material state are ignored with

@@ -18,6 +18,7 @@ export function destroyPartResource(resource: PartResource): void {
     resource.indexBuffer,
     resource.facePickIdsBuffer,
     resource.nodePickIdsBuffer,
+    resource.primitiveColorBuffer,
     resource.fullVertexBuffer,
     resource.fullIndexBuffer,
     resource.fullFacePickIdsBuffer,

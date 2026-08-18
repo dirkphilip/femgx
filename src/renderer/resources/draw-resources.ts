@@ -16,6 +16,7 @@ import {
   buildPartEdgePickResources,
   buildPartEdgeResources,
   buildPartGeometryData,
+  createPrimitiveColorBuffer,
   materializeFullGeometry,
 } from "../resources/geometry-upload";
 import { createColorTargets } from "../resources/color-targets";
@@ -162,16 +163,17 @@ export function uploadGeometryPart(
 ): PartResource {
   const resources = draw.primitiveParts.get(part.id) ?? new Map<Primitive, PartResource>();
   const existing = resources.get(geometry.primitive);
-  if (existing !== undefined) {
-    if (!preferSubset && geometry.primitive !== "points") {
-      materializeFullGeometry(draw.device, part, geometry, existing);
-    }
-    return existing;
-  }
+  if (existing !== undefined)
+    return reuseGeometryResource(draw, part, geometry, preferSubset, existing);
+  const primitiveColorBuffer = geometryColorBuffer(draw.device, geometry);
   if (preferSubset && geometry.primitive === "triangles") {
     const subset = buildPartSubsetGeometryData(draw.device, part, geometry);
     if (subset !== undefined) {
-      const resource = subsetResource(subset.subsetBuffers, subset.subsetIndices.length);
+      const resource = subsetResource(
+        subset.subsetBuffers,
+        subset.subsetIndices.length,
+        primitiveColorBuffer,
+      );
       resources.set(geometry.primitive, resource);
       draw.primitiveParts.set(part.id, resources);
       if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
@@ -202,6 +204,7 @@ export function uploadGeometryPart(
     fullFacePickIdsBuffer: geometryData.facePickIdsBuffer,
     fullNodePickIdsBuffer: geometryData.nodePickIdsBuffer,
     fullIndexCount: vertexData.indices.length,
+    ...(primitiveColorBuffer === undefined ? {} : { primitiveColorBuffer }),
     ...geometryData.subsetBuffers,
     subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
   };
@@ -211,9 +214,29 @@ export function uploadGeometryPart(
   return resource;
 }
 
+function geometryColorBuffer(device: GPUDevice, geometry: Geometry): GPUBuffer | undefined {
+  return geometry.primitive === "triangles"
+    ? createPrimitiveColorBuffer(device, geometry)
+    : undefined;
+}
+
+function reuseGeometryResource(
+  draw: DrawResources,
+  part: Part,
+  geometry: Geometry,
+  preferSubset: boolean,
+  existing: PartResource,
+): PartResource {
+  if (!preferSubset && geometry.primitive !== "points") {
+    materializeFullGeometry(draw.device, part, geometry, existing);
+  }
+  return existing;
+}
+
 function subsetResource(
   buffers: NonNullable<ReturnType<typeof buildPartSubsetGeometryData>>["subsetBuffers"],
   indexCount: number,
+  primitiveColorBuffer: GPUBuffer | undefined,
 ): PartResource {
   if (
     buffers.subsetVertexBuffer === undefined ||
@@ -228,6 +251,7 @@ function subsetResource(
     indexBuffer: buffers.subsetIndexBuffer,
     nodePickIdsBuffer: buffers.subsetNodePickIdsBuffer,
     facePickIdsBuffer: buffers.subsetTopologyBuffer,
+    ...(primitiveColorBuffer === undefined ? {} : { primitiveColorBuffer }),
     edge: undefined,
     edgePick: undefined,
     indexCount,

@@ -99,9 +99,12 @@ GLB import, workbench interaction-state construction, public `createViewport`,
 the first WebGPU queue drain, and a steady queue-drained frame. It requires a
 real system-Chrome WebGPU adapter, captures the rendered 800×600 canvas, and
 budgets file-to-visible completion below five seconds and the steady frame below
-100 milliseconds. The default large CPU scaling lane separately verifies that
-flat-part import and coalescing remain approximately linear at 25k, 50k, and
-100k source parts.
+100 milliseconds. Its companion disk-file lane generates a Mechanical Assembly
+Web-shaped GLB (74,433 colored leaf meshes, 4.17 million triangles, approximately
+114 MB), opens it through the demo's real file input, captures the active imported
+model, and samples continuous surface, edge, and node-toggle presentation. The
+default large CPU scaling lane separately verifies that flat-part import and
+coalescing remain approximately linear at 25k, 50k, and 100k source parts.
 
 ## Budget gate (runs in default CI)
 
