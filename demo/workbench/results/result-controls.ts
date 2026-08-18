@@ -1,12 +1,10 @@
 import type {
-  ElementFrameField,
   PartId,
-  ScalarField,
-  VectorField,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportResultsConfig,
 } from "../../../src/entries/root";
+import type { ElementFrameField, ScalarField, VectorField } from "../../../src/entries/results";
 import type { WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
 

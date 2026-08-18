@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { type PickHit } from "../../src/entries/root";
 import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
   setTargetsSelected,
-  type PickHit,
-} from "../../src/entries/root";
+} from "../../src/entries/interaction";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/selection/pick";
 import {

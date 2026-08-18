@@ -2,7 +2,7 @@ import {
   createInteractionState,
   setPartOverrides,
   type InteractionState,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import type { ModelPreset } from "../../fixtures/presets";
 import { createExampleModel, modelPartStyleOverrides, type WorkbenchModel } from "../models/model";
 

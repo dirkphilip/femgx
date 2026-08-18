@@ -1,12 +1,11 @@
+import { createScene, translation } from "../../../src/entries/root";
 import {
   createInteractionState,
-  createScene,
   selectedTargets,
   setPartOverrides,
   setTargetsHighlighted,
   setTargetsSelected,
-  translation,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { createSceneRuntime } from "../../../src/entries/runtime";
 import { buildHighlightTable } from "../../../src/renderer/selection/highlight-table";
 import {

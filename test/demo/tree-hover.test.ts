@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SceneRuntime } from "../../src/entries/runtime";
-import type { Viewport, InteractionState } from "../../src/entries/root";
+import type { Viewport } from "../../src/entries/root";
+import type { InteractionState } from "../../src/entries/interaction";
 import {
   createInteractionState,
   setPartOccurrenceHighlighted,

@@ -1,5 +1,5 @@
 import { setProjection } from "../../../src/entries/camera";
-import type { InteractionState } from "../../../src/entries/root";
+import type { InteractionState } from "../../../src/entries/interaction";
 import { createModelInteraction } from "../state/preset";
 import type { WorkbenchModel } from "./model";
 import type { WorkbenchPresentation } from "../viewport/presentation";

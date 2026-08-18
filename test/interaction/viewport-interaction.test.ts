@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type PickHit } from "../../src/entries/root";
 import {
   hoveredTarget,
   installViewportInteraction,
@@ -6,9 +7,8 @@ import {
   selectedTargets,
   type BoxSelectionEvent,
   type InteractionTarget,
-  type PickHit,
   type ViewportInteractionBoxSelection,
-} from "../../src/entries/root";
+} from "../../src/entries/interaction";
 import {
   click,
   hit,

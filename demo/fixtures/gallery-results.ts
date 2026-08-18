@@ -1,15 +1,17 @@
 import {
+  type PartId,
+  type Scene,
+  type ViewportLoadConfig,
+  type ViewportResultsConfig,
+} from "../../src/entries/root";
+import {
   createElementFrameField,
   createNodalLoadField,
   createResultField,
   type ElementFrameField,
-  type PartId,
   type ScalarField,
-  type Scene,
   type VectorField,
-  type ViewportLoadConfig,
-  type ViewportResultsConfig,
-} from "../../src/entries/root";
+} from "../../src/entries/results";
 
 export interface GalleryResults {
   readonly active: ViewportResultsConfig;

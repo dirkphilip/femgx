@@ -36,17 +36,13 @@ runtime, or renderer pool.
 ## Minimal example
 
 ```ts
+import { createPart, createViewport, createScene, identity, type Geometry } from "femgx";
 import {
-  createPart,
-  createViewport,
   createInteractionState,
-  createScene,
-  identity,
   setPartOccurrenceOverride,
   setPartOccurrenceOverrides,
   setPartOverride,
-  type Geometry,
-} from "femgx";
+} from "femgx/interaction";
 
 const geometry: Geometry = {
   positions,

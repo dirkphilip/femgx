@@ -1,4 +1,4 @@
-import type { InteractionState, InteractionTarget } from "../../../src/entries/root";
+import type { InteractionState, InteractionTarget } from "../../../src/entries/interaction";
 import { selectedTargetCount } from "../../../src/interaction/selection-queries";
 import {
   BoxSelectionResolverContractError,

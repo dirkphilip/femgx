@@ -1,11 +1,9 @@
+import { createPart, translation, type Part } from "../../../src/entries/root";
 import {
   createInteractionState,
-  createPart,
   setTargetsSelected,
-  translation,
   type InteractionTarget,
-  type Part,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { collectDenseElementSelections } from "../../../src/renderer/selection/element-selection";

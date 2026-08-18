@@ -1,10 +1,10 @@
 import {
   createViewport,
   WebGpuUnsupportedError,
-  type BoxSelectionRect,
   type Viewport,
   type InteractionGranularity,
 } from "../../src/entries/root";
+import { type BoxSelectionRect } from "../../src/entries/interaction";
 import { createModelPresets } from "../fixtures/presets";
 import { parseTet4CellsQuery } from "../benchmark/dense-tet4";
 import { installDemoHarness, type DemoHarness } from "../devtools/harness";

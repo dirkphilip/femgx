@@ -1,18 +1,20 @@
 import {
-  createInteractionState,
-  createResultField,
   createViewport,
   createPart,
   createScene,
   identity,
-  setPartOccurrenceOverride,
-  setPartOverride,
-  setTargetHighlighted,
-  setTargetSelected,
   translation,
   WebGpuUnsupportedError,
   type Viewport,
 } from "../../src/entries/root";
+import {
+  createInteractionState,
+  setPartOccurrenceOverride,
+  setPartOverride,
+  setTargetHighlighted,
+  setTargetSelected,
+} from "../../src/entries/interaction";
+import { createResultField } from "../../src/entries/results";
 import { orbitCamera, projectPoint } from "../../src/entries/camera";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");

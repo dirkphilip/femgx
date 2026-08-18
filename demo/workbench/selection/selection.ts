@@ -7,7 +7,7 @@ import {
   setTargetSelected,
   setTargetsSelected,
   type InteractionState,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import {
   selectedTargetCount,
   selectedTargetSummary,

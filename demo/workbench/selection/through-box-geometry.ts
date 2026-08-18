@@ -1,6 +1,4 @@
 import type {
-  BoxSelectionFrustum,
-  DeformationState,
   ElementTessellation,
   Geometry,
   Mat4,
@@ -9,6 +7,8 @@ import type {
   SectionPlane,
   Vec3,
 } from "../../../src/entries/root";
+import type { BoxSelectionFrustum } from "../../../src/entries/interaction";
+import type { DeformationState } from "../../../src/entries/results";
 
 const PRIMITIVE_ARITY: Record<Primitive, number> = {
   triangles: 3,

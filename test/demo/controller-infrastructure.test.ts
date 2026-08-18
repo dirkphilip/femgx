@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import { type PickHit, type Viewport } from "../../src/entries/root";
 import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
   type InteractionTarget,
   type InteractionState,
-  type PickHit,
-  type Viewport,
-} from "../../src/entries/root";
+} from "../../src/entries/interaction";
 import { createCamera } from "../../src/camera/camera";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { WorkbenchModel } from "../../demo/workbench/models/model";

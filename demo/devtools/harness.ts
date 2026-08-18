@@ -1,4 +1,5 @@
-import type { BoxSelectionRect, InteractionGranularity } from "../../src/entries/root";
+import type { InteractionGranularity } from "../../src/entries/root";
+import type { BoxSelectionRect } from "../../src/entries/interaction";
 import type { BenchmarkCapture } from "../benchmark/capture";
 import type { GlbViewportBenchmarkReport } from "../benchmark/glb-viewport";
 

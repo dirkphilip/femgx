@@ -1,15 +1,17 @@
 import {
-  createInteractionState,
   createPart,
   identity,
-  setElementVisible,
   translation,
   type Viewport,
   type ElementTessellation,
   type Geometry,
-  type InteractionState,
   type Scene,
 } from "../../src/entries/root";
+import {
+  createInteractionState,
+  setElementVisible,
+  type InteractionState,
+} from "../../src/entries/interaction";
 import { createCamera } from "../../src/entries/camera";
 import { createSceneRuntime } from "../../src/entries/runtime";
 import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";

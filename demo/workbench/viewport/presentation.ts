@@ -1,8 +1,5 @@
-import {
-  type Viewport,
-  type InteractionState,
-  type ViewportResultsState,
-} from "../../../src/entries/root";
+import { type Viewport, type ViewportResultsState } from "../../../src/entries/root";
+import { type InteractionState } from "../../../src/entries/interaction";
 import type { Camera } from "../../../src/entries/camera";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchModel } from "../models/model";

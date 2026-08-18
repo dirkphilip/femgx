@@ -3,7 +3,7 @@ import {
   createInteractionState,
   isBodyVisible,
   isTargetHighlighted,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";

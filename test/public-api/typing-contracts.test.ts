@@ -1,12 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 import {
   InteractionGranularity,
-  createInteractionState,
-  interactionTargetFromHit,
-  setPartOccurrenceOverrides,
-  setPartOverrides,
   type EdgePickHit,
-  type InteractionTargetFor,
   type PickHit,
   type SceneReconciliationOutcome,
   type Viewport,
@@ -15,6 +10,13 @@ import {
   type AssemblyOccurrenceId,
   type PartOccurrenceId,
 } from "../../src/entries/root";
+import {
+  createInteractionState,
+  interactionTargetFromHit,
+  setPartOccurrenceOverrides,
+  setPartOverrides,
+  type InteractionTargetFor,
+} from "../../src/entries/interaction";
 
 async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise<void> {
   const edgeHit = await viewport.interaction.pick(10, 20, "edge");

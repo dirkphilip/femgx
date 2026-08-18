@@ -441,7 +441,7 @@ Hosts that want the ordinary interaction policy can install one explicit,
 disposable binding around the existing viewport primitives:
 
 ```ts
-import { installViewportInteraction } from "femgx";
+import { installViewportInteraction } from "femgx/interaction";
 
 const disposeInteraction = installViewportInteraction({
   viewport,
@@ -514,7 +514,7 @@ monotonic request number drops stale hover results when pointer moves outpace
 GPU readbacks:
 
 ```ts
-import { interactionTargetFromHit, setTargetHovered, setTargetSelected } from "femgx";
+import { interactionTargetFromHit, setTargetHovered, setTargetSelected } from "femgx/interaction";
 
 let disposed = false;
 let hoverRequest = 0;
@@ -567,7 +567,7 @@ without mutating selection; the host can replace the selection in one state
 transition with `setTargetsSelected`.
 
 ```ts
-import { clearSelection, setTargetsSelected } from "femgx";
+import { clearSelection, setTargetsSelected } from "femgx/interaction";
 
 const targets = await viewport.interaction.pickRegion(
   { left: 20, top: 20, right: 320, bottom: 240 },
@@ -646,7 +646,7 @@ For the two-triangle model from Workflow 2, this snapshot colors nodes by an
 authored scalar and deforms the same nodes with an authored displacement:
 
 ```ts
-import { createResultField, scalarRange } from "femgx";
+import { createResultField, scalarRange } from "femgx/results";
 
 const temperature = createResultField({
   id: "temperature-step-1",

@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  createInteractionState,
-  identity,
-  type Scene,
-  type Viewport,
-} from "../../../src/entries/root";
+import { identity, type Scene, type Viewport } from "../../../src/entries/root";
+import { createInteractionState } from "../../../src/entries/interaction";
 import { createCamera } from "../../../src/entries/camera";
 import { createSceneRuntime } from "../../../src/entries/runtime";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";

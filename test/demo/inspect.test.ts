@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  createResultField,
-  createScalarColorMap,
   type ViewportOrientationState,
   type PickHit,
   type ViewportScalarState,
   type ViewportResultsState,
 } from "../../src/entries/root";
+import { createResultField, createScalarColorMap } from "../../src/entries/results";
 import { describePick } from "../../demo/workbench/selection/inspect";
 
 describe("demo result inspection", () => {

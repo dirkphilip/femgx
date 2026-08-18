@@ -37,8 +37,9 @@ function filesUnder(directory) {
 
 function isAllowedSourceImport(specifier) {
   return (
-    /(?:^|\/)src\/entries\/(?:root|model|io|io\/glb|camera|runtime|platform)$/u.test(specifier) ||
-    /(?:^|\/)src\/interaction\/selection-queries$/u.test(specifier)
+    /(?:^|\/)src\/entries\/(?:root|model|io|io\/glb|camera|interaction|results|runtime|platform)$/u.test(
+      specifier,
+    ) || /(?:^|\/)src\/interaction\/selection-queries$/u.test(specifier)
   );
 }
 

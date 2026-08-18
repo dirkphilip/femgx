@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { type Viewport, type Scene } from "../../../src/entries/root";
 import {
   createInteractionState,
   isBodyVisible,
@@ -8,10 +9,8 @@ import {
   setElementVisible,
   setBodyVisible,
   setTargetSelected,
-  type Viewport,
   type InteractionState,
-  type Scene,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import {

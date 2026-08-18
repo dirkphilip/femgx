@@ -266,7 +266,7 @@ export interface Viewport {
   /**
    * Groups synchronous mutations into one deferred invalidation and render.
    * This coalesces viewport work only; it does not replace immutable bulk
-   * interaction helpers such as {@link setTargetsSelected}.
+   * interaction helpers such as `setTargetsSelected`.
    */
   batch<T>(operation: () => T): T;
   /** Synchronizes the canvas backing size with its host layout. */

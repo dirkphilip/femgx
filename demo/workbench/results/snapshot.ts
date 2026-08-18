@@ -1,8 +1,5 @@
-import type {
-  PartOccurrenceId,
-  InteractionState,
-  ViewportBackground,
-} from "../../../src/entries/root";
+import type { PartOccurrenceId, ViewportBackground } from "../../../src/entries/root";
+import type { InteractionState } from "../../../src/entries/interaction";
 import type { BodyId, ElementId } from "../../../src/entries/model";
 import type { Camera } from "../../../src/entries/camera";
 import type { SceneRuntime } from "../../../src/entries/runtime";

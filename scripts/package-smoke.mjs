@@ -67,7 +67,16 @@ function main() {
     console.log(`Packed ${packResult.filename} (${tarballFiles.length} files)`);
 
     // 3. Sanity-check tarball contents: declarations, no source/demo leakage.
-    const publicEntries = ["model", "io", "io/glb", "camera", "runtime", "platform"];
+    const publicEntries = [
+      "model",
+      "io",
+      "io/glb",
+      "camera",
+      "interaction",
+      "results",
+      "runtime",
+      "platform",
+    ];
     const expectedArtifacts = [
       "dist/femgx.js",
       "dist/entries/root.d.ts",
@@ -189,8 +198,9 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { boxSelectionFrustum, createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } from "femgx";',
+        'import { createScene, identity } from "femgx";',
         'import { createCamera } from "femgx/camera";',
+        'import { boxSelectionFrustum, createInteractionState, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } from "femgx/interaction";',
         'import * as model from "femgx/model";',
         'import * as io from "femgx/io";',
         'import * as glb from "femgx/io/glb";',
@@ -229,7 +239,9 @@ function main() {
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const tsc5 = join(repoRoot, "node_modules", "typescript-5", "bin", "tsc");
     const smokeTs = [
-      'import { boxSelectionFrustum, createViewport, createInteractionState, createPart, createResultField, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride, setTargetHighlighted, setTargetSelected, translation, UnknownSceneIdentityError, type Viewport, type InteractionTarget, type StyleOverride } from "femgx";',
+      'import { createViewport, createPart, createScene, identity, translation, UnknownSceneIdentityError, type Viewport } from "femgx";',
+      'import { boxSelectionFrustum, createInteractionState, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride, setTargetHighlighted, setTargetSelected, type InteractionTarget, type StyleOverride } from "femgx/interaction";',
+      'import { createResultField } from "femgx/results";',
       'import { createElement, createElementModel, elementPart, ElementShape } from "femgx/model";',
       'import { createElementModelFromFemModel, createModelBuilder, createResultFieldFromModelResult, validateModel } from "femgx/io";',
       'import { createCamera } from "femgx/camera";',
