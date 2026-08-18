@@ -31,6 +31,6 @@ repos:
     hooks:
       - id: codespell
         types: [text]
-        # Vitest lifecycle and the FE/graphics acronym.
-        args: [--ignore-words-list=afterall]
+        # Vitest lifecycle and FE/graphics acronyms.
+        args: ["--ignore-words-list=afterall,LOD"]
         exclude: ^(?:package-lock\.json|.*\.glb)$
