@@ -1,4 +1,5 @@
 import type { ElementTessellation, Part } from "../geometry/part";
+import { packedSemanticStorage } from "../geometry/packed/packed-semantic";
 
 /** Topology-derived data shared by all orientation fields on one part. */
 export interface OrientationTopologyElement {
@@ -32,12 +33,39 @@ const topologyCache = new WeakMap<Part, OrientationPartTopology>();
 export function getOrientationTopology(part: Part): OrientationPartTopology {
   const cached = topologyCache.get(part);
   if (cached !== undefined) return cached;
-  const elements = (part.elements ?? [])
-    .map((element) => createTopologyElement(part, element))
-    .sort((left, right) => left.id - right.id);
+  const packed = packedSemanticStorage(part);
+  const elements =
+    packed === undefined
+      ? (part.elements ?? []).map((element) => createTopologyElement(part, element))
+      : packedTopologyElements(packed);
+  elements.sort((left, right) => left.id - right.id);
   const topology = { elements, byId: new Map(elements.map((element) => [element.id, element])) };
   topologyCache.set(part, topology);
   return topology;
+}
+
+function packedTopologyElements(
+  storage: NonNullable<ReturnType<typeof packedSemanticStorage>>,
+): OrientationTopologyElement[] {
+  return Array.from({ length: storage.elementIds.length }, (_, ordinal) => {
+    const nodes = new Set<number>();
+    const first = storage.elementFaceOffsets?.[ordinal] ?? 0;
+    const last = storage.elementFaceOffsets?.[ordinal + 1] ?? 0;
+    for (let face = first; face < last; face += 1) {
+      const start = storage.faceNodeOffsets[face] ?? 0;
+      const end = storage.faceNodeOffsets[face + 1] ?? start;
+      for (let index = start; index < end; index += 1) {
+        const nodeId = storage.faceNodeIds[index];
+        if (nodeId !== undefined) nodes.add(nodeId);
+      }
+    }
+    const bodyId = storage.elementBodyIds?.[ordinal];
+    return {
+      id: storage.elementIds[ordinal] ?? 0,
+      nodeIds: [...nodes].sort((left, right) => left - right),
+      bodyId: bodyId === undefined || bodyId === 0 ? undefined : bodyId,
+    };
+  });
 }
 
 /** Resolves one element's unique authored-node anchor and local reference size. */

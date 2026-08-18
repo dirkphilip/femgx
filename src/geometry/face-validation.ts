@@ -1,5 +1,6 @@
 import { validateOneBasedId } from "./id-validation";
 import { faceIdentity } from "./element-face-selection";
+import { packedSemanticStorageForGeometry } from "./packed/packed-semantic";
 import type { ElementTessellation, FaceTessellation, Geometry, TriangleGeometry } from "./types";
 
 const faceSubsetMasks = new WeakMap<TriangleGeometry, Uint8Array>();
@@ -10,6 +11,19 @@ export function faceSubsetPrimitiveMask(geometry: TriangleGeometry): Uint8Array 
   if (subset === undefined) return undefined;
   const cached = faceSubsetMasks.get(geometry);
   if (cached !== undefined) return cached;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined && packed.faceSubsetOrdinals !== undefined) {
+    const displayedByPrimitive = new Uint8Array(Math.floor(geometry.indices.length / 3));
+    for (const faceOrdinal of packed.faceSubsetOrdinals) {
+      const start = packed.facePrimitiveStarts[faceOrdinal] ?? 0;
+      const end = start + (packed.facePrimitiveCounts[faceOrdinal] ?? 0);
+      for (let primitive = start; primitive < end; primitive += 1) {
+        displayedByPrimitive[primitive] = 1;
+      }
+    }
+    faceSubsetMasks.set(geometry, displayedByPrimitive);
+    return displayedByPrimitive;
+  }
   const identities = new Set<string>();
   for (const ref of subset.faceIds) {
     const identity = faceIdentity(ref.elementId, ref.faceIndex);

@@ -81,6 +81,19 @@ identity; element and body ids reserve the top raw value because `0` is
 the no-hit sentinel. Derived descriptors never become a second authoring
 source.
 
+Dense FE producers may supply validated authored semantic columns through the
+same internal `Part` construction boundary. The columns are the authoritative
+full-volume element, face, neighbor, edge, and body data; public `elements`,
+`faces`, and `edges` remain lazy convenience views and do not become a second
+runtime graph. Renderer upload, visibility skins, picking, section caps,
+selected bounds, and orientation topology use the columns directly. This is
+an implementation choice for dense producers, not a public `PackedPart` or
+renderer mode. Ordinary `createPart` object input remains available for raw or
+irregular authored geometry whose exact public keys cannot be normalized
+without changing its semantics. Optional descriptor-consuming features may
+still materialize their own feature-local records; the benchmark reports this
+separately from portable typed-array retention.
+
 Raw geometry follows this boundary directly:
 
 ```ts

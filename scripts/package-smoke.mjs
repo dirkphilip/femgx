@@ -477,7 +477,7 @@ function checkBundleBudgets(root) {
     if (entry === "femgx") {
       // Nodal force/moment glyphs add one public field/resolver path; keep its
       // accepted raw growth bounded while retaining the compression ceiling.
-      expect(rawBytes <= 430_000, `root bundle exceeds raw budget: ${rawBytes}`);
+      expect(rawBytes <= 445_000, `root bundle exceeds raw budget: ${rawBytes}`);
       expect(gzipBytes <= 110_000, `root bundle exceeds gzip budget: ${gzipBytes}`);
     }
   }

@@ -5,6 +5,10 @@ import {
   type Geometry,
   type Part,
 } from "../../geometry/part";
+import {
+  packedSemanticStorageForGeometry,
+  type PackedSemanticStorage,
+} from "../../geometry/packed/packed-semantic";
 
 type NodeMetadataSource = Geometry | Part;
 
@@ -19,6 +23,13 @@ export function buildElementPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
+      const elementId = packed.elementIds[ordinal];
+      return elementId === undefined ? undefined : elementId + 1;
+    });
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) => element.id + 1);
 }
 
@@ -26,8 +37,12 @@ export function buildElementPrimitivePickIds(
 export function buildElementPrimitiveOrdinals(
   geometry: Geometry,
   elements: readonly ElementTessellation[],
-  elementOrdinalById: ReadonlyMap<number, number>,
+  elementOrdinalById: { get(key: number): number | undefined },
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => ordinal + 1);
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) =>
     elementOrdinalById.get(element.id),
   );
@@ -38,9 +53,32 @@ export function buildBodyPrimitivePickIds(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
+      const bodyId = packed.elementBodyIds?.[ordinal] ?? 0;
+      return bodyId === 0 ? undefined : bodyId + 1;
+    });
+  }
   return buildElementPrimitiveMetadata(geometry, elements, (element) =>
     element.bodyId === undefined ? undefined : element.bodyId + 1,
   );
+}
+
+function buildPackedPrimitiveMetadata(
+  geometry: Geometry,
+  packed: PackedSemanticStorage,
+  resolveValue: (ordinal: number) => number | undefined,
+): Uint32Array {
+  const metadata = new Uint32Array(logicalPrimitiveCount(geometry));
+  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
+    const value = resolveValue(ordinal);
+    if (value === undefined) continue;
+    const start = packed.elementPrimitiveStarts[ordinal] ?? 0;
+    const end = start + (packed.elementPrimitiveCounts[ordinal] ?? 0);
+    for (let primitive = start; primitive < end; primitive += 1) metadata[primitive] = value;
+  }
+  return metadata;
 }
 
 function buildElementPrimitiveMetadata(
@@ -67,6 +105,15 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
   if (geometry.primitive !== "triangles") return pickIds;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    for (let face = 0; face < packed.facePrimitiveStarts.length; face += 1) {
+      const start = packed.facePrimitiveStarts[face] ?? 0;
+      const end = start + (packed.facePrimitiveCounts[face] ?? 0);
+      for (let primitive = start; primitive < end; primitive += 1) pickIds[primitive] = face + 1;
+    }
+    return pickIds;
+  }
   for (let face = 0; face < (geometry.faces?.length ?? 0); face += 1) {
     const range = geometry.faces?.[face];
     if (range === undefined) continue;
@@ -86,6 +133,8 @@ export function buildTriangleOwnerPairs(
   elements: readonly ElementTessellation[] = [],
   facePickIds = buildFacePrimitivePickIds(geometry),
 ): TriangleOwnerPair[] {
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) return buildPackedTriangleOwnerPairs(packed, facePickIds);
   const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
   const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
   const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
@@ -99,6 +148,31 @@ export function buildTriangleOwnerPairs(
     const neighborPickId = neighborBody === undefined ? 0 : neighborBody + 1;
     const neighborElementPickId = neighborElementId === undefined ? 0 : neighborElementId + 1;
     return [owner, neighborPickId === owner ? 0 : neighborPickId, element, neighborElementPickId];
+  });
+}
+
+function buildPackedTriangleOwnerPairs(
+  packed: PackedSemanticStorage,
+  facePickIds: Uint32Array,
+): TriangleOwnerPair[] {
+  const bodyByElement = packed.elementBodyIds;
+  return Array.from(facePickIds, (facePickId): TriangleOwnerPair => {
+    const faceOrdinal = facePickId - 1;
+    if (faceOrdinal < 0 || faceOrdinal >= packed.faceOwnerElementOrdinals.length) {
+      return [0, 0, 0, 0];
+    }
+    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal] ?? 0;
+    const ownerElementId = packed.elementIds[ownerOrdinal] ?? 0;
+    const ownerBodyId = bodyByElement?.[ownerOrdinal] ?? 0;
+    const neighborOrdinal = packed.faceNeighborElementOrdinals[faceOrdinal] ?? 0;
+    const neighborElementId =
+      neighborOrdinal === 0 ? 0 : (packed.elementIds[neighborOrdinal - 1] ?? 0);
+    const neighborBodyId = neighborOrdinal === 0 ? 0 : (bodyByElement?.[neighborOrdinal - 1] ?? 0);
+    const ownerPickId = ownerBodyId === 0 ? 0 : ownerBodyId + 1;
+    const neighborPickId =
+      neighborBodyId === 0 || neighborBodyId === ownerBodyId ? 0 : neighborBodyId + 1;
+    const neighborElementPickId = neighborElementId === 0 ? 0 : neighborElementId + 1;
+    return [ownerPickId, neighborPickId, ownerElementId + 1, neighborElementPickId];
   });
 }
 

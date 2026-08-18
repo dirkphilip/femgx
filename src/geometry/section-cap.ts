@@ -4,6 +4,11 @@ import { transformPoint } from "../math/mat4";
 import type { SectionPlane } from "../math/section-plane";
 import { cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import { ElementShape } from "../elements/shapes";
+import {
+  packedElementOrdinal,
+  packedSemanticStorageForGeometry,
+  type PackedSemanticStorage,
+} from "./packed/packed-semantic";
 
 /** A generated cap vertex and its two authored nodal result endpoints. */
 export interface SectionCapVertex {
@@ -64,7 +69,11 @@ export function buildElementSectionCap(input: SectionCapBuildInput): SectionCap 
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
   const positions = part.nodePositions;
   if (triangles?.primitive !== "triangles" || positions === undefined) return undefined;
-  const edges = authoredEdges(triangles.faces, element.id);
+  const packed = packedSemanticStorageForGeometry(triangles);
+  const edges =
+    packed === undefined
+      ? authoredEdges(triangles.faces, element.id)
+      : authoredEdgesPacked(packed, element.id);
   if (edges.length === 0) return undefined;
   const world = (nodeId: number): Vec3 | undefined =>
     worldNode(positions, nodeId, transform, input.displacements, input.deformationScale ?? 1);
@@ -143,6 +152,28 @@ function authoredEdges(
     for (let index = 0; index < face.nodeIds.length; index += 1) {
       const a = face.nodeIds[index];
       const b = face.nodeIds[(index + 1) % face.nodeIds.length];
+      if (a === undefined || b === undefined || a === b) continue;
+      const key = edgeKey(a, b);
+      if (!unique.has(key)) unique.set(key, { a: Math.min(a, b), b: Math.max(a, b) });
+    }
+  }
+  return [...unique.values()].sort((left, right) =>
+    edgeKey(left.a, left.b).localeCompare(edgeKey(right.a, right.b)),
+  );
+}
+
+function authoredEdgesPacked(storage: PackedSemanticStorage, elementId: number): readonly Edge[] {
+  const ordinal = packedElementOrdinal(storage, elementId);
+  if (ordinal === undefined) return [];
+  const first = storage.elementFaceOffsets?.[ordinal] ?? 0;
+  const last = storage.elementFaceOffsets?.[ordinal + 1] ?? storage.faceOwnerElementOrdinals.length;
+  const unique = new Map<string, Edge>();
+  for (let faceOrdinal = first; faceOrdinal < last; faceOrdinal += 1) {
+    const nodeStart = storage.faceNodeOffsets[faceOrdinal] ?? 0;
+    const nodeEnd = storage.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
+    for (let index = nodeStart; index < nodeEnd; index += 1) {
+      const a = storage.faceNodeIds[index];
+      const b = storage.faceNodeIds[index + 1 < nodeEnd ? index + 1 : nodeStart];
       if (a === undefined || b === undefined || a === b) continue;
       const key = edgeKey(a, b);
       if (!unique.has(key)) unique.set(key, { a: Math.min(a, b), b: Math.max(a, b) });

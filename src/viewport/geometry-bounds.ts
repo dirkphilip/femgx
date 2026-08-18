@@ -9,6 +9,13 @@ import {
 import { faceSubsetPrimitiveMask } from "../geometry/face-validation";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { DeformationState } from "../results/deform";
+import {
+  packedEdgeOrdinal,
+  packedElementOrdinal,
+  packedFaceOrdinal,
+  packedSemanticStorageForGeometry,
+  type PackedSemanticStorage,
+} from "../geometry/packed/packed-semantic";
 
 type EntityTarget = Extract<
   InteractionTarget,
@@ -77,6 +84,11 @@ function bodyBounds(
 ): Bounds | undefined {
   return combineBounds(
     part.geometries.map((geometry) => {
+      const packed = packedSemanticStorageForGeometry(geometry);
+      if (packed !== undefined && geometry.primitive === packed.primitive) {
+        const mask = packedBodyPrimitiveMask(packed, bodyId, logicalPrimitiveCount(geometry));
+        return primitiveBounds(part, geometry, (primitive) => mask[primitive] === 1, deformation);
+      }
       const ranges = (part.elements ?? [])
         .filter((element) => bodyIdForElement(part, element.id) === bodyId)
         .flatMap((element) => primitiveRangesForElement(element, geometry.primitive));
@@ -98,6 +110,19 @@ function elementBounds(
 ): Bounds | undefined {
   return combineBounds(
     part.geometries.map((geometry) => {
+      const packed = packedSemanticStorageForGeometry(geometry);
+      if (packed !== undefined && geometry.primitive === packed.primitive) {
+        const ordinal = packedElementOrdinal(packed, elementId);
+        if (ordinal === undefined) return undefined;
+        const start = packed.elementPrimitiveStarts[ordinal] ?? 0;
+        const count = packed.elementPrimitiveCounts[ordinal] ?? 0;
+        return primitiveBounds(
+          part,
+          geometry,
+          (primitive) => primitive >= start && primitive < start + count,
+          deformation,
+        );
+      }
       const element = part.elements?.find((candidate) => candidate.id === elementId);
       if (element === undefined) return undefined;
       const ranges = primitiveRangesForElement(element, geometry.primitive);
@@ -119,6 +144,19 @@ function faceBounds(
 ): Bounds | undefined {
   const geometry = part.geometries.find((candidate) => candidate.primitive === "triangles");
   if (geometry?.primitive !== "triangles") return undefined;
+  const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed !== undefined) {
+    const ordinal = packedFaceOrdinal(packed, target.elementId, target.faceIndex);
+    if (ordinal === undefined) return undefined;
+    const start = packed.facePrimitiveStarts[ordinal] ?? 0;
+    const count = packed.facePrimitiveCounts[ordinal] ?? 0;
+    return primitiveBounds(
+      part,
+      geometry,
+      (primitive) => primitive >= start && primitive < start + count,
+      deformation,
+    );
+  }
   const face = geometry.faces?.find(
     (candidate) =>
       candidate.elementId === target.elementId && candidate.faceIndex === target.faceIndex,
@@ -164,6 +202,18 @@ function edgeBounds(
   key: string,
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
+  const packedGeometry = part.geometries.find(
+    (geometry) => packedSemanticStorageForGeometry(geometry) !== undefined,
+  );
+  const packed =
+    packedGeometry === undefined ? undefined : packedSemanticStorageForGeometry(packedGeometry);
+  if (packed !== undefined) {
+    const ordinal = packedEdgeOrdinal(packed, key);
+    if (ordinal === undefined) return undefined;
+    const start = packed.edgeNodeOffsets?.[ordinal] ?? 0;
+    const end = packed.edgeNodeOffsets?.[ordinal + 1] ?? start;
+    return edgeNodeBounds(part, packed, start, end, deformation);
+  }
   const edge = part.geometries
     .flatMap((geometry) => geometry.edges ?? [])
     .find((candidate) => candidate.key === key);
@@ -176,6 +226,42 @@ function edgeBounds(
     include(
       bounds,
       displacedNode(part.id, nodeId, nodePositions.subarray(offset, offset + 3), deformation),
+    );
+  }
+  return isFiniteBounds(bounds) ? bounds : undefined;
+}
+
+function packedBodyPrimitiveMask(
+  storage: PackedSemanticStorage,
+  bodyId: number,
+  primitiveCount: number,
+): Uint8Array {
+  const mask = new Uint8Array(primitiveCount);
+  for (let ordinal = 0; ordinal < storage.elementIds.length; ordinal += 1) {
+    if ((storage.elementBodyIds?.[ordinal] ?? 0) !== bodyId) continue;
+    const start = storage.elementPrimitiveStarts[ordinal] ?? 0;
+    const end = start + (storage.elementPrimitiveCounts[ordinal] ?? 0);
+    for (let primitive = start; primitive < end; primitive += 1) mask[primitive] = 1;
+  }
+  return mask;
+}
+
+function edgeNodeBounds(
+  part: Part,
+  storage: PackedSemanticStorage,
+  start: number,
+  end: number,
+  deformation: DeformationState | undefined,
+): Bounds | undefined {
+  const bounds = emptyBounds();
+  for (let index = start; index < end; index += 1) {
+    const nodeId = storage.edgeNodeIds?.[index];
+    const positions = part.nodePositions;
+    if (nodeId === undefined || positions === undefined || nodeId * 3 + 2 >= positions.length)
+      continue;
+    include(
+      bounds,
+      displacedNode(part.id, nodeId, positions.subarray(nodeId * 3, nodeId * 3 + 3), deformation),
     );
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
