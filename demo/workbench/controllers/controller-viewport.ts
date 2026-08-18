@@ -1,6 +1,6 @@
 import type { Viewport, InteractionState, ViewportBackground } from "../../../src/entries/root";
 import { setProjection } from "../../../src/entries/camera";
-import { errorMessage, type WorkbenchModel } from "../models/model";
+import type { WorkbenchModel } from "../models/model";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchPresentation } from "../viewport/presentation";
 import type { WorkbenchViewportSlot, WorkbenchViewportSlots } from "../viewport/viewport-slots";
@@ -15,7 +15,6 @@ import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import { applyBoxSelectionResolvers } from "./controller-box-selection";
-import { applySectionPlane } from "../section-plane-actions";
 import type { WorkbenchShowState } from "../state/show-state";
 
 export interface WorkbenchViewportOwner {
@@ -187,19 +186,7 @@ export function setControllerViewport(owner: WorkbenchViewportOwner, viewport: V
   owner.viewportSlots.invalidateInteraction();
   owner.viewport = viewport;
   owner.viewportSlots.setPrimaryViewport(viewport);
-  try {
-    viewport.presentation.setBackground(owner.background);
-  } catch (error) {
-    owner.presentation.setFeedback(
-      `Background could not be restored: ${errorMessage(error)}`,
-      "error",
-    );
-  }
   owner.resetHoverOwner();
-  owner.applyResultMode(false);
-  owner.applyCurrentDisplayState();
-  applySectionPlane(owner, false);
-  owner.visibilityPanel.rebuild();
   owner.render();
 }
 
