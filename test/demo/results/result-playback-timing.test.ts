@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { createResultsPreset } from "../../demo/fixtures/results-preset";
-import { createExampleModel } from "../../demo/workbench/models/model";
-import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
-import { createWorkbenchShowState } from "../../demo/workbench/state/show-state";
+import { createResultsPreset } from "../../../demo/fixtures/results-preset";
+import { createExampleModel } from "../../../demo/workbench/models/model";
+import { createResultPlaybackActions } from "../../../demo/workbench/results/result-playback";
+import { createWorkbenchShowState } from "../../../demo/workbench/state/show-state";
 
 describe("demo result playback timing", () => {
   it("anchors playback cadence to elapsed time instead of application work", () => {

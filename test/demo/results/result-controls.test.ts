@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { createResultsPreset } from "../../demo/fixtures/results-preset";
-import { createBoltedPlatePreset, createGalleryPreset } from "../../demo/fixtures/presets";
-import { createExampleModel } from "../../demo/workbench/models/model";
-import { setResultField } from "../../demo/workbench/results/result-actions";
-import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
-import { createWorkbenchShowState } from "../../demo/workbench/state/show-state";
-import { setVectorField, setVectorWidthPixels } from "../../demo/workbench/results/vector-actions";
+import { createResultsPreset } from "../../../demo/fixtures/results-preset";
+import { createBoltedPlatePreset, createGalleryPreset } from "../../../demo/fixtures/presets";
+import { createExampleModel } from "../../../demo/workbench/models/model";
+import { setResultField } from "../../../demo/workbench/results/result-actions";
+import { createResultPlaybackActions } from "../../../demo/workbench/results/result-playback";
+import { createWorkbenchShowState } from "../../../demo/workbench/state/show-state";
+import {
+  setVectorField,
+  setVectorWidthPixels,
+} from "../../../demo/workbench/results/vector-actions";
 import {
   BASE_RESULT_VALUE,
   DEFORMATION_OFF_VALUE,
@@ -25,7 +28,7 @@ import {
   vectorGlyphLabel,
   vectorTransformLabel,
   VECTOR_OFF_VALUE,
-} from "../../demo/workbench/results/result-controls";
+} from "../../../demo/workbench/results/result-controls";
 
 describe("demo orientation result controls", () => {
   it("starts from the authored field and preserves both available choices", () => {
