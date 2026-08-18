@@ -43,7 +43,7 @@ test("selects an accessible background preset and preserves it across workbench 
   await expect(background).toHaveValue("dark");
 
   await page.getByTestId("model-file").setInputFiles(fixture);
-  await expect(canvas).toHaveAttribute("data-model", "opened-model", { timeout: 10_000 });
+  await expect(canvas).toHaveAttribute("data-model", /^opened-model-\d+$/, { timeout: 10_000 });
   await expect(background).toHaveValue("dark");
 
   await page.evaluate(() => {
@@ -92,8 +92,10 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
 
   await expect
     .poll(() => canvas.getAttribute("data-model"), { timeout: 10_000 })
-    .toBe("opened-model");
-  await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
+    .toMatch(/^opened-model-\d+$/);
+  const openedModelId = await canvas.getAttribute("data-model");
+  expect(openedModelId).toMatch(/^opened-model-\d+$/);
+  await expect(page.getByTestId("model-select")).toHaveValue(openedModelId ?? "");
   await expect(page.getByTestId("model-select")).toContainText(
     "Opened · onshape-cylinder-compressed.glb",
   );
@@ -109,7 +111,7 @@ test("opens a Draco-compressed GLB and resets the imported model in desktop Chro
   await page.getByTestId("edge-overlay").click();
   await activateContextAction(page, "reset");
   await openCommandPanel(page, "display");
-  await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
+  await expect(page.getByTestId("model-select")).toHaveValue(openedModelId ?? "");
   await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "true");
   await expect(canvas).toHaveAttribute("data-camera", /orthographic/);
   await waitForPresentedCanvas(page);
@@ -139,9 +141,9 @@ test("keeps the GLB source action usable on a 390px viewport", async ({ page }) 
   await fileInput.setInputFiles(fixture);
 
   await expect(page.getByTestId("open-model")).toBeVisible();
-  await expect(page.getByTestId("model-select")).toHaveValue("opened-model");
+  await expect(page.getByTestId("model-select")).toHaveValue(/^opened-model-\d+$/);
   await expect(page.getByTestId("model-feedback")).toContainText("Opened");
-  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", "opened-model");
+  await expect(page.getByTestId("view-canvas")).toHaveAttribute("data-model", /^opened-model-\d+$/);
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   );

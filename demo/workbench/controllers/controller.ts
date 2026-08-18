@@ -463,8 +463,8 @@ export class WorkbenchController {
     this.elementDetail = undefined;
     this.resetHoverOwner();
     this.resetShowStates(model);
-    const activeModel = rememberCatalogModel(this, model);
-    activateModelForOwner(activeModel, this);
+    activateModelForOwner(model, this);
+    this.model = rememberCatalogModel(this, model);
   }
 
   render: () => void = renderForOwner.bind(null, this);

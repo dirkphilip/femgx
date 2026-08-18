@@ -69,7 +69,18 @@ describe("demo workbench model boundary", () => {
       results: preset.results,
       issues: [],
     });
-    expect(imported).toMatchObject({ id: "opened-model", name: "opened.glb", source: "file" });
+    expect(imported).toMatchObject({ id: "opened-model-1", name: "opened.glb", source: "file" });
+
+    const reopened = createImportedModel("reopened.glb", {
+      scene: preset.scene,
+      elementModels: preset.elementModels,
+      partNames: preset.partNames,
+      partStyles: new Map(),
+      bounds: preset.bounds,
+      results: preset.results,
+      issues: [],
+    });
+    expect(reopened.id).not.toBe(imported.id);
 
     const gallery = createExampleModel(createGalleryPreset());
     const pointPart = [...gallery.scene.parts.values()].find(
