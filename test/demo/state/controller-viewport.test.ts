@@ -118,6 +118,168 @@ describe("workbench viewport lifecycle ownership", () => {
     expect(secondaryViewport.render).toHaveBeenCalledOnce();
     expect(render).toHaveBeenCalledTimes(2);
   });
+
+  it("clears secondary opening after a late open failure", async () => {
+    const primaryViewport = viewport();
+    const failedSecondaryViewport = viewport();
+    const recoveredSecondaryViewport = viewport();
+    failedSecondaryViewport.render.mockImplementationOnce(() => {
+      throw new Error("secondary render failed");
+    });
+    const createViewport = vi
+      .fn()
+      .mockResolvedValueOnce(failedSecondaryViewport.viewport)
+      .mockResolvedValueOnce(recoveredSecondaryViewport.viewport);
+    const render = vi.fn();
+    const slots = new WorkbenchViewportSlots({
+      view: { primaryPane: pane("primary"), secondaryPane: pane("secondary") },
+      primaryViewport: primaryViewport.viewport,
+      primaryInteraction: {} as WorkbenchInteraction,
+      primaryBoxPreview: {} as WorkbenchBoxPreview,
+      createViewport,
+      getModel: () => ({ partNames: new Map() }) as unknown as WorkbenchModel,
+      getInteraction: () => createInteractionState(),
+      setInteraction: vi.fn(),
+      canClearCanvasHover: () => true,
+      markCanvasHover: vi.fn(),
+      clearCanvasHover: vi.fn(),
+      selectionGranularity: () => "element",
+      touchInteractionMode: () => "navigate",
+      menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
+      render,
+      applyActiveState: vi.fn(),
+      applyState: vi.fn(),
+      cloneShowState: vi.fn(),
+      removeShowState: vi.fn(),
+      rebuildVisibility: vi.fn(),
+      feedback: vi.fn(),
+      setInspection: vi.fn(),
+      selectionFeedback: vi.fn(),
+      onActiveSlotChanged: vi.fn(),
+    });
+
+    await slots.toggleSecondaryViewport();
+
+    expect(slots.isSecondaryVisible()).toBe(false);
+    expect(slots.isSecondaryOpening()).toBe(false);
+    expect(failedSecondaryViewport.destroy).toHaveBeenCalledOnce();
+
+    await slots.toggleSecondaryViewport();
+
+    expect(createViewport).toHaveBeenCalledTimes(2);
+    expect(slots.isSecondaryVisible()).toBe(true);
+    expect(slots.isSecondaryOpening()).toBe(false);
+    expect(recoveredSecondaryViewport.render).toHaveBeenCalledOnce();
+  });
+
+  it("invalidates a pending secondary creation during teardown", async () => {
+    const primaryViewport = viewport();
+    const pendingSecondaryViewport = viewport();
+    let resolveCreate!: (value: Viewport) => void;
+    const createViewport = vi.fn(
+      () =>
+        new Promise<Viewport>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    const slots = new WorkbenchViewportSlots({
+      view: { primaryPane: pane("primary"), secondaryPane: pane("secondary") },
+      primaryViewport: primaryViewport.viewport,
+      primaryInteraction: { destroy: vi.fn() } as unknown as WorkbenchInteraction,
+      primaryBoxPreview: { dispose: vi.fn() } as unknown as WorkbenchBoxPreview,
+      createViewport,
+      getModel: () => ({ partNames: new Map() }) as unknown as WorkbenchModel,
+      getInteraction: () => createInteractionState(),
+      setInteraction: vi.fn(),
+      canClearCanvasHover: () => true,
+      markCanvasHover: vi.fn(),
+      clearCanvasHover: vi.fn(),
+      selectionGranularity: () => "element",
+      touchInteractionMode: () => "navigate",
+      menu: {} as WorkbenchMenu,
+      render: vi.fn(),
+      applyActiveState: vi.fn(),
+      applyState: vi.fn(),
+      cloneShowState: vi.fn(),
+      removeShowState: vi.fn(),
+      rebuildVisibility: vi.fn(),
+      feedback: vi.fn(),
+      setInspection: vi.fn(),
+      selectionFeedback: vi.fn(),
+      onActiveSlotChanged: vi.fn(),
+    });
+    const opening = slots.toggleSecondaryViewport();
+    await Promise.resolve();
+
+    slots.destroy();
+    expect(slots.isSecondaryOpening()).toBe(false);
+
+    resolveCreate(pendingSecondaryViewport.viewport);
+    await opening;
+
+    expect(pendingSecondaryViewport.destroy).toHaveBeenCalledOnce();
+    expect(slots.get("secondary")).toBeUndefined();
+    expect(slots.isSecondaryVisible()).toBe(false);
+  });
+
+  it("does not let a stale rejection clean up a retried secondary", async () => {
+    const primaryViewport = viewport();
+    const retriedSecondaryViewport = viewport();
+    let rejectCreate!: (reason: unknown) => void;
+    const createViewport = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Viewport>((_, reject) => {
+            rejectCreate = reject;
+          }),
+      )
+      .mockResolvedValueOnce(retriedSecondaryViewport.viewport);
+    const removeShowState = vi.fn();
+    const slots = new WorkbenchViewportSlots({
+      view: { primaryPane: pane("primary"), secondaryPane: pane("secondary") },
+      primaryViewport: primaryViewport.viewport,
+      primaryInteraction: { destroy: vi.fn() } as unknown as WorkbenchInteraction,
+      primaryBoxPreview: { dispose: vi.fn() } as unknown as WorkbenchBoxPreview,
+      createViewport,
+      getModel: () => ({ partNames: new Map() }) as unknown as WorkbenchModel,
+      getInteraction: () => createInteractionState(),
+      setInteraction: vi.fn(),
+      canClearCanvasHover: () => true,
+      markCanvasHover: vi.fn(),
+      clearCanvasHover: vi.fn(),
+      selectionGranularity: () => "element",
+      touchInteractionMode: () => "navigate",
+      menu: { hide: vi.fn() } as unknown as WorkbenchMenu,
+      render: vi.fn(),
+      applyActiveState: vi.fn(),
+      applyState: vi.fn(),
+      cloneShowState: vi.fn(),
+      removeShowState,
+      rebuildVisibility: vi.fn(),
+      feedback: vi.fn(),
+      setInspection: vi.fn(),
+      selectionFeedback: vi.fn(),
+      onActiveSlotChanged: vi.fn(),
+    });
+    const opening = slots.toggleSecondaryViewport();
+    await Promise.resolve();
+
+    slots.handleSecondaryViewportError(new Error("early secondary error"));
+    expect(slots.isSecondaryOpening()).toBe(false);
+    expect(removeShowState).toHaveBeenCalledOnce();
+
+    const retry = slots.toggleSecondaryViewport();
+    await retry;
+    expect(slots.get("secondary")?.viewport).toBe(retriedSecondaryViewport.viewport);
+
+    rejectCreate(new Error("stale secondary rejection"));
+    await opening;
+
+    expect(slots.get("secondary")?.viewport).toBe(retriedSecondaryViewport.viewport);
+    expect(retriedSecondaryViewport.destroy).not.toHaveBeenCalled();
+    expect(removeShowState).toHaveBeenCalledOnce();
+  });
 });
 
 type ReplacementOwner = WorkbenchViewportOwner & Parameters<typeof applyActiveStateForOwner>[0];
@@ -198,6 +360,7 @@ function pane(id: ViewportSlotId): WorkbenchPane {
 
 interface ViewportFixture {
   readonly viewport: Viewport;
+  readonly destroy: MockFunction;
   readonly setBackground: MockFunction;
   readonly render: MockFunction;
 }
@@ -205,6 +368,7 @@ interface ViewportFixture {
 function viewport(): ViewportFixture {
   const setBackground = vi.fn();
   const render = vi.fn();
+  const destroy = vi.fn();
   const clearSectionPlane = vi.fn();
   const setSectionPlane = vi.fn();
   return {
@@ -216,8 +380,9 @@ function viewport(): ViewportFixture {
       },
       interaction: { state: createInteractionState() },
       render,
-      destroy: vi.fn(),
+      destroy,
     } as unknown as Viewport,
+    destroy,
     setBackground,
     render,
   };

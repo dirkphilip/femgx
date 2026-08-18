@@ -1,6 +1,6 @@
 import { type ElementTessellation, type Viewport, type Part } from "../../../src/entries/root";
-import { isBodyVisible, isElementVisible } from "../../../src/entries/interaction";
 import type { WorkbenchInteraction } from "../interaction/interaction";
+import { isElementOccurrenceVisible } from "./element-visibility";
 import type { SelectionGranularity, SelectTarget } from "./pick";
 
 const PRIMITIVE_ARITY = { triangles: 3, lines: 2, points: 1 } as const;
@@ -81,20 +81,8 @@ function visibleElements(
   part: Part,
   partOccurrenceId: string,
 ): readonly ElementTessellation[] {
-  const bodyByElement = new Map(
-    part.bodies?.flatMap((body) => body.elementIds.map((id) => [id, body.id] as const)),
-  );
   return (part.elements ?? []).filter((element) => {
-    if (!isElementVisible(viewport.interaction.state, { partOccurrenceId, elementId: element.id }))
-      return false;
-    const bodyId = element.bodyId ?? bodyByElement.get(element.id);
-    if (
-      bodyId !== undefined &&
-      !isBodyVisible(viewport.interaction.state, { partOccurrenceId, bodyId })
-    ) {
-      return false;
-    }
-    return true;
+    return isElementOccurrenceVisible(viewport.interaction.state, part, partOccurrenceId, element);
   });
 }
 
