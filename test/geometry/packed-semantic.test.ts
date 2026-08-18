@@ -172,7 +172,7 @@ describe("packed semantic boundary", () => {
     expect(
       selectedGeometryBounds(
         part,
-        { kind: "element", instanceId: "test", elementId: 20 },
+        { kind: "element", partOccurrenceId: "test", elementId: 20 },
         undefined,
       ),
     ).toEqual({
@@ -186,7 +186,7 @@ describe("packed semantic boundary", () => {
     expect(
       selectedGeometryBounds(
         part,
-        { kind: "face", instanceId: "test", elementId: 10, faceIndex: 0 },
+        { kind: "face", partOccurrenceId: "test", elementId: 10, faceIndex: 0 },
         undefined,
       ),
     ).toEqual({

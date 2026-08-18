@@ -53,7 +53,7 @@ const emphasisInteraction = setTargetsSelected(
   createInteractionState(),
   emphasisElementIds.map((elementId) => ({
     kind: "element" as const,
-    instanceId: emphasisInstanceId,
+    partOccurrenceId: emphasisInstanceId,
     elementId,
   })),
   true,
@@ -68,7 +68,7 @@ const emphasisDenseSelections = collectDenseElementSelections(
 const BULK_SELECTION_COUNT = 16_384;
 const bulkSelectionTargets: InteractionTarget[] = Array.from(
   { length: BULK_SELECTION_COUNT },
-  (_, index) => ({ kind: "element", instanceId: "bench/0", elementId: index + 1 }),
+  (_, index) => ({ kind: "element", partOccurrenceId: "bench/0", elementId: index + 1 }),
 );
 const TET4_SELECTION_COUNT = 131_712;
 const tet4SelectionTargets = makeSelectionTargets(TET4_SELECTION_COUNT, 1);
@@ -125,7 +125,7 @@ const emphasisTableEntries: HighlightTableEntry[] = Array.from(
 function makeSelectionTargets(count: number, occurrenceCount: number): InteractionTarget[] {
   return Array.from({ length: count }, (_, index) => ({
     kind: "element" as const,
-    instanceId: `bench/${index % occurrenceCount}`,
+    partOccurrenceId: `bench/${index % occurrenceCount}`,
     elementId: index + 1,
   }));
 }

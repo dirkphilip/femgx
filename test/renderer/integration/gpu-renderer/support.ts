@@ -24,8 +24,8 @@ import {
   createInteractionState,
   setElementOverride,
   setElementSelected,
-  setInstanceOverride,
-  setInstanceSelected,
+  setPartOccurrenceOverride,
+  setPartOccurrenceSelected,
   setPartOverride,
 } from "../../../../src/interaction/interaction";
 
@@ -362,8 +362,8 @@ export {
   createInteractionState,
   setElementOverride,
   setElementSelected,
-  setInstanceOverride,
-  setInstanceSelected,
+  setPartOccurrenceOverride,
+  setPartOccurrenceSelected,
   setPartOverride,
   setBodyHighlighted,
   setBodyOverride,

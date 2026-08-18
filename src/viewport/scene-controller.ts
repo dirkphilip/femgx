@@ -71,12 +71,12 @@ export class ViewportSceneController {
     return this.originTriadNominalScale;
   }
 
-  setScene(scene: Scene, cancelCamera: () => void): void {
-    this.replaceScene(scene, false, true, cancelCamera);
+  replaceScene(scene: Scene, cancelCamera: () => void): void {
+    this.applySceneReplacement(scene, false, true, cancelCamera);
   }
 
-  updateScene(scene: Scene, cancelCamera: () => void): SceneUpdateOutcome {
-    return this.replaceScene(scene, true, false, cancelCamera);
+  reconcileScene(scene: Scene, cancelCamera: () => void): SceneUpdateOutcome {
+    return this.applySceneReplacement(scene, true, false, cancelCamera);
   }
 
   setInteraction(interaction: InteractionState): void {
@@ -98,7 +98,7 @@ export class ViewportSceneController {
     applyResolvedViewportResults(this.options.renderer, undefined);
   }
 
-  private replaceScene(
+  private applySceneReplacement(
     scene: Scene,
     preserveResults: boolean,
     resetRenderer: boolean,

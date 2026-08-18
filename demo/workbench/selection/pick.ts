@@ -9,7 +9,7 @@ import type { BodyId, ElementId } from "../../../src/entries/model";
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<
   InteractionGranularity,
-  "part" | "instance" | "body" | "element" | "face" | "node" | "edge"
+  "part" | "partOccurrence" | "body" | "element" | "face" | "node" | "edge"
 >;
 
 /** A stable selection identity at any supported granularity. */
@@ -38,10 +38,10 @@ export function selectTarget(
   return mapTarget(
     hit,
     modifiers.altKey
-      ? "instance"
+      ? "partOccurrence"
       : modifiers.shiftKey &&
           granularity !== "part" &&
-          granularity !== "instance" &&
+          granularity !== "partOccurrence" &&
           granularity !== "edge" &&
           granularity !== "body"
         ? "element"
@@ -55,7 +55,7 @@ export function exactTarget(
   hit: PickHit,
   modifiers: Parameters<typeof selectTarget>[2],
 ): SelectTarget | undefined {
-  const granularity: InteractionGranularity = modifiers.altKey ? "instance" : hit.kind;
+  const granularity: InteractionGranularity = modifiers.altKey ? "partOccurrence" : hit.kind;
   return mapTarget(hit, granularity, modifiers);
 }
 
@@ -78,7 +78,7 @@ function mapTarget(
   return modifiers.shiftKey &&
     !modifiers.altKey &&
     selectedTarget.kind !== "part" &&
-    selectedTarget.kind !== "instance" &&
+    selectedTarget.kind !== "partOccurrence" &&
     selectedTarget.kind !== "edge" &&
     selectedTarget.kind !== "body"
     ? elementTarget(selectedTarget)
@@ -103,12 +103,20 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
     case "node":
       return target.elementId === undefined
         ? undefined
-        : { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
+        : {
+            kind: "element",
+            partOccurrenceId: target.partOccurrenceId,
+            elementId: target.elementId,
+          };
     case "face":
     case "element":
-      return { kind: "element", instanceId: target.instanceId, elementId: target.elementId };
+      return {
+        kind: "element",
+        partOccurrenceId: target.partOccurrenceId,
+        elementId: target.elementId,
+      };
     case "body":
-    case "instance":
+    case "partOccurrence":
     case "part":
     case "edge":
       return undefined;
@@ -120,18 +128,18 @@ export function targetKey(target: PickHit | SelectTarget | undefined): string {
   if (target === undefined) return "";
   switch (target.kind) {
     case "body":
-      return `body:${target.instanceId}:${target.bodyId}`;
+      return `body:${target.partOccurrenceId}:${target.bodyId}`;
     case "node":
-      return `n:${target.instanceId}:${target.nodeId}`;
+      return `n:${target.partOccurrenceId}:${target.nodeId}`;
     case "face":
-      return `f:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
+      return `f:${target.partOccurrenceId}:${target.elementId}:${target.faceIndex}`;
     case "element":
-      return `e:${target.instanceId}:${target.elementId}`;
-    case "instance":
-      return `i:${target.instanceId}`;
+      return `e:${target.partOccurrenceId}:${target.elementId}`;
+    case "partOccurrence":
+      return `i:${target.partOccurrenceId}`;
     case "part":
       return `p:${target.partId}`;
     case "edge":
-      return `ed:${target.instanceId}:${target.key}`;
+      return `ed:${target.partOccurrenceId}:${target.key}`;
   }
 }

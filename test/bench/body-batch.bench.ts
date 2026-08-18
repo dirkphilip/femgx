@@ -52,7 +52,7 @@ function updateBodies(batched: boolean): void {
   const apply = (): void => {
     let interaction = currentViewport().interaction.state;
     for (let bodyId = 0; bodyId < BODY_COUNT; bodyId += 1) {
-      interaction = setBodyVisible(interaction, { instanceId: "1/0", bodyId }, visible);
+      interaction = setBodyVisible(interaction, { partOccurrenceId: "1/0", bodyId }, visible);
       currentViewport().interaction.set(interaction);
     }
   };

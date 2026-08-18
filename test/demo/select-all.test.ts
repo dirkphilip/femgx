@@ -7,12 +7,12 @@ import {
 } from "../../src/entries/root";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
-const instanceId = "root/part";
+const partOccurrenceId = "root/part";
 
 describe("workbench select all", () => {
   it.each([
     ["part", ["part:1"]],
-    ["instance", ["instance:root/part"]],
+    ["partOccurrence", ["instance:root/part"]],
     ["body", ["body:10"]],
     ["element", ["element:1"]],
     ["face", ["face:1:0"]],
@@ -21,7 +21,7 @@ describe("workbench select all", () => {
   ] as const)("collects explicitly visible %s targets", (granularity, expected) => {
     const interaction = setElementVisible(
       createInteractionState(),
-      { instanceId, elementId: 2 },
+      { partOccurrenceId, elementId: 2 },
       false,
     );
     const viewport = fakeViewport(interaction);
@@ -35,13 +35,13 @@ describe("workbench select all", () => {
       interaction: { state: createInteractionState() },
       scene: { parts: new Map([[part.id, part]]) },
       runtime: {
-        getVisibleInstanceIds: () => ["root/first", "root/second"],
-        getInstance: (instanceId: string) => ({ instanceId, partId: part.id }),
+        getVisiblePartOccurrenceIds: () => ["root/first", "root/second"],
+        getPartOccurrence: (partOccurrenceId: string) => ({ partOccurrenceId, partId: part.id }),
       },
     } as unknown as Viewport;
 
     expect(selectAllTargets(viewport, "part").map(targetLabel)).toEqual(["part:1"]);
-    expect(selectAllTargets(viewport, "instance").map(targetLabel)).toEqual([
+    expect(selectAllTargets(viewport, "partOccurrence").map(targetLabel)).toEqual([
       "instance:root/first",
       "instance:root/second",
     ]);
@@ -54,8 +54,8 @@ function fakeViewport(interaction: Viewport["interaction"]["state"]): Viewport {
     interaction: { state: interaction } as Viewport["interaction"],
     scene: { parts: new Map([[part.id, part]]) },
     runtime: {
-      getVisibleInstanceIds: () => [instanceId],
-      getInstance: () => ({ instanceId, partId: part.id }),
+      getVisiblePartOccurrenceIds: () => [partOccurrenceId],
+      getPartOccurrence: () => ({ partOccurrenceId, partId: part.id }),
     },
   } as unknown as Viewport;
 }
@@ -119,7 +119,7 @@ function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): strin
       return `edge:${target.key}`;
     case "part":
       return `part:${target.partId}`;
-    case "instance":
-      return `instance:${target.instanceId}`;
+    case "partOccurrence":
+      return `instance:${target.partOccurrenceId}`;
   }
 }

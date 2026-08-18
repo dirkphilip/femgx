@@ -16,7 +16,7 @@ function makeRegionCase(elementCount: number) {
   const context: PickContext = {
     instances: [
       {
-        instanceId: "benchmark/0",
+        partOccurrenceId: "benchmark/0",
         partId: part.id,
         worldTransform: new Float32Array(16),
       },

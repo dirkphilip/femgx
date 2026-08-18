@@ -1,4 +1,4 @@
-import type { Assembly, NamedAssembly, Placement } from "./assembly";
+import type { AssemblyDefinition, Placement } from "./assembly";
 import { MAX_PART_ID, validatePartId, type Part, type PartId } from "../geometry/part";
 import type { AssemblyId } from "./types";
 
@@ -19,7 +19,7 @@ export interface Scene {
   /** Immutable registry of reusable part definitions keyed by {@link Part.id}. */
   readonly parts: ReadonlyMap<PartId, Part>;
   /** Immutable registry of reusable assembly definitions keyed by assembly id. */
-  readonly assemblies: ReadonlyMap<AssemblyId, Assembly>;
+  readonly assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>;
   /**
    * Authored initial visibility for part definitions. Every part added through
    * {@link SceneBuilder.addPart} starts in this set; the set is a snapshot and
@@ -56,7 +56,7 @@ export interface SceneBuilder {
    * build time. Newly registered assemblies are visible by default in the
    * built scene.
    */
-  addAssembly(assembly: NamedAssembly): SceneBuilder;
+  addAssembly(assembly: AssemblyDefinition): SceneBuilder;
   /** Hides every occurrence of a registered part definition. */
   hidePart(partId: PartId): SceneBuilder;
   /** Shows every occurrence of a registered part definition. */
@@ -72,7 +72,7 @@ export interface SceneBuilder {
 interface SceneState {
   rootAssemblyId?: AssemblyId;
   readonly parts: Map<PartId, Part>;
-  readonly assemblies: Map<AssemblyId, Assembly>;
+  readonly assemblies: Map<AssemblyId, AssemblyDefinition>;
   readonly visiblePartIds: Set<PartId>;
   readonly visibleAssemblyIds: Set<AssemblyId>;
 }
@@ -91,9 +91,9 @@ function createBuilder(state: SceneState): SceneBuilder {
       state.visiblePartIds.add(part.id);
       return builder;
     },
-    addAssembly(assembly: NamedAssembly): SceneBuilder {
+    addAssembly(assembly: AssemblyDefinition): SceneBuilder {
       if (state.assemblies.has(assembly.id)) {
-        throw new Error(`Assembly ${assembly.id} is already registered`);
+        throw new Error(`AssemblyDefinition ${assembly.id} is already registered`);
       }
       state.assemblies.set(assembly.id, assembly);
       state.visibleAssemblyIds.add(assembly.id);
@@ -157,25 +157,29 @@ function validatePartRegistry(parts: ReadonlyMap<PartId, Part>): void {
 }
 
 function validateAssemblyRegistry(
-  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+  assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,
   parts: ReadonlyMap<PartId, Part>,
 ): void {
   for (const [key, assembly] of assemblies) {
-    validateAssemblyId(key, "Assembly");
+    validateAssemblyId(key, "AssemblyDefinition");
     if (assembly.id !== key) {
-      throw new Error(`Assembly registry key ${key} does not match assembly id ${assembly.id}`);
+      throw new Error(
+        `AssemblyDefinition registry key ${key} does not match assembly id ${assembly.id}`,
+      );
     }
     const placementIds = new Set<string>();
     for (let index = 0; index < assembly.placements.length; index++) {
       const placement = assembly.placements[index];
       if (placement === undefined) {
-        throw new TypeError(`Assembly ${assembly.id} placement ${index} is missing`);
+        throw new TypeError(`AssemblyDefinition ${assembly.id} placement ${index} is missing`);
       }
       const placementIdValue = (placement as { readonly placementId?: unknown }).placementId;
       const placementId = placementIdValue === undefined ? String(index) : placementIdValue;
       validatePlacementId(placementId, assembly.id, index);
       if (placementIds.has(placementId)) {
-        throw new Error(`Assembly ${assembly.id} contains duplicate placement id ${placementId}`);
+        throw new Error(
+          `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placementId}`,
+        );
       }
       placementIds.add(placementId);
       validatePlacement(placement, parts, assemblies, assembly.id, index);
@@ -190,7 +194,7 @@ function validatePlacementId(
 ): asserts id is string {
   if (typeof id !== "string" || id.length === 0 || id.includes("/")) {
     throw new Error(
-      `Assembly ${ownerId} placement ${index} id must be a non-empty string without '/'`,
+      `AssemblyDefinition ${ownerId} placement ${index} id must be a non-empty string without '/'`,
     );
   }
 }
@@ -198,7 +202,7 @@ function validatePlacementId(
 function validatePlacement(
   placement: Placement,
   parts: ReadonlyMap<PartId, Part>,
-  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+  assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,
   ownerId: AssemblyId,
   index: number,
 ): void {
@@ -212,17 +216,17 @@ function validatePlacement(
       validatePartId(placement.partId);
       if (!parts.has(placement.partId)) {
         throw new Error(
-          `Assembly ${ownerId} placement ${index} references missing part ${placement.partId}`,
+          `AssemblyDefinition ${ownerId} placement ${index} references missing part ${placement.partId}`,
         );
       }
       validateTransform(placement.transform, ownerId, index);
       return;
     }
     case "assembly": {
-      validateAssemblyId(placement.assemblyId, `Assembly ${ownerId} placement ${index}`);
+      validateAssemblyId(placement.assemblyId, `AssemblyDefinition ${ownerId} placement ${index}`);
       if (!assemblies.has(placement.assemblyId)) {
         throw new Error(
-          `Assembly ${ownerId} placement ${index} references missing assembly ${placement.assemblyId}`,
+          `AssemblyDefinition ${ownerId} placement ${index} references missing assembly ${placement.assemblyId}`,
         );
       }
       validateTransform(placement.transform, ownerId, index);
@@ -230,7 +234,7 @@ function validatePlacement(
     }
     default:
       throw new TypeError(
-        `Assembly ${ownerId} placement ${index} has unsupported kind ${String(kind)}`,
+        `AssemblyDefinition ${ownerId} placement ${index} has unsupported kind ${String(kind)}`,
       );
   }
 }
@@ -247,7 +251,7 @@ function validateVisibleParts(
 
 function validateVisibleAssemblies(
   visibleAssemblyIds: ReadonlySet<AssemblyId>,
-  assemblies: ReadonlyMap<AssemblyId, Assembly>,
+  assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,
 ): void {
   for (const assemblyId of visibleAssemblyIds) {
     validateAssemblyId(assemblyId, "Visible assembly");
@@ -266,25 +270,25 @@ function validateAssemblyId(id: AssemblyId, label: string): void {
 function validateTransform(transform: unknown, ownerId: AssemblyId, index: number): void {
   if (!(transform instanceof Float32Array)) {
     throw new TypeError(
-      `Assembly ${ownerId} placement ${index} transform must contain 16 components`,
+      `AssemblyDefinition ${ownerId} placement ${index} transform must contain 16 components`,
     );
   }
   if (transform.length !== 16) {
     throw new RangeError(
-      `Assembly ${ownerId} placement ${index} transform must contain exactly 16 components`,
+      `AssemblyDefinition ${ownerId} placement ${index} transform must contain exactly 16 components`,
     );
   }
   for (let component = 0; component < 16; component++) {
     const value = transform[component];
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new RangeError(
-        `Assembly ${ownerId} placement ${index} transform component ${component} must be finite`,
+        `AssemblyDefinition ${ownerId} placement ${index} transform component ${component} must be finite`,
       );
     }
   }
 }
 
-function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
+function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>): void {
   const state = new Map<AssemblyId, "visiting" | "visited">();
   for (const id of assemblies.keys()) {
     if (state.has(id)) {
@@ -310,7 +314,9 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
       }
       const childState = state.get(placement.assemblyId);
       if (childState === "visiting") {
-        throw new Error(`Assembly hierarchy contains a cycle through ${placement.assemblyId}`);
+        throw new Error(
+          `AssemblyDefinition hierarchy contains a cycle through ${placement.assemblyId}`,
+        );
       }
       if (childState === "visited") {
         continue;
@@ -328,7 +334,7 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, Assembly>): void {
  * have a registered root; all placement references must resolve to registered
  * definitions and the assembly graph must be acyclic. `build()` returns an
  * isolated immutable snapshot, so it is also the boundary used to prepare a
- * candidate for {@link Viewport.updateScene}.
+ * candidate for {@link Viewport.reconcileScene}.
  * @example Register one reusable part and its root assembly.
  * ```ts
  * import { createPart, createScene, identity } from "femgx";

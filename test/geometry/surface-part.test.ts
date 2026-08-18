@@ -5,7 +5,7 @@ import type { TriangleGeometry } from "../../src/geometry/part";
 import { resolvePickHit, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { deformGeometry } from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
-import type { Instance } from "../../src/scene/types";
+import type { PartOccurrence } from "../../src/scene/types";
 
 const CONCAVE_POSITIONS = [0, 0, 0, 2, 0, 0, 2, 2, 0, 1, 1, 0, 0, 2, 0] as const;
 
@@ -25,8 +25,8 @@ function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
   return { instancePickId: 1, elementPickId: 0, facePickId: 0, nodePickId: 0, ...partial };
 }
 
-function instance(): Instance {
-  return { instanceId: "1/0", partId: 1, worldTransform: identity() };
+function instance(): PartOccurrence {
+  return { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
 }
 
 function triangleGeometry(part: ReturnType<typeof surfacePart>): TriangleGeometry {

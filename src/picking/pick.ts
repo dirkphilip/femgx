@@ -3,12 +3,12 @@ import type { Vec3 } from "../math/vec3";
 import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-semantic-index";
 import type { FaceTessellation, Geometry, Part } from "../geometry/part";
 import type { PartId } from "../geometry/part";
-import type { Instance } from "../scene/types";
+import type { PartOccurrence } from "../scene/types";
 import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
-  readonly instances: readonly Instance[];
+  readonly instances: readonly PartOccurrence[];
   readonly parts: ReadonlyMap<PartId, Part>;
 }
 
@@ -21,7 +21,10 @@ export interface ResolvedPickIds {
 }
 
 /** Resolves a 0-based instance slot back to the instance it was drawn from. */
-export function resolvePick(instances: readonly Instance[], pickId: number): Instance | undefined {
+export function resolvePick(
+  instances: readonly PartOccurrence[],
+  pickId: number,
+): PartOccurrence | undefined {
   if (pickId < 0 || pickId >= instances.length) {
     return undefined;
   }
@@ -75,7 +78,7 @@ export function resolveEdgePickHit(
   return {
     kind: "edge",
     partId: instance.partId,
-    instanceId: instance.instanceId,
+    partOccurrenceId: instance.partOccurrenceId,
     key: edge.key,
     nodeIds: edge.nodeIds,
     incidentElementIds: edge.incidentElementIds,
@@ -86,7 +89,7 @@ export function resolveEdgePickHit(
 }
 
 function transformNode(
-  instance: Instance,
+  instance: PartOccurrence,
   positions: Float32Array | undefined,
   nodeId: number,
 ): Vec3 {
@@ -101,7 +104,7 @@ function transformNode(
 
 /** Returns the most specific physical hit a pixel supports. */
 function deepestHit(
-  instance: Instance,
+  instance: PartOccurrence,
   part: Part | undefined,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
@@ -115,7 +118,7 @@ function deepestHit(
         return {
           kind: "element",
           partId: instance.partId,
-          instanceId: instance.instanceId,
+          partOccurrenceId: instance.partOccurrenceId,
           elementId,
           ...bodyFields(semantic, elementId),
           worldPosition,
@@ -136,7 +139,7 @@ function deepestHit(
     return {
       kind: "element",
       partId: instance.partId,
-      instanceId: instance.instanceId,
+      partOccurrenceId: instance.partOccurrenceId,
       elementId,
       ...bodyFields(semantic, elementId),
       worldPosition,
@@ -147,11 +150,11 @@ function deepestHit(
   };
 }
 
-function instanceHit(instance: Instance, worldPosition: Vec3): PickHit {
+function instanceHit(instance: PartOccurrence, worldPosition: Vec3): PickHit {
   return {
-    kind: "instance",
+    kind: "partOccurrence",
     partId: instance.partId,
-    instanceId: instance.instanceId,
+    partOccurrenceId: instance.partOccurrenceId,
     worldPosition,
   };
 }
@@ -161,7 +164,7 @@ function validNodeId(semantic: PartSemanticIndex, nodeId: number): boolean {
 }
 
 function nodeHit(
-  instance: Instance,
+  instance: PartOccurrence,
   part: Part,
   semantic: PartSemanticIndex,
   ids: ResolvedPickIds,
@@ -176,7 +179,7 @@ function nodeHit(
   return {
     kind: "node",
     partId: instance.partId,
-    instanceId: instance.instanceId,
+    partOccurrenceId: instance.partOccurrenceId,
     ...(elementId === undefined ? {} : { elementId }),
     nodeId,
     ...(elementId === undefined ? {} : bodyFields(semantic, elementId)),
@@ -197,7 +200,7 @@ function elementIdFromPick(
 }
 
 function faceHit(
-  instance: Instance,
+  instance: PartOccurrence,
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   ids: ResolvedPickIds,
@@ -215,7 +218,7 @@ function faceHit(
   return {
     kind: "face",
     partId: instance.partId,
-    instanceId: instance.instanceId,
+    partOccurrenceId: instance.partOccurrenceId,
     elementId: face.elementId,
     ...bodyFields(semantic, face.elementId, face.bodyId),
     faceIndex: face.faceIndex,

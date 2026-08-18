@@ -79,7 +79,7 @@ describe("createGalleryPreset", () => {
       ["gallery-nodal-interpolation", "nodal"],
       ["gallery-shell-thickness", "elemental"],
     ]);
-    expect(preset.results?.vectors).toMatchObject({
+    expect(preset.results?.orientation).toMatchObject({
       glyph: "triad",
       field: { id: "gallery-element-frames", partId: 6, shape: "frame" },
     });
@@ -194,7 +194,7 @@ describe("results preset", () => {
     const model = preset.elementModels.get(20);
     expect(preset.results?.scalar?.field.shape).toBe("scalar");
     expect(preset.results?.deformation?.field.location).toBe("nodal");
-    expect(preset.results?.vectors?.field.id).toBe("demo-normals");
+    expect(preset.results?.orientation?.field.id).toBe("demo-normals");
     expect(preset.resultScalarFields?.map((field) => [field.id, field.location])).toEqual([
       ["demo-stress", "elemental"],
       ["demo-temperature", "nodal"],
@@ -240,8 +240,8 @@ describe("results preset", () => {
     const bounds = computeBounds(deformGeometry(geometry, displacement));
     const runtime = createPackedSceneRuntime(preset.scene);
     const instances = runtime.getDrawList();
-    const placed = Array.from(instances, (instanceId) => {
-      const transform = runtime.getTransform(instanceId);
+    const placed = Array.from(instances, (partOccurrenceId) => {
+      const transform = runtime.getTransform(partOccurrenceId);
       if (transform === undefined) throw new Error("Results occurrence has no transform");
       return transformedBounds(bounds, transform);
     });

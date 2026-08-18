@@ -149,7 +149,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     kind: "assembly",
     depth: 1,
     label: "Root",
-    badge: "Assembly",
+    badge: "AssemblyDefinition",
     ariaLabel: undefined,
     testId: "assembly-occurrence-vis-1",
     checked: true,
@@ -161,7 +161,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     position: 1,
     setSize: 1,
   };
-  const bodyTarget: VisibilityRowTarget = { kind: "body", instanceId: "1", bodyId: 1 };
+  const bodyTarget: VisibilityRowTarget = { kind: "body", partOccurrenceId: "1", bodyId: 1 };
   const body: WorkbenchVisibilityRowSnapshot = {
     key: "body:1:1",
     target: bodyTarget,
@@ -181,7 +181,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     position: 1,
     setSize: 1,
   };
-  return { context: "Assembly · Root", rows: [assembly, body] };
+  return { context: "AssemblyDefinition · Root", rows: [assembly, body] };
 }
 
 /** Enables the overlay state needed by workspace and status assertions. */

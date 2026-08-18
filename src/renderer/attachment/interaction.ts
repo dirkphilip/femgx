@@ -3,7 +3,7 @@ import { type InteractionState } from "../../interaction/interaction";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
 import { diffNestedSetMembers } from "../../interaction/mechanics";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
-import type { InstanceId } from "../../scene/types";
+import type { PartOccurrenceId } from "../../scene/types";
 import type { GpuBundle } from "../recovery";
 import type { DrawCallLists, InstanceLayout } from "../runtime-state";
 import {
@@ -31,7 +31,7 @@ export interface AttachmentInteractionState {
   transparentFlags: boolean[];
   edgeFlags: boolean[];
   edgeEmphasisFlags: boolean[];
-  slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   selection: SelectionState;
 }
 

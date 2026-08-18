@@ -8,21 +8,22 @@ import {
 import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { transformPoint, type Bounds, type Part } from "../../../src/entries/root";
-import type { Instance } from "../../../src/scene/types";
+import type { PartOccurrence } from "../../../src/scene/types";
 import { ElementShape } from "../../../src/elements/shapes";
 
-function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly Instance[] {
+function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly PartOccurrence[] {
   const runtime = createPackedSceneRuntime(fixture.scene);
-  const instances: Instance[] = [];
+  const instances: PartOccurrence[] = [];
   const drawList = runtime.getDrawList();
   for (let index = 0; index < drawList.length; index += 1) {
     const slot = drawList[index];
     if (slot === undefined) continue;
-    const instanceId = runtime.getInstanceId(slot);
+    const partOccurrenceId = runtime.getInstanceId(slot);
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
-    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ instanceId, partId, worldTransform });
+    if (partOccurrenceId === undefined || partId === undefined || worldTransform === undefined)
+      continue;
+    instances.push({ partOccurrenceId, partId, worldTransform });
   }
   return instances;
 }
@@ -83,14 +84,14 @@ describe("createElementFixture", () => {
       pyramid5: 14,
       mixed: 15,
     });
-    expect(fixture.instanceCount).toBe(16);
+    expect(fixture.partOccurrenceCount).toBe(16);
     expect(fixture.scene.parts.size).toBe(16);
     expect(runtimeInstances(fixture)).toHaveLength(16);
   });
 
   it("uses one complete, ordered inventory with unique comparison cells", () => {
     const fixture = createElementFixture();
-    expect(ELEMENT_GALLERY_ENTRIES).toHaveLength(fixture.instanceCount);
+    expect(ELEMENT_GALLERY_ENTRIES).toHaveLength(fixture.partOccurrenceCount);
     expect(new Set(ELEMENT_GALLERY_ENTRIES.map((entry) => entry.partId)).size).toBe(
       ELEMENT_GALLERY_ENTRIES.length,
     );

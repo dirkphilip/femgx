@@ -14,8 +14,8 @@ import {
 import {
   setElementHighlighted,
   setElementSelected,
-  setInstanceHighlighted,
-  setInstanceSelected,
+  setPartOccurrenceHighlighted,
+  setPartOccurrenceSelected,
   setPartHighlighted,
   setPartSelected,
 } from "./interaction";
@@ -37,36 +37,36 @@ export function interactionTargetFromHit(
   switch (granularity) {
     case "part":
       return { kind: "part", partId: hit.partId };
-    case "instance":
-      return { kind: "instance", instanceId: hit.instanceId };
+    case "partOccurrence":
+      return { kind: "partOccurrence", partOccurrenceId: hit.partOccurrenceId };
     case "body":
-      return hit.kind !== "instance" && hit.kind !== "edge" && hit.bodyId !== undefined
-        ? { kind: "body", instanceId: hit.instanceId, bodyId: hit.bodyId }
+      return hit.kind !== "partOccurrence" && hit.kind !== "edge" && hit.bodyId !== undefined
+        ? { kind: "body", partOccurrenceId: hit.partOccurrenceId, bodyId: hit.bodyId }
         : undefined;
     case "element":
-      if (hit.kind === "instance" || hit.kind === "edge") return undefined;
+      if (hit.kind === "partOccurrence" || hit.kind === "edge") return undefined;
       if (hit.kind === "node") {
         return hit.elementId === undefined
           ? undefined
-          : { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+          : { kind: "element", partOccurrenceId: hit.partOccurrenceId, elementId: hit.elementId };
       }
-      return { kind: "element", instanceId: hit.instanceId, elementId: hit.elementId };
+      return { kind: "element", partOccurrenceId: hit.partOccurrenceId, elementId: hit.elementId };
     case "face":
       return hit.kind === "face"
         ? {
             kind: "face",
-            instanceId: hit.instanceId,
+            partOccurrenceId: hit.partOccurrenceId,
             elementId: hit.elementId,
             faceIndex: hit.faceIndex,
           }
         : undefined;
     case "node":
       return hit.kind === "node"
-        ? { kind: "node", instanceId: hit.instanceId, nodeId: hit.nodeId }
+        ? { kind: "node", partOccurrenceId: hit.partOccurrenceId, nodeId: hit.nodeId }
         : undefined;
     case "edge":
       return hit.kind === "edge"
-        ? { kind: "edge", instanceId: hit.instanceId, key: hit.key }
+        ? { kind: "edge", partOccurrenceId: hit.partOccurrenceId, key: hit.key }
         : undefined;
   }
 }
@@ -83,8 +83,8 @@ export function setTargetSelected(
   switch (target.kind) {
     case "part":
       return setPartSelected(state, target.partId, selected);
-    case "instance":
-      return setInstanceSelected(state, target.instanceId, selected);
+    case "partOccurrence":
+      return setPartOccurrenceSelected(state, target.partOccurrenceId, selected);
     case "body":
       return setBodySelected(state, target, selected);
     case "element":
@@ -115,7 +115,7 @@ export function setTargetsSelected(
   if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
     selectedPartIds: next.partIds,
-    selectedInstanceIds: next.instanceIds,
+    selectedPartOccurrenceIds: next.partOccurrenceIds,
     selectedBodyIds: next.bodyIds,
     selectedElementIds: next.elementIds,
     selectedFaces: next.faceRefs,
@@ -125,7 +125,7 @@ export function setTargetsSelected(
 }
 
 type PartTarget = Extract<InteractionTarget, { readonly kind: "part" }>;
-type InstanceTarget = Extract<InteractionTarget, { readonly kind: "instance" }>;
+type InstanceTarget = Extract<InteractionTarget, { readonly kind: "partOccurrence" }>;
 type BodyTarget = Extract<InteractionTarget, { readonly kind: "body" }>;
 type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
@@ -134,31 +134,31 @@ type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
 
 interface TargetGroups {
   readonly partIds: Set<PartTarget["partId"]>;
-  readonly instanceIds: Set<InstanceTarget["instanceId"]>;
-  readonly bodyIds: Map<BodyTarget["instanceId"], Set<BodyTarget["bodyId"]>>;
-  readonly elementIds: Map<ElementTarget["instanceId"], Set<ElementTarget["elementId"]>>;
-  readonly faceRefs: Map<FaceTarget["instanceId"], Map<string, FaceRef>>;
-  readonly nodeIds: Map<NodeTarget["instanceId"], Set<NodeTarget["nodeId"]>>;
-  readonly edgeRefs: Map<EdgeTarget["instanceId"], Map<string, EdgeRef>>;
+  readonly partOccurrenceIds: Set<InstanceTarget["partOccurrenceId"]>;
+  readonly bodyIds: Map<BodyTarget["partOccurrenceId"], Set<BodyTarget["bodyId"]>>;
+  readonly elementIds: Map<ElementTarget["partOccurrenceId"], Set<ElementTarget["elementId"]>>;
+  readonly faceRefs: Map<FaceTarget["partOccurrenceId"], Map<string, FaceRef>>;
+  readonly nodeIds: Map<NodeTarget["partOccurrenceId"], Set<NodeTarget["nodeId"]>>;
+  readonly edgeRefs: Map<EdgeTarget["partOccurrenceId"], Map<string, EdgeRef>>;
 }
 
 interface TargetCollections {
   readonly partIds: ReadonlySet<PartTarget["partId"]>;
-  readonly instanceIds: ReadonlySet<InstanceTarget["instanceId"]>;
-  readonly bodyIds: ReadonlyMap<BodyTarget["instanceId"], ReadonlySet<BodyTarget["bodyId"]>>;
+  readonly partOccurrenceIds: ReadonlySet<InstanceTarget["partOccurrenceId"]>;
+  readonly bodyIds: ReadonlyMap<BodyTarget["partOccurrenceId"], ReadonlySet<BodyTarget["bodyId"]>>;
   readonly elementIds: ReadonlyMap<
-    ElementTarget["instanceId"],
+    ElementTarget["partOccurrenceId"],
     ReadonlySet<ElementTarget["elementId"]>
   >;
-  readonly faceRefs: ReadonlyMap<FaceTarget["instanceId"], ReadonlyMap<string, FaceRef>>;
-  readonly nodeIds: ReadonlyMap<NodeTarget["instanceId"], ReadonlySet<NodeTarget["nodeId"]>>;
-  readonly edgeRefs: ReadonlyMap<EdgeTarget["instanceId"], ReadonlyMap<string, EdgeRef>>;
+  readonly faceRefs: ReadonlyMap<FaceTarget["partOccurrenceId"], ReadonlyMap<string, FaceRef>>;
+  readonly nodeIds: ReadonlyMap<NodeTarget["partOccurrenceId"], ReadonlySet<NodeTarget["nodeId"]>>;
+  readonly edgeRefs: ReadonlyMap<EdgeTarget["partOccurrenceId"], ReadonlyMap<string, EdgeRef>>;
 }
 
 function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroups {
   const groups: TargetGroups = {
     partIds: new Set(),
-    instanceIds: new Set(),
+    partOccurrenceIds: new Set(),
     bodyIds: new Map(),
     elementIds: new Map(),
     faceRefs: new Map(),
@@ -171,25 +171,25 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
       case "part":
         groups.partIds.add(target.partId);
         break;
-      case "instance":
-        groups.instanceIds.add(target.instanceId);
+      case "partOccurrence":
+        groups.partOccurrenceIds.add(target.partOccurrenceId);
         break;
       case "body":
-        addNestedValue(groups.bodyIds, target.instanceId, target.bodyId);
+        addNestedValue(groups.bodyIds, target.partOccurrenceId, target.bodyId);
         break;
       case "element":
-        addNestedValue(groups.elementIds, target.instanceId, target.elementId);
+        addNestedValue(groups.elementIds, target.partOccurrenceId, target.elementId);
         break;
       case "face": {
         const key = faceId(target.elementId, target.faceIndex);
-        addNestedValue(groups.faceRefs, target.instanceId, key, target);
+        addNestedValue(groups.faceRefs, target.partOccurrenceId, key, target);
         break;
       }
       case "node":
-        addNestedValue(groups.nodeIds, target.instanceId, target.nodeId);
+        addNestedValue(groups.nodeIds, target.partOccurrenceId, target.nodeId);
         break;
       case "edge":
-        addNestedValue(groups.edgeRefs, target.instanceId, target.key, target);
+        addNestedValue(groups.edgeRefs, target.partOccurrenceId, target.key, target);
         break;
     }
   }
@@ -199,7 +199,7 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
 function selectedCollections(data: InteractionStateData): TargetCollections {
   return {
     partIds: data.selectedPartIds,
-    instanceIds: data.selectedInstanceIds,
+    partOccurrenceIds: data.selectedPartOccurrenceIds,
     bodyIds: data.selectedBodyIds,
     elementIds: data.selectedElementIds,
     faceRefs: data.selectedFaces,
@@ -211,7 +211,7 @@ function selectedCollections(data: InteractionStateData): TargetCollections {
 function highlightedCollections(data: InteractionStateData): TargetCollections {
   return {
     partIds: data.highlightedPartIds,
-    instanceIds: data.highlightedInstanceIds,
+    partOccurrenceIds: data.highlightedPartOccurrenceIds,
     bodyIds: data.highlightedBodyIds,
     elementIds: data.highlightedElementIds,
     faceRefs: data.highlightedFaces,
@@ -227,7 +227,11 @@ function updateTargetCollections(
 ): TargetCollections {
   return {
     partIds: updateSetValues(current.partIds, groups.partIds, enabled),
-    instanceIds: updateSetValues(current.instanceIds, groups.instanceIds, enabled),
+    partOccurrenceIds: updateSetValues(
+      current.partOccurrenceIds,
+      groups.partOccurrenceIds,
+      enabled,
+    ),
     bodyIds: updateNestedSets(current.bodyIds, groups.bodyIds, enabled),
     elementIds: updateNestedSets(current.elementIds, groups.elementIds, enabled),
     faceRefs: updateNestedMaps(current.faceRefs, groups.faceRefs, enabled),
@@ -239,7 +243,7 @@ function updateTargetCollections(
 function targetCollectionsEqual(left: TargetCollections, right: TargetCollections): boolean {
   return (
     left.partIds === right.partIds &&
-    left.instanceIds === right.instanceIds &&
+    left.partOccurrenceIds === right.partOccurrenceIds &&
     left.bodyIds === right.bodyIds &&
     left.elementIds === right.elementIds &&
     left.faceRefs === right.faceRefs &&
@@ -287,8 +291,8 @@ export function setTargetHighlighted(
   switch (target.kind) {
     case "part":
       return setPartHighlighted(state, target.partId, highlighted);
-    case "instance":
-      return setInstanceHighlighted(state, target.instanceId, highlighted);
+    case "partOccurrence":
+      return setPartOccurrenceHighlighted(state, target.partOccurrenceId, highlighted);
     case "body":
       return setBodyHighlighted(state, target, highlighted);
     case "element":
@@ -317,7 +321,7 @@ export function setTargetsHighlighted(
   if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
     highlightedPartIds: next.partIds,
-    highlightedInstanceIds: next.instanceIds,
+    highlightedPartOccurrenceIds: next.partOccurrenceIds,
     highlightedBodyIds: next.bodyIds,
     highlightedElementIds: next.elementIds,
     highlightedFaces: next.faceRefs,
@@ -346,20 +350,20 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
   switch (target.kind) {
     case "part":
       return data.selectedPartIds.has(target.partId);
-    case "instance":
-      return data.selectedInstanceIds.has(target.instanceId);
+    case "partOccurrence":
+      return data.selectedPartOccurrenceIds.has(target.partOccurrenceId);
     case "body":
-      return data.selectedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+      return data.selectedBodyIds.get(target.partOccurrenceId)?.has(target.bodyId) === true;
     case "element":
-      return data.selectedElementIds.get(target.instanceId)?.has(target.elementId) === true;
+      return data.selectedElementIds.get(target.partOccurrenceId)?.has(target.elementId) === true;
     case "face": {
       const key = faceId(target.elementId, target.faceIndex);
-      return data.selectedFaces.get(target.instanceId)?.has(key) === true;
+      return data.selectedFaces.get(target.partOccurrenceId)?.has(key) === true;
     }
     case "node":
-      return data.selectedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+      return data.selectedNodeIds.get(target.partOccurrenceId)?.has(target.nodeId) === true;
     case "edge":
-      return data.selectedEdges.get(target.instanceId)?.has(target.key) === true;
+      return data.selectedEdges.get(target.partOccurrenceId)?.has(target.key) === true;
   }
 }
 
@@ -372,20 +376,22 @@ export function isTargetHighlighted(state: InteractionState, target: Interaction
   switch (target.kind) {
     case "part":
       return data.highlightedPartIds.has(target.partId);
-    case "instance":
-      return data.highlightedInstanceIds.has(target.instanceId);
+    case "partOccurrence":
+      return data.highlightedPartOccurrenceIds.has(target.partOccurrenceId);
     case "body":
-      return data.highlightedBodyIds.get(target.instanceId)?.has(target.bodyId) === true;
+      return data.highlightedBodyIds.get(target.partOccurrenceId)?.has(target.bodyId) === true;
     case "element":
-      return data.highlightedElementIds.get(target.instanceId)?.has(target.elementId) === true;
+      return (
+        data.highlightedElementIds.get(target.partOccurrenceId)?.has(target.elementId) === true
+      );
     case "face": {
       const key = faceId(target.elementId, target.faceIndex);
-      return data.highlightedFaces.get(target.instanceId)?.has(key) === true;
+      return data.highlightedFaces.get(target.partOccurrenceId)?.has(key) === true;
     }
     case "node":
-      return data.highlightedNodeIds.get(target.instanceId)?.has(target.nodeId) === true;
+      return data.highlightedNodeIds.get(target.partOccurrenceId)?.has(target.nodeId) === true;
     case "edge":
-      return data.highlightedEdges.get(target.instanceId)?.has(target.key) === true;
+      return data.highlightedEdges.get(target.partOccurrenceId)?.has(target.key) === true;
   }
 }
 

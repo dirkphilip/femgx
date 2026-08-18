@@ -12,7 +12,7 @@ import type { OperationSpec } from "./operation-report";
 
 interface PickBenchmarkInput {
   readonly part: Part;
-  readonly instanceId: string;
+  readonly partOccurrenceId: string;
 }
 
 interface PickBenchmarkSetup {
@@ -90,7 +90,11 @@ function buildPickBenchmarkSetup(input: PickBenchmarkInput): PickBenchmarkSetup 
   }
   const context: PickContext = {
     instances: [
-      { instanceId: input.instanceId, partId: input.part.id, worldTransform: identity() },
+      {
+        partOccurrenceId: input.partOccurrenceId,
+        partId: input.part.id,
+        worldTransform: identity(),
+      },
     ],
     parts: new Map([[input.part.id, input.part]]),
   };

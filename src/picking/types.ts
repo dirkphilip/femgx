@@ -4,14 +4,14 @@ import type { FaceIdRef } from "../elements/faces";
 import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 
 /**
  * A selection granularity that a host may derive from a physical hit.
  * @category Interaction and picking
  */
 export type InteractionGranularity =
-  "part" | "instance" | "body" | "element" | "face" | "node" | "edge";
+  "part" | "partOccurrence" | "body" | "element" | "face" | "node" | "edge";
 
 /**
  * The most-specific resolved face hit with renderer-independent data.
@@ -22,8 +22,8 @@ export interface FacePickHit {
   readonly kind: "face";
   /** Reusable part containing the hit. */
   readonly partId: PartId;
-  /** Expanded placed-part instance containing the hit. */
-  readonly instanceId: InstanceId;
+  /** Expanded placed-part occurrence containing the hit. */
+  readonly partOccurrenceId: PartOccurrenceId;
   /** Authored element owning the face. */
   readonly elementId: ElementId;
   /** Optional logical body owning the face's element. */
@@ -51,8 +51,8 @@ export interface NodePickHit {
   readonly kind: "node";
   /** Reusable part containing the node. */
   readonly partId: PartId;
-  /** Expanded placed-part instance containing the node. */
-  readonly instanceId: InstanceId;
+  /** Expanded placed-part occurrence containing the node. */
+  readonly partOccurrenceId: PartOccurrenceId;
   /** The element whose tessellation was hit, when the node has one. */
   readonly elementId?: ElementId;
   /** Authored node identifier. */
@@ -75,8 +75,8 @@ export interface EdgePickHit {
   readonly kind: "edge";
   /** Reusable part containing the edge. */
   readonly partId: PartId;
-  /** Expanded placed-part instance containing the edge. */
-  readonly instanceId: InstanceId;
+  /** Expanded placed-part occurrence containing the edge. */
+  readonly partOccurrenceId: PartOccurrenceId;
   /** Canonical authored edge key. */
   readonly key: EdgeKey;
   /** Ordered authored nodes making up the edge. */
@@ -97,12 +97,12 @@ export interface EdgePickHit {
  */
 export type PickHit =
   | {
-      /** Placed-instance hit discriminator. */
-      readonly kind: "instance";
-      /** Reusable part containing the instance. */
+      /** Placed-part-occurrence hit discriminator. */
+      readonly kind: "partOccurrence";
+      /** Reusable part containing the occurrence. */
       readonly partId: PartId;
-      /** Expanded placed-part instance identifier. */
-      readonly instanceId: InstanceId;
+      /** Expanded placed-part occurrence identifier. */
+      readonly partOccurrenceId: PartOccurrenceId;
       /** World-space position under the pointer. */
       readonly worldPosition: Vec3;
     }
@@ -111,8 +111,8 @@ export type PickHit =
       readonly kind: "element";
       /** Reusable part containing the element. */
       readonly partId: PartId;
-      /** Expanded placed-part instance identifier. */
-      readonly instanceId: InstanceId;
+      /** Expanded placed-part occurrence identifier. */
+      readonly partOccurrenceId: PartOccurrenceId;
       /** Authored element identifier. */
       readonly elementId: ElementId;
       /** Optional logical body owning the element. */

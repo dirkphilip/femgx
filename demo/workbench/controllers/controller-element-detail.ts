@@ -1,6 +1,6 @@
 import {
   isTargetSelected,
-  type InstanceId,
+  type PartOccurrenceId,
   type InteractionState,
 } from "../../../src/entries/root";
 import type { ElementId } from "../../../src/entries/model";
@@ -19,7 +19,7 @@ export interface WorkbenchElementDetailActions {
   readonly openElementDetail: (target: Extract<VisibilityRowTarget, { kind: "body" }>) => void;
   readonly closeElementDetail: () => void;
   readonly elementIdsForDetail: (detail: WorkbenchElementDetailSnapshot) => readonly ElementId[];
-  readonly isElementSelected: (instanceId: InstanceId, elementId: ElementId) => boolean;
+  readonly isElementSelected: (partOccurrenceId: PartOccurrenceId, elementId: ElementId) => boolean;
   readonly selectElementDetail: (
     detail: WorkbenchElementDetailSnapshot,
     elementId: ElementId,
@@ -55,15 +55,16 @@ export function createElementDetailActions(
       closeElementDetail(owner);
     },
     elementIdsForDetail: (detail) => elementIdsForDetail(owner, detail),
-    isElementSelected: (instanceId, elementId) => isElementSelected(owner, instanceId, elementId),
+    isElementSelected: (partOccurrenceId, elementId) =>
+      isElementSelected(owner, partOccurrenceId, elementId),
     selectElementDetail: (detail, elementId) => {
       selectElementDetail(owner, detail, elementId);
     },
     setElementDetailHover: (detail, elementId) => {
-      setElementDetailHover(owner, { instanceId: detail.instanceId, elementId });
+      setElementDetailHover(owner, { partOccurrenceId: detail.partOccurrenceId, elementId });
     },
     clearElementDetailHover: (detail, elementId) => {
-      clearElementDetailHover(owner, { instanceId: detail.instanceId, elementId });
+      clearElementDetailHover(owner, { partOccurrenceId: detail.partOccurrenceId, elementId });
     },
   };
 }
@@ -72,14 +73,14 @@ function openElementDetail(
   owner: WorkbenchElementDetailOwner,
   target: Extract<VisibilityRowTarget, { kind: "body" }>,
 ): void {
-  const instance = owner.runtime.getInstance(target.instanceId);
+  const instance = owner.runtime.getPartOccurrence(target.partOccurrenceId);
   const part = instance === undefined ? undefined : owner.model.scene.parts.get(instance.partId);
   const body = part?.bodies?.find((candidate) => candidate.id === target.bodyId);
   const count = part?.elements === undefined ? 0 : (body?.elementIds.length ?? 0);
   if (instance === undefined || body === undefined || count === 0) return;
   const partName = owner.model.partNames.get(instance.partId) ?? `Part ${instance.partId}`;
   owner.elementDetail = {
-    instanceId: target.instanceId,
+    partOccurrenceId: target.partOccurrenceId,
     bodyId: target.bodyId,
     label: body.name ?? `Body ${body.id}`,
     partName,
@@ -98,17 +99,17 @@ function elementIdsForDetail(
   owner: WorkbenchElementDetailOwner,
   detail: WorkbenchElementDetailSnapshot,
 ): readonly ElementId[] {
-  const instance = owner.runtime.getInstance(detail.instanceId);
+  const instance = owner.runtime.getPartOccurrence(detail.partOccurrenceId);
   const part = instance === undefined ? undefined : owner.model.scene.parts.get(instance.partId);
   return part?.bodies?.find((body) => body.id === detail.bodyId)?.elementIds ?? [];
 }
 
 function isElementSelected(
   owner: WorkbenchElementDetailOwner,
-  instanceId: InstanceId,
+  partOccurrenceId: PartOccurrenceId,
   elementId: ElementId,
 ): boolean {
-  return isTargetSelected(owner.interaction, { kind: "element", instanceId, elementId });
+  return isTargetSelected(owner.interaction, { kind: "element", partOccurrenceId, elementId });
 }
 
 function selectElementDetail(
@@ -119,7 +120,7 @@ function selectElementDetail(
   if (!elementIdsForDetail(owner, detail).includes(elementId)) return;
   owner.interactionController.replace({
     kind: "element",
-    instanceId: detail.instanceId,
+    partOccurrenceId: detail.partOccurrenceId,
     elementId,
   });
 }

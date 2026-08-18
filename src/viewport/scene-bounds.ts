@@ -144,14 +144,14 @@ export function selectedSceneBounds(
       selectedParts.add(target.partId);
       continue;
     }
-    const targets = selectedInstances.get(target.instanceId) ?? [];
+    const targets = selectedInstances.get(target.partOccurrenceId) ?? [];
     targets.push(target);
-    selectedInstances.set(target.instanceId, targets);
+    selectedInstances.set(target.partOccurrenceId, targets);
   }
   const bounds = emptyBounds();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!runtime.isInstanceVisible(slot)) continue;
-    const instanceId = runtime.getInstanceId(slot);
+    const partOccurrenceId = runtime.getInstanceId(slot);
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
@@ -160,15 +160,16 @@ export function selectedSceneBounds(
       const partBounds = displayedPartBounds(part, deformation);
       if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
     }
-    const targets = instanceId === undefined ? undefined : selectedInstances.get(instanceId);
+    const targets =
+      partOccurrenceId === undefined ? undefined : selectedInstances.get(partOccurrenceId);
     if (targets === undefined) continue;
-    if (targets.some((target) => target.kind === "instance")) {
+    if (targets.some((target) => target.kind === "partOccurrence")) {
       const partBounds = displayedPartBounds(part, deformation);
       if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
       continue;
     }
     for (const target of targets) {
-      if (target.kind === "instance") continue;
+      if (target.kind === "partOccurrence") continue;
       const targetBounds = selectedGeometryBounds(part, target, deformation);
       if (targetBounds !== undefined) includeBounds(bounds, targetBounds, transform);
     }

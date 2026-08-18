@@ -20,7 +20,7 @@ import {
 describe("workbench visible-selection", () => {
   it.each([
     ["part", { kind: "part", partId: 1 }, "p:1"],
-    ["instance", { kind: "instance", instanceId: "instance-a" }, "i:instance-a"],
+    ["partOccurrence", { kind: "partOccurrence", partOccurrenceId: "instance-a" }, "i:instance-a"],
   ] as const)(
     "supports %s visible-surface box selection",
     async (granularity, target, expected) => {
@@ -41,7 +41,7 @@ describe("workbench visible-selection", () => {
 
   it.each([
     ["part", "p:1"],
-    ["instance", "i:instance-a"],
+    ["partOccurrence", "i:instance-a"],
   ] as const)("supports %s point selection", async (granularity, expected) => {
     const pick = vi.fn(() => Promise.resolve(faceHit));
     const { workbench, getInteraction } = harness(
@@ -142,7 +142,7 @@ describe("workbench visible-selection", () => {
   });
 
   it("clears a stale node hover when a plain click selects another node", async () => {
-    const staleHover = { kind: "node", instanceId: "instance-b", nodeId: 8 } as const;
+    const staleHover = { kind: "node", partOccurrenceId: "instance-b", nodeId: 8 } as const;
     const pick = vi.fn(() => Promise.resolve(nodeHit));
     const { workbench, getInteraction } = harness(
       pick,
@@ -158,7 +158,7 @@ describe("workbench visible-selection", () => {
   });
 
   it("keeps a face hit from becoming a node selection", async () => {
-    const staleHover = { kind: "node", instanceId: "instance-b", nodeId: 8 } as const;
+    const staleHover = { kind: "node", partOccurrenceId: "instance-b", nodeId: 8 } as const;
     const pick = vi.fn(() => Promise.resolve(faceHit));
     const { workbench, getInteraction, inspectionPanel } = harness(
       pick,
@@ -195,7 +195,7 @@ describe("workbench visible-selection", () => {
   });
 
   it("does not let a canvas leave clear a hierarchy-owned hover", () => {
-    const hierarchyTarget = { kind: "instance", instanceId: "hierarchy" } as const;
+    const hierarchyTarget = { kind: "partOccurrence", partOccurrenceId: "hierarchy" } as const;
     const ownership = {
       canClear: vi.fn(() => false),
       mark: vi.fn(),

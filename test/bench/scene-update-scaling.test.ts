@@ -57,9 +57,9 @@ describe("public scene replacement scaling", () => {
           const viewport = viewports[index];
           if (viewport === undefined) throw new Error("Scene replacement viewport is missing");
           const useSecond = nextScene[index] === 1;
-          viewport.setScene(useSecond ? second : first);
+          viewport.replaceScene(useSecond ? second : first);
           nextScene[index] = useSecond ? 0 : 1;
-          expect(viewport.runtime.instanceCount).toBe(PLACEMENT_COUNTS[index]);
+          expect(viewport.runtime.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
         },
       })),
       { warmup: 1, samples: 3 },
@@ -126,7 +126,7 @@ describe("renderer visibility-skin scaling", () => {
           const hidden = !nextHidden[index];
           interaction = setElementVisible(
             interaction,
-            { instanceId: "1/0", elementId: 101 },
+            { partOccurrenceId: "1/0", elementId: 101 },
             !hidden,
           );
           fixture.attachment.updateElements(

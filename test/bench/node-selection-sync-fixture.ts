@@ -29,10 +29,10 @@ export function createMultiPlacementNodeFixture(base: NodeSelectionFixture): Nod
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const layout = buildInstanceLayout(runtime);
-  const instanceIds = runtimeInstanceIds(runtime);
-  const targets = instanceIds.map((instanceId) => ({
+  const partOccurrenceIds = runtimeInstanceIds(runtime);
+  const targets = partOccurrenceIds.map((partOccurrenceId) => ({
     kind: "node" as const,
-    instanceId,
+    partOccurrenceId,
     nodeId: 0,
   }));
   const interaction = setTargetsSelected(createInteractionState(), targets, true);
@@ -57,7 +57,7 @@ export function createMultiPlacementNodeFixture(base: NodeSelectionFixture): Nod
     runtime,
     layout,
     slotByInstanceId: slotMap(runtime),
-    instanceIds,
+    partOccurrenceIds,
     cases: new Map([[MULTI_CASE_ID, selectedNodeCase]]),
   };
 }

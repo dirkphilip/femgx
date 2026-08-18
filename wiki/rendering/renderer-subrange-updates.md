@@ -63,7 +63,7 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
   zero instance writes.
 
 `render(runtime, camera, parts)` also accepts a new packed runtime from
-`Viewport.updateScene(scene)`. The attachment matches stable `InstanceId`
+`Viewport.reconcileScene(scene)`. The attachment matches stable `PartOccurrenceId`
 values, retains local slots for surviving placements, patches only changed
 transforms/styles or source/destination part records, and rebuilds orders/calls
 only for parts whose membership or draw order changed. Rebinding one placement

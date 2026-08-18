@@ -147,9 +147,9 @@ describe("WebGPU renderer", () => {
     expect(gpu.bindGroupCreations).toBe(8);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({
-      kind: "instance",
+      kind: "partOccurrence",
       partId: 1,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       worldPosition: unprojectPoint(camera, [400.5, 300.5, 0.5]),
     });
     expect(gpu.drawCalls).toHaveLength(3);

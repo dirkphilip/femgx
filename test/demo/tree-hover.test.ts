@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { Viewport, InteractionState } from "../../src/entries/root";
-import { createInteractionState, setInstanceHighlighted } from "../../src/interaction/interaction";
+import {
+  createInteractionState,
+  setPartOccurrenceHighlighted,
+} from "../../src/interaction/interaction";
 import { isTargetHighlighted } from "../../src/interaction/targets";
 import {
   applyDisplayedInteraction,
@@ -24,7 +27,7 @@ describe("visibility tree hover mapping", () => {
           assemblyId: 1,
           parentId: undefined,
           childIds: ["1/0/0"],
-          instanceIds: ["1/0/0"],
+          partOccurrenceIds: ["1/0/0"],
           visible: true,
           effectiveVisible: true,
         },
@@ -36,7 +39,7 @@ describe("visibility tree hover mapping", () => {
           assemblyId: 2,
           parentId: "1/0",
           childIds: [],
-          instanceIds: ["1/0/0/0", "1/0/0/1"],
+          partOccurrenceIds: ["1/0/0/0", "1/0/0/1"],
           visible: true,
           effectiveVisible: true,
         },
@@ -45,28 +48,30 @@ describe("visibility tree hover mapping", () => {
     const visibleInstances = new Set(["1/0/0", "1/0/0/1"]);
     const runtime = {
       getOccurrence: (id: string) => occurrences.get(id),
-      isInstanceVisible: (id: string) => visibleInstances.has(id),
+      isPartOccurrenceVisible: (id: string) => visibleInstances.has(id),
     } as unknown as SceneRuntime;
 
     expect(interactionTargetsForRow(runtime, { kind: "assembly", occurrenceId: "1/0" })).toEqual([
-      { kind: "instance", instanceId: "1/0/0" },
-      { kind: "instance", instanceId: "1/0/0/1" },
-    ]);
-    expect(interactionTargetsForRow(runtime, { kind: "instance", instanceId: "1/1/0" })).toEqual([
-      { kind: "instance", instanceId: "1/1/0" },
+      { kind: "partOccurrence", partOccurrenceId: "1/0/0" },
+      { kind: "partOccurrence", partOccurrenceId: "1/0/0/1" },
     ]);
     expect(
-      interactionTargetsForRow(runtime, { kind: "body", instanceId: "1/0/0", bodyId: 4 }),
-    ).toEqual([{ kind: "body", instanceId: "1/0/0", bodyId: 4 }]);
+      interactionTargetsForRow(runtime, { kind: "partOccurrence", partOccurrenceId: "1/1/0" }),
+    ).toEqual([{ kind: "partOccurrence", partOccurrenceId: "1/1/0" }]);
+    expect(
+      interactionTargetsForRow(runtime, { kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 }),
+    ).toEqual([{ kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 }]);
   });
 
   it("compares row identity so stale leave events cannot clear a newer row", () => {
-    const body = { kind: "body", instanceId: "1/0/0", bodyId: 4 } as const;
+    const body = { kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 } as const;
     expect(visibilityRowTargetsEqual(body, { ...body })).toBe(true);
-    expect(visibilityRowTargetsEqual(body, { kind: "body", instanceId: "1/0/0", bodyId: 5 })).toBe(
-      false,
-    );
-    expect(visibilityRowTargetsEqual(body, { kind: "instance", instanceId: "1/0/0" })).toBe(false);
+    expect(
+      visibilityRowTargetsEqual(body, { kind: "body", partOccurrenceId: "1/0/0", bodyId: 5 }),
+    ).toBe(false);
+    expect(
+      visibilityRowTargetsEqual(body, { kind: "partOccurrence", partOccurrenceId: "1/0/0" }),
+    ).toBe(false);
   });
 
   it("derives assembly emphasis without erasing persistent highlights", () => {
@@ -78,7 +83,7 @@ describe("visibility tree hover mapping", () => {
           assemblyId: 1,
           parentId: undefined,
           childIds: ["1/0/0"],
-          instanceIds: ["1/0/0"],
+          partOccurrenceIds: ["1/0/0"],
           visible: true,
           effectiveVisible: true,
         },
@@ -90,7 +95,7 @@ describe("visibility tree hover mapping", () => {
           assemblyId: 2,
           parentId: "1/0",
           childIds: [],
-          instanceIds: ["1/0/0/0"],
+          partOccurrenceIds: ["1/0/0/0"],
           visible: true,
           effectiveVisible: true,
         },
@@ -98,7 +103,7 @@ describe("visibility tree hover mapping", () => {
     ]);
     const runtime = {
       getOccurrence: (id: string) => occurrences.get(id),
-      isInstanceVisible: () => true,
+      isPartOccurrenceVisible: () => true,
     } as unknown as SceneRuntime;
     let displayed: InteractionState | undefined;
     const viewport = {
@@ -112,7 +117,7 @@ describe("visibility tree hover mapping", () => {
     const owner = {
       disposed: false,
       hoverOwner: undefined,
-      interaction: setInstanceHighlighted(createInteractionState(), "1/0/0", true),
+      interaction: setPartOccurrenceHighlighted(createInteractionState(), "1/0/0", true),
       viewportSlots: { clearHover: () => undefined },
       render: () => undefined,
       viewports: () => [viewport],
@@ -123,25 +128,31 @@ describe("visibility tree hover mapping", () => {
     applyDisplayedInteraction(owner);
     expect(displayed).toBeDefined();
     expect(
-      isTargetHighlighted(displayed as InteractionState, { kind: "instance", instanceId: "1/0/0" }),
-    ).toBe(true);
-    expect(
       isTargetHighlighted(displayed as InteractionState, {
-        kind: "instance",
-        instanceId: "1/0/0/0",
+        kind: "partOccurrence",
+        partOccurrenceId: "1/0/0",
       }),
     ).toBe(true);
     expect(
       isTargetHighlighted(displayed as InteractionState, {
-        kind: "instance",
-        instanceId: "sibling",
+        kind: "partOccurrence",
+        partOccurrenceId: "1/0/0/0",
+      }),
+    ).toBe(true);
+    expect(
+      isTargetHighlighted(displayed as InteractionState, {
+        kind: "partOccurrence",
+        partOccurrenceId: "sibling",
       }),
     ).toBe(false);
 
     clearHierarchyHover(owner, assembly);
     applyDisplayedInteraction(owner);
     expect(
-      isTargetHighlighted(displayed as InteractionState, { kind: "instance", instanceId: "1/0/0" }),
+      isTargetHighlighted(displayed as InteractionState, {
+        kind: "partOccurrence",
+        partOccurrenceId: "1/0/0",
+      }),
     ).toBe(true);
   });
 });

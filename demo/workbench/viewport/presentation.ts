@@ -188,7 +188,7 @@ function resultLegendSnapshot(
 ): WorkbenchResultLegendSnapshot {
   const scalar = results?.scalar;
   const deformation = results?.config.deformation?.field;
-  const orientation = results?.vectors;
+  const orientation = results?.orientation;
   const loads = results?.loads;
   return Object.freeze({
     visible: results !== undefined || sectionAxis !== "off",

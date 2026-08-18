@@ -24,7 +24,7 @@ const MAX_VECTOR_WIDTH_PIXELS = 8;
 
 export type OrientationRecordMap = ReadonlyMap<PartId, ElementalOrientationRecords>;
 
-export interface ResolvedVectors {
+export interface ResolvedOrientation {
   readonly state: ViewportElementVectorState;
   readonly records: OrientationRecordMap;
 }
@@ -41,24 +41,26 @@ export function validateResultsConfig(config: ViewportResultsConfig): void {
   const hasRole =
     roles["scalar"] !== undefined ||
     roles["deformation"] !== undefined ||
-    roles["vectors"] !== undefined ||
+    roles["orientation"] !== undefined ||
     roles["loads"] !== undefined;
   if (!hasRole) {
-    throw new Error("Viewport results config must include scalar, deformation, vectors, or loads");
+    throw new Error(
+      "Viewport results config must include scalar, deformation, orientation, or loads",
+    );
   }
   if (roles["scalar"] !== undefined) validateScalarConfig(roles["scalar"]);
   if (roles["deformation"] !== undefined) validateDeformationConfig(roles["deformation"]);
-  if (roles["vectors"] !== undefined) validateVectorConfig(roles["vectors"]);
+  if (roles["orientation"] !== undefined) validateVectorConfig(roles["orientation"]);
   if (roles["loads"] !== undefined) validateLoadConfig(roles["loads"]);
 }
 
-/** Resolves elemental vectors and their renderer-owned per-part records. */
-export function resolveVectors(
+/** Resolves elemental orientation and their renderer-owned per-part records. */
+export function resolveOrientation(
   config: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined,
   scene: Scene,
   runtime: PackedSceneRuntime,
   deformation: DeformationState | undefined,
-): ResolvedVectors | undefined {
+): ResolvedOrientation | undefined {
   if (config === undefined) return undefined;
   const records = new Map<PartId, ElementalOrientationRecords>();
   const lengthScale = config.lengthScale ?? 1;
@@ -174,7 +176,7 @@ function validateDeformationConfig(value: unknown): void {
 
 function validateVectorConfig(value: unknown): void {
   if (!isRecord(value)) {
-    throw new Error("Viewport vectors role requires an elemental vector or frame field");
+    throw new Error("Viewport orientation role requires an elemental vector or frame field");
   }
   if (value["glyph"] === "triad") {
     if (!isElementFrameField(value["field"]))
@@ -185,7 +187,7 @@ function validateVectorConfig(value: unknown): void {
     (value["transform"] !== "direction" && value["transform"] !== "normal")
   ) {
     throw new Error(
-      "Viewport vectors role requires an elemental vector field, glyph arrow/axis, and transform direction/normal",
+      "Viewport orientation role requires an elemental vector field, glyph arrow/axis, and transform direction/normal",
     );
   }
   if (

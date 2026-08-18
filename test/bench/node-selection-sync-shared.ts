@@ -25,8 +25,8 @@ export function slotMap(
 ): ReadonlyMap<string, number> {
   const slots = new Map<string, number>();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined) slots.set(instanceId, slot);
+    const partOccurrenceId = runtime.getInstanceId(slot);
+    if (partOccurrenceId !== undefined) slots.set(partOccurrenceId, slot);
   }
   return slots;
 }
@@ -37,8 +37,8 @@ export function runtimeInstanceIds(
 ): readonly string[] {
   const ids: string[] = [];
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId !== undefined) ids.push(instanceId);
+    const partOccurrenceId = runtime.getInstanceId(slot);
+    if (partOccurrenceId !== undefined) ids.push(partOccurrenceId);
   }
   return ids;
 }
@@ -50,8 +50,10 @@ export function selectedFlags(
 ): boolean[] {
   const data = readInteractionState(interaction);
   return Array.from({ length: fixture.runtime.instanceCount }, (_, slot) => {
-    const instanceId = fixture.runtime.getInstanceId(slot);
-    return instanceId !== undefined && (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0;
+    const partOccurrenceId = fixture.runtime.getInstanceId(slot);
+    return (
+      partOccurrenceId !== undefined && (data.selectedNodeIds.get(partOccurrenceId)?.size ?? 0) > 0
+    );
   });
 }
 
@@ -113,10 +115,10 @@ export function details(
 /** Asserts that one benchmark target retains its selected-node count. */
 export function assertNodeSelection(
   interaction: InteractionState,
-  instanceId: string,
+  partOccurrenceId: string,
   expected: number,
 ): void {
-  const actual = readInteractionState(interaction).selectedNodeIds.get(instanceId)?.size ?? 0;
+  const actual = readInteractionState(interaction).selectedNodeIds.get(partOccurrenceId)?.size ?? 0;
   if (actual !== expected)
     throw new Error(`Node selection changed: expected ${expected}, got ${actual}`);
 }

@@ -73,7 +73,7 @@ export function createGalleryResults(
   return {
     active: {
       scalar: { field: elemental },
-      vectors: { field: frame, glyph: "triad", lengthScale: 0.42, widthPixels: 2 },
+      orientation: { field: frame, glyph: "triad", lengthScale: 0.42, widthPixels: 2 },
       loads,
     },
     scalarFields: [elemental, nodal, shellThickness],

@@ -10,9 +10,12 @@ import { setBodyHighlighted, setBodySelected } from "../../src/interaction/bodie
 import { setFaceSelected, resolveFaceStyle } from "../../src/interaction/faces";
 import { setNodeSelected, resolveNodeStyle } from "../../src/interaction/nodes";
 import { setElementSelected } from "../../src/interaction/interaction";
-import { setInstanceHighlighted, setPartHighlighted } from "../../src/interaction/interaction";
+import {
+  setPartOccurrenceHighlighted,
+  setPartHighlighted,
+} from "../../src/interaction/interaction";
 import { identity } from "../../src/math/mat4";
-import type { Instance } from "../../src/scene/types";
+import type { PartOccurrence } from "../../src/scene/types";
 
 const base: ResolvedStyle = {
   color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
@@ -22,11 +25,11 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: Instance = { instanceId: "1/0", partId: 1, worldTransform: identity() };
-const bodyRef = { instanceId: "1/0", bodyId: 3 } as const;
-const elementRef = { instanceId: "1/0", elementId: 4 } as const;
-const faceRef = { instanceId: "1/0", elementId: 4, faceIndex: 0 } as const;
-const nodeRef = { instanceId: "1/0", nodeId: 7 } as const;
+const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
+const bodyRef = { partOccurrenceId: "1/0", bodyId: 3 } as const;
+const elementRef = { partOccurrenceId: "1/0", elementId: 4 } as const;
+const faceRef = { partOccurrenceId: "1/0", elementId: 4, faceIndex: 0 } as const;
+const nodeRef = { partOccurrenceId: "1/0", nodeId: 7 } as const;
 
 interface PrecedenceCase {
   readonly name: string;
@@ -67,7 +70,7 @@ describe("interaction precedence", () => {
   it.each(cases)("applies the $name layer after part, instance, and body state", (testCase) => {
     let state = createInteractionState();
     state = setPartHighlighted(state, item.partId, true);
-    state = setInstanceHighlighted(state, item.instanceId, true);
+    state = setPartOccurrenceHighlighted(state, item.partOccurrenceId, true);
     state = setBodyHighlighted(state, bodyRef, true);
     state = testCase.apply(state);
     expect(testCase.resolve(state)).toMatchObject(testCase.expected);

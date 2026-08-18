@@ -71,7 +71,7 @@ describe("dense selection skin ranges", () => {
 
   it("uses the dense occurrence matching a nonzero local slot", () => {
     const fixture = selectionFixture(denseSelectionPart, [101, 102], {
-      instanceId: "1/1",
+      partOccurrenceId: "1/1",
       placementCount: 2,
     });
     expect(buildCalls(denseSelectionPart, fixture)).toEqual([
@@ -116,13 +116,13 @@ function selectionFixture(
   part: Part,
   elementIds: readonly number[],
   options: {
-    readonly instanceId?: string;
+    readonly partOccurrenceId?: string;
     readonly placementCount?: number;
     readonly allPlacements?: boolean;
     readonly elementIdsByInstance?: readonly (readonly number[])[];
   } = {},
 ): SelectionFixture {
-  const instanceId = options.instanceId ?? "1/0";
+  const partOccurrenceId = options.partOccurrenceId ?? "1/0";
   const placementCount = options.placementCount ?? 1;
   const placements = Array.from({ length: placementCount }, () => ({
     kind: "part" as const,
@@ -138,13 +138,13 @@ function selectionFixture(
   const layout = buildInstanceLayout(runtime);
   const selectedInstances = options.allPlacements
     ? Array.from({ length: placementCount }, (_, index) => `1/${index}`)
-    : [instanceId];
+    : [partOccurrenceId];
   const interaction = setTargetsSelected(
     createInteractionState(),
     selectedInstances.flatMap((selectedInstanceId, index) =>
       (options.elementIdsByInstance?.[index] ?? elementIds).map((elementId) => ({
         kind: "element" as const,
-        instanceId: selectedInstanceId,
+        partOccurrenceId: selectedInstanceId,
         elementId,
       })),
     ),

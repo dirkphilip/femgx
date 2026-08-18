@@ -6,8 +6,8 @@ import {
   createInteractionState,
   setElementOverride,
   setElementSelected,
-  setInstanceOverride,
-  setInstanceSelected,
+  setPartOccurrenceOverride,
+  setPartOccurrenceSelected,
   setPartOverride,
   setBodyVisible,
   setElementVisible,
@@ -98,7 +98,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     renderer.render(runtime, camera, scene.parts);
 
-    const hovered = setTargetHovered(empty, { kind: "instance", instanceId: "1/1" });
+    const hovered = setTargetHovered(empty, { kind: "partOccurrence", partOccurrenceId: "1/1" });
     renderer.updateElements(runtime, hovered, [1]);
     expect(readGpuCostSnapshot(renderer).cpu).toMatchObject({
       "instance-scan": 1,
@@ -107,23 +107,31 @@ describe("WebGPU renderer", () => {
     });
 
     renderer.render(runtime, camera, scene.parts);
-    const selected = setInstanceSelected(hovered, "1/1", true);
+    const selected = setPartOccurrenceSelected(hovered, "1/1", true);
     renderer.updateElements(runtime, selected, [1]);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
-    const elementSelected = setElementSelected(selected, { instanceId: "1/1", elementId: 0 }, true);
+    const elementSelected = setElementSelected(
+      selected,
+      { partOccurrenceId: "1/1", elementId: 0 },
+      true,
+    );
     renderer.updateElements(runtime, elementSelected, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
-    const nodeSelected = setNodeSelected(elementSelected, { instanceId: "1/1", nodeId: 0 }, true);
+    const nodeSelected = setNodeSelected(
+      elementSelected,
+      { partOccurrenceId: "1/1", nodeId: 0 },
+      true,
+    );
     renderer.updateElements(runtime, nodeSelected, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
     expect(readGpuCostSnapshot(renderer).cpu["order-rebuild"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
-    const alphaOverride = setInstanceOverride(nodeSelected, "1/1", { opacity: 0.5 });
+    const alphaOverride = setPartOccurrenceOverride(nodeSelected, "1/1", { opacity: 0.5 });
     renderer.updateElements(runtime, alphaOverride, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
@@ -131,7 +139,7 @@ describe("WebGPU renderer", () => {
     const elementOverride = setElementOverride(
       alphaOverride,
       {
-        instanceId: "1/1",
+        partOccurrenceId: "1/1",
         elementId: 0,
       },
       { opacity: 0.25 },
@@ -148,7 +156,7 @@ describe("WebGPU renderer", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildBodyScene();
     const runtime = createPackedSceneRuntime(scene);
-    const body = { instanceId: "1/0", bodyId: 3 } as const;
+    const body = { partOccurrenceId: "1/0", bodyId: 3 } as const;
     let interaction = createInteractionState();
     renderer.render(runtime, camera, scene.parts);
     renderer.render(runtime, camera, scene.parts);
@@ -158,7 +166,7 @@ describe("WebGPU renderer", () => {
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
-    interaction = setElementVisible(interaction, { instanceId: "1/0", elementId: 0 }, false);
+    interaction = setElementVisible(interaction, { partOccurrenceId: "1/0", elementId: 0 }, false);
     renderer.updateElements(runtime, interaction, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
     renderer.destroy();

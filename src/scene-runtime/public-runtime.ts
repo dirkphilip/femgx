@@ -1,32 +1,32 @@
 import type { Mat4 } from "../math/mat4";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "./runtime";
 import { invariantValue } from "./invariants";
 
 /**
  * A stable, query-only description of one placed part.
  *
- * `instanceId` identifies an expanded placement; `partId` identifies the
+ * `partOccurrenceId` identifies an expanded placement; `partId` identifies the
  * reusable definition it references. The transform is a defensive world-space
  * snapshot. Visibility fields describe effective runtime state and are not
- * mutation handles; use {@link root.ViewportVisibility.setInstance} for live
+ * mutation handles; use {@link root.ViewportVisibility.setPartOccurrence} for live
  * changes.
  * @category Advanced runtime and WebGPU platform
  */
-export interface RuntimeInstance {
+export interface RuntimePartOccurrence {
   /** Stable identity of this expanded placed-part occurrence. */
-  readonly instanceId: InstanceId;
-  /** Reusable part definition referenced by this instance. */
+  readonly partOccurrenceId: PartOccurrenceId;
+  /** Reusable part definition referenced by this occurrence. */
   readonly partId: PartId;
-  /** Expanded assembly occurrence that directly owns this instance. */
+  /** Expanded assembly occurrence that directly owns this part occurrence. */
   readonly occurrenceId: AssemblyOccurrenceId;
-  /** Effective visibility after occurrence, part, and instance layers combine. */
+  /** Effective visibility after assembly-occurrence, part, and occurrence layers combine. */
   readonly visible: boolean;
   /** Visibility contributed by the part-definition layer. */
   readonly partVisible: boolean;
-  /** Visibility contributed by the instance override layer. */
+  /** Visibility contributed by the part-occurrence override layer. */
   readonly overrideVisible: boolean;
   /** Defensive world-space transform snapshot, in the scene's authored units. */
   readonly transform: Mat4;
@@ -37,7 +37,7 @@ export interface RuntimeInstance {
  *
  * An occurrence is distinct from an assembly definition: placing the same
  * `assemblyId` twice produces two occurrence ids with different parents and
- * transforms. `instanceIds` contains only the direct placed parts in this
+ * transforms. `partOccurrenceIds` contains only the direct placed parts in this
  * occurrence; child occurrences are listed in `childIds`.
  * @category Advanced runtime and WebGPU platform
  */
@@ -51,7 +51,7 @@ export interface RuntimeOccurrence {
   /** Direct child assembly occurrences in deterministic hierarchy order. */
   readonly childIds: readonly AssemblyOccurrenceId[];
   /** Stable placed-part ids directly contained by this occurrence. */
-  readonly instanceIds: readonly InstanceId[];
+  readonly partOccurrenceIds: readonly PartOccurrenceId[];
   /** Visibility contributed by this occurrence's assembly-definition layer. */
   readonly visible: boolean;
   /** Effective visibility after ancestor and occurrence layers combine. */
@@ -74,41 +74,41 @@ export interface SceneRuntime {
   readonly rootAssemblyId: AssemblyId;
   /** Number of expanded assembly occurrences, including the root. */
   readonly occurrenceCount: number;
-  /** Number of expanded placed-part instances. */
-  readonly instanceCount: number;
-  /** Number of instances currently effective-visible for rendering. */
+  /** Number of expanded placed-part occurrences. */
+  readonly partOccurrenceCount: number;
+  /** Number of part occurrences currently effective-visible for rendering. */
   readonly visibleCount: number;
   /** Returns a fresh snapshot of every stable placed-part id in runtime order. */
-  getInstanceIds(): readonly InstanceId[];
+  getPartOccurrenceIds(): readonly PartOccurrenceId[];
   /** Returns a fresh snapshot of every stable assembly-occurrence id in runtime order. */
   getOccurrenceIds(): readonly AssemblyOccurrenceId[];
   /** Materializes query records for all placed parts. */
-  getInstances(): readonly RuntimeInstance[];
+  getPartOccurrences(): readonly RuntimePartOccurrence[];
   /** Materializes query records for all expanded assembly occurrences. */
   getOccurrences(): readonly RuntimeOccurrence[];
   /** Returns one placed-part record, or `undefined` for an unknown id. */
-  getInstance(instanceId: InstanceId): RuntimeInstance | undefined;
+  getPartOccurrence(partOccurrenceId: PartOccurrenceId): RuntimePartOccurrence | undefined;
   /** Returns one assembly-occurrence record, or `undefined` for an unknown id. */
   getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined;
   /** Resolves a placed-part id to its reusable part id. */
-  getPartId(instanceId: InstanceId): PartId | undefined;
+  getPartId(partOccurrenceId: PartOccurrenceId): PartId | undefined;
   /** Returns a defensive copy of a placed part's world transform, or `undefined` for an unknown id. */
-  getTransform(instanceId: InstanceId): Mat4 | undefined;
+  getTransform(partOccurrenceId: PartOccurrenceId): Mat4 | undefined;
   /** Reports effective visibility for one placed part. */
-  isInstanceVisible(instanceId: InstanceId): boolean;
+  isPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId): boolean;
   /**
    * Returns currently visible placed-part ids in deterministic depth-first runtime order.
    * This is runtime order, not the renderer's private part-batched draw order.
    */
-  getVisibleInstanceIds(): readonly InstanceId[];
+  getVisiblePartOccurrenceIds(): readonly PartOccurrenceId[];
 }
 
 class PublicSceneRuntime implements SceneRuntime {
-  private readonly instanceIds: readonly InstanceId[];
+  private readonly partOccurrenceIds: readonly PartOccurrenceId[];
   private readonly occurrenceIds: readonly AssemblyOccurrenceId[];
 
   constructor(private readonly packed: PackedSceneRuntime) {
-    this.instanceIds = Array.from({ length: packed.instanceCount }, (_, slot) =>
+    this.partOccurrenceIds = Array.from({ length: packed.instanceCount }, (_, slot) =>
       invariantValue(packed.getInstanceId(slot), `instance id at ${slot}`),
     );
     this.occurrenceIds = Array.from({ length: packed.nodeCount }, (_, slot) =>
@@ -122,21 +122,24 @@ class PublicSceneRuntime implements SceneRuntime {
   get occurrenceCount(): number {
     return this.packed.nodeCount;
   }
-  get instanceCount(): number {
+  get partOccurrenceCount(): number {
     return this.packed.instanceCount;
   }
   get visibleCount(): number {
     return this.packed.visibleCount;
   }
-  getInstanceIds(): readonly InstanceId[] {
-    return [...this.instanceIds];
+  getPartOccurrenceIds(): readonly PartOccurrenceId[] {
+    return [...this.partOccurrenceIds];
   }
   getOccurrenceIds(): readonly AssemblyOccurrenceId[] {
     return [...this.occurrenceIds];
   }
-  getInstances(): readonly RuntimeInstance[] {
-    return this.instanceIds.map((instanceId) =>
-      invariantValue(this.getInstance(instanceId), `instance ${instanceId}`),
+  getPartOccurrences(): readonly RuntimePartOccurrence[] {
+    return this.partOccurrenceIds.map((partOccurrenceId) =>
+      invariantValue(
+        this.getPartOccurrence(partOccurrenceId),
+        `part occurrence ${partOccurrenceId}`,
+      ),
     );
   }
   getOccurrences(): readonly RuntimeOccurrence[] {
@@ -144,8 +147,8 @@ class PublicSceneRuntime implements SceneRuntime {
       invariantValue(this.getOccurrence(occurrenceId), `occurrence ${occurrenceId}`),
     );
   }
-  getInstance(instanceId: InstanceId): RuntimeInstance | undefined {
-    const slot = this.packed.getInstanceSlot(instanceId);
+  getPartOccurrence(partOccurrenceId: PartOccurrenceId): RuntimePartOccurrence | undefined {
+    const slot = this.packed.getInstanceSlot(partOccurrenceId);
     if (slot === undefined) return undefined;
     const partId = invariantValue(this.packed.instancePartIds[slot], `part id at instance ${slot}`);
     const owningNode = invariantValue(
@@ -157,11 +160,11 @@ class PublicSceneRuntime implements SceneRuntime {
       `occurrence id at ${owningNode}`,
     );
     const transform = invariantValue(
-      this.getTransform(instanceId),
+      this.getTransform(partOccurrenceId),
       `transform at instance ${slot}`,
     );
     return {
-      instanceId,
+      partOccurrenceId,
       partId,
       occurrenceId,
       visible: this.packed.instanceVisible[slot] === 1,
@@ -184,7 +187,7 @@ class PublicSceneRuntime implements SceneRuntime {
       childIds.push(invariantValue(this.packed.getNodeId(child), `node id at ${child}`));
       child = invariantValue(this.packed.nodeNextSibling[child], `next sibling at node ${child}`);
     }
-    const instanceIds: InstanceId[] = [];
+    const partOccurrenceIds: PartOccurrenceId[] = [];
     const start = invariantValue(
       this.packed.nodeInstanceStart[node],
       `instance start at node ${node}`,
@@ -192,7 +195,9 @@ class PublicSceneRuntime implements SceneRuntime {
     const end = invariantValue(this.packed.nodeInstanceEnd[node], `instance end at node ${node}`);
     for (let slot = start; slot < end; slot++) {
       if (this.packed.instanceOwningNode[slot] !== node) continue;
-      instanceIds.push(invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`));
+      partOccurrenceIds.push(
+        invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`),
+      );
     }
     return {
       occurrenceId,
@@ -202,19 +207,19 @@ class PublicSceneRuntime implements SceneRuntime {
           ? undefined
           : invariantValue(this.packed.getNodeId(parent), `node id at ${parent}`),
       childIds,
-      instanceIds,
+      partOccurrenceIds,
       visible: this.packed.nodeVisible[node] === 1,
       effectiveVisible: this.packed.nodeEffectiveVisible[node] === 1,
     };
   }
-  getPartId(instanceId: InstanceId): PartId | undefined {
-    const slot = this.packed.getInstanceSlot(instanceId);
+  getPartId(partOccurrenceId: PartOccurrenceId): PartId | undefined {
+    const slot = this.packed.getInstanceSlot(partOccurrenceId);
     return slot === undefined
       ? undefined
       : invariantValue(this.packed.instancePartIds[slot], `part id at instance ${slot}`);
   }
-  getTransform(instanceId: InstanceId): Mat4 | undefined {
-    const slot = this.packed.getInstanceSlot(instanceId);
+  getTransform(partOccurrenceId: PartOccurrenceId): Mat4 | undefined {
+    const slot = this.packed.getInstanceSlot(partOccurrenceId);
     if (slot === undefined) return undefined;
     const transform = invariantValue(
       this.packed.getTransform(slot),
@@ -222,11 +227,11 @@ class PublicSceneRuntime implements SceneRuntime {
     );
     return new Float32Array(transform);
   }
-  isInstanceVisible(instanceId: InstanceId): boolean {
-    const slot = this.packed.getInstanceSlot(instanceId);
+  isPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId): boolean {
+    const slot = this.packed.getInstanceSlot(partOccurrenceId);
     return slot !== undefined && this.packed.isInstanceVisible(slot);
   }
-  getVisibleInstanceIds(): readonly InstanceId[] {
+  getVisiblePartOccurrenceIds(): readonly PartOccurrenceId[] {
     return Array.from(this.packed.getDrawList(), (slot) =>
       invariantValue(this.packed.getInstanceId(slot), `instance id at draw slot ${slot}`),
     );
@@ -250,8 +255,8 @@ export function createPublicSceneRuntime(packed: PackedSceneRuntime): SceneRunti
  * import { createSceneRuntime } from "femgx/runtime";
  *
  * const runtime = createSceneRuntime(scene);
- * for (const instance of runtime.getInstances()) {
- *   console.log(instance.instanceId, instance.partId, instance.transform);
+ * for (const occurrence of runtime.getPartOccurrences()) {
+ *   console.log(occurrence.partOccurrenceId, occurrence.partId, occurrence.transform);
  * }
  * ```
  * @category Advanced runtime and WebGPU platform

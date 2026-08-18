@@ -126,7 +126,7 @@ describe("bounded visibility skins", () => {
 
       let interaction = setElementVisible(
         createInteractionState(),
-        { instanceId: "1/left", elementId: 101 },
+        { partOccurrenceId: "1/left", elementId: 101 },
         false,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
@@ -142,7 +142,7 @@ describe("bounded visibility skins", () => {
 
       interaction = setElementVisible(
         interaction,
-        { instanceId: "1/right", elementId: 101 },
+        { partOccurrenceId: "1/right", elementId: 101 },
         false,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
@@ -151,14 +151,18 @@ describe("bounded visibility skins", () => {
       expect(attachment.calls[0]?.instanceCount).toBe(2);
 
       interaction = setElementVisible(
-        setElementVisible(interaction, { instanceId: "1/left", elementId: 101 }, true),
-        { instanceId: "1/right", elementId: 101 },
+        setElementVisible(interaction, { partOccurrenceId: "1/left", elementId: 101 }, true),
+        { partOccurrenceId: "1/right", elementId: 101 },
         true,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
       expect(attachment.calls).toEqual([{ partId: part.id, instanceCount: 2 }]);
       expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBe(0);
-      interaction = setElementVisible(interaction, { instanceId: "1/left", elementId: 101 }, false);
+      interaction = setElementVisible(
+        interaction,
+        { partOccurrenceId: "1/left", elementId: 101 },
+        false,
+      );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
       expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBeGreaterThan(0);
       attachment.clear(bundle);
@@ -179,12 +183,12 @@ describe("bounded visibility skins", () => {
       attachment.attach(runtime, bundle);
 
       let interaction = createInteractionState();
-      for (const [instanceId, elementId] of [
+      for (const [partOccurrenceId, elementId] of [
         ["1/a", 101],
         ["1/b", 102],
         ["1/c", 103],
       ] as const) {
-        interaction = setElementVisible(interaction, { instanceId, elementId }, false);
+        interaction = setElementVisible(interaction, { partOccurrenceId, elementId }, false);
       }
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
 

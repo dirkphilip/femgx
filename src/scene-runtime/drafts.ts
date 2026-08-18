@@ -1,5 +1,5 @@
 import { identity, multiply, type Mat4 } from "../math/mat4";
-import type { Assembly, PartPlacement } from "../scene/assembly";
+import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
@@ -47,7 +47,7 @@ function linkChild(nodes: NodeDraft[], parent: number, nodeIndex: number): void 
 class DraftWriter {
   readonly nodes: NodeDraft[] = [];
   readonly instances: InstanceDraft[] = [];
-  private readonly assemblies: ReadonlyMap<AssemblyId, Assembly>;
+  private readonly assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>;
   private readonly visibleAssemblyIds: ReadonlySet<AssemblyId>;
   private readonly visiblePartIds: ReadonlySet<PartId>;
 

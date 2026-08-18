@@ -26,7 +26,7 @@ export function setBodySelected(
   return updateNestedState({
     state,
     current: data.selectedBodyIds,
-    outerKey: ref.instanceId,
+    outerKey: ref.partOccurrenceId,
     innerKey: ref.bodyId,
     enabled: selected,
     replace: (next) => updateInteractionState(state, { selectedBodyIds: next }),
@@ -43,7 +43,7 @@ export function setBodyHighlighted(
   return updateNestedState({
     state,
     current: data.highlightedBodyIds,
-    outerKey: ref.instanceId,
+    outerKey: ref.partOccurrenceId,
     innerKey: ref.bodyId,
     enabled: highlighted,
     replace: (next) => updateInteractionState(state, { highlightedBodyIds: next }),
@@ -61,7 +61,12 @@ export function setBodyOverride(
 ): InteractionState {
   validatePrimitiveStyleOverride(override);
   const data = readInteractionState(state);
-  const bodyOverrides = updateNestedMap(data.bodyOverrides, ref.instanceId, ref.bodyId, override);
+  const bodyOverrides = updateNestedMap(
+    data.bodyOverrides,
+    ref.partOccurrenceId,
+    ref.bodyId,
+    override,
+  );
   if (bodyOverrides === data.bodyOverrides) return state;
   return updateInteractionState(state, { bodyOverrides });
 }
@@ -79,7 +84,7 @@ export function setBodyVisible(
   return updateNestedState({
     state,
     current: data.hiddenBodyIds,
-    outerKey: ref.instanceId,
+    outerKey: ref.partOccurrenceId,
     innerKey: ref.bodyId,
     enabled: !visible,
     replace: (next) => updateInteractionState(state, { hiddenBodyIds: next }),
@@ -93,7 +98,7 @@ export function setBodyVisible(
 export function isBodyVisible(state: InteractionState, ref: BodyRef): boolean {
   return isNestedValueVisible(
     readInteractionState(state).hiddenBodyIds,
-    ref.instanceId,
+    ref.partOccurrenceId,
     ref.bodyId,
   );
 }
@@ -110,7 +115,7 @@ export function isBodyEmphasized(state: InteractionState, ref: BodyRef): boolean
     selected: data.selectedBodyIds,
     overrides: data.bodyOverrides,
     hovered: isHoveredTarget(state, { kind: "body", ...ref }),
-    outerKey: ref.instanceId,
+    outerKey: ref.partOccurrenceId,
     innerKey: ref.bodyId,
   });
 }
@@ -123,14 +128,14 @@ export function emphasizedBodyRefs(state: InteractionState): readonly BodyRef[] 
   const data = readInteractionState(state);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "body"
-      ? { instanceId: data.hoveredTarget.instanceId, bodyId: data.hoveredTarget.bodyId }
+      ? { partOccurrenceId: data.hoveredTarget.partOccurrenceId, bodyId: data.hoveredTarget.bodyId }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.bodyId}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.bodyId}`,
     (push) => {
       appendSortedNestedRefs(
         [data.highlightedBodyIds, data.selectedBodyIds, data.bodyOverrides, data.hiddenBodyIds],
-        (instanceId, bodyId) => {
-          push({ instanceId, bodyId });
+        (partOccurrenceId, bodyId) => {
+          push({ partOccurrenceId, bodyId });
         },
       );
     },

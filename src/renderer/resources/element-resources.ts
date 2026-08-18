@@ -16,7 +16,7 @@ import { readInteractionState } from "../../interaction/state";
 import { faceIdentity as faceKey } from "../../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
-import type { Instance, InstanceId } from "../../scene/types";
+import type { PartOccurrence, PartOccurrenceId } from "../../scene/types";
 import { BODY_HIGHLIGHT_MARKER, EDGE_HIGHLIGHT_MARKER } from "../selection/highlight-table";
 import { defaultStyle } from "./foundation";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
@@ -114,7 +114,7 @@ export function encodeEmphasisRecord(update: EmphasisUpdate): ArrayBuffer {
 export function collectEmphasisUpdates(
   runtime: PackedSceneRuntime,
   layout: InstanceLayout,
-  slotByInstanceId: ReadonlyMap<InstanceId, number>,
+  slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>,
   options: EmphasisCollectionOptions,
 ): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
@@ -141,7 +141,7 @@ function collectEdgeEmphasis(
   push: (partId: PartId, update: EmphasisUpdate) => void,
 ): void {
   for (const ref of emphasizedEdgeRefs(interaction)) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
+    const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const edgePickId = edgeKeysByPart?.get(occurrence.instance.partId)?.indexOf(ref.key);
     if (edgePickId === undefined || edgePickId < 0) continue;
@@ -152,7 +152,8 @@ function collectEdgeEmphasis(
       nodePickId: 0,
       edgePickId: edgePickId + 1,
       selected:
-        readInteractionState(interaction).selectedEdges.get(ref.instanceId)?.has(ref.key) === true,
+        readInteractionState(interaction).selectedEdges.get(ref.partOccurrenceId)?.has(ref.key) ===
+        true,
       style: resolveEdgeStyle(occurrence.instance, ref, defaultStyle, interaction),
     });
   }
@@ -167,14 +168,14 @@ function collectBodyEmphasis(
 ): void {
   const data = readInteractionState(interaction);
   for (const ref of emphasizedBodyRefs(interaction)) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
+    const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const body = part === undefined ? undefined : getPartSemanticIndex(part).bodies.get(ref.bodyId);
     if (body === undefined) continue;
-    const explicitOverride = data.bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
+    const explicitOverride = data.bodyOverrides.get(ref.partOccurrenceId)?.get(ref.bodyId);
     const style = resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction);
-    const selected = data.selectedBodyIds.get(ref.instanceId)?.has(ref.bodyId) === true;
+    const selected = data.selectedBodyIds.get(ref.partOccurrenceId)?.has(ref.bodyId) === true;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -196,7 +197,7 @@ function collectBodyEmphasis(
 interface EmphasisContext {
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
 }
 
 /** Collects element-level emphasis records (hover, selection, overrides). */
@@ -213,12 +214,12 @@ function collectElementEmphasis(
       ? emphasizedElementRefs(interaction)
       : sparseElementEmphasisRefs(context.runtime, context.layout, interaction, denseSelections);
   for (const ref of refs) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
+    const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const bodyId = metadata?.bodyByElement.get(ref.elementId);
-    const explicitOverride = data.elementOverrides.get(ref.instanceId)?.get(ref.elementId);
+    const explicitOverride = data.elementOverrides.get(ref.partOccurrenceId)?.get(ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
       ref.elementId,
@@ -226,7 +227,7 @@ function collectElementEmphasis(
       interaction,
       bodyId,
     );
-    const selected = data.selectedElementIds.get(ref.instanceId)?.has(ref.elementId) === true;
+    const selected = data.selectedElementIds.get(ref.partOccurrenceId)?.has(ref.elementId) === true;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: ref.elementId + 1,
@@ -252,7 +253,7 @@ function collectFaceEmphasis(
 ): void {
   const data = readInteractionState(interaction);
   for (const ref of emphasizedFaceRefs(interaction)) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
+    const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
@@ -272,7 +273,8 @@ function collectFaceEmphasis(
       facePickId: faceId + 1,
       nodePickId: 0,
       selected:
-        data.selectedFaces.get(ref.instanceId)?.has(faceKey(ref.elementId, ref.faceIndex)) === true,
+        data.selectedFaces.get(ref.partOccurrenceId)?.has(faceKey(ref.elementId, ref.faceIndex)) ===
+        true,
       keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
       style,
     });
@@ -293,7 +295,7 @@ function collectNodeEmphasis(
       ? emphasizedNodeRefs(interaction)
       : sparseNodeEmphasisRefs(context.runtime, context.layout, interaction, denseNodeSelections);
   for (const ref of refs) {
-    const occurrence = occurrenceAt(context, ref.instanceId);
+    const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const nodeCount = part === undefined ? 0 : partNodeCount(part);
@@ -304,7 +306,7 @@ function collectNodeEmphasis(
       elementPickId: 0,
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
-      selected: data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true,
+      selected: data.selectedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true,
       keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
       style,
     });
@@ -312,7 +314,7 @@ function collectNodeEmphasis(
 }
 
 function keepsResultColor(
-  instance: Instance,
+  instance: PartOccurrence,
   style: ResolvedStyle,
   interaction: InteractionState,
 ): boolean {
@@ -323,8 +325,8 @@ function keepsResultColor(
 /** Resolves a ref's instance slot to its part-local slot and part id. */
 function occurrenceAt(
   context: EmphasisContext,
-  instanceId: InstanceId,
-): { readonly instance: Instance; readonly local: number } | undefined {
+  instanceId: PartOccurrenceId,
+): { readonly instance: PartOccurrence; readonly local: number } | undefined {
   const slot = context.slotByInstanceId.get(instanceId);
   if (slot === undefined) return undefined;
   const partId = context.runtime.instancePartIds[slot];
@@ -332,7 +334,7 @@ function occurrenceAt(
   if (partId === undefined || local === undefined || local < 0) return undefined;
   return {
     instance: {
-      instanceId,
+      partOccurrenceId: instanceId,
       partId,
       worldTransform: context.runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
     },

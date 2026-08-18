@@ -139,23 +139,23 @@ describe("viewport scene bounds", () => {
     const runtime = createPackedSceneRuntime(scene);
     const entityTargets = [
       {
-        target: { kind: "instance", instanceId: "1/1" },
+        target: { kind: "partOccurrence", partOccurrenceId: "1/1" },
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {
-        target: { kind: "body", instanceId: "1/1", bodyId: 4 },
+        target: { kind: "body", partOccurrenceId: "1/1", bodyId: 4 },
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {
-        target: { kind: "element", instanceId: "1/1", elementId: 8 },
+        target: { kind: "element", partOccurrenceId: "1/1", elementId: 8 },
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {
-        target: { kind: "face", instanceId: "1/1", elementId: 8, faceIndex: 0 },
+        target: { kind: "face", partOccurrenceId: "1/1", elementId: 8, faceIndex: 0 },
         expected: { minX: 10, maxX: 11, minY: 0, maxY: 1 },
       },
       {
-        target: { kind: "node", instanceId: "1/1", nodeId: 2 },
+        target: { kind: "node", partOccurrenceId: "1/1", nodeId: 2 },
         expected: { minX: 10, maxX: 10, minY: 1, maxY: 1 },
       },
     ] as const;
@@ -178,7 +178,7 @@ describe("viewport scene bounds", () => {
     const runtime = createPackedSceneRuntime(scene);
     const selected = setTargetSelected(
       createInteractionState(),
-      { kind: "element", instanceId: "1/1", elementId: 8 },
+      { kind: "element", partOccurrenceId: "1/1", elementId: 8 },
       true,
     );
     const deformation = {
@@ -198,8 +198,16 @@ describe("viewport scene bounds", () => {
     const scene = sceneWithRepeatedPart();
     const runtime = createPackedSceneRuntime(scene);
     let interaction = createInteractionState();
-    interaction = setTargetSelected(interaction, { kind: "instance", instanceId: "1/0" }, true);
-    interaction = setTargetSelected(interaction, { kind: "instance", instanceId: "1/1" }, true);
+    interaction = setTargetSelected(
+      interaction,
+      { kind: "partOccurrence", partOccurrenceId: "1/0" },
+      true,
+    );
+    interaction = setTargetSelected(
+      interaction,
+      { kind: "partOccurrence", partOccurrenceId: "1/1" },
+      true,
+    );
     expect(selectedSceneBounds(scene, runtime, interaction)).toMatchObject({
       minX: 0,
       maxX: 11,
@@ -222,8 +230,8 @@ describe("viewport scene bounds", () => {
     const selected = setTargetSelected(
       createInteractionState(),
       {
-        kind: "instance",
-        instanceId: "1/1",
+        kind: "partOccurrence",
+        partOccurrenceId: "1/1",
       },
       true,
     );

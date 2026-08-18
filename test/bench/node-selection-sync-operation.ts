@@ -29,7 +29,7 @@ export interface NodeSelectionFixture {
   readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
   readonly layout: ReturnType<typeof buildInstanceLayout>;
   readonly slotByInstanceId: ReadonlyMap<string, number>;
-  readonly instanceIds: readonly string[];
+  readonly partOccurrenceIds: readonly string[];
   readonly nodeCount: number;
   readonly elementCount: number;
   readonly authoredFaceCount: number;

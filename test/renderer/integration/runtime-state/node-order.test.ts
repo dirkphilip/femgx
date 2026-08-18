@@ -32,7 +32,7 @@ describe("renderer runtime state", () => {
     const layout = buildInstanceLayout(runtime);
     const targets = Array.from({ length: 1000 }, (_, index) => ({
       kind: "element" as const,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: index + 1,
     })).reverse();
     const interaction = setTargetsSelected(createInteractionState(), targets, true);
@@ -107,7 +107,7 @@ describe("renderer runtime state", () => {
     const selectedPoint = setNodeSelected(
       createInteractionState(),
       {
-        instanceId: "1/2",
+        partOccurrenceId: "1/2",
         nodeId: 0,
       },
       true,

@@ -1,7 +1,7 @@
 import type {
   AssemblyOccurrenceId,
   GeometryBody,
-  InstanceId,
+  PartOccurrenceId,
   PartId,
 } from "../../../src/entries/root";
 import type { BodyId } from "../../../src/entries/model";
@@ -19,8 +19,8 @@ export interface VisibilityPanelOptions {
   readonly getRuntime: () => SceneRuntime;
   readonly partName: (partId: PartId) => string | undefined;
   readonly partVisible: (partId: PartId) => boolean;
-  readonly bodyVisible: (instanceId: InstanceId, bodyId: BodyId) => boolean;
-  readonly bodyHighlighted: (instanceId: InstanceId, bodyId: BodyId) => boolean;
+  readonly bodyVisible: (partOccurrenceId: PartOccurrenceId, bodyId: BodyId) => boolean;
+  readonly bodyHighlighted: (partOccurrenceId: PartOccurrenceId, bodyId: BodyId) => boolean;
   readonly onChanged: () => void;
 }
 
@@ -66,7 +66,7 @@ export class VisibilityPanelController {
       );
     }
     this.current = Object.freeze({
-      context: `Assembly · ${assemblyName(rootAssembly) ?? `Assembly ${model.scene.rootAssemblyId}`}`,
+      context: `AssemblyDefinition · ${assemblyName(rootAssembly) ?? `AssemblyDefinition ${model.scene.rootAssemblyId}`}`,
       rows: Object.freeze(rows),
     });
   }
@@ -90,7 +90,7 @@ export class VisibilityPanelController {
     if (occurrence === undefined) return;
     const model = this.options.getModel();
     const assembly = model.scene.assemblies.get(occurrence.assemblyId);
-    const name = assemblyName(assembly) ?? `Assembly ${occurrence.assemblyId}`;
+    const name = assemblyName(assembly) ?? `AssemblyDefinition ${occurrence.assemblyId}`;
     const displayName = this.assemblyOccurrenceName(occurrenceId, name);
     const directInstances = this.directPartInstances(occurrenceId);
     const childCount = directInstances.length + occurrence.childIds.length;
@@ -102,7 +102,7 @@ export class VisibilityPanelController {
         kind: "assembly",
         depth: layout.depth,
         label: displayName,
-        badge: "Assembly",
+        badge: "AssemblyDefinition",
         testId: `assembly-occurrence-vis-${this.occurrenceDisplayId(occurrenceId)}`,
         checked: occurrence.effectiveVisible,
         disabled: this.parentHidden(occurrence.parentId),
@@ -127,10 +127,10 @@ export class VisibilityPanelController {
   private appendOccurrenceChildren(input: OccurrenceChildrenInput): void {
     const { childIds, directInstances, displayName, childCount, layout, rows } = input;
     for (let index = 0; index < directInstances.length; index += 1) {
-      const instanceId = directInstances[index];
-      if (instanceId !== undefined) {
+      const partOccurrenceId = directInstances[index];
+      if (partOccurrenceId !== undefined) {
         this.appendInstance(
-          instanceId,
+          partOccurrenceId,
           displayName,
           {
             depth: layout.depth + 1,
@@ -160,13 +160,13 @@ export class VisibilityPanelController {
   }
 
   private appendInstance(
-    instanceId: InstanceId,
+    partOccurrenceId: PartOccurrenceId,
     assemblyNameValue: string,
     layout: RowLayout,
     rows: WorkbenchVisibilityRowSnapshot[],
   ): void {
     const runtime = this.options.getRuntime();
-    const instance = runtime.getInstance(instanceId);
+    const instance = runtime.getPartOccurrence(partOccurrenceId);
     if (instance === undefined) return;
     const partName = this.options.partName(instance.partId) ?? `Part ${instance.partId}`;
     const part = this.options.getModel().scene.parts.get(instance.partId);
@@ -177,13 +177,13 @@ export class VisibilityPanelController {
     const bodies = part?.bodies ?? [];
     rows.push(
       row({
-        key: `instance:${instanceId}`,
-        target: { kind: "instance", instanceId },
-        kind: "instance",
+        key: `instance:${partOccurrenceId}`,
+        target: { kind: "partOccurrence", partOccurrenceId },
+        kind: "partOccurrence",
         depth: layout.depth,
         label: displayName,
         badge: "Part",
-        testId: `instance-vis-${this.instanceDisplayId(instanceId)}`,
+        testId: `instance-vis-${this.instanceDisplayId(partOccurrenceId)}`,
         checked: instance.visible,
         disabled:
           !this.occurrenceVisible(instance.occurrenceId) ||
@@ -201,7 +201,7 @@ export class VisibilityPanelController {
       if (body !== undefined) {
         this.appendBody(
           {
-            instanceId,
+            partOccurrenceId,
             body,
             partName: displayName,
             assemblyName: assemblyNameValue,
@@ -219,24 +219,24 @@ export class VisibilityPanelController {
   }
 
   private appendBody(input: BodyRowInput, rows: WorkbenchVisibilityRowSnapshot[]): void {
-    const { instanceId, body, partName, assemblyName, layout } = input;
+    const { partOccurrenceId, body, partName, assemblyName, layout } = input;
     const bodyName = body.name ?? `Body ${body.id}`;
     rows.push(
       row({
-        key: `body:${instanceId}:${body.id}`,
-        target: { kind: "body", instanceId, bodyId: body.id },
+        key: `body:${partOccurrenceId}:${body.id}`,
+        target: { kind: "body", partOccurrenceId, bodyId: body.id },
         kind: "body",
         depth: layout.depth,
         label: bodyName,
         badge: "Body",
         ariaLabel: `${bodyName} in ${partName} · ${assemblyName}`,
-        testId: `body-vis-${this.instanceDisplayId(instanceId)}-${body.id}`,
-        checked: this.options.bodyVisible(instanceId, body.id),
-        disabled: !this.instanceVisible(this.options.getRuntime(), instanceId),
+        testId: `body-vis-${this.instanceDisplayId(partOccurrenceId)}-${body.id}`,
+        checked: this.options.bodyVisible(partOccurrenceId, body.id),
+        disabled: !this.instanceVisible(this.options.getRuntime(), partOccurrenceId),
         expanded: false,
         expandable: false,
-        highlighted: this.options.bodyHighlighted(instanceId, body.id),
-        elementCount: this.elementCount(instanceId, body.id),
+        highlighted: this.options.bodyHighlighted(partOccurrenceId, body.id),
+        elementCount: this.elementCount(partOccurrenceId, body.id),
         hidden: layout.hidden,
         position: layout.position,
         setSize: layout.setSize,
@@ -244,16 +244,16 @@ export class VisibilityPanelController {
     );
   }
 
-  private elementCount(instanceId: InstanceId, bodyId: BodyId): number {
-    const instance = this.options.getRuntime().getInstance(instanceId);
+  private elementCount(partOccurrenceId: PartOccurrenceId, bodyId: BodyId): number {
+    const instance = this.options.getRuntime().getPartOccurrence(partOccurrenceId);
     const part =
       instance === undefined ? undefined : this.options.getModel().scene.parts.get(instance.partId);
     if (part?.elements === undefined) return 0;
     return part.bodies?.find((body) => body.id === bodyId)?.elementIds.length ?? 0;
   }
 
-  private directPartInstances(occurrenceId: AssemblyOccurrenceId): InstanceId[] {
-    return [...(this.options.getRuntime().getOccurrence(occurrenceId)?.instanceIds ?? [])];
+  private directPartInstances(occurrenceId: AssemblyOccurrenceId): PartOccurrenceId[] {
+    return [...(this.options.getRuntime().getOccurrence(occurrenceId)?.partOccurrenceIds ?? [])];
   }
 
   private assemblyOccurrenceName(occurrenceId: AssemblyOccurrenceId, name: string): string {
@@ -282,8 +282,8 @@ export class VisibilityPanelController {
     return parentId !== undefined && !this.occurrenceVisible(parentId);
   }
 
-  private instanceVisible(runtime: SceneRuntime, instanceId: InstanceId): boolean {
-    return runtime.isInstanceVisible(instanceId);
+  private instanceVisible(runtime: SceneRuntime, partOccurrenceId: PartOccurrenceId): boolean {
+    return runtime.isPartOccurrenceVisible(partOccurrenceId);
   }
 
   private isExpandable(occurrenceId: AssemblyOccurrenceId): boolean {
@@ -298,8 +298,8 @@ export class VisibilityPanelController {
     return this.options.getRuntime().getOccurrenceIds().indexOf(occurrenceId);
   }
 
-  private instanceDisplayId(instanceId: InstanceId): number {
-    return this.options.getRuntime().getInstanceIds().indexOf(instanceId);
+  private instanceDisplayId(partOccurrenceId: PartOccurrenceId): number {
+    return this.options.getRuntime().getPartOccurrenceIds().indexOf(partOccurrenceId);
   }
 }
 
@@ -320,7 +320,7 @@ interface RowLayout {
 
 interface OccurrenceChildrenInput {
   readonly childIds: readonly AssemblyOccurrenceId[];
-  readonly directInstances: readonly InstanceId[];
+  readonly directInstances: readonly PartOccurrenceId[];
   readonly displayName: string;
   readonly childCount: number;
   readonly layout: RowLayout;
@@ -328,7 +328,7 @@ interface OccurrenceChildrenInput {
 }
 
 interface BodyRowInput {
-  readonly instanceId: InstanceId;
+  readonly partOccurrenceId: PartOccurrenceId;
   readonly body: GeometryBody;
   readonly partName: string;
   readonly assemblyName: string;

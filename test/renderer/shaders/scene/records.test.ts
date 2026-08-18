@@ -33,9 +33,9 @@ import {
 
 describe("GPU record struct layout vs CPU record encoders", () => {
   it.each(vertexShaders)(
-    "keeps the Instance record layout aligned with encodeInstanceRecord in %s",
+    "keeps the PartOccurrence record layout aligned with encodeInstanceRecord in %s",
     (_name, source) => {
-      const info = structInfo(source, "Instance");
+      const info = structInfo(source, "PartOccurrence");
       const offsets = memberOffsets(info);
       expect(offsets.get("transform")).toBe(0);
       expect(offsets.get("color")).toBe(64);

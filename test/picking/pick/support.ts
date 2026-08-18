@@ -25,7 +25,7 @@ import {
   type ResolvedPickIds,
 } from "../../../src/picking/pick";
 
-import type { Instance } from "../../../src/scene/types";
+import type { PartOccurrence } from "../../../src/scene/types";
 
 import type { PickHit } from "../../../src/picking/types";
 
@@ -71,8 +71,12 @@ export function partWithGeometry(geometry: Geometry): Part {
 }
 
 /** Shared core test helper. */
-export function instanceAt(index: number, partId = 1, transform: Mat4 = identity()): Instance {
-  return { instanceId: `1/${index}`, partId, worldTransform: transform };
+export function instanceAt(
+  index: number,
+  partId = 1,
+  transform: Mat4 = identity(),
+): PartOccurrence {
+  return { partOccurrenceId: `1/${index}`, partId, worldTransform: transform };
 }
 
 /** Shared core test helper. */
@@ -105,7 +109,7 @@ export const shared = (): ElementModel =>
 export const hit: PickHit = {
   kind: "face",
   partId: 4,
-  instanceId: "1/2",
+  partOccurrenceId: "1/2",
   elementId: 7,
   bodyId: 9,
   faceIndex: 1,
@@ -135,7 +139,7 @@ export {
   resolvePickHit,
   type PickContext,
   type ResolvedPickIds,
-  type Instance,
+  type PartOccurrence,
   type PickHit,
   interactionTargetFromHit,
 };

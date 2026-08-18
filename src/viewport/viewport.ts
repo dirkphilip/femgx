@@ -32,6 +32,7 @@ import type {
   ViewportResults,
   ViewportView,
   ViewportVisibility,
+  ViewportStats,
 } from "./types";
 import { createViewportCapabilities } from "./capabilities";
 import { ViewportSceneController } from "./scene-controller";
@@ -47,6 +48,7 @@ export type {
   ViewportVisibility,
   SceneUpdateOutcome,
   ViewportBackground,
+  ViewportStats,
 } from "./types";
 
 /**
@@ -276,17 +278,17 @@ class ViewportCore implements Viewport {
   get runtime(): SceneRuntime {
     return this.sceneController.publicRuntime;
   }
-  setScene(scene: Scene): void {
+  replaceScene(scene: Scene): void {
     this.ensureAlive();
-    this.sceneController.setScene(scene, this.cameraFocus.cancel.bind(this.cameraFocus));
+    this.sceneController.replaceScene(scene, this.cameraFocus.cancel.bind(this.cameraFocus));
     this.visibilityController.reset();
     this.appliedInteraction = createInteractionState();
     this.invalidate();
   }
 
-  updateScene(scene: Scene): SceneUpdateOutcome {
+  reconcileScene(scene: Scene): SceneUpdateOutcome {
     this.ensureAlive();
-    const outcome = this.sceneController.updateScene(
+    const outcome = this.sceneController.reconcileScene(
       scene,
       this.cameraFocus.cancel.bind(this.cameraFocus),
     );
@@ -445,17 +447,14 @@ class ViewportCore implements Viewport {
     this.ensureAlive();
     return this.lifecycle.recover();
   }
-  handleDeviceLoss(): void {
-    this.lifecycle.handleDeviceLoss();
-  }
+  handleDeviceLoss(): void { this.lifecycle.handleDeviceLoss(); }
 
   destroy(): void {
     this.lifecycle.destroy();
   }
-
-  stats(): { readonly visibleInstances: number; readonly drawBatches: number } {
+  stats(): ViewportStats {
     return {
-      visibleInstances: this.sceneController.runtime.visibleCount,
+      visiblePartOccurrences: this.sceneController.runtime.visibleCount,
       drawBatches: this.renderer.stats().drawBatches,
     };
   }

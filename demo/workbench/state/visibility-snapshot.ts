@@ -1,6 +1,6 @@
 import type {
   AssemblyOccurrenceId,
-  InstanceId,
+  PartOccurrenceId,
   InteractionTarget,
 } from "../../../src/entries/root";
 import type { BodyId } from "../../../src/entries/model";
@@ -9,10 +9,10 @@ import type { SceneRuntime } from "../../../src/entries/runtime";
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =
   | { readonly kind: "assembly"; readonly occurrenceId: AssemblyOccurrenceId }
-  | { readonly kind: "instance"; readonly instanceId: InstanceId }
-  | { readonly kind: "body"; readonly instanceId: InstanceId; readonly bodyId: BodyId };
+  | { readonly kind: "partOccurrence"; readonly partOccurrenceId: PartOccurrenceId }
+  | { readonly kind: "body"; readonly partOccurrenceId: PartOccurrenceId; readonly bodyId: BodyId };
 
-export type WorkbenchVisibilityRowKind = "assembly" | "instance" | "body";
+export type WorkbenchVisibilityRowKind = "assembly" | "partOccurrence" | "body";
 
 export interface WorkbenchVisibilityRowSnapshot {
   readonly key: string;
@@ -20,7 +20,7 @@ export interface WorkbenchVisibilityRowSnapshot {
   readonly kind: WorkbenchVisibilityRowKind;
   readonly depth: number;
   readonly label: string;
-  readonly badge: "Assembly" | "Part" | "Body";
+  readonly badge: "AssemblyDefinition" | "Part" | "Body";
   readonly ariaLabel: string | undefined;
   readonly testId: string;
   readonly checked: boolean;
@@ -42,7 +42,7 @@ export interface WorkbenchVisibilitySnapshot {
 
 /**
  * Projects a visibility row onto the visible ordinary targets it emphasizes.
- * Assembly rows stay demo-private and expand through their exact occurrence subtree.
+ * AssemblyDefinition rows stay demo-private and expand through their exact occurrence subtree.
  */
 export function interactionTargetsForRow(
   runtime: SceneRuntime,
@@ -53,8 +53,9 @@ export function interactionTargetsForRow(
   const visit = (occurrenceId: AssemblyOccurrenceId): void => {
     const occurrence = runtime.getOccurrence(occurrenceId);
     if (occurrence === undefined || !occurrence.effectiveVisible) return;
-    for (const instanceId of occurrence.instanceIds) {
-      if (runtime.isInstanceVisible(instanceId)) targets.push({ kind: "instance", instanceId });
+    for (const partOccurrenceId of occurrence.partOccurrenceIds) {
+      if (runtime.isPartOccurrenceVisible(partOccurrenceId))
+        targets.push({ kind: "partOccurrence", partOccurrenceId });
     }
     for (const childId of occurrence.childIds) visit(childId);
   };
@@ -70,12 +71,12 @@ export function visibilityRowTargetsEqual(
   switch (left.kind) {
     case "assembly":
       return right.kind === "assembly" && left.occurrenceId === right.occurrenceId;
-    case "instance":
-      return right.kind === "instance" && left.instanceId === right.instanceId;
+    case "partOccurrence":
+      return right.kind === "partOccurrence" && left.partOccurrenceId === right.partOccurrenceId;
     case "body": {
       return (
         right.kind === "body" &&
-        left.instanceId === right.instanceId &&
+        left.partOccurrenceId === right.partOccurrenceId &&
         left.bodyId === right.bodyId
       );
     }

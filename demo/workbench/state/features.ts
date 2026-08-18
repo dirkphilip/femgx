@@ -155,8 +155,9 @@ function createVisibilityFeatures(
     getRuntime: options.runtime,
     partName: (partId) => options.model().partNames.get(partId),
     partVisible: (partId) => actions.partVisible(partId),
-    bodyVisible: (instanceId, bodyId) => actions.bodyVisible(instanceId, bodyId),
-    bodyHighlighted: (instanceId, bodyId) => actions.bodyHighlighted(instanceId, bodyId),
+    bodyVisible: (partOccurrenceId, bodyId) => actions.bodyVisible(partOccurrenceId, bodyId),
+    bodyHighlighted: (partOccurrenceId, bodyId) =>
+      actions.bodyHighlighted(partOccurrenceId, bodyId),
     onChanged: options.publishSnapshot,
   });
   return { actions, panel };

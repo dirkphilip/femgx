@@ -100,7 +100,10 @@ export async function pickEdgeTargetsFromRegion(
     for (const edgePickId of edgeIds) {
       const key = edgeResource.edgeKeys[edgePickId - 1];
       if (key === undefined) continue;
-      targets.add({ kind: "edge", instanceId: instance.instanceId, key }, instancePickId);
+      targets.add(
+        { kind: "edge", partOccurrenceId: instance.partOccurrenceId, key },
+        instancePickId,
+      );
     }
   }
   return targets.finish();
@@ -156,7 +159,7 @@ function regionTargetsChangedError(): WebGpuPickReadbackError {
 }
 
 function assertGranularity(value: InteractionGranularity): void {
-  if (!["part", "instance", "body", "element", "face", "node", "edge"].includes(value)) {
+  if (!["part", "partOccurrence", "body", "element", "face", "node", "edge"].includes(value)) {
     throw new TypeError(`Unsupported pick-region granularity: ${value}`);
   }
 }
@@ -214,7 +217,7 @@ function regionTextures(pick: PickTargets): RegionTextures | undefined {
 function attachmentsFor(granularity: InteractionGranularity): readonly RegionAttachment[] {
   switch (granularity) {
     case "part":
-    case "instance":
+    case "partOccurrence":
       return ["instance"];
     case "body":
     case "element":

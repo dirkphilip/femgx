@@ -140,7 +140,7 @@ describe("workbench model-session", () => {
       },
     } as unknown as WorkbenchController;
     const detail: WorkbenchElementDetailSnapshot = {
-      instanceId: "1",
+      partOccurrenceId: "1",
       bodyId: 1,
       label: "Body",
       partName: "Part",

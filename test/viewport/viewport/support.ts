@@ -246,7 +246,7 @@ export function nodalResult(nodeCount: 3 | 6) {
 /** Shared core test helper. */
 export function orientationResult() {
   return {
-    vectors: {
+    orientation: {
       field: createResultField({
         id: "scene-orientation",
         name: "scene orientation",

@@ -1,5 +1,5 @@
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { Scene } from "../scene/scene";
@@ -45,10 +45,10 @@ export class ViewportVisibilityController {
     );
   }
 
-  setInstance(instanceId: InstanceId, visible: boolean): void {
+  setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
     const runtime = this.options.runtime();
-    const slot = runtime.getInstanceSlot(instanceId);
-    if (slot === undefined) throw new UnknownSceneIdentityError("instance", instanceId);
+    const slot = runtime.getInstanceSlot(partOccurrenceId);
+    if (slot === undefined) throw new UnknownSceneIdentityError("partOccurrence", partOccurrenceId);
     this.applyChanged(runtime.setInstanceVisible(slot, visible).changedInstanceIds);
   }
 

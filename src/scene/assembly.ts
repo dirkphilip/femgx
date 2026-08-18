@@ -8,7 +8,7 @@ import type { AssemblyId } from "./types";
  * The placement owns only occurrence-specific state: a reference to a part
  * definition, a local transform, and optionally a stable `placementId` within
  * its owning assembly. It never copies geometry. The compiled runtime expands
- * each placement into an `instanceId`, which is the identity used for
+ * each placement into a `PartOccurrenceId`, which is the identity used for
  * occurrence-scoped visibility, interaction, and picking.
  * @category Scene and geometry
  */
@@ -31,7 +31,7 @@ export interface PartPlacement {
  * therefore shares its parts while producing two distinct assembly occurrences.
  * @category Scene and geometry
  */
-export interface SubAssemblyPlacement {
+export interface AssemblyPlacement {
   /** Discriminator identifying a nested assembly placement. */
   readonly kind: "assembly";
   /** Child assembly definition referenced by this occurrence. */
@@ -51,7 +51,7 @@ export interface SubAssemblyPlacement {
  * fallback identity.
  * @category Scene and geometry
  */
-export type Placement = PartPlacement | SubAssemblyPlacement;
+export type Placement = PartPlacement | AssemblyPlacement;
 
 /**
  * A hierarchical composition of part and child-assembly placements.
@@ -60,22 +60,11 @@ export type Placement = PartPlacement | SubAssemblyPlacement;
  * and local transforms, but do not own expanded runtime slots or GPU resources.
  * @category Scene and geometry
  */
-export interface Assembly {
+export interface AssemblyDefinition {
   /** Stable assembly-definition identifier. */
   readonly id: AssemblyId;
+  /** Optional host-facing display name. */
+  readonly name?: string;
   /** Direct part and child-assembly placements in local order. */
   readonly placements: readonly Placement[];
-}
-
-/**
- * A named assembly definition registered with a {@link Scene}.
- *
- * The name is host-facing display metadata. Visibility is tracked by the scene
- * registry and can be changed for the whole definition or one expanded
- * occurrence through {@link Viewport}.
- * @category Scene and geometry
- */
-export interface NamedAssembly extends Assembly {
-  /** Host-facing display name. */
-  readonly name: string;
 }

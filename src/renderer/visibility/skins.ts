@@ -5,7 +5,7 @@ import { buildPackedVisibilitySkinIndices } from "./packed-skin";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState } from "../../interaction/state";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
-import type { InstanceId } from "../../scene/types";
+import type { PartOccurrenceId } from "../../scene/types";
 import { createBuffer } from "../resources/foundation";
 import { writeDrawOrder } from "../resources/instance-storage";
 import type {
@@ -155,7 +155,7 @@ function buildVisibilityMetadata(
 }
 
 function signatureForOccurrence(
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
   data: ReturnType<typeof readInteractionState>,
   metadata: VisibilityPartMetadata,
 ): VisibilitySignature {

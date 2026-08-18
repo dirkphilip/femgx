@@ -96,17 +96,17 @@ function targetKey(target: InteractionTarget): string {
   switch (target.kind) {
     case "part":
       return `part:${target.partId}`;
-    case "instance":
-      return `instance:${target.instanceId}`;
+    case "partOccurrence":
+      return `instance:${target.partOccurrenceId}`;
     case "body":
-      return `body:${target.instanceId}:${target.bodyId}`;
+      return `body:${target.partOccurrenceId}:${target.bodyId}`;
     case "element":
-      return `element:${target.instanceId}:${target.elementId}`;
+      return `element:${target.partOccurrenceId}:${target.elementId}`;
     case "face":
-      return `face:${target.instanceId}:${target.elementId}:${target.faceIndex}`;
+      return `face:${target.partOccurrenceId}:${target.elementId}:${target.faceIndex}`;
     case "node":
-      return `node:${target.instanceId}:${target.nodeId}`;
+      return `node:${target.partOccurrenceId}:${target.nodeId}`;
     case "edge":
-      return `edge:${target.instanceId}:${target.key}`;
+      return `edge:${target.partOccurrenceId}:${target.key}`;
   }
 }

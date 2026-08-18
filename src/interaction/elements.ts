@@ -14,7 +14,7 @@ export function setElementVisible(
   const data = readInteractionState(state);
   const hiddenElementIds = updateNestedSet(
     data.hiddenElementIds,
-    ref.instanceId,
+    ref.partOccurrenceId,
     ref.elementId,
     !visible,
   );
@@ -28,6 +28,7 @@ export function setElementVisible(
  */
 export function isElementVisible(state: InteractionState, ref: ElementRef): boolean {
   return (
-    readInteractionState(state).hiddenElementIds.get(ref.instanceId)?.has(ref.elementId) !== true
+    readInteractionState(state).hiddenElementIds.get(ref.partOccurrenceId)?.has(ref.elementId) !==
+    true
   );
 }

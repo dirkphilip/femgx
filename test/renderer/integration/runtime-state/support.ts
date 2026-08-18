@@ -18,7 +18,7 @@ import {
 import {
   createInteractionState,
   setElementSelected,
-  setInstanceSelected,
+  setPartOccurrenceSelected,
   setPartSelected,
 } from "../../../../src/interaction/interaction";
 
@@ -215,7 +215,7 @@ export {
   buildTransparentOrder,
   createInteractionState,
   setElementSelected,
-  setInstanceSelected,
+  setPartOccurrenceSelected,
   setPartSelected,
   setFaceSelected,
   setNodeSelected,

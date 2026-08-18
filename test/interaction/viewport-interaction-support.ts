@@ -95,7 +95,7 @@ export interface PointerInput {
 
 export const target: FaceTarget = {
   kind: "face",
-  instanceId: "1/0",
+  partOccurrenceId: "1/0",
   elementId: 2,
   faceIndex: 0,
 };
@@ -103,7 +103,7 @@ export const target: FaceTarget = {
 export const hit: PickHit = {
   kind: "face",
   partId: 1,
-  instanceId: "1/0",
+  partOccurrenceId: "1/0",
   elementId: 2,
   faceIndex: 0,
   key: "1:2:0",

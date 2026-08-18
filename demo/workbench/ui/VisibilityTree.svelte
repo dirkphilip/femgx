@@ -88,7 +88,7 @@
   }
 
   function rowClass(row: WorkbenchVisibilityRowSnapshot): string {
-    return row.kind === "instance" ? "part" : row.kind;
+    return row.kind === "partOccurrence" ? "part" : row.kind;
   }
 </script>
 
@@ -160,7 +160,9 @@
             data-assembly-occurrence-id={row.target.kind === "assembly"
               ? row.target.occurrenceId
               : undefined}
-            data-instance-id={row.target.kind === "instance" ? row.target.instanceId : undefined}
+            data-instance-id={row.target.kind === "partOccurrence"
+              ? row.target.instanceId
+              : undefined}
             data-body-id={bodyId(row)}
             data-body-instance-id={bodyInstanceId(row)}
             aria-label={row.ariaLabel}

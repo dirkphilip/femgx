@@ -103,14 +103,14 @@ function resultState(field: ViewportScalarState["field"]): ViewportResultsState 
     config: { scalar: { field } },
     scalar,
     deformation: undefined,
-    vectors: undefined,
+    orientation: undefined,
   };
 }
 
 function vectorResultState(
   field: Extract<ViewportElementVectorState, { readonly glyph: "arrow" | "axis" }>["field"],
 ): ViewportResultsState {
-  const vectors: ViewportElementVectorState = {
+  const orientation: ViewportElementVectorState = {
     config: { field, glyph: "arrow", transform: "normal" },
     field,
     glyph: "arrow",
@@ -119,10 +119,10 @@ function vectorResultState(
     widthPixels: 2,
   };
   return {
-    config: { vectors: vectors.config },
+    config: { orientation: orientation.config },
     scalar: undefined,
     deformation: undefined,
-    vectors,
+    orientation,
   };
 }
 
@@ -130,7 +130,7 @@ function nodeHit(nodeId: number, elementId?: number): PickHit {
   return {
     kind: "node",
     partId: 1,
-    instanceId: "instance-1",
+    partOccurrenceId: "instance-1",
     ...(elementId === undefined ? {} : { elementId }),
     nodeId,
     localPosition: [0, 0, 0],
@@ -144,7 +144,7 @@ function faceHit(elementId: number): PickHit {
   return {
     kind: "face",
     partId: 1,
-    instanceId: "instance-1",
+    partOccurrenceId: "instance-1",
     elementId,
     faceIndex: 0,
     key: "0:0:1:2",
@@ -159,7 +159,7 @@ function edgeHit(): PickHit {
   return {
     kind: "edge",
     partId: 1,
-    instanceId: "instance-1",
+    partOccurrenceId: "instance-1",
     key: "0,1,2",
     nodeIds: [0, 1, 2],
     incidentElementIds: [7, 8],

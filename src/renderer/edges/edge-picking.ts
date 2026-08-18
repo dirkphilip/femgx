@@ -3,7 +3,7 @@ import type { Part, PartId } from "../../geometry/part";
 import type { BoxSelectionRect } from "../../interaction/box-selection";
 import type { InteractionTarget } from "../../interaction/target-types";
 import type { PickHit } from "../../picking/types";
-import type { Instance } from "../../scene/types";
+import type { PartOccurrence } from "../../scene/types";
 import { resolveEdgePickHit } from "../../picking/pick";
 import { encodeEdgePickSnapshot } from "./edge-pick-frame";
 import { createEdgePickPipeline } from "./edge-pick-pipeline";
@@ -24,7 +24,7 @@ export interface EdgePickContext {
   readonly state: EdgePickState;
   readonly camera: Camera;
   readonly parts: ReadonlyMap<PartId, Part>;
-  readonly instances: readonly Instance[];
+  readonly instances: readonly PartOccurrence[];
   readonly frame: () => FrameOptions;
 }
 
@@ -33,7 +33,7 @@ export function createEdgePickContext(
   state: EdgePickState,
   camera: Camera,
   parts: ReadonlyMap<PartId, Part>,
-  instances: readonly Instance[],
+  instances: readonly PartOccurrence[],
   frame: () => FrameOptions,
 ): EdgePickContext {
   return { state, camera, parts, instances, frame };

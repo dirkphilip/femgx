@@ -14,19 +14,27 @@ import {
 describe("GPU pick regions", () => {
   it.each([
     ["part", ids({ elementPickId: 5 }), { kind: "part", partId: 1 }],
-    ["instance", ids({ instancePickId: 2 }), { kind: "instance", instanceId: "root/1" }],
-    ["body", ids({ elementPickId: 5 }), { kind: "body", instanceId: "root/0", bodyId: 7 }],
-    ["element", ids({ elementPickId: 5 }), { kind: "element", instanceId: "root/0", elementId: 4 }],
+    [
+      "partOccurrence",
+      ids({ instancePickId: 2 }),
+      { kind: "partOccurrence", partOccurrenceId: "root/1" },
+    ],
+    ["body", ids({ elementPickId: 5 }), { kind: "body", partOccurrenceId: "root/0", bodyId: 7 }],
+    [
+      "element",
+      ids({ elementPickId: 5 }),
+      { kind: "element", partOccurrenceId: "root/0", elementId: 4 },
+    ],
     [
       "face",
       ids({ facePickId: 1 }),
-      { kind: "face", instanceId: "root/0", elementId: 4, faceIndex: 2 },
+      { kind: "face", partOccurrenceId: "root/0", elementId: 4, faceIndex: 2 },
     ],
-    ["node", ids({ nodePickId: 2 }), { kind: "node", instanceId: "root/0", nodeId: 1 }],
+    ["node", ids({ nodePickId: 2 }), { kind: "node", partOccurrenceId: "root/0", nodeId: 1 }],
   ] as const)("resolves %s targets from minimal metadata", (granularity, pickIds, expected) => {
     const part = richTrianglePart();
     const context: PickContext = {
-      instances: [instance(), { ...instance(), instanceId: "root/1" }],
+      instances: [instance(), { ...instance(), partOccurrenceId: "root/1" }],
       parts: new Map([[1, part]]),
     };
     expect(createPickRegionTargetResolver(context, granularity)(pickIds)).toEqual(expected);
@@ -36,7 +44,7 @@ describe("GPU pick regions", () => {
     const part = richTrianglePart();
     const unownedPart = createPart(2, { geometries: [triangleGeometry()] });
     const context: PickContext = {
-      instances: [instance(), { ...instance(), instanceId: "root/1", partId: 2 }],
+      instances: [instance(), { ...instance(), partOccurrenceId: "root/1", partId: 2 }],
       parts: new Map([
         [1, part],
         [2, unownedPart],
@@ -57,18 +65,18 @@ describe("GPU pick regions", () => {
 
   it("reuses one part index while preserving occurrence-scoped targets", () => {
     const context: PickContext = {
-      instances: [instance(), { ...instance(), instanceId: "root/1" }],
+      instances: [instance(), { ...instance(), partOccurrenceId: "root/1" }],
       parts: new Map([[1, richTrianglePart()]]),
     };
     const resolve = createPickRegionTargetResolver(context, "element");
     expect(resolve(ids({ elementPickId: 5 }))).toEqual({
       kind: "element",
-      instanceId: "root/0",
+      partOccurrenceId: "root/0",
       elementId: 4,
     });
     expect(resolve(ids({ instancePickId: 2, elementPickId: 5 }))).toEqual({
       kind: "element",
-      instanceId: "root/1",
+      partOccurrenceId: "root/1",
       elementId: 4,
     });
   });
@@ -107,22 +115,22 @@ describe("GPU pick regions", () => {
 
     expect(resolve(ids({ elementPickId: 100_001 }))).toEqual({
       kind: "element",
-      instanceId: "root/0",
+      partOccurrenceId: "root/0",
       elementId: 100_000,
     });
   });
 
   it("deduplicates semantic owners and keeps numeric ordering", () => {
     const collector = createPickRegionTargetCollector();
-    collector.add({ kind: "body", instanceId: "root/1", bodyId: 8 }, 2);
-    collector.add({ kind: "body", instanceId: "root/0", bodyId: 12 }, 1);
-    collector.add({ kind: "body", instanceId: "root/0", bodyId: 12 }, 1);
-    collector.add({ kind: "body", instanceId: "root/0", bodyId: 3 }, 1);
+    collector.add({ kind: "body", partOccurrenceId: "root/1", bodyId: 8 }, 2);
+    collector.add({ kind: "body", partOccurrenceId: "root/0", bodyId: 12 }, 1);
+    collector.add({ kind: "body", partOccurrenceId: "root/0", bodyId: 12 }, 1);
+    collector.add({ kind: "body", partOccurrenceId: "root/0", bodyId: 3 }, 1);
 
     expect(collector.finish()).toEqual([
-      { kind: "body", instanceId: "root/0", bodyId: 3 },
-      { kind: "body", instanceId: "root/0", bodyId: 12 },
-      { kind: "body", instanceId: "root/1", bodyId: 8 },
+      { kind: "body", partOccurrenceId: "root/0", bodyId: 3 },
+      { kind: "body", partOccurrenceId: "root/0", bodyId: 12 },
+      { kind: "body", partOccurrenceId: "root/1", bodyId: 8 },
     ]);
   });
 });

@@ -10,14 +10,14 @@ visibility updates.
 boundary. Its renderer-owned packed counterpart is created internally by
 `createPackedSceneRuntime` and is not part of the package root API.
 
-The public runtime exposes stable instance and assembly-occurrence handles via
-`getInstances()`, `getOccurrences()`, `getInstance(instanceId)`, and
+The public runtime exposes stable part-occurrence and assembly-occurrence handles via
+`getPartOccurrences()`, `getOccurrences()`, `getPartOccurrence(partOccurrenceId)`, and
 `getOccurrence(occurrenceId)`. It is query-only; every transform and collection
 result is a defensive snapshot, and live visibility mutations go through
 `Viewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
-picking synchronized. `getVisibleInstanceIds()` returns visible handles in
+picking synchronized. `getVisiblePartOccurrenceIds()` returns visible handles in
 deterministic depth-first runtime order, not the renderer's private part-batched
-draw order. `RuntimeOccurrence.instanceIds` contains only direct part placements;
+draw order. `RuntimeOccurrence.partOccurrenceIds` contains only direct part placements;
 walk `childIds` when a subtree is required.
 
 The internal packed representation stores, in typed arrays indexed by private
@@ -83,7 +83,7 @@ back to slots.
   valid input but still skips missing assemblies defensively.
 - The packed typed arrays are private implementation state; public queries never
   return those views. `viewport.runtime` is the current live query facade, so hosts
-  should read it again after `setScene()` or `updateScene()`. Standalone
+  should read it again after `replaceScene()` or `reconcileScene()`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
   inspection and does not own a renderer or visibility mutations.
 

@@ -4,7 +4,7 @@ import { KHRDracoMeshCompression } from "@gltf-transform/extensions";
 import draco3d, { type DracoDecoderOptions } from "draco3dgltf";
 import dracoDecoderWasmUrl from "../../../node_modules/draco3dgltf/draco_decoder_gltf.wasm?url";
 import { createScene, type Scene } from "../../scene/scene";
-import type { NamedAssembly, Placement } from "../../scene/assembly";
+import type { AssemblyDefinition, Placement } from "../../scene/assembly";
 import { identity, type Mat4 } from "../../math/mat4";
 import type { PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
@@ -145,7 +145,7 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
       ? []
       : [{ kind: "assembly", assemblyId: id, transform: nodeTransform(node, diagnostics) }];
   });
-  const rootAssembly: NamedAssembly = {
+  const rootAssembly: AssemblyDefinition = {
     id: rootId,
     name: selected.getName().trim() || "GLB scene",
     placements: rootPlacements,
