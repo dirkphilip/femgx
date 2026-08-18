@@ -301,16 +301,19 @@ default unit suite without coverage-distorted timing.
 
 ### Element box-selection phases
 
-The opt-in `webgpu-benchmark` report (schema version 8) adds `selection.phases`
-for the reusable 64-placement case and the 250k/1m unique-geometry cases. The
-explicit large run also includes the optional 2m-unique local case. Each
-`narrow`, `one-shell`, and `broad` phase validates a non-empty element result
-and records invalid-snapshot timing, cached readback, interaction-state mutation,
-interaction synchronization, first selected frame, steady selected-frame p50/p95,
-clearing, selected occurrence count, renderer cost counters, and selected
-element-record byte count. The `fe-tet4-solid-132k` case adds `all-but-one` and
-`all-authored` phases that select 131,711 and 131,712 retained element identities
-directly; their raster readback fields are zero because no box query is involved.
+The opt-in `webgpu-benchmark` report (schema version 12) adds
+`selection.phases` for the reusable 64-placement case and the 250k/1m
+unique-geometry cases. The explicit large run also includes the optional
+2m-unique local case. Each `narrow`, `one-shell`, and `broad` phase validates a
+non-empty element result and records invalid-snapshot timing, cached readback,
+interaction-state mutation, interaction synchronization, first selected frame,
+steady selected-frame p50/p95, clearing, selected occurrence count, renderer
+cost counters, and selected element-record byte count. Authored one/half/all
+phases additionally time target construction, so resolving selected occurrence
+slots is not hidden outside the named orchestration boundary. The
+`fe-tet4-solid-132k` case adds `all-but-one` and `all-authored` phases that
+select 131,711 and 131,712 retained element identities directly; their raster
+readback fields are zero because no box query is involved.
 Dense element-only selection uses one selected-region skin: the validated exterior
 subset plus authored faces whose selected owner borders an unselected neighbor.
 Fragmented skins that exceed the bounded range-draw budget retain the full exact
@@ -318,7 +321,7 @@ fallback. The phases' target counts, dense-selection bytes, interaction timings,
 clearing, and first selected-frame cost snapshots guard this path separately from
 the 4,704-target raster-visible broad-box result. The selected-frame snapshot is captured after the
 first selected render, so `selection-visible` and `selection-hidden` draw/index
-counts expose x-ray amplification. Schema 5 captures `interactionGpuCost` after
+counts expose x-ray amplification. Schema 12 captures `interactionGpuCost` after
 the first selected render, rather than on the pre-selection synchronization
 frame. The case-level
 `estimatedMemory.highlightBytes` and
@@ -338,11 +341,13 @@ Chrome/WebGPU lane for GPU and frame claims; the default lane is DPR 1 and the
 focused `unique-250k` readback case runs at DPR 2. No-GPU CI is only a contract
 check.
 
-Optional triangle-edge geometry is not part of the cold attachment estimate. The
-benchmark memory estimator accepts the part ids whose edge resources have
-materialized, so edge position, index, topology, and node-id bytes
-are counted only after the first edge draw. This mirrors the retained per-part
-cache: toggling additional placements does not multiply those bytes.
+Optional triangle-edge geometry is not part of the cold attachment estimate.
+The benchmark memory estimator accepts the part ids whose presentation-edge
+resources have materialized, so edge position, index, topology, and node-id
+bytes are counted only after the first edge draw. This mirrors the retained
+per-part cache: toggling additional placements does not multiply those bytes.
+The estimate does not include node-presentation sidecars, interaction growth,
+construction temporaries, JavaScript object heap, or driver allocations.
 
 `npm run bench:webgpu` (alias `npm run test:e2e:performance`) runs
 `e2e/demo/perf.spec.ts` in system Chrome. It is skipped
@@ -356,7 +361,7 @@ point and node glyph settings are uniform-only presentation inputs (8 and 6 CSS
 pixels by default); changing them does not add geometry, buffers, draw calls, or
 render passes. Browser screenshot validation remains the authority for their
 physical raster diameter across DPR and resize changes.
-default matrix is bounded but covers separate geometry, part/batch,
+The default matrix is bounded but covers separate geometry, part/batch,
 placement/instance, and body-interaction dimensions; the local-only case is
 kept out of normal runs:
 
@@ -376,9 +381,85 @@ kept out of normal runs:
 | `fe-hex20-solid-visual` | structured volume solid      | Hex20     |             216 | 152                           |         1 |            7,776 |               1,296 |
 | `unique-2m-local`       | unique geometry (local-only) | Triangle  |       2,000,000 | 2,000,000                     |         1 |        2,000,000 |           2,000,000 |
 
-### Final real-WebGPU matrix
+The two two-million-triangle cases answer different questions and must remain
+separate. `instanced-2.10m` reuses 16,384 authored Quad elements (32,768 unique
+triangles) across 64 placements to exercise common interactive instancing at
+2,097,152 submitted triangles. `unique-2m-local` owns 2,000,000 distinct
+Triangle elements, 1,002,001 nodes, and one placement; it exposes unique-ownership
+scene construction, dense selection, and presentation-resource construction
+that instancing deliberately amortizes.
 
-The final post-program report was run on merged `main` SHA `86f55e5` on
+### Schema-12 two-million local evidence
+
+The current unique-geometry reference is the clean system-Chrome report
+`perf-reports/29-local-two-million-triangle.json` from implementation SHA
+`b7ab6b37ce878626e52736b957ea54df1a2567b6`. It was recorded on Apple Metal 3
+with Chrome 151, an 800×600 DPR-1 four-sample viewport, two untimed warmups,
+seven timed steady samples, and a non-fallback WebGPU adapter. Cold CPU fields
+time synchronous construction/encoding; cold frame fields drain the GPU queue.
+RAF intervals are a separate two-second browser-loop sample. GPU timestamp
+values remain raw ticks because the adapter exposes no timestamp period.
+
+| Surface phase                           | Exact clean result                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Model / runtime / renderer construction | 585.8 / 0.1 / 39.7 ms                                                                    |
+| Attachment and first frame              | 1,375.2 ms CPU; 1,424.5 ms queue-drained                                                 |
+| Retained visible frame                  | 3.3 / 24.3 ms queue-drained p50/p95; 0.1 / 0.2 ms CPU                                    |
+| Fixed / moving RAF                      | 120.0 / 119.5 FPS; 9.8 / 10.0 ms p95; no interval over 16.7 ms                           |
+| Element hover                           | 14.3 ms pick; 0.0 ms state; 0.2 ms sync; 6.3 ms first; 6.3 / 7.9 ms steady; 3.1 ms clear |
+| Hide all / restore                      | 0.0 ms mutation; 0.2 ms sync; 0.8 ms first; 0.8 / 0.8 ms steady; 3.1 ms restore          |
+
+Visibility asserts the surface submission changes from 6,000,000 indices to
+zero and returns to 6,000,000 after restore. Hover records the pick separately
+from the post-pick immutable transition, writes one 144-byte emphasis record,
+and asserts the highlighted element remains admitted; a fast no-op therefore
+cannot satisfy the report.
+
+| Authored selection |   Targets | Build / state / sync ms | First ms | Steady p50 / p95 ms | Dense / record bytes |
+| ------------------ | --------: | ----------------------: | -------: | ------------------: | -------------------: |
+| One                |         1 |         0.0 / 0.0 / 0.2 |      6.6 |           6.2 / 6.5 |               0 / 48 |
+| Half               | 1,000,000 |      7.2 / 71.8 / 212.7 |     13.9 |         10.4 / 11.1 | 250,004 / 48,000,000 |
+| All                | 2,000,000 |    11.8 / 162.9 / 313.5 |     19.1 |         10.6 / 14.4 | 250,004 / 96,000,000 |
+
+All three phases use one selected occurrence, write the expected highlight
+payload, clear in 3.0–3.4 ms, and assert exact selected-visible and
+selected-hidden work: 3 indices for one target and 6,000,000 indices for
+half/all. The separate narrow/shell/broad visible-region rows remain in the
+JSON, including readback, state, sync, first/steady frame, and clear boundaries.
+
+Nodes and derived presentation edges are lazy and are measured separately from
+surface attachment. Cold node presentation took 519.9 ms CPU and 580.7 ms
+queue-drained after 0.5 ms interaction sync, submitting 6,012,006 node indices.
+Adding presentation edges then took 905.9 ms CPU and 1,003.8 ms queue-drained
+after 0.3 ms sync, submitting 6,004,000 edge indices. With both overlays
+resident, fixed/moving RAF measured 119.611/120.002 FPS and 9.71/9.80 ms p95,
+with no interval over 16.7 ms. Overlay hover measured 26.2 ms pick, 0.5 ms sync,
+0.5 ms first frame, and 0.5/1.0 ms steady p50/p95. The overlay all-element
+selection measured 24.6 ms target construction, 221.2 ms state construction,
+293.0 ms sync, and 1.7 ms first frame while retaining exact 6,000,000-index visible/hidden
+selection work.
+
+The schema-12 memory fields deliberately distinguish retained estimates from
+construction allocations. With presentation edges materialized, the retained
+renderer-buffer estimate is 768,001,868 bytes and its upload-staging upper
+bound is 768,000,016 bytes; the 576,000,000-byte presentation-edge value is an
+upper bound, not combined edge-plus-node memory. The dense edge builder records
+252,663,296 exact construction bytes and 264,112,000 final typed bytes. At
+least 416,112,000 typed bytes overlap during finalization; 516,775,296 bytes is
+the no-intermediate-GC upper bound. Node-presentation sidecars, interaction
+growth, JavaScript heap, driver allocations, and general build temporaries are
+excluded from the retained estimate, while the exact dense-edge construction
+fields report their narrower allocation boundary explicitly.
+
+For comparison, the same-session pre-edit presentation-edge observation was
+25,026.7 ms CPU and 25,150.9 ms queue-drained. It has no durable clean JSON
+artifact and is not a clean-SHA report; it is retained only as the observed
+baseline for the 27.63× CPU and 25.06× queue-drained improvement to the clean
+schema-12 result.
+
+### Prior full real-WebGPU matrix (2026-08-17)
+
+The prior full-matrix report was run on merged `main` SHA `86f55e5` on
 2026-08-17. It used system Chrome `151.0.7922.34` on an Apple `metal-3`
 adapter with `isFallbackAdapter: false`, features
 `core-features-and-limits` and `timestamp-query`, 2 untimed warmups, and 7
@@ -497,21 +578,22 @@ status, enabled features, resolution, DPR, FE family, unique/submitted element
 counts, triangle counts, timings, and an estimated renderer-owned
 buffer/render-target memory breakdown. Benchmark cases have no active scalar
 table, so active result-color allocations are not modeled; the shared 16-byte
-empty result binding is included in fixedBufferBytes. The breakdown includes
-expanded main geometry and materialized optional edge
-geometry, topology/pick metadata, face-subset buffers, mandatory instance
-records and ordinary visible order, shared empty order/highlight/deformation
-sentinels, admitted optional sidecars, pooled pick readback, and the multisampled
-visible color targets. The default triad-enabled weighted path accounts for 81 logical
-render-target bytes per physical pixel: MSAA color/depth, resolved opaque color,
-`rgba16float` accumulation, and scalar `r8unorm` revealage. A frame with no
-weighted contributor retains only the 32-byte MSAA color/depth base and skips OIT
-target allocation and the composite pass. It separately reports retained GPU
-buffers, measurable CPU scene typed arrays, and an upload-staging upper bound;
-`memoryEstimateScope` documents that the renderer estimate excludes driver
-allocations. Edge/topology categories
-remain explicit upper bounds where exact deduplication is performed during the
-renderer upload.
+empty result binding is included in `fixedBufferBytes`. The breakdown includes
+expanded main geometry and materialized optional presentation-edge geometry,
+topology/pick metadata, face-subset buffers, mandatory instance records and
+ordinary visible order, shared empty order/highlight/deformation sentinels,
+pooled pick readback, and the multisampled visible color targets. It excludes
+node-presentation sidecars, interaction growth, build temporaries, JavaScript
+object heap, and driver allocations. The default triad-enabled weighted path
+accounts for 81 logical render-target bytes per physical pixel: MSAA
+color/depth, resolved opaque color, `rgba16float` accumulation, and scalar
+`r8unorm` revealage. A frame with no weighted contributor retains only the
+32-byte MSAA color/depth base and skips OIT target allocation and the composite
+pass. The report separately records retained GPU buffers, measurable CPU scene
+typed arrays, and an upload-staging upper bound. Edge/topology categories remain
+explicit upper bounds where exact deduplication is performed during renderer
+upload; schema-12's dense-edge allocation fields are exact only for their
+documented bodyless, faceless Triangle builder boundary.
 
 Each WebGPU case also records an internal structural cost snapshot from its
 final timed iteration. The snapshot is not a public renderer API and separates
