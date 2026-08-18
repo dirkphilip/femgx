@@ -5,6 +5,7 @@ import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { createPerformancePreset } from "../../demo/fixtures/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
 import { createExampleModel } from "../../demo/workbench/models/model";
+import type { WorkbenchSceneContext } from "../../demo/workbench/types";
 import { IDLE_RENDER_LOOP_STATS } from "../../demo/workbench/viewport/render-loop";
 
 describe("demo diagnostics", () => {
@@ -66,6 +67,49 @@ describe("demo diagnostics", () => {
     expect(text).toContain("Element family quad");
     expect(text).toContain("Unique elements 16,384");
     expect(text).toContain("Submitted element occurrences 1,048,576");
+  });
+
+  it("counts only effective-visible instances in submitted element diagnostics", () => {
+    const preset = createPerformancePreset();
+    const model = {
+      ...createExampleModel(preset),
+      benchmarkElementFamily: "quad" as const,
+    };
+    const runtime = {
+      getPartOccurrences: () => [
+        {
+          partOccurrenceId: "visible",
+          partId: 1,
+          occurrenceId: "root",
+          visible: true,
+          partVisible: true,
+          overrideVisible: true,
+          transform: new Float32Array(16),
+        },
+        {
+          partOccurrenceId: "hidden",
+          partId: 1,
+          occurrenceId: "root",
+          visible: false,
+          partVisible: true,
+          overrideVisible: true,
+          transform: new Float32Array(16),
+        },
+      ],
+    } as unknown as WorkbenchSceneContext["runtime"];
+    const text = statsText(
+      { model, runtime, interaction: createInteractionState() },
+      {
+        rendererName: "webgpu",
+        toggles: { edges: true, nodes: true, diagnostics: true },
+        stats: { visibleInstances: 1, batches: 1 },
+        renderLoop: IDLE_RENDER_LOOP_STATS,
+        selectedCount: 0,
+      },
+    );
+
+    expect(text).toContain("Submitted triangles 32,768");
+    expect(text).toContain("Submitted element occurrences 16,384");
   });
 
   it("reports Performance Lab retention outcomes in the diagnostics HUD", () => {

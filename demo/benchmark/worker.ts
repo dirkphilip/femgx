@@ -67,14 +67,6 @@ function build(request: BenchmarkWorkerBuildRequest): void {
         ...built.timings,
         transferPreparationMs,
         transferredBytes: transferredByteLength(built.payload),
-        finalRetainedTypedBytes:
-          (built.payload.positions.buffer === built.payload.nodePositions.buffer
-            ? 0
-            : built.payload.positions.byteLength) +
-          built.payload.indices.byteLength +
-          built.payload.nodePickIds.byteLength +
-          built.payload.nodePositions.byteLength +
-          16 * Float32Array.BYTES_PER_ELEMENT,
       },
     };
     globalThis.postMessage(result, { transfer: buffers });
