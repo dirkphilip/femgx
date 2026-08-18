@@ -118,9 +118,6 @@ function createViewportFactory(
       orientationGizmo: { container: pane.scene },
       ...(model.results === undefined ? {} : { results: model.results }),
       ...(state.controller === undefined ? {} : { interaction: state.controller.interaction }),
-      ...(slotId === "primary"
-        ? { fitContentInset: () => contentInset(pane.scene, pane.canvas) }
-        : {}),
       onDeviceLost: () => {
         stopResultPlayback(state.controller);
         pane.canvas.dataset["recovery"] = "recovering";
@@ -253,31 +250,4 @@ async function probePickKeys(
           metaKey: false,
         });
   return { pickKey: targetKey(hit), hoveredKey: targetKey(hovered) };
-}
-
-function contentInset(scene: HTMLElement, canvas: HTMLCanvasElement) {
-  const canvasBounds = canvas.getBoundingClientRect();
-  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
-  for (const overlay of scene.querySelectorAll<HTMLElement>(
-    ".toolbar, .renderer-alert, .status-alert, .inspection, .diagnostics",
-  )) {
-    if (overlay.hidden) continue;
-    const bounds = overlay.getBoundingClientRect();
-    if (bounds.width === 0 || bounds.height === 0) continue;
-    const centerY = (bounds.top + bounds.bottom) / 2;
-    const centerX = (bounds.left + bounds.right) / 2;
-    if (centerY <= canvasBounds.top + canvasBounds.height / 2) {
-      inset.top = Math.max(inset.top, bounds.bottom - canvasBounds.top);
-    } else {
-      inset.bottom = Math.max(inset.bottom, canvasBounds.bottom - bounds.top);
-    }
-    if (bounds.width < canvasBounds.width * 0.8) {
-      if (centerX <= canvasBounds.left + canvasBounds.width / 2) {
-        inset.left = Math.max(inset.left, bounds.right - canvasBounds.left);
-      } else {
-        inset.right = Math.max(inset.right, canvasBounds.right - bounds.left);
-      }
-    }
-  }
-  return inset;
 }

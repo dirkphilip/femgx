@@ -143,7 +143,6 @@ test("keeps toolbar commands bound to the deliberately active viewport", async (
   await expect(secondaryPane).toBeHidden();
   await expect(primaryPane).not.toHaveAttribute("data-active");
 });
-
 test("hides the empty result legend instead of painting its heading", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("bolted");
