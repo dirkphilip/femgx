@@ -1,6 +1,6 @@
 import { Accessor, Primitive } from "@gltf-transform/core";
 import type { Material, Mesh, vec4 } from "@gltf-transform/core";
-import { createPart, type Part, type PartId } from "../../geometry/part";
+import { createPartRecord, type Part, type PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
 import type { GlbDiagnostics } from "./diagnostics";
 
@@ -69,7 +69,8 @@ function importPrimitive(input: PrimitiveImport): GlbPartRecord | undefined {
   const positions = readPositions(position, primitiveIndex, diagnostics);
   const indices = readIndices(primitive, positions.length / 3, primitiveIndex, diagnostics);
   const material = primitive.getMaterial();
-  const part = createPart(partId, {
+  // Accessor validation above establishes the invariants for this importer-owned record.
+  const part = createPartRecord(partId, {
     geometries: [{ primitive: "triangles", positions, indices }],
   });
   return {
@@ -107,6 +108,12 @@ function readPositions(
   diagnostics: GlbDiagnostics,
 ): Float32Array {
   const positions = new Float32Array(accessor.getCount() * 3);
+  const packed = accessor.getArray();
+  if (packed instanceof Float32Array && packed.length === positions.length) {
+    positions.set(packed);
+    validateFinitePositions(positions, primitiveIndex, diagnostics);
+    return positions;
+  }
   const value: number[] = [0, 0, 0];
   for (let index = 0; index < accessor.getCount(); index += 1) {
     accessor.getElement(index, value);
@@ -122,6 +129,21 @@ function readPositions(
     }
   }
   return positions;
+}
+
+function validateFinitePositions(
+  positions: Float32Array,
+  primitiveIndex: number,
+  diagnostics: GlbDiagnostics,
+): void {
+  for (const value of positions) {
+    if (!Number.isFinite(value)) {
+      diagnostics.fatal(
+        "glb-invalid-position",
+        `Primitive ${primitiveIndex} contains a non-finite POSITION component.`,
+      );
+    }
+  }
 }
 
 function readIndices(
@@ -153,17 +175,34 @@ function readIndices(
     );
   }
   const indices = new Uint32Array(accessor.getCount());
+  const packed = accessor.getArray();
+  if (packed !== null && packed.length === indices.length && !accessor.getNormalized()) {
+    for (let index = 0; index < indices.length; index += 1) {
+      const value = packed[index] ?? 0;
+      validateIndexValue(value, vertexCount, primitiveIndex, diagnostics);
+      indices[index] = value;
+    }
+    return indices;
+  }
   for (let index = 0; index < indices.length; index += 1) {
     const value = accessor.getScalar(index);
-    if (!Number.isInteger(value) || value < 0 || value >= vertexCount) {
-      diagnostics.fatal(
-        "glb-invalid-index",
-        `Primitive ${primitiveIndex} index ${String(value)} is outside its POSITION accessor.`,
-      );
-    }
+    validateIndexValue(value, vertexCount, primitiveIndex, diagnostics);
     indices[index] = value;
   }
   return indices;
+}
+
+function validateIndexValue(
+  value: number,
+  vertexCount: number,
+  primitiveIndex: number,
+  diagnostics: GlbDiagnostics,
+): void {
+  if (Number.isInteger(value) && value >= 0 && value < vertexCount) return;
+  diagnostics.fatal(
+    "glb-invalid-index",
+    `Primitive ${primitiveIndex} index ${String(value)} is outside its POSITION accessor.`,
+  );
 }
 
 function isUnsignedIndexType(componentType: number): boolean {

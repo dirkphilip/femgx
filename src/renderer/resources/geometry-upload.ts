@@ -60,13 +60,18 @@ export function buildPartGeometryData(
 ): PartGeometryData {
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
-  const fullBuffers = buildFullGeometryBuffers(device, part, geometry, vertexData);
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
     part.elements ?? [],
     getPartSemanticIndex(part).elementOrdinalById,
   );
   const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const fullBuffers = buildFullGeometryBuffers(
+    device,
+    vertexData,
+    faceBodyPickIds,
+    elementOrdinals,
+  );
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
       ? undefined
@@ -114,7 +119,18 @@ export function materializeFullGeometry(
 ): void {
   if (resource.fullVertexBuffer !== undefined) return;
   const vertexData = expandSurfaceGeometry(geometry);
-  const fullBuffers = buildFullGeometryBuffers(device, part, geometry, vertexData);
+  const elementOrdinals = buildElementPrimitiveOrdinals(
+    geometry,
+    part.elements ?? [],
+    getPartSemanticIndex(part).elementOrdinalById,
+  );
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const fullBuffers = buildFullGeometryBuffers(
+    device,
+    vertexData,
+    faceBodyPickIds,
+    elementOrdinals,
+  );
   resource.fullVertexBuffer = createBuffer(
     device,
     vertexData.positions,
@@ -128,28 +144,18 @@ export function materializeFullGeometry(
 
 function buildFullGeometryBuffers(
   device: GPUDevice,
-  part: Part,
-  geometry: Geometry,
   vertexData: UploadVertexData,
+  faceBodyPickIds: Uint32Array,
+  elementOrdinals: Uint32Array,
 ): FullGeometryBuffers {
   const emptyEdgeData = emptyMeshEdgeData();
-  const elementOrdinals = buildElementPrimitiveOrdinals(
-    geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
-  );
   return {
     nodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
-    facePickIdsBuffer: createTopologyBuffer(
-      device,
-      buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
-      emptyEdgeData,
-      {
-        elementOrdinals,
-        primitiveIds: vertexData.primitiveIds,
-        edgeIds: emptyEdgeData.edgeIds,
-      },
-    ),
+    facePickIdsBuffer: createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
+      elementOrdinals,
+      primitiveIds: vertexData.primitiveIds,
+      edgeIds: emptyEdgeData.edgeIds,
+    }),
   };
 }
 
