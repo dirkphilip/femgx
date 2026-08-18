@@ -1,5 +1,5 @@
 import {
-  setPartOverride,
+  setPartOverrides,
   type Viewport,
   type InteractionState,
   type ViewportElementFrameConfig,
@@ -7,7 +7,7 @@ import {
   type PartId,
   type ViewportResultsConfig,
 } from "../../../src/entries/root";
-import { partStyleOverride, type WorkbenchModel } from "../models/model";
+import { modelPartStyleOverrides, type WorkbenchModel } from "../models/model";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
 import type { WorkbenchScalarField } from "../results/result-controls";
 import type { WorkbenchResultPlaybackStep } from "../results/result-playback";
@@ -113,14 +113,10 @@ interface DisplayStateOptions {
 
 /** Applies part overrides, highlight state, and the active display controls. */
 export function applyDisplayState(options: DisplayStateOptions): void {
-  let state = options.interaction;
-  for (const partId of options.model.scene.parts.keys()) {
-    state = setPartOverride(
-      state,
-      partId,
-      partStyleOverride(options.model, partId, options.toggles.edges, options.toggles.nodes),
-    );
-  }
+  const state = setPartOverrides(
+    options.interaction,
+    modelPartStyleOverrides(options.model, options.toggles.edges, options.toggles.nodes),
+  );
   options.setInteraction(state);
   options.applyDisplayedInteraction();
   options.viewport.presentation.setEdgeDepthTest(true);

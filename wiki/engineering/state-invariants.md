@@ -54,10 +54,21 @@ not a formal or universally standardized methodology.
 - What is the smallest validation or transition owner?
 - Does a successful transition preserve the prior domain invariants?
 - Is there an inverse, round-trip, boundary, or repeated-operation test?
-- Can a fallback, repair branch, duplicated validator, mutable intermediate, or
-  new abstraction be deleted?
+- Can a fallback, repair branch, duplicated validator, shared mutable
+  intermediate, or new abstraction be deleted?
 
-## Immutable interaction-state lifecycle
+## Immutable publication and high-cardinality updates
+
+Immutability is a publication contract, not a requirement to copy the complete
+state during every construction step. A path expected to process many elements,
+nodes, geometries, parts, assemblies, bodies, instances, or comparable records
+must not call an immutable whole-state transition once per item. It uses either
+a locally owned mutable transient followed by validation and one immutable
+snapshot, or one bulk immutable transition. The transient must not escape its
+owner or expose an invalid intermediate state. Single-record transitions remain
+appropriate for isolated edits.
+
+### Interaction-state lifecycle
 
 Authoritative public visibility, selection, highlight, hover, and style
 transitions are functional and produce a new immutable interaction state by

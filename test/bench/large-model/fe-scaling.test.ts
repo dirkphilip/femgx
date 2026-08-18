@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState } from "../../src/interaction/interaction";
-import { setTargetsSelected } from "../../src/interaction/targets";
-import { createStructuredFeModel } from "../../demo/benchmark/structured-fe";
-import { boundaryFaceRefs } from "../../src/elements/faces";
-import { elementPart } from "../../src/entries/model";
-import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import { buildInstanceLayout } from "../../src/renderer/runtime-state";
+import { createInteractionState } from "../../../src/interaction/interaction";
+import { setTargetsSelected } from "../../../src/interaction/targets";
+import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
+import { boundaryFaceRefs } from "../../../src/elements/faces";
+import { elementPart } from "../../../src/entries/model";
+import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
+import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
 import {
   collectDenseElementSelections,
   denseSelectionContains,
-} from "../../src/renderer/selection/element-selection";
-import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { benchmarkCaseSpecs, createBenchmarkCase } from "../../demo/benchmark/model";
-import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "./measure";
+} from "../../../src/renderer/selection/element-selection";
+import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
+import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "../measure";
 
 const GRID_SIZES = [24, 35, 47] as const;
 const ELEMENT_COUNTS = GRID_SIZES.map((size) => size ** 3);

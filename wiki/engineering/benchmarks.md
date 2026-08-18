@@ -77,6 +77,22 @@ allocations; a browser or Node `usedJSHeapSize` value is neither portable nor
 authoritative. The existing opt-in system-Chrome benchmark remains the authority
 for runtime compilation and first-upload measurements.
 
+## High-cardinality scaling rule
+
+Construction and bulk-update paths expected to process many model records must
+remain approximately linear in their declared cardinality. Immutable published
+state is still the ownership contract, but a tight loop may not create one
+whole-state copy per element, node, geometry, part, assembly, body, instance, or
+comparable record. Use a locally owned mutable builder/transient followed by one
+published snapshot, or one bulk immutable transition.
+
+New or changed high-cardinality paths need representative multi-size scaling
+evidence. Add a default-CI budget when the CPU workload is deterministic and
+bounded; use an opt-in large lane when representative sizes are too expensive
+for the default gate. A bottleneck found in one measured path does not authorize
+a speculative repository-wide rewrite: profile the named path, fix the owning
+boundary, and retain focused evidence for that regression.
+
 ## Budget gate (runs in default CI)
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any
@@ -106,6 +122,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `sceneWorldBounds`                | 32 768 triangles × 64 placements       | reusable-part bounds and world transforms                         |
 | `resolvePick`                     | 50 000 lookups on 200 000              | O(1) index resolution                                             |
 | many-part scene scaling           | 1 024 / 2 048 / 4 096 parts            | register, place, snapshot, and compile                            |
+| many-part style overrides         | 25 000 / 50 000 / 100 000 parts        | one immutable bulk style transition                               |
 | `setTargetsSelected`              | 16 384 element targets                 | one duplicate-safe immutable bulk transition                      |
 | `setTargetsHighlighted`           | 8 192 element targets                  | one duplicate-safe immutable bulk transition                      |
 | `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets        | duplicate-safe bulk transition                                    |
@@ -199,10 +216,12 @@ commit message.
 ## Large CPU scaling (local opt-in)
 
 `npm run bench:scaling:large` runs exported `elementPart` at 13 824, 42 875,
-and 103 823 authored Hex8 elements. Mesh generation happens before the timed
-region. The command is excluded from `npm test`, coverage, the default budget
-gate, and CI. The local runner uses three samples without a separate warmup and
-a bounded 60-second per-test timeout; a reference run takes about 20 seconds.
+and 103 823 authored Hex8 elements. It also imports and activates generated GLBs
+with 25 000, 50 000, and 100 000 same-material triangle primitives. The GLB case
+includes parsing, material-group coalescing, scene/runtime construction, and
+workbench style setup; source generation happens before the timed region. The
+command is excluded from `npm test`, coverage, the default budget gate, and CI.
+The local runner has a bounded 60-second per-test timeout.
 
 This case measures the canonical authored solid topology retained by
 `elementPart`. It does not substitute authored element count with a surface

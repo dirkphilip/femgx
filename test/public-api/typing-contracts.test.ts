@@ -4,6 +4,7 @@ import {
   createInteractionState,
   interactionTargetFromHit,
   setPartOccurrenceOverrides,
+  setPartOverrides,
   type EdgePickHit,
   type InteractionTargetFor,
   type PickHit,
@@ -31,6 +32,7 @@ async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise
 
 function assertPartOccurrenceOverrideContracts(): void {
   const state = createInteractionState();
+  setPartOverrides(state, [[1, { emissive: 0.2 }]]);
   setPartOccurrenceOverrides(state, [["1/0", { emissive: 0.2 }]]);
   // @ts-expect-error Part-occurrence override keys use stable string identities.
   setPartOccurrenceOverrides(state, [[1, { emissive: 0.2 }]]);

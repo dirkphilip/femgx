@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, setPartOccurrenceOverrides } from "../../src/entries/root";
+import {
+  createInteractionState,
+  setPartOccurrenceOverrides,
+  setPartOverrides,
+} from "../../src/entries/root";
 import { readInteractionState } from "../../src/interaction/state";
 
 describe("batched part-occurrence overrides", () => {
@@ -43,5 +47,17 @@ describe("batched part-occurrence overrides", () => {
         ["1/1", { opacity: 2 }],
       ]),
     ).toThrow(/opacity must be finite and in \[0, 1\]/);
+  });
+});
+
+describe("batched part overrides", () => {
+  it("applies a large iterable in one immutable transition", () => {
+    const override = { edge: false } as const;
+    const entries = Array.from({ length: 10_000 }, (_, partId) => [partId, override] as const);
+
+    const state = setPartOverrides(createInteractionState(), entries);
+
+    expect(readInteractionState(state).partOverrides.size).toBe(entries.length);
+    expect(setPartOverrides(state, entries)).toBe(state);
   });
 });

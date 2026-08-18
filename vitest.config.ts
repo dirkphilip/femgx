@@ -7,7 +7,7 @@ export default defineConfig({
     // so wall-clock budgets are not distorted by coverage instrumentation.
     exclude: [
       "test/bench/budget/budget.test.ts",
-      "test/bench/large-scaling.test.ts",
+      "test/bench/large-model/*.test.ts",
       "test/bench/operations.test.ts",
       "test/bench/selection-sync.test.ts",
       "test/bench/scene-update-scaling.test.ts",

@@ -162,6 +162,12 @@ See [[architecture/api-design|API design north star]].
   branded or discriminated domain types when they make category errors
   unrepresentable, letting the compiler provide correctness checks without
   redundant runtime validation. Avoid `any`.
+- Treat collections expected to grow with model cardinality—including elements,
+  nodes, geometries, parts, assemblies, bodies, and instances—as scaling
+  boundaries. Do not build or bulk-update them by invoking an immutable
+  whole-state transition once per item. Accumulate through one locally owned
+  mutable transient or apply one bulk immutable transition, then publish one
+  immutable snapshot. Keep single-item transitions for isolated edits.
 - Follow the contracts and negative-space rules above.
 - Every test must protect a distinct public contract, regression, boundary, or
   invariant. Prefer extending an existing table or golden case; do not mirror

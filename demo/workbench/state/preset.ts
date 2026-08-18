@@ -1,10 +1,10 @@
 import {
   createInteractionState,
-  setPartOverride,
+  setPartOverrides,
   type InteractionState,
 } from "../../../src/entries/root";
 import type { ModelPreset } from "../../fixtures/presets";
-import { createExampleModel, partStyleOverride, type WorkbenchModel } from "../models/model";
+import { createExampleModel, modelPartStyleOverrides, type WorkbenchModel } from "../models/model";
 
 /** Creates the deterministic palette state for one demo model preset. */
 export function createPresetInteraction(
@@ -21,9 +21,5 @@ export function createModelInteraction(
   edges = false,
   nodes = false,
 ): InteractionState {
-  let state = createInteractionState();
-  for (const partId of model.scene.parts.keys()) {
-    state = setPartOverride(state, partId, partStyleOverride(model, partId, edges, nodes));
-  }
-  return state;
+  return setPartOverrides(createInteractionState(), modelPartStyleOverrides(model, edges, nodes));
 }

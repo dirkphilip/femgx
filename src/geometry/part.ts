@@ -148,8 +148,11 @@ export function createPart(id: PartId, input: PartInput): Part {
   });
 }
 
-/** Internal branded record construction after an owning boundary has validated its inputs. */
-export function createPartRecord(id: PartId, input: PartInput): Part {
+/**
+ * Internal branded record construction after an owning boundary has validated its inputs.
+ * A supplied bound must have been derived from the retained geometry by that same boundary.
+ */
+export function createPartRecord(id: PartId, input: PartInput, bounds?: Bounds): Part {
   return {
     [partBrand]: true,
     id,
@@ -157,7 +160,7 @@ export function createPartRecord(id: PartId, input: PartInput): Part {
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
-    bounds: finitePartBounds(input.geometries),
+    bounds: bounds ?? finitePartBounds(input.geometries),
   };
 }
 

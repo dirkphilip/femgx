@@ -1,12 +1,18 @@
-import { Accessor, Primitive } from "@gltf-transform/core";
+import { Primitive } from "@gltf-transform/core";
 import type { Material, Mesh, vec4 } from "@gltf-transform/core";
-import { createPartRecord, type Part, type PartId } from "../../geometry/part";
+import { createPartRecord, type Bounds, type Part, type PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
 import type { GlbDiagnostics } from "./diagnostics";
+import {
+  readPositionData,
+  readPrimitiveIndices,
+  type GlbGeometryCache,
+  type PositionData,
+} from "./accessors";
 
 const DEFAULT_COLOR = { r: 0.23, g: 0.51, b: 0.96, a: 1 } as const;
 
-/** One reusable femgx part produced from one glTF mesh primitive. */
+/** One reusable femgx part produced from one glTF mesh material group. */
 export interface GlbPartRecord {
   readonly part: Part;
   readonly name: string;
@@ -18,36 +24,53 @@ export function importMeshParts(
   mesh: Mesh,
   firstPartId: PartId,
   diagnostics: GlbDiagnostics,
+  cache: GlbGeometryCache,
 ): readonly GlbPartRecord[] {
   const primitives = mesh.listPrimitives();
-  const records: GlbPartRecord[] = [];
+  const groups = new Map<Material | null, PrimitiveData[]>();
   for (let index = 0; index < primitives.length; index += 1) {
     const primitive = primitives[index];
     if (primitive === undefined) continue;
-    const record = importPrimitive({
+    const data = readPrimitive({
       mesh,
       primitive,
       primitiveIndex: index,
-      primitiveCount: primitives.length,
-      partId: firstPartId + records.length,
       diagnostics,
+      cache,
     });
-    if (record !== undefined) records.push(record);
+    if (data === undefined) continue;
+    const material = primitive.getMaterial();
+    const group = groups.get(material);
+    if (group === undefined) groups.set(material, [data]);
+    else group.push(data);
   }
-  return records;
+  return [...groups.entries()].map(([material, group], groupIndex) =>
+    importPrimitiveGroup({
+      mesh,
+      material,
+      group,
+      primitiveCount: primitives.length,
+      partId: firstPartId + groupIndex,
+      diagnostics,
+    }),
+  );
 }
 
 interface PrimitiveImport {
   readonly mesh: Mesh;
   readonly primitive: Primitive;
   readonly primitiveIndex: number;
-  readonly primitiveCount: number;
-  readonly partId: PartId;
   readonly diagnostics: GlbDiagnostics;
+  readonly cache: GlbGeometryCache;
 }
 
-function importPrimitive(input: PrimitiveImport): GlbPartRecord | undefined {
-  const { mesh, primitive, primitiveIndex, primitiveCount, partId, diagnostics } = input;
+interface PrimitiveData extends PositionData {
+  readonly primitiveIndex: number;
+  readonly indices: Uint32Array;
+}
+
+function readPrimitive(input: PrimitiveImport): PrimitiveData | undefined {
+  const { mesh, primitive, primitiveIndex, diagnostics, cache } = input;
   if (primitive.getMode() !== Primitive.Mode["TRIANGLES"]) {
     diagnostics.warning(
       "glb-unsupported-primitive-mode",
@@ -65,158 +88,70 @@ function importPrimitive(input: PrimitiveImport): GlbPartRecord | undefined {
     );
     return undefined;
   }
-  validatePositionAccessor(position, primitiveIndex, diagnostics);
-  const positions = readPositions(position, primitiveIndex, diagnostics);
-  const indices = readIndices(primitive, positions.length / 3, primitiveIndex, diagnostics);
-  const material = primitive.getMaterial();
-  // Accessor validation above establishes the invariants for this importer-owned record.
-  const part = createPartRecord(partId, {
-    geometries: [{ primitive: "triangles", positions, indices }],
-  });
+  const positionData = readPositionData(position, primitiveIndex, diagnostics, cache);
+  const indices = readPrimitiveIndices(
+    primitive,
+    positionData.positions.length / 3,
+    primitiveIndex,
+    diagnostics,
+    cache,
+  );
+  return { ...positionData, primitiveIndex, indices };
+}
+
+interface PrimitiveGroupImport {
+  readonly mesh: Mesh;
+  readonly material: Material | null;
+  readonly group: readonly PrimitiveData[];
+  readonly primitiveCount: number;
+  readonly partId: PartId;
+  readonly diagnostics: GlbDiagnostics;
+}
+
+function importPrimitiveGroup(input: PrimitiveGroupImport): GlbPartRecord {
+  const { mesh, material, group, primitiveCount, partId, diagnostics } = input;
+  const geometry = combinedGeometry(group);
+  const part = createPartRecord(
+    partId,
+    { geometries: [{ primitive: "triangles", ...geometry }] },
+    geometry.bounds,
+  );
   return {
     part,
-    name: primitiveName(mesh, material, primitiveIndex, primitiveCount, partId),
+    name: primitiveGroupName(mesh, material, group, primitiveCount, partId),
     style: materialStyle(material, diagnostics),
   };
 }
 
-function validatePositionAccessor(
-  accessor: Accessor,
-  primitiveIndex: number,
-  diagnostics: GlbDiagnostics,
-): void {
-  if (
-    accessor.getType() !== "VEC3" ||
-    accessor.getComponentType() !== Accessor.ComponentType["FLOAT"]
-  ) {
-    diagnostics.fatal(
-      "glb-invalid-primitive",
-      `Primitive ${primitiveIndex} POSITION must be a FLOAT VEC3 accessor.`,
-    );
-  }
-  if (accessor.getCount() === 0) {
-    diagnostics.fatal(
-      "glb-invalid-primitive",
-      `Primitive ${primitiveIndex} POSITION must not be empty.`,
-    );
-  }
-}
-
-function readPositions(
-  accessor: Accessor,
-  primitiveIndex: number,
-  diagnostics: GlbDiagnostics,
-): Float32Array {
-  const positions = new Float32Array(accessor.getCount() * 3);
-  const packed = accessor.getArray();
-  if (packed instanceof Float32Array && packed.length === positions.length) {
-    positions.set(packed);
-    validateFinitePositions(positions, primitiveIndex, diagnostics);
-    return positions;
-  }
-  const value: number[] = [0, 0, 0];
-  for (let index = 0; index < accessor.getCount(); index += 1) {
-    accessor.getElement(index, value);
-    for (let component = 0; component < 3; component += 1) {
-      const componentValue = value[component];
-      if (componentValue === undefined || !Number.isFinite(componentValue)) {
-        diagnostics.fatal(
-          "glb-invalid-position",
-          `Primitive ${primitiveIndex} contains a non-finite POSITION component.`,
-        );
-      }
-      positions[index * 3 + component] = componentValue;
+function combinedGeometry(group: readonly PrimitiveData[]): PositionData & {
+  readonly indices: Uint32Array;
+} {
+  const first = group[0];
+  if (first === undefined) throw new Error("GLB primitive group must not be empty");
+  if (group.length === 1) return first;
+  const sharedPositions = group.every((primitive) => primitive.positions === first.positions);
+  const positionLength = sharedPositions
+    ? first.positions.length
+    : group.reduce((total, primitive) => total + primitive.positions.length, 0);
+  const indexLength = group.reduce((total, primitive) => total + primitive.indices.length, 0);
+  const positions = sharedPositions ? first.positions : new Float32Array(positionLength);
+  const indices = new Uint32Array(indexLength);
+  let positionOffset = 0;
+  let indexOffset = 0;
+  let bounds = first.bounds;
+  for (const primitive of group) {
+    if (sharedPositions) {
+      indices.set(primitive.indices, indexOffset);
+      indexOffset += primitive.indices.length;
+      continue;
     }
+    positions.set(primitive.positions, positionOffset);
+    const vertexOffset = positionOffset / 3;
+    for (const index of primitive.indices) indices[indexOffset++] = index + vertexOffset;
+    positionOffset += primitive.positions.length;
+    bounds = mergeBounds(bounds, primitive.bounds);
   }
-  return positions;
-}
-
-function validateFinitePositions(
-  positions: Float32Array,
-  primitiveIndex: number,
-  diagnostics: GlbDiagnostics,
-): void {
-  for (const value of positions) {
-    if (!Number.isFinite(value)) {
-      diagnostics.fatal(
-        "glb-invalid-position",
-        `Primitive ${primitiveIndex} contains a non-finite POSITION component.`,
-      );
-    }
-  }
-}
-
-function readIndices(
-  primitive: Primitive,
-  vertexCount: number,
-  primitiveIndex: number,
-  diagnostics: GlbDiagnostics,
-): Uint32Array {
-  const accessor = primitive.getIndices();
-  if (accessor === null) {
-    if (vertexCount % 3 !== 0) {
-      diagnostics.fatal(
-        "glb-invalid-index",
-        `Primitive ${primitiveIndex} has ${vertexCount} non-indexed vertices, not a multiple of three.`,
-      );
-    }
-    return sequentialIndices(vertexCount);
-  }
-  if (accessor.getType() !== "SCALAR" || !isUnsignedIndexType(accessor.getComponentType())) {
-    diagnostics.fatal(
-      "glb-invalid-index",
-      `Primitive ${primitiveIndex} indices must use an unsigned byte, short, or int scalar accessor.`,
-    );
-  }
-  if (accessor.getCount() % 3 !== 0) {
-    diagnostics.fatal(
-      "glb-invalid-index",
-      `Primitive ${primitiveIndex} has ${accessor.getCount()} indices, not a multiple of three.`,
-    );
-  }
-  const indices = new Uint32Array(accessor.getCount());
-  const packed = accessor.getArray();
-  if (packed !== null && packed.length === indices.length && !accessor.getNormalized()) {
-    for (let index = 0; index < indices.length; index += 1) {
-      const value = packed[index] ?? 0;
-      validateIndexValue(value, vertexCount, primitiveIndex, diagnostics);
-      indices[index] = value;
-    }
-    return indices;
-  }
-  for (let index = 0; index < indices.length; index += 1) {
-    const value = accessor.getScalar(index);
-    validateIndexValue(value, vertexCount, primitiveIndex, diagnostics);
-    indices[index] = value;
-  }
-  return indices;
-}
-
-function validateIndexValue(
-  value: number,
-  vertexCount: number,
-  primitiveIndex: number,
-  diagnostics: GlbDiagnostics,
-): void {
-  if (Number.isInteger(value) && value >= 0 && value < vertexCount) return;
-  diagnostics.fatal(
-    "glb-invalid-index",
-    `Primitive ${primitiveIndex} index ${String(value)} is outside its POSITION accessor.`,
-  );
-}
-
-function isUnsignedIndexType(componentType: number): boolean {
-  return (
-    componentType === Accessor.ComponentType["UNSIGNED_BYTE"] ||
-    componentType === Accessor.ComponentType["UNSIGNED_SHORT"] ||
-    componentType === Accessor.ComponentType["UNSIGNED_INT"]
-  );
-}
-
-function sequentialIndices(count: number): Uint32Array {
-  const indices = new Uint32Array(count);
-  for (let index = 0; index < count; index += 1) indices[index] = index;
-  return indices;
+  return { positions, indices, bounds };
 }
 
 function primitiveName(
@@ -230,6 +165,34 @@ function primitiveName(
   const materialName = material === null ? "" : displayName(material, "");
   const base = meshName || materialName || `Part ${partId}`;
   return primitiveCount === 1 ? base : `${base} primitive ${primitiveIndex}`;
+}
+
+function primitiveGroupName(
+  mesh: Mesh,
+  material: Material | null,
+  group: readonly PrimitiveData[],
+  primitiveCount: number,
+  partId: PartId,
+): string {
+  const first = group[0];
+  if (first === undefined) return `Part ${partId}`;
+  if (group.length === 1) {
+    return primitiveName(mesh, material, first.primitiveIndex, primitiveCount, partId);
+  }
+  const meshName = displayName(mesh, "");
+  const materialName = material === null ? "" : displayName(material, "");
+  return `${meshName || materialName || `Part ${partId}`} (${group.length} primitives)`;
+}
+
+function mergeBounds(first: Bounds, second: Bounds): Bounds {
+  return {
+    minX: Math.min(first.minX, second.minX),
+    minY: Math.min(first.minY, second.minY),
+    minZ: Math.min(first.minZ, second.minZ),
+    maxX: Math.max(first.maxX, second.maxX),
+    maxY: Math.max(first.maxY, second.maxY),
+    maxZ: Math.max(first.maxZ, second.maxZ),
+  };
 }
 
 function materialStyle(material: Material | null, diagnostics: GlbDiagnostics): StyleOverride {
