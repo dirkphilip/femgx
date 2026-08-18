@@ -298,8 +298,21 @@ fn pointVertex(
   var selected = instanceSelected(instance.selected);
   var exactSelection = false;
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
+  let denseNode = denseNodeSelected(drawOrder[instanceIndex], nodePickId);
   if (!nodeOverlay) {
 ${bodyAndElementHighlighting}
+  }
+  // Body/element emphasis establishes the resolved base first. Dense node
+  // membership then follows the same precedence as sparse node records.
+  if (denseNode) {
+    emissive = instance.emissive;
+    if (nodeOverlay && (elementHighlights.selectionFlags & 3u) != 0u) {
+      color = instance.color;
+    }
+    color = applyDenseSelectionColor(color);
+    emissive = applyDenseSelectionEmissive(emissive);
+    selected = true;
+    exactSelection = true;
   }
   if (nodePickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], 0u, 0u, nodePickId, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);

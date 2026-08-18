@@ -8,6 +8,7 @@ const demoRoot = join(repositoryRoot, "demo");
 const benchmarkExemptions = new Set([
   "demo/benchmark/interactive.ts",
   "demo/benchmark/measurement.ts",
+  "demo/benchmark/node-selection.ts",
   "demo/benchmark/selection.ts",
   "demo/benchmark/structured-fe.ts",
   "demo/benchmark/tet4-transfer.ts",

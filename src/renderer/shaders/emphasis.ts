@@ -19,10 +19,10 @@ struct ElementHighlight {
 };
 
 // The fixed header is followed by a u32 payload. Sparse records occupy the
-// first bucketCount * 4 * 12 words. The selection offset table and compact
-// per-occurrence bitsets follow it; their relative word offsets are in the
-// header. Keeping both private representations in this existing binding avoids
-// a fixed selection binding and leaves the no-selection payload empty.
+// first bucketCount * 4 * 12 words. Element and node selection offset tables
+// and compact per-occurrence bitsets follow it; their relative word offsets are
+// in the header. Keeping all private representations in this existing binding
+// avoids fixed selection bindings and leaves the no-selection payload empty.
 struct ElementHighlights {
   count: u32,
   bucketCount: u32,
@@ -39,7 +39,15 @@ struct ElementHighlights {
   selectedColorA: u32,
   selectedEmissive: u32,
   selectedOpacity: u32,
-  _reserved: u32,
+  nodeSelectionWords: u32,
+  nodeSelectionOffsetWord: u32,
+  nodeSelectionBitsWord: u32,
+  nodeSelectionRecordCount: u32,
+  nodeSelectionSlotCapacity: u32,
+  _reserved0: u32,
+  _reserved1: u32,
+  _reserved2: u32,
+  _reserved3: u32,
   data: array<u32>,
 };
 
@@ -78,6 +86,25 @@ fn denseElementSelected(slot: u32, ordinal: u32) -> bool {
   let mask = 1u << (bit % 32u);
   return (elementHighlights.data[
     elementHighlights.selectionBitsWord + record * elementHighlights.selectionWords + word
+  ] & mask) != 0u;
+}
+
+fn denseNodeSelected(slot: u32, nodePickId: u32) -> bool {
+  if (nodePickId == 0u || slot >= elementHighlights.nodeSelectionSlotCapacity ||
+      elementHighlights.nodeSelectionRecordCount == 0u ||
+      elementHighlights.nodeSelectionWords == 0u) {
+    return false;
+  }
+  let record = elementHighlights.data[elementHighlights.nodeSelectionOffsetWord + slot];
+  if (record == 0xffffffffu || record >= elementHighlights.nodeSelectionRecordCount) {
+    return false;
+  }
+  let bit = nodePickId - 1u;
+  let word = bit / 32u;
+  if (word >= elementHighlights.nodeSelectionWords) { return false; }
+  let mask = 1u << (bit % 32u);
+  return (elementHighlights.data[
+    elementHighlights.nodeSelectionBitsWord + record * elementHighlights.nodeSelectionWords + word
   ] & mask) != 0u;
 }
 

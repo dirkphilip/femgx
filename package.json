@@ -146,6 +146,7 @@
     "bench:operations": "vitest run --config config/vitest.operations.config.ts",
     "bench:scaling:large": "vitest run --config config/vitest.large-scaling.config.ts",
     "bench:selection-sync": "vitest run --config config/vitest.selection-sync.config.ts",
+    "bench:node-selection-sync": "vitest run --config config/vitest.node-selection-sync.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",
     "test:e2e": "npm run test:e2e:combined",
     "test:e2e:core": "playwright test --project=chrome e2e/core",

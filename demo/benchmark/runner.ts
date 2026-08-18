@@ -2,6 +2,7 @@ import { benchmarkCaseSpecs, createBenchmarkCase } from "./model";
 import { measureBenchmarkCase } from "./measurement";
 import { reconstructBenchmarkScene } from "./transfer";
 import { createBenchmarkWorkerLoad } from "./worker-client";
+import { holdNodeSelectionCapture } from "./capture";
 import type { WebGpuBenchmarkCaseResult, WebGpuBenchmarkReport } from "./types";
 import type { WebGpuBenchmarkCase, WebGpuBenchmarkSpec } from "./model";
 
@@ -17,7 +18,11 @@ const MEMORY_ESTIMATE_SCOPE =
 /** Runs the opt-in, hardware-dependent WebGPU capacity benchmark. */
 export async function runWebGpuBenchmark(
   canvas: HTMLCanvasElement,
-  options: { readonly includeLarge: boolean; readonly caseId?: string },
+  options: {
+    readonly includeLarge: boolean;
+    readonly caseId?: string;
+    readonly holdNodeSelectionForCapture?: boolean;
+  },
 ): Promise<WebGpuBenchmarkReport> {
   if (devicePixelRatio !== 1 && devicePixelRatio !== 2)
     throw new Error(`WebGPU benchmark requires DPR 1 or 2, got ${devicePixelRatio}`);
@@ -54,6 +59,9 @@ export async function runWebGpuBenchmark(
             {
               timestampQueriesRequested: timestampQueriesEnabled,
               ...(built.denseBuild === undefined ? {} : { denseBuild: built.denseBuild }),
+              ...(options.holdNodeSelectionForCapture === true && spec.id === "fe-tet4-solid-132k"
+                ? { holdNodeSelectionForCapture: () => holdNodeSelectionCapture(canvas) }
+                : {}),
             },
           ),
         );
@@ -73,7 +81,7 @@ export async function runWebGpuBenchmark(
   }
   const info = adapter.info;
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     generatedAt: new Date().toISOString(),
     browser: navigator.userAgent,
     adapter: {

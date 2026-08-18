@@ -99,6 +99,41 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toContain("color = highlight.color;");
   });
 
+  it("tests dense node membership for point and node-overlay vertices", () => {
+    expect(pointVertexShader).toContain("denseNodeSelected(drawOrder[instanceIndex], nodePickId)");
+    expect(pointVertexShader).toContain("nodeOverlayVertexMain");
+    expect(pointVertexShader).toContain("elementHighlights.nodeSelectionBitsWord");
+    expect(
+      pointVertexShader.indexOf(
+        "let denseNode = denseNodeSelected(drawOrder[instanceIndex], nodePickId)",
+      ),
+    ).toBeGreaterThan(
+      pointVertexShader.indexOf("if (instanceHasPrimitiveEmphasis(instance.selected))"),
+    );
+  });
+
+  it("applies dense node styling after body and element styling", () => {
+    const denseNode = pointVertexShader.indexOf("if (denseNode) {");
+    const denseElement = pointVertexShader.indexOf("denseElementSelected(");
+    const sparseNode = pointVertexShader.indexOf("highlight.nodePickId == nodePickId");
+    expect(denseElement).toBeGreaterThanOrEqual(0);
+    expect(denseNode).toBeGreaterThan(denseElement);
+    expect(sparseNode).toBeGreaterThan(denseNode);
+    expect(pointVertexShader).toContain(
+      "if (nodeOverlay && (elementHighlights.selectionFlags & 3u) != 0u)",
+    );
+    expect(pointVertexShader).not.toContain("instanceSelected(instance.selected) || denseNode");
+    expect(pointVertexShader).toContain("color = instance.color;");
+    expect(pointVertexShader).toContain("emissive = instance.emissive;");
+  });
+
+  it("keeps the black node overlay base for emissive-only dense selection", () => {
+    expect(pointVertexShader).toContain(
+      "if (nodeOverlay && (elementHighlights.selectionFlags & 3u) != 0u)",
+    );
+    expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");
+  });
+
   it("composes result alpha with the resolved instance alpha", () => {
     expect(resultColorFunctions).toContain("resultColors[base + 3u] * fallback.a");
     expect(resultColorFunctions).toContain("resultColors[base]");

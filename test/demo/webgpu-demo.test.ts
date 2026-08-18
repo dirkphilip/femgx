@@ -68,7 +68,11 @@ vi.mock("../../demo/benchmark/runner", () => ({
 interface DemoSeam {
   readonly destroyRenderer: () => void;
   readonly recreateRenderer: () => Promise<void>;
-  readonly runBenchmark: (includeLarge: boolean) => Promise<unknown>;
+  readonly runBenchmark: (
+    includeLarge: boolean,
+    caseId?: string,
+    holdNodeSelectionForCapture?: boolean,
+  ) => Promise<unknown>;
 }
 
 interface DemoWindow {
@@ -343,8 +347,27 @@ describe("startWebGpuDemo", () => {
     const canvas = fakeCanvas();
     await startWebGpuDemo(startOptions(canvas));
 
-    await expect(demoWindow.femgxDemo?.runBenchmark(true)).resolves.toEqual({ schemaVersion: 2 });
+    await expect(
+      demoWindow.femgxDemo?.runBenchmark(true, "fe-tet4-solid-132k", true),
+    ).resolves.toEqual({ schemaVersion: 2 });
     expect(viewport.destroy).toHaveBeenCalledOnce();
-    expect(mocks.runWebGpuBenchmark).toHaveBeenCalledWith(canvas, { includeLarge: true });
+    expect(mocks.runWebGpuBenchmark).toHaveBeenCalledWith(canvas, {
+      includeLarge: true,
+      caseId: "fe-tet4-solid-132k",
+      holdNodeSelectionForCapture: true,
+    });
+  });
+
+  it("exposes an opt-in capture benchmark failure to the browser harness", async () => {
+    const viewport = fakeViewport();
+    mocks.createViewport.mockResolvedValue(viewport.viewport);
+    mocks.runWebGpuBenchmark.mockRejectedValueOnce(new Error("node draw assertion failed"));
+    const canvas = fakeCanvas();
+    await startWebGpuDemo(startOptions(canvas));
+
+    await expect(
+      demoWindow.femgxDemo?.runBenchmark(false, "fe-tet4-solid-132k", true),
+    ).rejects.toThrow("node draw assertion failed");
+    expect(canvas.dataset["benchmarkNodeSelectionError"]).toBe("node draw assertion failed");
   });
 });

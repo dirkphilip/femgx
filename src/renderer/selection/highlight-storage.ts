@@ -14,74 +14,43 @@ import {
   encodeEmphasisRecord,
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
-  INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
   type EmphasisUpdates,
 } from "../resources/element-resources";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { writeChangedRecordRanges } from "../resources/buffer-writes";
+import {
+  ensureHighlightStorage,
+  invalidateHighlightBindGroups,
+  type HighlightAllocationTarget,
+} from "./highlight-storage-allocation";
 import type {
   DenseElementLayout,
   DenseElementSelection,
   DenseElementSelections,
 } from "./element-selection";
 import { collectDenseElementSelections } from "./element-selection";
+import type { DenseNodeSelection, DenseNodeSelections } from "./node-selection";
 import {
-  highlightByteLength,
   writeDenseSelectionBuffer,
   writeDenseSelectionData,
   writeSelectionHeader,
+  type HighlightStorage,
 } from "./highlight-selection-storage";
 import { readInteractionState } from "../../interaction/state";
 import type { PrimitiveStyleOverride } from "../../interaction/interaction";
 import { sparseUpdatesForPart } from "./highlight-filter";
 
+export type { HighlightStorage } from "./highlight-selection-storage";
+export { createHighlightStorage } from "./highlight-storage-allocation";
+
 const ZERO_RECORD = new Uint8Array(ELEMENT_RECORD_STRIDE);
-
-/** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
-export interface HighlightStorage {
-  readonly buffer: GPUBuffer;
-  data: Uint8Array<ArrayBuffer>;
-  sparseCapacity: number;
-  selectionSlotCapacity: number;
-  selectionRecordCapacity: number;
-  selectionWordCapacity: number;
-  denseSelection: DenseElementSelection | undefined;
-}
-
-/** Creates a highlight buffer sized for `capacity` emphasis records. */
-export function createHighlightStorage(
-  device: GPUDevice,
-  capacity = INITIAL_ELEMENT_HIGHLIGHTS,
-  selectionSlotCapacity = 0,
-  selectionRecordCapacity = 0,
-  selectionWordCapacity = 0,
-): HighlightStorage {
-  const size = highlightByteLength(
-    capacity,
-    selectionSlotCapacity,
-    selectionRecordCapacity,
-    selectionWordCapacity,
-  );
-  const buffer = device.createBuffer({
-    label: "femgx element highlight storage",
-    size,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  return {
-    buffer,
-    data: new Uint8Array(size),
-    sparseCapacity: capacity,
-    selectionSlotCapacity,
-    selectionRecordCapacity,
-    selectionWordCapacity,
-    denseSelection: undefined,
-  };
-}
+const EMPTY_HIGHLIGHT_HEADER = new Uint32Array(4);
 
 interface HighlightWriteOptions {
   readonly cost?: GpuCostAccumulator;
   readonly selection?: DenseElementSelection | undefined;
+  readonly nodeSelection?: DenseNodeSelection | undefined;
   readonly selectedTheme?: PrimitiveStyleOverride | undefined;
   readonly slotCapacity?: number;
 }
@@ -93,10 +62,11 @@ export function writeElementHighlights(
   updates: readonly EmphasisUpdate[],
   options: HighlightWriteOptions = {},
 ): void {
-  const entries = updates.map(toTableEntry);
+  const entries = updates.map(toHighlightTableEntry);
   const table = buildHighlightTable(entries);
   const selection = options.selection;
-  if (table.entries.length === 0 && selection === undefined) {
+  const nodeSelection = options.nodeSelection;
+  if (table.entries.length === 0 && selection === undefined && nodeSelection === undefined) {
     releaseHighlightStorage(device, storage, options.cost);
     return;
   }
@@ -105,23 +75,31 @@ export function writeElementHighlights(
     selectionSlotCapacity: selection === undefined ? 0 : (options.slotCapacity ?? 0),
     selectionRecordCapacity: selection?.occurrences.length ?? 0,
     selectionWordCapacity: selection === undefined ? 0 : Math.ceil(selection.elementCount / 32),
+    nodeSelectionSlotCapacity: nodeSelection === undefined ? 0 : (options.slotCapacity ?? 0),
+    nodeSelectionRecordCapacity: nodeSelection?.occurrences.length ?? 0,
+    nodeSelectionWordCapacity:
+      nodeSelection === undefined ? 0 : Math.ceil(nodeSelection.nodeCount / 32),
     cost: options.cost,
   });
   const highlight = storage.highlight;
-  const selectionChanged = highlight.denseSelection !== selection;
+  const selectionChanged =
+    highlight.denseSelection !== selection || highlight.denseNodeSelection !== nodeSelection;
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const view = new Uint32Array(header.buffer);
   view[0] = entries.length;
   view[1] = table.bucketCount;
   view[2] = table.seed;
-  writeSelectionHeader(view, highlight, selection, options.selectedTheme);
+  writeSelectionHeader(view, highlight, selection, options.selectedTheme, nodeSelection);
   writeChangedRanges(device, storage, header, table.entries, options.cost);
   highlight.data.set(header);
-  if (selectionChanged) writeDenseSelectionData(highlight.data, highlight, selection);
+  if (selectionChanged) {
+    writeDenseSelectionData(highlight.data, highlight, selection, nodeSelection);
+  }
   if (selectionChanged || storageReallocated) {
     writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost);
   }
   highlight.denseSelection = selection;
+  highlight.denseNodeSelection = nodeSelection;
 }
 
 function writeChangedRanges(
@@ -176,124 +154,6 @@ function sameBytes(
   return true;
 }
 
-interface HighlightCapacityOptions {
-  readonly minimumRecords: number;
-  readonly selectionSlotCapacity: number;
-  readonly selectionRecordCapacity: number;
-  readonly selectionWordCapacity: number;
-  readonly cost: GpuCostAccumulator | undefined;
-}
-
-function ensureHighlightStorage(
-  device: GPUDevice,
-  storage: HighlightTarget,
-  options: HighlightCapacityOptions,
-): boolean {
-  const current = storage.highlight;
-  const releasesSelection =
-    options.selectionSlotCapacity === 0 &&
-    options.selectionRecordCapacity === 0 &&
-    options.selectionWordCapacity === 0;
-  const nextSparseCapacity =
-    options.minimumRecords <= current.sparseCapacity
-      ? current.sparseCapacity
-      : Math.max(options.minimumRecords, current.sparseCapacity * 2);
-  const nextSlotCapacity = releasesSelection
-    ? 0
-    : Math.max(current.selectionSlotCapacity, options.selectionSlotCapacity);
-  const nextRecordCapacity = releasesSelection
-    ? 0
-    : Math.max(current.selectionRecordCapacity, options.selectionRecordCapacity);
-  const nextWordCapacity = releasesSelection
-    ? 0
-    : Math.max(current.selectionWordCapacity, options.selectionWordCapacity);
-  if (!storage.highlightOwned) {
-    storage.highlight = createHighlightStorage(
-      device,
-      nextSparseCapacity,
-      nextSlotCapacity,
-      nextRecordCapacity,
-      nextWordCapacity,
-    );
-    storage.highlightOwned = true;
-    options.cost?.allocateBuffer(storage.highlight.buffer.size);
-    invalidateHighlightBindGroups(storage, options.cost);
-    return true;
-  }
-  if (
-    nextSparseCapacity === current.sparseCapacity &&
-    nextSlotCapacity === current.selectionSlotCapacity &&
-    nextRecordCapacity === current.selectionRecordCapacity &&
-    nextWordCapacity === current.selectionWordCapacity
-  ) {
-    return false;
-  }
-  const grown = createHighlightStorage(
-    device,
-    nextSparseCapacity,
-    nextSlotCapacity,
-    nextRecordCapacity,
-    nextWordCapacity,
-  );
-  preserveDenseSelection(device, current, grown, options.cost);
-  options.cost?.releaseBuffer(current.buffer.size);
-  current.buffer.destroy();
-  options.cost?.allocateBuffer(grown.buffer.size);
-  storage.highlight = grown;
-  storage.highlightOwned = true;
-  invalidateHighlightBindGroups(storage, options.cost);
-  return true;
-}
-
-function uploadPreservedDenseSelection(
-  device: GPUDevice,
-  storage: HighlightStorage,
-  cost?: GpuCostAccumulator,
-): void {
-  if (storage.denseSelection === undefined) return;
-  const offset = HIGHLIGHT_HEADER + storage.sparseCapacity * ELEMENT_RECORD_STRIDE;
-  const bytes = storage.data.subarray(offset);
-  device.queue.writeBuffer(storage.buffer, offset, bytes);
-  cost?.write("highlight", bytes.byteLength);
-}
-
-function preserveDenseSelection(
-  device: GPUDevice,
-  current: HighlightStorage,
-  next: HighlightStorage,
-  cost?: GpuCostAccumulator,
-): void {
-  if (current.denseSelection === undefined) return;
-  if (
-    current.selectionSlotCapacity !== next.selectionSlotCapacity ||
-    current.selectionRecordCapacity !== next.selectionRecordCapacity ||
-    current.selectionWordCapacity !== next.selectionWordCapacity
-  ) {
-    return;
-  }
-  const oldOffset = current.sparseCapacity * (ELEMENT_RECORD_STRIDE / 4);
-  const nextOffset = next.sparseCapacity * (ELEMENT_RECORD_STRIDE / 4);
-  const slotBytes = current.selectionSlotCapacity * Uint32Array.BYTES_PER_ELEMENT;
-  const bitBytes =
-    current.selectionRecordCapacity * current.selectionWordCapacity * Uint32Array.BYTES_PER_ELEMENT;
-  next.data.set(
-    current.data.subarray(
-      HIGHLIGHT_HEADER + oldOffset * 4,
-      HIGHLIGHT_HEADER + oldOffset * 4 + slotBytes,
-    ),
-    HIGHLIGHT_HEADER + nextOffset * 4,
-  );
-  next.data.set(
-    current.data.subarray(
-      HIGHLIGHT_HEADER + (oldOffset + current.selectionSlotCapacity) * 4,
-      HIGHLIGHT_HEADER + (oldOffset + current.selectionSlotCapacity) * 4 + bitBytes,
-    ),
-    HIGHLIGHT_HEADER + (nextOffset + next.selectionSlotCapacity) * 4,
-  );
-  next.denseSelection = current.denseSelection;
-  uploadPreservedDenseSelection(device, next, cost);
-}
-
 function releaseHighlightStorage(
   device: GPUDevice,
   storage: HighlightTarget,
@@ -301,8 +161,8 @@ function releaseHighlightStorage(
 ): void {
   if (!storage.highlightOwned) return;
   const current = storage.highlight;
-  device.queue.writeBuffer(current.buffer, 0, new Uint32Array(4));
-  cost?.write("highlight", HIGHLIGHT_HEADER);
+  device.queue.writeBuffer(current.buffer, 0, EMPTY_HIGHLIGHT_HEADER);
+  cost?.write("highlight", EMPTY_HIGHLIGHT_HEADER.byteLength);
   cost?.releaseBuffer(current.buffer.size);
   current.buffer.destroy();
   storage.highlight = storage.emptyHighlight;
@@ -310,20 +170,8 @@ function releaseHighlightStorage(
   invalidateHighlightBindGroups(storage, cost);
 }
 
-function invalidateHighlightBindGroups(storage: HighlightTarget, cost?: GpuCostAccumulator): void {
-  cost?.invalidateBindGroups();
-  storage.bindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
-}
-
-function toTableEntry(update: EmphasisUpdate): HighlightTableEntry {
+/** Converts one CPU emphasis update into its packed hash-table identity. */
+export function toHighlightTableEntry(update: EmphasisUpdate): HighlightTableEntry {
   if (update.edgePickId !== undefined) {
     return {
       slot: update.slot,
@@ -355,22 +203,12 @@ export interface ElementHighlightSync {
   readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly denseSelections?: DenseElementSelections;
+  readonly denseNodeSelections?: DenseNodeSelections;
 }
 
-interface HighlightTarget {
-  highlight: HighlightStorage;
+interface HighlightTarget extends HighlightAllocationTarget {
   emptyHighlight: HighlightStorage;
-  highlightOwned: boolean;
   readonly capacity: number;
-  bindGroup: GPUBindGroup | undefined;
-  nodeBindGroup: GPUBindGroup | undefined;
-  edgeBindGroup: GPUBindGroup | undefined;
-  transparentBindGroup: GPUBindGroup | undefined;
-  selectionBindGroup: GPUBindGroup | undefined;
-  subsetSelectionBindGroup: GPUBindGroup | undefined;
-  nodeSelectionBindGroup: GPUBindGroup | undefined;
-  subsetBindGroup?: GPUBindGroup | undefined;
-  subsetTransparentBindGroup?: GPUBindGroup | undefined;
 }
 
 /** Recomputes every part's emphasis table and writes only changed ranges. */
@@ -389,11 +227,15 @@ export function syncElementHighlights(
       parts: sync.parts,
       interaction,
       denseSelections,
+      ...(sync.denseNodeSelections === undefined
+        ? {}
+        : { denseNodeSelections: sync.denseNodeSelections }),
     });
   const selectedTheme = readInteractionState(interaction).theme.selected;
   for (const [partId, storage] of sync.draw.storages) {
     if (affectedParts !== undefined && !affectedParts.has(partId)) continue;
     const selection = denseSelections.get(partId);
+    const nodeSelection = sync.denseNodeSelections?.get(partId);
     writeElementHighlights(
       sync.device,
       storage,
@@ -409,6 +251,7 @@ export function syncElementHighlights(
       {
         cost: sync.draw.cost,
         selection,
+        nodeSelection,
         selectedTheme,
         slotCapacity: storage.capacity,
       },

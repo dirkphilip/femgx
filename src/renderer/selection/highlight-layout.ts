@@ -6,7 +6,7 @@
 export const ELEMENT_RECORD_STRIDE = 48;
 
 /** Byte offset of sparse and dense highlight payloads after the fixed header. */
-export const HIGHLIGHT_HEADER = 64;
+export const HIGHLIGHT_HEADER = 96;
 
 /** Initial sparse emphasis record capacity allocated per part. */
 export const INITIAL_ELEMENT_HIGHLIGHTS = 128;

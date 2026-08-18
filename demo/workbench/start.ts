@@ -7,7 +7,7 @@ import {
 } from "../../src/entries/root";
 import { createModelPresets } from "../fixtures/presets";
 import { parseTet4CellsQuery } from "../benchmark/dense-tet4";
-import { installDemoHarness } from "../devtools/harness";
+import { installDemoHarness, type DemoHarness } from "../devtools/harness";
 import { WorkbenchController } from "./controllers/controller";
 import { createExampleModel, type WorkbenchModel } from "./models/model";
 import { errorMessage } from "./models/model";
@@ -199,15 +199,7 @@ function installWorkbenchHarness(
         reportFailure(error);
       }
     },
-    runBenchmark: async (includeLarge: boolean, caseId?: string) => {
-      controller.destroy();
-      state.viewport = undefined;
-      const { runWebGpuBenchmark } = await import("../benchmark/runner");
-      return runWebGpuBenchmark(canvas, {
-        includeLarge,
-        ...(caseId === undefined ? {} : { caseId }),
-      });
-    },
+    runBenchmark: benchmarkRunner(canvas, controller, state),
     pickPoint: async (x: number, y: number) =>
       (await state.viewport?.interaction.pick(x, y))?.worldPosition,
     probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),
@@ -215,6 +207,33 @@ function installWorkbenchHarness(
       (await state.viewport?.interaction.pickRegion(rect, granularity)) ?? [],
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
+}
+
+function benchmarkRunner(
+  canvas: HTMLCanvasElement,
+  controller: WorkbenchController,
+  state: StartState,
+): DemoHarness["runBenchmark"] {
+  return async (includeLarge, caseId, holdNodeSelectionForCapture) => {
+    if (holdNodeSelectionForCapture === true) {
+      delete canvas.dataset["benchmarkNodeSelectionError"];
+    }
+    controller.destroy();
+    state.viewport = undefined;
+    const { runWebGpuBenchmark } = await import("../benchmark/runner");
+    try {
+      return await runWebGpuBenchmark(canvas, {
+        includeLarge,
+        ...(caseId === undefined ? {} : { caseId }),
+        ...(holdNodeSelectionForCapture === undefined ? {} : { holdNodeSelectionForCapture }),
+      });
+    } catch (error) {
+      if (holdNodeSelectionForCapture === true) {
+        canvas.dataset["benchmarkNodeSelectionError"] = errorMessage(error);
+      }
+      throw error;
+    }
+  };
 }
 
 async function probePickKeys(

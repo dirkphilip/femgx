@@ -11,6 +11,7 @@ import {
   type DenseElementSelection,
   type DenseElementSelections,
 } from "./element-selection";
+import { hasValidNodeSelection } from "./node-selection";
 
 /** Maximum number of GPU range draws before the instanced fallback wins. */
 const MAX_RANGED_SELECTION_DRAWS = 1024;
@@ -97,15 +98,17 @@ function selectionGeometryForInstance(
   ) {
     return undefined;
   }
+  const metadata = getPartSemanticIndex(part);
   // Point parts represent selected nodes with their primary glyph. They need
   // the existing full-part path because node ids are per uploaded corner.
-  if ((data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0) return undefined;
+  if (hasValidNodeSelection(data.selectedNodeIds.get(instanceId), metadata.nodeCount)) {
+    return undefined;
+  }
   const selectedElements = data.selectedElementIds.get(instanceId);
   const selectedFaces = data.selectedFaces.get(instanceId);
   if ((selectedElements?.size ?? 0) === 0 && (selectedFaces?.size ?? 0) === 0) {
     return undefined;
   }
-  const metadata = getPartSemanticIndex(part);
   const skin =
     selectedFaces === undefined || selectedFaces.size === 0
       ? denseSelectionSkin(

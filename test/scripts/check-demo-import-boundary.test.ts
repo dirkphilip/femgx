@@ -82,6 +82,7 @@ describe("check-demo-import-boundary", () => {
     const retainedExemptions = [
       "demo/benchmark/interactive.ts",
       "demo/benchmark/measurement.ts",
+      "demo/benchmark/node-selection.ts",
       "demo/benchmark/selection.ts",
       "demo/benchmark/structured-fe.ts",
       "demo/benchmark/tet4-transfer.ts",
@@ -101,6 +102,8 @@ describe("check-demo-import-boundary", () => {
     const root = makeDemo({
       "benchmark/interactive.ts": 'import { orbitCamera } from "../src/interaction/interaction";\n',
       "benchmark/measurement.ts":
+        'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/node-selection.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/selection.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',

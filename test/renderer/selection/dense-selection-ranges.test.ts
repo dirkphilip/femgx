@@ -154,7 +154,7 @@ function selectionFixture(
     runtime,
     layout,
     interaction,
-    order: buildSelectionOrder(layout, runtime, part.id, interaction),
+    order: buildSelectionOrder(layout, runtime, part.id, interaction, new Map([[part.id, part]])),
     denseSelections: collectDenseElementSelections(
       runtime,
       layout,

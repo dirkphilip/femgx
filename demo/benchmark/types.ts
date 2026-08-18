@@ -126,6 +126,38 @@ export interface SelectionBenchmarkReport {
   readonly phases: readonly SelectionBenchmarkPhase[];
 }
 
+export interface NodeSelectionBenchmarkPhase {
+  readonly id: "half" | "all";
+  readonly targetCount: number;
+  readonly uniqueNodeCount: number;
+  readonly selectedOccurrenceCount: number;
+  /** Exact indices represented by the renderer node-selection order in each replay pass. */
+  readonly selectedNodeDrawIndices: number;
+  /** Exact instances represented by the renderer node-selection order in each replay pass. */
+  readonly selectedNodeDrawInstances: number;
+  /** Immutable interaction-state construction wall time. */
+  readonly interactionStateMs: number;
+  /** CPU-only renderer interaction synchronization wall time. */
+  readonly interactionSyncMs: number;
+  /** Queue-drained first selected frame wall time. */
+  readonly firstSelectedFrameMs: number;
+  readonly steadySelectedFrameMs: BenchmarkPercentiles;
+  /** Queue-drained clear transition wall time. */
+  readonly clearSelectionMs: number;
+  readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+  /** Exact part-local slot table plus selected-occurrence node bitset bytes. */
+  readonly denseNodePayloadBytes: number;
+  /** Exact fresh highlight allocation containing this dense node payload. */
+  readonly highlightStorageBytes: number;
+  /** Comparison estimate if every selected target used a sparse record. */
+  readonly selectedNodeRecordBytes: number;
+}
+
+export interface NodeSelectionBenchmarkReport {
+  readonly selectedTargetGranularity: "node";
+  readonly phases: readonly NodeSelectionBenchmarkPhase[];
+}
+
 export interface DenseBenchmarkBuild {
   readonly generationMs: number;
   readonly topologyMs: number;
@@ -164,6 +196,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly interactive?: InteractiveSamples;
   readonly overlayInteractive?: OverlayInteractiveSamples;
   readonly selection?: SelectionBenchmarkReport;
+  readonly nodeSelection?: NodeSelectionBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;
   /** Structural pass/draw/write counters from the final timed iteration. */
   readonly gpuCost: BenchmarkGpuCostSnapshot;
@@ -180,7 +213,7 @@ export interface WebGpuBenchmarkCaseResult {
 }
 
 export interface WebGpuBenchmarkReport {
-  readonly schemaVersion: 10;
+  readonly schemaVersion: 11;
   readonly generatedAt: string;
   readonly browser: string;
   readonly adapter: {
