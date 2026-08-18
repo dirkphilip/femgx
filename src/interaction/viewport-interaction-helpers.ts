@@ -33,8 +33,17 @@ export function modifiersOf(event: {
 export function assertTarget(
   target: InteractionTarget | undefined,
   granularity: InteractionGranularity,
+  modifiers: ViewportInteractionModifiers = {
+    shift: false,
+    control: false,
+    alt: false,
+    meta: false,
+  },
 ): void {
-  if (target !== undefined && target.kind !== granularity) {
+  const promoted =
+    (modifiers.alt && target?.kind === "partOccurrence") ||
+    (modifiers.shift && target?.kind === "element");
+  if (target !== undefined && target.kind !== granularity && !promoted) {
     throw new TypeError(
       `Viewport interaction resolver returned ${target.kind} target; expected ${granularity} target`,
     );
