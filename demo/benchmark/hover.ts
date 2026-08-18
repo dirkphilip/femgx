@@ -1,6 +1,7 @@
 import type { Camera } from "../../src/camera/camera";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { interactionTargetFromHit, setTargetHovered } from "../../src/interaction/targets";
+import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";
@@ -12,7 +13,13 @@ import {
 } from "./assertions";
 
 const STEADY_SAMPLES = 7;
-const SUPPORTED_CASES = new Set(["instanced-2.10m", "unique-2m-local"]);
+const SUPPORTED_CASES = new Set([
+  "instanced-2.10m",
+  "unique-2m-local",
+  "fe-tet4-solid-132k",
+  "fe-tet4-solid-25k-local",
+  "fe-tet4-solid-257k-local",
+]);
 
 interface HoverMeasureOptions {
   readonly renderer: WebGpuRenderer;
@@ -85,7 +92,11 @@ function uniqueSurfaceIndices(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
   for (const part of benchmarkCase.scene.parts.values()) {
     for (const geometry of part.geometries) {
-      if (geometry.primitive === "triangles") count += geometry.indices.length;
+      if (geometry.primitive !== "triangles") continue;
+      count +=
+        geometry.faceSubset === undefined
+          ? geometry.indices.length
+          : buildFaceSubsetIndices(geometry).length;
     }
   }
   return count;

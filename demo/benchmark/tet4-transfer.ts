@@ -17,7 +17,7 @@ const TET_EDGES: readonly (readonly [number, number])[] = [
   [1, 3],
   [2, 3],
 ];
-const MAX_DENSE_TET4_GRID_SIZE = 35;
+const MAX_DENSE_TET4_GRID_SIZE = 200;
 
 /** Compact ownership-transfer payload for the heavy structured Tet4 case. */
 export interface DenseTet4Payload {

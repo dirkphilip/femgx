@@ -154,7 +154,7 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[4]?.size).toBe(36);
       expect(gpu.buffers[5]?.size).toBe(12);
       expect(gpu.buffers[6]?.size).toBe(12);
-      expect(gpu.buffers[7]?.size).toBe(64);
+      expect(gpu.buffers[7]?.size).toBe(60);
       expect(first.edge).toBeUndefined();
     } finally {
       restore();
@@ -240,6 +240,47 @@ describe("GPU draw path", () => {
         { indexCount: 3, instanceCount: 1 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it("materializes full geometry only when a non-subset draw needs it", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, subsetPart.id, new Uint32Array([0]));
+      const context = { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) };
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+
+      drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }], {
+        kind: "surface",
+        pass: "color",
+      });
+      const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
+      if (resource === undefined) throw new Error("Subset resource was not uploaded");
+      expect(resource.indexCount).toBe(3);
+      expect(resource.fullVertexBuffer).toBeUndefined();
+      expect(gpu.buffers).toHaveLength(10);
+
+      drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }], {
+        kind: "surface",
+        pass: "pick",
+        surfaceSubset: false,
+      });
+      pass.end();
+      expect(resource.fullVertexBuffer).toBeDefined();
+      expect(resource.fullIndexCount).toBe(6);
+      expect(gpu.drawCalls.map((call) => call.indexCount)).toEqual([3, 6]);
+      expect(gpu.buffers).toHaveLength(14);
     } finally {
       restore();
     }

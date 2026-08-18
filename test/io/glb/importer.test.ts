@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { Accessor } from "@gltf-transform/core";
+import { describe, expect, it, vi } from "vitest";
 import { createSceneRuntime } from "../../../src/scene-runtime/public-runtime";
 import type { IoError } from "../../../src/io/diagnostics";
 import { importGlb } from "../../../src/io/glb/importer";
@@ -45,6 +46,20 @@ describe("importGlb", () => {
     expect(result.issues).toEqual([
       expect.objectContaining({ code: "glb-ignored-extension", severity: "warning" }),
     ]);
+  });
+
+  it("copies packed accessors without per-element accessor calls", async () => {
+    const elementSpy = vi.spyOn(Accessor.prototype, "getElement");
+    const scalarSpy = vi.spyOn(Accessor.prototype, "getScalar");
+
+    const result = await importGlb(makeTriangleGlb("u32"));
+
+    expect(result.scene.parts.get(0)?.geometries[0]?.positions).toEqual(
+      new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    );
+    expect(result.scene.parts.get(0)?.geometries[0]?.indices).toEqual(new Uint32Array([0, 1, 2]));
+    expect(elementSpy).not.toHaveBeenCalled();
+    expect(scalarSpy).not.toHaveBeenCalled();
   });
 
   it("reuses imported parts through the canonical runtime", async () => {

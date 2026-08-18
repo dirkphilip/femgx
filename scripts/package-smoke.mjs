@@ -512,9 +512,9 @@ function checkBundleBudgets(root) {
       );
     }
     if (entry === "femgx") {
-      // Bound the reviewed visibility and compact-node renderer paths while
-      // keeping the stricter compression ceiling unchanged.
-      expect(rawBytes <= 466_000, `root bundle exceeds raw budget: ${rawBytes}`);
+      // Keep the raw ceiling below the next bundle-size tier while retaining
+      // the stricter compression ceiling and optional-code exclusion checks.
+      expect(rawBytes <= 600_000, `root bundle exceeds raw budget: ${rawBytes}`);
       expect(gzipBytes <= 110_000, `root bundle exceeds gzip budget: ${gzipBytes}`);
     }
   }

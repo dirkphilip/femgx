@@ -25,21 +25,21 @@ export function bindDrawGeometry(
       ? geometry.edge?.edgeVertexBuffer
       : subset
         ? (geometry.subsetVertexBuffer ?? geometry.vertexBuffer)
-        : geometry.vertexBuffer;
+        : (geometry.fullVertexBuffer ?? geometry.vertexBuffer);
   const indexBuffer = edgePick
     ? geometry.edgePick?.indexBuffer
     : overlay
       ? geometry.edge?.edgeIndexBuffer
       : subset
-        ? geometry.subsetIndexBuffer
-        : geometry.indexBuffer;
+        ? (geometry.subsetIndexBuffer ?? geometry.indexBuffer)
+        : (geometry.fullIndexBuffer ?? geometry.indexBuffer);
   const count = edgePick
     ? geometry.edgePick?.indexCount
     : overlay
       ? geometry.edge?.edgeIndexCount
       : subset
         ? geometry.subsetIndexCount
-        : geometry.indexCount;
+        : (geometry.fullIndexCount ?? geometry.indexCount);
   if (indexBuffer === undefined || vertexBuffer === undefined || count === undefined)
     return undefined;
   if (bindVertexBuffer) pass.setVertexBuffer(0, vertexBuffer);

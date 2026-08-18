@@ -36,6 +36,7 @@ export function buildElementPrimitiveOrdinals(
   elementOrdinalById: { get(key: number): number | undefined },
 ): Uint32Array {
   const packed = packedSemanticStorageForGeometry(geometry);
+  if (packed === undefined && elements.length === 0) return new Uint32Array();
   if (packed !== undefined) {
     return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => ordinal + 1);
   }
@@ -178,6 +179,14 @@ export function buildPrimitiveFaceBodyPickData(
   geometry: Geometry,
   elements: readonly ElementTessellation[] = [],
 ): Uint32Array {
+  if (
+    geometry.primitive === "triangles" &&
+    geometry.faces === undefined &&
+    elements.length === 0 &&
+    packedSemanticStorageForGeometry(geometry) === undefined
+  ) {
+    return new Uint32Array(logicalPrimitiveCount(geometry) * 5);
+  }
   const facePickIds = buildFacePrimitivePickIds(geometry);
   const ownerPairs = buildTriangleOwnerPairs(geometry, elements, facePickIds);
   const stride = 5;

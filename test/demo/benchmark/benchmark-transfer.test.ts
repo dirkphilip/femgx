@@ -138,7 +138,7 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(Array.from(result.payload.nodePickIds)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),
     );
-    expect(() => buildDenseTet4Payload(36)).toThrow(/\[1,35\]/);
+    expect(() => buildDenseTet4Payload(201)).toThrow(/\[1,200\]/);
   });
 
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(

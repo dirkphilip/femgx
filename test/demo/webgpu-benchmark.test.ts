@@ -292,6 +292,20 @@ describe("WebGPU benchmark models", () => {
     expect(warmMemory.fixedBufferBytes).toBe(memory.fixedBufferBytes);
     expect(warmMemory.pickMetadataBytes).toBeGreaterThan(memory.pickMetadataBytes);
     expect(warmMemory.edgeIndexBytes).toBeGreaterThan(0);
+
+    const tet4Spec = benchmarkCaseSpecs(false).find(
+      (candidate) => candidate.id === "fe-tet4-solid-132k",
+    );
+    if (tet4Spec === undefined) throw new Error("Tet4 benchmark specification is missing");
+    const tet4Memory = estimateBenchmarkMemory(
+      createBenchmarkCase({ ...tet4Spec, gridCells: 2 }).scene,
+      1,
+      800,
+      600,
+    );
+    expect(tet4Memory.geometryBytes).toBe(0);
+    expect(tet4Memory.pickMetadataBytes).toBe(0);
+    expect(tet4Memory.subsetBytes).toBeGreaterThan(0);
   });
 
   it("keeps the matrix dimensions and scaling dimensions explicit", () => {

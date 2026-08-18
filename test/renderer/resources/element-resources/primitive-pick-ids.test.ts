@@ -81,6 +81,16 @@ describe("buildElementPrimitivePickIds", () => {
 });
 
 describe("buildElementPrimitiveOrdinals", () => {
+  it("keeps display-only geometry free of element ordinal metadata", () => {
+    const geometry = {
+      primitive: "triangles" as const,
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+    };
+
+    expect(buildElementPrimitiveOrdinals(geometry, [], new Map())).toEqual(new Uint32Array());
+  });
+
   it("maps each primitive to its stable part-wide element ordinal", () => {
     const geometry: SemanticTestGeometry = {
       positions: new Float32Array(9),
