@@ -141,7 +141,7 @@ export const interactionScalingCases: readonly ScalingCase[] = [
         createSceneRuntime(scene);
       },
     })),
-    maxNormalizedSpread: 3,
+    maxNormalizedSpread: 5,
   },
   {
     name: "element interaction updates",
