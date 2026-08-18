@@ -32,6 +32,7 @@ export interface WorkbenchShowState {
   sectionOffset: number;
   selectionGranularity: SelectionGranularity;
   boxSelectionStrategy: BoxSelectionStrategy;
+  elementBoxSelectionStrategy: BoxSelectionStrategy;
   touchInteractionMode: TouchInteractionMode;
   elementDetail: WorkbenchElementDetailSnapshot | undefined;
   scalarFieldId: string;
@@ -74,6 +75,7 @@ export function installWorkbenchShowStateAccessors(
     sectionOffset: stateProperty("sectionOffset"),
     selectionGranularity: stateProperty("selectionGranularity"),
     boxSelectionStrategy: stateProperty("boxSelectionStrategy"),
+    elementBoxSelectionStrategy: stateProperty("elementBoxSelectionStrategy"),
     touchInteractionMode: stateProperty("touchInteractionMode"),
     elementDetail: stateProperty("elementDetail"),
     scalarFieldId: stateProperty("scalarFieldId"),
@@ -171,7 +173,8 @@ export function createWorkbenchShowState(model: WorkbenchModel): WorkbenchShowSt
     sectionAxis: "off",
     sectionOffset: 0,
     selectionGranularity: "element",
-    boxSelectionStrategy: "visible-surface",
+    boxSelectionStrategy: "through-intersection",
+    elementBoxSelectionStrategy: "through-intersection",
     touchInteractionMode: "navigate",
     elementDetail: undefined,
     scalarFieldId: activeScalarFieldIdForModel(model),

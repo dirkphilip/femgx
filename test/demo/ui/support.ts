@@ -119,7 +119,7 @@ function createSnapshot(
     toggles: { edges: true, nodes: true, diagnostics: false },
     continuous: false,
     selectionGranularity: "element",
-    boxSelectionStrategy: "visible-surface",
+    boxSelectionStrategy: "through-intersection",
     touchInteractionMode: "navigate",
     activeSlot: "primary",
     secondaryOpen: false,

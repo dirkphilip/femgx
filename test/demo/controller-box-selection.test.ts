@@ -9,7 +9,8 @@ describe("workbench box-selection strategy", () => {
     const setResolver = vi.fn();
     const render = vi.fn();
     const owner = {
-      boxSelectionStrategy: "visible-surface" as const,
+      boxSelectionStrategy: "through-intersection" as const,
+      elementBoxSelectionStrategy: "through-intersection" as const,
       selectionGranularity: "element" as const,
       viewportSlots: {
         all: () => [{ viewport: {}, interaction: { setBoxSelectionResolver: setResolver } }],
@@ -24,16 +25,20 @@ describe("workbench box-selection strategy", () => {
     expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to Visible when Through is requested outside Element granularity", () => {
+  it("uses Visible outside Element while restoring the last Element strategy", () => {
     for (const selectionGranularity of ["part", "instance", "body", "face"] as const) {
       const owner = {
         boxSelectionStrategy: "through-intersection" as const,
+        elementBoxSelectionStrategy: "through-intersection" as const,
         selectionGranularity,
       } as unknown as Parameters<typeof normalizeBoxSelectionStrategyForGranularity>[0];
 
       normalizeBoxSelectionStrategyForGranularity(owner);
 
       expect(owner.boxSelectionStrategy).toBe("visible-surface");
+      (owner as { selectionGranularity: "element" }).selectionGranularity = "element";
+      normalizeBoxSelectionStrategyForGranularity(owner);
+      expect(owner.boxSelectionStrategy).toBe("through-intersection");
     }
   });
 });
