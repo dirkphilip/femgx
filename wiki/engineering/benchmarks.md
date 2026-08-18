@@ -336,10 +336,11 @@ RUN_PERF=1 E2E_BASE_URL=http://127.0.0.1:5173 \
   --grep "instanced-2.10m"
 ```
 
-The benchmark builds scenes outside timed regions and uses the real system
-Chrome/WebGPU lane for GPU and frame claims; the default lane is DPR 1 and the
-focused `unique-250k` readback case runs at DPR 2. No-GPU CI is only a contract
-check.
+The benchmark records each case's scene/model construction once as
+`modelBuildMs`, then records runtime compilation, renderer creation, attachment,
+and frame work at separate boundaries. It uses the real system Chrome/WebGPU
+lane for GPU and frame claims; the default lane is DPR 1 and the focused
+`unique-250k` readback case runs at DPR 2. No-GPU CI is only a contract check.
 
 Optional triangle-edge geometry is not part of the cold attachment estimate.
 The benchmark memory estimator accepts the part ids whose presentation-edge
@@ -357,7 +358,14 @@ high-performance WebGPU adapter, records one cold sample, performs two untimed
 steady-state warmups, and reports p50 and p95 from seven timed steady-state
 samples. Set `RUN_PERF_LARGE=1` to include the bounded
 2-million-unique-triangle local case in addition to the default cases. The
-point and node glyph settings are uniform-only presentation inputs (8 and 6 CSS
+many-piece cases additionally time target construction, immutable interaction
+state, stable-id-to-slot resolution, renderer synchronization, a queue-drained
+first frame, seven queue-drained steady frames, and clear/restore. Their
+selection, recolor, visibility, and scene-replacement rows cover one, half, and
+all placements and assert exact instance-write and submitted-draw work;
+replacement scene build includes owning validation while runtime compilation
+and renderer application remain separate fields. The point and node glyph
+settings are uniform-only presentation inputs (8 and 6 CSS
 pixels by default); changing them does not add geometry, buffers, draw calls, or
 render passes. Browser screenshot validation remains the authority for their
 physical raster diameter across DPR and resize changes.
@@ -388,6 +396,106 @@ triangles) across 64 placements to exercise common interactive instancing at
 Triangle elements, 1,002,001 nodes, and one placement; it exposes unique-ownership
 scene construction, dense selection, and presentation-resource construction
 that instancing deliberately amortizes.
+
+### Schema-12 many-piece evidence
+
+The clean system-Chrome reports
+`perf-reports/30-local-many-parts-1000.json` and
+`perf-reports/31-local-placements-10k.json` were recorded from implementation
+SHA `ba7c04c31f506c358992cd974e03aca2bab23983` on Apple Metal 3 with Chrome
+151, an 800×600 DPR-1 viewport, two untimed warmups, seven timed steady
+samples, and a non-fallback WebGPU adapter. `many-parts-1000` owns 1,000
+distinct Triangle parts and placements, 968,000 submitted triangles, and 1,000
+draw calls. `placements-10k` reuses one 64-Quad part across 10,000 placements,
+submitting 1,280,000 triangles in one instanced draw. These meanings must stay
+separate: the first stresses distinct resources; the second stresses placement
+and interaction scale while amortizing geometry.
+
+Cold CPU fields time synchronous construction/encoding; queue fields wait for
+submitted GPU work. Pick estimate excludes cached-map readback, while the next
+field includes it. Steady values are queue-drained p50/p95 over seven samples.
+
+| Case              | Model / runtime / renderer ms | Attach / first CPU / first queue ms | Steady CPU p50/p95 ms | Steady queue p50/p95 ms | Pick estimate / +readback / cached readback p50/p95 ms | Final opaque calls / indices / instances |
+| ----------------- | ----------------------------: | ----------------------------------: | --------------------: | ----------------------: | -----------------------------------------------------: | ---------------------------------------: |
+| Many parts 1,000  |            140.2 / 1.2 / 38.9 |               464.3 / 450.0 / 472.4 |             1.1 / 1.2 |               5.0 / 5.5 |                        11.9/13.2 · 12.2/13.5 · 0.3/0.4 |                1,000 / 2,904,000 / 1,000 |
+| Placements 10,000 |              6.1 / 7.2 / 41.0 |                  25.3 / 14.3 / 29.1 |             0.1 / 0.2 |               2.3 / 2.5 |                        10.3/12.2 · 10.6/12.6 · 0.3/0.4 |                         1 / 384 / 10,000 |
+
+Selection writes and clears exactly `targetCount × 96` instance bytes. The
+reported selected draw tuple is calls/indices/instances for each of the
+selected-visible and selected-hidden submissions.
+
+| Case / selection | Targets | Target / state / slot / sync ms | First / steady p50/p95 / clear ms | Apply / clear bytes | Selected visible and hidden draw tuple |
+| ---------------- | ------: | ------------------------------: | --------------------------------: | ------------------: | -------------------------------------: |
+| Parts one        |       1 |           0.0 / 0.2 / 0.0 / 0.8 |               6.0 · 5.2/6.1 · 6.6 |             96 / 96 |                          1 / 2,904 / 1 |
+| Parts half       |     500 |           0.0 / 0.1 / 0.0 / 3.6 |              13.3 · 8.7/8.9 · 9.2 |     48,000 / 48,000 |                  500 / 1,452,000 / 500 |
+| Parts all        |   1,000 |           0.1 / 0.1 / 0.1 / 5.0 |           21.3 · 13.1/16.2 · 13.0 |     96,000 / 96,000 |              1,000 / 2,904,000 / 1,000 |
+| Placements one   |       1 |           0.1 / 0.2 / 0.1 / 1.8 |               2.7 · 2.6/2.8 · 3.0 |             96 / 96 |                            1 / 384 / 1 |
+| Placements half  |   5,000 |          0.2 / 0.6 / 0.5 / 10.9 |              3.8 · 3.1/3.9 · 10.5 |   480,000 / 480,000 |                        1 / 384 / 5,000 |
+| Placements all   |  10,000 |          0.1 / 0.7 / 0.7 / 17.3 |              4.8 · 4.0/5.6 · 19.7 |   960,000 / 960,000 |                       1 / 384 / 10,000 |
+
+Recolor uses the canonical public `setPartOccurrenceOverrides` immutable bulk
+transition. Apply and clear again write exactly `targetCount × 96` bytes, and
+the full opaque draw remains unchanged: 1,000/2,904,000/1,000 for distinct
+parts and 1/384/10,000 for shared placements.
+
+| Case / recolor  | Targets | Target / state / slot / sync ms | First / steady p50/p95 / clear ms | Apply / clear bytes |
+| --------------- | ------: | ------------------------------: | --------------------------------: | ------------------: |
+| Parts one       |       1 |           0.0 / 0.1 / 0.0 / 0.2 |               5.1 · 5.2/5.5 · 5.7 |             96 / 96 |
+| Parts half      |     500 |           0.1 / 0.2 / 0.1 / 2.1 |               6.1 · 4.9/5.2 · 7.8 |     48,000 / 48,000 |
+| Parts all       |   1,000 |           0.0 / 0.3 / 0.0 / 3.2 |               6.3 · 5.9/6.4 · 9.4 |     96,000 / 96,000 |
+| Placements one  |       1 |           0.0 / 0.0 / 0.0 / 0.5 |               2.2 · 2.3/2.7 · 2.7 |             96 / 96 |
+| Placements half |   5,000 |           0.2 / 1.2 / 0.7 / 8.0 |              2.7 · 2.2/2.8 · 13.2 |   480,000 / 480,000 |
+| Placements all  |  10,000 |          0.1 / 1.2 / 0.8 / 18.3 |              2.8 · 2.3/2.7 · 15.6 |   960,000 / 960,000 |
+
+Visibility independently predicts post-hide submitted indices from requested
+slots, compares that prediction with renderer counters, and asserts exact
+restoration. The draw tuple is opaque calls/indices/instances after hiding.
+
+| Case / visibility | Targets | Mutation / sync ms | First / steady p50/p95 / restore ms | Remaining triangles | Indices hidden / restored | Opaque draw tuple after hide |
+| ----------------- | ------: | -----------------: | ----------------------------------: | ------------------: | ------------------------: | ---------------------------: |
+| Parts one         |       1 |          0.0 / 0.3 |                 5.1 · 5.2/5.9 · 6.3 |             967,032 |     2,901,096 / 2,904,000 |        999 / 2,901,096 / 999 |
+| Parts half        |     500 |          0.3 / 1.5 |                 4.0 · 3.1/3.7 · 7.7 |             484,000 |     1,452,000 / 2,904,000 |        500 / 1,452,000 / 500 |
+| Parts all         |   1,000 |          0.1 / 2.1 |                 2.7 · 0.8/1.2 · 8.2 |                   0 |             0 / 2,904,000 |                    0 / 0 / 0 |
+| Placements one    |       1 |          0.2 / 2.7 |                 3.1 · 2.2/4.4 · 4.7 |           1,279,872 |     3,839,616 / 3,840,000 |              1 / 384 / 9,999 |
+| Placements half   |   5,000 |          0.6 / 1.1 |                 2.2 · 1.6/1.9 · 4.1 |             640,000 |     1,920,000 / 3,840,000 |              1 / 384 / 5,000 |
+| Placements all    |  10,000 |          1.1 / 0.7 |                 1.0 · 0.8/1.2 · 3.7 |                   0 |             0 / 3,840,000 |                    0 / 0 / 0 |
+
+Replacement scene build below includes validation. Runtime compile, renderer
+CPU encoding, and queue completion are separate. Apply and restore both report
+exact changed-occurrence writes with positive write calls; the final opaque
+draw tuple equals the original scene.
+
+| Case / replacement | Changed | Build+validation / runtime ms | Renderer CPU / queue ms | Steady p50/p95 / restore ms | Apply / restore bytes |   Final opaque draw tuple |
+| ------------------ | ------: | ----------------------------: | ----------------------: | --------------------------: | --------------------: | ------------------------: |
+| Parts one          |       1 |                     0.7 / 0.9 |              4.5 / 10.3 |               6.6/8.3 · 8.4 |               96 / 96 | 1,000 / 2,904,000 / 1,000 |
+| Parts half         |     500 |                     0.5 / 0.7 |               3.7 / 8.6 |               4.9/5.2 · 8.2 |       48,000 / 48,000 | 1,000 / 2,904,000 / 1,000 |
+| Parts all          |   1,000 |                     0.4 / 0.5 |               4.1 / 9.2 |               5.3/9.0 · 8.9 |       96,000 / 96,000 | 1,000 / 2,904,000 / 1,000 |
+| Placements one     |       1 |                     8.5 / 7.7 |              7.0 / 10.0 |               2.3/3.0 · 7.6 |               96 / 96 |          1 / 384 / 10,000 |
+| Placements half    |   5,000 |                     3.8 / 4.9 |              8.7 / 11.6 |              2.2/2.7 · 11.6 |     480,000 / 480,000 |          1 / 384 / 10,000 |
+| Placements all     |  10,000 |                     1.8 / 6.2 |             12.2 / 15.1 |              2.2/2.7 · 14.4 |     960,000 / 960,000 |          1 / 384 / 10,000 |
+
+| Case              |   Geometry | Pick metadata |  Instance | Highlight / deformation / fixed / readback | Retained renderer total | CPU scene typed | Upload staging upper | Renderer peak upper | Render targets |
+| ----------------- | ---------: | ------------: | --------: | -----------------------------------------: | ----------------------: | --------------: | -------------------: | ------------------: | -------------: |
+| Many parts 1,000  | 46,464,000 |    46,480,000 |   100,000 |                      144 / 4 / 324 / 1,280 |              93,045,752 |      26,492,000 |           92,944,000 |         185,989,752 |     48,480,000 |
+| Placements 10,000 |      6,144 |         6,160 | 1,000,000 |                      144 / 4 / 324 / 1,280 |               1,014,056 |         643,804 |               12,304 |           1,026,360 |     48,480,000 |
+
+All memory values are bytes; edge-index and subset bytes are both zero in these
+two cases. Retained estimates include renderer-owned geometry, pick metadata,
+instance, highlight, deformation, fixed, and readback buffers only. Upload
+staging and render targets are reported separately; node-presentation sidecars,
+interaction growth, construction temporaries, JavaScript heap, and driver
+allocations are excluded.
+
+Before the bulk transition, same-session non-artifact observations put shared
+10,000-placement half/all immutable recolor state at 427.3/1,823.9 ms. The clean
+hardware rows are 1.2/1.2 ms (356.1×/1,519.9×), but the baseline has no durable
+clean JSON and is not a clean-SHA comparison. A separate synthetic fake-GPU
+attachment test improved at 1,024/4,096/16,384 placements from
+1.113/4.274/19.276 ms to 0.667/2.497/10.481 ms (1.67×/1.71×/1.84×). This is a
+CPU renderer seam, not hardware evidence. Public `Viewport.setScene` remained
+about 47 ms at 16,384 placements before and after, with noisy variation because
+runtime compilation and viewport reconciliation dominate that end-to-end path;
+no `setScene` speedup is claimed.
 
 ### Schema-12 two-million local evidence
 

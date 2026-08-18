@@ -16,14 +16,14 @@ material clones.
 
 ## Highlight / selection / hover
 
-- Represent as per-instance overrides (e.g. emissive/color) patched into the
+- Represent as per-part-occurrence overrides (e.g. emissive/color) patched into the
   instance GPU buffer.
 - The renderer should patch only affected instance attributes per frame, or
   adjust instance counts — never rebuild geometry or instance lists (see
   [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body selection, highlight, hover, and explicit style overrides use the same
   immutable interaction state pattern, keyed by `(partOccurrenceId, bodyId)`.
-- `InteractionTarget` is the identity-only union for part, instance, body,
+- `InteractionTarget` is the identity-only union for part, part occurrence, body,
   element, face, node, and authored-edge targets. `setTargetSelected` and
   `setTargetHighlighted` dispatch to the owning granular state without a
   mutable manager. Bulk selection and highlighting group duplicate targets and
@@ -51,11 +51,11 @@ material clones.
 ## Precedence
 
 `resolveInstanceStyle` applies base style, highlight, hover, selection, explicit
-part override, then explicit instance override. More specific state wins, while
+part override, then explicit part-occurrence override. More specific state wins, while
 selection intentionally remains stronger than hover. The resulting complete style
 can be copied directly into a GPU instance attribute without material cloning.
 
-For body-aware styles, instance state is resolved first, followed by body
+For body-aware styles, part-occurrence state is resolved first, followed by body
 highlight, body hover, body selection, and the explicit body override. Element,
 face, and node state remains more specific than its owning body. Hidden body
 records are applied before emphasis so every primitive belonging to that body is

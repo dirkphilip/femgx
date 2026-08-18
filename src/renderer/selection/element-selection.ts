@@ -11,6 +11,7 @@ import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
 export interface DenseElementLayout {
   readonly slotPartLocal: Int32Array;
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
 }
 
 /** One part-local occurrence's dense selected-element membership. */

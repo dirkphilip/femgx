@@ -86,6 +86,46 @@ describe("dense selection skin ranges", () => {
     ]);
   });
 
+  it("resolves a retained local after placement shrink and reordering", () => {
+    const first = placedScene(denseSelectionPart, ["a", "b", "c", "d"]);
+    const firstRuntime = createPackedSceneRuntime(first);
+    const firstLayout = buildInstanceLayout(firstRuntime);
+    const second = placedScene(denseSelectionPart, ["d", "new", "b"]);
+    const runtime = createPackedSceneRuntime(second);
+    const layout = buildInstanceLayout(runtime, { runtime: firstRuntime, layout: firstLayout });
+    const partOccurrenceId = runtime.getInstanceId(0);
+    if (partOccurrenceId === undefined) throw new Error("Retained placement is missing");
+    const interaction = setTargetsSelected(
+      createInteractionState(),
+      [101, 102].map((elementId) => ({
+        kind: "element" as const,
+        partOccurrenceId,
+        elementId,
+      })),
+      true,
+    );
+    const parts = new Map([[denseSelectionPart.id, denseSelectionPart]]);
+    const fixture = {
+      runtime,
+      layout,
+      interaction,
+      order: buildSelectionOrder(layout, runtime, denseSelectionPart.id, interaction, parts),
+      denseSelections: collectDenseElementSelections(runtime, layout, parts, interaction),
+    };
+
+    expect(fixture.order).toEqual(new Uint32Array([3]));
+    expect(buildCalls(denseSelectionPart, fixture)).toEqual([
+      { partId: denseSelectionPart.id, instanceCount: 1, firstInstance: 0, surfaceSubset: true },
+      {
+        partId: denseSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        surfaceSubset: true,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 9, indexCount: 3 }],
+      },
+    ]);
+  });
+
   it("groups many dense occurrences by their local slots", () => {
     const elementIdsByInstance = Array.from({ length: 64 }, (_, index) =>
       index % 2 === 0 ? [101, 102] : [101, 103],
@@ -174,6 +214,23 @@ function buildCalls(part: Part, fixture: SelectionFixture) {
     order: fixture.order,
     denseSelections: fixture.denseSelections,
   });
+}
+
+function placedScene(part: Part, placementIds: readonly string[]) {
+  return createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: placementIds.map((placementId) => ({
+        kind: "part" as const,
+        placementId,
+        partId: part.id,
+        transform: identity(),
+      })),
+    })
+    .withRoot(1)
+    .build();
 }
 
 function mixedPrimitivePart(): Part {

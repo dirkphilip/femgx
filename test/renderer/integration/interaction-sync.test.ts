@@ -39,7 +39,7 @@ function sceneRuntime() {
 }
 
 describe("interactionDirtyParts", () => {
-  it("marks node orders dirty when part or instance style overrides change", () => {
+  it("marks node orders dirty when part or part-occurrence style overrides change", () => {
     const { runtime } = sceneRuntime();
     const layout = buildInstanceLayout(runtime);
     const empty = createInteractionState();
@@ -79,6 +79,59 @@ describe("interactionDirtyParts", () => {
       emphasisUpdates: new Map([[1, updates]]),
     });
     expect(currentFlags[0]).toBe(true);
+    expect(changed).toEqual(new Set([1]));
+  });
+
+  it("maps transparent emphasis through a retained local after shrink and reorder", () => {
+    const { parts } = sceneRuntime();
+    const part = parts.get(1);
+    if (part === undefined) throw new Error("Transparency part is missing");
+    const scene = (ids: readonly string[]) =>
+      createScene()
+        .addPart(part)
+        .addAssembly({
+          id: 1,
+          name: "root",
+          placements: ids.map((placementId) => ({
+            kind: "part" as const,
+            placementId,
+            partId: 1,
+            transform: translation(0, 0, 0),
+          })),
+        })
+        .withRoot(1)
+        .build();
+    const firstRuntime = createPackedSceneRuntime(scene(["a", "b", "c", "d"]));
+    const firstLayout = buildInstanceLayout(firstRuntime);
+    const runtime = createPackedSceneRuntime(scene(["d", "new", "b"]));
+    const layout = buildInstanceLayout(runtime, { runtime: firstRuntime, layout: firstLayout });
+    const currentFlags = [false, false, false];
+    const changed = refreshTransparencyFlags({
+      runtime,
+      layout,
+      interaction: createInteractionState(),
+      parts,
+      currentFlags,
+      slotByInstanceId: new Map(),
+      changedSlots: [0],
+      affectedParts: new Set([1]),
+      emphasisUpdates: new Map([
+        [
+          1,
+          [
+            {
+              slot: 3,
+              elementPickId: 1,
+              facePickId: 0,
+              nodePickId: 0,
+              style: { ...defaultStyle, opacity: 0.5 },
+            },
+          ],
+        ],
+      ]),
+    });
+
+    expect(currentFlags).toEqual([true, false, false]);
     expect(changed).toEqual(new Set([1]));
   });
 });

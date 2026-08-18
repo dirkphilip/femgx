@@ -1,0 +1,2255 @@
+{
+  "schemaVersion": 12,
+  "generatedAt": "2026-08-18T06:46:05.530Z",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.7922.34 Safari/537.36",
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": "",
+    "isFallbackAdapter": false
+  },
+  "enabledFeatures": ["core-features-and-limits", "timestamp-query"],
+  "timestampQueries": {
+    "available": true,
+    "enabled": true,
+    "unit": "timestamp-ticks",
+    "periodNs": null
+  },
+  "resolution": {
+    "width": 800,
+    "height": 600,
+    "dpr": 1
+  },
+  "memoryEstimateScope": "retained renderer-owned base buffers and fixed render targets including shared empty result-color, order, highlight, and deformation sentinels; optional edge-presentation bytes are included only for materialized part ids; node-presentation sidecars, interaction growth, build temporaries, JavaScript object heap, and driver allocations are excluded; cpuSceneTypedArrayBytes and uploadStagingBytes are typed-array/staging accounting only; dense semanticAllocationCounts report descriptor/reference counts and exact CSR bytes; edge and topology storage are upper bounds",
+  "warmupSamples": 2,
+  "timedSamples": 7,
+  "cases": [
+    {
+      "id": "placements-10k",
+      "name": "Performance Lab · 64 unique Quad elements · 640,000 submitted occurrences",
+      "kind": "placement-heavy",
+      "elementFamily": "quad",
+      "partCount": 1,
+      "drawBatchCount": 1,
+      "bodyCount": 0,
+      "uniqueElementCount": 64,
+      "submittedElementOccurrences": 640000,
+      "nodeCount": 81,
+      "faceCount": 0,
+      "uniqueVertices": 81,
+      "uniqueTriangles": 128,
+      "submittedTriangles": 1280000,
+      "visibleTriangles": 1280000,
+      "modelBuildMs": 6.100000023841858,
+      "runtimeCompileMs": 7.200000017881393,
+      "rendererCreateMs": 41,
+      "instanceCount": 10000,
+      "timings": {
+        "uploadAttachmentEstimateMs": {
+          "p50": 25.299999982118607,
+          "p95": 25.299999982118607
+        },
+        "uploadAndFirstFrameMs": {
+          "p50": 29.099999994039536,
+          "p95": 29.099999994039536
+        },
+        "uploadAndFirstFrameCpuMs": {
+          "p50": 14.299999982118607,
+          "p95": 14.299999982118607
+        },
+        "visibleFrameMs": {
+          "p50": 2.2999999821186066,
+          "p95": 2.5
+        },
+        "visibleFrameCpuMs": {
+          "p50": 0.09999999403953552,
+          "p95": 0.19999998807907104
+        },
+        "pickSnapshotEstimateMs": {
+          "p50": 10.299999982118607,
+          "p95": 12.199999988079071
+        },
+        "pickSnapshotAndReadbackMs": {
+          "p50": 10.599999994039536,
+          "p95": 12.599999994039536
+        },
+        "pickReadbackMs": {
+          "p50": 0.30000001192092896,
+          "p95": 0.4000000059604645
+        }
+      },
+      "visibility": {
+        "phases": [
+          {
+            "id": "one",
+            "hiddenOccurrenceCount": 1,
+            "remainingVisibleTriangles": 1279872,
+            "visibleSurfaceSubmittedIndices": 3839616,
+            "runtimeMutationMs": 0.20000001788139343,
+            "rendererSyncMs": 2.699999988079071,
+            "firstHiddenFrameMs": 3.0999999940395355,
+            "steadyHiddenFrameMs": {
+              "p50": 2.2000000178813934,
+              "p95": 4.4000000059604645
+            },
+            "restoreMs": 4.699999988079071,
+            "restoredSurfaceSubmittedIndices": 3840000,
+            "hiddenGpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 9999
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "half",
+            "hiddenOccurrenceCount": 5000,
+            "remainingVisibleTriangles": 640000,
+            "visibleSurfaceSubmittedIndices": 1920000,
+            "runtimeMutationMs": 0.5999999940395355,
+            "rendererSyncMs": 1.0999999940395355,
+            "firstHiddenFrameMs": 2.2000000178813934,
+            "steadyHiddenFrameMs": {
+              "p50": 1.5999999940395355,
+              "p95": 1.9000000059604645
+            },
+            "restoreMs": 4.100000023841858,
+            "restoredSurfaceSubmittedIndices": 3840000,
+            "hiddenGpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 5000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "all",
+            "hiddenOccurrenceCount": 10000,
+            "remainingVisibleTriangles": 0,
+            "visibleSurfaceSubmittedIndices": 0,
+            "runtimeMutationMs": 1.0999999940395355,
+            "rendererSyncMs": 0.699999988079071,
+            "firstHiddenFrameMs": 1,
+            "steadyHiddenFrameMs": {
+              "p50": 0.800000011920929,
+              "p95": 1.199999988079071
+            },
+            "restoreMs": 3.7000000178813934,
+            "restoredSurfaceSubmittedIndices": 3840000,
+            "hiddenGpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 0,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          }
+        ]
+      },
+      "manyPiece": {
+        "selection": [
+          {
+            "id": "one",
+            "targetCount": 1,
+            "targetConstructionMs": 0.09999999403953552,
+            "interactionStateMs": 0.20000001788139343,
+            "changedSlotResolutionMs": 0.09999999403953552,
+            "interactionSyncMs": 1.7999999821186066,
+            "instanceWriteBytes": 96,
+            "firstFrameMs": 2.7000000178813934,
+            "steadyFrameMs": {
+              "p50": 2.5999999940395355,
+              "p95": 2.800000011920929
+            },
+            "clearMs": 3,
+            "clearInstanceWriteBytes": 96,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 1
+                },
+                "selection-hidden": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 1
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 2
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "half",
+            "targetCount": 5000,
+            "targetConstructionMs": 0.19999998807907104,
+            "interactionStateMs": 0.5999999940395355,
+            "changedSlotResolutionMs": 0.5,
+            "interactionSyncMs": 10.900000005960464,
+            "instanceWriteBytes": 480000,
+            "firstFrameMs": 3.7999999821186066,
+            "steadyFrameMs": {
+              "p50": 3.0999999940395355,
+              "p95": 3.899999976158142
+            },
+            "clearMs": 10.5,
+            "clearInstanceWriteBytes": 480000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 5000
+                },
+                "selection-hidden": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 5000
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 2
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "all",
+            "targetCount": 10000,
+            "targetConstructionMs": 0.09999999403953552,
+            "interactionStateMs": 0.699999988079071,
+            "changedSlotResolutionMs": 0.7000000178813934,
+            "interactionSyncMs": 17.299999982118607,
+            "instanceWriteBytes": 960000,
+            "firstFrameMs": 4.800000011920929,
+            "steadyFrameMs": {
+              "p50": 4,
+              "p95": 5.5999999940395355
+            },
+            "clearMs": 19.69999998807907,
+            "clearInstanceWriteBytes": 960000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "selection-hidden": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 2
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          }
+        ],
+        "recolor": [
+          {
+            "id": "one",
+            "targetCount": 1,
+            "targetConstructionMs": 0,
+            "interactionStateMs": 0,
+            "changedSlotResolutionMs": 0,
+            "interactionSyncMs": 0.5,
+            "instanceWriteBytes": 96,
+            "firstFrameMs": 2.199999988079071,
+            "steadyFrameMs": {
+              "p50": 2.300000011920929,
+              "p95": 2.7000000178813934
+            },
+            "clearMs": 2.7000000178813934,
+            "clearInstanceWriteBytes": 96,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "half",
+            "targetCount": 5000,
+            "targetConstructionMs": 0.20000001788139343,
+            "interactionStateMs": 1.199999988079071,
+            "changedSlotResolutionMs": 0.7000000178813934,
+            "interactionSyncMs": 8,
+            "instanceWriteBytes": 480000,
+            "firstFrameMs": 2.699999988079071,
+            "steadyFrameMs": {
+              "p50": 2.2000000178813934,
+              "p95": 2.7999999821186066
+            },
+            "clearMs": 13.200000017881393,
+            "clearInstanceWriteBytes": 480000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "all",
+            "targetCount": 10000,
+            "targetConstructionMs": 0.10000002384185791,
+            "interactionStateMs": 1.199999988079071,
+            "changedSlotResolutionMs": 0.800000011920929,
+            "interactionSyncMs": 18.299999982118607,
+            "instanceWriteBytes": 960000,
+            "firstFrameMs": 2.800000011920929,
+            "steadyFrameMs": {
+              "p50": 2.300000011920929,
+              "p95": 2.699999988079071
+            },
+            "clearMs": 15.599999994039536,
+            "clearInstanceWriteBytes": 960000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 0,
+                "order-rebuild": 0,
+                "call-rebuild": 0
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          }
+        ],
+        "replacement": [
+          {
+            "id": "one",
+            "changedOccurrenceCount": 1,
+            "sceneBuildIncludingValidationMs": 8.5,
+            "runtimeCompileMs": 7.700000017881393,
+            "rendererFirstFrameCpuMs": 7,
+            "queueDrainedFirstFrameMs": 10,
+            "instanceWriteBytes": 96,
+            "steadyFrameMs": {
+              "p50": 2.2999999821186066,
+              "p95": 3
+            },
+            "restoreMs": 7.5999999940395355,
+            "restoreInstanceWriteBytes": 96,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 1,
+                  "bytes": 96
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 1,
+                "order-rebuild": 1,
+                "call-rebuild": 1
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "half",
+            "changedOccurrenceCount": 5000,
+            "sceneBuildIncludingValidationMs": 3.7999999821186066,
+            "runtimeCompileMs": 4.9000000059604645,
+            "rendererFirstFrameCpuMs": 8.699999988079071,
+            "queueDrainedFirstFrameMs": 11.599999994039536,
+            "instanceWriteBytes": 480000,
+            "steadyFrameMs": {
+              "p50": 2.2000000178813934,
+              "p95": 2.699999988079071
+            },
+            "restoreMs": 11.599999994039536,
+            "restoreInstanceWriteBytes": 480000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 1,
+                  "bytes": 480000
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 5000,
+                "order-rebuild": 1,
+                "call-rebuild": 1
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          },
+          {
+            "id": "all",
+            "changedOccurrenceCount": 10000,
+            "sceneBuildIncludingValidationMs": 1.7999999821186066,
+            "runtimeCompileMs": 6.200000017881393,
+            "rendererFirstFrameCpuMs": 12.199999988079071,
+            "queueDrainedFirstFrameMs": 15.099999994039536,
+            "instanceWriteBytes": 960000,
+            "steadyFrameMs": {
+              "p50": 2.2000000178813934,
+              "p95": 2.699999988079071
+            },
+            "restoreMs": 14.400000005960464,
+            "restoreInstanceWriteBytes": 960000,
+            "gpuCost": {
+              "passes": {
+                "opaque": 1,
+                "transparency": 1,
+                "composite": 1,
+                "overlay-depth": 0,
+                "overlay": 0,
+                "pick": 0
+              },
+              "draws": {
+                "background": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "opaque": {
+                  "calls": 1,
+                  "indices": 384,
+                  "instances": 10000
+                },
+                "point-replay": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-visible": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "selection-hidden": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "transparency": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "composite": {
+                  "calls": 1,
+                  "indices": 3,
+                  "instances": 1
+                },
+                "overlay-depth": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "edges": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "nodes": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "origin-triad": {
+                  "calls": 2,
+                  "indices": 90,
+                  "instances": 2
+                },
+                "pivot": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                },
+                "pick": {
+                  "calls": 0,
+                  "indices": 0,
+                  "instances": 0
+                }
+              },
+              "admissions": {
+                "minimal": 1,
+                "topology": 0,
+                "feature": 0
+              },
+              "writes": {
+                "instance": {
+                  "calls": 1,
+                  "bytes": 960000
+                },
+                "highlight": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "order": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "deformation": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "result": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "vector-glyph": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "uniform": {
+                  "calls": 4,
+                  "bytes": 192
+                },
+                "geometry": {
+                  "calls": 0,
+                  "bytes": 0
+                },
+                "other": {
+                  "calls": 0,
+                  "bytes": 0
+                }
+              },
+              "cpu": {
+                "instance-scan": 10000,
+                "order-rebuild": 1,
+                "call-rebuild": 1
+              },
+              "memory": {
+                "allocatedBytes": 0,
+                "releasedBytes": 0,
+                "bufferCreates": 0,
+                "bufferDestroys": 0,
+                "bindGroupInvalidations": 0
+              },
+              "targets": {
+                "width": 800,
+                "height": 600,
+                "devicePixelRatio": 1,
+                "sampleCount": 4,
+                "weightedTransparency": true,
+                "estimatedBytes": 38880000
+              }
+            }
+          }
+        ]
+      },
+      "estimatedMemory": {
+        "geometryBytes": 6144,
+        "pickMetadataBytes": 6160,
+        "edgeIndexBytes": 0,
+        "subsetBytes": 0,
+        "deformationBytes": 4,
+        "instanceBytes": 1000000,
+        "highlightBytes": 144,
+        "fixedBufferBytes": 324,
+        "pickReadbackBytes": 1280,
+        "totalBufferBytes": 1014056,
+        "cpuSceneTypedArrayBytes": 643804,
+        "uploadStagingBytes": 12304,
+        "retainedBufferBytes": 1014056,
+        "peakRendererBytes": 1026360,
+        "visibleColorBytes": 31200000,
+        "visibleDepthBytes": 7680000,
+        "pickIdTargetBytes": 7680000,
+        "pickDepthBytes": 1920000,
+        "totalRenderTargetBytes": 48480000
+      },
+      "gpuCost": {
+        "passes": {
+          "opaque": 1,
+          "transparency": 1,
+          "composite": 1,
+          "overlay-depth": 0,
+          "overlay": 0,
+          "pick": 1
+        },
+        "draws": {
+          "background": {
+            "calls": 1,
+            "indices": 3,
+            "instances": 1
+          },
+          "opaque": {
+            "calls": 1,
+            "indices": 384,
+            "instances": 10000
+          },
+          "point-replay": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "selection-visible": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "selection-hidden": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "transparency": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "composite": {
+            "calls": 1,
+            "indices": 3,
+            "instances": 1
+          },
+          "overlay-depth": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "edges": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "nodes": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "vector-glyph": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "origin-triad": {
+            "calls": 2,
+            "indices": 90,
+            "instances": 2
+          },
+          "pivot": {
+            "calls": 0,
+            "indices": 0,
+            "instances": 0
+          },
+          "pick": {
+            "calls": 1,
+            "indices": 384,
+            "instances": 10000
+          }
+        },
+        "admissions": {
+          "minimal": 1,
+          "topology": 0,
+          "feature": 1
+        },
+        "writes": {
+          "instance": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "highlight": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "order": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "deformation": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "result": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "vector-glyph": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "uniform": {
+            "calls": 7,
+            "bytes": 352
+          },
+          "geometry": {
+            "calls": 0,
+            "bytes": 0
+          },
+          "other": {
+            "calls": 0,
+            "bytes": 0
+          }
+        },
+        "cpu": {
+          "instance-scan": 0,
+          "order-rebuild": 0,
+          "call-rebuild": 0
+        },
+        "memory": {
+          "allocatedBytes": 0,
+          "releasedBytes": 0,
+          "bufferCreates": 0,
+          "bufferDestroys": 0,
+          "bindGroupInvalidations": 0
+        },
+        "targets": {
+          "width": 800,
+          "height": 600,
+          "devicePixelRatio": 1,
+          "sampleCount": 4,
+          "weightedTransparency": true,
+          "estimatedBytes": 38880000
+        }
+      },
+      "gpuTimestamps": {
+        "available": true,
+        "enabled": true,
+        "unit": "timestamp-ticks",
+        "periodNs": null,
+        "sampleCount": 170,
+        "invalidSampleCount": 0,
+        "disjointSampleCount": 0,
+        "passes": {
+          "opaque": {
+            "sampleCount": 150,
+            "p50": 1441792,
+            "p95": 2686976,
+            "p99": 3538944,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          },
+          "transparency": {
+            "sampleCount": 150,
+            "p50": 589824,
+            "p95": 1179648,
+            "p99": 1310720,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          },
+          "composite": {
+            "sampleCount": 150,
+            "p50": 589824,
+            "p95": 655360,
+            "p99": 786432,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          },
+          "overlay-depth": {
+            "sampleCount": 0,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          },
+          "overlay": {
+            "sampleCount": 0,
+            "p50": null,
+            "p95": null,
+            "p99": null,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          },
+          "pick": {
+            "sampleCount": 20,
+            "p50": 9895936,
+            "p95": 14155776,
+            "p99": 15269888,
+            "invalidSampleCount": 0,
+            "disjointSampleCount": 0
+          }
+        }
+      },
+      "presentation": {
+        "nodeSizeCssPixels": 6,
+        "nodeSizeDevicePixels": 6,
+        "devicePixelRatio": 1,
+        "resolvedMsaaSampleCount": 4,
+        "projectionProxy": "camera-space point-size",
+        "cpuProxy": "node draw calls and instances"
+      }
+    }
+  ]
+}

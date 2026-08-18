@@ -175,11 +175,15 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
   const emphasisTransparent = new Set<number>();
   for (const [partId, emphasis] of options.emphasisUpdates) {
     if (!options.affectedParts.has(partId)) continue;
-    const slots = options.layout.partSlots.get(partId);
+    const slots = options.layout.partLocalSlots.get(partId);
     if (slots === undefined) continue;
     for (const update of emphasis) {
       const slot = slots[update.slot];
-      if (slot !== undefined && isTransparent(update.style.color.a * update.style.opacity)) {
+      if (
+        slot !== undefined &&
+        slot >= 0 &&
+        isTransparent(update.style.color.a * update.style.opacity)
+      ) {
         emphasisTransparent.add(slot);
       }
     }
@@ -218,11 +222,11 @@ function addDenseTransparencySlots(
   ): void => {
     for (const [partId, selection] of selections ?? []) {
       if (!options.affectedParts.has(partId)) continue;
-      const slots = options.layout.partSlots.get(partId);
+      const slots = options.layout.partLocalSlots.get(partId);
       if (slots === undefined) continue;
       for (const occurrence of selection.occurrences) {
         const slot = slots[occurrence.slot];
-        if (slot !== undefined) destination.add(slot);
+        if (slot !== undefined && slot >= 0) destination.add(slot);
       }
     }
   };

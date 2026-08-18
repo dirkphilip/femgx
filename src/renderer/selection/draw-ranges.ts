@@ -45,7 +45,7 @@ export function buildSelectionDrawCalls(options: {
   if (order.length === 0) return [];
   const denseSelections = options.denseSelections;
   const data = readInteractionState(interaction);
-  const slots = layout.partSlots.get(partId);
+  const slots = layout.partLocalSlots.get(partId);
   if (slots === undefined) return undefined;
   const calls: DrawCall[] = [];
   let rangedDrawCount = 0;
@@ -57,7 +57,8 @@ export function buildSelectionDrawCalls(options: {
       const local = order[orderIndex];
       if (local === undefined) return undefined;
       const globalSlot = slots[local];
-      const instanceId = globalSlot === undefined ? undefined : runtime.getInstanceId(globalSlot);
+      const instanceId =
+        globalSlot === undefined || globalSlot < 0 ? undefined : runtime.getInstanceId(globalSlot);
       if (instanceId === undefined) return undefined;
       geometry = selectionGeometryForInstance(data, instanceId, local, part, denseSelections);
       if (geometry === undefined || (isSelectionRanges(geometry) && geometry.length === 0))

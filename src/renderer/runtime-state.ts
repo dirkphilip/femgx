@@ -16,6 +16,8 @@ export interface InstanceLayout {
   readonly slotPartLocal: Int32Array;
   /** Global slots of each part in ascending order. */
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  /** Global slot by stable part-local slot, with `-1` for retained holes. */
+  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
   /** Deterministic part draw order (ascending part id). */
   readonly partOrder: readonly PartId[];
   /** Visible instance count per part. */
@@ -62,6 +64,7 @@ export function buildInstanceLayout(
   }
   if (previous === undefined) assignInitialPartLocals(partSlots, slotPartLocal);
   else assignPartLocals(runtime, partSlots, slotPartLocal, previous);
+  const partLocalSlots = buildPartLocalSlots(partSlots, slotPartLocal);
   const partVisibleCounts = new Map<PartId, number>();
   const partEdgeCounts = new Map<PartId, number>();
   const partNodeCounts = new Map<PartId, number>();
@@ -87,6 +90,7 @@ export function buildInstanceLayout(
     instanceCount,
     slotPartLocal,
     partSlots,
+    partLocalSlots,
     partOrder,
     partVisibleCounts,
     partEdgeCounts,
@@ -98,6 +102,24 @@ export function buildInstanceLayout(
     partSurfaceDrawCalls,
     visibleCount: drawList.length,
   };
+}
+
+function buildPartLocalSlots(
+  partSlots: ReadonlyMap<PartId, Uint32Array>,
+  slotPartLocal: Int32Array,
+): ReadonlyMap<PartId, Int32Array> {
+  const localSlots = new Map<PartId, Int32Array>();
+  for (const [partId, slots] of partSlots) {
+    let capacity = 0;
+    for (const slot of slots) capacity = Math.max(capacity, (slotPartLocal[slot] ?? -1) + 1);
+    const byLocal = new Int32Array(capacity).fill(-1);
+    for (const slot of slots) {
+      const local = slotPartLocal[slot];
+      if (local !== undefined && local >= 0) byLocal[local] = slot;
+    }
+    localSlots.set(partId, byLocal);
+  }
+  return localSlots;
 }
 
 function assignInitialPartLocals(
@@ -116,60 +138,31 @@ function assignPartLocals(
   runtime: PackedSceneRuntime,
   partSlots: ReadonlyMap<PartId, Uint32Array>,
   slotPartLocal: Int32Array,
-  previous: PreviousInstanceLayout | undefined,
+  previous: PreviousInstanceLayout,
 ): void {
-  const localByInstanceId = previousInstanceLocals(previous);
-  const usedLocals = new Map<PartId, Set<number>>();
   for (const [partId, slots] of partSlots) {
-    const used = new Set<number>();
-    usedLocals.set(partId, used);
+    const used = new Uint8Array(slots.length);
     for (const slot of slots) {
       const instanceId = runtime.getInstanceId(slot);
-      const previousLocal =
-        instanceId === undefined ? undefined : localByInstanceId.get(instanceId);
-      if (previousLocal?.partId !== partId || previousLocal.local < 0) continue;
-      slotPartLocal[slot] = previousLocal.local;
-      used.add(previousLocal.local);
+      const previousSlot =
+        instanceId === undefined ? undefined : previous.runtime.getInstanceSlot(instanceId);
+      if (previousSlot === undefined || previous.runtime.instancePartIds[previousSlot] !== partId) {
+        continue;
+      }
+      const local = previous.layout.slotPartLocal[previousSlot];
+      if (local === undefined || local < 0) continue;
+      slotPartLocal[slot] = local;
+      used[local] = 1;
     }
-  }
-  for (const [partId, slots] of partSlots) {
-    const used = usedLocals.get(partId);
-    if (used === undefined) continue;
+    let nextLocal = 0;
     for (const slot of slots) {
       const currentLocal = slotPartLocal[slot];
       if (currentLocal !== undefined && currentLocal >= 0) continue;
-      const local = nextFreeLocal(used);
-      slotPartLocal[slot] = local;
-      used.add(local);
+      while (used[nextLocal] === 1) nextLocal += 1;
+      slotPartLocal[slot] = nextLocal;
+      used[nextLocal] = 1;
     }
   }
-}
-
-interface PreviousInstanceLocal {
-  readonly partId: PartId;
-  readonly local: number;
-}
-
-function previousInstanceLocals(
-  previous: PreviousInstanceLayout | undefined,
-): ReadonlyMap<string, PreviousInstanceLocal> {
-  if (previous === undefined) return new Map();
-  const locals = new Map<string, PreviousInstanceLocal>();
-  for (let slot = 0; slot < previous.runtime.instanceCount; slot += 1) {
-    const instanceId = previous.runtime.getInstanceId(slot);
-    const partId = previous.runtime.instancePartIds[slot];
-    const local = previous.layout.slotPartLocal[slot];
-    if (instanceId !== undefined && partId !== undefined && local !== undefined && local >= 0) {
-      locals.set(instanceId, { partId, local });
-    }
-  }
-  return locals;
-}
-
-function nextFreeLocal(used: ReadonlySet<number>): number {
-  let local = 0;
-  while (used.has(local)) local += 1;
-  return local;
 }
 
 /**

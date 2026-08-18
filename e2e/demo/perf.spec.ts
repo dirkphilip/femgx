@@ -5,6 +5,7 @@ import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
 import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
 import { expectTwoMillionInteractions } from "./perf-two-million-assertions";
+import { expectManyPieceReport } from "./perf-many-piece-assertions";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -231,6 +232,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         }
       }
       expectTwoMillionInteractions(entry);
+      expectManyPieceReport(entry);
       if (entry.kind === "structured-fe") {
         expect(entry.structuredFamily).toBeDefined();
         expect(entry.nodeCount).toBeGreaterThan(0);

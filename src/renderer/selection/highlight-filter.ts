@@ -24,7 +24,7 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
   if (part === undefined) return options.updates;
   const metadata = getPartSemanticIndex(part);
   const data = readInteractionState(options.interaction);
-  const globalSlots = options.layout.partSlots.get(options.partId);
+  const globalSlots = options.layout.partLocalSlots.get(options.partId);
   return options.updates.filter((update) => {
     if (update.selected !== true || update.elementPickId === 0) return true;
     const elementId = update.elementPickId - 1;
@@ -34,7 +34,9 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
     }
     const globalSlot = globalSlots?.[update.slot];
     const instanceId =
-      globalSlot === undefined ? undefined : options.runtime.getInstanceId(globalSlot);
+      globalSlot === undefined || globalSlot < 0
+        ? undefined
+        : options.runtime.getInstanceId(globalSlot);
     if (instanceId === undefined) return true;
     return (
       update.hidden === true ||

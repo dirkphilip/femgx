@@ -201,12 +201,12 @@ Core style opacity uses order-independent weighted transparency for fractional
 alpha while preserving instanced batching and nearest-geometry picking; alpha
 zero is visually absent but remains pickable. Edge overlays inherit that
 resolved opacity, while node annotation membership is controlled by
-part/instance style flags and Point parts use their primary glyph without a
+part/part-occurrence style flags and Point parts use their primary glyph without a
 duplicate overlay.
 
 Authored Line and Line3 elements use a default 2 CSS-pixel screen-space width.
-Hosts may set `StyleOverride.lineWidthPixels` on part or instance overrides
-only; instance values take precedence and valid values are `[0.5,64]`. The
+Hosts may set `StyleOverride.lineWidthPixels` on part or part-occurrence overrides
+only; part-occurrence values take precedence and valid values are `[0.5,64]`. The
 renderer expands each logical segment once into reusable triangle geometry and
 uses at least an 8 CSS-pixel pick footprint. Renderer-owned edge/helper lines
 remain on their existing line-list path, and primitive-specific body, element,

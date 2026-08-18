@@ -9,7 +9,12 @@ import type {
 } from "./types";
 
 const STEADY_SAMPLES = 7;
-const SUPPORTED_CASES = new Set(["instanced-2.10m", "unique-2m-local"]);
+const SUPPORTED_CASES = new Set([
+  "instanced-2.10m",
+  "unique-2m-local",
+  "many-parts-1000",
+  "placements-10k",
+]);
 
 interface VisibilityMeasureOptions {
   readonly renderer: WebGpuRenderer;
@@ -38,10 +43,11 @@ async function measureScenario(
 ): Promise<VisibilityBenchmarkPhase> {
   const { renderer, benchmarkCase, runtime } = options;
   await renderFrame(options);
-  const visibleBefore = submittedOpaqueIndices(readGpuCostSnapshot(renderer));
+  const visibleBefore = assertOpaqueSubmission(options, readGpuCostSnapshot(renderer));
   const hiddenCount =
     id === "one" ? 1 : id === "half" ? Math.ceil(runtime.instanceCount / 2) : runtime.instanceCount;
   const slots = Array.from({ length: hiddenCount }, (_, slot) => slot);
+  const expectedVisibleSubmittedIndices = visibleBefore - submittedIndicesForSlots(options, slots);
   const mutationStart = performance.now();
   for (const slot of slots) runtime.setInstanceVisible(slot, false);
   const runtimeMutationMs = performance.now() - mutationStart;
@@ -50,6 +56,13 @@ async function measureScenario(
   const rendererSyncMs = performance.now() - syncStart;
   const firstHiddenFrameMs = await renderFrame(options);
   const hiddenGpuCost = readGpuCostSnapshot(renderer);
+  const visibleSurfaceSubmittedIndices = assertOpaqueSubmission(options, hiddenGpuCost);
+  const remainingVisibleTriangles = expectedVisibleSubmittedIndices / 3;
+  if (visibleSurfaceSubmittedIndices !== expectedVisibleSubmittedIndices) {
+    throw new Error(
+      `${benchmarkCase.id} ${id} visibility submitted ${visibleSurfaceSubmittedIndices} indices; expected ${expectedVisibleSubmittedIndices} below ${visibleBefore}`,
+    );
+  }
   const steady: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) steady.push(await renderFrame(options));
   const restoreStart = performance.now();
@@ -57,21 +70,13 @@ async function measureScenario(
   renderer.updateVisibility(runtime, slots);
   await renderFrame(options);
   const restoreMs = performance.now() - restoreStart;
-  const restoredSurfaceSubmittedIndices = submittedOpaqueIndices(readGpuCostSnapshot(renderer));
+  const restoredSurfaceSubmittedIndices = assertOpaqueSubmission(
+    options,
+    readGpuCostSnapshot(renderer),
+  );
   if (restoredSurfaceSubmittedIndices !== visibleBefore) {
     throw new Error(
       `${benchmarkCase.id} ${id} visibility restored ${restoredSurfaceSubmittedIndices} of ${visibleBefore} indices`,
-    );
-  }
-  const remainingVisibleTriangles =
-    uniqueTriangleCount(benchmarkCase) * (runtime.instanceCount - hiddenCount);
-  const visibleSurfaceSubmittedIndices = submittedOpaqueIndices(hiddenGpuCost);
-  if (
-    visibleSurfaceSubmittedIndices !== remainingVisibleTriangles * 3 ||
-    visibleSurfaceSubmittedIndices >= visibleBefore
-  ) {
-    throw new Error(
-      `${benchmarkCase.id} ${id} visibility submitted ${visibleSurfaceSubmittedIndices} indices; expected ${remainingVisibleTriangles * 3} below ${visibleBefore}`,
     );
   }
   return {
@@ -89,19 +94,67 @@ async function measureScenario(
   };
 }
 
-function submittedOpaqueIndices(cost: VisibilityBenchmarkPhase["hiddenGpuCost"]): number {
-  const opaque = cost.draws["opaque"];
-  return (opaque?.indices ?? 0) * (opaque?.instances ?? 0);
-}
-
-function uniqueTriangleCount(benchmarkCase: WebGpuBenchmarkCase): number {
-  let count = 0;
-  for (const part of benchmarkCase.scene.parts.values()) {
-    for (const geometry of part.geometries) {
-      if (geometry.primitive === "triangles") count += geometry.indices.length / 3;
+function submittedIndicesForSlots(
+  options: VisibilityMeasureOptions,
+  slots: readonly number[],
+): number {
+  let submitted = 0;
+  for (const slot of slots) {
+    if (!options.runtime.isInstanceVisible(slot)) continue;
+    const partId = options.runtime.getPartId(slot);
+    const part = partId === undefined ? undefined : options.benchmarkCase.scene.parts.get(partId);
+    for (const geometry of part?.geometries ?? []) {
+      if (geometry.primitive === "triangles") submitted += geometry.indices.length;
     }
   }
-  return count;
+  return submitted;
+}
+
+function assertOpaqueSubmission(
+  options: VisibilityMeasureOptions,
+  cost: VisibilityBenchmarkPhase["hiddenGpuCost"],
+): number {
+  const expected = expectedOpaqueSubmission(options);
+  const actual = cost.draws["opaque"];
+  if (
+    actual?.calls !== expected.calls ||
+    actual.indices !== expected.indices ||
+    actual.instances !== expected.instances
+  ) {
+    throw new Error(
+      `${options.benchmarkCase.id} visibility draw mismatch: ${JSON.stringify({ actual, expected })}`,
+    );
+  }
+  return expected.submittedIndices;
+}
+
+function expectedOpaqueSubmission(options: VisibilityMeasureOptions): {
+  readonly calls: number;
+  readonly indices: number;
+  readonly instances: number;
+  readonly submittedIndices: number;
+} {
+  const visibleByPart = new Map<number, number>();
+  for (let slot = 0; slot < options.runtime.instanceCount; slot += 1) {
+    if (!options.runtime.isInstanceVisible(slot)) continue;
+    const partId = options.runtime.getPartId(slot);
+    if (partId !== undefined) visibleByPart.set(partId, (visibleByPart.get(partId) ?? 0) + 1);
+  }
+  let indices = 0;
+  let instances = 0;
+  let submittedIndices = 0;
+  for (const [partId, count] of visibleByPart) {
+    const part = options.benchmarkCase.scene.parts.get(partId);
+    const partIndices =
+      part?.geometries.reduce(
+        (sum, geometry) => sum + (geometry.primitive === "triangles" ? geometry.indices.length : 0),
+        0,
+      ) ?? 0;
+    indices += partIndices;
+    instances += count;
+    submittedIndices += partIndices * count;
+  }
+  return { calls: visibleByPart.size, indices, instances, submittedIndices };
 }
 
 async function renderFrame(options: VisibilityMeasureOptions): Promise<number> {

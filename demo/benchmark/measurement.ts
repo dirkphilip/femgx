@@ -27,6 +27,7 @@ import { measureSelectionBenchmark } from "./selection";
 import { measureNodeSelectionBenchmark } from "./node-selection";
 import { measureHoverBenchmark } from "./hover";
 import { measureVisibilityBenchmark } from "./visibility";
+import { measureManyPieceBenchmark } from "./many-piece";
 import { measureCombinedOverlayBenchmark } from "./combined-overlay";
 import type {
   BenchmarkTimings,
@@ -89,6 +90,7 @@ export async function measureBenchmarkCase(
   let nodeSelection: NodeSelectionBenchmarkReport | undefined;
   let hover: WebGpuBenchmarkCaseResult["hover"];
   let visibility: WebGpuBenchmarkCaseResult["visibility"];
+  let manyPiece: WebGpuBenchmarkCaseResult["manyPiece"];
   let combinedOverlay: WebGpuBenchmarkCaseResult["combinedOverlay"];
   let rendererCreateMs: number;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
@@ -202,6 +204,14 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "many-piece interaction sample";
+    manyPiece = await measureManyPieceBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+    });
     phase = "timestamp readback";
     await drainGpuTimestampSamples(renderer);
     gpuTimestamps = readGpuTimestampSnapshot(renderer);
@@ -241,6 +251,7 @@ export async function measureBenchmarkCase(
     ...(nodeSelection === undefined ? {} : { nodeSelection }),
     ...(hover === undefined ? {} : { hover }),
     ...(visibility === undefined ? {} : { visibility }),
+    ...(manyPiece === undefined ? {} : { manyPiece }),
     ...(combinedOverlay === undefined ? {} : { combinedOverlay }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,

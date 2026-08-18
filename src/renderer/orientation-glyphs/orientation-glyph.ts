@@ -58,7 +58,7 @@ export interface OrientationGlyphDrawResources {
 const PARAMS_SIZE = 16;
 
 interface OrientationInstanceLayout {
-  readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
 }
 
 /** Creates the persistent parameter buffer and empty per-part resource map. */
@@ -249,11 +249,11 @@ function syncNormalMatrices(
   const matrices = new Map<PartId, Float32Array>();
   for (const [partId, records] of state.parts) {
     if (records.elementIds.length === 0) continue;
-    const slots = layout.partSlots.get(partId) ?? new Uint32Array();
+    const slots = layout.partLocalSlots.get(partId) ?? new Int32Array();
     const data = new Float32Array(slots.length * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS);
     for (let local = 0; local < slots.length; local += 1) {
       const slot = slots[local];
-      if (slot === undefined) continue;
+      if (slot === undefined || slot < 0) continue;
       let matrix: Float32Array;
       try {
         matrix = normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
