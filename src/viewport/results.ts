@@ -31,7 +31,7 @@ export type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
-  ViewportElementVectorState,
+  ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,

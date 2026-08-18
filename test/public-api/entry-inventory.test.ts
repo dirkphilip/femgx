@@ -15,6 +15,7 @@ describe("public package entries", () => {
       "FIELD_COMPONENT_COUNT",
       "FRAME_COMPONENT_COUNT",
       "GeometryValidationError",
+      "InteractionGranularity",
       "LOAD_COMPONENT_COUNT",
       "UnknownSceneIdentityError",
       "WebGpuUnsupportedError",

@@ -25,7 +25,7 @@ import type {
   CameraTransitionOptions,
   Viewport,
   ViewportOptions,
-  SceneUpdateOutcome,
+  SceneReconciliationOutcome,
   ViewportBackground,
   ViewportInteraction,
   ViewportPresentation,
@@ -46,7 +46,7 @@ export type {
   ViewportResults,
   ViewportView,
   ViewportVisibility,
-  SceneUpdateOutcome,
+  SceneReconciliationOutcome,
   ViewportBackground,
   ViewportStats,
 } from "./types";
@@ -286,7 +286,7 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  reconcileScene(scene: Scene): SceneUpdateOutcome {
+  reconcileScene(scene: Scene): SceneReconciliationOutcome {
     this.ensureAlive();
     const outcome = this.sceneController.reconcileScene(
       scene,
@@ -444,10 +444,11 @@ class ViewportCore implements Viewport {
   }
 
   recover(): Promise<void> {
-    this.ensureAlive();
     return this.lifecycle.recover();
   }
-  handleDeviceLoss(): void { this.lifecycle.handleDeviceLoss(); }
+  handleDeviceLoss(): void {
+    this.lifecycle.handleDeviceLoss();
+  }
 
   destroy(): void {
     this.lifecycle.destroy();

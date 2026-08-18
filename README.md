@@ -62,13 +62,13 @@ normal registry installation command.
 The canonical flow is:
 
 ```text
-reusable Part → hierarchical Assembly → Scene → Viewport
+reusable Part → hierarchical AssemblyDefinition → Scene → Viewport
 ```
 
-A part owns immutable local geometry. Assemblies place parts without copying
-geometry. A scene owns those definitions and its root hierarchy. The viewport
-compiles the scene into a packed runtime and owns WebGPU resources, interaction,
-results, camera state, resize, recovery, and teardown.
+A part owns immutable local geometry. Assembly definitions place parts without
+copying geometry. A scene owns those definitions and its root hierarchy. The
+viewport compiles the scene into a packed runtime and owns WebGPU resources,
+interaction, results, camera state, resize, recovery, and teardown.
 
 For a complete, runnable browser example that creates a small typed FE plate,
 adds a canvas, and calls `createViewport`, follow the [five-minute workflow in
@@ -101,6 +101,27 @@ can be pasted directly into a browser module.
 `createViewport()` requests a real WebGPU adapter and device. Use
 `queryWebGpuSupport()` for a non-throwing capability probe before loading data.
 Call `viewport.destroy()` when the host removes the canvas.
+
+### Public vocabulary at a glance
+
+| Concept                                      | Use it for                                                                 |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| `Part`                                       | One reusable local geometry definition                                     |
+| `PartPlacement`                              | One authored reference to a part inside an assembly                        |
+| `AssemblyDefinition`                         | A reusable hierarchy of part and assembly placements                       |
+| `RuntimePartOccurrence` / `PartOccurrenceId` | One query record and stable id for an expanded placed part                 |
+| `AssemblyPlacement` / `AssemblyOccurrenceId` | One nested assembly reference and its expanded runtime occurrence          |
+| `replaceScene(scene)`                        | Full replacement; placement-scoped state resets                            |
+| `reconcileScene(scene)`                      | Structural edit; compatible state is preserved and results are revalidated |
+
+Use `replaceScene()` for a new model and `reconcileScene()` for structural
+edits whose compatible camera, interaction, visibility, and result state should
+survive. Re-read `viewport.runtime` after either operation because it installs a
+new snapshot.
+
+The API uses the string value `"partOccurrence"` for occurrence-level picking
+and interaction targets. `InteractionGranularity.PartOccurrence` is the
+discoverable const-object member when a host wants a named choice.
 
 ## Public entry points
 

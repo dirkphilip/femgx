@@ -34,7 +34,7 @@ export type { SectionPlane } from "../math/section-plane";
  * partially applied scalar, deformation, or orientation state installed.
  * @category Viewport lifecycle
  */
-export interface SceneUpdateOutcome {
+export interface SceneReconciliationOutcome {
   /** Whether active authored result data remained valid after the update. */
   readonly results: "none" | "preserved" | "cleared";
   /** Validation reason when active results were cleared. */
@@ -214,7 +214,7 @@ export interface Viewport {
    * this revalidates the active results configuration and reports whether it
    * was preserved or cleared. Re-read {@link runtime} after this call.
    */
-  reconcileScene(scene: Scene): SceneUpdateOutcome;
+  reconcileScene(scene: Scene): SceneReconciliationOutcome;
   /** Replaces the scene and resets placement-scoped state; re-read {@link runtime}. */
   replaceScene(scene: Scene): void;
   /**

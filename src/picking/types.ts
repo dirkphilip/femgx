@@ -7,11 +7,28 @@ import type { Vec3 } from "../math/vec3";
 import type { PartOccurrenceId } from "../scene/types";
 
 /**
- * A selection granularity that a host may derive from a physical hit.
+ * Named selection granularities that a host may derive from a physical hit.
  * @category Interaction and picking
  */
+export const InteractionGranularity = {
+  /** Whole reusable part definition. */
+  Part: "part",
+  /** One expanded placed-part occurrence. */
+  PartOccurrence: "partOccurrence",
+  /** One semantic body within a part occurrence. */
+  Body: "body",
+  /** One authored finite element. */
+  Element: "element",
+  /** One oriented authored element face. */
+  Face: "face",
+  /** One authored node. */
+  Node: "node",
+  /** One authored finite-element edge. */
+  Edge: "edge",
+} as const;
+
 export type InteractionGranularity =
-  "part" | "partOccurrence" | "body" | "element" | "face" | "node" | "edge";
+  (typeof InteractionGranularity)[keyof typeof InteractionGranularity];
 
 /**
  * The most-specific resolved face hit with renderer-independent data.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createResultField,
   createScalarColorMap,
-  type ViewportElementVectorState,
+  type ViewportOrientationState,
   type PickHit,
   type ViewportScalarState,
   type ViewportResultsState,
@@ -108,9 +108,9 @@ function resultState(field: ViewportScalarState["field"]): ViewportResultsState 
 }
 
 function vectorResultState(
-  field: Extract<ViewportElementVectorState, { readonly glyph: "arrow" | "axis" }>["field"],
+  field: Extract<ViewportOrientationState, { readonly glyph: "arrow" | "axis" }>["field"],
 ): ViewportResultsState {
-  const orientation: ViewportElementVectorState = {
+  const orientation: ViewportOrientationState = {
     config: { field, glyph: "arrow", transform: "normal" },
     field,
     glyph: "arrow",

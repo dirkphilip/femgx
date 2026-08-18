@@ -41,7 +41,7 @@ export interface RuntimePartOccurrence {
  * occurrence; child occurrences are listed in `childIds`.
  * @category Advanced runtime and WebGPU platform
  */
-export interface RuntimeOccurrence {
+export interface RuntimeAssemblyOccurrence {
   /** Stable identity of this expanded placement of an assembly definition. */
   readonly occurrenceId: AssemblyOccurrenceId;
   /** Reusable assembly definition expanded at this occurrence. */
@@ -85,11 +85,11 @@ export interface SceneRuntime {
   /** Materializes query records for all placed parts. */
   getPartOccurrences(): readonly RuntimePartOccurrence[];
   /** Materializes query records for all expanded assembly occurrences. */
-  getOccurrences(): readonly RuntimeOccurrence[];
+  getOccurrences(): readonly RuntimeAssemblyOccurrence[];
   /** Returns one placed-part record, or `undefined` for an unknown id. */
   getPartOccurrence(partOccurrenceId: PartOccurrenceId): RuntimePartOccurrence | undefined;
   /** Returns one assembly-occurrence record, or `undefined` for an unknown id. */
-  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined;
+  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeAssemblyOccurrence | undefined;
   /** Resolves a placed-part id to its reusable part id. */
   getPartId(partOccurrenceId: PartOccurrenceId): PartId | undefined;
   /** Returns a defensive copy of a placed part's world transform, or `undefined` for an unknown id. */
@@ -142,7 +142,7 @@ class PublicSceneRuntime implements SceneRuntime {
       ),
     );
   }
-  getOccurrences(): readonly RuntimeOccurrence[] {
+  getOccurrences(): readonly RuntimeAssemblyOccurrence[] {
     return this.occurrenceIds.map((occurrenceId) =>
       invariantValue(this.getOccurrence(occurrenceId), `occurrence ${occurrenceId}`),
     );
@@ -173,7 +173,7 @@ class PublicSceneRuntime implements SceneRuntime {
       transform,
     };
   }
-  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeOccurrence | undefined {
+  getOccurrence(occurrenceId: AssemblyOccurrenceId): RuntimeAssemblyOccurrence | undefined {
     const node = this.packed.getNodeSlot(occurrenceId);
     if (node === undefined) return undefined;
     const assemblyId = invariantValue(

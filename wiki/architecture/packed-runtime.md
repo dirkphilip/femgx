@@ -17,7 +17,7 @@ result is a defensive snapshot, and live visibility mutations go through
 `Viewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
 picking synchronized. `getVisiblePartOccurrenceIds()` returns visible handles in
 deterministic depth-first runtime order, not the renderer's private part-batched
-draw order. `RuntimeOccurrence.partOccurrenceIds` contains only direct part placements;
+draw order. `RuntimeAssemblyOccurrence.partOccurrenceIds` contains only direct part placements;
 walk `childIds` when a subtree is required.
 
 The internal packed representation stores, in typed arrays indexed by private

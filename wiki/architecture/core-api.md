@@ -42,7 +42,7 @@ import {
   createInteractionState,
   createScene,
   identity,
-  setInstanceOverride,
+  setPartOccurrenceOverride,
   setPartOverride,
   type Geometry,
 } from "femgx";
@@ -74,7 +74,7 @@ let interaction = createInteractionState();
 interaction = setPartOverride(interaction, part.id, {
   color: { r: 0.2, g: 0.6, b: 0.95, a: 1 },
 });
-interaction = setInstanceOverride(interaction, "1/0", {
+interaction = setPartOccurrenceOverride(interaction, "1/0", {
   lineWidthPixels: 3,
 });
 viewport.interaction.set(interaction);
@@ -191,7 +191,7 @@ placements changed. Stable placement ids retain visibility and surviving
 placement-scoped interaction state; body, element, face, and node references
 that no longer exist are removed. The active authored result
 configuration is revalidated against the replacement scene and the returned
-`SceneUpdateOutcome` reports whether it remained usable. `replaceScene` remains the
+`SceneReconciliationOutcome` reports whether it remained usable. `replaceScene` remains the
 explicit full-replacement path and clears results.
 
 Interaction state is immutable and opaque. It stores at most one hovered target;

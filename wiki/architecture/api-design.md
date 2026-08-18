@@ -31,7 +31,7 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 | Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, and stable capability facades               |
 
 `SceneRuntime` is the defensive query boundary: its public transforms and
-collections are snapshots, and `RuntimeOccurrence.partOccurrenceIds` contains only
+collections are snapshots, and `RuntimeAssemblyOccurrence.partOccurrenceIds` contains only
 direct part placements. The canonical viewport owns the current live facade at
 `viewport.runtime`; standalone `createSceneRuntime(scene)` is a CPU-only
 immutable compiled snapshot for intentional host inspection.
@@ -170,7 +170,7 @@ The main user workflow should be expressible as:
 boundary. It recompiles the candidate scene before committing it, preserves the
 camera and state tied to surviving placement ids, prunes references to removed
 inner geometry identities, and revalidates active results. Its
-`SceneUpdateOutcome` makes a result clear actionable without exposing runtime
+`SceneReconciliationOutcome` makes a result clear actionable without exposing runtime
 slots or renderer resources; `replaceScene` remains the explicit full-replacement
 operation.
 

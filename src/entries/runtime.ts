@@ -2,6 +2,6 @@
 export {
   createSceneRuntime,
   type RuntimePartOccurrence,
-  type RuntimeOccurrence,
+  type RuntimeAssemblyOccurrence,
   type SceneRuntime,
 } from "../scene-runtime/public-runtime";

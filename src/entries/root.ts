@@ -32,7 +32,7 @@ export {
   createViewport,
   type Viewport,
   type ViewportOptions,
-  type SceneUpdateOutcome,
+  type SceneReconciliationOutcome,
   type ViewportStats,
   type ViewportBackground,
   type ViewportInteraction,
@@ -49,7 +49,7 @@ export type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
-  ViewportElementVectorState,
+  ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportScalarConfig,
@@ -123,13 +123,8 @@ export type {
   ElementRef,
   PartOccurrenceId,
 } from "../scene/types";
-export type {
-  EdgePickHit,
-  FacePickHit,
-  InteractionGranularity,
-  NodePickHit,
-  PickHit,
-} from "../picking/types";
+export { InteractionGranularity } from "../picking/types";
+export type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "../picking/types";
 export {
   FRAME_COMPONENT_COUNT,
   LOAD_COMPONENT_COUNT,

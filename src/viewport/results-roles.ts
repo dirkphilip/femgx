@@ -12,7 +12,7 @@ import type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
-  ViewportElementVectorState,
+  ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,
@@ -25,7 +25,7 @@ const MAX_VECTOR_WIDTH_PIXELS = 8;
 export type OrientationRecordMap = ReadonlyMap<PartId, ElementalOrientationRecords>;
 
 export interface ResolvedOrientation {
-  readonly state: ViewportElementVectorState;
+  readonly state: ViewportOrientationState;
   readonly records: OrientationRecordMap;
 }
 

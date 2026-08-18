@@ -143,7 +143,7 @@ export interface ViewportScalarState {
  * Resolved elemental vector role installed on a viewport.
  * @category Results
  */
-export type ViewportElementVectorState =
+export type ViewportOrientationState =
   | {
       /** Original vector-role configuration. */
       readonly config: ViewportElementVectorConfig;
@@ -185,7 +185,7 @@ export interface ViewportResultsState {
   /** Resolved nodal deformation, when deformation is active. */
   readonly deformation: DeformationState | undefined;
   /** Resolved elemental orientation role, when active. */
-  readonly orientation: ViewportElementVectorState | undefined;
+  readonly orientation: ViewportOrientationState | undefined;
   /** Resolved authored loads, when active. */
   readonly loads?: ViewportLoadConfig;
 }
