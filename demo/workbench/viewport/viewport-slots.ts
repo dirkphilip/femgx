@@ -171,7 +171,7 @@ export class WorkbenchViewportSlots {
       this.setActiveSlot("secondary");
       slot.viewport.render();
     } catch (error) {
-      this.cleanupFailedSecondary(error);
+      if (generation === this.secondaryGeneration) this.cleanupFailedSecondary(error);
     } finally {
       if (generation === this.secondaryGeneration) {
         this.secondaryOpening = false;
@@ -187,6 +187,8 @@ export class WorkbenchViewportSlots {
   }
 
   destroy(): void {
+    this.secondaryGeneration += 1;
+    this.secondaryOpening = false;
     for (const slot of this.slots.values()) this.destroySlot(slot);
     this.slots.clear();
   }
@@ -275,9 +277,14 @@ export class WorkbenchViewportSlots {
   }
 
   private closeSecondaryViewport(): void {
-    const slot = this.slots.get("secondary");
-    if (slot === undefined) return;
     this.secondaryGeneration += 1;
+    this.secondaryOpening = false;
+    const slot = this.slots.get("secondary");
+    if (slot === undefined) {
+      this.options.removeShowState("secondary");
+      this.options.render();
+      return;
+    }
     this.destroySlot(slot);
     this.slots.delete("secondary");
     this.setActiveSlot("primary");

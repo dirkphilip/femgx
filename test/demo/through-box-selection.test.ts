@@ -2,6 +2,7 @@ import {
   createPart,
   identity,
   translation,
+  type Part,
   type Viewport,
   type ElementTessellation,
   type Geometry,
@@ -9,6 +10,7 @@ import {
 } from "../../src/entries/root";
 import {
   createInteractionState,
+  setBodyVisible,
   setElementVisible,
   type InteractionState,
 } from "../../src/entries/interaction";
@@ -57,6 +59,26 @@ describe("through box selection", () => {
     await expect(resolver(request("element"))).resolves.toEqual([
       { kind: "element", partOccurrenceId, elementId: 3 },
       { kind: "element", partOccurrenceId, elementId: 4 },
+    ]);
+  });
+
+  it("applies hidden body state when custom elements omit body ids", async () => {
+    const part = bodyPart();
+    const scene = sceneFor(part);
+    const runtime = createSceneRuntime(scene);
+    const partOccurrenceId = runtime.getVisiblePartOccurrenceIds()[0];
+    if (partOccurrenceId === undefined) throw new Error("Body fixture occurrence is missing");
+    const interaction = setBodyVisible(
+      createInteractionState(),
+      { partOccurrenceId, bodyId: 10 },
+      false,
+    );
+    const resolver = throughIntersectionBoxSelectionResolver(() =>
+      viewport(scene, runtime, interaction),
+    );
+
+    await expect(resolver(request("element"))).resolves.toEqual([
+      { kind: "element", partOccurrenceId, elementId: 2 },
     ]);
   });
 
@@ -291,6 +313,37 @@ function omittedTrianglePart(): ReturnType<typeof createPart> {
       },
     ],
   });
+}
+
+function bodyPart(): Part {
+  const part = createPart(1, {
+    geometries: [
+      {
+        primitive: "triangles",
+        positions: new Float32Array([
+          -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0, -0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0,
+        ]),
+        indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      },
+    ],
+    elements: [
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+      {
+        id: 2,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+      },
+    ],
+  });
+  return {
+    ...part,
+    bodies: [
+      { id: 10, elementIds: [1] },
+      { id: 20, elementIds: [2] },
+    ],
+  };
 }
 
 function lineGeometry(): GeometryBuild<Geometry> {

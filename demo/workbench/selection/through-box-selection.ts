@@ -1,8 +1,6 @@
 import { type Viewport } from "../../../src/entries/root";
 import {
   boxSelectionFrustum,
-  isBodyVisible,
-  isElementVisible,
   type BoxSelectionFrustum,
   type InteractionTarget,
 } from "../../../src/entries/interaction";
@@ -11,6 +9,7 @@ import {
   BoxSelectionResolverContractError,
   type BoxSelectionResolver,
 } from "./box-selection-resolver";
+import { isElementOccurrenceVisible } from "./element-visibility";
 import {
   elementIntersectsBox,
   queryData,
@@ -90,15 +89,8 @@ function appendVisibleOccurrenceTargets(
   for (let elementIndex = 0; elementIndex < partQuery.elements.length; elementIndex += 1) {
     const element = partQuery.elements[elementIndex];
     if (element === undefined) continue;
-    if (!isElementVisible(view.interaction.state, { partOccurrenceId, elementId: element.id })) {
+    if (!isElementOccurrenceVisible(view.interaction.state, part, partOccurrenceId, element))
       continue;
-    }
-    if (
-      element.bodyId !== undefined &&
-      !isBodyVisible(view.interaction.state, { partOccurrenceId, bodyId: element.bodyId })
-    ) {
-      continue;
-    }
     if (elementQuery === undefined) {
       elementQuery = {
         part,

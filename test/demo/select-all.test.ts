@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { type Viewport, type Part } from "../../src/entries/root";
-import { createInteractionState, setElementVisible } from "../../src/entries/interaction";
+import {
+  createInteractionState,
+  setBodyVisible,
+  setElementVisible,
+} from "../../src/entries/interaction";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
 const partOccurrenceId = "root/part";
@@ -40,6 +44,18 @@ describe("workbench select all", () => {
     expect(selectAllTargets(viewport, "partOccurrence").map(targetLabel)).toEqual([
       "instance:root/first",
       "instance:root/second",
+    ]);
+  });
+
+  it("excludes elements from hidden bodies", () => {
+    const interaction = setBodyVisible(
+      createInteractionState(),
+      { partOccurrenceId, bodyId: 10 },
+      false,
+    );
+
+    expect(selectAllTargets(fakeViewport(interaction), "element").map(targetLabel)).toEqual([
+      "element:2",
     ]);
   });
 });
