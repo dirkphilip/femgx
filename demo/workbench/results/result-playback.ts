@@ -201,12 +201,17 @@ function setIndex(slot: ResultPlaybackSlot, value: string): void {
 function stepBy(slot: ResultPlaybackSlot, delta: -1 | 1): void {
   const source = sequence(slot);
   if (source === undefined) return;
-  stop(slot);
   const next = Math.min(
     source.steps.length - 1,
     Math.max(0, slot.state.resultPlaybackIndex + delta),
   );
-  setIndex(slot, String(next));
+  if (next === slot.state.resultPlaybackIndex) return;
+  clearTimer(slot);
+  slot.state.resultPlaybackPlaying = false;
+  slot.state.resultPlaybackActive = true;
+  slot.state.resultPlaybackIndex = next;
+  slot.state.resultMode = "deformed";
+  applyResultMode(slot);
 }
 
 function togglePlaying(slot: ResultPlaybackSlot): void {
@@ -220,15 +225,18 @@ function togglePlaying(slot: ResultPlaybackSlot): void {
   slot.state.resultMode = "deformed";
   if (slot.state.resultPlaybackIndex >= source.steps.length - 1) slot.state.resultPlaybackIndex = 0;
   slot.state.resultPlaybackPlaying = true;
+  const firstDueAt = Date.now() + 1000 / slot.state.resultPlaybackRate;
   applyResultMode(slot);
-  schedule(slot);
+  schedule(slot, firstDueAt);
 }
 
 function setRate(slot: ResultPlaybackSlot, value: string): void {
   const parsed = Number(value);
   if (parsed !== 0.5 && parsed !== 1 && parsed !== 2) return;
   slot.state.resultPlaybackRate = parsed;
-  if (slot.state.resultPlaybackPlaying) schedule(slot);
+  if (slot.state.resultPlaybackPlaying) {
+    schedule(slot, Date.now() + 1000 / slot.state.resultPlaybackRate);
+  }
   publishIfActive(slot);
 }
 
@@ -239,8 +247,9 @@ function stop(slot: ResultPlaybackSlot): void {
   publishIfActive(slot);
 }
 
-function schedule(slot: ResultPlaybackSlot): void {
+function schedule(slot: ResultPlaybackSlot, dueAt: number): void {
   clearTimer(slot);
+  const delay = Math.max(0, dueAt - Date.now());
   slot.state.resultPlaybackTimer = globalThis.setTimeout(() => {
     slot.state.resultPlaybackTimer = undefined;
     if (slot.owner.disposed || !slot.state.resultPlaybackPlaying) return;
@@ -250,10 +259,22 @@ function schedule(slot: ResultPlaybackSlot): void {
       publishIfActive(slot);
       return;
     }
-    slot.state.resultPlaybackIndex += 1;
+    const interval = 1000 / slot.state.resultPlaybackRate;
+    const elapsedIntervals = Math.max(0, Math.floor((Date.now() - dueAt) / interval));
+    const advance = elapsedIntervals + 1;
+    slot.state.resultPlaybackIndex = Math.min(
+      source.steps.length - 1,
+      slot.state.resultPlaybackIndex + advance,
+    );
+    if (slot.state.resultPlaybackIndex === source.steps.length - 1) {
+      slot.state.resultPlaybackPlaying = false;
+    }
     applyResultMode(slot);
-    schedule(slot);
-  }, 1000 / slot.state.resultPlaybackRate);
+    if (slot.state.resultPlaybackPlaying) {
+      const nextDueAt = dueAt + advance * interval;
+      schedule(slot, nextDueAt <= Date.now() ? Date.now() + interval : nextDueAt);
+    }
+  }, delay);
 }
 
 function applyResultMode(slot: ResultPlaybackSlot): void {
