@@ -73,6 +73,9 @@ export async function measureBenchmarkCase(
     readonly timestampQueriesRequested?: boolean;
     readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
     readonly holdNodeSelectionForCapture?: () => Promise<void>;
+    readonly holdElementSelectionForCapture?: (
+      phase: "all-but-one" | "all-authored",
+    ) => Promise<void>;
     readonly holdCombinedOverlayForCapture?: () => Promise<void>;
   } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
@@ -178,6 +181,9 @@ export async function measureBenchmarkCase(
       benchmarkCase,
       runtime,
       camera,
+      ...(options.holdElementSelectionForCapture === undefined
+        ? {}
+        : { holdElementSelectionForCapture: options.holdElementSelectionForCapture }),
     });
     phase = "authored node-selection sample";
     nodeSelection = await measureNodeSelectionBenchmark({

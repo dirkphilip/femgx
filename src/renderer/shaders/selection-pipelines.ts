@@ -71,6 +71,7 @@ export async function createSelectionPipelines(
       primitive: "triangle-list",
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
+      vertexBuffers: [],
     }),
     createPrimitiveSelectionPipelines({
       ...options,

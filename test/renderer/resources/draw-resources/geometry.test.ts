@@ -21,8 +21,32 @@ import {
 } from "./support";
 import { bindDrawGeometry } from "../../../../src/renderer/frame/geometry-binding";
 import { uploadNodePart } from "../../../../src/renderer/resources/draw-resources";
+import {
+  triangleSubsetUploadData,
+  triangleUploadData,
+} from "../../../../src/renderer/resources/triangle-upload";
 
 describe("GPU draw path", () => {
+  it("retains shared triangle sources and explicit corner connectivity", () => {
+    const geometry = {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      nodePickIds: new Uint32Array([11, 12, 13, 14]),
+      primitive: "triangles" as const,
+    };
+    const upload = triangleUploadData(geometry);
+    expect(upload.positions).toBe(geometry.positions);
+    expect(upload.nodePickIds).toBe(geometry.nodePickIds);
+    expect(upload.indices).toEqual(new Uint32Array([0, 1, 2, 3, 4, 5]));
+    expect(upload.cornerIndices).toBe(geometry.indices);
+    expect(upload.primitiveIds).toEqual(new Uint32Array([0, 0, 0, 1, 1, 1]));
+
+    const subset = triangleSubsetUploadData(geometry, geometry.indices);
+    expect(subset.positions).toEqual(geometry.positions);
+    expect(subset.nodePickIds).toEqual(geometry.nodePickIds);
+    expect(subset.cornerIndices).toEqual(new Uint32Array([0, 1, 2, 0, 2, 3]));
+  });
+
   it("binds retained visibility indices to the full surface vertices", () => {
     const restore = installGpuGlobals();
     try {
@@ -188,7 +212,9 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[4]?.size).toBe(36);
       expect(gpu.buffers[5]?.size).toBe(12);
       expect(gpu.buffers[6]?.size).toBe(12);
-      expect(gpu.buffers[7]?.size).toBe(60);
+      expect(gpu.buffers[7]?.size).toBe(72);
+      expect(first.minimalIndexBuffer).toBe(first.facePickIdsBuffer);
+      expect(first.minimalIndexOffset).toBe(60);
       expect(first.edge).toBeUndefined();
     } finally {
       restore();

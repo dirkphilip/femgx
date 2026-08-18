@@ -125,17 +125,19 @@ export function estimateBenchmarkMemory(
     for (const geometry of part.geometries) {
       const primitiveCount = logicalPrimitiveCount(geometry);
       const expandedVertexCount = expandedVertexCountFor(geometry);
+      const sourceVertexCount = sourceVertexCountFor(geometry);
       const edgeMaterialized = options.materializedEdgePartIds?.has(part.id) ?? false;
       const canonicalEdge =
         edgeMaterialized && geometry.primitive === "triangles" && geometry.faceSubset === undefined
           ? edgeEndpointUpperBoundFor(geometry, primitiveCount)
           : 0;
-      const mainPositionBytes = expandedVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
+      const mainPositionBytes = sourceVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT;
       const mainIndexBytes = expandedIndexCountFor(geometry) * Uint32Array.BYTES_PER_ELEMENT;
       const topologyUpperBound = topologyBytesUpperBound(
         primitiveCount,
         expandedVertexCount,
         canonicalEdge,
+        geometry.primitive === "triangles" ? expandedIndexCountFor(geometry) : 0,
       );
       const subset = subsetEstimate(geometry, edgeMaterialized);
       const retainsFullGeometry = getPartSemanticIndex(part).hasBoundaryFaceSubset;
@@ -151,7 +153,7 @@ export function estimateBenchmarkMemory(
             : gpuBufferBytes(canonicalEdge * 3 * Float32Array.BYTES_PER_ELEMENT));
         pickMetadataBytes +=
           gpuBufferBytes(primitiveCount * Uint32Array.BYTES_PER_ELEMENT) +
-          gpuBufferBytes(expandedVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+          gpuBufferBytes(sourceVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
           (canonicalEdge === 0
             ? 0
             : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT)) +
@@ -235,6 +237,12 @@ function expandedVertexCountFor(geometry: Part["geometries"][number]): number {
   return geometry.indices.length;
 }
 
+function sourceVertexCountFor(geometry: Part["geometries"][number]): number {
+  return geometry.primitive === "triangles"
+    ? Math.floor(geometry.positions.length / 3)
+    : expandedVertexCountFor(geometry);
+}
+
 function expandedIndexCountFor(geometry: Part["geometries"][number]): number {
   if (geometry.primitive === "points") return geometry.indices.length * 6;
   if (geometry.primitive === "lines") return Math.floor(geometry.indices.length / 2) * 6;
@@ -252,6 +260,7 @@ function topologyBytesUpperBound(
   primitiveCount: number,
   expandedVertexCount: number,
   edgeEndpointUpperBound: number,
+  cornerIndexCount: number,
 ): number {
   const words =
     3 +
@@ -260,7 +269,8 @@ function topologyBytesUpperBound(
     edgeEndpointUpperBound * 4 +
     1 +
     expandedVertexCount +
-    edgeEndpointUpperBound;
+    edgeEndpointUpperBound +
+    cornerIndexCount;
   return gpuBufferBytes(words * Uint32Array.BYTES_PER_ELEMENT);
 }
 
@@ -288,19 +298,20 @@ function subsetEstimate(
   }
   if (primitiveCount === 0) return { bufferBytes: 0 };
   const vertexCount = primitiveCount * 3;
+  const sourceVertexCount = Math.min(vertexCount, Math.floor(geometry.positions.length / 3));
   const edgeEndpointUpperBound = edgeMaterialized ? primitiveCount * 6 : 0;
   const surfaceBufferBytes =
-    gpuBufferBytes(vertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(sourceVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
     gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-    gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-    topologyBytesUpperBound(logicalPrimitiveCount(geometry), vertexCount, 0);
+    gpuBufferBytes(sourceVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+    topologyBytesUpperBound(logicalPrimitiveCount(geometry), vertexCount, 0, vertexCount);
   const edgeBufferBytes =
     edgeEndpointUpperBound === 0
       ? 0
       : gpuBufferBytes(edgeEndpointUpperBound * 3 * Float32Array.BYTES_PER_ELEMENT) +
         gpuBufferBytes(edgeEndpointUpperBound * Uint32Array.BYTES_PER_ELEMENT) +
         gpuBufferBytes(edgeEndpointUpperBound * Uint32Array.BYTES_PER_ELEMENT) +
-        topologyBytesUpperBound(logicalPrimitiveCount(geometry), 0, edgeEndpointUpperBound);
+        topologyBytesUpperBound(logicalPrimitiveCount(geometry), 0, edgeEndpointUpperBound, 0);
   return {
     bufferBytes: surfaceBufferBytes + edgeBufferBytes,
   };

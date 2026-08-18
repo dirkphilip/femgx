@@ -82,6 +82,7 @@ export function pipelineAdmission(options: {
     cached.deformation === context.deformation &&
     cached.sectionPlane === context.sectionPlane &&
     cached.usesExteriorFaceSubsets === context.usesExteriorFaceSubsets &&
+    cached.visibilitySkin === (call.visibilitySkin !== undefined) &&
     cached.highlightOwned === storage.highlightOwned &&
     cached.minimalAvailable ===
       (context.minimalFrameBindGroup !== undefined && context.minimalInstanceLayout !== undefined)
@@ -99,6 +100,7 @@ export function pipelineAdmission(options: {
     deformation: context.deformation,
     sectionPlane: context.sectionPlane,
     usesExteriorFaceSubsets: context.usesExteriorFaceSubsets,
+    visibilitySkin: call.visibilitySkin !== undefined,
     highlightOwned: storage.highlightOwned,
     minimalAvailable:
       context.minimalFrameBindGroup !== undefined && context.minimalInstanceLayout !== undefined,
@@ -117,6 +119,7 @@ function hasFeatureState(
     context.sectionPlane !== undefined ||
     context.resultColors?.has(call.partId) === true ||
     context.deformation?.displacements.has(call.partId) === true ||
+    call.visibilitySkin !== undefined ||
     !context.usesExteriorFaceSubsets ||
     storage.highlightOwned ||
     (geometry?.primitive === "triangles" && geometry.primitiveColors !== undefined)

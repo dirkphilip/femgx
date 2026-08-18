@@ -23,6 +23,9 @@ export interface PartEdgePickResource {
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
   readonly indexBuffer: GPUBuffer;
+  /** Minimal triangle index order into the shared source vertex table. */
+  readonly minimalIndexBuffer?: GPUBuffer;
+  readonly minimalIndexOffset?: number;
   /** Interleaved per-triangle face/owner/neighbor body ids. */
   readonly facePickIdsBuffer: GPUBuffer;
   /** Per-vertex node pick ids (`nodeId + 1`, 0 = vertex without a node). */
@@ -32,6 +35,8 @@ export interface PartResource {
   /** Full interior geometry, materialized only when a full-surface draw needs it. */
   fullVertexBuffer?: GPUBuffer;
   fullIndexBuffer?: GPUBuffer;
+  fullMinimalIndexBuffer?: GPUBuffer;
+  fullMinimalIndexOffset?: number;
   fullFacePickIdsBuffer?: GPUBuffer;
   fullNodePickIdsBuffer?: GPUBuffer;
   fullIndexCount?: number;
@@ -41,6 +46,8 @@ export interface PartResource {
   readonly indexCount: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
+  readonly subsetMinimalIndexBuffer?: GPUBuffer;
+  readonly subsetMinimalIndexOffset?: number;
   readonly subsetVertexBuffer?: GPUBuffer;
   readonly subsetNodePickIdsBuffer?: GPUBuffer;
   /** Optional topology buffer with subset-local primitive remapping. */

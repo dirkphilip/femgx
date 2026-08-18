@@ -18,6 +18,7 @@ export interface PipelineAdmissionCacheEntry {
   readonly deformation: DeformationState | undefined;
   readonly sectionPlane: SectionPlane | undefined;
   readonly usesExteriorFaceSubsets: boolean;
+  readonly visibilitySkin: boolean;
   readonly highlightOwned: boolean;
   readonly minimalAvailable: boolean;
   readonly admission: GpuCostAdmission;

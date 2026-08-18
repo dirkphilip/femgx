@@ -2,6 +2,7 @@ import { expect, it, describe } from "vitest";
 import {
   createDrawResources,
   destroyDrawResources,
+  uploadPart,
   patchInstances,
   writeDrawOrder,
   writeEdgeOrder,
@@ -85,9 +86,13 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [{ slot: 2, data: record(0) }]);
       writeDrawOrder(draw, part.id, new Uint32Array([0, 1, 2]));
       writeTransparentOrder(draw, part.id, new Uint32Array([2]));
+      const resource = uploadPart(draw, part);
+      const minimalBuffer = resource.minimalIndexBuffer;
+      expect(minimalBuffer).toBe(resource.facePickIdsBuffer);
       destroyDrawResources(draw);
       destroyDrawResources(draw);
       expect(gpu.buffers.every((buffer) => buffer.destroyCount === 1)).toBe(true);
+      expect(gpu.buffers.find((buffer) => buffer.resource === minimalBuffer)?.destroyCount).toBe(1);
     } finally {
       restore();
     }

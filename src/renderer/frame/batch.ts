@@ -101,6 +101,12 @@ function drawOneBatch(
     subset,
     edgePick,
     bindVertexBuffer: intent.kind !== "nodes",
+    minimal: prepared.admission === "minimal",
+    featureTriangles:
+      preparedBatch.geometry?.primitive === "triangles" &&
+      prepared.admission !== "minimal" &&
+      !overlay &&
+      !edgePick,
     visibilitySkin,
   });
   if (geometryCount === undefined) return batch.current;

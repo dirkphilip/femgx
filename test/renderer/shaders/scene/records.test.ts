@@ -192,7 +192,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("uses explicit primitive maps for indexed surfaces and shared sprite corners", () => {
     expect(instanceVertexShader).toContain("primitiveDrawId(vertexIndex)");
     expect(instanceVertexShader).not.toContain("vertexIndex / 3u");
-    expect(nodePickVertexShader).toContain("vertexNodePickIds[base + 2u]");
+    expect(nodePickVertexShader).toContain("vertexNodePickIds[geometrySourceIndex(base + 2u)]");
     expect(lineNodePickVertexShader).toContain("base + 1u");
     expect(lineNodePickVertexShader).not.toContain("vertexNodePickIds[base + 2u]");
     expect(pointVertexShader.match(/fn spriteCorner\(/g)).toHaveLength(1);
@@ -223,8 +223,8 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     );
     expect(nodePickVertexShader).toMatch(/@location\(10\) worldPosition: vec3<f32>/);
     expect(nodePickVertexShader).toMatch(/geometryPositions: array<f32>/);
-    expect(nodePickVertexShader).toMatch(/geometryPosition\(base3\)/);
-    expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[base\]/);
+    expect(nodePickVertexShader).toMatch(/geometryPositionVec\(geometrySourceIndex\(base\)\)/);
+    expect(nodePickVertexShader).toMatch(/vertexNodePickIds\[geometrySourceIndex\(base\)\]/);
     expect(nodePickFragmentShader).toMatch(
       /nearestNode\(localPosition, cornerA, cornerB, cornerC, nodePickIds\)/,
     );
@@ -282,6 +282,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
     expect(triangleColorFragmentShader).toContain("@location(8) worldPosition: vec3<f32>");
+    expect(triangleColorFragmentShader).toContain("@location(9) @interpolate(flat) selected: u32");
     expect(triangleColorFragmentShader).toContain("surfaceLighting(");
     expect(surfaceLightingFunction).toContain(
       "select(-normal, normal, dot(normal, viewer) >= 0.0)",
@@ -289,8 +290,12 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(surfaceLightingFunction).toContain("clamp(dot(facingNormal, light), 0.0, 1.0)");
     expect(surfaceLightingFunction).not.toContain("abs(dot(");
     expect(surfaceLightingFunction).toContain("SURFACE_SPECULAR_STRENGTH");
-    expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
+    expect(triangleColorFragmentShader).toContain("resolvedColor + vec3<f32>(emissive)");
     expect(triangleColorFragmentShader).toContain("displayedColor.a");
+    expect(triangleColorFragmentShader).toContain("let litColor = surfaceLighting(");
+    expect(triangleColorFragmentShader).toContain(
+      "select(litColor, displayedColor.rgb, selected != 0u)",
+    );
     expect(colorFragmentShader).not.toContain("keyLightDirection");
     expect(colorFragmentShader).not.toContain("dpdx");
   });
@@ -304,6 +309,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(triangleColorFragmentShader).toContain(surfaceLightingFunction);
     expect(triangleTransparencyFragmentShader).toContain(surfaceLightingFunction);
     expect(triangleTransparencyFragmentShader).toContain("surfaceLighting(");
+    expect(triangleTransparencyFragmentShader).toContain(
+      "@location(9) @interpolate(flat) selected: u32",
+    );
+    expect(triangleTransparencyFragmentShader).toContain("let litColor = surfaceLighting(");
+    expect(triangleTransparencyFragmentShader).toContain(
+      "select(litColor, displayedColor.rgb, selected != 0u)",
+    );
     expect(triangleColorFragmentShader.match(/fn surfaceLighting\(/g)).toHaveLength(1);
     expect(triangleTransparencyFragmentShader.match(/fn surfaceLighting\(/g)).toHaveLength(1);
   });
@@ -311,9 +323,9 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("keeps the highlight neutral, bounded, and after surface lighting", () => {
     expect(surfaceLightingFunction).toContain("vec3<f32>(specular)");
     expect(surfaceLightingFunction).toContain("pow(clamp(halfResponse, 0.0, 1.0)");
-    expect(triangleColorFragmentShader).toContain("litColor + vec3<f32>(emissive)");
+    expect(triangleColorFragmentShader).toContain("resolvedColor + vec3<f32>(emissive)");
     expect(triangleTransparencyFragmentShader).toContain(
-      "weightedSceneTransparency(litColor + vec3<f32>(emissive), displayedColor.a, fragmentPosition.z)",
+      "weightedSceneTransparency(\n    resolvedColor + vec3<f32>(emissive)",
     );
     expect(colorFragmentShader).not.toContain("surfaceLighting");
     expect(edgeFragmentShader).not.toContain("surfaceLighting");
