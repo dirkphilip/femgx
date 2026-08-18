@@ -67,7 +67,10 @@ state and be reused by unchanged frames or shared active signatures. Replacing
 that state releases obsolete payloads rather than retaining a historical-state
 memoization cache; returning to an older value recomputes them. Immutable part,
 geometry, and semantic metadata are scene-owned and may remain cached because
-they do not encode a prior interaction transition.
+they do not encode a prior interaction transition. Visibility skins and dense
+selection payloads are concrete examples of current-state derived data: an
+unchanged frame may reuse them, but show/clear/replacement releases them and a
+later equivalent transition recomputes them.
 
 ## Repository examples
 

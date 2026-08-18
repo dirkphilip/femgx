@@ -121,8 +121,16 @@ Dense exterior presentation uses the measured overlay path:
   nodes-only presentation retains 4× MSAA.
 - Presentation edges use compact authored endpoints as one-device-pixel native
   lines. Exact edge picking keeps separate lazy screen-space-width quads.
-- Node display and node interaction data remain separable so a high-performance
-  presentation does not imply FE-scale selection storage.
+- Node display and node interaction data remain separable. Node presentation
+  uses one authored center (12 bytes), one pick id (4 bytes), and the indexed
+  quad order (24 bytes) per node; the vertex shader derives the four corners.
+  The exact 40-byte GPU payload avoids the former four-center/four-id expansion
+  without changing depth, deformation, visibility, or selection semantics.
+- Node owner topology is constructed directly in its final packed allocation.
+  The 131,712-element Tet4 fixture retains 9,210,036 packed bytes with 487,780
+  builder-temporary bytes and no 9,210,016-byte raw-topology/ordinal staging
+  copy. This immutable geometry-derived topology may remain cached across
+  interaction states.
 
 The final `instanced-2.10m` 800×600 DPR1 system-Chrome case, pinned to merged
 SHA `86f55e5`, measured 119.5 FPS for surface-only presentation, 119.6 FPS for

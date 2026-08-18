@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "kind": "cpu-operation-baseline",
+  "generatedAt": "2026-08-18T11:02:30.469Z",
+  "gitSha": "808450803d7b0b8b6115bb83cdf4efd8195a8842",
+  "gitDirty": false,
+  "node": "v24.18.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpuModel": "Apple M3 Pro",
+  "logicalCores": 11,
+  "warmupSamples": 2,
+  "timedSamples": 7,
+  "measurement": "wall-clock milliseconds; p50/p95 over timed samples",
+  "operations": [
+    {
+      "name": "tet4-visibility-one-build-packed-skin-cold",
+      "workload": {
+        "unit": "authored triangle faces classified into a compact visible skin",
+        "count": 526848,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 1,
+          "faceCount": 526848,
+          "outputIndexCount": 28230,
+          "outputBytes": 112920,
+          "signatureElementIdCount": 1,
+          "signatureTypedBytes": 0,
+          "signatureOrdinalWordBytes": 0
+        }
+      },
+      "timingsMs": {
+        "p50": 8.856209000000035,
+        "p95": 8.908083000000033
+      }
+    },
+    {
+      "name": "tet4-visibility-half-build-packed-skin-cold",
+      "workload": {
+        "unit": "authored triangle faces classified into a compact visible skin",
+        "count": 526848,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 65856,
+          "faceCount": 526848,
+          "outputIndexCount": 18816,
+          "outputBytes": 75264,
+          "signatureElementIdCount": 65856,
+          "signatureTypedBytes": 279888,
+          "signatureOrdinalWordBytes": 16464
+        }
+      },
+      "timingsMs": {
+        "p50": 5.807334000000083,
+        "p95": 5.84841700000004
+      }
+    },
+    {
+      "name": "tet4-visibility-all-build-packed-skin-cold",
+      "workload": {
+        "unit": "authored triangle faces classified into a compact visible skin",
+        "count": 526848,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 131712,
+          "faceCount": 526848,
+          "outputIndexCount": 0,
+          "outputBytes": 0,
+          "signatureElementIdCount": 131712,
+          "signatureTypedBytes": 543312,
+          "signatureOrdinalWordBytes": 16464
+        }
+      },
+      "timingsMs": {
+        "p50": 2.022999999999911,
+        "p95": 2.0566670000000613
+      }
+    },
+    {
+      "name": "tet4-visibility-half-cold-hide-fake-gpu-sync",
+      "workload": {
+        "unit": "renderer visibility syncs with exact surface draw classification",
+        "count": 1,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 65856,
+          "faceCount": 526848,
+          "outputIndexCount": 18816,
+          "outputBytes": 75264,
+          "surfaceDrawCalls": 1,
+          "visibilitySkinDrawCalls": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 409.1936249999999,
+        "p95": 414.05816700000014
+      }
+    },
+    {
+      "name": "tet4-visibility-half-show-destroy-fake-gpu-sync",
+      "workload": {
+        "unit": "renderer visibility syncs with exact surface draw classification",
+        "count": 1,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 65856,
+          "faceCount": 526848,
+          "outputIndexCount": 18816,
+          "outputBytes": 75264,
+          "surfaceDrawCalls": 1,
+          "visibilitySkinDrawCalls": 0
+        }
+      },
+      "timingsMs": {
+        "p50": 0.21483299999999872,
+        "p95": 0.28533300000071904
+      }
+    },
+    {
+      "name": "tet4-visibility-half-rehide-recompute-full-sync-fake-gpu-sync",
+      "workload": {
+        "unit": "renderer visibility syncs with exact surface draw classification",
+        "count": 1,
+        "details": {
+          "elementCount": 131712,
+          "hiddenElementCount": 65856,
+          "faceCount": 526848,
+          "outputIndexCount": 18816,
+          "outputBytes": 75264,
+          "surfaceDrawCalls": 1,
+          "visibilitySkinDrawCalls": 1
+        }
+      },
+      "timingsMs": {
+        "p50": 416.08245800000077,
+        "p95": 434.7544170000001
+      }
+    }
+  ]
+}
