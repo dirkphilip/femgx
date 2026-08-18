@@ -23,19 +23,22 @@
 
 <div id="viewport-shell" aria-hidden={navigationOpen}>
   <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
-  <div id="viewport-workspace" data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}>
+  <div
+    id="viewport-workspace"
+    data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}
+    data-active-slot={snapshot?.toolbar.activeSlot ?? "primary"}
+  >
     <ViewportPane>
       {#if snapshot?.toolbar.activeSlot !== "secondary"}
-        <ResultLegend {snapshot} />
         <StatusOverlays {snapshot} {startup} />
       {/if}
     </ViewportPane>
     <ViewportPane secondary hidden={!(snapshot?.toolbar.secondaryOpen ?? false)}>
       {#if snapshot?.toolbar.activeSlot === "secondary"}
-        <ResultLegend {snapshot} />
         <StatusOverlays {snapshot} {startup} />
       {/if}
     </ViewportPane>
+    <ResultLegend {snapshot} />
     <TouchToolRail {controller} {snapshot} />
   </div>
 </div>
