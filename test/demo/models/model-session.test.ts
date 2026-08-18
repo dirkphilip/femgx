@@ -83,4 +83,42 @@ describe("workbench model session", () => {
     expect(builder).not.toHaveBeenCalled();
     expect(current).toBe(retained);
   });
+
+  it("disposes deferred progress exactly once after a completed build", async () => {
+    vi.stubGlobal("window", { setTimeout: globalThis.setTimeout });
+    const ordinary = createExampleModel(createBoltedPlatePreset());
+    const loaded = { ...ordinary, id: "loaded", name: "Loaded benchmark" };
+    const progressDisposer = vi.fn();
+    const deferred = {
+      ...ordinary,
+      id: "lazy",
+      name: "Lazy benchmark",
+      deferredLoad: () => Promise.resolve(loaded),
+      subscribeDeferredProgress: vi.fn(() => progressDisposer),
+    };
+    let current = ordinary;
+    const session = new WorkbenchModelSession({
+      presentation: {
+        setLoading: vi.fn(),
+        setFeedback: vi.fn(),
+        clearFeedback: vi.fn(),
+      } as unknown as WorkbenchPresentation,
+      resolveModel: (id) => (id === deferred.id ? deferred : undefined),
+      importer: vi.fn(),
+      getModel: () => current,
+      isDisposed: () => false,
+      activate: (model) => {
+        current = model;
+      },
+    });
+
+    session.setModel(deferred.id);
+    await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
+
+    expect(current).toBe(loaded);
+    expect(progressDisposer).toHaveBeenCalledOnce();
+    session.cancel();
+    expect(progressDisposer).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
 });
