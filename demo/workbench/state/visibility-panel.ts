@@ -38,6 +38,9 @@ export class VisibilityPanelController {
   private partVisibility = new Map<PartId, boolean>();
   private bodyElementCounts = new Map<PartId, ReadonlyMap<BodyId, number>>();
   private repeatedPartIds = new Set<PartId>();
+  private expansionContext:
+    | { readonly model: WorkbenchModel; readonly occurrenceIds: readonly AssemblyOccurrenceId[] }
+    | undefined;
 
   constructor(options: VisibilityPanelOptions) {
     this.options = options;
@@ -49,15 +52,16 @@ export class VisibilityPanelController {
 
   rebuild(): void {
     const runtime = this.options.getRuntime();
-    const rootOccurrenceId = runtime.getOccurrenceIds()[0];
-    this.expanded = new Set(
-      rootOccurrenceId === undefined
-        ? []
-        : runtime.getOccurrenceIds().filter((occurrenceId) => {
-            const occurrence = runtime.getOccurrence(occurrenceId);
-            return occurrence?.parentId === undefined || occurrence.parentId === rootOccurrenceId;
-          }),
-    );
+    const occurrenceIds = runtime.getOccurrenceIds();
+    const model = this.options.getModel();
+    const priorContext = this.expansionContext;
+    const occurrenceKey = occurrenceIds.join("\0");
+    const sameContext =
+      priorContext?.model === model && priorContext.occurrenceIds.join("\0") === occurrenceKey;
+    this.expanded = sameContext
+      ? new Set([...this.expanded].filter((occurrenceId) => occurrenceIds.includes(occurrenceId)))
+      : initiallyExpanded(runtime, occurrenceIds);
+    this.expansionContext = { model, occurrenceIds: [...occurrenceIds] };
     this.sync();
   }
 
@@ -335,6 +339,21 @@ export class VisibilityPanelController {
     this.partVisibility = new Map();
     this.bodyElementCounts = new Map();
   }
+}
+
+function initiallyExpanded(
+  runtime: SceneRuntime,
+  occurrenceIds: readonly AssemblyOccurrenceId[],
+): Set<AssemblyOccurrenceId> {
+  const rootOccurrenceId = occurrenceIds[0];
+  return new Set(
+    rootOccurrenceId === undefined
+      ? []
+      : occurrenceIds.filter((occurrenceId) => {
+          const occurrence = runtime.getOccurrence(occurrenceId);
+          return occurrence?.parentId === undefined || occurrence.parentId === rootOccurrenceId;
+        }),
+  );
 }
 
 function row(
