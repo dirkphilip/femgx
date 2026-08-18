@@ -23,9 +23,9 @@ import {
   updateNestedSet,
   updateSet,
 } from "./mechanics";
-import { setPartOccurrenceOverrides } from "./part-occurrence-overrides";
+import { setPartOccurrenceOverrides } from "./style-overrides";
 
-export { setPartOccurrenceOverrides } from "./part-occurrence-overrides";
+export { setPartOccurrenceOverrides, setPartOverrides } from "./style-overrides";
 
 export type {
   Color,

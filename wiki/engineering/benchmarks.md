@@ -106,6 +106,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `sceneWorldBounds`                | 32 768 triangles × 64 placements       | reusable-part bounds and world transforms                         |
 | `resolvePick`                     | 50 000 lookups on 200 000              | O(1) index resolution                                             |
 | many-part scene scaling           | 1 024 / 2 048 / 4 096 parts            | register, place, snapshot, and compile                            |
+| many-part style overrides         | 25 000 / 50 000 / 100 000 parts        | one immutable bulk style transition                               |
 | `setTargetsSelected`              | 16 384 element targets                 | one duplicate-safe immutable bulk transition                      |
 | `setTargetsHighlighted`           | 8 192 element targets                  | one duplicate-safe immutable bulk transition                      |
 | `setTargetsSelected` duplicate    | 16 384 + 1 024 repeated targets        | duplicate-safe bulk transition                                    |
@@ -199,10 +200,12 @@ commit message.
 ## Large CPU scaling (local opt-in)
 
 `npm run bench:scaling:large` runs exported `elementPart` at 13 824, 42 875,
-and 103 823 authored Hex8 elements. Mesh generation happens before the timed
-region. The command is excluded from `npm test`, coverage, the default budget
-gate, and CI. The local runner uses three samples without a separate warmup and
-a bounded 60-second per-test timeout; a reference run takes about 20 seconds.
+and 103 823 authored Hex8 elements. It also imports and activates generated GLBs
+with 25 000, 50 000, and 100 000 same-material triangle primitives. The GLB case
+includes parsing, material-group coalescing, scene/runtime construction, and
+workbench style setup; source generation happens before the timed region. The
+command is excluded from `npm test`, coverage, the default budget gate, and CI.
+The local runner has a bounded 60-second per-test timeout.
 
 This case measures the canonical authored solid topology retained by
 `elementPart`. It does not substitute authored element count with a surface

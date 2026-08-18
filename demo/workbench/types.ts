@@ -17,11 +17,11 @@ export interface DisplayToggles {
   diagnostics: boolean;
 }
 
-/** Returns inspection defaults without forcing dense benchmark overlays to materialize. */
+/** Returns inspection defaults without forcing large generated or imported overlays to materialize. */
 export function createDefaultDisplayToggles(
-  model?: Pick<WorkbenchModel, "benchmarkElementFamily">,
+  model?: Partial<Pick<WorkbenchModel, "benchmarkElementFamily" | "source">>,
 ): DisplayToggles {
-  const overlays = model?.benchmarkElementFamily === undefined;
+  const overlays = model?.benchmarkElementFamily === undefined && model?.source !== "file";
   return { edges: overlays, nodes: overlays, diagnostics: false };
 }
 

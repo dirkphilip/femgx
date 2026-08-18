@@ -9,6 +9,7 @@ import { identity, type Mat4 } from "../../math/mat4";
 import type { PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
 import { IoError } from "../diagnostics";
+import { createGlbGeometryCache } from "./accessors";
 import { GlbDiagnostics, parseFailure } from "./diagnostics";
 import { importMeshParts, type GlbPartRecord } from "./geometry";
 import type { GlbImportOptions, GlbSceneImport } from "./types";
@@ -180,11 +181,12 @@ function collectPartRecords(nodes: readonly Node[], diagnostics: GlbDiagnostics)
   const records: GlbPartRecord[] = [];
   const byMesh = new Map<Mesh, readonly GlbPartRecord[]>();
   const seenMeshes = new Set<Mesh>();
+  const cache = createGlbGeometryCache();
   for (const node of nodes) {
     const mesh = node.getMesh();
     if (mesh === null || seenMeshes.has(mesh)) continue;
     seenMeshes.add(mesh);
-    const meshRecords = importMeshParts(mesh, records.length, diagnostics);
+    const meshRecords = importMeshParts(mesh, records.length, diagnostics, cache);
     records.push(...meshRecords);
     byMesh.set(mesh, meshRecords);
   }

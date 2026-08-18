@@ -17,16 +17,11 @@ describe("importGlb", () => {
     const result = await importGlb(ONShapeCylinder);
 
     expect(result.scene.rootAssemblyId).toBe(0);
-    expect(result.scene.parts).toHaveLength(4);
+    expect(result.scene.parts).toHaveLength(1);
     expect(result.scene.assemblies).toHaveLength(2);
     expect(result.scene.assemblies.get(0)?.placements).toHaveLength(1);
-    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(4);
-    expect([...result.partNames.values()]).toEqual([
-      "mesh0_mesh primitive 0",
-      "mesh0_mesh primitive 1",
-      "mesh0_mesh primitive 2",
-      "mesh0_mesh primitive 3",
-    ]);
+    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(1);
+    expect([...result.partNames.values()]).toEqual(["mesh0_mesh (4 primitives)"]);
     expect(result.partStyles.get(0)).toEqual({
       color: { r: 0.615686297416687, g: 0.8117647171020508, b: 0.929411768913269, a: 1 },
     });
@@ -38,11 +33,11 @@ describe("importGlb", () => {
   it("imports the supplied Draco-compressed Onshape display scene", async () => {
     const result = await importGlb(compressedOnshapeCylinder);
 
-    expect(result.scene.parts).toHaveLength(4);
-    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(4);
+    expect(result.scene.parts).toHaveLength(1);
+    expect(result.scene.assemblies.get(1)?.placements).toHaveLength(1);
     expect(
       [...result.scene.parts.values()].map((part) => part.geometries[0]?.indices.length),
-    ).toEqual([168, 174, 174, 168]);
+    ).toEqual([684]);
     expect(result.issues).toEqual([
       expect.objectContaining({ code: "glb-ignored-extension", severity: "warning" }),
     ]);
@@ -62,13 +57,31 @@ describe("importGlb", () => {
     expect(scalarSpy).not.toHaveBeenCalled();
   });
 
+  it("coalesces same-material primitives before entering the scene", async () => {
+    const result = await importGlb(makeSharedAccessorPrimitiveGlb(128, false));
+
+    expect(result.scene.parts).toHaveLength(1);
+    expect(result.scene.parts.get(0)?.geometries[0]?.positions).toHaveLength(9);
+    expect(result.scene.parts.get(0)?.geometries[0]?.indices).toHaveLength(128 * 3);
+    expect(result.partNames.get(0)).toBe("Shared mesh (128 primitives)");
+  });
+
+  it("reuses one validated POSITION array across material groups", async () => {
+    const result = await importGlb(makeSharedAccessorPrimitiveGlb(2, true));
+    const first = result.scene.parts.get(0)?.geometries[0]?.positions;
+    const second = result.scene.parts.get(1)?.geometries[0]?.positions;
+
+    expect(result.scene.parts).toHaveLength(2);
+    expect(first).toBe(second);
+  });
+
   it("reuses imported parts through the canonical runtime", async () => {
     const result = await importGlb(ONShapeCylinder);
     const runtime = createSceneRuntime(result.scene);
 
-    expect(runtime.partOccurrenceCount).toBe(4);
-    expect(runtime.visibleCount).toBe(4);
-    expect(runtime.getPartOccurrences().map((instance) => instance.partId)).toEqual([0, 1, 2, 3]);
+    expect(runtime.partOccurrenceCount).toBe(1);
+    expect(runtime.visibleCount).toBe(1);
+    expect(runtime.getPartOccurrences().map((instance) => instance.partId)).toEqual([0]);
   });
 
   it("allocates deterministic ids and rejects strict ignored-feature diagnostics", async () => {
@@ -227,6 +240,50 @@ function makeRepeatedMeshGlb(): Uint8Array {
       accessors: [
         { bufferView: 0, componentType: 5126, count: 3, type: "VEC3" },
         { bufferView: 1, componentType: 5123, count: 3, type: "SCALAR" },
+      ],
+    },
+    binary,
+  );
+}
+
+function makeSharedAccessorPrimitiveGlb(
+  primitiveCount: number,
+  distinctMaterials: boolean,
+): Uint8Array {
+  const positionBytes = bytesOf(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]));
+  const indexBytes = bytesOf(new Uint32Array([0, 1, 2]));
+  const binary = concat(positionBytes, indexBytes);
+  const materials = distinctMaterials
+    ? Array.from({ length: primitiveCount }, (_, index) => ({
+        name: `Material ${index}`,
+        pbrMetallicRoughness: { baseColorFactor: [index / primitiveCount, 0.4, 0.6, 1] },
+      }))
+    : undefined;
+  return makeGlb(
+    {
+      asset: { version: "2.0" },
+      scene: 0,
+      scenes: [{ nodes: [0] }],
+      nodes: [{ mesh: 0 }],
+      meshes: [
+        {
+          name: "Shared mesh",
+          primitives: Array.from({ length: primitiveCount }, (_, index) => ({
+            attributes: { POSITION: 0 },
+            indices: 1,
+            ...(distinctMaterials ? { material: index } : {}),
+          })),
+        },
+      ],
+      ...(materials === undefined ? {} : { materials }),
+      buffers: [{ byteLength: binary.byteLength }],
+      bufferViews: [
+        { buffer: 0, byteOffset: 0, byteLength: positionBytes.byteLength },
+        { buffer: 0, byteOffset: positionBytes.byteLength, byteLength: indexBytes.byteLength },
+      ],
+      accessors: [
+        { bufferView: 0, componentType: 5126, count: 3, type: "VEC3" },
+        { bufferView: 1, componentType: 5125, count: 3, type: "SCALAR" },
       ],
     },
     binary,

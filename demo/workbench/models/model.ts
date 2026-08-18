@@ -247,6 +247,7 @@ export function partStyleOverride(
   nodes: boolean,
 ): StyleOverride {
   const authored = model.partStyles.get(partId) ?? { color: fallbackColor };
+  if (!edges && !nodes) return authored;
   const part = model.scene.parts.get(partId);
   return {
     ...authored,
@@ -255,6 +256,20 @@ export function partStyleOverride(
       ? { nodes: true }
       : {}),
   };
+}
+
+/**
+ * Iterates every model part style without materializing an intermediate collection.
+ * @yields {readonly [PartId, StyleOverride]} One part id and resolved workbench style.
+ */
+export function* modelPartStyleOverrides(
+  model: WorkbenchModel,
+  edges: boolean,
+  nodes: boolean,
+): IterableIterator<readonly [PartId, StyleOverride]> {
+  for (const partId of model.scene.parts.keys()) {
+    yield [partId, partStyleOverride(model, partId, edges, nodes)];
+  }
 }
 
 /** Returns a safe display name for a browser-provided file name. */

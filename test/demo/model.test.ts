@@ -22,6 +22,11 @@ describe("demo workbench model boundary", () => {
       nodes: false,
       diagnostics: false,
     });
+    expect(createDefaultDisplayToggles({ source: "file" })).toEqual({
+      edges: false,
+      nodes: false,
+      diagnostics: false,
+    });
   });
 
   it("sanitizes browser file names and keeps a safe fallback", () => {

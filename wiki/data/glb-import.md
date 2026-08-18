@@ -11,10 +11,11 @@ FE elements, nodes, bodies, results, or a parallel runtime graph.
   informational diagnostic.
 - A synthetic root assembly contains one named assembly per reachable glTF node. Node matrix/TRS
   transforms are preserved as column-major femgx matrices, and node order is deterministic.
-- Each supported indexed or non-indexed `TRIANGLES` primitive with a FLOAT `POSITION` VEC3 becomes
-  one reusable `Part`. Primitive boundaries preserve glTF material/style boundaries; they do not
-  infer CAD or FE part semantics. Unsigned byte, short, and int indices are promoted to
-  `Uint32Array`.
+- Supported indexed or non-indexed `TRIANGLES` primitives with a FLOAT `POSITION` VEC3 are grouped
+  by material within each reusable glTF mesh. Each material group becomes one reusable `Part`, so
+  primitive-heavy display meshes retain their authored style boundaries without creating one scene
+  part and GPU batch per tiny primitive. Shared accessors are validated and retained once per import.
+  Unsigned byte, short, and int indices are promoted to `Uint32Array` when necessary.
 - Repeated glTF mesh references reuse those Parts through multiple assembly placements. No FE
   topology or pick ids are synthesized.
 - `baseColorFactor` maps to the existing `StyleOverride.color`. OPAQUE ignores source alpha,

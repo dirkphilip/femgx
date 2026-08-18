@@ -2,6 +2,7 @@ import {
   createInteractionState,
   createScene,
   selectedTargets,
+  setPartOverrides,
   setTargetsHighlighted,
   setTargetsSelected,
   translation,
@@ -35,8 +36,23 @@ import {
 } from "./interaction-fixtures";
 
 const INTERACTION_SCALING_COUNTS = [1_024, 4_096, 16_384] as const;
+const PART_OVERRIDE_SCALING_COUNTS = [25_000, 50_000, 100_000] as const;
+const partOverrideEntries = new Map(
+  PART_OVERRIDE_SCALING_COUNTS.map((count) => [
+    count,
+    Array.from({ length: count }, (_, partId) => [partId, { edge: false }] as const),
+  ]),
+);
 
 export const interactionBudgets: readonly BudgetCase[] = [
+  {
+    name: "setPartOverrides (100,000 parts)",
+    description: "one immutable bulk style transition for a many-part display scene",
+    budgetMs: 100,
+    run: () => {
+      setPartOverrides(createInteractionState(), partOverrideEntries.get(100_000) ?? []);
+    },
+  },
   {
     name: "setTargetsSelected (16,384 elements)",
     description: "one immutable bulk transition in one occurrence",
@@ -117,6 +133,17 @@ export const interactionBudgets: readonly BudgetCase[] = [
 ];
 
 export const interactionScalingCases: readonly ScalingCase[] = [
+  {
+    name: "many-part style overrides",
+    description: "apply 25,000–100,000 part styles in one immutable transition",
+    points: PART_OVERRIDE_SCALING_COUNTS.map((size) => ({
+      size,
+      run: () => {
+        setPartOverrides(createInteractionState(), partOverrideEntries.get(size) ?? []);
+      },
+    })),
+    maxNormalizedSpread: 3,
+  },
   {
     name: "many-part scene build",
     description: "register, place, snapshot, and compile 1,024–4,096 reusable parts",

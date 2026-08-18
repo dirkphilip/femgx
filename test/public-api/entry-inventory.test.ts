@@ -61,6 +61,7 @@ describe("public package entries", () => {
       "setPartOccurrenceOverride",
       "setPartOccurrenceOverrides",
       "setPartOverride",
+      "setPartOverrides",
       "setTargetHighlighted",
       "setTargetHovered",
       "setTargetSelected",
