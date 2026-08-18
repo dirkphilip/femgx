@@ -196,6 +196,22 @@ describe("createElementFixture", () => {
     expect(scene.parts.get(partIds.pyramid5)?.geometries[0]?.primitive).toBe("triangles");
   });
 
+  it("keeps the quadratic line fixture's control node on its corner edge", () => {
+    const { scene, partIds } = createElementFixture();
+    const geometry = scene.parts.get(partIds.line3)?.geometries[0];
+    if (geometry?.primitive !== "lines") throw new Error("Line3 geometry is missing");
+    for (let index = 0; index < geometry.positions.length; index += 3) {
+      const x = geometry.positions[index];
+      const y = geometry.positions[index + 1];
+      const z = geometry.positions[index + 2];
+      if (x === undefined || y === undefined || z === undefined) {
+        throw new Error("Line3 geometry has an incomplete position");
+      }
+      expect(x).toBeCloseTo(y);
+      expect(x).toBeCloseTo(z);
+    }
+  });
+
   it("retains one indexed multi-face generic element without a typed shape", () => {
     const { scene, partIds } = createElementFixture();
     const part = scene.parts.get(partIds.generic);

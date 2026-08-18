@@ -106,6 +106,31 @@ describe("packed semantic boundary", () => {
     ).toThrow(/two or three nodes/);
   });
 
+  it("rejects face nodes outside the declared node count without node positions", () => {
+    expect(() =>
+      createPackedPart(1, {
+        geometries: [triangleGeometry()],
+        semantic: {
+          ...baseStorage(),
+          faceNodeIds: Uint32Array.from([0, 1, 99, 1, 2, 3]),
+        },
+      }),
+    ).toThrow(/outside nodePositions/);
+  });
+
+  it("rejects face nodes outside supplied node positions", () => {
+    expect(() =>
+      createPackedPart(1, {
+        geometries: [triangleGeometry()],
+        semantic: {
+          ...baseStorage(),
+          faceNodeIds: Uint32Array.from([0, 1, 4, 1, 2, 3]),
+        },
+        nodePositions: nodePositions(),
+      }),
+    ).toThrow(/outside nodePositions/);
+  });
+
   it("rejects inconsistent face grouping, contiguity claims, and mixed primitives", () => {
     expect(() =>
       createPackedPart(1, {

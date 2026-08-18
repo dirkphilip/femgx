@@ -8,6 +8,7 @@ import type { DrawResources } from "./draw-types";
 import { destroyColorTargets } from "./color-targets";
 import type { PartResource } from "./foundation";
 import { destroyInstanceResources } from "./instance-lifecycle";
+import { invalidateBindGroups } from "./instance-storage";
 import { destroyVisibilitySkinCache, destroyVisibilitySkinCaches } from "../visibility/skins";
 import { destroyResultColorBuffer, destroyResultColorBuffers } from "./result-colors";
 
@@ -85,6 +86,8 @@ export function destroyDrawResources(draw: DrawResources): void {
 
 /** Releases all cached resources derived from one changed part definition. */
 export function destroyPartResources(draw: DrawResources, partId: PartId): void {
+  const storage = draw.storages.get(partId);
+  if (storage !== undefined) invalidateBindGroups(storage, draw.cost);
   destroyVisibilitySkinCache(draw, partId);
   const resources = draw.primitiveParts.get(partId);
   if (resources !== undefined) {

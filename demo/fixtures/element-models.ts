@@ -374,8 +374,13 @@ function outlineLineElements(
     }
   }
   if (lineKind !== "linear") {
+    const midpoint = Math.round(end / 2);
     elements.push(
-      createElement(id, ElementShape.Line3, [at(0, 0, 0), at(end, end, end), at(0, 0, end)]),
+      createElement(id, ElementShape.Line3, [
+        at(0, 0, 0),
+        at(midpoint, midpoint, midpoint),
+        at(end, end, end),
+      ]),
     );
   }
   return elements;

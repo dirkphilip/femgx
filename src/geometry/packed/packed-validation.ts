@@ -223,7 +223,7 @@ function validateFaces(
     validateFaceNodes(
       storage,
       face,
-      nodePositions?.length === undefined ? undefined : nodePositions.length / 3,
+      nodePositions === undefined ? storage.nodeCount : nodePositions.length / 3,
     );
     const neighbor = storage.faceNeighborElementOrdinals[face] ?? 0;
     if (neighbor > storage.elementIds.length) throw new Error(`Face ${face} has unknown neighbor`);
@@ -267,11 +267,7 @@ function validateFaceOwnership(
   }
 }
 
-function validateFaceNodes(
-  storage: PackedSemanticStorage,
-  face: number,
-  nodeCount: number | undefined,
-): void {
+function validateFaceNodes(storage: PackedSemanticStorage, face: number, nodeCount: number): void {
   const start = storage.faceNodeOffsets[face] ?? 0;
   const end = storage.faceNodeOffsets[face + 1] ?? start;
   if (end < start || end > storage.faceNodeIds.length || end - start < 3) {
@@ -279,7 +275,7 @@ function validateFaceNodes(
   }
   for (let index = start; index < end; index += 1) {
     const nodeId = storage.faceNodeIds[index] ?? 0;
-    if (nodeCount !== undefined && nodeId >= nodeCount) {
+    if (nodeId >= nodeCount) {
       throw new Error(`Face ${face} references node ${nodeId} outside nodePositions`);
     }
   }
