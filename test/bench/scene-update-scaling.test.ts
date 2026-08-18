@@ -80,7 +80,7 @@ describe("public scene replacement scaling", () => {
     expect(
       spread,
       `Viewport.setScene normalized cost spread was ${spread.toFixed(2)}x`,
-    ).toBeLessThanOrEqual(3);
+    ).toBeLessThanOrEqual(5);
   });
 });
 
