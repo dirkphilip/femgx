@@ -3,11 +3,10 @@
  * Scene, then rendered through Viewport.
  */
 export type {
-  Assembly,
-  NamedAssembly,
+  AssemblyDefinition,
   PartPlacement,
   Placement,
-  SubAssemblyPlacement,
+  AssemblyPlacement,
 } from "../scene/assembly";
 export {
   GeometryValidationError,
@@ -27,13 +26,14 @@ export {
   type Primitive,
   type TriangleGeometry,
 } from "../geometry/part";
-export { createPart } from "../geometry/part";
+export { createPart, type PartInput } from "../geometry/part";
 export { createScene, type Scene, type SceneBuilder } from "../scene/scene";
 export {
   createViewport,
   type Viewport,
   type ViewportOptions,
-  type SceneUpdateOutcome,
+  type SceneReconciliationOutcome,
+  type ViewportStats,
   type ViewportBackground,
   type ViewportInteraction,
   type ViewportPresentation,
@@ -49,7 +49,7 @@ export type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
-  ViewportElementVectorState,
+  ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportScalarConfig,
@@ -60,8 +60,8 @@ export type {
 export {
   createInteractionState,
   setPartOverride,
-  setInstanceOverride,
   setInstanceOverrides,
+  setPartOccurrenceOverride,
   type Color,
   type InteractionState,
   type InteractionTheme,
@@ -84,6 +84,7 @@ export {
   setTargetSelected,
   interactionTargetFromHit,
   type InteractionTarget,
+  type InteractionTargetFor,
 } from "../interaction/targets";
 export {
   emphasizedBodyRefs,
@@ -118,14 +119,14 @@ export {
   type ViewportInteractionPhase,
   type ViewportInteractionTouchMode,
 } from "../interaction/viewport-interaction";
-export type { AssemblyId, AssemblyOccurrenceId, ElementRef, InstanceId } from "../scene/types";
 export type {
-  EdgePickHit,
-  FacePickHit,
-  InteractionGranularity,
-  NodePickHit,
-  PickHit,
-} from "../picking/types";
+  AssemblyId,
+  AssemblyOccurrenceId,
+  ElementRef,
+  PartOccurrenceId,
+} from "../scene/types";
+export { InteractionGranularity } from "../picking/types";
+export type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "../picking/types";
 export {
   FRAME_COMPONENT_COUNT,
   LOAD_COMPONENT_COUNT,

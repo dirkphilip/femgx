@@ -63,7 +63,7 @@ export interface ElementFixture {
   readonly scene: Scene;
   readonly partIds: ElementFixtureParts;
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
-  readonly instanceCount: number;
+  readonly partOccurrenceCount: number;
 }
 
 const POINT_PART_ID: PartId = 1;
@@ -312,7 +312,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
       mixed: MIXED_PART_ID,
     },
     elementModels: models,
-    instanceCount: parts.length,
+    partOccurrenceCount: parts.length,
   };
 }
 
@@ -372,7 +372,7 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
       hex20: HEX20_PART_ID,
     },
     elementModels: new Map([[HEX20_PART_ID, model]]),
-    instanceCount: parts.length,
+    partOccurrenceCount: parts.length,
   };
 }
 

@@ -11,13 +11,13 @@ import type { InteractionTarget } from "./target-types";
 export interface SelectedTargetSummary {
   readonly count: number;
   readonly partIds: ReadonlySet<number>;
-  readonly instanceIds: ReadonlySet<string>;
+  readonly partOccurrenceIds: ReadonlySet<string>;
 }
 
 /** Counts selected identities and occurrences without materializing or sorting them. */
 export function selectedTargetSummary(state: InteractionState): SelectedTargetSummary {
   const data = readInteractionState(state);
-  const instanceIds = new Set(data.selectedInstanceIds);
+  const partOccurrenceIds = new Set(data.selectedPartOccurrenceIds);
   for (const groups of [
     data.selectedBodyIds,
     data.selectedElementIds,
@@ -25,9 +25,9 @@ export function selectedTargetSummary(state: InteractionState): SelectedTargetSu
     data.selectedNodeIds,
     data.selectedEdges,
   ]) {
-    for (const instanceId of groups.keys()) instanceIds.add(instanceId);
+    for (const partOccurrenceId of groups.keys()) partOccurrenceIds.add(partOccurrenceId);
   }
-  return { count: selectedTargetCount(state), partIds: data.selectedPartIds, instanceIds };
+  return { count: selectedTargetCount(state), partIds: data.selectedPartIds, partOccurrenceIds };
 }
 
 /** Counts all selected targets, or only targets of one interaction kind. */
@@ -37,7 +37,7 @@ export function selectedTargetCount(
 ): number {
   const data = readInteractionState(state);
   if (kind === "part") return data.selectedPartIds.size;
-  if (kind === "instance") return data.selectedInstanceIds.size;
+  if (kind === "partOccurrence") return data.selectedPartOccurrenceIds.size;
   const nested = {
     body: data.selectedBodyIds,
     element: data.selectedElementIds,
@@ -46,7 +46,7 @@ export function selectedTargetCount(
     edge: data.selectedEdges,
   };
   if (kind !== undefined) return nestedValueCount(nested[kind]);
-  let count = data.selectedPartIds.size + data.selectedInstanceIds.size;
+  let count = data.selectedPartIds.size + data.selectedPartOccurrenceIds.size;
   for (const groups of Object.values(nested)) count += nestedValueCount(groups);
   return count;
 }
@@ -64,8 +64,8 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
   for (const partId of [...data.selectedPartIds].sort((a, b) => a - b)) {
     targets.push({ kind: "part", partId });
   }
-  for (const instanceId of [...data.selectedInstanceIds].sort()) {
-    targets.push({ kind: "instance", instanceId });
+  for (const partOccurrenceId of [...data.selectedPartOccurrenceIds].sort()) {
+    targets.push({ kind: "partOccurrence", partOccurrenceId });
   }
   appendNumericTargets(targets, data.selectedBodyIds, "body");
   appendNumericTargets(targets, data.selectedElementIds, "element");
@@ -74,23 +74,24 @@ export function selectedTargets(state: InteractionState): InteractionTarget[] {
   )) {
     for (const ref of [...faces.values()].sort(
       (a, b) =>
-        a.instanceId.localeCompare(b.instanceId) ||
+        a.partOccurrenceId.localeCompare(b.partOccurrenceId) ||
         a.elementId - b.elementId ||
         a.faceIndex - b.faceIndex,
     )) {
       targets.push({
         kind: "face",
-        instanceId: ref.instanceId,
+        partOccurrenceId: ref.partOccurrenceId,
         elementId: ref.elementId,
         faceIndex: ref.faceIndex,
       });
     }
   }
   appendNumericTargets(targets, data.selectedNodeIds, "node");
-  for (const [instanceId, edges] of [...data.selectedEdges.entries()].sort(([a], [b]) =>
+  for (const [partOccurrenceId, edges] of [...data.selectedEdges.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   )) {
-    for (const key of [...edges.keys()].sort()) targets.push({ kind: "edge", instanceId, key });
+    for (const key of [...edges.keys()].sort())
+      targets.push({ kind: "edge", partOccurrenceId, key });
   }
   return targets;
 }
@@ -100,17 +101,19 @@ function appendNumericTargets(
   groups: ReadonlyMap<string, ReadonlySet<number>>,
   kind: "body" | "element" | "node",
 ): void {
-  for (const [instanceId, ids] of [...groups.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+  for (const [partOccurrenceId, ids] of [...groups.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
     for (const id of [...ids].sort((a, b) => a - b)) {
       switch (kind) {
         case "body":
-          targets.push({ kind, instanceId, bodyId: id });
+          targets.push({ kind, partOccurrenceId, bodyId: id });
           break;
         case "element":
-          targets.push({ kind, instanceId, elementId: id });
+          targets.push({ kind, partOccurrenceId, elementId: id });
           break;
         case "node":
-          targets.push({ kind, instanceId, nodeId: id });
+          targets.push({ kind, partOccurrenceId, nodeId: id });
           break;
       }
     }
@@ -119,7 +122,7 @@ function appendNumericTargets(
 
 /** Returns an explicit body style override, if one is present. */
 export function bodyOverride(state: InteractionState, ref: BodyRef): StyleOverride | undefined {
-  return readInteractionState(state).bodyOverrides.get(ref.instanceId)?.get(ref.bodyId);
+  return readInteractionState(state).bodyOverrides.get(ref.partOccurrenceId)?.get(ref.bodyId);
 }
 
 /** Clears all selection collections while preserving every other state layer. */
@@ -127,7 +130,7 @@ export function clearSelection(state: InteractionState): InteractionState {
   const data = readInteractionState(state);
   if (
     data.selectedPartIds.size === 0 &&
-    data.selectedInstanceIds.size === 0 &&
+    data.selectedPartOccurrenceIds.size === 0 &&
     data.selectedBodyIds.size === 0 &&
     data.selectedElementIds.size === 0 &&
     data.selectedFaces.size === 0 &&
@@ -138,7 +141,7 @@ export function clearSelection(state: InteractionState): InteractionState {
   }
   return updateInteractionState(state, {
     selectedPartIds: new Set(),
-    selectedInstanceIds: new Set(),
+    selectedPartOccurrenceIds: new Set(),
     selectedBodyIds: new Map(),
     selectedElementIds: new Map(),
     selectedFaces: new Map(),

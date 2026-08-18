@@ -22,13 +22,13 @@ import type { SelectTarget } from "../../demo/workbench/selection/pick";
 import { parseSelectionGranularity } from "../../demo/workbench/state/workbench-values";
 
 const part: SelectTarget = { kind: "part", partId: 4 };
-const instance: SelectTarget = { kind: "instance", instanceId: "1/0" };
-const element: SelectTarget = { kind: "element", instanceId: "1/0", elementId: 7 };
+const instance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "1/0" };
+const element: SelectTarget = { kind: "element", partOccurrenceId: "1/0", elementId: 7 };
 
 describe("demo selection policy", () => {
   it("accepts every selectable toolbar granularity", () => {
     expect(parseSelectionGranularity("part")).toBe("part");
-    expect(parseSelectionGranularity("instance")).toBe("instance");
+    expect(parseSelectionGranularity("partOccurrence")).toBe("partOccurrence");
     expect(parseSelectionGranularity("body")).toBe("body");
     expect(parseSelectionGranularity("unknown")).toBeUndefined();
   });
@@ -50,7 +50,7 @@ describe("demo selection policy", () => {
     const hit: PickHit = {
       kind: "node",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       nodeId: 3,
       localPosition: [0, 0, 0],
@@ -69,20 +69,20 @@ describe("demo selection policy", () => {
       elementId: 7,
     });
     expect(exactTarget(hit, { ...modifiers, shiftKey: true, altKey: true })).toMatchObject({
-      kind: "instance",
-      instanceId: "1/0",
+      kind: "partOccurrence",
+      partOccurrenceId: "1/0",
     });
 
     const directElement: PickHit = {
       kind: "element",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       worldPosition: [0, 0, 0],
     };
     expect(exactTarget(directElement, modifiers)).toMatchObject({
       kind: "element",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
     });
   });
@@ -91,7 +91,7 @@ describe("demo selection policy", () => {
     const hit: PickHit = {
       kind: "face",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       bodyId: 2,
       faceIndex: 1,
@@ -104,7 +104,7 @@ describe("demo selection policy", () => {
 
     expect(selectTarget(hit, "body", modifiersForTest())).toEqual({
       kind: "body",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       bodyId: 2,
     });
     expect(selectTarget(hit, "body", { ...modifiersForTest(), shiftKey: true })).toMatchObject({
@@ -114,17 +114,17 @@ describe("demo selection policy", () => {
 
   it.each([
     ["part", { kind: "part", partId: 4 }],
-    ["instance", { kind: "instance", instanceId: "1/0" }],
-    ["element", { kind: "element", instanceId: "1/0", elementId: 7 }],
-    ["face", { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 1 }],
-    ["node", { kind: "node", instanceId: "1/0", nodeId: 3 }],
+    ["partOccurrence", { kind: "partOccurrence", partOccurrenceId: "1/0" }],
+    ["element", { kind: "element", partOccurrenceId: "1/0", elementId: 7 }],
+    ["face", { kind: "face", partOccurrenceId: "1/0", elementId: 7, faceIndex: 1 }],
+    ["node", { kind: "node", partOccurrenceId: "1/0", nodeId: 3 }],
   ] as const)("maps a %s mode to its matching target kind", (granularity, expected) => {
     const hit: PickHit =
       granularity === "node"
         ? {
             kind: "node",
             partId: 4,
-            instanceId: "1/0",
+            partOccurrenceId: "1/0",
             elementId: 7,
             nodeId: 3,
             localPosition: [0, 0, 0],
@@ -135,7 +135,7 @@ describe("demo selection policy", () => {
         : {
             kind: "face",
             partId: 4,
-            instanceId: "1/0",
+            partOccurrenceId: "1/0",
             elementId: 7,
             faceIndex: 1,
             key: "face-key",
@@ -149,12 +149,12 @@ describe("demo selection policy", () => {
 
   it.each([
     ["part", { kind: "part", partId: 4 }],
-    ["instance", { kind: "instance", instanceId: "1/0" }],
+    ["partOccurrence", { kind: "partOccurrence", partOccurrenceId: "1/0" }],
   ] as const)("keeps Shift in %s mode at its selected scope", (granularity, expected) => {
     const hit: PickHit = {
       kind: "face",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       faceIndex: 1,
       key: "face-key",
@@ -175,7 +175,7 @@ describe("demo selection policy", () => {
     const face: PickHit = {
       kind: "face",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       faceIndex: 1,
       key: "face-key",
@@ -191,7 +191,7 @@ describe("demo selection policy", () => {
     const edge: PickHit = {
       kind: "edge",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       key: "0,1",
       nodeIds: [0, 1],
       incidentElementIds: [7, 8],
@@ -202,12 +202,12 @@ describe("demo selection policy", () => {
 
     expect(selectTarget(edge, "edge", modifiersForTest())).toEqual({
       kind: "edge",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       key: "0,1",
     });
     expect(selectTarget(edge, "edge", { ...modifiersForTest(), shiftKey: true })).toEqual({
       kind: "edge",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       key: "0,1",
     });
   });
@@ -215,11 +215,16 @@ describe("demo selection policy", () => {
   it("maps element-owned targets to one exact element without fabricating instance or part targets", () => {
     const node: SelectTarget = {
       kind: "node",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       nodeId: 3,
       elementId: 7,
     };
-    const face: SelectTarget = { kind: "face", instanceId: "1/0", elementId: 7, faceIndex: 0 };
+    const face: SelectTarget = {
+      kind: "face",
+      partOccurrenceId: "1/0",
+      elementId: 7,
+      faceIndex: 0,
+    };
     expect(elementTarget(node)).toEqual(element);
     expect(elementTarget(face)).toEqual(element);
     expect(elementTarget(element)).toEqual(element);
@@ -231,7 +236,7 @@ describe("demo selection policy", () => {
     const node: PickHit = {
       kind: "node",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       nodeId: 3,
       localPosition: [0, 0, 0],
@@ -242,7 +247,7 @@ describe("demo selection policy", () => {
     const face: PickHit = {
       kind: "face",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 7,
       faceIndex: 1,
       key: "face-key",
@@ -259,7 +264,7 @@ describe("demo selection policy", () => {
   it("replaces selection when selecting an element and removes only it when deselecting", () => {
     const node: SelectTarget = {
       kind: "node",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       nodeId: 3,
       elementId: 7,
     };
@@ -290,7 +295,7 @@ describe("demo selection policy", () => {
   it("bounds dense selection diagnostics without enumerating every identity", () => {
     const targets = Array.from({ length: 257 }, (_, elementId) => ({
       kind: "element" as const,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId,
     }));
     const interaction = setTargetsSelected(createInteractionState(), targets, true);
@@ -304,14 +309,14 @@ describe("demo selection policy", () => {
 
   it("only advertises framing for selected geometry in visible occurrences", () => {
     const runtime = {
-      getInstances: () => [
+      getPartOccurrences: () => [
         { partId: 4, visible: true },
         { partId: 9, visible: false },
       ],
-      isInstanceVisible: (instanceId: string) => instanceId === "visible",
+      isPartOccurrenceVisible: (partOccurrenceId: string) => partOccurrenceId === "visible",
     } as unknown as SceneRuntime;
-    const visibleInstance: SelectTarget = { kind: "instance", instanceId: "visible" };
-    const hiddenInstance: SelectTarget = { kind: "instance", instanceId: "hidden" };
+    const visibleInstance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "visible" };
+    const hiddenInstance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "hidden" };
 
     expect(hasVisibleSelection(createInteractionState(), runtime)).toBe(false);
     expect(hasVisibleSelection(toggleSelection(createInteractionState(), part), runtime)).toBe(

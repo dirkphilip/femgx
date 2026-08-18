@@ -89,7 +89,7 @@ export function collectInstanceUpdates(
         style,
         slot + 1,
         interactionData.selectedPartIds.has(partId) ||
-          interactionData.selectedInstanceIds.has(instance.instanceId),
+          interactionData.selectedPartOccurrenceIds.has(instance.partOccurrenceId),
       ),
     };
     const list = updates.get(partId);

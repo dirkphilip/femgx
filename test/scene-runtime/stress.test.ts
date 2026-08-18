@@ -3,10 +3,10 @@ import { createPart, type Part } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import type { Assembly, Placement } from "../../src/scene/assembly";
+import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
-import type { AssemblyId, Instance } from "../../src/scene/types";
+import type { AssemblyId, PartOccurrence } from "../../src/scene/types";
 
 /**
  * Large-model stress coverage: verifies that the CPU scene pipeline preserves
@@ -34,7 +34,7 @@ function stressScene(): Scene {
   for (let id = 1; id <= STRESS_PART_COUNT; id += 1) {
     parts.set(id, part(id));
   }
-  const assemblies = new Map<AssemblyId, Assembly>();
+  const assemblies = new Map<AssemblyId, AssemblyDefinition>();
   const rootPlacements: Placement[] = [];
   for (let subcase = 0; subcase < STRESS_SUBCASES; subcase += 1) {
     const subcaseId = subcase + 2;
@@ -66,8 +66,8 @@ describe("large-model stress", () => {
     const instances = runtimeInstances(createPackedSceneRuntime(scene));
     const ids = new Set<string>();
     for (const instance of instances) {
-      expect(ids.has(instance.instanceId)).toBe(false);
-      ids.add(instance.instanceId);
+      expect(ids.has(instance.partOccurrenceId)).toBe(false);
+      ids.add(instance.partOccurrenceId);
     }
     expect(ids.size).toBe(STRESS_INSTANCE_COUNT);
   });
@@ -94,21 +94,21 @@ describe("large-model stress", () => {
     expect(runtime.visibleCount).toBe(STRESS_INSTANCE_COUNT);
     expect(runtime.getDrawList()).toHaveLength(STRESS_INSTANCE_COUNT);
     const handle = runtime.getInstanceId(0);
-    expect(handle).toBe(instances[0]?.instanceId);
+    expect(handle).toBe(instances[0]?.partOccurrenceId);
   });
 
   it("resolves picks round-trip through runtime-derived instances", () => {
     const instances = runtimeInstances(createPackedSceneRuntime(scene));
     for (const pickId of [0, 1, STRESS_INSTANCE_COUNT / 2, STRESS_INSTANCE_COUNT - 1]) {
       const resolved = resolvePick(instances, pickId);
-      expect(resolved?.instanceId).toBe(instances[pickId]?.instanceId);
+      expect(resolved?.partOccurrenceId).toBe(instances[pickId]?.partOccurrenceId);
     }
     expect(resolvePick(instances, STRESS_INSTANCE_COUNT)).toBeUndefined();
     expect(resolvePick(instances, -1)).toBeUndefined();
   });
 });
 
-function countsByPart(instances: readonly Instance[]): ReadonlyMap<PartId, number> {
+function countsByPart(instances: readonly PartOccurrence[]): ReadonlyMap<PartId, number> {
   const counts = new Map<PartId, number>();
   for (const instance of instances) {
     counts.set(instance.partId, (counts.get(instance.partId) ?? 0) + 1);
@@ -118,17 +118,18 @@ function countsByPart(instances: readonly Instance[]): ReadonlyMap<PartId, numbe
 
 function runtimeInstances(
   runtime: ReturnType<typeof createPackedSceneRuntime>,
-): readonly Instance[] {
-  const instances: Instance[] = [];
+): readonly PartOccurrence[] {
+  const instances: PartOccurrence[] = [];
   const drawList = runtime.getDrawList();
   for (let index = 0; index < drawList.length; index += 1) {
     const slot = drawList[index];
     if (slot === undefined) continue;
-    const instanceId = runtime.getInstanceId(slot);
+    const partOccurrenceId = runtime.getInstanceId(slot);
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
-    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ instanceId, partId, worldTransform });
+    if (partOccurrenceId === undefined || partId === undefined || worldTransform === undefined)
+      continue;
+    instances.push({ partOccurrenceId, partId, worldTransform });
   }
   return instances;
 }

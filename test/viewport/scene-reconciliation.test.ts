@@ -82,12 +82,12 @@ describe("reconcileInteractionState", () => {
         [second, new Set([2])],
       ]),
       selectedFaces: new Map([
-        [first, new Map([["10/0", { instanceId: first, elementId: 10, faceIndex: 0 }]])],
-        [second, new Map([["10/0", { instanceId: second, elementId: 10, faceIndex: 0 }]])],
+        [first, new Map([["10/0", { partOccurrenceId: first, elementId: 10, faceIndex: 0 }]])],
+        [second, new Map([["10/0", { partOccurrenceId: second, elementId: 10, faceIndex: 0 }]])],
       ]),
       selectedEdges: new Map([
-        [first, new Map([["0,1", { instanceId: first, key: "0,1" }]])],
-        [second, new Map([["0,1", { instanceId: second, key: "0,1" }]])],
+        [first, new Map([["0,1", { partOccurrenceId: first, key: "0,1" }]])],
+        [second, new Map([["0,1", { partOccurrenceId: second, key: "0,1" }]])],
       ]),
     });
 

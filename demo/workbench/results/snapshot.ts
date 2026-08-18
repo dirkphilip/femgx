@@ -1,4 +1,8 @@
-import type { InstanceId, InteractionState, ViewportBackground } from "../../../src/entries/root";
+import type {
+  PartOccurrenceId,
+  InteractionState,
+  ViewportBackground,
+} from "../../../src/entries/root";
 import type { BodyId, ElementId } from "../../../src/entries/model";
 import type { Camera } from "../../../src/entries/camera";
 import type { SceneRuntime } from "../../../src/entries/runtime";
@@ -124,7 +128,7 @@ export interface WorkbenchSnapshot {
   };
   readonly hierarchy: {
     readonly occurrenceCount: number;
-    readonly visibleInstances: number;
+    readonly visiblePartOccurrences: number;
     readonly selectedCount: number;
     readonly hideSelectedElementCount: number;
     readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
@@ -146,7 +150,7 @@ export interface WorkbenchSnapshot {
 
 /** Bounded metadata for the body-scoped element detail view. */
 export interface WorkbenchElementDetailSnapshot {
-  readonly instanceId: InstanceId;
+  readonly partOccurrenceId: PartOccurrenceId;
   readonly bodyId: BodyId;
   readonly label: string;
   readonly partName: string;

@@ -101,7 +101,7 @@ describe("createPackedSceneRuntime", () => {
           structuralScene({
             assemblies: new Map([[Number.NaN, { id: Number.NaN, placements: [] }]]),
           }),
-        /Assembly id NaN/,
+        /AssemblyDefinition id NaN/,
       ],
       [
         "mismatched part registry key",
@@ -111,7 +111,7 @@ describe("createPackedSceneRuntime", () => {
       [
         "mismatched assembly registry key",
         () => structuralScene({ assemblies: new Map([[2, { id: 1, placements: [] }]]) }),
-        /Assembly registry key 2 does not match assembly id 1/,
+        /AssemblyDefinition registry key 2 does not match assembly id 1/,
       ],
       [
         "unsupported placement kind",

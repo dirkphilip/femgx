@@ -1,4 +1,4 @@
-import type { ElementId, InstanceId } from "../scene/types";
+import type { ElementId, PartOccurrenceId } from "../scene/types";
 import type { NodeId } from "../elements/element";
 import type { EdgeKey } from "../elements/edges";
 import type { BodyId, PartId } from "../geometry/part";
@@ -136,28 +136,31 @@ export interface InteractionState {
 /** Private storage for the opaque interaction value. */
 export interface InteractionStateData {
   readonly highlightedPartIds: ReadonlySet<PartId>;
-  readonly highlightedInstanceIds: ReadonlySet<InstanceId>;
+  readonly highlightedPartOccurrenceIds: ReadonlySet<PartOccurrenceId>;
   readonly selectedPartIds: ReadonlySet<PartId>;
-  readonly selectedInstanceIds: ReadonlySet<InstanceId>;
-  readonly selectedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly highlightedBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly bodyOverrides: ReadonlyMap<InstanceId, ReadonlyMap<BodyId, PrimitiveStyleOverride>>;
-  readonly hiddenBodyIds: ReadonlyMap<InstanceId, ReadonlySet<BodyId>>;
-  readonly selectedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
-  readonly highlightedElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
-  readonly hiddenElementIds: ReadonlyMap<InstanceId, ReadonlySet<ElementId>>;
+  readonly selectedPartOccurrenceIds: ReadonlySet<PartOccurrenceId>;
+  readonly selectedBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  readonly highlightedBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  readonly bodyOverrides: ReadonlyMap<
+    PartOccurrenceId,
+    ReadonlyMap<BodyId, PrimitiveStyleOverride>
+  >;
+  readonly hiddenBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  readonly selectedElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
+  readonly highlightedElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
+  readonly hiddenElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
   readonly elementOverrides: ReadonlyMap<
-    InstanceId,
+    PartOccurrenceId,
     ReadonlyMap<ElementId, PrimitiveStyleOverride>
   >;
   readonly partOverrides: ReadonlyMap<PartId, StyleOverride>;
-  readonly instanceOverrides: ReadonlyMap<InstanceId, StyleOverride>;
-  readonly selectedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
-  readonly highlightedNodeIds: ReadonlyMap<InstanceId, ReadonlySet<NodeId>>;
-  readonly selectedEdges: ReadonlyMap<InstanceId, ReadonlyMap<EdgeKey, EdgeRef>>;
-  readonly highlightedEdges: ReadonlyMap<InstanceId, ReadonlyMap<EdgeKey, EdgeRef>>;
-  readonly selectedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
-  readonly highlightedFaces: ReadonlyMap<InstanceId, ReadonlyMap<string, FaceRef>>;
+  readonly partOccurrenceOverrides: ReadonlyMap<PartOccurrenceId, StyleOverride>;
+  readonly selectedNodeIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<NodeId>>;
+  readonly highlightedNodeIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<NodeId>>;
+  readonly selectedEdges: ReadonlyMap<PartOccurrenceId, ReadonlyMap<EdgeKey, EdgeRef>>;
+  readonly highlightedEdges: ReadonlyMap<PartOccurrenceId, ReadonlyMap<EdgeKey, EdgeRef>>;
+  readonly selectedFaces: ReadonlyMap<PartOccurrenceId, ReadonlyMap<string, FaceRef>>;
+  readonly highlightedFaces: ReadonlyMap<PartOccurrenceId, ReadonlyMap<string, FaceRef>>;
   readonly hoveredTarget?: InteractionTarget;
   readonly theme: InteractionTheme;
 }
@@ -228,36 +231,38 @@ function targetsEqual(
   switch (left.kind) {
     case "part":
       return right.kind === "part" && left.partId === right.partId;
-    case "instance":
-      return right.kind === "instance" && left.instanceId === right.instanceId;
+    case "partOccurrence":
+      return right.kind === "partOccurrence" && left.partOccurrenceId === right.partOccurrenceId;
     case "body":
       return (
         right.kind === "body" &&
-        left.instanceId === right.instanceId &&
+        left.partOccurrenceId === right.partOccurrenceId &&
         left.bodyId === right.bodyId
       );
     case "element":
       return (
         right.kind === "element" &&
-        left.instanceId === right.instanceId &&
+        left.partOccurrenceId === right.partOccurrenceId &&
         left.elementId === right.elementId
       );
     case "face":
       return (
         right.kind === "face" &&
-        left.instanceId === right.instanceId &&
+        left.partOccurrenceId === right.partOccurrenceId &&
         left.elementId === right.elementId &&
         left.faceIndex === right.faceIndex
       );
     case "node":
       return (
         right.kind === "node" &&
-        left.instanceId === right.instanceId &&
+        left.partOccurrenceId === right.partOccurrenceId &&
         left.nodeId === right.nodeId
       );
     case "edge":
       return (
-        right.kind === "edge" && left.instanceId === right.instanceId && left.key === right.key
+        right.kind === "edge" &&
+        left.partOccurrenceId === right.partOccurrenceId &&
+        left.key === right.key
       );
   }
 }

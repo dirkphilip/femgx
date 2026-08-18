@@ -1,7 +1,7 @@
 import { createPart, type Part } from "../../src/geometry/part";
 import type { GeometryBody } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
-import type { Assembly, Placement } from "../../src/scene/assembly";
+import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
 import type { Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import type { AssemblyId } from "../../src/scene/types";
@@ -69,11 +69,11 @@ export function makeScene(options: {
 }): Scene {
   const { subcaseCount, placementsPerSubcase, partCount } = options;
   const parts = partMap(partCount);
-  const assemblies = new Map<AssemblyId, Assembly>();
+  const assemblies = new Map<AssemblyId, AssemblyDefinition>();
   const rootPlacements: Placement[] = [];
   for (let subcase = 0; subcase < subcaseCount; subcase++) {
     const subcaseId = subcase + 2;
-    const subcaseAssembly: Assembly = {
+    const subcaseAssembly: AssemblyDefinition = {
       id: subcaseId,
       placements: partPlacements(placementsPerSubcase, partCount, subcase),
     };
@@ -107,7 +107,7 @@ export function makeHierarchyScene(options: {
 }): Scene {
   const { depth, fanout, partsPerLeaf, partCount } = options;
   const parts = partMap(partCount);
-  const assemblies = new Map<AssemblyId, Assembly>();
+  const assemblies = new Map<AssemblyId, AssemblyDefinition>();
   let nextId = 1;
   const buildNode = (currentDepth: number, nodeId: AssemblyId): void => {
     const placements: Placement[] = [];

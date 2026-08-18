@@ -4,8 +4,8 @@ import {
   createInteractionState,
   setElementHighlighted,
   setElementSelected,
-  setInstanceOverride,
-  setInstanceSelected,
+  setPartOccurrenceOverride,
+  setPartOccurrenceSelected,
   setPartOverride,
   setPartHighlighted,
   type InteractionState,
@@ -82,7 +82,7 @@ describe("changedInstanceSlots", () => {
   it("returns the slot of an instance when its selection changes", () => {
     const rt = runtime();
     const empty = createInteractionState();
-    const selected = setInstanceSelected(empty, "1/3", true);
+    const selected = setPartOccurrenceSelected(empty, "1/3", true);
     expect(changedInstanceSlots(rt, empty, selected)).toEqual([3]);
     expect(changedInstanceSlots(rt, selected, empty)).toEqual([3]);
   });
@@ -101,19 +101,19 @@ describe("changedInstanceSlots", () => {
   it("returns the slot of an instance when its override changes", () => {
     const rt = runtime();
     const empty = createInteractionState();
-    const overridden = setInstanceOverride(empty, "1/1", { emissive: 0.35 });
+    const overridden = setPartOccurrenceOverride(empty, "1/1", { emissive: 0.35 });
     expect(changedInstanceSlots(rt, empty, overridden)).toEqual([1]);
-    const cleared = setInstanceOverride(overridden, "1/1", undefined);
+    const cleared = setPartOccurrenceOverride(overridden, "1/1", undefined);
     expect(changedInstanceSlots(rt, overridden, cleared)).toEqual([1]);
   });
 
   it("returns the previous and next slots when the hovered instance changes", () => {
     const rt = runtime();
     const hovered = setTargetHovered(createInteractionState(), {
-      kind: "instance",
-      instanceId: "1/0",
+      kind: "partOccurrence",
+      partOccurrenceId: "1/0",
     });
-    const moved = setTargetHovered(hovered, { kind: "instance", instanceId: "1/4" });
+    const moved = setTargetHovered(hovered, { kind: "partOccurrence", partOccurrenceId: "1/4" });
     expect(changedInstanceSlots(rt, hovered, moved)).toEqual([0, 4]);
     expect(changedInstanceSlots(rt, moved, hovered)).toEqual([0, 4]);
   });
@@ -122,7 +122,7 @@ describe("changedInstanceSlots", () => {
     const rt = runtime();
     const empty = createInteractionState();
     const state = setPartHighlighted(empty, 1, true);
-    const state2 = setInstanceSelected(state, "1/1", true);
+    const state2 = setPartOccurrenceSelected(state, "1/1", true);
     expect(changedInstanceSlots(rt, empty, state2)).toEqual([0, 1, 2]);
   });
 
@@ -131,18 +131,26 @@ describe("changedInstanceSlots", () => {
     const empty = createInteractionState();
     let state: InteractionState = setElementSelected(
       empty,
-      { instanceId: "1/0", elementId: 0 },
+      { partOccurrenceId: "1/0", elementId: 0 },
       true,
     );
-    state = setNodeSelected(state, { instanceId: "1/0", nodeId: 0 }, true);
-    state = setFaceHighlighted(state, { instanceId: "1/0", elementId: 0, faceIndex: 0 }, true);
+    state = setNodeSelected(state, { partOccurrenceId: "1/0", nodeId: 0 }, true);
+    state = setFaceHighlighted(
+      state,
+      { partOccurrenceId: "1/0", elementId: 0, faceIndex: 0 },
+      true,
+    );
     expect(changedInstanceSlots(rt, empty, state)).toEqual([]);
   });
 
   it("marks an element highlight's owning instance slot dirty", () => {
     const rt = runtime();
     const empty = createInteractionState();
-    const highlighted = setElementHighlighted(empty, { instanceId: "1/3", elementId: 0 }, true);
+    const highlighted = setElementHighlighted(
+      empty,
+      { partOccurrenceId: "1/3", elementId: 0 },
+      true,
+    );
     expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([3]);
     expect(changedInstanceSlots(rt, highlighted, empty)).toEqual([3]);
   });
@@ -150,7 +158,7 @@ describe("changedInstanceSlots", () => {
   it("marks an element visibility change's owning instance slot dirty", () => {
     const rt = runtime();
     const empty = createInteractionState();
-    const hidden = setElementVisible(empty, { instanceId: "1/3", elementId: 0 }, false);
+    const hidden = setElementVisible(empty, { partOccurrenceId: "1/3", elementId: 0 }, false);
     expect(changedInstanceSlots(rt, empty, hidden)).toEqual([3]);
     expect(changedInstanceSlots(rt, hidden, empty)).toEqual([3]);
   });
@@ -158,7 +166,7 @@ describe("changedInstanceSlots", () => {
   it("ignores stale instance handles from a previous preset", () => {
     const rt = runtime();
     const stale = createInteractionState();
-    const staleState = setInstanceSelected(stale, "old/9", true);
+    const staleState = setPartOccurrenceSelected(stale, "old/9", true);
     expect(changedInstanceSlots(rt, staleState, createInteractionState())).toEqual([]);
   });
 });

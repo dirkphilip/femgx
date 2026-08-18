@@ -2,7 +2,7 @@ import type { Part } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
-import type { InstanceId } from "../../scene/types";
+import type { PartOccurrenceId } from "../../scene/types";
 import {
   buildHighlightTable,
   BODY_HIGHLIGHT_MARKER,
@@ -200,7 +200,7 @@ export interface ElementHighlightSync {
   };
   readonly runtime: PackedSceneRuntime;
   readonly layout: DenseElementLayout;
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly denseSelections?: DenseElementSelections;
   readonly denseNodeSelections?: DenseNodeSelections;

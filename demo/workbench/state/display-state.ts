@@ -82,19 +82,23 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
         : deformationConfig === undefined
           ? undefined
           : { field: deformationConfig.field, scale: deformationScale };
-  if (
-    scalar === undefined &&
-    deformation === undefined &&
-    vector === undefined &&
-    loads === undefined
-  )
-    return undefined;
-  return {
-    ...(scalar === undefined ? {} : { scalar }),
-    ...(deformation === undefined ? {} : { deformation }),
-    ...(vector === undefined ? {} : { vectors: vector }),
-    ...(loads === undefined ? {} : { loads }),
-  };
+  if (scalar !== undefined)
+    return {
+      scalar,
+      ...(deformation === undefined ? {} : { deformation }),
+      ...(vector === undefined ? {} : { orientation: vector }),
+      ...(loads === undefined ? {} : { loads }),
+    };
+  if (deformation !== undefined)
+    return {
+      deformation,
+      ...(vector === undefined ? {} : { orientation: vector }),
+      ...(loads === undefined ? {} : { loads }),
+    };
+  if (vector !== undefined)
+    return { orientation: vector, ...(loads === undefined ? {} : { loads }) };
+  if (loads !== undefined) return { loads };
+  return undefined;
 }
 
 interface DisplayStateOptions {

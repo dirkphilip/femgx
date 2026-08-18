@@ -18,10 +18,10 @@ describe("region-localized e2e pick discovery", () => {
   });
 
   it("encodes region identities using the interaction dataset key", () => {
-    expect(regionTargetKey({ kind: "node", instanceId: "1/0", nodeId: 4 })).toBe("n:1/0:4");
-    expect(regionTargetKey({ kind: "face", instanceId: "1/0", elementId: 8, faceIndex: 2 })).toBe(
-      "f:1/0:8:2",
-    );
+    expect(regionTargetKey({ kind: "node", partOccurrenceId: "1/0", nodeId: 4 })).toBe("n:1/0:4");
+    expect(
+      regionTargetKey({ kind: "face", partOccurrenceId: "1/0", elementId: 8, faceIndex: 2 }),
+    ).toBe("f:1/0:8:2");
     expect(regionTargetKey({ kind: "part", partId: 3 })).toBe("p:3");
     expect(regionTargetKey({ kind: "unknown", id: 3 })).toBeUndefined();
   });

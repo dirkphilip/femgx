@@ -33,7 +33,7 @@ describe("WebGPU renderer", () => {
 
     const hidden = runtime.setPartVisible(1, false);
     renderer.updateVisibility(runtime, hidden.changedInstanceIds);
-    const hovered = setTargetHovered(nodes, { kind: "instance", instanceId: "1/0" });
+    const hovered = setTargetHovered(nodes, { kind: "partOccurrence", partOccurrenceId: "1/0" });
     renderer.updateElements(runtime, hovered, [0]);
     const callsBefore = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
@@ -202,7 +202,7 @@ describe("WebGPU renderer", () => {
     const runtime = createPackedSceneRuntime(scene);
     const interaction = setElementOverride(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 7 },
+      { partOccurrenceId: "1/0", elementId: 7 },
       { color: { r: 0, g: 1, b: 0, a: 1 } },
     );
     renderer.updateElements(runtime, interaction);

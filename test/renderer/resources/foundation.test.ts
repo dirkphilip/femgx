@@ -9,11 +9,11 @@ describe("GPU support helpers", () => {
     const state = createInteractionState();
     const data = readInteractionState(state);
     expect(data.highlightedPartIds.size).toBe(0);
-    expect(data.highlightedInstanceIds.size).toBe(0);
+    expect(data.highlightedPartOccurrenceIds.size).toBe(0);
     expect(data.selectedPartIds.size).toBe(0);
-    expect(data.selectedInstanceIds.size).toBe(0);
+    expect(data.selectedPartOccurrenceIds.size).toBe(0);
     expect(data.partOverrides.size).toBe(0);
-    expect(data.instanceOverrides.size).toBe(0);
+    expect(data.partOccurrenceOverrides.size).toBe(0);
   });
 
   it("uploads the source view without an intermediate staging copy", () => {

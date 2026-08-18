@@ -2,7 +2,7 @@
 
 > **The shortest path to a rendered model**
 >
-> `model → reusable Part → hierarchical Scene → Viewport`
+> `definition → placement → part occurrence → Viewport`
 
 Welcome to the FemGx 0.x API reference. This page is the friendly front door;
 the generated symbol reference begins below it. Start with the five-minute
@@ -11,7 +11,7 @@ camera control, or import.
 
 <div class="femgx-hero-links">
   <a class="femgx-card" href="#five-minute-workflow"><span class="femgx-card-kicker">01 · Start here</span><strong>Render a typed FE part</strong><span>Create one model, place it once, and hand it to a viewport.</span></a>
-  <a class="femgx-card" href="#the-mental-model"><span class="femgx-card-kicker">02 · Understand</span><strong>Follow ownership</strong><span>See where geometry, placement, identity, and GPU state live.</span></a>
+  <a class="femgx-card" href="#the-mental-model"><span class="femgx-card-kicker">02 · Understand</span><strong>Follow ownership</strong><span>See where definitions, placements, occurrences, and GPU state live.</span></a>
   <a class="femgx-card" href="#workflow-4-viewport-lifecycle-picking-and-structural-updates"><span class="femgx-card-kicker">03 · Compose</span><strong>Add interaction</strong><span>Pick, select, hide, update, recover, and keep host policy in your app.</span></a>
 </div>
 
@@ -98,6 +98,9 @@ There are four important ownership boundaries:
 - An assembly definition contains placements of parts or child assemblies.
   A placement contributes a transform and a stable placement identity; it does
   not copy geometry.
+- A `PartOccurrence` is the runtime identity of one expanded part placement.
+  Its transform, visibility, interaction, and pick identity belong to that
+  occurrence, while its geometry remains shared with the `Part` definition.
 - A `Scene` is the authoritative registry of parts and assembly definitions,
   together with its root assembly and visibility state.
 - `Viewport` owns the current compiled runtime, WebGPU resources, recovery,
@@ -105,9 +108,9 @@ There are four important ownership boundaries:
   and `presentation` facades expose the host-facing capabilities.
 
 `SceneRuntime` is a read-only query facade over the compiled scene. It exposes
-stable instance and assembly-occurrence handles, not renderer slots or GPU
+stable part-occurrence and assembly-occurrence handles, not renderer slots or GPU
 buffers. The canonical live facade is `viewport.runtime`; reacquire that
-property after `setScene()` or `updateScene()`, because structural replacement
+property after `replaceScene()` or `reconcileScene()`, because structural replacement
 installs a new runtime snapshot.
 
 `Scene.visiblePartIds` and `Scene.visibleAssemblyIds` are the authored initial
@@ -115,9 +118,14 @@ visibility sets. `addPart` and `addAssembly` add new definitions to those sets
 by default; the sets are read-only snapshots once `build()` returns. After a
 scene enters a viewport, use `viewport.visibility.setPart` or
 `viewport.visibility.setAssembly` for definition-wide live changes, and
-`viewport.visibility.setInstance` or
+`viewport.visibility.setPartOccurrence` or
 `viewport.visibility.setAssemblyOccurrence` when only one expanded placement
 should change.
+
+For named discovery, `InteractionGranularity` is an exported string-valued
+const object: use `InteractionGranularity.Element` or
+`InteractionGranularity.PartOccurrence`; the values remain the ergonomic
+strings (`"element"` and `"partOccurrence"`) accepted by viewport methods.
 
 ### Composed viewport surface
 
@@ -132,7 +140,7 @@ viewport.presentation.setBackground("dark");
 
 viewport.batch(() => {
   viewport.interaction.set(nextInteraction);
-  viewport.visibility.setInstance(instanceId, true);
+  viewport.visibility.setPartOccurrence(partOccurrenceId, true);
   viewport.presentation.setSectionPlane(plane);
 });
 ```
@@ -148,7 +156,7 @@ Visibility ids are checked at the active scene/runtime boundary:
 import { UnknownSceneIdentityError } from "femgx";
 
 try {
-  viewport.visibility.setInstance("stale-instance", false);
+  viewport.visibility.setPartOccurrence("stale-occurrence", false);
 } catch (error) {
   if (error instanceof UnknownSceneIdentityError) {
     console.warn("Stale", error.kind, error.id);
@@ -335,14 +343,14 @@ and GPU state.
 
 ## Workflow 3: reuse one definition through assemblies
 
-A part definition, placement, assembly definition, and expanded runtime
-instance are different concepts:
+A part definition, placement, assembly definition, and expanded part occurrence
+are different concepts:
 
 ```text
-part id 30       = one reusable local geometry definition
-placementId      = one authored reference within an assembly
-instanceId       = one expanded placed-part identity in the runtime
-occurrenceId     = one expanded assembly node in the runtime
+partId             = one reusable local geometry definition
+placementId        = one authored reference within an assembly
+partOccurrenceId   = one expanded placed-part identity in the runtime
+occurrenceId       = one expanded assembly node in the runtime
 ```
 
 The distinction matters when the same definition appears in different places:
@@ -404,18 +412,18 @@ part. Host code should use stable runtime handles for occurrence-specific
 actions, never private slots:
 
 ```ts
-for (const instance of viewport.runtime.getInstances()) {
-  console.log(instance.instanceId, instance.partId, instance.transform);
+for (const occurrence of viewport.runtime.getPartOccurrences()) {
+  console.log(occurrence.partOccurrenceId, occurrence.partId, occurrence.transform);
 }
 
-const [firstInstance] = viewport.runtime.getInstanceIds();
-if (firstInstance !== undefined) {
-  viewport.visibility.setInstance(firstInstance, false);
+const [firstPartOccurrence] = viewport.runtime.getPartOccurrenceIds();
+if (firstPartOccurrence !== undefined) {
+  viewport.visibility.setPartOccurrence(firstPartOccurrence, false);
 }
 ```
 
 `viewport.visibility.setPart(partId, false)` hides every occurrence of a
-definition; `viewport.visibility.setInstance(instanceId, false)` hides one
+definition; `viewport.visibility.setPartOccurrence(partOccurrenceId, false)` hides one
 placement. Similarly, `setAssembly` affects an assembly definition, while
 `setAssemblyOccurrence` affects one expanded occurrence. An unknown id throws
 `UnknownSceneIdentityError` before any runtime or renderer mutation.
@@ -531,7 +539,7 @@ const handleClick = (event: MouseEvent): void => {
     (hit) => {
       if (disposed || hit === undefined) return;
       const target =
-        interactionTargetFromHit(hit, "element") ?? interactionTargetFromHit(hit, "instance");
+        interactionTargetFromHit(hit, "element") ?? interactionTargetFromHit(hit, "partOccurrence");
       if (target !== undefined) {
         viewport.interaction.set(setTargetSelected(viewport.interaction.state, target, true));
       }
@@ -573,13 +581,19 @@ const nextInteraction = setTargetsSelected(
 viewport.interaction.set(nextInteraction);
 ```
 
+The requested granularity narrows the return type: the `"element"` call above
+is `readonly InteractionTargetFor<"element">[]`, while an edge-only `pick`
+returns `EdgePickHit | undefined`. The same inference applies to
+`interactionTargetFromHit`, so hosts do not need assertions after choosing a
+literal granularity.
+
 `pickRegion` is nearest-visible raster discovery. For the Core-now Through
 strategy, use `boxSelectionFrustum` with the authoritative placed FE geometry
 in the host; it is an element-only CPU query and intentionally does not apply
 raster occlusion. Tessellation diagonals are never authored edge identities.
 
 Structural changes are transactional. Build a new immutable scene, call
-`updateScene`, then reacquire the live runtime facade:
+`reconcileScene`, then reacquire the live runtime facade:
 
 ```ts
 const nextScene = createScene()
@@ -599,14 +613,21 @@ const nextScene = createScene()
   .withRoot(60)
   .build();
 
-const outcome = viewport.updateScene(nextScene);
+const outcome = viewport.reconcileScene(nextScene);
 console.log(outcome.results); // "none", "preserved", or "cleared"
+if (outcome.results === "cleared") console.warn(outcome.reason);
 const currentRuntime = viewport.runtime; // new facade after the replacement
 ```
 
-`updateScene` recompiles before committing, preserves compatible placement
+The return value is a `SceneReconciliationOutcome`: `reconcileScene` reports
+whether the active authored results were preserved or cleared after the new
+scene was validated. It is a discriminated union: `reason` is required and
+available only for the `"cleared"` outcome. Use `replaceScene` when the new
+scene is a deliberate reset and no placement-scoped state should carry across.
+
+`reconcileScene` recompiles before committing, preserves compatible placement
 state, prunes stale interaction references, and revalidates active results.
-Use `setScene` when a full replacement and reset of placement-scoped state is
+Use `replaceScene` when a full replacement and reset of placement-scoped state is
 what the application wants. When the host removes the viewport, call
 `disposeViewport` (or the equivalent teardown in the host framework): the host
 removes listeners it installed, then `viewport.destroy()` releases the
@@ -663,6 +684,9 @@ scalar, deformation, and optional orientation roles. To show a host-owned
 sequence, call `viewport.results.set` again with the next complete snapshot; FemGx retains
 only the current one.
 
+`ViewportResultsConfig` requires at least one role at compile time. Use
+`viewport.results.clear()` instead of passing an empty object.
+
 Elemental scalar coloring uses element ids rather than tessellated triangle
 indices:
 
@@ -708,7 +732,7 @@ const directions = createResultField({
 });
 viewport.results.set({
   scalar: { field: temperature },
-  vectors: {
+  orientation: {
     field: directions,
     glyph: "arrow",
     transform: "direction",
@@ -718,8 +742,10 @@ viewport.results.set({
 });
 ```
 
-The vector role is deliberately bounded: authored elemental data only,
-`"arrow"` or `"axis"`, and `"direction"` or `"normal"` transforms. FemGx
+The orientation role is deliberately bounded: authored elemental data only.
+Arrows accept `"direction"` or `"normal"`; axes are directed and therefore
+accept only `"direction"`. TypeScript rejects the meaningless axis/normal
+combination before it reaches runtime validation. FemGx
 does not compute engineering vectors, magnitudes, tensor glyphs, legends, or
 playback controls.
 
@@ -810,7 +836,7 @@ For a CPU-only inspection with no canvas or GPU, use the separate runtime entry:
 import { createSceneRuntime } from "femgx/runtime";
 
 const snapshot = createSceneRuntime(scene);
-console.log(snapshot.getVisibleInstanceIds());
+console.log(snapshot.getVisiblePartOccurrenceIds());
 console.log(snapshot.getOccurrences());
 ```
 

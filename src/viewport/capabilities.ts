@@ -1,11 +1,11 @@
 import type { Camera } from "../camera/camera";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionState } from "../interaction/interaction";
-import type { InteractionTarget } from "../interaction/target-types";
+import type { InteractionTarget, InteractionTargetFor } from "../interaction/target-types";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
-import type { InteractionGranularity, PickHit } from "../picking/types";
+import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { ViewportVisibilityController } from "./visibility-controller";
 import type {
   CameraTransitionOptions,
@@ -63,24 +63,65 @@ interface InteractionCapabilityOptions extends CapabilityOwner {
 function createViewportInteractionCapability(
   options: InteractionCapabilityOptions,
 ): ViewportInteraction {
-  return {
-    get state(): InteractionState {
-      options.ensureAlive();
-      return options.state();
-    },
-    set(interaction): void {
-      options.ensureAlive();
-      options.set(interaction);
-    },
-    pick(x, y, granularity): Promise<PickHit | undefined> {
-      options.ensureAlive();
-      return options.pick(x, y, granularity);
-    },
-    pickRegion(rect, granularity): Promise<readonly InteractionTarget[]> {
-      options.ensureAlive();
-      return options.pickRegion(rect, granularity);
-    },
-  };
+  return new ViewportInteractionCapability(options);
+}
+
+class ViewportInteractionCapability implements ViewportInteraction {
+  constructor(private readonly options: InteractionCapabilityOptions) {}
+
+  get state(): InteractionState {
+    this.options.ensureAlive();
+    return this.options.state();
+  }
+  set(interaction: InteractionState): void {
+    this.options.ensureAlive();
+    this.options.set(interaction);
+  }
+  pick(x: number, y: number, granularity: "edge"): Promise<EdgePickHit | undefined>;
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
+  pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
+    this.options.ensureAlive();
+    return this.options.pick(x, y, granularity);
+  }
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "part",
+  ): Promise<readonly InteractionTargetFor<"part">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "partOccurrence",
+  ): Promise<readonly InteractionTargetFor<"partOccurrence">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "body",
+  ): Promise<readonly InteractionTargetFor<"body">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "element",
+  ): Promise<readonly InteractionTargetFor<"element">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "face",
+  ): Promise<readonly InteractionTargetFor<"face">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "node",
+  ): Promise<readonly InteractionTargetFor<"node">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "edge",
+  ): Promise<readonly InteractionTargetFor<"edge">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ): Promise<readonly InteractionTarget[]> {
+    this.options.ensureAlive();
+    return this.options.pickRegion(rect, granularity);
+  }
 }
 
 function createViewportVisibilityCapability(
@@ -100,9 +141,9 @@ function createViewportVisibilityCapability(
       owner.ensureAlive();
       controller.setAssembly(assemblyId, visible);
     },
-    setInstance(instanceId: InstanceId, visible: boolean): void {
+    setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setInstance(instanceId, visible);
+      controller.setPartOccurrence(partOccurrenceId, visible);
     },
   };
 }

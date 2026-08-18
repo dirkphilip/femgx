@@ -5,7 +5,7 @@ import type { InteractionState } from "../../src/interaction/state";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { INSTANCE_STRIDE } from "../../src/renderer/resources/instance-storage";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import type { InstanceId } from "../../src/scene/types";
+import type { PartOccurrenceId } from "../../src/scene/types";
 import { changedInstanceSlots } from "../../src/viewport/interaction-diff";
 import type { Camera } from "../../src/camera/camera";
 import type { WebGpuBenchmarkCase } from "./model";
@@ -72,8 +72,8 @@ async function measureRecolor(
   count: number,
 ): Promise<ManyPieceInteractionPhase> {
   const targetStart = performance.now();
-  const overrides = selectedInstanceIds(options.runtime, count).map(
-    (instanceId) => [instanceId, RECOLOR] as const,
+  const overrides = selectedPartOccurrenceIds(options.runtime, count).map(
+    (partOccurrenceId) => [partOccurrenceId, RECOLOR] as const,
   );
   const targetConstructionMs = performance.now() - targetStart;
   const stateStart = performance.now();
@@ -164,18 +164,18 @@ function syncInteraction(
 }
 
 function instanceTargets(runtime: PackedSceneRuntime, count: number): InteractionTarget[] {
-  return selectedInstanceIds(runtime, count).map((instanceId) => ({
-    kind: "instance",
-    instanceId,
+  return selectedPartOccurrenceIds(runtime, count).map((partOccurrenceId) => ({
+    kind: "partOccurrence",
+    partOccurrenceId,
   }));
 }
 
-function selectedInstanceIds(runtime: PackedSceneRuntime, count: number): InstanceId[] {
-  const ids = new Array<InstanceId>(count);
+function selectedPartOccurrenceIds(runtime: PackedSceneRuntime, count: number): PartOccurrenceId[] {
+  const ids = new Array<PartOccurrenceId>(count);
   for (let slot = 0; slot < count; slot += 1) {
-    const instanceId = runtime.getInstanceId(slot);
-    if (instanceId === undefined) throw new Error(`Benchmark occurrence ${slot} is missing`);
-    ids[slot] = instanceId;
+    const partOccurrenceId = runtime.getInstanceId(slot);
+    if (partOccurrenceId === undefined) throw new Error(`Benchmark occurrence ${slot} is missing`);
+    ids[slot] = partOccurrenceId;
   }
   return ids;
 }

@@ -53,25 +53,44 @@ export interface ViewportScalarConfig {
 /**
  * Configuration for the optional authored elemental vector role.
  *
- * This bounded role accepts one authored three-component vector per element and
- * renders an `arrow` or `axis` using either `direction` or `normal` semantics.
- * It does not derive engineering quantities, magnitudes, or tensor glyphs.
+ * This bounded role accepts one authored three-component vector per element.
+ * Arrows support `direction` or `normal` semantics; axes remain directed. It
+ * does not derive engineering quantities, magnitudes, or tensor glyphs.
  * @category Results
  */
-export interface ViewportElementVectorConfig {
+/** @inline */
+interface ViewportElementVectorOptions {
   /** Authored three-component orientation vector for each element. */
   readonly field: VectorField<"elemental">;
   /** Optional reusable part owner; omitted fields apply to all rendered parts. */
   readonly partId?: PartId;
-  /** Renderer-owned glyph shape. */
-  readonly glyph: "arrow" | "axis";
-  /** Interpret the vector as a directed axis or an unoriented normal. */
-  readonly transform: "direction" | "normal";
   /** Positive element-relative glyph length multiplier. */
   readonly lengthScale?: number;
   /** Shaft width in CSS pixels; defaults to 2 and accepts 1 through 8. */
   readonly widthPixels?: number;
 }
+
+/**
+ * Valid glyph and transform combinations for an authored elemental vector.
+ *
+ * Arrows may show a directed vector or an unoriented normal. Axis glyphs are
+ * directed, so the compiler rejects the meaningless `axis`/`normal` pairing.
+ */
+export type ViewportElementVectorConfig = ViewportElementVectorOptions &
+  (
+    | {
+        /** Renderer-owned arrow glyph. */
+        readonly glyph: "arrow";
+        /** Interpret the arrow as a directed vector or an unoriented normal. */
+        readonly transform: "direction" | "normal";
+      }
+    | {
+        /** Renderer-owned directed-axis glyph. */
+        readonly glyph: "axis";
+        /** Axis glyphs always retain authored direction. */
+        readonly transform: "direction";
+      }
+  );
 
 /** Configuration for the renderer-owned RGB triad of an authored element frame. */
 export interface ViewportElementFrameConfig {
@@ -113,16 +132,42 @@ export interface ViewportLoadConfig {
  * ```
  * @category Results
  */
-export interface ViewportResultsConfig {
+/** @inline */
+interface ViewportResultRoles {
   /** Optional scalar coloring role. */
   readonly scalar?: ViewportScalarConfig;
   /** Optional nodal deformation role. */
   readonly deformation?: ViewportDeformationConfig;
   /** Optional authored elemental orientation role. */
-  readonly vectors?: ViewportElementVectorConfig | ViewportElementFrameConfig;
+  readonly orientation?: ViewportElementVectorConfig | ViewportElementFrameConfig;
   /** Optional authored nodal force and moment role. */
   readonly loads?: ViewportLoadConfig;
 }
+
+/**
+ * One atomic result snapshot with at least one authored role.
+ *
+ * The compiler rejects an empty object. Call {@link ViewportResults.clear}
+ * instead when no result role should remain active.
+ * @category Results
+ */
+export type ViewportResultsConfig =
+  | (ViewportResultRoles & {
+      /** Required scalar role for this non-empty result snapshot variant. */
+      readonly scalar: ViewportScalarConfig;
+    })
+  | (ViewportResultRoles & {
+      /** Required deformation role for this non-empty result snapshot variant. */
+      readonly deformation: ViewportDeformationConfig;
+    })
+  | (ViewportResultRoles & {
+      /** Required orientation role for this non-empty result snapshot variant. */
+      readonly orientation: ViewportElementVectorConfig | ViewportElementFrameConfig;
+    })
+  | (ViewportResultRoles & {
+      /** Required loads role for this non-empty result snapshot variant. */
+      readonly loads: ViewportLoadConfig;
+    });
 
 /**
  * Resolved scalar role installed on a viewport.
@@ -143,11 +188,11 @@ export interface ViewportScalarState {
  * Resolved elemental vector role installed on a viewport.
  * @category Results
  */
-export type ViewportElementVectorState =
+export type ViewportOrientationState =
   | {
       /** Original vector-role configuration. */
       readonly config: ViewportElementVectorConfig;
-      /** Validated authored elemental vectors. */
+      /** Validated authored elemental orientation. */
       readonly field: VectorField<"elemental">;
       /** Renderer-owned glyph shape. */
       readonly glyph: "arrow" | "axis";
@@ -185,7 +230,7 @@ export interface ViewportResultsState {
   /** Resolved nodal deformation, when deformation is active. */
   readonly deformation: DeformationState | undefined;
   /** Resolved elemental orientation role, when active. */
-  readonly vectors: ViewportElementVectorState | undefined;
+  readonly orientation: ViewportOrientationState | undefined;
   /** Resolved authored loads, when active. */
-  readonly loads?: ViewportLoadConfig;
+  readonly loads: ViewportLoadConfig | undefined;
 }

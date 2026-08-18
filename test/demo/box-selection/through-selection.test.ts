@@ -32,7 +32,12 @@ describe("workbench through-selection", () => {
   });
 
   it("allows a custom resolver to replace visible-region discovery", async () => {
-    const target = { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 } as const;
+    const target = {
+      kind: "face",
+      partOccurrenceId: "instance-a",
+      elementId: 2,
+      faceIndex: 1,
+    } as const;
     const pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[]));
     const resolver = vi.fn<BoxSelectionResolver>((request) => {
       expect(request.event).toEqual(complete());
@@ -57,7 +62,7 @@ describe("workbench through-selection", () => {
 
   it("rejects custom targets that do not match the captured granularity", async () => {
     const resolver = vi.fn<BoxSelectionResolver>(() =>
-      Promise.resolve([{ kind: "element", instanceId: "instance-a", elementId: 2 }]),
+      Promise.resolve([{ kind: "element", partOccurrenceId: "instance-a", elementId: 2 }]),
     );
     const { workbench, getInteraction, render, selectionFeedback } = harness(
       undefined,
@@ -82,7 +87,7 @@ describe("workbench through-selection", () => {
       resolveOld = resolve;
     });
     const oldResolver = vi.fn<BoxSelectionResolver>(() => oldResult);
-    const current = { kind: "element", instanceId: "current", elementId: 3 } as const;
+    const current = { kind: "element", partOccurrenceId: "current", elementId: 3 } as const;
     const newResolver = vi.fn<BoxSelectionResolver>(() => Promise.resolve([current]));
     const { workbench, getInteraction } = harness(
       undefined,
@@ -98,7 +103,7 @@ describe("workbench through-selection", () => {
     });
     workbench.setBoxSelectionResolver(newResolver);
     const currentBox = workbench.selectBox(complete());
-    resolveOld?.([{ kind: "element", instanceId: "stale", elementId: 1 }]);
+    resolveOld?.([{ kind: "element", partOccurrenceId: "stale", elementId: 1 }]);
     await Promise.all([oldBox, currentBox]);
 
     expect(newResolver).toHaveBeenCalledOnce();

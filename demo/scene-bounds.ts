@@ -8,9 +8,9 @@ export function sceneBounds(
 ): Bounds {
   const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
-  for (const instanceId of runtime.getVisibleInstanceIds()) {
-    const partId = runtime.getPartId(instanceId);
-    const transform = runtime.getTransform(instanceId);
+  for (const partOccurrenceId of runtime.getVisiblePartOccurrenceIds()) {
+    const partId = runtime.getPartId(partOccurrenceId);
+    const transform = runtime.getTransform(partOccurrenceId);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
     if (part === undefined || transform === undefined) continue;
     result = mergeBounds(result, transformBounds(part.bounds, transform));

@@ -49,7 +49,7 @@ interface SelectionFixture {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
   readonly layout: ReturnType<typeof buildInstanceLayout>;
-  readonly instanceId: string;
+  readonly partOccurrenceId: string;
   readonly cases: ReadonlyMap<CaseId, SelectionCase>;
   readonly denseSkinNeighborFaceEntries: ReadonlyMap<CaseId, number>;
 }
@@ -64,11 +64,11 @@ export function createSelectionFixture(): SelectionFixture {
   if (part === undefined) throw new Error("Tet4 benchmark part is missing");
   const runtime = createPackedSceneRuntime(benchmark.scene);
   const layout = buildInstanceLayout(runtime);
-  const instanceId = runtime.getInstanceId(0);
-  if (instanceId === undefined) throw new Error("Tet4 benchmark instance is missing");
+  const partOccurrenceId = runtime.getInstanceId(0);
+  if (partOccurrenceId === undefined) throw new Error("Tet4 benchmark instance is missing");
   const targets = (part.elements ?? []).map((element) => ({
     kind: "element" as const,
-    instanceId,
+    partOccurrenceId,
     elementId: element.id,
   }));
   if (targets.length !== ELEMENT_COUNT) throw new Error("Tet4 element count changed");
@@ -111,7 +111,7 @@ export function createSelectionFixture(): SelectionFixture {
     }),
   );
   assertNeighborFixture(part, denseSkinNeighborFaceEntries);
-  return { part, parts, runtime, layout, instanceId, cases, denseSkinNeighborFaceEntries };
+  return { part, parts, runtime, layout, partOccurrenceId, cases, denseSkinNeighborFaceEntries };
 }
 
 /** Returns the dense selection operation matrix. */
@@ -269,13 +269,15 @@ function cloneInteraction(
   fixture: SelectionFixture,
   interaction: InteractionState,
 ): InteractionState {
-  const selected = readInteractionState(interaction).selectedElementIds.get(fixture.instanceId);
+  const selected = readInteractionState(interaction).selectedElementIds.get(
+    fixture.partOccurrenceId,
+  );
   if (selected === undefined || selected.size === 0) return createInteractionState();
   return setTargetsSelected(
     createInteractionState(),
     [...selected].map((elementId) => ({
       kind: "element" as const,
-      instanceId: fixture.instanceId,
+      partOccurrenceId: fixture.partOccurrenceId,
       elementId,
     })),
     true,

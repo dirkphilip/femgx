@@ -100,7 +100,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
       owner.visibilityPanel.toggleExpanded(occurrenceId);
     },
     toggleBodyHighlight: (target) => {
-      owner.visibilityActions.bodyHighlight(target.instanceId, target.bodyId);
+      owner.visibilityActions.bodyHighlight(target.partOccurrenceId, target.bodyId);
     },
     setHierarchyHover: owner.setHierarchyHover.bind(owner),
     clearHierarchyHover: owner.clearHierarchyHover.bind(owner),
@@ -158,18 +158,18 @@ function toggleVisibility(owner: WorkbenchCommandOwner, target: VisibilityRowTar
       }
       break;
     }
-    case "instance": {
-      const instance = owner.runtime.getInstance(target.instanceId);
+    case "partOccurrence": {
+      const instance = owner.runtime.getPartOccurrence(target.partOccurrenceId);
       if (instance !== undefined) {
-        owner.visibilityActions.setInstance(target.instanceId, !instance.visible);
+        owner.visibilityActions.setPartOccurrence(target.partOccurrenceId, !instance.visible);
       }
       break;
     }
     case "body":
       owner.visibilityActions.setBody(
-        target.instanceId,
+        target.partOccurrenceId,
         target.bodyId,
-        !owner.visibilityActions.bodyVisible(target.instanceId, target.bodyId),
+        !owner.visibilityActions.bodyVisible(target.partOccurrenceId, target.bodyId),
       );
       break;
   }

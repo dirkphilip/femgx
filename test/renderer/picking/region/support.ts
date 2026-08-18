@@ -26,7 +26,7 @@ import type { InteractionGranularity } from "../../../../src/picking/types";
 
 import type { PickContext, ResolvedPickIds } from "../../../../src/picking/pick";
 
-import type { Instance } from "../../../../src/scene/types";
+import type { PartOccurrence } from "../../../../src/scene/types";
 
 import type { BoxSelectionRect } from "../../../../src/interaction/box-selection";
 
@@ -50,8 +50,8 @@ export function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRec
 }
 
 /** Shared renderer test helper. */
-export function instance(partId = 1): Instance {
-  return { instanceId: "root/0", partId, worldTransform: identity() };
+export function instance(partId = 1): PartOccurrence {
+  return { partOccurrenceId: "root/0", partId, worldTransform: identity() };
 }
 
 /** Shared renderer test helper. */
@@ -154,7 +154,7 @@ export {
   type InteractionGranularity,
   type PickContext,
   type ResolvedPickIds,
-  type Instance,
+  type PartOccurrence,
   type BoxSelectionRect,
   fakeCanvas,
   fakeGpuDevice,

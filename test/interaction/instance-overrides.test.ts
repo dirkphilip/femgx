@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createInteractionState, setInstanceOverrides } from "../../src/entries/root";
 import { readInteractionState } from "../../src/interaction/state";
 
-describe("batched instance overrides", () => {
+describe("batched part-occurrence overrides", () => {
   it("applies the last duplicate and retains arbitrary occurrence identities", () => {
     const first = { emissive: 0.2 } as const;
     const last = { opacity: 0.4 } as const;
@@ -12,7 +12,7 @@ describe("batched instance overrides", () => {
       ["1/0", last],
     ]);
 
-    expect([...readInteractionState(state).instanceOverrides]).toEqual([
+    expect([...readInteractionState(state).partOccurrenceOverrides]).toEqual([
       ["stale/or-host-owned", first],
       ["1/0", last],
     ]);
@@ -32,7 +32,7 @@ describe("batched instance overrides", () => {
       ["1/0", undefined],
       ["1/1", undefined],
     ]);
-    expect(readInteractionState(cleared).instanceOverrides.size).toBe(0);
+    expect(readInteractionState(cleared).partOccurrenceOverrides.size).toBe(0);
     expect(setInstanceOverrides(initial, [["missing", undefined]])).toBe(initial);
   });
 

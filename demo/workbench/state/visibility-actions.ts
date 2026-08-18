@@ -8,7 +8,7 @@ import {
   setBodyVisible,
   type Viewport,
   type InteractionTarget,
-  type InstanceId,
+  type PartOccurrenceId,
   type InteractionState,
   type PartId,
   type Scene,
@@ -41,7 +41,7 @@ export function selectedElementTargets(
   const elements: SelectedElementTarget[] = [];
   for (const target of selectedTargets(interaction)) {
     if (target.kind !== "element") continue;
-    const key = `${target.instanceId}:${target.elementId}`;
+    const key = `${target.partOccurrenceId}:${target.elementId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     elements.push(target);
@@ -71,8 +71,8 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
-  setInstance(instanceId: InstanceId, visible: boolean): void {
-    this.options.viewport().visibility.setInstance(instanceId, visible);
+  setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
+    this.options.viewport().visibility.setPartOccurrence(partOccurrenceId, visible);
     this.finish();
   }
 
@@ -81,14 +81,14 @@ export class WorkbenchVisibilityActions {
     this.finish();
   }
 
-  setBody(instanceId: InstanceId, bodyId: BodyId, visible: boolean): void {
-    const ref = { instanceId, bodyId };
+  setBody(partOccurrenceId: PartOccurrenceId, bodyId: BodyId, visible: boolean): void {
+    const ref = { partOccurrenceId, bodyId };
     this.options.setInteraction(setBodyVisible(this.options.interaction(), ref, visible));
     this.finish();
   }
 
-  setElement(instanceId: InstanceId, elementId: number, visible: boolean): void {
-    const ref = { instanceId, elementId };
+  setElement(partOccurrenceId: PartOccurrenceId, elementId: number, visible: boolean): void {
+    const ref = { partOccurrenceId, elementId };
     this.options.setInteraction(setElementVisible(this.options.interaction(), ref, visible));
     this.finish();
   }
@@ -97,7 +97,7 @@ export class WorkbenchVisibilityActions {
     const element = elementTarget(target);
     if (element?.kind !== "element") return;
     this.setElement(
-      element.instanceId,
+      element.partOccurrenceId,
       element.elementId,
       !isElementVisible(this.options.interaction(), element),
     );
@@ -130,10 +130,10 @@ export class WorkbenchVisibilityActions {
     );
   }
 
-  bodyHighlight(instanceId: InstanceId, bodyId: BodyId): void {
-    const ref = { instanceId, bodyId };
+  bodyHighlight(partOccurrenceId: PartOccurrenceId, bodyId: BodyId): void {
+    const ref = { partOccurrenceId, bodyId };
     const state = this.options.interaction();
-    const highlighted = isTargetHighlighted(state, { kind: "body", instanceId, bodyId });
+    const highlighted = isTargetHighlighted(state, { kind: "body", partOccurrenceId, bodyId });
     this.options.setInteraction(
       setTargetHighlighted(state, { kind: "body", ...ref }, !highlighted),
     );
@@ -143,8 +143,11 @@ export class WorkbenchVisibilityActions {
   toggleInstance(target: SelectTarget): void {
     if (target.kind === "part") return;
     const runtime = this.options.runtime();
-    if (runtime.getInstance(target.instanceId) === undefined) return;
-    this.setInstance(target.instanceId, !runtime.isInstanceVisible(target.instanceId));
+    if (runtime.getPartOccurrence(target.partOccurrenceId) === undefined) return;
+    this.setPartOccurrence(
+      target.partOccurrenceId,
+      !runtime.isPartOccurrenceVisible(target.partOccurrenceId),
+    );
   }
 
   togglePart(target: SelectTarget): void {
@@ -158,19 +161,19 @@ export class WorkbenchVisibilityActions {
     const scene = this.options.scene();
     const runtime = this.options.runtime();
     let interaction = this.options.interaction();
-    for (const instance of runtime.getInstances()) {
+    for (const instance of runtime.getPartOccurrences()) {
       const part = scene.parts.get(instance.partId);
       for (const body of part?.bodies ?? []) {
         interaction = setBodyVisible(
           interaction,
-          { instanceId: instance.instanceId, bodyId: body.id },
+          { partOccurrenceId: instance.partOccurrenceId, bodyId: body.id },
           true,
         );
       }
       for (const element of part?.elements ?? []) {
         interaction = setElementVisible(
           interaction,
-          { instanceId: instance.instanceId, elementId: element.id },
+          { partOccurrenceId: instance.partOccurrenceId, elementId: element.id },
           true,
         );
       }
@@ -187,8 +190,8 @@ export class WorkbenchVisibilityActions {
       for (const partId of scene.parts.keys()) {
         viewport.visibility.setPart(partId, true);
       }
-      for (const instanceId of runtime.getInstanceIds()) {
-        viewport.visibility.setInstance(instanceId, true);
+      for (const partOccurrenceId of runtime.getPartOccurrenceIds()) {
+        viewport.visibility.setPartOccurrence(partOccurrenceId, true);
       }
     });
     this.finish();
@@ -197,22 +200,26 @@ export class WorkbenchVisibilityActions {
   partVisible(partId: PartId): boolean {
     const instance = this.options
       .runtime()
-      .getInstances()
+      .getPartOccurrences()
       .find((candidate) => candidate.partId === partId);
     return instance?.partVisible ?? false;
   }
 
-  bodyVisible(instanceId: InstanceId, bodyId: BodyId): boolean {
-    return isBodyVisible(this.options.interaction(), { instanceId, bodyId });
+  bodyVisible(partOccurrenceId: PartOccurrenceId, bodyId: BodyId): boolean {
+    return isBodyVisible(this.options.interaction(), { partOccurrenceId, bodyId });
   }
 
-  bodyHighlighted(instanceId: InstanceId, bodyId: BodyId): boolean {
-    return isTargetHighlighted(this.options.interaction(), { kind: "body", instanceId, bodyId });
+  bodyHighlighted(partOccurrenceId: PartOccurrenceId, bodyId: BodyId): boolean {
+    return isTargetHighlighted(this.options.interaction(), {
+      kind: "body",
+      partOccurrenceId,
+      bodyId,
+    });
   }
 
   private partForTarget(target: SelectTarget): PartId | undefined {
     if (target.kind === "part") return target.partId;
-    return this.options.runtime().getPartId(target.instanceId);
+    return this.options.runtime().getPartId(target.partOccurrenceId);
   }
 
   private finish(render = true): void {

@@ -3,7 +3,7 @@ import { collectUniqueRefs, sortedNumbers } from "../../interaction/mechanics";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
 import type { NodeRef } from "../../interaction/refs";
-import type { InstanceId } from "../../scene/types";
+import type { PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
 
@@ -118,14 +118,14 @@ export function sparseNodeEmphasisRefs(
   const data = readInteractionState(interaction);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "node"
-      ? { instanceId: data.hoveredTarget.instanceId, nodeId: data.hoveredTarget.nodeId }
+      ? { partOccurrenceId: data.hoveredTarget.partOccurrenceId, nodeId: data.hoveredTarget.nodeId }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.nodeId}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.nodeId}`,
     (push) => {
       appendNodeRefs(data.highlightedNodeIds, push);
       for (const [instanceId, ids] of sortedInstances(data.selectedNodeIds)) {
         if (instanceUsesDenseSelection(runtime, layout, denseSelections, instanceId)) continue;
-        for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+        for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId: instanceId, nodeId });
       }
     },
   );
@@ -152,7 +152,7 @@ interface DenseNodeCandidate {
 
 function addInstanceSelection(
   context: DenseNodeContext,
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
   nodeIds: ReadonlySet<number>,
 ): void {
   const { runtime, layout, parts, byPart } = context;
@@ -242,7 +242,7 @@ function instanceUsesDenseSelection(
   runtime: PackedSceneRuntime,
   layout: Pick<DenseNodeLayout, "slotPartLocal">,
   selections: DenseNodeSelections,
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
 ): boolean {
   const globalSlot = runtime.getInstanceSlot(instanceId);
   if (globalSlot === undefined) return false;
@@ -253,16 +253,16 @@ function instanceUsesDenseSelection(
 }
 
 function appendNodeRefs(
-  groups: ReadonlyMap<InstanceId, ReadonlySet<number>>,
+  groups: ReadonlyMap<PartOccurrenceId, ReadonlySet<number>>,
   push: (ref: NodeRef) => void,
 ): void {
   for (const [instanceId, ids] of sortedInstances(groups)) {
-    for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+    for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId: instanceId, nodeId });
   }
 }
 
 function sortedInstances<Values>(
-  groups: ReadonlyMap<InstanceId, Values>,
-): Array<readonly [InstanceId, Values]> {
+  groups: ReadonlyMap<PartOccurrenceId, Values>,
+): Array<readonly [PartOccurrenceId, Values]> {
   return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
 }

@@ -58,7 +58,7 @@ export function syncViewportPresentation(options: SyncViewportPresentationOption
     activeSlot.viewport.view.camera,
     options.rendererState,
     {
-      visibleInstances: viewportStats.visibleInstances,
+      visibleInstances: viewportStats.visiblePartOccurrences,
       batches: viewportStats.drawBatches,
     },
     activeSlot.renderLoop.stats,

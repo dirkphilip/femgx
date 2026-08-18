@@ -8,7 +8,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   renderedPartIds,
   resolveLoads,
-  resolveVectors,
+  resolveOrientation,
   validateResultsConfig,
   type OrientationRecordMap,
 } from "./results-roles";
@@ -31,7 +31,7 @@ export type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
-  ViewportElementVectorState,
+  ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,
@@ -61,27 +61,27 @@ export function resolveViewportResults(
   validateResultsConfig(config);
   const scalar = resolveScalar(config.scalar, scene, runtime, previous);
   const deformation = resolveDeformation(config.deformation, scene, runtime, previous);
-  const resolvedVectors = resolveVectors(config.vectors, scene, runtime, deformation);
+  const resolvedOrientation = resolveOrientation(config.orientation, scene, runtime, deformation);
   const resolvedLoads = resolveLoads(config.loads, scene, runtime, deformation);
-  const vectors = resolvedVectors?.state;
+  const orientation = resolvedOrientation?.state;
   const state = {
     config,
     scalar,
     deformation,
-    vectors,
-    ...(resolvedLoads === undefined ? {} : { loads: resolvedLoads.config }),
+    orientation,
+    loads: resolvedLoads?.config,
   };
   resolveViewportResultColors(state, scalar, scene, runtime, previous);
-  orientationRecords.set(state, mergeRecords(resolvedVectors?.records, resolvedLoads?.records));
+  orientationRecords.set(state, mergeRecords(resolvedOrientation?.records, resolvedLoads?.records));
   return state;
 }
 
 function mergeRecords(
-  vectors: OrientationRecordMap | undefined,
+  orientation: OrientationRecordMap | undefined,
   loads: OrientationRecordMap | undefined,
 ): OrientationRecordMap | undefined {
-  if (vectors === undefined && loads === undefined) return undefined;
-  const merged = new Map(vectors);
+  if (orientation === undefined && loads === undefined) return undefined;
+  const merged = new Map(orientation);
   for (const [partId, loadRecords] of loads ?? []) {
     const vectorRecords = merged.get(partId);
     merged.set(

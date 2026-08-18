@@ -89,7 +89,7 @@ export function createResultsPreset(): ModelPreset {
     results: {
       scalar: { field: stress },
       deformation: { field: displacement, scale: 1 },
-      vectors: {
+      orientation: {
         field: normals,
         glyph: "arrow",
         transform: "normal",

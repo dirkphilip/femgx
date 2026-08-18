@@ -76,7 +76,8 @@
         globalThis.document.querySelectorAll<HTMLElement>("[data-body-elements]"),
       ).find(
         (candidate) =>
-          candidate.getAttribute("data-body-instance-id") === currentDetail.instanceId &&
+          candidate.getAttribute("data-body-part-occurrence-id") ===
+            currentDetail.partOccurrenceId &&
           candidate.getAttribute("data-body-id") === String(currentDetail.bodyId),
       );
       trigger?.focus();
@@ -123,11 +124,11 @@
           class="element-detail-row"
           role="option"
           aria-selected={controller.elementDetailActions.isElementSelected(
-            detail.instanceId,
+            detail.partOccurrenceId,
             elementId,
           )}
-          data-testid={`element-detail-${detail.instanceId.replaceAll("/", "-")}-${elementId}`}
-          data-element-instance-id={detail.instanceId}
+          data-testid={`element-detail-${detail.partOccurrenceId.replaceAll("/", "-")}-${elementId}`}
+          data-element-part-occurrence-id={detail.partOccurrenceId}
           data-element-id={elementId}
           onpointerenter={() => setHover(elementId)}
           onpointerleave={() => clearHover(elementId)}

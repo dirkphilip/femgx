@@ -20,7 +20,7 @@ import {
 } from "../../src/interaction/nodes";
 import { setTargetHovered } from "../../src/interaction/targets";
 import { identity } from "../../src/math/mat4";
-import type { Instance } from "../../src/scene/types";
+import type { PartOccurrence } from "../../src/scene/types";
 import { readInteractionState } from "../../src/interaction/state";
 
 const base: ResolvedStyle = {
@@ -31,13 +31,13 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: Instance = { instanceId: "1/0", partId: 1, worldTransform: identity() };
+const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
 
-const nodeRef = { instanceId: "1/0", nodeId: 7 };
-const otherNodeRef = { instanceId: "1/0", nodeId: 8 };
-const faceRef = { instanceId: "1/0", elementId: 3, faceIndex: 0 };
-const otherFaceRef = { instanceId: "2/0", elementId: 5, faceIndex: 1 };
-const edgeRef = { instanceId: "1/0", key: "7:8" };
+const nodeRef = { partOccurrenceId: "1/0", nodeId: 7 };
+const otherNodeRef = { partOccurrenceId: "1/0", nodeId: 8 };
+const faceRef = { partOccurrenceId: "1/0", elementId: 3, faceIndex: 0 };
+const otherFaceRef = { partOccurrenceId: "2/0", elementId: 5, faceIndex: 1 };
+const edgeRef = { partOccurrenceId: "1/0", key: "7:8" };
 const selectionColor = { r: 0.95, g: 0.5, b: 0.1, a: 1 };
 
 describe("selection color", () => {
@@ -48,7 +48,7 @@ describe("selection color", () => {
     state = setEdgeSelected(state, edgeRef, true);
     state = setElementSelected(
       state,
-      { instanceId: item.instanceId, elementId: faceRef.elementId },
+      { partOccurrenceId: item.partOccurrenceId, elementId: faceRef.elementId },
       true,
     );
 
@@ -97,20 +97,20 @@ describe("face selection state", () => {
   it("sets and clears hover immutably", () => {
     const state = setTargetHovered(createInteractionState(), {
       kind: "face",
-      instanceId: faceRef.instanceId,
+      partOccurrenceId: faceRef.partOccurrenceId,
       elementId: faceRef.elementId,
       faceIndex: faceRef.faceIndex,
     });
     expect(readInteractionState(state).hoveredTarget).toEqual({
       kind: "face",
-      instanceId: faceRef.instanceId,
+      partOccurrenceId: faceRef.partOccurrenceId,
       elementId: faceRef.elementId,
       faceIndex: faceRef.faceIndex,
     });
     expect(
       setTargetHovered(state, {
         kind: "face",
-        instanceId: faceRef.instanceId,
+        partOccurrenceId: faceRef.partOccurrenceId,
         elementId: faceRef.elementId,
         faceIndex: faceRef.faceIndex,
       }),
@@ -126,7 +126,7 @@ describe("face emphasis collection", () => {
     state = setFaceHighlighted(state, otherFaceRef, true);
     state = setTargetHovered(state, {
       kind: "face",
-      instanceId: faceRef.instanceId,
+      partOccurrenceId: faceRef.partOccurrenceId,
       elementId: faceRef.elementId,
       faceIndex: faceRef.faceIndex,
     });
@@ -162,7 +162,7 @@ describe("resolveFaceStyle", () => {
   it("applies face hover over the base instance style", () => {
     const state = setTargetHovered(createInteractionState(), {
       kind: "face",
-      instanceId: faceRef.instanceId,
+      partOccurrenceId: faceRef.partOccurrenceId,
       elementId: faceRef.elementId,
       faceIndex: faceRef.faceIndex,
     });
@@ -174,7 +174,7 @@ describe("resolveFaceStyle", () => {
     const state = setFaceSelected(
       setTargetHovered(createInteractionState(), {
         kind: "face",
-        instanceId: faceRef.instanceId,
+        partOccurrenceId: faceRef.partOccurrenceId,
         elementId: faceRef.elementId,
         faceIndex: faceRef.faceIndex,
       }),

@@ -35,7 +35,7 @@ interface NodeSelectionMeasureOptions {
 interface NodeSelectionContext extends NodeSelectionMeasureOptions {
   readonly layout: InstanceLayout;
   readonly partId: PartId;
-  readonly instanceId: string;
+  readonly partOccurrenceId: string;
   readonly slot: number;
   readonly nodeCount: number;
 }
@@ -66,7 +66,7 @@ export async function measureNodeSelectionBenchmark(
 
 /** Builds sequential authored-node targets for one benchmark occurrence. */
 export function authoredNodeTargets(
-  instanceId: string,
+  partOccurrenceId: string,
   nodeCount: number,
 ): readonly InteractionTarget[] {
   if (!Number.isSafeInteger(nodeCount) || nodeCount <= 0) {
@@ -74,7 +74,7 @@ export function authoredNodeTargets(
   }
   return Array.from({ length: nodeCount }, (_, nodeId) => ({
     kind: "node" as const,
-    instanceId,
+    partOccurrenceId,
     nodeId,
   }));
 }
@@ -108,7 +108,7 @@ async function measureNodeScenario(
   id: NodeSelectionBenchmarkPhase["id"],
   targetCount: number,
 ): Promise<NodeSelectionBenchmarkPhase> {
-  const targets = authoredNodeTargets(context.instanceId, targetCount);
+  const targets = authoredNodeTargets(context.partOccurrenceId, targetCount);
   await renderFrame(context);
   const stateStart = performance.now();
   const selected = setTargetsSelected(createInteractionState(), targets, true);
@@ -156,7 +156,9 @@ function denseNodeFacts(
   interaction: InteractionState,
   expectedCount: number,
 ): DenseNodeFacts {
-  const selectedIds = readInteractionState(interaction).selectedNodeIds.get(context.instanceId);
+  const selectedIds = readInteractionState(interaction).selectedNodeIds.get(
+    context.partOccurrenceId,
+  );
   const uniqueNodeCount = selectedIds?.size ?? 0;
   const selection = collectDenseNodeSelections(
     context.runtime,
@@ -194,13 +196,13 @@ function denseNodeFacts(
 function nodeSelectionContext(options: NodeSelectionMeasureOptions): NodeSelectionContext {
   const slot = options.runtime.getDrawList()[0];
   const partId = slot === undefined ? undefined : options.runtime.getPartId(slot);
-  const instanceId = slot === undefined ? undefined : options.runtime.getInstanceId(slot);
+  const partOccurrenceId = slot === undefined ? undefined : options.runtime.getInstanceId(slot);
   const part = partId === undefined ? undefined : options.benchmarkCase.scene.parts.get(partId);
   const nodeCount = Math.floor((part?.nodePositions?.length ?? 0) / 3);
   if (
     slot === undefined ||
     partId === undefined ||
-    instanceId === undefined ||
+    partOccurrenceId === undefined ||
     part === undefined
   ) {
     throw new Error(`${options.benchmarkCase.id} has no drawable authored-node occurrence`);
@@ -210,14 +212,14 @@ function nodeSelectionContext(options: NodeSelectionMeasureOptions): NodeSelecti
     ...options,
     layout: buildInstanceLayout(options.runtime),
     partId,
-    instanceId,
+    partOccurrenceId,
     slot,
     nodeCount,
   };
 }
 
 async function presentFinalSelection(context: NodeSelectionContext): Promise<void> {
-  const targets = authoredNodeTargets(context.instanceId, context.nodeCount);
+  const targets = authoredNodeTargets(context.partOccurrenceId, context.nodeCount);
   const selected = setTargetsSelected(createInteractionState(), targets, true);
   context.renderer.updateElements(context.runtime, selected, [context.slot]);
   await renderFrame(context);

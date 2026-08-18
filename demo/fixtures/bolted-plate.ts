@@ -4,7 +4,7 @@ import {
   translation,
   type AssemblyId,
   type Mat4,
-  type NamedAssembly,
+  type AssemblyDefinition,
   type Part,
   type PartId,
   type Placement,
@@ -94,7 +94,7 @@ export interface BoltedPlateFixture {
   /** The element model each part was tessellated from, keyed by part id. */
   readonly elementModels: ReadonlyMap<PartId, ElementModel>;
   /** Total part placements in the canonical assembly graph. */
-  readonly instanceCount: number;
+  readonly partOccurrenceCount: number;
   /** Part placements visible in the default mode. */
   readonly visibleInstanceCount: number;
 }
@@ -181,7 +181,7 @@ export function createBoltedPlateFixture(options: BoltedPlateOptions = {}): Bolt
       washers: washers.id,
     },
     elementModels: componentModels(COMPONENT_PARTS, models),
-    instanceCount: 2 + positions.length * 4,
+    partOccurrenceCount: 2 + positions.length * 4,
     visibleInstanceCount: 2 + positions.length * 4,
   };
 }
@@ -335,7 +335,7 @@ function rootAssembly(plateStackId: AssemblyId, fastenersId: AssemblyId) {
   };
 }
 
-function buildScene(parts: readonly Part[], assemblies: readonly NamedAssembly[]): Scene {
+function buildScene(parts: readonly Part[], assemblies: readonly AssemblyDefinition[]): Scene {
   let builder = createScene();
   for (const part of parts) {
     builder = builder.addPart(part);

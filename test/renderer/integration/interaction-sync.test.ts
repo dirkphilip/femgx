@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "../../../src/geometry/part";
 import {
   createInteractionState,
-  setInstanceOverride,
+  setPartOccurrenceOverride,
   setPartOverride,
 } from "../../../src/interaction/interaction";
 import { translation } from "../../../src/math/mat4";
@@ -44,7 +44,7 @@ describe("interactionDirtyParts", () => {
     const layout = buildInstanceLayout(runtime);
     const empty = createInteractionState();
     const partState = setPartOverride(empty, 1, { nodes: true });
-    const instanceState = setInstanceOverride(empty, "1/1", { nodes: true });
+    const instanceState = setPartOccurrenceOverride(empty, "1/1", { nodes: true });
 
     expect(interactionDirtyParts(runtime, layout, empty, partState, false).nodeParts).toEqual(
       new Set([1]),

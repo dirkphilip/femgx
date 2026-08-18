@@ -3,7 +3,7 @@ import { resolveInstanceStyle, type InteractionState } from "../interaction/inte
 import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
 import { readInteractionState, type InteractionStateData } from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { EmphasisUpdates } from "./resources/element-resources";
 import { collectEmphasisUpdates } from "./resources/element-resources";
@@ -26,7 +26,7 @@ export interface TransparencySyncOptions {
   readonly interaction: InteractionState;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly currentFlags: boolean[];
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
   readonly emphasisUpdates: EmphasisUpdates;
@@ -41,7 +41,7 @@ export interface InteractionEmphasisSyncOptions {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly bundle: GpuBundle;
   readonly currentFlags: boolean[];
-  readonly slotByInstanceId: ReadonlyMap<InstanceId, number>;
+  readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
   readonly denseSelections: DenseElementSelections;
@@ -78,7 +78,7 @@ export function interactionAffectedSlots(
   const affected = new Set(changedSlots);
   const previousData = readInteractionState(previous);
   const nextData = readInteractionState(next);
-  const addInstance = (instanceId: InstanceId): void => {
+  const addInstance = (instanceId: PartOccurrenceId): void => {
     const slot = runtime.getInstanceSlot(instanceId);
     if (slot !== undefined) affected.add(slot);
   };
@@ -124,10 +124,8 @@ export function interactionDirtyParts(
   const nodeParts = new Set<PartId>();
   const previousData = readInteractionState(previous);
   const nextData = readInteractionState(next);
-  const addPart = (partId: PartId, destination: Set<PartId>): void => {
-    destination.add(partId);
-  };
-  const addInstance = (instanceId: InstanceId, destination: Set<PartId>): void => {
+  const addPart = (partId: PartId, destination: Set<PartId>): void => void destination.add(partId);
+  const addInstance = (instanceId: PartOccurrenceId, destination: Set<PartId>): void => {
     const slot = runtime.getInstanceSlot(instanceId);
     const partId = slot === undefined ? undefined : runtime.instancePartIds[slot];
     if (partId !== undefined) destination.add(partId);
@@ -138,12 +136,20 @@ export function interactionDirtyParts(
   diffMapValues(previousData.partOverrides, nextData.partOverrides, (partId) => {
     addPart(partId, nodeParts);
   });
-  diffMapValues(previousData.instanceOverrides, nextData.instanceOverrides, (instanceId) => {
-    addInstance(instanceId, nodeParts);
-  });
-  diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, (instanceId) => {
-    addInstance(instanceId, selectionParts);
-  });
+  diffMapValues(
+    previousData.partOccurrenceOverrides,
+    nextData.partOccurrenceOverrides,
+    (instanceId) => {
+      addInstance(instanceId, nodeParts);
+    },
+  );
+  diffSetMembers(
+    previousData.selectedPartOccurrenceIds,
+    nextData.selectedPartOccurrenceIds,
+    (instanceId) => {
+      addInstance(instanceId, selectionParts);
+    },
+  );
   diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, (instanceId) => {
     addInstance(instanceId, selectionParts);
   });
@@ -325,9 +331,9 @@ function isTransparent(alpha: number): boolean {
 
 function addHoveredInstance(
   target: InteractionTarget | undefined,
-  addInstance: (instanceId: InstanceId) => void,
+  addInstance: (instanceId: PartOccurrenceId) => void,
 ): void {
-  if (target !== undefined && target.kind !== "part") addInstance(target.instanceId);
+  if (target !== undefined && target.kind !== "part") addInstance(target.partOccurrenceId);
 }
 
 function themesEqual(

@@ -1,5 +1,6 @@
 import type {
   ElementFrameField,
+  PartId,
   ScalarField,
   VectorField,
   ViewportElementFrameConfig,
@@ -109,7 +110,7 @@ export function parseVectorWidthPixels(value: string): number | undefined {
 /** Returns the demo-owned elemental vector choices, including an active imported role. */
 export function resultVectorFieldsForModel(model: WorkbenchModel): readonly OrientationField[] {
   const fields = [...(model.resultVectorFields ?? [])];
-  const active = model.results?.vectors?.field;
+  const active = model.results?.orientation?.field;
   if (active !== undefined && !fields.some((field) => field.id === active.id)) fields.push(active);
   return fields;
 }
@@ -143,7 +144,7 @@ export function displayedScalarFieldId(mode: ResultDisplayMode, fieldId: string)
 
 /** Returns the initial orientation controls for one model. */
 export function vectorDisplayForModel(model: WorkbenchModel): VectorDisplayState {
-  const active = model.results?.vectors;
+  const active = model.results?.orientation;
   const first = resultVectorFieldsForModel(model)[0];
   return {
     fieldId: active?.field.id ?? first?.id ?? VECTOR_OFF_VALUE,
@@ -189,14 +190,24 @@ export function vectorConfigForDisplay(
           lengthScale: display.lengthScale,
           widthPixels: display.widthPixels,
         }
-      : {
-          field,
-          ...(partId === undefined ? {} : { partId }),
-          glyph: display.glyph === "triad" ? "axis" : display.glyph,
-          transform: display.transform,
-          lengthScale: display.lengthScale,
-          widthPixels: display.widthPixels,
-        };
+      : vectorRole(field, partId, display);
+}
+
+function vectorRole(
+  field: VectorField<"elemental">,
+  partId: PartId | undefined,
+  display: VectorDisplayState,
+): ViewportElementVectorConfig {
+  const shared = {
+    field,
+    ...(partId === undefined ? {} : { partId }),
+    lengthScale: display.lengthScale,
+    widthPixels: display.widthPixels,
+  };
+  const glyph = display.glyph === "triad" ? "axis" : display.glyph;
+  return glyph === "axis"
+    ? { ...shared, glyph, transform: "direction" }
+    : { ...shared, glyph, transform: display.transform };
 }
 
 /** Accepts only the user-selectable single-vector glyph presentations. */

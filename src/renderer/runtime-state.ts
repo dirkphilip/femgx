@@ -1,6 +1,6 @@
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
-import type { Instance, InstanceId } from "../scene/types";
+import type { PartOccurrence, PartOccurrenceId } from "../scene/types";
 import { readInteractionState, type InteractionState } from "../interaction/state";
 import type { DrawCall } from "./resources/draw-resources";
 import { hasValidNodeSelection, partNodeCount } from "./selection/node-selection";
@@ -232,13 +232,13 @@ export function buildSelectionOrder(
 
 function hasSelectedTarget(
   data: ReturnType<typeof readInteractionState>,
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
   partId: PartId,
   part: Part | undefined,
 ): boolean {
   return (
     data.selectedPartIds.has(partId) ||
-    data.selectedInstanceIds.has(instanceId) ||
+    data.selectedPartOccurrenceIds.has(instanceId) ||
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
@@ -308,9 +308,13 @@ function buildCompactedOrder(
 }
 
 /** Describes one placed part with a world-transform view into the runtime. */
-export function instanceAt(runtime: PackedSceneRuntime, slot: number, partId: PartId): Instance {
+export function instanceAt(
+  runtime: PackedSceneRuntime,
+  slot: number,
+  partId: PartId,
+): PartOccurrence {
   return {
-    instanceId: runtime.getInstanceId(slot) ?? String(slot),
+    partOccurrenceId: runtime.getInstanceId(slot) ?? String(slot),
     partId,
     worldTransform: runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
   };
@@ -318,14 +322,14 @@ export function instanceAt(runtime: PackedSceneRuntime, slot: number, partId: Pa
 
 /** The stable instance descriptors and their id-to-slot map for one runtime. */
 export interface InstanceSnapshot {
-  readonly instances: Instance[];
-  readonly slotByInstanceId: Map<InstanceId, number>;
+  readonly instances: PartOccurrence[];
+  readonly slotByInstanceId: Map<PartOccurrenceId, number>;
 }
 
 /** Snapshots every placed instance for CPU-side pick resolution. */
 export function buildInstanceSnapshot(runtime: PackedSceneRuntime): InstanceSnapshot {
-  const instances: Instance[] = [];
-  const slotByInstanceId = new Map<InstanceId, number>();
+  const instances: PartOccurrence[] = [];
+  const slotByInstanceId = new Map<PartOccurrenceId, number>();
   for (let slot = 0; slot < runtime.instanceCount; slot++) {
     const instanceId = runtime.getInstanceId(slot);
     const partId = runtime.instancePartIds[slot];

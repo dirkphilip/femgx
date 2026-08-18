@@ -14,13 +14,13 @@ import type { InteractionTarget } from "./support";
 describe("workbench modifiers", () => {
   it.each([
     ["part", { kind: "part", partId: 1 }, "p:1"],
-    ["instance", { kind: "instance", instanceId: "instance-a" }, "i:instance-a"],
+    ["partOccurrence", { kind: "partOccurrence", partOccurrenceId: "instance-a" }, "i:instance-a"],
     [
       "face",
-      { kind: "face", instanceId: "instance-a", elementId: 2, faceIndex: 1 },
+      { kind: "face", partOccurrenceId: "instance-a", elementId: 2, faceIndex: 1 },
       "f:instance-a:2:1",
     ],
-    ["node", { kind: "node", instanceId: "instance-a", nodeId: 3 }, "n:instance-a:3"],
+    ["node", { kind: "node", partOccurrenceId: "instance-a", nodeId: 3 }, "n:instance-a:3"],
   ] as const)("box selection uses %s targets", async (granularity, target, expectedKey) => {
     const pickRegion = vi.fn(() => Promise.resolve([target, target] as const));
     const { workbench, render, selectionFeedback, getInteraction } = harness(

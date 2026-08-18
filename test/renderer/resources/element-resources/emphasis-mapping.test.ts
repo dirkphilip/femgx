@@ -28,7 +28,7 @@ describe("collectEmphasisUpdates", () => {
     const layout = buildInstanceLayout(runtime);
     const interaction = setElementHighlighted(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 0 },
+      { partOccurrenceId: "1/0", elementId: 0 },
       true,
     );
     const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
@@ -72,14 +72,14 @@ describe("collectEmphasisUpdates", () => {
         if (emphasis === "highlighted") {
           interaction =
             scope === "body"
-              ? setBodyHighlighted(interaction, { instanceId: "1/0", bodyId: 3 }, true)
-              : setElementHighlighted(interaction, { instanceId: "1/0", elementId: 0 }, true);
+              ? setBodyHighlighted(interaction, { partOccurrenceId: "1/0", bodyId: 3 }, true)
+              : setElementHighlighted(interaction, { partOccurrenceId: "1/0", elementId: 0 }, true);
         } else {
           interaction = setTargetHovered(
             interaction,
             scope === "body"
-              ? { kind: "body", instanceId: "1/0", bodyId: 3 }
-              : { kind: "element", instanceId: "1/0", elementId: 0 },
+              ? { kind: "body", partOccurrenceId: "1/0", bodyId: 3 }
+              : { kind: "element", partOccurrenceId: "1/0", elementId: 0 },
           );
         }
         const updates = collectEmphasisUpdates(
@@ -100,7 +100,7 @@ describe("collectEmphasisUpdates", () => {
     const { scene, runtime } = elementScene();
     const interaction = setElementSelected(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 0 },
+      { partOccurrenceId: "1/0", elementId: 0 },
       true,
     );
     const updates = collectEmphasisUpdates(
@@ -139,10 +139,14 @@ describe("collectEmphasisUpdates", () => {
       const layout = buildInstanceLayout(runtime);
       let interaction = setElementSelected(
         createInteractionState(),
-        { instanceId: "1/0", elementId: 0 },
+        { partOccurrenceId: "1/0", elementId: 0 },
         true,
       );
-      interaction = setElementOverride(interaction, { instanceId: "1/0", elementId: 0 }, override);
+      interaction = setElementOverride(
+        interaction,
+        { partOccurrenceId: "1/0", elementId: 0 },
+        override,
+      );
       const denseSelections = collectDenseElementSelections(
         runtime,
         layout,
@@ -172,7 +176,7 @@ describe("collectEmphasisUpdates", () => {
     const { scene, runtime } = elementScene();
     const interaction = setBodySelected(
       createInteractionState(),
-      { instanceId: "1/0", bodyId: 3 },
+      { partOccurrenceId: "1/0", bodyId: 3 },
       true,
     );
     const updates = collectEmphasisUpdates(
@@ -209,10 +213,10 @@ describe("collectEmphasisUpdates", () => {
       const { scene, runtime } = elementScene();
       let interaction = setBodySelected(
         createInteractionState(),
-        { instanceId: "1/0", bodyId: 3 },
+        { partOccurrenceId: "1/0", bodyId: 3 },
         true,
       );
-      interaction = setBodyOverride(interaction, { instanceId: "1/0", bodyId: 3 }, override);
+      interaction = setBodyOverride(interaction, { partOccurrenceId: "1/0", bodyId: 3 }, override);
       const updates = collectEmphasisUpdates(
         runtime,
         buildInstanceLayout(runtime),
@@ -233,7 +237,7 @@ describe("collectEmphasisUpdates", () => {
     const { scene, runtime } = elementScene();
     const interaction = setEdgeSelected(
       createInteractionState(),
-      { instanceId: "1/0", key: "0,2" },
+      { partOccurrenceId: "1/0", key: "0,2" },
       true,
     );
     const updates = collectEmphasisUpdates(
@@ -274,7 +278,7 @@ describe("collectEmphasisUpdates", () => {
     const layout = buildInstanceLayout(runtime);
     const interaction = setNodeSelected(
       createInteractionState(),
-      { instanceId: "1/0", nodeId: 0 },
+      { partOccurrenceId: "1/0", nodeId: 0 },
       true,
     );
 
@@ -296,10 +300,10 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceIndex: 1 },
+      { partOccurrenceId: "1/0", elementId: 0, faceIndex: 1 },
       true,
     );
-    interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
+    interaction = setNodeSelected(interaction, { partOccurrenceId: "1/1", nodeId: 2 }, true);
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
       parts: partsMap(scene),
       interaction,
@@ -317,7 +321,7 @@ describe("collectEmphasisUpdates", () => {
     let interaction = createInteractionState();
     interaction = setFaceSelected(
       interaction,
-      { instanceId: "1/0", elementId: 0, faceIndex: 9 },
+      { partOccurrenceId: "1/0", elementId: 0, faceIndex: 9 },
       true,
     );
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
@@ -335,17 +339,17 @@ describe("collectEmphasisUpdates", () => {
       ["1/1", 1],
     ]);
     let interaction = createInteractionState();
-    interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
+    interaction = setElementSelected(interaction, { partOccurrenceId: "1/0", elementId: 0 }, true);
     interaction = setElementOverride(
       interaction,
-      { instanceId: "1/1", elementId: 0 },
+      { partOccurrenceId: "1/1", elementId: 0 },
       {
         emissive: 0.9,
       },
     );
     interaction = setTargetHovered(interaction, {
       kind: "element",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 0,
     });
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
@@ -360,8 +364,12 @@ describe("collectEmphasisUpdates", () => {
     const layout = buildInstanceLayout(runtime);
     const slotByInstanceId = new Map([["1/0", 0]]);
     let interaction = createInteractionState();
-    interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
-    interaction = setElementSelected(interaction, { instanceId: "stale", elementId: 0 }, true);
+    interaction = setElementSelected(interaction, { partOccurrenceId: "1/0", elementId: 0 }, true);
+    interaction = setElementSelected(
+      interaction,
+      { partOccurrenceId: "stale", elementId: 0 },
+      true,
+    );
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
       parts: partsMap(scene),
       interaction,

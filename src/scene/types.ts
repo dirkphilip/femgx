@@ -14,7 +14,7 @@ export type AssemblyId = number;
  * Stable identity of a placement in an assembly tree.
  * @category Scene and geometry
  */
-export type InstanceId = string;
+export type PartOccurrenceId = string;
 
 /**
  * Stable identity of one expanded assembly occurrence in a scene runtime.
@@ -28,20 +28,21 @@ export type AssemblyOccurrenceId = string;
  */
 export interface ElementRef {
   /** The placement whose geometry contains the element. */
-  readonly instanceId: InstanceId;
+  readonly partOccurrenceId: PartOccurrenceId;
   /** The element id within that placement's part geometry. */
   readonly elementId: ElementId;
 }
 
 /**
  * A single placement of a part in the world, produced by flattening an
- * assembly tree. Instances are the unit of GPU instancing and picking.
+ * assembly tree. Part occurrences are the unit of placed-geometry identity
+ * for interaction and picking; renderer instancing remains an internal detail.
  * @category Scene and geometry
  */
-export interface Instance {
+export interface PartOccurrence {
   /** Stable identity of the source placement, independent of visibility. */
-  readonly instanceId: InstanceId;
-  /** The part this instance draws. */
+  readonly partOccurrenceId: PartOccurrenceId;
+  /** The reusable part this occurrence draws. */
   readonly partId: PartId;
   /** World transform (column-major 4x4 matrix). */
   readonly worldTransform: Mat4;

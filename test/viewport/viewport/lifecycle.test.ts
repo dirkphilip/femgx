@@ -42,10 +42,10 @@ describe("Viewport", () => {
       onRender,
     });
 
-    expect(viewport.runtime.instanceCount).toBe(1);
-    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
+    expect(viewport.runtime.partOccurrenceCount).toBe(1);
+    expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual(["1/0"]);
     expect(viewport.view.camera.width).toBe(640);
-    expect(viewport.stats()).toEqual({ visibleInstances: 1, drawBatches: 1 });
+    expect(viewport.stats()).toEqual({ visiblePartOccurrences: 1, drawBatches: 1 });
     expect(onRender).toHaveBeenCalledOnce();
 
     const interaction = setPartOverride(viewport.interaction.state, 1, {
@@ -57,13 +57,13 @@ describe("Viewport", () => {
     expect(viewport.interaction.state).toBe(interaction);
 
     viewport.visibility.setPart(1, false);
-    expect(viewport.stats().visibleInstances).toBe(0);
-    expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
+    expect(viewport.stats().visiblePartOccurrences).toBe(0);
+    expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual([]);
     viewport.visibility.setPart(1, true);
-    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(["1/0"]);
-    viewport.visibility.setInstance("1/0", false);
-    expect(viewport.stats().visibleInstances).toBe(0);
-    expect(viewport.runtime.getVisibleInstanceIds()).toEqual([]);
+    expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual(["1/0"]);
+    viewport.visibility.setPartOccurrence("1/0", false);
+    expect(viewport.stats().visiblePartOccurrences).toBe(0);
+    expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual([]);
 
     Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 320 });
     Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 200 });
@@ -80,7 +80,7 @@ describe("Viewport", () => {
     viewport.resize();
     expect(viewport.view.camera.orthoHeight).toBe(manuallyFramed.orthoHeight);
 
-    viewport.setScene(scene(10));
+    viewport.replaceScene(scene(10));
     viewport.render();
     expect(viewport.view.camera.target[0]).toBeCloseTo(0);
     viewport.view.setCamera({ ...viewport.view.camera, position: [20, 20, 20] });
@@ -135,8 +135,8 @@ describe("Viewport", () => {
 
     viewport.render();
     viewport.resize();
-    viewport.setScene(scene(10));
-    viewport.updateScene(scene(20));
+    viewport.replaceScene(scene(10));
+    viewport.reconcileScene(scene(20));
     await viewport.recover();
 
     expect(viewport.view).toBe(capabilities.view);
@@ -170,10 +170,10 @@ describe("Viewport", () => {
       },
     ],
     [
-      "instance",
+      "partOccurrence",
       "missing-instance",
       (viewport: Viewport) => {
-        viewport.visibility.setInstance("missing-instance", false);
+        viewport.visibility.setPartOccurrence("missing-instance", false);
       },
     ],
   ] as const)(
@@ -187,7 +187,7 @@ describe("Viewport", () => {
         scene: scene(),
         device: gpu.device,
       });
-      const beforeVisible = viewport.runtime.getVisibleInstanceIds();
+      const beforeVisible = viewport.runtime.getVisiblePartOccurrenceIds();
       const beforeWrites = gpu.writes.length;
       let error: unknown;
       expect(() => {
@@ -203,7 +203,7 @@ describe("Viewport", () => {
       expect(error).toBeInstanceOf(UnknownSceneIdentityError);
       expect((error as UnknownSceneIdentityError).kind).toBe(_kind);
       expect((error as UnknownSceneIdentityError).id).toBe(_id);
-      expect(viewport.runtime.getVisibleInstanceIds()).toEqual(beforeVisible);
+      expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual(beforeVisible);
       expect(gpu.writes).toHaveLength(beforeWrites);
       viewport.destroy();
     },
@@ -235,7 +235,7 @@ describe("Viewport", () => {
         void current.presentation.sectionPlane;
       },
       (current) => {
-        current.updateScene(scene());
+        current.reconcileScene(scene());
       },
       (current) => {
         current.visibility.setPart(1, false);
@@ -247,12 +247,12 @@ describe("Viewport", () => {
         current.visibility.setAssembly(1, false);
       },
       (current) => {
-        current.visibility.setInstance("1/0", false);
+        current.visibility.setPartOccurrence("1/0", false);
       },
     ];
     const before = {
-      drawList: viewport.runtime.getVisibleInstanceIds(),
-      instances: viewport.runtime.getInstances(),
+      drawList: viewport.runtime.getVisiblePartOccurrenceIds(),
+      instances: viewport.runtime.getPartOccurrences(),
       occurrences: viewport.runtime.getOccurrences(),
       submissions: gpu.submissionCount,
       writes: gpu.writes.length,
@@ -265,8 +265,8 @@ describe("Viewport", () => {
         setVisible(viewport);
       }).toThrow("Viewport has been destroyed");
     }
-    expect(viewport.runtime.getVisibleInstanceIds()).toEqual(before.drawList);
-    expect(viewport.runtime.getInstances()).toEqual(before.instances);
+    expect(viewport.runtime.getVisiblePartOccurrenceIds()).toEqual(before.drawList);
+    expect(viewport.runtime.getPartOccurrences()).toEqual(before.instances);
     expect(viewport.runtime.getOccurrences()).toEqual(before.occurrences);
     expect(gpu.submissionCount).toBe(before.submissions);
     expect(gpu.writes).toHaveLength(before.writes);

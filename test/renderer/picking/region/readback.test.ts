@@ -38,12 +38,12 @@ describe("GPU pick regions", () => {
       };
       expect(createPickRegionTargetResolver(context, "node")(ids({ nodePickId: 2 }))).toEqual({
         kind: "node",
-        instanceId: "root/0",
+        partOccurrenceId: "root/0",
         nodeId: 1,
       });
       const gpu = fakeGpuDevice({ pickValue: 1, elementPickValue: 2 });
       await expect(targets(gpu, context, "node")).resolves.toEqual([
-        { kind: "node", instanceId: "root/0", nodeId: 1 },
+        { kind: "node", partOccurrenceId: "root/0", nodeId: 1 },
       ]);
     } finally {
       restore();
@@ -92,7 +92,7 @@ describe("GPU pick regions", () => {
         parts: new Map([[1, trianglePart()]]),
       };
       const result = await targets(gpu, context, "element");
-      expect(result).toEqual([{ kind: "element", instanceId: "root/0", elementId: 4 }]);
+      expect(result).toEqual([{ kind: "element", partOccurrenceId: "root/0", elementId: 4 }]);
       expect(copied.length).toBeGreaterThan(0);
       expect(new Set(copied).size).toBe(2);
       expect(gpu.computeDispatchCount).toBe(0);

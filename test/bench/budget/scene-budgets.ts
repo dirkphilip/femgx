@@ -38,7 +38,7 @@ const deepScene = makeHierarchyScene({
 const runtime = createPackedSceneRuntime(shallowScene);
 const runtimeInstances = Array.from(runtime.getDrawList(), (slot, index) => ({
   index,
-  instanceId: runtime.getInstanceId(slot) ?? "",
+  partOccurrenceId: runtime.getInstanceId(slot) ?? "",
   partId: runtime.getPartId(slot) ?? 0,
   worldTransform: runtime.getTransform(slot) ?? new Float32Array(16),
 }));

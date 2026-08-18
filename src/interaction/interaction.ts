@@ -1,4 +1,4 @@
-import type { ElementId, ElementRef, InstanceId } from "../scene/types";
+import type { ElementId, ElementRef, PartOccurrenceId } from "../scene/types";
 import type { BodyId, PartId } from "../geometry/part";
 import type { InteractionTarget } from "./target-types";
 import {
@@ -23,7 +23,6 @@ import {
   updateNestedSet,
   updateSet,
 } from "./mechanics";
-import { setInstanceOverrides } from "./instance-overrides";
 
 export { setInstanceOverrides } from "./instance-overrides";
 
@@ -51,9 +50,9 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
   }
   const data: InteractionStateData = {
     highlightedPartIds: new Set(),
-    highlightedInstanceIds: new Set(),
+    highlightedPartOccurrenceIds: new Set(),
     selectedPartIds: new Set(),
-    selectedInstanceIds: new Set(),
+    selectedPartOccurrenceIds: new Set(),
     selectedBodyIds: new Map(),
     highlightedBodyIds: new Map(),
     bodyOverrides: new Map(),
@@ -63,7 +62,7 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     hiddenElementIds: new Map(),
     elementOverrides: new Map(),
     partOverrides: new Map(),
-    instanceOverrides: new Map(),
+    partOccurrenceOverrides: new Map(),
     selectedNodeIds: new Map(),
     highlightedNodeIds: new Map(),
     selectedEdges: new Map(),
@@ -99,12 +98,12 @@ export function setPartHighlighted(
 }
 
 /** Sets or clears an instance highlight without mutating the previous state. */
-export function setInstanceHighlighted(
+export function setPartOccurrenceHighlighted(
   state: InteractionState,
-  instanceId: InstanceId,
+  partOccurrenceId: PartOccurrenceId,
   highlighted: boolean,
 ): InteractionState {
-  return updateInstanceSet(state, "highlightedInstanceIds", instanceId, highlighted);
+  return updateInstanceSet(state, "highlightedPartOccurrenceIds", partOccurrenceId, highlighted);
 }
 
 /** Sets or clears a part selection without mutating the previous state. */
@@ -117,12 +116,12 @@ export function setPartSelected(
 }
 
 /** Sets or clears an instance selection without mutating the previous state. */
-export function setInstanceSelected(
+export function setPartOccurrenceSelected(
   state: InteractionState,
-  instanceId: InstanceId,
+  partOccurrenceId: PartOccurrenceId,
   selected: boolean,
 ): InteractionState {
-  return updateInstanceSet(state, "selectedInstanceIds", instanceId, selected);
+  return updateInstanceSet(state, "selectedPartOccurrenceIds", partOccurrenceId, selected);
 }
 
 /** Sets or clears an element selection without mutating the previous state. */
@@ -134,7 +133,7 @@ export function setElementSelected(
   const data = readInteractionState(state);
   const selectedElementIds = updateNestedSet(
     data.selectedElementIds,
-    ref.instanceId,
+    ref.partOccurrenceId,
     ref.elementId,
     selected,
   );
@@ -151,7 +150,7 @@ export function setElementHighlighted(
   const data = readInteractionState(state);
   const highlightedElementIds = updateNestedSet(
     data.highlightedElementIds,
-    ref.instanceId,
+    ref.partOccurrenceId,
     ref.elementId,
     highlighted,
   );
@@ -172,7 +171,7 @@ export function setElementOverride(
   const data = readInteractionState(state);
   const elementOverrides = updateNestedMap(
     data.elementOverrides,
-    ref.instanceId,
+    ref.partOccurrenceId,
     ref.elementId,
     override,
   );
@@ -197,12 +196,13 @@ export function setPartOverride(
  * Adds or replaces an explicit instance style override.
  * @category Interaction and picking
  */
-export function setInstanceOverride(
+export function setPartOccurrenceOverride(
   state: InteractionState,
-  instanceId: InstanceId,
+  partOccurrenceId: PartOccurrenceId,
   override: StyleOverride | undefined,
 ): InteractionState {
-  return setInstanceOverrides(state, [[instanceId, override]]);
+  validateStyleOverride(override);
+  return updateInstanceOverride(state, partOccurrenceId, override);
 }
 
 /**
@@ -210,7 +210,7 @@ export function setInstanceOverride(
  * @category Interaction and picking
  */
 export function resolveInstanceStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
@@ -218,27 +218,27 @@ export function resolveInstanceStyle(
   const overrides: StyleOverride[] = [];
   if (data.selectedPartIds.has(instance.partId))
     overrides.push(applySelectionStyle(base, data.theme.selected));
-  if (data.selectedInstanceIds.has(instance.instanceId))
+  if (data.selectedPartOccurrenceIds.has(instance.partOccurrenceId))
     overrides.push(applySelectionStyle(base, data.theme.selected));
   if (data.highlightedPartIds.has(instance.partId))
     overrides.push(applySelectionStyle(base, data.theme.highlighted));
-  if (data.highlightedInstanceIds.has(instance.instanceId))
+  if (data.highlightedPartOccurrenceIds.has(instance.partOccurrenceId))
     overrides.push(applySelectionStyle(base, data.theme.highlighted));
   if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
     overrides.push(applySelectionStyle(base, data.theme.highlighted));
   const partOverride = data.partOverrides.get(instance.partId);
   if (partOverride !== undefined) overrides.push(partOverride);
-  const instanceOverride = data.instanceOverrides.get(instance.instanceId);
+  const instanceOverride = data.partOccurrenceOverrides.get(instance.partOccurrenceId);
   if (instanceOverride !== undefined) overrides.push(instanceOverride);
   return applyStyleLayers(base, overrides);
 }
 
 function hoveredInstanceId(
   target: InteractionTarget | undefined,
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
-): InstanceId | undefined {
-  return target?.kind === "instance" && target.instanceId === instance.instanceId
-    ? instance.instanceId
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
+): PartOccurrenceId | undefined {
+  return target?.kind === "partOccurrence" && target.partOccurrenceId === instance.partOccurrenceId
+    ? instance.partOccurrenceId
     : undefined;
 }
 
@@ -261,7 +261,7 @@ export function applySelectionStyle(
  * @category Interaction and picking
  */
 export function resolveBodyStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   bodyId: BodyId,
   base: ResolvedStyle,
   state: InteractionState,
@@ -269,18 +269,18 @@ export function resolveBodyStyle(
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
   return applyStyleLayers(style, [
-    data.selectedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+    data.selectedBodyIds.get(instance.partOccurrenceId)?.has(bodyId) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedBodyIds.get(instance.instanceId)?.has(bodyId) === true
+    data.highlightedBodyIds.get(instance.partOccurrenceId)?.has(bodyId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     data.hoveredTarget?.kind === "body" &&
-    data.hoveredTarget.instanceId === instance.instanceId &&
+    data.hoveredTarget.partOccurrenceId === instance.partOccurrenceId &&
     data.hoveredTarget.bodyId === bodyId
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
-    data.bodyOverrides.get(instance.instanceId)?.get(bodyId),
+    data.bodyOverrides.get(instance.partOccurrenceId)?.get(bodyId),
   ]);
 }
 
@@ -293,7 +293,7 @@ export function resolveBodyStyle(
  * @category Interaction and picking
  */
 export function resolveElementStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   elementId: ElementId,
   base: ResolvedStyle,
   state: InteractionState,
@@ -305,18 +305,18 @@ export function resolveElementStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.selectedElementIds.get(instance.instanceId)?.has(elementId) === true
+    data.selectedElementIds.get(instance.partOccurrenceId)?.has(elementId) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedElementIds.get(instance.instanceId)?.has(elementId) === true
+    data.highlightedElementIds.get(instance.partOccurrenceId)?.has(elementId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     data.hoveredTarget?.kind === "element" &&
-    data.hoveredTarget.instanceId === instance.instanceId &&
+    data.hoveredTarget.partOccurrenceId === instance.partOccurrenceId &&
     data.hoveredTarget.elementId === elementId
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
-    data.elementOverrides.get(instance.instanceId)?.get(elementId),
+    data.elementOverrides.get(instance.partOccurrenceId)?.get(elementId),
   ]);
 }
 
@@ -330,21 +330,25 @@ export function emphasizedElementRefs(state: InteractionState): readonly Element
   const data = readInteractionState(state);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "element"
-      ? { instanceId: data.hoveredTarget.instanceId, elementId: data.hoveredTarget.elementId }
+      ? {
+          partOccurrenceId: data.hoveredTarget.partOccurrenceId,
+          elementId: data.hoveredTarget.elementId,
+        }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.elementId}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.elementId}`,
     (push) => {
-      for (const [instanceId, ids] of data.highlightedElementIds) {
-        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+      for (const [partOccurrenceId, ids] of data.highlightedElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ partOccurrenceId, elementId });
       }
-      for (const [instanceId, ids] of data.selectedElementIds) {
-        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+      for (const [partOccurrenceId, ids] of data.selectedElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ partOccurrenceId, elementId });
       }
-      for (const [instanceId, overrides] of data.elementOverrides) {
-        for (const elementId of sortedNumbers(overrides.keys())) push({ instanceId, elementId });
+      for (const [partOccurrenceId, overrides] of data.elementOverrides) {
+        for (const elementId of sortedNumbers(overrides.keys()))
+          push({ partOccurrenceId, elementId });
       }
-      for (const [instanceId, ids] of data.hiddenElementIds) {
-        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+      for (const [partOccurrenceId, ids] of data.hiddenElementIds) {
+        for (const elementId of sortedNumbers(ids)) push({ partOccurrenceId, elementId });
       }
     },
   );
@@ -364,8 +368,8 @@ function updatePartSet(
 
 function updateInstanceSet(
   state: InteractionState,
-  key: "highlightedInstanceIds" | "selectedInstanceIds",
-  value: InstanceId,
+  key: "highlightedPartOccurrenceIds" | "selectedPartOccurrenceIds",
+  value: PartOccurrenceId,
   enabled: boolean,
 ): InteractionState {
   const data = readInteractionState(state);
@@ -383,4 +387,15 @@ function updatePartOverride(
   const next = updateMapValue(data.partOverrides, value, override);
   if (next === data.partOverrides) return state;
   return updateInteractionState(state, { partOverrides: next });
+}
+
+function updateInstanceOverride(
+  state: InteractionState,
+  value: PartOccurrenceId,
+  override: StyleOverride | undefined,
+): InteractionState {
+  const data = readInteractionState(state);
+  const next = updateMapValue(data.partOccurrenceOverrides, value, override);
+  if (next === data.partOccurrenceOverrides) return state;
+  return updateInteractionState(state, { partOccurrenceOverrides: next });
 }

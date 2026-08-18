@@ -28,7 +28,7 @@ export function describePick(
       hit.neighborElementIds.length === 0 ? "none" : hit.neighborElementIds.join(", ");
     return withResult(
       `Node ${hit.nodeId}\n` +
-        `${context} · Instance ${hit.instanceId}\n` +
+        `${context} · PartOccurrence ${hit.partOccurrenceId}\n` +
         bodyDescription(hit) +
         (hit.bodyId === undefined ? "" : "\n") +
         `Position ${formatVec(hit.worldPosition)}\n` +
@@ -42,7 +42,7 @@ export function describePick(
     const owners = hit.neighborElementIds.join(", ");
     return withResult(
       `Face ${hit.key}\n` +
-        `Element ${hit.elementId} · ${context} · Instance ${hit.instanceId}\n` +
+        `Element ${hit.elementId} · ${context} · PartOccurrence ${hit.partOccurrenceId}\n` +
         bodyDescription(hit) +
         (hit.bodyId === undefined ? "" : "\n") +
         `Normal ${formatVec(hit.normal)}\n` +
@@ -55,7 +55,7 @@ export function describePick(
   }
   if (hit.kind === "element") {
     return withResult(
-      `Element ${hit.elementId}\n${context} · Instance ${hit.instanceId}${bodyDescription(hit)}`,
+      `Element ${hit.elementId}\n${context} · PartOccurrence ${hit.partOccurrenceId}${bodyDescription(hit)}`,
       hit,
       results,
     );
@@ -63,7 +63,7 @@ export function describePick(
   if (hit.kind === "edge") {
     return describeEdgePick(hit, context);
   }
-  return `Instance ${hit.instanceId}\n${context}`;
+  return `PartOccurrence ${hit.partOccurrenceId}\n${context}`;
 }
 
 function describeEdgePick(
@@ -74,7 +74,7 @@ function describeEdgePick(
   const incidentFaces = hit.faceRefs.map((ref) => `${ref.elementId}/${ref.faceIndex}`).join(", ");
   return (
     `Edge ${hit.key}\n` +
-    `${context} · Instance ${hit.instanceId}\n` +
+    `${context} · PartOccurrence ${hit.partOccurrenceId}\n` +
     `Authored nodes ${hit.nodeIds.join(", ")}\n` +
     `Incident elements ${incidentElements}\n` +
     `Incident faces ${incidentFaces || "none"}\n` +
@@ -85,7 +85,7 @@ function describeEdgePick(
 
 function withResult(
   description: string,
-  hit: Exclude<PickHit, { readonly kind: "instance" }>,
+  hit: Exclude<PickHit, { readonly kind: "partOccurrence" }>,
   results: ViewportResultsState | undefined,
 ): string {
   const value = resultDescription(hit, results);
@@ -93,7 +93,7 @@ function withResult(
 }
 
 function resultDescription(
-  hit: Exclude<PickHit, { readonly kind: "instance" }>,
+  hit: Exclude<PickHit, { readonly kind: "partOccurrence" }>,
   results: ViewportResultsState | undefined,
 ): string | undefined {
   if (results === undefined) return undefined;
@@ -115,18 +115,18 @@ function resultDescription(
       );
     }
   }
-  const vectors = results.vectors?.field;
+  const orientation = results.orientation?.field;
   if (
-    vectors !== undefined &&
-    vectors.shape === "vector" &&
+    orientation !== undefined &&
+    orientation.shape === "vector" &&
     hit.kind !== "edge" &&
     hit.elementId !== undefined
   ) {
     const entity = hit.elementId;
-    if (entity >= 0 && entity < vectors.count) {
-      const value = vectorAt(vectors, entity);
+    if (entity >= 0 && entity < orientation.count) {
+      const value = vectorAt(orientation, entity);
       descriptions.push(
-        `${vectors.name} (${vectors.location}, ${vectors.unit}): ${vectorValue(value)}`,
+        `${orientation.name} (${orientation.location}, ${orientation.unit}): ${vectorValue(value)}`,
       );
     }
   }

@@ -177,8 +177,8 @@ function targetLabel(target: SelectTarget): string {
       return `Face ${target.elementId}/${target.faceIndex}`;
     case "element":
       return `Element ${target.elementId}`;
-    case "instance":
-      return `Instance ${target.instanceId}`;
+    case "partOccurrence":
+      return `PartOccurrence ${target.partOccurrenceId}`;
     case "part":
       return `Part ${target.partId}`;
     case "edge":

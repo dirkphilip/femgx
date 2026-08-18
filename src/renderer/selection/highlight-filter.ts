@@ -44,7 +44,7 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
       data.hiddenElementIds.get(instanceId)?.has(elementId) === true ||
       data.elementOverrides.get(instanceId)?.has(elementId) === true ||
       (data.hoveredTarget?.kind === "element" &&
-        data.hoveredTarget.instanceId === instanceId &&
+        data.hoveredTarget.partOccurrenceId === instanceId &&
         data.hoveredTarget.elementId === elementId)
     );
   });

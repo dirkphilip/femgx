@@ -58,7 +58,7 @@ function recordIdentity(
   switch (target.kind) {
     case "part":
       return recordNumber(seen.partIds, target.partId);
-    case "instance":
+    case "partOccurrence":
       return recordNumber(seen.instanceIds, instancePickId);
     case "body":
       return recordNestedNumber(seen.ownerIds, instancePickId, target.bodyId);
@@ -120,7 +120,7 @@ function targetOrder(
   switch (target.kind) {
     case "part":
       return [0, target.partId, 0];
-    case "instance":
+    case "partOccurrence":
       return [instancePickId, 0, 0];
     case "body":
       return [instancePickId, target.bodyId, 0];

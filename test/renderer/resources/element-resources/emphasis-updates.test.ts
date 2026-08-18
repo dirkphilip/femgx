@@ -29,7 +29,7 @@ describe("collectEmphasisUpdates", () => {
     let sparseInteraction = createInteractionState();
     sparseInteraction = setElementSelected(
       sparseInteraction,
-      { instanceId: "1/0", elementId: 20_000 },
+      { partOccurrenceId: "1/0", elementId: 20_000 },
       true,
     );
     expect(
@@ -39,7 +39,7 @@ describe("collectEmphasisUpdates", () => {
     for (let index = 1; index < 50; index += 1) {
       denseInteraction = setElementSelected(
         denseInteraction,
-        { instanceId: "1/0", elementId: 20_000 + index },
+        { partOccurrenceId: "1/0", elementId: 20_000 + index },
         true,
       );
     }
@@ -52,7 +52,7 @@ describe("collectEmphasisUpdates", () => {
     ]);
     const invalid = setElementSelected(
       denseInteraction,
-      { instanceId: "1/0", elementId: 999_999 },
+      { partOccurrenceId: "1/0", elementId: 999_999 },
       true,
     );
     const invalidDense = collectDenseElementSelections(runtime, layout, parts, invalid).get(99);
@@ -69,17 +69,17 @@ describe("collectEmphasisUpdates", () => {
     expect(updates.get(99)).toBeUndefined();
     const hovered = setTargetHovered(denseInteraction, {
       kind: "element",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 20_000,
     });
     expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(denseSelections);
   });
 
   it("keeps equality at the dense cutoff sparse", () => {
-    const { runtime, layout, parts, instanceId } = denseSelectionFixture(321);
+    const { runtime, layout, parts, partOccurrenceId } = denseSelectionFixture(321);
     const interaction = setElementSelected(
       createInteractionState(),
-      { instanceId, elementId: 20_000 },
+      { partOccurrenceId, elementId: 20_000 },
       true,
     );
 
@@ -87,13 +87,13 @@ describe("collectEmphasisUpdates", () => {
   });
 
   it("sorts reverse-ordered occurrences before dense packing", () => {
-    const { runtime, layout, parts, instanceIds } = denseSelectionFixture(1_000, 2);
+    const { runtime, layout, parts, partOccurrenceIds } = denseSelectionFixture(1_000, 2);
     const selectedIds = Array.from({ length: 50 }, (_, index) => 20_000 + index);
-    const targets = instanceIds
+    const targets = partOccurrenceIds
       .slice()
       .reverse()
-      .flatMap((instanceId) =>
-        selectedIds.map((elementId) => ({ kind: "element" as const, instanceId, elementId })),
+      .flatMap((partOccurrenceId) =>
+        selectedIds.map((elementId) => ({ kind: "element" as const, partOccurrenceId, elementId })),
       );
     const dense = collectDenseElementSelections(
       runtime,
@@ -154,11 +154,11 @@ describe("collectEmphasisUpdates", () => {
     const fixture = createBoltedPlateFixture();
     const runtime = createPackedSceneRuntime(fixture.scene);
     const layout = buildInstanceLayout(runtime);
-    const instanceId = runtime.getInstanceId(0);
-    if (instanceId === undefined) throw new Error("expected the first fixture instance");
+    const partOccurrenceId = runtime.getInstanceId(0);
+    if (partOccurrenceId === undefined) throw new Error("expected the first fixture instance");
     let interaction = createInteractionState();
-    interaction = setBodyVisible(interaction, { instanceId, bodyId: 2 }, false);
-    const updates = collectEmphasisUpdates(runtime, layout, new Map([[instanceId, 0]]), {
+    interaction = setBodyVisible(interaction, { partOccurrenceId, bodyId: 2 }, false);
+    const updates = collectEmphasisUpdates(runtime, layout, new Map([[partOccurrenceId, 0]]), {
       parts: new Map(fixture.scene.parts),
       interaction,
     });
@@ -172,8 +172,12 @@ describe("collectEmphasisUpdates", () => {
     const layout = buildInstanceLayout(runtime);
     const slotByInstanceId = new Map([["1/0", 0]]);
     let interaction = createInteractionState();
-    interaction = setBodyOverride(interaction, { instanceId: "1/0", bodyId: 3 }, { emissive: 0.8 });
-    interaction = setBodyVisible(interaction, { instanceId: "1/0", bodyId: 3 }, false);
+    interaction = setBodyOverride(
+      interaction,
+      { partOccurrenceId: "1/0", bodyId: 3 },
+      { emissive: 0.8 },
+    );
+    interaction = setBodyVisible(interaction, { partOccurrenceId: "1/0", bodyId: 3 }, false);
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
       parts: partsMap(scene),
       interaction,
@@ -191,7 +195,7 @@ describe("collectEmphasisUpdates", () => {
       ["1/1", 1],
     ]);
     let interaction = createInteractionState();
-    interaction = setElementSelected(interaction, { instanceId: "1/1", elementId: 0 }, true);
+    interaction = setElementSelected(interaction, { partOccurrenceId: "1/1", elementId: 0 }, true);
     const updates = collectEmphasisUpdates(runtime, layout, slotByInstanceId, {
       parts: partsMap(scene),
       interaction,
@@ -232,14 +236,14 @@ function denseSelectionFixture(elementCount: number, placementCount = 1) {
     .withRoot(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
-  const instanceIds = Array.from({ length: placementCount }, (_, index) => {
-    const instanceId = runtime.getInstanceId(index);
-    if (instanceId === undefined) throw new Error(`Missing dense fixture instance ${index}`);
-    return instanceId;
+  const partOccurrenceIds = Array.from({ length: placementCount }, (_, index) => {
+    const partOccurrenceId = runtime.getInstanceId(index);
+    if (partOccurrenceId === undefined) throw new Error(`Missing dense fixture instance ${index}`);
+    return partOccurrenceId;
   });
   return {
-    instanceId: instanceIds[0] ?? "",
-    instanceIds,
+    partOccurrenceId: partOccurrenceIds[0] ?? "",
+    partOccurrenceIds,
     layout: buildInstanceLayout(runtime),
     parts: new Map(scene.parts),
     runtime,

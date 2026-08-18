@@ -11,7 +11,7 @@ import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import type { InstanceId } from "../../src/scene/types";
+import type { PartOccurrenceId } from "../../src/scene/types";
 import type { WebGpuBenchmarkCase } from "./model";
 import type {
   BenchmarkPercentiles,
@@ -132,7 +132,7 @@ export function authoredElementTargets(
   count = authoredElementCount(benchmarkCase, runtime),
 ): readonly InteractionTarget[] {
   const context = authoredElementContext(benchmarkCase, runtime);
-  const { instanceId, part } = context;
+  const { partOccurrenceId, part } = context;
   const packed = packedSemanticStorage(part);
   const elementCount = packed?.elementIds.length ?? part.elements?.length ?? 0;
   if (count < 0 || count > elementCount) {
@@ -142,7 +142,7 @@ export function authoredElementTargets(
   for (let ordinal = 0; ordinal < count; ordinal += 1) {
     const elementId = packed?.elementIds[ordinal] ?? part.elements?.[ordinal]?.id;
     if (elementId === undefined) throw new Error(`${benchmarkCase.id} element ${ordinal} missing`);
-    targets[ordinal] = { kind: "element", instanceId, elementId };
+    targets[ordinal] = { kind: "element", partOccurrenceId, elementId };
   }
   return targets;
 }
@@ -158,15 +158,15 @@ function authoredElementCount(
 function authoredElementContext(
   benchmarkCase: WebGpuBenchmarkCase,
   runtime: PackedSceneRuntime,
-): { readonly instanceId: InstanceId; readonly part: Part } {
+): { readonly partOccurrenceId: PartOccurrenceId; readonly part: Part } {
   const slot = runtime.getDrawList()[0];
   const partId = slot === undefined ? undefined : runtime.getPartId(slot);
-  const instanceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
+  const partOccurrenceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
   const part = partId === undefined ? undefined : benchmarkCase.scene.parts.get(partId);
-  if (part === undefined || instanceId === undefined) {
+  if (part === undefined || partOccurrenceId === undefined) {
     throw new Error(`${benchmarkCase.id} has no drawable authored-element occurrence`);
   }
-  return { instanceId, part };
+  return { partOccurrenceId, part };
 }
 
 async function measureSelectedTargets(
@@ -300,7 +300,7 @@ function occurrenceSlots(
   const slots = new Set<number>();
   for (const target of targets) {
     if (target.kind !== "element") continue;
-    const slot = runtime.getInstanceSlot(target.instanceId);
+    const slot = runtime.getInstanceSlot(target.partOccurrenceId);
     if (slot !== undefined) slots.add(slot);
   }
   return [...slots].sort((left, right) => left - right);

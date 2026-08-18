@@ -46,7 +46,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
     analysis: createAnalysisSnapshot(input),
     hierarchy: Object.freeze({
       occurrenceCount: input.runtime.occurrenceCount,
-      visibleInstances: input.runtime.visibleCount,
+      visiblePartOccurrences: input.runtime.visibleCount,
       selectedCount: selectedTargetSummary(input.interaction).count,
       hideSelectedElementCount: visibleSelectedElementTargets(input.interaction).length,
       elementDetail:

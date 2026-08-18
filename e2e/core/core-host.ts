@@ -5,7 +5,7 @@ import {
   createPart,
   createScene,
   identity,
-  setInstanceOverride,
+  setPartOccurrenceOverride,
   setPartOverride,
   setTargetHighlighted,
   setTargetSelected,
@@ -175,10 +175,10 @@ async function runPicking(current: Viewport): Promise<void> {
       ? undefined
       : await current.interaction.pick(projected[0], projected[1]);
   const edgeTargets = await current.interaction.pickRegion(region, "edge");
-  current.visibility.setInstance("1/0", false);
+  current.visibility.setPartOccurrence("1/0", false);
   current.render();
   const hidden = await current.interaction.pickRegion(region, "element");
-  current.visibility.setInstance("1/0", true);
+  current.visibility.setPartOccurrence("1/0", true);
   current.render();
   setStatus(
     "picking",
@@ -261,11 +261,11 @@ function runCamera(current: Viewport): void {
 
 function runTransparency(current: Viewport): void {
   let interaction = createInteractionState();
-  interaction = setInstanceOverride(interaction, "1/0", {
+  interaction = setPartOccurrenceOverride(interaction, "1/0", {
     color: { r: 0.95, g: 0.25, b: 0.2, a: 1 },
     opacity: 0.45,
   });
-  interaction = setInstanceOverride(interaction, "1/1", {
+  interaction = setPartOccurrenceOverride(interaction, "1/1", {
     color: { r: 0.2, g: 0.5, b: 1, a: 1 },
     opacity: 0.75,
   });
@@ -280,7 +280,7 @@ function runTransparency(current: Viewport): void {
       current.interaction.set(
         setTargetHighlighted(
           interaction,
-          { kind: "element", instanceId: "1/0", elementId: 1 },
+          { kind: "element", partOccurrenceId: "1/0", elementId: 1 },
           true,
         ),
       );

@@ -1,7 +1,7 @@
 import {
   setTargetHovered,
   setTargetsHighlighted,
-  type InstanceId,
+  type PartOccurrenceId,
   type InteractionState,
   type Viewport,
 } from "../../../src/entries/root";
@@ -20,7 +20,7 @@ export type WorkbenchHoverOwner =
 
 /** Stable element identity used while the body-scoped detail list owns hover. */
 export interface ElementDetailHoverTarget {
-  readonly instanceId: InstanceId;
+  readonly partOccurrenceId: PartOccurrenceId;
   readonly elementId: ElementId;
 }
 
@@ -123,7 +123,7 @@ function elementDetailTargetsEqual(
   left: ElementDetailHoverTarget,
   right: ElementDetailHoverTarget,
 ): boolean {
-  return left.instanceId === right.instanceId && left.elementId === right.elementId;
+  return left.partOccurrenceId === right.partOccurrenceId && left.elementId === right.elementId;
 }
 
 /** Sends the active interaction snapshot to the active viewport. */

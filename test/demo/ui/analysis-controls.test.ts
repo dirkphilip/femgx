@@ -42,7 +42,7 @@ describe("workbench analysis-controls", () => {
     button(target, "#command-selection").click();
     await change(target, "#box-selection-strategy", "through-intersection");
     await change(target, "#selection-granularity", "part");
-    await change(target, "#selection-granularity", "instance");
+    await change(target, "#selection-granularity", "partOccurrence");
     await change(target, "#selection-granularity", "body");
     await change(target, "#selection-granularity", "face");
     await change(target, "#selection-granularity", "edge");
@@ -119,7 +119,7 @@ describe("workbench analysis-controls", () => {
     const granularity = element(target, "#selection-granularity") as HTMLSelectElement;
     expect([...granularity.options].map((option) => option.value)).toEqual([
       "part",
-      "instance",
+      "partOccurrence",
       "body",
       "element",
       "face",

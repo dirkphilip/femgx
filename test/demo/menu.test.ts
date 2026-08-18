@@ -14,7 +14,7 @@ describe("workbench context-menu state", () => {
       changed,
     );
 
-    menu.show({ kind: "element", instanceId: "1/0", elementId: 4 }, 120, 80);
+    menu.show({ kind: "element", partOccurrenceId: "1/0", elementId: 4 }, 120, 80);
 
     expect(menu.snapshot).toMatchObject({
       visible: true,
@@ -70,7 +70,7 @@ describe("workbench context-menu state", () => {
   });
 
   it("offers exact element selection and visibility actions", () => {
-    const target = { kind: "element" as const, instanceId: "1/0", elementId: 2 };
+    const target = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 2 };
     const interaction = createInteractionState();
     const options = contextMenuSelectionOptions(target, interaction);
     expect(options).toMatchObject({

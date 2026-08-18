@@ -1,5 +1,5 @@
 import type { BodyId, PartId } from "../geometry/part";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 import {
   isHoveredTarget,
   readInteractionState,
@@ -18,7 +18,7 @@ function updateNodeSet(
   enabled: boolean,
 ): InteractionState {
   const data = readInteractionState(state);
-  const map = updateNestedSet(data[key], ref.instanceId, ref.nodeId, enabled);
+  const map = updateNestedSet(data[key], ref.partOccurrenceId, ref.nodeId, enabled);
   if (map === data[key]) return state;
   return updateInteractionState(state, { [key]: map });
 }
@@ -48,7 +48,7 @@ export function setNodeHighlighted(
  * @category Interaction and picking
  */
 export function resolveNodeStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   ref: NodeRef,
   base: ResolvedStyle,
   state: InteractionState,
@@ -60,10 +60,10 @@ export function resolveNodeStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.selectedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+    data.selectedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedNodeIds.get(ref.instanceId)?.has(ref.nodeId) === true
+    data.highlightedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, { kind: "node", ...ref })
@@ -82,15 +82,15 @@ export function emphasizedNodeRefs(state: InteractionState): readonly NodeRef[] 
   const data = readInteractionState(state);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "node"
-      ? { instanceId: data.hoveredTarget.instanceId, nodeId: data.hoveredTarget.nodeId }
+      ? { partOccurrenceId: data.hoveredTarget.partOccurrenceId, nodeId: data.hoveredTarget.nodeId }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.nodeId}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.nodeId}`,
     (push) => {
-      for (const [instanceId, ids] of data.highlightedNodeIds) {
-        for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+      for (const [partOccurrenceId, ids] of data.highlightedNodeIds) {
+        for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId, nodeId });
       }
-      for (const [instanceId, ids] of data.selectedNodeIds) {
-        for (const nodeId of sortedNumbers(ids)) push({ instanceId, nodeId });
+      for (const [partOccurrenceId, ids] of data.selectedNodeIds) {
+        for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId, nodeId });
       }
     },
   );

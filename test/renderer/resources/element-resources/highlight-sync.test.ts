@@ -39,7 +39,11 @@ describe("syncElementHighlights", () => {
         parts: partsMap(scene),
       };
       let interaction = createInteractionState();
-      interaction = setElementSelected(interaction, { instanceId: "1/0", elementId: 0 }, true);
+      interaction = setElementSelected(
+        interaction,
+        { partOccurrenceId: "1/0", elementId: 0 },
+        true,
+      );
       syncElementHighlights(sync, interaction);
       const afterSelect = gpu.writes.length;
       syncElementHighlights(sync, interaction);

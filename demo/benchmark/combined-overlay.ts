@@ -124,7 +124,7 @@ async function measureOverlayHover(
   const pickMs = performance.now() - pickStart;
   const target = hit === undefined ? undefined : interactionTargetFromHit(hit, "element");
   if (target?.kind !== "element") throw new Error(`${benchmarkCase.id} overlay hover missed`);
-  const slot = runtime.getInstanceSlot(target.instanceId);
+  const slot = runtime.getInstanceSlot(target.partOccurrenceId);
   if (slot === undefined)
     throw new Error(`${benchmarkCase.id} overlay hover occurrence is missing`);
   const stateStart = performance.now();
@@ -183,7 +183,9 @@ async function measureOverlaySelection(
   const interactionStateMs = performance.now() - stateStart;
   const target = targets[0];
   const slot =
-    target?.kind === "element" ? options.runtime.getInstanceSlot(target.instanceId) : undefined;
+    target?.kind === "element"
+      ? options.runtime.getInstanceSlot(target.partOccurrenceId)
+      : undefined;
   if (slot === undefined) throw new Error(`${options.benchmarkCase.id} overlay selection is empty`);
   const beforeSync = readGpuCostSnapshot(options.renderer);
   const syncStart = performance.now();

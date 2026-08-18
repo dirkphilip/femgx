@@ -32,8 +32,8 @@ describe("Viewport", () => {
     input.wheel(-100);
     expect(displayedBounds).toHaveBeenCalledTimes(1);
 
-    viewport.visibility.setInstance("1/0", false);
-    viewport.visibility.setInstance("1/0", true);
+    viewport.visibility.setPartOccurrence("1/0", false);
+    viewport.visibility.setPartOccurrence("1/0", true);
     input.wheel(100);
     expect(displayedBounds).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -126,9 +126,13 @@ describe("Viewport", () => {
       scene: scene(),
       device: fakeGpuDevice().device,
     });
-    viewport.visibility.setInstance("1/0", false);
+    viewport.visibility.setPartOccurrence("1/0", false);
     viewport.interaction.set(
-      setTargetSelected(viewport.interaction.state, { kind: "instance", instanceId: "1/0" }, true),
+      setTargetSelected(
+        viewport.interaction.state,
+        { kind: "partOccurrence", partOccurrenceId: "1/0" },
+        true,
+      ),
     );
     const before = viewport.view.camera;
 

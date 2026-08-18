@@ -2,7 +2,7 @@ import type { Part, PartId } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
 import { collectUniqueRefs, sortedNumbers } from "../../interaction/mechanics";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
-import type { ElementRef, InstanceId } from "../../scene/types";
+import type { ElementRef, PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
@@ -121,14 +121,18 @@ export function sparseElementEmphasisRefs(
   const data = readInteractionState(interaction);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "element"
-      ? { instanceId: data.hoveredTarget.instanceId, elementId: data.hoveredTarget.elementId }
+      ? {
+          partOccurrenceId: data.hoveredTarget.partOccurrenceId,
+          elementId: data.hoveredTarget.elementId,
+        }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.elementId}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.elementId}`,
     (push) => {
       appendElementRefs(data.highlightedElementIds, push);
       for (const [instanceId, ids] of sortedInstances(data.selectedElementIds)) {
         if (instanceUsesDenseSelection(runtime, layout, denseSelections, instanceId)) continue;
-        for (const elementId of sortedNumbers(ids)) push({ instanceId, elementId });
+        for (const elementId of sortedNumbers(ids))
+          push({ partOccurrenceId: instanceId, elementId });
       }
       appendElementRefs(data.elementOverrides, push);
       appendElementRefs(data.hiddenElementIds, push);
@@ -140,7 +144,7 @@ function instanceUsesDenseSelection(
   runtime: PackedSceneRuntime,
   layout: Pick<DenseElementLayout, "slotPartLocal">,
   selections: DenseElementSelections,
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
 ): boolean {
   const globalSlot = runtime.getInstanceSlot(instanceId);
   if (globalSlot === undefined) return false;
@@ -151,17 +155,18 @@ function instanceUsesDenseSelection(
 }
 
 function appendElementRefs(
-  groups: ReadonlyMap<InstanceId, { readonly keys: () => Iterable<number> }>,
+  groups: ReadonlyMap<PartOccurrenceId, { readonly keys: () => Iterable<number> }>,
   push: (ref: ElementRef) => void,
 ): void {
   for (const [instanceId, values] of sortedInstances(groups)) {
-    for (const elementId of sortedNumbers(values.keys())) push({ instanceId, elementId });
+    for (const elementId of sortedNumbers(values.keys()))
+      push({ partOccurrenceId: instanceId, elementId });
   }
 }
 
 function sortedInstances<Values>(
-  groups: ReadonlyMap<InstanceId, Values>,
-): Array<readonly [InstanceId, Values]> {
+  groups: ReadonlyMap<PartOccurrenceId, Values>,
+): Array<readonly [PartOccurrenceId, Values]> {
   return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
@@ -170,7 +175,7 @@ interface DenseSelectionContext {
   readonly layout: DenseElementLayout;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly byPart: Map<PartId, DenseSelectionBuilder>;
-  readonly instanceId: InstanceId;
+  readonly instanceId: PartOccurrenceId;
   readonly elementIds: ReadonlySet<number>;
 }
 
