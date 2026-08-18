@@ -482,6 +482,7 @@ interface IterationResult {
   readonly gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
 }
 
+/** Measures one iteration and captures visible-frame GPU cost before trailing pick passes. */
 export async function measureIteration(options: IterationOptions): Promise<IterationResult> {
   const { renderer, device, benchmarkCase, runtime, camera, pickPoint, phase } = options;
   let firstFrame: FrameTiming;
