@@ -31,7 +31,22 @@ npm install ../femgx/femgx-0.1.0.tgz
 ```
 
 FemGx ships ESM and CommonJS builds with TypeScript declarations. Applications
-need a modern WebGPU browser and TypeScript 6.0 or newer.
+need a modern WebGPU browser. TypeScript 6.0 or newer includes the required
+WebGPU types; TypeScript 5.9 applications must install them separately:
+
+```sh
+npm install --save-dev @webgpu/types
+```
+
+Add the package to the application's `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "types": ["@webgpu/types"]
+  }
+}
+```
 
 ## First render
 
