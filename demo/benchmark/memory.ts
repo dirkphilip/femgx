@@ -47,6 +47,66 @@ export interface BenchmarkMemoryOptions {
   readonly materializedEdgePartIds?: ReadonlySet<number>;
 }
 
+export interface DenseEdgeTypedMemoryEstimate {
+  readonly edgeConstructionTypedArrayBytes: number;
+  readonly edgeFinalTypedArrayBytes: number;
+  readonly edgeGuaranteedTypedArrayOverlapBytes: number;
+  readonly edgeNoIntermediateGcTypedArrayUpperBoundBytes: number;
+}
+
+/** Returns exact dense edge-builder allocation facts for the validated triangle-grid path. */
+export function denseEdgeTypedMemory(options: {
+  readonly scene: Scene;
+  readonly gridCells: number;
+  readonly elementFamily: string;
+}): DenseEdgeTypedMemoryEstimate | undefined {
+  if (options.elementFamily !== "triangle") return undefined;
+  const entries = [...options.scene.parts.values()].flatMap((part) =>
+    part.geometries
+      .filter((geometry) => geometry.primitive === "triangles")
+      .map((geometry) => ({ part, geometry })),
+  );
+  const entry = entries.length === 1 ? entries[0] : undefined;
+  if (
+    entry?.geometry.primitive !== "triangles" ||
+    (entry.part.bodies?.length ?? 0) !== 0 ||
+    entry.geometry.faces !== undefined ||
+    entry.geometry.edges !== undefined ||
+    entry.geometry.faceSubset !== undefined
+  ) {
+    return undefined;
+  }
+  const cells = options.gridCells;
+  const triangleCount = cells * cells * 2;
+  if (entry.geometry.indices.length !== triangleCount * 3) return undefined;
+  const occurrenceCount = entry.geometry.indices.length;
+  const edgeCount = 3 * cells * cells + 2 * cells;
+  return denseEdgeTypedMemoryCounts(triangleCount, occurrenceCount, edgeCount);
+}
+
+function denseEdgeTypedMemoryCounts(
+  triangleCount: number,
+  occurrenceCount: number,
+  edgeCount: number,
+): DenseEdgeTypedMemoryEstimate {
+  let tableCapacity = 1;
+  while (tableCapacity < Math.ceil(occurrenceCount / 0.75)) tableCapacity *= 2;
+  const wordBytes = Uint32Array.BYTES_PER_ELEMENT;
+  const builderStateBytes = occurrenceCount * 6 * wordBytes;
+  const primitiveElementPickIdBytes = triangleCount * wordBytes;
+  const edgeConstructionTypedArrayBytes =
+    builderStateBytes + tableCapacity * 3 * wordBytes + primitiveElementPickIdBytes;
+  const edgeFinalTypedArrayBytes = edgeCount * 2 * 7 * wordBytes + occurrenceCount * 4 * wordBytes;
+  return {
+    edgeConstructionTypedArrayBytes,
+    edgeFinalTypedArrayBytes,
+    edgeGuaranteedTypedArrayOverlapBytes:
+      builderStateBytes + primitiveElementPickIdBytes + edgeFinalTypedArrayBytes,
+    edgeNoIntermediateGcTypedArrayUpperBoundBytes:
+      edgeConstructionTypedArrayBytes + edgeFinalTypedArrayBytes,
+  };
+}
+
 /** Estimates renderer-owned resources and separately scoped CPU/staging bytes. */
 export function estimateBenchmarkMemory(
   scene: Scene,

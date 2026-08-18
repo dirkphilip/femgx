@@ -3,10 +3,10 @@ import { benchmarkCaptureEvent, type BenchmarkCapture } from "../../demo/benchma
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { pixelMetrics } from "../browser-support/screenshot";
 import { rendererMode } from "./demo-support";
-import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
+import { expectTwoMillionInteractions } from "./perf-two-million-assertions";
 
-const enabled = process.env["RUN_PERF_NODE_VISUAL"] === "1";
-const CASE_ID = "fe-tet4-solid-132k";
+const enabled = process.env["RUN_PERF_OVERLAY_VISUAL"] === "1";
+const CASE_ID = "instanced-2.10m";
 const CASE_TIMEOUT_MS = 3 * 60_000;
 
 interface BenchmarkSeam {
@@ -19,13 +19,13 @@ interface BenchmarkSeam {
 
 interface CaptureWindow extends Window {
   readonly femgxDemo: BenchmarkSeam;
-  nodeSelectionBenchmark?: Promise<WebGpuBenchmarkReport>;
+  combinedOverlayBenchmark?: Promise<WebGpuBenchmarkReport>;
 }
 
-test.skip(!enabled, "dense node-selection visual evidence is opt-in");
+test.skip(!enabled, "combined node and edge-presentation visual evidence is opt-in");
 test.setTimeout(CASE_TIMEOUT_MS);
 
-test("captures dense node selection on desktop and mobile viewports", async ({
+test("captures nodes, presentation edges, and dense selection on desktop and mobile", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1_000, height: 760 });
@@ -40,8 +40,8 @@ test("captures dense node selection on desktop and mobile viewports", async ({
   await page.evaluate(
     ({ caseId }) => {
       const host = window as unknown as CaptureWindow;
-      const pending = host.femgxDemo.runBenchmark(false, caseId, "node-selection");
-      host.nodeSelectionBenchmark = pending;
+      const pending = host.femgxDemo.runBenchmark(false, caseId, "combined-overlay");
+      host.combinedOverlayBenchmark = pending;
       void pending.catch(() => undefined);
     },
     { caseId: CASE_ID },
@@ -55,25 +55,23 @@ test("captures dense node selection on desktop and mobile viewports", async ({
   } finally {
     await page.evaluate(
       (eventName) => window.dispatchEvent(new Event(eventName)),
-      benchmarkCaptureEvent("node-selection"),
+      benchmarkCaptureEvent("combined-overlay"),
     );
   }
 
   const report = await page.evaluate(async () => {
     const host = window as unknown as CaptureWindow;
-    const pending = host.nodeSelectionBenchmark;
-    if (pending === undefined) throw new Error("Dense node-selection benchmark did not start");
+    const pending = host.combinedOverlayBenchmark;
+    if (pending === undefined) throw new Error("Combined-overlay benchmark did not start");
     try {
       return await pending;
     } finally {
-      delete host.nodeSelectionBenchmark;
+      delete host.combinedOverlayBenchmark;
     }
   });
-  expect(report.schemaVersion).toBe(12);
   const entry = report.cases[0];
-  if (entry === undefined) throw new Error("Dense node-selection benchmark case is missing");
-  expect(entry.id).toBe(CASE_ID);
-  expectDenseNodeSelectionReport(entry);
+  if (entry === undefined) throw new Error("Combined-overlay benchmark case is missing");
+  expectTwoMillionInteractions(entry);
 });
 
 async function captureEvidence(
@@ -84,9 +82,9 @@ async function captureEvidence(
 ): Promise<void> {
   const metrics = await pixelMetrics(canvas);
   expect(metrics.distinctColors).toBeGreaterThan(1);
-  const path = testInfo.outputPath(`dense-node-selection-${label}.png`);
+  const path = testInfo.outputPath(`combined-overlay-${label}.png`);
   await page.screenshot({ path });
-  await testInfo.attach(`dense-node-selection-${label}`, { path, contentType: "image/png" });
+  await testInfo.attach(`combined-overlay-${label}`, { path, contentType: "image/png" });
 }
 
 async function waitForCaptureReady(canvas: Locator): Promise<void> {
@@ -95,7 +93,7 @@ async function waitForCaptureReady(canvas: Locator): Promise<void> {
       async () => {
         const error = await canvas.getAttribute("data-benchmark-capture-error");
         if (error !== null) return "error";
-        return (await canvas.getAttribute("data-benchmark-capture")) === "node-selection"
+        return (await canvas.getAttribute("data-benchmark-capture")) === "combined-overlay"
           ? "ready"
           : "pending";
       },
@@ -103,5 +101,5 @@ async function waitForCaptureReady(canvas: Locator): Promise<void> {
     )
     .not.toBe("pending");
   const error = await canvas.getAttribute("data-benchmark-capture-error");
-  if (error !== null) throw new Error(`Dense node-selection benchmark failed: ${error}`);
+  if (error !== null) throw new Error(`Combined-overlay benchmark failed: ${error}`);
 }

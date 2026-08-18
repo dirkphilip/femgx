@@ -25,6 +25,9 @@ import {
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
 import { measureSelectionBenchmark } from "./selection";
 import { measureNodeSelectionBenchmark } from "./node-selection";
+import { measureHoverBenchmark } from "./hover";
+import { measureVisibilityBenchmark } from "./visibility";
+import { measureCombinedOverlayBenchmark } from "./combined-overlay";
 import type {
   BenchmarkTimings,
   NodeSelectionBenchmarkReport,
@@ -69,6 +72,7 @@ export async function measureBenchmarkCase(
     readonly timestampQueriesRequested?: boolean;
     readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
     readonly holdNodeSelectionForCapture?: () => Promise<void>;
+    readonly holdCombinedOverlayForCapture?: () => Promise<void>;
   } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
@@ -83,6 +87,10 @@ export async function measureBenchmarkCase(
   let overlayInteractive: WebGpuBenchmarkCaseResult["overlayInteractive"];
   let selection: SelectionBenchmarkReport | undefined;
   let nodeSelection: NodeSelectionBenchmarkReport | undefined;
+  let hover: WebGpuBenchmarkCaseResult["hover"];
+  let visibility: WebGpuBenchmarkCaseResult["visibility"];
+  let combinedOverlay: WebGpuBenchmarkCaseResult["combinedOverlay"];
+  let rendererCreateMs: number;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
   let materializedEdgePartIds: ReadonlySet<number>;
@@ -96,12 +104,14 @@ export async function measureBenchmarkCase(
     camera = fitCamera(createCamera(), bounds, WIDTH, HEIGHT);
     phase = "first upload";
     pickPoint = benchmarkPickPoint(canvas, benchmarkCase, runtime, camera);
+    const rendererCreateStart = performance.now();
     renderer = await createWebGpuRendererInternal(
       { canvas, device },
       options.timestampQueriesRequested ?? false,
     );
     renderer.resize(WIDTH, HEIGHT);
     installOrientationBenchmarkState(renderer, benchmarkCase);
+    rendererCreateMs = performance.now() - rendererCreateStart;
     coldSample = await measureIteration({
       renderer,
       device,
@@ -134,6 +144,18 @@ export async function measureBenchmarkCase(
           camera,
         })
       : undefined;
+    phase = "combined node and edge-presentation overlay sample";
+    combinedOverlay = await measureCombinedOverlayBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+      pickPoint,
+      ...(options.holdCombinedOverlayForCapture === undefined
+        ? {}
+        : { holdSelectionForCapture: options.holdCombinedOverlayForCapture }),
+    });
     phase = "overlay interactive sample";
     overlayInteractive = hasOverlayInteractiveSample(benchmarkCase)
       ? await measureOverlayInteractiveSamples({
@@ -162,6 +184,23 @@ export async function measureBenchmarkCase(
       ...(options.holdNodeSelectionForCapture === undefined
         ? {}
         : { holdFinalSelection: options.holdNodeSelectionForCapture }),
+    });
+    phase = "element hover sample";
+    hover = await measureHoverBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+      pickPoint,
+    });
+    phase = "visibility sample";
+    visibility = await measureVisibilityBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
     });
     phase = "timestamp readback";
     await drainGpuTimestampSamples(renderer);
@@ -193,12 +232,16 @@ export async function measureBenchmarkCase(
     modelBuildMs,
     ...(options.denseBuild === undefined ? {} : { denseBuild: options.denseBuild }),
     runtimeCompileMs,
+    rendererCreateMs,
     instanceCount: runtime.instanceCount,
     timings: summarize(coldSample, samples),
     ...(interactive === undefined ? {} : { interactive }),
     ...(overlayInteractive === undefined ? {} : { overlayInteractive }),
     ...(selection === undefined ? {} : { selection }),
     ...(nodeSelection === undefined ? {} : { nodeSelection }),
+    ...(hover === undefined ? {} : { hover }),
+    ...(visibility === undefined ? {} : { visibility }),
+    ...(combinedOverlay === undefined ? {} : { combinedOverlay }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,
       runtime.instanceCount,

@@ -4,6 +4,7 @@ import { WebGpuUnsupportedError } from "../../src/platform/capabilities";
 import type { DemoView } from "../../demo/workbench/viewport/view";
 import type { WorkbenchOptions } from "../../demo/workbench/controllers/controller";
 import { startWebGpuDemo } from "../../demo/workbench/start";
+import type { BenchmarkCapture } from "../../demo/benchmark/capture";
 
 const mocks = vi.hoisted(() => {
   class FakeWorkbenchController {
@@ -71,7 +72,7 @@ interface DemoSeam {
   readonly runBenchmark: (
     includeLarge: boolean,
     caseId?: string,
-    holdNodeSelectionForCapture?: boolean,
+    capture?: BenchmarkCapture,
   ) => Promise<unknown>;
 }
 
@@ -348,13 +349,13 @@ describe("startWebGpuDemo", () => {
     await startWebGpuDemo(startOptions(canvas));
 
     await expect(
-      demoWindow.femgxDemo?.runBenchmark(true, "fe-tet4-solid-132k", true),
+      demoWindow.femgxDemo?.runBenchmark(true, "fe-tet4-solid-132k", "node-selection"),
     ).resolves.toEqual({ schemaVersion: 2 });
     expect(viewport.destroy).toHaveBeenCalledOnce();
     expect(mocks.runWebGpuBenchmark).toHaveBeenCalledWith(canvas, {
       includeLarge: true,
       caseId: "fe-tet4-solid-132k",
-      holdNodeSelectionForCapture: true,
+      capture: "node-selection",
     });
   });
 
@@ -366,8 +367,8 @@ describe("startWebGpuDemo", () => {
     await startWebGpuDemo(startOptions(canvas));
 
     await expect(
-      demoWindow.femgxDemo?.runBenchmark(false, "fe-tet4-solid-132k", true),
+      demoWindow.femgxDemo?.runBenchmark(false, "fe-tet4-solid-132k", "node-selection"),
     ).rejects.toThrow("node draw assertion failed");
-    expect(canvas.dataset["benchmarkNodeSelectionError"]).toBe("node draw assertion failed");
+    expect(canvas.dataset["benchmarkCaptureError"]).toBe("node draw assertion failed");
   });
 });

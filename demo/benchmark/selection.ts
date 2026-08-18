@@ -8,13 +8,21 @@ import type { Part, PartId } from "../../src/geometry/part";
 import { packedSemanticStorage } from "../../src/geometry/packed/packed-semantic";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
+import { buildInstanceLayout } from "../../src/renderer/runtime-state";
+import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import type { InstanceId } from "../../src/scene/types";
 import type { WebGpuBenchmarkCase } from "./model";
 import type {
   BenchmarkPercentiles,
   SelectionBenchmarkPhase,
   SelectionBenchmarkReport,
 } from "./types";
+import {
+  assertElementEmphasisDraw,
+  assertNoElementEmphasisDraw,
+  highlightWriteBytesSince,
+} from "./assertions";
 
 const WIDTH = 800;
 const HEIGHT = 600;
@@ -45,10 +53,22 @@ export async function measureSelectionBenchmark(
   for (const scenario of selectionScenarios(center)) {
     phases.push(await measureScenario(options, scenario.id, scenario.rect));
   }
-  if (options.benchmarkCase.id === "fe-tet4-solid-132k") {
-    const authored = authoredElementTargets(options.benchmarkCase, options.runtime);
-    phases.push(await measureAuthoredScenario(options, "all-but-one", authored.slice(0, -1)));
-    phases.push(await measureAuthoredScenario(options, "all-authored", authored));
+  if (
+    options.benchmarkCase.id === "instanced-2.10m" ||
+    options.benchmarkCase.id === "unique-2m-local"
+  ) {
+    const count = authoredElementCount(options.benchmarkCase, options.runtime);
+    for (const [id, targetCount] of [
+      ["one-authored", 1],
+      ["half-authored", Math.ceil(count / 2)],
+      ["all-authored", count],
+    ] as const) {
+      phases.push(await measureAuthoredScenario(options, id, targetCount));
+    }
+  } else if (options.benchmarkCase.id === "fe-tet4-solid-132k") {
+    const count = authoredElementCount(options.benchmarkCase, options.runtime);
+    phases.push(await measureAuthoredScenario(options, "all-but-one", count - 1));
+    phases.push(await measureAuthoredScenario(options, "all-authored", count));
   }
   return { selectedTargetGranularity: "element", phases };
 }
@@ -83,20 +103,25 @@ async function measureScenario(
   return measureSelectedTargets(options, id, cachedTargets, {
     invalidSnapshotMs,
     cachedReadbackMs,
+    targetConstructionMs: 0,
   });
 }
 
 async function measureAuthoredScenario(
   options: SelectionMeasureOptions,
-  id: "all-but-one" | "all-authored",
-  targets: readonly InteractionTarget[],
+  id: "one-authored" | "half-authored" | "all-but-one" | "all-authored",
+  targetCount: number,
 ): Promise<SelectionBenchmarkPhase> {
   const { renderer, device, benchmarkCase, runtime, camera } = options;
   renderer.render(runtime, camera, benchmarkCase.scene.parts);
   await device.queue.onSubmittedWorkDone();
+  const constructionStart = performance.now();
+  const targets = authoredElementTargets(benchmarkCase, runtime, targetCount);
+  const targetConstructionMs = performance.now() - constructionStart;
   return measureSelectedTargets(options, id, targets, {
     invalidSnapshotMs: 0,
     cachedReadbackMs: 0,
+    targetConstructionMs,
   });
 }
 
@@ -104,7 +129,36 @@ async function measureAuthoredScenario(
 export function authoredElementTargets(
   benchmarkCase: WebGpuBenchmarkCase,
   runtime: PackedSceneRuntime,
+  count = authoredElementCount(benchmarkCase, runtime),
 ): readonly InteractionTarget[] {
+  const context = authoredElementContext(benchmarkCase, runtime);
+  const { instanceId, part } = context;
+  const packed = packedSemanticStorage(part);
+  const elementCount = packed?.elementIds.length ?? part.elements?.length ?? 0;
+  if (count < 0 || count > elementCount) {
+    throw new Error(`${benchmarkCase.id} requested ${count} of ${elementCount} elements`);
+  }
+  const targets = new Array<InteractionTarget>(count);
+  for (let ordinal = 0; ordinal < count; ordinal += 1) {
+    const elementId = packed?.elementIds[ordinal] ?? part.elements?.[ordinal]?.id;
+    if (elementId === undefined) throw new Error(`${benchmarkCase.id} element ${ordinal} missing`);
+    targets[ordinal] = { kind: "element", instanceId, elementId };
+  }
+  return targets;
+}
+
+function authoredElementCount(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: PackedSceneRuntime,
+): number {
+  const { part } = authoredElementContext(benchmarkCase, runtime);
+  return packedSemanticStorage(part)?.elementIds.length ?? part.elements?.length ?? 0;
+}
+
+function authoredElementContext(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: PackedSceneRuntime,
+): { readonly instanceId: InstanceId; readonly part: Part } {
   const slot = runtime.getDrawList()[0];
   const partId = slot === undefined ? undefined : runtime.getPartId(slot);
   const instanceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
@@ -112,40 +166,48 @@ export function authoredElementTargets(
   if (part === undefined || instanceId === undefined) {
     throw new Error(`${benchmarkCase.id} has no drawable authored-element occurrence`);
   }
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    return Array.from(packed.elementIds, (elementId) => ({
-      kind: "element" as const,
-      instanceId,
-      elementId,
-    }));
-  }
-  return (part.elements ?? []).map((element) => ({
-    kind: "element",
-    instanceId,
-    elementId: element.id,
-  }));
+  return { instanceId, part };
 }
 
 async function measureSelectedTargets(
   options: SelectionMeasureOptions,
   id: SelectionBenchmarkPhase["id"],
   targets: readonly InteractionTarget[],
-  readback: Pick<SelectionBenchmarkPhase, "invalidSnapshotMs" | "cachedReadbackMs">,
+  readback: Pick<
+    SelectionBenchmarkPhase,
+    "invalidSnapshotMs" | "cachedReadbackMs" | "targetConstructionMs"
+  >,
 ): Promise<SelectionBenchmarkPhase> {
   const { renderer, device, benchmarkCase, runtime, camera } = options;
   const parts = benchmarkCase.scene.parts;
   const stateStart = performance.now();
   const selected = setTargetsSelected(createInteractionState(), targets, true);
   const interactionStateMs = performance.now() - stateStart;
-  const changedSlots = occurrenceSlots(runtime, targets);
   renderer.render(runtime, camera, parts);
   await device.queue.onSubmittedWorkDone();
+  const beforeSync = readGpuCostSnapshot(renderer);
   const syncStart = performance.now();
+  const changedSlots = occurrenceSlots(runtime, targets);
   renderer.updateElements(runtime, selected, changedSlots);
   const interactionSyncMs = performance.now() - syncStart;
+  const interactionHighlightWriteBytes = highlightWriteBytesSince(
+    beforeSync,
+    readGpuCostSnapshot(renderer),
+    `${benchmarkCase.id} ${id} selection`,
+  );
   const firstSelectedFrameMs = await renderFrame(renderer, runtime, camera, parts, device);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
+  assertElementEmphasisDraw(
+    interactionGpuCost,
+    `${benchmarkCase.id} ${id} selection`,
+    expectedAuthoredIndices(benchmarkCase, id, targets.length),
+  );
+  const dense = denseSelectionFacts(runtime, parts, selected);
+  if (requiresDenseSelection(id)) {
+    if (dense.selectedCount !== targets.length || dense.occurrenceCount !== changedSlots.length) {
+      throw new Error(`${benchmarkCase.id} ${id} omitted dense selected-element membership`);
+    }
+  }
   const steadyFrames: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) {
     steadyFrames.push(await renderFrame(renderer, runtime, camera, parts, device));
@@ -153,56 +215,69 @@ async function measureSelectedTargets(
   const clearStart = performance.now();
   renderer.updateElements(runtime, createInteractionState(), changedSlots);
   await renderFrame(renderer, runtime, camera, parts, device);
+  assertNoElementEmphasisDraw(readGpuCostSnapshot(renderer), `${benchmarkCase.id} ${id} clear`);
   const clearSelectionMs = performance.now() - clearStart;
   return {
     id,
     returnedTargetCount: targets.length,
     selectedOccurrenceCount: changedSlots.length,
+    targetConstructionMs: readback.targetConstructionMs,
     invalidSnapshotMs: readback.invalidSnapshotMs,
     cachedReadbackMs: readback.cachedReadbackMs,
     interactionStateMs,
     interactionSyncMs,
+    interactionHighlightWriteBytes,
     firstSelectedFrameMs,
     steadySelectedFrameMs: percentiles(steadyFrames),
     clearSelectionMs,
     interactionGpuCost,
-    denseSelectionBytes: denseSelectionBytes(runtime, parts, targets),
+    denseSelectionBytes: dense.bytes,
     selectedElementRecordBytes: targets.length * ELEMENT_RECORD_STRIDE,
   };
 }
 
-function denseSelectionBytes(
+function denseSelectionFacts(
   runtime: PackedSceneRuntime,
   parts: ReadonlyMap<PartId, Part>,
-  targets: readonly InteractionTarget[],
-): number {
-  const elementsByPart = new Map<PartId, Map<number, Set<number>>>();
-  for (const target of targets) {
-    if (target.kind !== "element") continue;
-    const slot = runtime.getInstanceSlot(target.instanceId);
-    const partId = slot === undefined ? undefined : runtime.instancePartIds[slot];
-    if (slot === undefined || partId === undefined) continue;
-    let elementsBySlot = elementsByPart.get(partId);
-    if (elementsBySlot === undefined) {
-      elementsBySlot = new Map();
-      elementsByPart.set(partId, elementsBySlot);
-    }
-    let elements = elementsBySlot.get(slot);
-    if (elements === undefined) {
-      elements = new Set();
-      elementsBySlot.set(slot, elements);
-    }
-    elements.add(target.elementId);
-  }
+  interaction: ReturnType<typeof createInteractionState>,
+): { readonly bytes: number; readonly selectedCount: number; readonly occurrenceCount: number } {
+  const layout = buildInstanceLayout(runtime);
+  const selections = collectDenseElementSelections(runtime, layout, parts, interaction);
   let bytes = 0;
-  for (const [partId, elementsBySlot] of elementsByPart) {
-    const elementCount = parts.get(partId)?.elements?.length ?? 0;
-    const denseBytes = 4 + Math.ceil(elementCount / 32) * 4;
-    for (const elements of elementsBySlot.values()) {
-      if (denseBytes < elements.size * ELEMENT_RECORD_STRIDE) bytes += denseBytes;
+  let selectedCount = 0;
+  let occurrenceCount = 0;
+  for (const [partId, selection] of selections) {
+    bytes += (layout.partSlots.get(partId)?.length ?? 0) * Uint32Array.BYTES_PER_ELEMENT;
+    occurrenceCount += selection.occurrences.length;
+    for (const occurrence of selection.occurrences) {
+      bytes += occurrence.words.byteLength;
+      selectedCount += occurrence.selectedCount;
     }
   }
-  return bytes;
+  return { bytes, selectedCount, occurrenceCount };
+}
+
+function requiresDenseSelection(id: SelectionBenchmarkPhase["id"]): boolean {
+  return id === "half-authored" || id === "all-but-one" || id === "all-authored";
+}
+
+function expectedAuthoredIndices(
+  benchmarkCase: WebGpuBenchmarkCase,
+  id: SelectionBenchmarkPhase["id"],
+  targetCount: number,
+): number | undefined {
+  if (
+    !id.endsWith("-authored") ||
+    (benchmarkCase.id !== "instanced-2.10m" && benchmarkCase.id !== "unique-2m-local")
+  ) {
+    return undefined;
+  }
+  const ranged = targetCount * (benchmarkCase.elementFamily === "quad" ? 6 : 3);
+  let full = 0;
+  for (const part of benchmarkCase.scene.parts.values()) {
+    for (const geometry of part.geometries) full += geometry.indices.length;
+  }
+  return ranged * 2 < full ? ranged : full;
 }
 
 async function renderFrame(

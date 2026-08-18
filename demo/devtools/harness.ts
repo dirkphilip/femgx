@@ -1,4 +1,5 @@
 import type { BoxSelectionRect, InteractionGranularity } from "../../src/entries/root";
+import type { BenchmarkCapture } from "../benchmark/capture";
 
 export interface DemoHarnessOptions {
   readonly testAlphaZero: boolean;
@@ -15,7 +16,7 @@ export interface DemoHarness {
   readonly runBenchmark: (
     includeLarge: boolean,
     caseId?: string,
-    holdNodeSelectionForCapture?: boolean,
+    capture?: BenchmarkCapture,
   ) => Promise<unknown>;
   readonly pickPoint: (x: number, y: number) => Promise<readonly number[] | undefined>;
   readonly probePick: (x: number, y: number) => Promise<DemoPickProbe>;

@@ -6,6 +6,8 @@ const repositoryRoot = process.argv[2]
   : resolve(import.meta.dirname, "..");
 const demoRoot = join(repositoryRoot, "demo");
 const benchmarkExemptions = new Set([
+  "demo/benchmark/combined-overlay.ts",
+  "demo/benchmark/hover.ts",
   "demo/benchmark/interactive.ts",
   "demo/benchmark/measurement.ts",
   "demo/benchmark/node-selection.ts",
@@ -16,6 +18,7 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/memory.ts",
   "demo/benchmark/model.ts",
   "demo/benchmark/transfer.ts",
+  "demo/benchmark/visibility.ts",
   "demo/fixtures/performance-fixture.ts",
 ]);
 const importPattern = /(?:from|import\()\s*["']([^"']+)["']/gu;

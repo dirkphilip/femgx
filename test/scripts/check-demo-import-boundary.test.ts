@@ -80,6 +80,8 @@ describe("check-demo-import-boundary", () => {
 
   it("keeps the named benchmark exemptions narrow", () => {
     const retainedExemptions = [
+      "demo/benchmark/combined-overlay.ts",
+      "demo/benchmark/hover.ts",
       "demo/benchmark/interactive.ts",
       "demo/benchmark/measurement.ts",
       "demo/benchmark/node-selection.ts",
@@ -90,6 +92,7 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/memory.ts",
       "demo/benchmark/model.ts",
       "demo/benchmark/transfer.ts",
+      "demo/benchmark/visibility.ts",
       "demo/fixtures/performance-fixture.ts",
     ];
     const script = readFileSync(SCRIPT_PATH, "utf8");
@@ -100,6 +103,9 @@ describe("check-demo-import-boundary", () => {
     expect(script).not.toContain('"demo/benchmark/runner.ts"');
 
     const root = makeDemo({
+      "benchmark/combined-overlay.ts":
+        'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/hover.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/interactive.ts": 'import { orbitCamera } from "../src/interaction/interaction";\n',
       "benchmark/measurement.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
@@ -109,6 +115,7 @@ describe("check-demo-import-boundary", () => {
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',
       "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
+      "benchmark/visibility.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "fixtures/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
     });
     const result = runCheck(root);

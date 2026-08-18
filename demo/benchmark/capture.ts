@@ -1,15 +1,24 @@
-export const NODE_SELECTION_CAPTURE_EVENT = "femgx-benchmark-node-selection-captured";
+export type BenchmarkCapture = "node-selection" | "combined-overlay";
+
+/** Event released by the opt-in visual lane after it captures a held benchmark frame. */
+export function benchmarkCaptureEvent(capture: BenchmarkCapture): string {
+  return `femgx-benchmark-${capture}-captured`;
+}
 
 const CAPTURE_TIMEOUT_MS = 30_000;
 
 /** Holds the final selected frame until the opt-in browser lane captures it. */
-export async function holdNodeSelectionCapture(canvas: HTMLCanvasElement): Promise<void> {
-  canvas.dataset["benchmarkNodeSelection"] = "all";
+export async function holdBenchmarkCapture(
+  canvas: HTMLCanvasElement,
+  capture: BenchmarkCapture,
+): Promise<void> {
+  canvas.dataset["benchmarkCapture"] = capture;
+  const event = benchmarkCaptureEvent(capture);
   try {
     await new Promise<void>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         cleanup();
-        reject(new Error("Dense node-selection screenshot capture timed out"));
+        reject(new Error(`${capture} screenshot capture timed out`));
       }, CAPTURE_TIMEOUT_MS);
       const complete = (): void => {
         cleanup();
@@ -17,11 +26,11 @@ export async function holdNodeSelectionCapture(canvas: HTMLCanvasElement): Promi
       };
       const cleanup = (): void => {
         window.clearTimeout(timeout);
-        window.removeEventListener(NODE_SELECTION_CAPTURE_EVENT, complete);
+        window.removeEventListener(event, complete);
       };
-      window.addEventListener(NODE_SELECTION_CAPTURE_EVENT, complete, { once: true });
+      window.addEventListener(event, complete, { once: true });
     });
   } finally {
-    delete canvas.dataset["benchmarkNodeSelection"];
+    delete canvas.dataset["benchmarkCapture"];
   }
 }
