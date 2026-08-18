@@ -88,10 +88,12 @@ describe("installViewportInteraction", () => {
       canvas: harness.canvas as unknown as HTMLCanvasElement,
       viewport: harness.viewport,
       granularity: () => "face",
-      resolvePoint: async ({ modifiers }) =>
-        modifiers.alt
-          ? { kind: "partOccurrence", partOccurrenceId: "1/0" }
-          : { kind: "element", partOccurrenceId: "1/0", elementId: 2 },
+      resolvePoint: ({ modifiers }) =>
+        Promise.resolve(
+          modifiers.alt
+            ? { kind: "partOccurrence" as const, partOccurrenceId: "1/0" }
+            : { kind: "element" as const, partOccurrenceId: "1/0", elementId: 2 },
+        ),
     });
 
     harness.canvas.dispatch("click", click({ altKey: true }));
