@@ -8,11 +8,8 @@ import type { WorkbenchPane, ViewportSlotId } from "../../../demo/workbench/view
 import type { WorkbenchInteraction } from "../../../demo/workbench/interaction/interaction";
 import type { WorkbenchBoxPreview } from "../../../demo/workbench/selection/box-preview";
 import type { WorkbenchMenu } from "../../../demo/workbench/interaction/menu";
-import {
-  createInteractionState,
-  type Viewport,
-  type ViewportBackground,
-} from "../../../src/entries/root";
+import { type Viewport, type ViewportBackground } from "../../../src/entries/root";
+import { createInteractionState } from "../../../src/entries/interaction";
 
 vi.mock("../../../demo/workbench/lifecycle", () => ({
   installWorkbenchPaneLifecycle: vi.fn(() => vi.fn()),

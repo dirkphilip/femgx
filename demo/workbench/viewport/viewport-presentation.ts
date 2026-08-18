@@ -1,6 +1,6 @@
 import { cameraSnapshot } from "./presentation";
 import { selectionDatasetValue } from "../selection/selection";
-import type { InteractionState } from "../../../src/entries/root";
+import type { InteractionState } from "../../../src/entries/interaction";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchViewportSlot } from "./viewport-slots";
 import type { WorkbenchPresentation } from "./presentation";

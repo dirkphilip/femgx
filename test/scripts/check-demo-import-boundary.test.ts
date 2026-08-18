@@ -40,6 +40,7 @@ describe("check-demo-import-boundary", () => {
     const root = makeDemo({
       "ordinary.ts": 'import { createScene } from "../src/entries/root";\n',
       "glb.ts": 'import { importGlb } from "../src/entries/io/glb";\n',
+      "results.ts": 'import { createResultField } from "../src/entries/results";\n',
     });
     expect(runCheck(root).status).toBe(0);
   });

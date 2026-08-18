@@ -1,10 +1,5 @@
-import {
-  isBodyVisible,
-  isElementVisible,
-  type ElementTessellation,
-  type Viewport,
-  type Part,
-} from "../../../src/entries/root";
+import { type ElementTessellation, type Viewport, type Part } from "../../../src/entries/root";
+import { isBodyVisible, isElementVisible } from "../../../src/entries/interaction";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { SelectionGranularity, SelectTarget } from "./pick";
 

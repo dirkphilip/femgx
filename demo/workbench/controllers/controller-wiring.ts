@@ -1,4 +1,5 @@
-import type { Viewport, InteractionState } from "../../../src/entries/root";
+import type { Viewport } from "../../../src/entries/root";
+import type { InteractionState } from "../../../src/entries/interaction";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import { installWorkbenchPaneLifecycle } from "../lifecycle";
 import type { WorkbenchFeatures } from "../state/features";

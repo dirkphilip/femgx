@@ -9,7 +9,7 @@ import {
 } from "../results/result-controls";
 import type { WorkbenchPresentation } from "../viewport/presentation";
 import type { WorkbenchViewportOwner } from "./controller-viewport";
-import type { InteractionState } from "../../../src/entries/root";
+import type { InteractionState } from "../../../src/entries/interaction";
 import { resultPlaybackStepForState } from "../results/result-playback";
 import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";

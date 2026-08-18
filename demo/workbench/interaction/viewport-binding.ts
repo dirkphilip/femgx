@@ -1,16 +1,15 @@
+import { type InteractionGranularity, type PickHit } from "../../../src/entries/root";
 import {
   clearSelection,
   isTargetSelected,
   setTargetHovered,
   setTargetSelected,
   setTargetsSelected,
-  type InteractionGranularity,
   type InteractionState,
   type InteractionTarget,
-  type PickHit,
   type ViewportInteractionApplyRequest,
   type ViewportInteractionBoxEvent,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import type { BoxSelectionResolver } from "../selection/box-selection-resolver";
 import {
   selectTarget,

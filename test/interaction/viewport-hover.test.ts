@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { hoveredTarget, installViewportInteraction, selectedTargets } from "../../src/entries/root";
+import {
+  hoveredTarget,
+  installViewportInteraction,
+  selectedTargets,
+} from "../../src/entries/interaction";
 import {
   click,
   flushAnimationFrame,

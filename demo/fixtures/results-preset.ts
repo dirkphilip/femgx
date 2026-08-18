@@ -1,6 +1,4 @@
 import {
-  createResultField,
-  createElementFrameField,
   createScene,
   identity,
   multiply,
@@ -8,8 +6,12 @@ import {
   scale,
   translation,
   type PartId,
-  type VectorField,
 } from "../../src/entries/root";
+import {
+  createResultField,
+  createElementFrameField,
+  type VectorField,
+} from "../../src/entries/results";
 import {
   createElement,
   createElementModel,

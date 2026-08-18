@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { type Viewport, type PickHit } from "../../../src/entries/root";
 import {
   createInteractionState,
   hoveredTarget,
@@ -9,13 +10,11 @@ import {
   setTargetHovered,
   type BoxSelectionModifiers,
   type BoxSelectionEvent,
-  type Viewport,
   type InteractionTarget,
-  type PickHit,
   type ViewportInteractionBoxEvent,
   type BoxSelectionFrustum,
   type InteractionState,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { WorkbenchBoxPreview } from "../../../demo/workbench/selection/box-preview";
 import { WorkbenchInteraction } from "../../../demo/workbench/interaction/interaction";
 import type { BoxSelectionResolver } from "../../../demo/workbench/selection/box-selection-resolver";
@@ -23,7 +22,7 @@ import { selectedKeys } from "../../../demo/workbench/selection/selection";
 import type { SelectionGranularity } from "../../../demo/workbench/selection/pick";
 import type { WorkbenchMenu } from "../../../demo/workbench/interaction/menu";
 import type { TouchInteractionMode } from "../../../demo/workbench/types";
-import type { BoxSelectionRect } from "../../../src/entries/root";
+import type { BoxSelectionRect } from "../../../src/entries/interaction";
 
 /** Minimal style surface used by the box-preview unit fixture. */
 class FakeStyle {

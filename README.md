@@ -95,11 +95,13 @@ viewport installs a new compiled snapshot.
 
 The primary entry points are:
 
-| Import        | Use it for                                                  |
-| ------------- | ----------------------------------------------------------- |
-| `femgx`       | Scene composition, viewport lifecycle, interaction, results |
-| `femgx/model` | FE elements, model editing, and part construction           |
-| `femgx/io`    | FEM validation, diagnostics, and authored-result conversion |
+| Import              | Use it for                                                  |
+| ------------------- | ----------------------------------------------------------- |
+| `femgx`             | Scene composition and viewport lifecycle                    |
+| `femgx/model`       | FE elements, model editing, and part construction           |
+| `femgx/io`          | FEM validation, diagnostics, and authored-result conversion |
+| `femgx/interaction` | Interaction state, selection, and host-owned gestures       |
+| `femgx/results`     | Authored fields, ranges, color mapping, and deformation     |
 
 Specialized entry points for camera math, runtime inspection, WebGPU device
 ownership, and optional display-only GLB import are documented in the

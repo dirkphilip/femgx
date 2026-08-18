@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  createInteractionState,
   createScene,
-  isBodyVisible,
-  isTargetHighlighted,
   identity,
   type PartOccurrenceId,
   type Viewport,
 } from "../../../src/entries/root";
+import {
+  createInteractionState,
+  isBodyVisible,
+  isTargetHighlighted,
+} from "../../../src/entries/interaction";
 import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";

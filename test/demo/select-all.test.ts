@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  createInteractionState,
-  setElementVisible,
-  type Viewport,
-  type Part,
-} from "../../src/entries/root";
+import { type Viewport, type Part } from "../../src/entries/root";
+import { createInteractionState, setElementVisible } from "../../src/entries/interaction";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
 const partOccurrenceId = "root/part";

@@ -57,69 +57,6 @@ export type {
   ViewportResultsConfig,
   ViewportResultsState,
 } from "../viewport/results";
-export {
-  createInteractionState,
-  setPartOverride,
-  setPartOverrides,
-  setPartOccurrenceOverride,
-  setPartOccurrenceOverrides,
-  type Color,
-  type InteractionState,
-  type InteractionTheme,
-  type PrimitiveStyleOverride,
-  type ResolvedStyle,
-  type StyleOverride,
-} from "../interaction/interaction";
-export {
-  clearSelection,
-  bodyOverride,
-  hoveredTarget,
-  isHoveredTarget,
-  isTargetHighlighted,
-  isTargetSelected,
-  selectedTargets,
-  setTargetHighlighted,
-  setTargetHovered,
-  setTargetsSelected,
-  setTargetsHighlighted,
-  setTargetSelected,
-  interactionTargetFromHit,
-  type InteractionTarget,
-  type InteractionTargetFor,
-} from "../interaction/targets";
-export {
-  emphasizedBodyRefs,
-  isBodyEmphasized,
-  isBodyVisible,
-  setBodyOverride,
-  setBodyVisible,
-} from "../interaction/bodies";
-export { isElementVisible, setElementVisible } from "../interaction/elements";
-export type { BodyRef, EdgeRef, FaceRef, NodeRef } from "../interaction/refs";
-export {
-  installBoxSelection,
-  type BoxSelectionCancelReason,
-  type BoxSelectionEvent,
-  type BoxSelectionModifiers,
-  type BoxSelectionOptions,
-  type BoxSelectionRect,
-} from "../interaction/box-selection";
-export {
-  boxSelectionFrustum,
-  type BoxSelectionFrustum,
-  type FrustumPlane,
-} from "../interaction/box-frustum";
-export {
-  installViewportInteraction,
-  type ViewportInteractionApplyRequest,
-  type ViewportInteractionApplyResult,
-  type ViewportInteractionBoxEvent,
-  type ViewportInteractionBoxSelection,
-  type ViewportInteractionModifiers,
-  type ViewportInteractionOptions,
-  type ViewportInteractionPhase,
-  type ViewportInteractionTouchMode,
-} from "../interaction/viewport-interaction";
 export type {
   AssemblyId,
   AssemblyOccurrenceId,
@@ -128,42 +65,6 @@ export type {
 } from "../scene/types";
 export { InteractionGranularity } from "../picking/types";
 export type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "../picking/types";
-export {
-  FRAME_COMPONENT_COUNT,
-  LOAD_COMPONENT_COUNT,
-  createElementFrameField,
-  createNodalLoadField,
-  FIELD_COMPONENT_COUNT,
-  createResultField,
-  frameAt,
-  scalarAt,
-  vectorAt,
-  type AnyResultField,
-  type ElementFrameField,
-  type ElementFrameFieldOptions,
-  type NodalLoadField,
-  type NodalLoadFieldOptions,
-  type FieldLocation,
-  type FieldShape,
-  type ResultField,
-  type ResultFieldOptions,
-  type ScalarField,
-  type VectorField,
-} from "../results/fields";
-export { finiteRange, scalarRange, type ValueRange } from "../results/range";
-export {
-  createScalarColorMap,
-  mapScalar,
-  type ColorStop,
-  type ScalarColorMap,
-  type ScalarColorMapOptions,
-} from "../results/mapping";
-export {
-  deformGeometry,
-  deformPositions,
-  nodalDisplacements,
-  type DeformationState,
-} from "../results/deform";
 export {
   identity,
   multiply,

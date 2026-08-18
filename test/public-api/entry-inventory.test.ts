@@ -4,6 +4,8 @@ import * as model from "../../src/entries/model";
 import * as io from "../../src/entries/io";
 import * as glb from "../../src/entries/io/glb";
 import * as camera from "../../src/entries/camera";
+import * as interaction from "../../src/entries/interaction";
+import * as results from "../../src/entries/results";
 import * as runtime from "../../src/entries/runtime";
 import * as platform from "../../src/entries/platform";
 
@@ -12,31 +14,29 @@ const inventory = (module: object): string[] => Object.keys(module).sort();
 describe("public package entries", () => {
   it("keeps an exact runtime export inventory per entry", () => {
     expect(inventory(root)).toEqual([
-      "FIELD_COMPONENT_COUNT",
-      "FRAME_COMPONENT_COUNT",
       "GeometryValidationError",
       "InteractionGranularity",
-      "LOAD_COMPONENT_COUNT",
       "UnknownSceneIdentityError",
       "WebGpuUnsupportedError",
+      "createPart",
+      "createScene",
+      "createViewport",
+      "identity",
+      "multiply",
+      "queryWebGpuSupport",
+      "rotationZ",
+      "scale",
+      "transformPoint",
+      "translation",
+      "unsupportedMessage",
+    ]);
+    expect(inventory(interaction)).toEqual([
       "bodyOverride",
       "boxSelectionFrustum",
       "clearSelection",
-      "createElementFrameField",
       "createInteractionState",
-      "createNodalLoadField",
-      "createPart",
-      "createResultField",
-      "createScalarColorMap",
-      "createScene",
-      "createViewport",
-      "deformGeometry",
-      "deformPositions",
       "emphasizedBodyRefs",
-      "finiteRange",
-      "frameAt",
       "hoveredTarget",
-      "identity",
       "installBoxSelection",
       "installViewportInteraction",
       "interactionTargetFromHit",
@@ -46,14 +46,6 @@ describe("public package entries", () => {
       "isHoveredTarget",
       "isTargetHighlighted",
       "isTargetSelected",
-      "mapScalar",
-      "multiply",
-      "nodalDisplacements",
-      "queryWebGpuSupport",
-      "rotationZ",
-      "scalarAt",
-      "scalarRange",
-      "scale",
       "selectedTargets",
       "setBodyOverride",
       "setBodyVisible",
@@ -67,9 +59,23 @@ describe("public package entries", () => {
       "setTargetSelected",
       "setTargetsHighlighted",
       "setTargetsSelected",
-      "transformPoint",
-      "translation",
-      "unsupportedMessage",
+    ]);
+    expect(inventory(results)).toEqual([
+      "FIELD_COMPONENT_COUNT",
+      "FRAME_COMPONENT_COUNT",
+      "LOAD_COMPONENT_COUNT",
+      "createElementFrameField",
+      "createNodalLoadField",
+      "createResultField",
+      "createScalarColorMap",
+      "deformGeometry",
+      "deformPositions",
+      "finiteRange",
+      "frameAt",
+      "mapScalar",
+      "nodalDisplacements",
+      "scalarAt",
+      "scalarRange",
       "vectorAt",
     ]);
     expect(inventory(model)).toEqual([
@@ -146,6 +152,8 @@ describe("public package entries", () => {
     expect(io.createResultFieldFromModelResult).toBeTypeOf("function");
     expect(glb.importGlb).toBeTypeOf("function");
     expect(camera.createCamera).toBeTypeOf("function");
+    expect(interaction.createInteractionState).toBeTypeOf("function");
+    expect(results.createResultField).toBeTypeOf("function");
     expect(runtime.createSceneRuntime).toBeTypeOf("function");
     expect(platform.requestWebGpuDevice).toBeTypeOf("function");
   });

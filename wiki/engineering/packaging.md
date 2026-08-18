@@ -11,7 +11,7 @@ range; revisit it when the lint toolchain supports a newer compiler.
 `npm run build` (typecheck + `vite build`) emits into `dist/`:
 
 - `dist/femgx.js` — canonical ESM bundle.
-- `dist/{model,io,camera,runtime,platform}.js` — explicit domain bundles;
+- `dist/{model,io,camera,interaction,results,runtime,platform}.js` — explicit domain bundles;
   `dist/io/glb.js` owns the optional GLB importer.
 - `dist/**/*.d.ts` — per-module declarations plus entry declarations used by
   the exports map.
@@ -38,6 +38,8 @@ verified by `scripts/package-smoke.mjs` under `bundler` and `nodenext`.
   "./io": { "types": "./dist/entries/io.d.ts", "default": "./dist/io.js" },
   "./io/glb": { "types": "./dist/entries/io/glb.d.ts", "default": "./dist/io/glb.js" },
   "./camera": { "types": "./dist/entries/camera.d.ts", "default": "./dist/camera.js" },
+  "./interaction": { "types": "./dist/entries/interaction.d.ts", "default": "./dist/interaction.js" },
+  "./results": { "types": "./dist/entries/results.d.ts", "default": "./dist/results.js" },
   "./runtime": { "types": "./dist/entries/runtime.d.ts", "default": "./dist/runtime.js" },
   "./platform": { "types": "./dist/entries/platform.d.ts", "default": "./dist/platform.js" },
   "./package.json": "./package.json"

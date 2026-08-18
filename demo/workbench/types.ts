@@ -1,4 +1,5 @@
-import type { Viewport, InteractionState } from "../../src/entries/root";
+import type { Viewport } from "../../src/entries/root";
+import type { InteractionState } from "../../src/entries/interaction";
 import type { GlbSceneImport } from "../../src/entries/io/glb";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";

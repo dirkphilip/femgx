@@ -1,8 +1,5 @@
-import type {
-  AssemblyOccurrenceId,
-  PartOccurrenceId,
-  InteractionTarget,
-} from "../../../src/entries/root";
+import type { AssemblyOccurrenceId, PartOccurrenceId } from "../../../src/entries/root";
+import type { InteractionTarget } from "../../../src/entries/interaction";
 import type { BodyId } from "../../../src/entries/model";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 

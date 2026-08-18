@@ -6,6 +6,8 @@
     "../src/entries/io.ts",
     "../src/entries/io/glb.ts",
     "../src/entries/camera.ts",
+    "../src/entries/interaction.ts",
+    "../src/entries/results.ts",
     "../src/entries/runtime.ts",
     "../src/entries/platform.ts"
   ],

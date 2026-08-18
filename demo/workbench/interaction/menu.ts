@@ -2,7 +2,7 @@ import {
   isElementVisible,
   isTargetSelected,
   type InteractionState,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
 import { elementTarget, type SelectTarget } from "../selection/pick";
 import type {
   WorkbenchContextMenuSnapshot,

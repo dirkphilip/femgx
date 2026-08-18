@@ -3,7 +3,7 @@ import {
   createInteractionState,
   setPartOccurrenceOverrides,
   setPartOverrides,
-} from "../../src/entries/root";
+} from "../../src/entries/interaction";
 import { readInteractionState } from "../../src/interaction/state";
 
 describe("batched part-occurrence overrides", () => {

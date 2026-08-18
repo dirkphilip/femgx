@@ -1,11 +1,10 @@
 import { vi } from "vitest";
+import { type PickHit, type Viewport } from "../../src/entries/root";
 import {
   createInteractionState,
   type InteractionState,
   type InteractionTarget,
-  type PickHit,
-  type Viewport,
-} from "../../src/entries/root";
+} from "../../src/entries/interaction";
 import { createCamera } from "../../src/camera/camera";
 
 type Listener = (event: unknown) => void;

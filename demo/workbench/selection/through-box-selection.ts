@@ -1,12 +1,12 @@
+import { type Viewport } from "../../../src/entries/root";
 import {
   boxSelectionFrustum,
   isBodyVisible,
   isElementVisible,
   type BoxSelectionFrustum,
-  type DeformationState,
   type InteractionTarget,
-  type Viewport,
-} from "../../../src/entries/root";
+} from "../../../src/entries/interaction";
+import { type DeformationState } from "../../../src/entries/results";
 import {
   BoxSelectionResolverContractError,
   type BoxSelectionResolver,

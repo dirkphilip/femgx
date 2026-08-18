@@ -1,8 +1,5 @@
-import {
-  isTargetSelected,
-  type PartOccurrenceId,
-  type InteractionState,
-} from "../../../src/entries/root";
+import { type PartOccurrenceId } from "../../../src/entries/root";
+import { isTargetSelected, type InteractionState } from "../../../src/entries/interaction";
 import type { ElementId } from "../../../src/entries/model";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import type { WorkbenchInteraction } from "../interaction/interaction";

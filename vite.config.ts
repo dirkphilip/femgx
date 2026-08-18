@@ -22,6 +22,8 @@ export default defineConfig({
         io: resolve(import.meta.dirname, "src/entries/io.ts"),
         "io/glb": resolve(import.meta.dirname, "src/entries/io/glb.ts"),
         camera: resolve(import.meta.dirname, "src/entries/camera.ts"),
+        interaction: resolve(import.meta.dirname, "src/entries/interaction.ts"),
+        results: resolve(import.meta.dirname, "src/entries/results.ts"),
         runtime: resolve(import.meta.dirname, "src/entries/runtime.ts"),
         platform: resolve(import.meta.dirname, "src/entries/platform.ts"),
       },

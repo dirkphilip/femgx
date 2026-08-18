@@ -1,5 +1,5 @@
 import { tick, mount, unmount } from "svelte";
-import { createInteractionState } from "../../../src/entries/root";
+import { createInteractionState } from "../../../src/entries/interaction";
 import { createSceneRuntime } from "../../../src/entries/runtime";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
