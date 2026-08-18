@@ -45,6 +45,42 @@ describe("fitCamera", () => {
     expect(Math.max(...projected.map((point) => point[0]))).toBeGreaterThan(1152 * 0.85);
   });
 
+  it("centres a depth-asymmetric perspective fit in the available content frame", () => {
+    const width = 1152;
+    const height = 900;
+    const inset = { top: 180, right: 80, bottom: 40, left: 24 };
+    const selectionBounds = { minX: -1, minY: -1, minZ: -10, maxX: 1, maxY: 1, maxZ: 1 };
+    const fitted = fitCamera(
+      createCamera({ mode: "perspective" }),
+      selectionBounds,
+      width,
+      height,
+      inset,
+    );
+    const projected = boundsCorners(selectionBounds)
+      .map((corner) => projectPoint(fitted, corner))
+      .filter((point): point is readonly [number, number, number] => point !== undefined);
+    const projectedCenter = [
+      (Math.min(...projected.map((point) => point[0])) +
+        Math.max(...projected.map((point) => point[0]))) /
+        2,
+      (Math.min(...projected.map((point) => point[1])) +
+        Math.max(...projected.map((point) => point[1]))) /
+        2,
+    ];
+
+    expect(projectedCenter[0]).toBeCloseTo((width + inset.left - inset.right) / 2, 3);
+    expect(projectedCenter[1]).toBeCloseTo((height + inset.top - inset.bottom) / 2, 3);
+    expect(Math.min(...projected.map((point) => point[0]))).toBeGreaterThanOrEqual(inset.left);
+    expect(Math.max(...projected.map((point) => point[0]))).toBeLessThanOrEqual(
+      width - inset.right,
+    );
+    expect(Math.min(...projected.map((point) => point[1]))).toBeGreaterThanOrEqual(inset.top);
+    expect(Math.max(...projected.map((point) => point[1]))).toBeLessThanOrEqual(
+      height - inset.bottom,
+    );
+  });
+
   it.each(["perspective", "orthographic"] as const)(
     "keeps fitted bounds inside an occlusion inset for %s projection",
     (mode) => {
@@ -108,7 +144,9 @@ describe("fitCamera", () => {
       expect(transitioned.position[0]).toBeCloseTo(direct.position[0]);
       expect(transitioned.position[1]).toBeCloseTo(direct.position[1]);
       expect(transitioned.position[2]).toBeCloseTo(direct.position[2]);
-      expect(transitioned.target).toEqual(direct.target);
+      expect(transitioned.target[0]).toBeCloseTo(direct.target[0]);
+      expect(transitioned.target[1]).toBeCloseTo(direct.target[1]);
+      expect(transitioned.target[2]).toBeCloseTo(direct.target[2]);
       expect(transitioned.near).toBeCloseTo(direct.near);
       expect(transitioned.far).toBeCloseTo(direct.far);
       expect(transitioned.orthoHeight).toBeCloseTo(direct.orthoHeight);
@@ -121,7 +159,9 @@ describe("fitCamera", () => {
     expect(second.position[0]).toBeCloseTo(first.position[0]);
     expect(second.position[1]).toBeCloseTo(first.position[1]);
     expect(second.position[2]).toBeCloseTo(first.position[2]);
-    expect(second.target).toEqual(first.target);
+    expect(second.target[0]).toBeCloseTo(first.target[0]);
+    expect(second.target[1]).toBeCloseTo(first.target[1]);
+    expect(second.target[2]).toBeCloseTo(first.target[2]);
     expect(second.near).toBeCloseTo(first.near);
     expect(second.far).toBeCloseTo(first.far);
     expect(second.orthoHeight).toBeCloseTo(first.orthoHeight);
