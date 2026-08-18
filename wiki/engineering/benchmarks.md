@@ -19,7 +19,7 @@ tessellation in the existing worker, transfers ownership of those buffers, and
 then reconstructs the canonical interactive `Part` on the main thread. The
 structured builder uses authored node ids directly as vertex indices, shares
 the node-position buffer with geometry, and uses packed numeric face identities
-instead of allocating string keys. Interactive grid sizes are bounded to 50
+instead of allocating string keys. Interactive grid sizes are bounded to 200
 cells per axis; the canonical local capacity case remains 35 cells per axis.
 The
 presets retain authored element, face, edge, and body identities while drawing

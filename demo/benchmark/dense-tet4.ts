@@ -4,7 +4,7 @@ const TETS_PER_CELL = 6;
 /** Default cubic size for responsive on-demand demo meshing. */
 export const TET4_DENSE_DEFAULT_CELLS = 16;
 /** Upper bound for canonical worker reconstruction in the interactive demo. */
-export const TET4_DENSE_MAX_CELLS = 50;
+export const TET4_DENSE_MAX_CELLS = 200;
 
 /** Authored Tet4 count for a structured hex grid split into six tets per cell. */
 export function tet4ElementCount(cellsX: number, cellsY: number, cellsZ: number): number {
