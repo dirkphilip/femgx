@@ -157,11 +157,12 @@ Fully resident visibility evidence is separate from host replacement evidence.
 The focused renderer regression compares one hidden element against its
 exterior subset: submitted surface and pick indices remain the compact visible
 skin count, while an unaffected repeated occurrence keeps the exterior subset.
-Repeated occurrences with the same sparse body/element signature reuse one
-GPU index buffer. Restoring visibility releases inactive skin storage. The
-bounded cache retains at most two full-order equivalents per part (64 KiB
-minimum, 16 MiB maximum); budget overflow is reported by the correct complete
-topology fallback rather than a guessed surface.
+Repeated occurrences with the same currently active body/element signature
+share one GPU index buffer. Restoring or replacing visibility releases obsolete
+skin storage; a later re-hide recomputes it. The 64 KiB–16 MiB working budget is
+an allocation-pressure target, not a semantic limit: every currently active
+signature receives its exact skin even when that active data exceeds the
+target. There is no incomplete or complete-topology fallback at the limit.
 
 ### Interpreting budgets
 

@@ -7,7 +7,9 @@ import type { InstanceStorageOwner } from "../resources/instance-storage";
 export interface VisibilitySignature {
   readonly hash: number;
   readonly bodyIds: readonly number[];
-  readonly elementIds: readonly number[];
+  readonly elementIds: readonly number[] | Uint32Array;
+  /** Dense membership by private zero-based element ordinal when cheaper than ids. */
+  readonly elementWords?: Uint32Array;
   readonly hasHidden: boolean;
 }
 

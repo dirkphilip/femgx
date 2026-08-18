@@ -11,6 +11,7 @@ import {
 import { RendererAttachment } from "../../src/renderer/attachment";
 import { remapAttachmentFlags } from "../../src/renderer/attachment/reconciliation";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
+import { destroyVisibilitySkinCache } from "../../src/renderer/visibility/skins";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setElementVisible } from "../../src/interaction/elements";
@@ -171,6 +172,7 @@ describe("renderer visibility-skin scaling", () => {
             fixture.bundle,
             fixture.scene.parts,
           );
+          if (!hidden) destroyVisibilitySkinCache(fixture.bundle.draw, 1);
           nextHidden[index] = hidden;
           expect(fixture.attachment.calls.length).toBeGreaterThan(0);
         },

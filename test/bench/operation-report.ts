@@ -15,6 +15,8 @@ export interface OperationSpec {
   readonly workloadCount: number;
   /** Optional numeric workload facts that clarify retained versus active size. */
   readonly workloadDetails?: Readonly<Record<string, number>>;
+  /** Restores one deterministic precondition outside the timed boundary. */
+  readonly beforeEach?: () => void;
   /** Executes one operation without returning a measured value. */
   readonly run: () => void;
 }
@@ -76,9 +78,13 @@ export function emitOperationsReport(report: OperationsReport): void {
 }
 
 function measureOperation(operation: OperationSpec): OperationResult {
-  for (let index = 0; index < WARMUP_SAMPLES; index += 1) operation.run();
+  for (let index = 0; index < WARMUP_SAMPLES; index += 1) {
+    operation.beforeEach?.();
+    operation.run();
+  }
   const samples: number[] = [];
   for (let sample = 0; sample < TIMED_SAMPLES; sample += 1) {
+    operation.beforeEach?.();
     const start = performance.now();
     operation.run();
     samples.push(performance.now() - start);

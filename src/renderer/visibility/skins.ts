@@ -2,12 +2,18 @@ import type { Part, TriangleGeometry } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import { packedSemanticStorage } from "../../geometry/packed/packed-semantic";
 import { buildPackedVisibilitySkinIndices } from "./packed-skin";
+import {
+  visibilityPartMetadata,
+  visibilitySignature,
+  visibilitySignaturesEqual,
+  type VisibilityPartMetadata,
+} from "./signature";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState } from "../../interaction/state";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
-import type { PartOccurrenceId } from "../../scene/types";
 import { createBuffer } from "../resources/foundation";
 import { writeDrawOrder } from "../resources/instance-storage";
+import { buildVisibilityTriangleIndices, writeTriangleRange } from "./skin-indices";
 import type {
   VisibilityDrawCall,
   VisibilityDrawOwner,
@@ -36,7 +42,7 @@ export function rebuildVisibilitySurface(
   if (slots === undefined) return [];
   const triangleGeometry = triangleGeometryForSkin(part);
   if (triangleGeometry === undefined) return rebuildUnskinnedSurface(runtime, layout, part, draw);
-  const metadata = buildVisibilityMetadata(part, triangleGeometry);
+  const metadata = visibilityPartMetadata(part);
   const groups = groupVisibleSlots(runtime, layout, slots, interaction, metadata);
   const hasHiddenSignature = groups.some((group) => group.signature.hasHidden);
   const cache = draw.visibilitySkins.get(part.id) ?? createVisibilitySkinCache();
@@ -121,62 +127,6 @@ export function destroyVisibilitySkinCaches(draw: VisibilityDrawOwner): void {
   }
 }
 
-interface VisibilityPartMetadata {
-  readonly elements: { has(id: number): boolean };
-  readonly knownBodies: ReadonlySet<number>;
-}
-
-function buildVisibilityMetadata(
-  part: Part,
-  geometry: TriangleGeometry | undefined,
-): VisibilityPartMetadata {
-  const metadata = getPartSemanticIndex(part);
-  const knownBodies = new Set<number>([
-    ...metadata.bodies.keys(),
-    ...metadata.bodyByElement.values(),
-  ]);
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    for (const neighborOrdinal of packed.faceNeighborElementOrdinals) {
-      if (neighborOrdinal === 0) continue;
-      const bodyId = packed.elementBodyIds?.[neighborOrdinal - 1] ?? 0;
-      if (bodyId !== 0) knownBodies.add(bodyId);
-    }
-    return { elements: metadata.elements, knownBodies };
-  }
-  for (const face of geometry?.faces ?? []) {
-    if (face.bodyId !== undefined) knownBodies.add(face.bodyId);
-    if (face.neighborElementId !== undefined) {
-      const bodyId = metadata.bodyByElement.get(face.neighborElementId);
-      if (bodyId !== undefined) knownBodies.add(bodyId);
-    }
-  }
-  return { elements: metadata.elements, knownBodies };
-}
-
-function signatureForOccurrence(
-  instanceId: PartOccurrenceId,
-  data: ReturnType<typeof readInteractionState>,
-  metadata: VisibilityPartMetadata,
-): VisibilitySignature {
-  const bodyIds = relevantIds(data.hiddenBodyIds.get(instanceId), metadata.knownBodies);
-  const elementIds = relevantIds(data.hiddenElementIds.get(instanceId), metadata.elements);
-  if (bodyIds.length === 0 && elementIds.length === 0) return EMPTY_SIGNATURE;
-  return {
-    hash: signatureHash(bodyIds, elementIds),
-    bodyIds,
-    elementIds,
-    hasHidden: true,
-  };
-}
-
-const EMPTY_SIGNATURE: VisibilitySignature = {
-  hash: 0,
-  bodyIds: [],
-  elementIds: [],
-  hasHidden: false,
-};
-
 interface VisibilityGroup {
   readonly signature: VisibilitySignature;
   readonly locals: readonly number[];
@@ -197,9 +147,11 @@ function groupVisibleSlots(
     const instanceId = runtime.getInstanceId(slot);
     const local = layout.slotPartLocal[slot];
     if (instanceId === undefined || local === undefined || local < 0) continue;
-    const signature = signatureForOccurrence(instanceId, data, metadata);
+    const signature = visibilitySignature(instanceId, data, metadata);
     const bucket = byHash.get(signature.hash) ?? [];
-    const group = bucket.find((candidate) => signaturesEqual(candidate.signature, signature));
+    const group = bucket.find((candidate) =>
+      visibilitySignaturesEqual(candidate.signature, signature),
+    );
     if (group === undefined) {
       const next = { signature, locals: [local] };
       bucket.push(next);
@@ -226,12 +178,21 @@ function ensureVisibilitySkin(options: {
     return existing.skin;
   }
   const indices = buildSkinIndices(part, geometry, signature);
+  return retainVisibilitySkin({ cache, draw, signature, indices, active });
+}
+
+function retainVisibilitySkin(options: {
+  readonly cache: VisibilitySkinCache;
+  readonly draw: VisibilityDrawOwner;
+  readonly signature: VisibilitySignature;
+  readonly indices: Uint32Array;
+  readonly active: Set<VisibilitySkinEntry>;
+}): VisibilitySkin {
+  const { cache, draw, signature, indices, active } = options;
   if (indices.length === 0)
     return { signature, indexBuffer: emptyBuffer(draw), indexCount: 0, byteLength: 0 };
   const byteLength = indices.byteLength;
-  if (byteLength > cache.budgetBytes) return undefined;
   releaseLeastRecentlyUsed(cache, draw, byteLength, active);
-  if (cache.residentBytes + byteLength > cache.budgetBytes) return undefined;
   const indexBuffer = createBuffer(
     draw.device,
     indices,
@@ -258,12 +219,26 @@ function buildSkinIndices(
 ): Uint32Array {
   const metadata = getPartSemanticIndex(part);
   const packed = packedSemanticStorage(part);
-  if (packed !== undefined) return buildPackedVisibilitySkinIndices(packed, signature);
-  const indices: number[] = [];
+  if (packed !== undefined) {
+    return buildPackedVisibilitySkinIndices(packed, signature, geometry.indices.length);
+  }
+  return buildVisibilityTriangleIndices(geometry.indices.length, (target) =>
+    writeGenericSkin(geometry, metadata, signature, target),
+  );
+}
+
+function writeGenericSkin(
+  geometry: TriangleGeometry,
+  metadata: Pick<ReturnType<typeof getPartSemanticIndex>, "bodyByElement" | "elementOrdinalById">,
+  signature: VisibilitySignature,
+  target: Uint32Array | number[] | undefined,
+): number {
+  let offset = 0;
   for (const face of geometry.faces ?? []) {
     const ownerBody = face.bodyId ?? metadata.bodyByElement.get(face.elementId);
     const ownerVisible =
-      !contains(signature.bodyIds, ownerBody) && !contains(signature.elementIds, face.elementId);
+      !contains(signature.bodyIds, ownerBody) &&
+      !genericElementHidden(signature, face.elementId, metadata.elementOrdinalById);
     if (!ownerVisible) continue;
     const neighborBody =
       face.neighborElementId === undefined
@@ -272,18 +247,24 @@ function buildSkinIndices(
     const neighborVisible =
       face.neighborElementId !== undefined &&
       !contains(signature.bodyIds, neighborBody) &&
-      !contains(signature.elementIds, face.neighborElementId);
+      !genericElementHidden(signature, face.neighborElementId, metadata.elementOrdinalById);
     if (neighborVisible) continue;
-    for (
-      let primitive = face.primitiveStart;
-      primitive < face.primitiveStart + face.primitiveCount;
-      primitive += 1
-    ) {
-      const base = primitive * 3;
-      indices.push(base, base + 1, base + 2);
-    }
+    offset = writeTriangleRange(target, offset, face.primitiveStart, face.primitiveCount);
   }
-  return new Uint32Array(indices);
+  return offset;
+}
+
+function genericElementHidden(
+  signature: VisibilitySignature,
+  elementId: number,
+  ordinals: { get(id: number): number | undefined },
+): boolean {
+  const words = signature.elementWords;
+  if (words === undefined) return contains(signature.elementIds, elementId);
+  const ordinal = ordinals.get(elementId);
+  if (ordinal === undefined) return false;
+  const bit = ordinal - 1;
+  return ((words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
 }
 
 function triangleGeometryForSkin(part: Part): TriangleGeometry | undefined {
@@ -305,7 +286,7 @@ function findEntry(
 ): VisibilitySkinEntry | undefined {
   return cache.entries
     .get(signature.hash)
-    ?.find((entry) => signaturesEqual(entry.skin.signature, signature));
+    ?.find((entry) => visibilitySignaturesEqual(entry.skin.signature, signature));
 }
 
 function releaseLeastRecentlyUsed(
@@ -315,10 +296,17 @@ function releaseLeastRecentlyUsed(
   active: ReadonlySet<VisibilitySkinEntry>,
 ): void {
   while (cache.residentBytes + requiredBytes > cache.budgetBytes) {
-    const candidate = [...cache.entries.values()]
-      .flat()
-      .filter((entry) => !active.has(entry))
-      .sort((left, right) => left.lastUsed - right.lastUsed)[0];
+    let candidate: VisibilitySkinEntry | undefined;
+    for (const entries of cache.entries.values()) {
+      for (const entry of entries) {
+        if (
+          !active.has(entry) &&
+          (candidate === undefined || entry.lastUsed < candidate.lastUsed)
+        ) {
+          candidate = entry;
+        }
+      }
+    }
     if (candidate === undefined) return;
     removeEntry(cache, draw, candidate);
   }
@@ -361,16 +349,7 @@ function emptyBuffer(draw: VisibilityDrawOwner): GPUBuffer {
   return draw.emptyOrderBuffer;
 }
 
-function relevantIds(
-  ids: ReadonlySet<number> | undefined,
-  known: { has(id: number): boolean },
-): readonly number[] {
-  if (ids === undefined || ids.size === 0) return [];
-  const result = [...ids].filter((id) => known.has(id));
-  return result.sort((left, right) => left - right);
-}
-
-function contains(ids: readonly number[], value: number | undefined): boolean {
+function contains(ids: ArrayLike<number>, value: number | undefined): boolean {
   if (value === undefined) return false;
   let low = 0;
   let high = ids.length - 1;
@@ -382,26 +361,4 @@ function contains(ids: readonly number[], value: number | undefined): boolean {
     else high = middle - 1;
   }
   return false;
-}
-
-function signaturesEqual(left: VisibilitySignature, right: VisibilitySignature): boolean {
-  return arraysEqual(left.bodyIds, right.bodyIds) && arraysEqual(left.elementIds, right.elementIds);
-}
-
-function arraysEqual(left: readonly number[], right: readonly number[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function signatureHash(bodyIds: readonly number[], elementIds: readonly number[]): number {
-  let hash = 2166136261;
-  for (const id of bodyIds) hash = mixHash(hash, 1, id);
-  for (const id of elementIds) hash = mixHash(hash, 2, id);
-  return hash >>> 0;
-}
-
-function mixHash(hash: number, kind: number, id: number): number {
-  let next = hash ^ kind;
-  next = Math.imul(next, 16777619);
-  next ^= id;
-  return Math.imul(next, 16777619);
 }

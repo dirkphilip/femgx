@@ -24,11 +24,19 @@ export function buildPackedSemanticIndex(storage: PackedSemanticStorage): PartSe
   const faces = new PackedFaceMap(storage);
   const edges = new PackedEdgeMap(storage);
   const triangle = buildPackedTriangleSemanticCsr(storage);
+  const visibilityBodyIds = new Set<BodyId>();
+  if (storage.primitive === "triangles") {
+    for (const bodyId of bodies.keys()) visibilityBodyIds.add(bodyId);
+    for (const bodyId of storage.elementBodyIds ?? []) {
+      if (bodyId !== 0) visibilityBodyIds.add(bodyId);
+    }
+  }
   return {
     elements,
     elementOrdinalById,
     bodies,
     bodyByElement,
+    visibilityBodyIds,
     faces,
     edges,
     nodeCount: storage.nodeCount,

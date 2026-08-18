@@ -1,12 +1,24 @@
 import type { PackedSemanticStorage } from "../../geometry/packed/packed-semantic";
 import type { VisibilitySignature } from "./types";
+import { buildVisibilityTriangleIndices, writeTriangleRange } from "./skin-indices";
 
 /** Builds a hidden-face skin directly from packed face ownership columns. */
 export function buildPackedVisibilitySkinIndices(
   packed: PackedSemanticStorage,
   signature: VisibilitySignature,
+  indexUpperBound: number,
 ): Uint32Array {
-  const indices: number[] = [];
+  return buildVisibilityTriangleIndices(indexUpperBound, (target) =>
+    writePackedSkin(packed, signature, target),
+  );
+}
+
+function writePackedSkin(
+  packed: PackedSemanticStorage,
+  signature: VisibilitySignature,
+  target: Uint32Array | number[] | undefined,
+): number {
+  let offset = 0;
   for (
     let faceOrdinal = 0;
     faceOrdinal < packed.faceOwnerElementOrdinals.length;
@@ -17,7 +29,7 @@ export function buildPackedVisibilitySkinIndices(
     const ownerBodyId = packed.elementBodyIds?.[ownerOrdinal] ?? 0;
     const ownerVisible =
       !contains(signature.bodyIds, ownerBodyId === 0 ? undefined : ownerBodyId) &&
-      !contains(signature.elementIds, ownerElementId);
+      !elementHidden(signature, ownerElementId, ownerOrdinal);
     if (!ownerVisible) continue;
     const neighborOrdinal = packed.faceNeighborElementOrdinals[faceOrdinal] ?? 0;
     const neighborElementId =
@@ -27,19 +39,30 @@ export function buildPackedVisibilitySkinIndices(
     const neighborVisible =
       neighborElementId !== undefined &&
       !contains(signature.bodyIds, neighborBodyId === 0 ? undefined : neighborBodyId) &&
-      !contains(signature.elementIds, neighborElementId);
+      !elementHidden(signature, neighborElementId, neighborOrdinal - 1);
     if (neighborVisible) continue;
     const start = packed.facePrimitiveStarts[faceOrdinal] ?? 0;
-    const end = start + (packed.facePrimitiveCounts[faceOrdinal] ?? 0);
-    for (let primitive = start; primitive < end; primitive += 1) {
-      const base = primitive * 3;
-      indices.push(base, base + 1, base + 2);
-    }
+    offset = writeTriangleRange(
+      target,
+      offset,
+      start,
+      packed.facePrimitiveCounts[faceOrdinal] ?? 0,
+    );
   }
-  return new Uint32Array(indices);
+  return offset;
 }
 
-function contains(ids: readonly number[], value: number | undefined): boolean {
+function elementHidden(
+  signature: VisibilitySignature,
+  elementId: number,
+  ordinal: number,
+): boolean {
+  const words = signature.elementWords;
+  if (words === undefined) return contains(signature.elementIds, elementId);
+  return ((words[ordinal >> 5] ?? 0) & (1 << (ordinal & 31))) !== 0;
+}
+
+function contains(ids: ArrayLike<number>, value: number | undefined): boolean {
   if (value === undefined) return false;
   let low = 0;
   let high = ids.length - 1;

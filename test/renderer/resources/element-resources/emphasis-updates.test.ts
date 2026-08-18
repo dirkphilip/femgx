@@ -61,10 +61,18 @@ describe("collectEmphasisUpdates", () => {
     expect(denseSelectionContains(invalidDense, 0, 1)).toBe(true);
     expect(denseSelectionContains(invalidDense, 0, 51)).toBe(false);
 
+    const recomputedSelections = collectDenseElementSelections(
+      runtime,
+      layout,
+      parts,
+      denseInteraction,
+    );
+    expect(recomputedSelections).not.toBe(denseSelections);
+
     const updates = collectEmphasisUpdates(runtime, layout, new Map([["1/0", 0]]), {
       parts,
       interaction: denseInteraction,
-      denseSelections,
+      denseSelections: recomputedSelections,
     });
     expect(updates.get(99)).toBeUndefined();
     const hovered = setTargetHovered(denseInteraction, {
@@ -72,7 +80,9 @@ describe("collectEmphasisUpdates", () => {
       partOccurrenceId: "1/0",
       elementId: 20_000,
     });
-    expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(denseSelections);
+    expect(collectDenseElementSelections(runtime, layout, parts, hovered)).toBe(
+      recomputedSelections,
+    );
   });
 
   it("keeps equality at the dense cutoff sparse", () => {

@@ -27,6 +27,8 @@ export interface PartSemanticIndex {
   readonly elementOrdinalById: SemanticMap<ElementId, number>;
   readonly bodies: ReadonlyMap<BodyId, GeometryBody>;
   readonly bodyByElement: SemanticMap<ElementId, BodyId>;
+  /** Body ids that can affect authored surface visibility for this part. */
+  readonly visibilityBodyIds: ReadonlySet<BodyId>;
   readonly faces: SemanticMap<string, FaceMetadata>;
   readonly edges: SemanticMap<string, GeometryEdge>;
   readonly nodeCount: number;

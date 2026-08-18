@@ -31,14 +31,15 @@ export interface DenseElementSelection {
 /** Dense selected-element membership grouped by reusable part. */
 export type DenseElementSelections = ReadonlyMap<PartId, DenseElementSelection>;
 
+interface DenseElementCacheEntry {
+  readonly selectedIds: InteractionStateData["selectedElementIds"];
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly selections: DenseElementSelections;
+}
+
 const selectionCache = new WeakMap<
-  InteractionStateData["selectedElementIds"],
-  readonly {
-    readonly runtime: PackedSceneRuntime;
-    readonly layout: DenseElementLayout;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly selections: DenseElementSelections;
-  }[]
+  PackedSceneRuntime,
+  WeakMap<DenseElementLayout, DenseElementCacheEntry>
 >();
 
 /**
@@ -52,12 +53,9 @@ export function collectDenseElementSelections(
   interaction: InteractionState,
 ): DenseElementSelections {
   const data = readInteractionState(interaction);
-  const cached = selectionCache
-    .get(data.selectedElementIds)
-    ?.find(
-      (entry) => entry.runtime === runtime && entry.layout === layout && entry.parts === parts,
-    );
-  if (cached !== undefined) {
+  const runtimeCache = selectionCache.get(runtime);
+  const cached = runtimeCache?.get(layout);
+  if (cached?.selectedIds === data.selectedElementIds && cached.parts === parts) {
     return cached.selections;
   }
   const byPart = new Map<PartId, DenseSelectionBuilder>();
@@ -74,8 +72,9 @@ export function collectDenseElementSelections(
       occurrences,
     });
   }
-  const entries = selectionCache.get(data.selectedElementIds) ?? [];
-  selectionCache.set(data.selectedElementIds, [...entries, { runtime, layout, parts, selections }]);
+  const cache = runtimeCache ?? new WeakMap<DenseElementLayout, DenseElementCacheEntry>();
+  if (runtimeCache === undefined) selectionCache.set(runtime, cache);
+  cache.set(layout, { selectedIds: data.selectedElementIds, parts, selections });
   return selections;
 }
 

@@ -72,13 +72,14 @@ signature share one compact index order; unaffected occurrences remain on the
 immutable exterior subset. The compact order references the canonical expanded
 vertex, node, and topology buffers, so it does not duplicate semantic geometry.
 
-The per-part skin cache is bounded to two resident full-order equivalents,
-clamped to 64 KiB–16 MiB. Current signatures are pinned while calls are
-rebuilt. Inactive entries are released immediately, and a new signature that
-would exceed the budget uses the existing complete-topology shader path rather
-than producing an incomplete skin. A single hidden element remains sparse
-interaction state; the skin builder scans authoritative oriented faces only on
-the visibility transition, never on an unchanged frame.
+The per-part skin store owns only signatures used by the current interaction
+state. Repeated occurrences with the same active signature share one skin;
+inactive entries are released immediately and a later re-hide recomputes them.
+The 64 KiB–16 MiB working budget guides allocation pressure but is not a
+semantic cap: every active signature receives its exact oriented skin even when
+simultaneous active data exceeds the target. A single hidden element remains
+sparse interaction state; the builder scans authoritative oriented faces only
+on the visibility transition, never on an unchanged frame.
 
 The compact path is observationally equivalent to full residency and preserves
 the same stable identities for color, transparency, selection, picking, nodes,
