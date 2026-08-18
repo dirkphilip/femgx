@@ -102,6 +102,23 @@ describe("GPU draw path", () => {
     }
   });
 
+  it("looks up only affected part storages", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      Object.defineProperty(draw.storages, Symbol.iterator, {
+        value: () => {
+          throw new Error("all storages were scanned");
+        },
+      });
+      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]));
+    } finally {
+      restore();
+    }
+  });
+
   it("addresses patched slots at their record offsets", () => {
     const restore = installGpuGlobals();
     try {

@@ -1,9 +1,9 @@
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
 import type { PartOccurrence, PartOccurrenceId } from "../scene/types";
-import { readInteractionState, type InteractionState } from "../interaction/state";
 import type { DrawCall } from "./resources/draw-resources";
-import { hasValidNodeSelection, partNodeCount } from "./selection/node-selection";
+
+export { buildSelectionOrder } from "./selection/order";
 
 /**
  * CPU-side bridge between the packed scene runtime and per-part GPU storage.
@@ -208,44 +208,6 @@ export function buildNodeSelectionOrder(
     layout,
     partId,
     (slot) => selectedNodeFlags[slot] === true && runtime.isInstanceVisible(slot),
-  );
-}
-
-/** Returns visible part-local slots that carry any selected target. */
-export function buildSelectionOrder(
-  layout: InstanceLayout,
-  runtime: PackedSceneRuntime,
-  partId: PartId,
-  interaction: InteractionState,
-  parts: ReadonlyMap<PartId, Part>,
-): Uint32Array {
-  const data = readInteractionState(interaction);
-  return buildCompactedOrder(layout, partId, (slot) => {
-    const instanceId = runtime.getInstanceId(slot);
-    return (
-      instanceId !== undefined &&
-      runtime.isInstanceVisible(slot) &&
-      hasSelectedTarget(data, instanceId, partId, parts.get(partId))
-    );
-  });
-}
-
-function hasSelectedTarget(
-  data: ReturnType<typeof readInteractionState>,
-  instanceId: PartOccurrenceId,
-  partId: PartId,
-  part: Part | undefined,
-): boolean {
-  return (
-    data.selectedPartIds.has(partId) ||
-    data.selectedPartOccurrenceIds.has(instanceId) ||
-    (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
-    (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
-    (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
-    hasValidNodeSelection(
-      data.selectedNodeIds.get(instanceId),
-      part === undefined ? 0 : partNodeCount(part),
-    )
   );
 }
 

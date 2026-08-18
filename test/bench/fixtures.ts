@@ -2,7 +2,7 @@ import { createPart, type Part } from "../../src/geometry/part";
 import type { GeometryBody } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
-import type { Scene } from "../../src/scene/scene";
+import { createScene, type Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import type { AssemblyId } from "../../src/scene/types";
 import { createPlanarGridGeometry } from "../../demo/fixtures/planar-grid";
@@ -27,6 +27,41 @@ export const BENCH_HIERARCHY_INSTANCE_COUNT =
 export const BENCH_BODY_GRID_CELLS = 128;
 export const BENCH_BODY_COUNT = 256;
 export const BENCH_BODY_ELEMENT_COUNT = BENCH_BODY_GRID_CELLS ** 2;
+
+export type SceneShape = "distinct-parts" | "shared-part";
+
+/** Builds equal tiny-triangle placement counts with shared or distinct part ownership. */
+export function buildTinyManyPieceScene(shape: SceneShape, occurrenceCount: number): Scene {
+  const builder = createScene();
+  if (shape === "shared-part") builder.addPart(tinyElementPart(1));
+  const transform = identity();
+  const placements = Array.from({ length: occurrenceCount }, (_, index) => {
+    const partId = shape === "shared-part" ? 1 : index + 1;
+    if (shape === "distinct-parts") builder.addPart(tinyElementPart(partId));
+    return { kind: "part" as const, placementId: String(index), partId, transform };
+  });
+  return builder
+    .addAssembly({ id: 1, name: `${shape}-${occurrenceCount}`, placements })
+    .withRoot(1)
+    .build();
+}
+
+function tinyElementPart(id: PartId): Part {
+  const geometry = {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+    primitive: "triangles" as const,
+  };
+  return createPart(id, {
+    geometries: [geometry],
+    elements: [
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+    ],
+  });
+}
 
 function part(id: PartId): Part {
   const geometry = {

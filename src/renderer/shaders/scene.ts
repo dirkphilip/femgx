@@ -56,7 +56,7 @@ struct Deformation {
 
 /** Instance storage layout shared by every vertex shader. */
 export const instanceStruct = /* wgsl */ `
-// Field layout (byte offsets) must match encodeInstanceRecord in resources/draw-resources.ts:
+// Field layout (byte offsets) must match encodeInstanceRecord in resources/instance-record.ts:
 // transform 0, color 64, pickId 80, emissive 84, selected/emphasis flags 88,
 // lineWidth 92.
 struct Instance {

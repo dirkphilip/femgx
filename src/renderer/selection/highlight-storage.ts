@@ -232,8 +232,10 @@ export function syncElementHighlights(
         : { denseNodeSelections: sync.denseNodeSelections }),
     });
   const selectedTheme = readInteractionState(interaction).theme.selected;
-  for (const [partId, storage] of sync.draw.storages) {
-    if (affectedParts !== undefined && !affectedParts.has(partId)) continue;
+  const partIds = affectedParts ?? sync.draw.storages.keys();
+  for (const partId of partIds) {
+    const storage = sync.draw.storages.get(partId);
+    if (storage === undefined) continue;
     const selection = denseSelections.get(partId);
     const nodeSelection = sync.denseNodeSelections?.get(partId);
     writeElementHighlights(

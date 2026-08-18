@@ -109,6 +109,29 @@ describe("collectEmphasisUpdates", () => {
     ]);
   });
 
+  it("charges the shared occurrence table before admitting dense element bits", () => {
+    const { runtime, layout, parts, partOccurrenceIds } = denseSelectionFixture(1, 4_096);
+    const one = setElementSelected(
+      createInteractionState(),
+      { partOccurrenceId: partOccurrenceIds[0] ?? "", elementId: 20_000 },
+      true,
+    );
+    expect(collectDenseElementSelections(runtime, layout, parts, one)).toEqual(new Map());
+
+    const half = setTargetsSelected(
+      createInteractionState(),
+      partOccurrenceIds.slice(0, 2_048).map((partOccurrenceId) => ({
+        kind: "element" as const,
+        partOccurrenceId,
+        elementId: 20_000,
+      })),
+      true,
+    );
+    expect(
+      collectDenseElementSelections(runtime, layout, parts, half).get(99)?.occurrences,
+    ).toHaveLength(2_048);
+  });
+
   it("caches sparse element, body, and face ownership by part identity", () => {
     const geometry: SemanticTestGeometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),

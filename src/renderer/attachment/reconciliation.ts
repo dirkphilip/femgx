@@ -1,9 +1,9 @@
 import type { Part, PartId } from "../../geometry/part";
-import { createInteractionState, type InteractionState } from "../../interaction/interaction";
+import type { InteractionState } from "../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PreviousInstanceLayout, InstanceLayout } from "../runtime-state";
 import type { PartOccurrence } from "../../scene/types";
-import { buildDrawOrder, buildInstanceSnapshot, type DrawCallLists } from "../runtime-state";
+import { buildInstanceSnapshot, type DrawCallLists } from "../runtime-state";
 import type { GpuBundle } from "../recovery";
 import type { SelectionState } from "../selection-state";
 import { collectInstanceUpdates } from "../instance-updates";
@@ -17,7 +17,14 @@ import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { syncVisibleSelectionOrders, writeNodeOrders } from "../selection-state";
 import { rebuildAttachmentCalls } from "./calls";
 import { rebuildVisibilitySurface } from "../visibility/skins";
-import { writeDrawOrder } from "../resources/instance-storage";
+import {
+  createInstanceRecordTarget,
+  initializeInstancePart,
+  INSTANCE_STRIDE,
+  writeInstanceRecord,
+  type InstanceRecordValues,
+} from "../resources/instance-storage";
+import { defaultStyle } from "../resources/foundation";
 
 /** Returns current slots whose instance record changed across a runtime revision. */
 export function attachmentChangedSlots(
@@ -126,27 +133,27 @@ export function applyFullAttachment(options: {
   options.state.instances = snapshot.instances;
   options.state.slotByInstanceId = snapshot.slotByInstanceId;
   resetFlags(options.state.flags, options.runtime.instanceCount);
-  const allSlots = Array.from({ length: options.runtime.instanceCount }, (_, slot) => slot);
-  options.draw.cost.cpu("instance-scan", allSlots.length);
-  const updates = collectInstanceUpdates(
-    options.runtime,
-    options.layout,
-    createInteractionState(),
-    options.state.flags,
-    allSlots,
-  ).updates;
-  for (const [partId, partUpdates] of updates) patchInstances(options.draw, partId, partUpdates);
-  for (const partId of options.layout.partOrder) {
-    writeDrawOrder(options.draw, partId, buildDrawOrder(options.layout, options.runtime, partId));
-  }
-  rebuildTransparentOrders(
-    options.runtime,
-    options.layout,
-    new Set(options.layout.partOrder),
-    options.state.flags.transparentFlags,
-    options.draw,
-  );
+  options.draw.cost.cpu("instance-scan", options.runtime.instanceCount);
+  for (const partId of options.layout.partOrder) initializePart(options, partId);
   return rebuildAttachmentCalls(options.layout, options.draw.cost);
+}
+
+function initializePart(options: Parameters<typeof applyFullAttachment>[0], partId: PartId): void {
+  const slots = options.layout.partLocalSlots.get(partId);
+  if (slots === undefined || slots.length === 0) return;
+  const data = new ArrayBuffer(slots.length * INSTANCE_STRIDE);
+  const order = new Uint32Array(slots.length);
+  const target = createInstanceRecordTarget(data);
+  const values: InstanceRecordValues = { style: defaultStyle, pickId: 0, selected: false };
+  let orderLength = 0;
+  for (let local = 0; local < slots.length; local += 1) {
+    const slot = slots[local];
+    if (slot === undefined || slot < 0) continue;
+    values.pickId = slot + 1;
+    writeInstanceRecord(target, local, options.runtime.instanceWorldTransforms, slot * 16, values);
+    if (options.runtime.isInstanceVisible(slot)) order[orderLength++] = local;
+  }
+  initializeInstancePart(options.draw, partId, data, order, orderLength);
 }
 
 /** Applies only changed placement records to the current part storages. */

@@ -56,4 +56,36 @@ describe("syncElementHighlights", () => {
       restore();
     }
   });
+
+  it("looks up only affected part storages", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, 1, [
+        { slot: 0, data: encodeInstanceRecord(translation(0, 0, 0), defaultStyle, 1) },
+      ]);
+      Object.defineProperty(draw.storages, Symbol.iterator, {
+        value: () => {
+          throw new Error("all storages were scanned");
+        },
+      });
+      const { scene, runtime } = elementScene();
+      syncElementHighlights(
+        {
+          device: gpu.device,
+          draw,
+          runtime,
+          layout: buildInstanceLayout(runtime),
+          slotByInstanceId: new Map([["1/0", 0]]),
+          parts: partsMap(scene),
+        },
+        createInteractionState(),
+        new Set([1]),
+        new Map(),
+      );
+    } finally {
+      restore();
+    }
+  });
 });
