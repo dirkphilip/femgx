@@ -1,8 +1,8 @@
 import type { AuthoredResultSequence, AuthoredResultSnapshot } from "../../fixtures/presets";
 import type { ValueRange } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
-import type { ResultDisplayMode } from "../types";
 import type { WorkbenchShowState } from "../state/show-state";
+import type { ViewportSlotId } from "../viewport/view";
 
 export interface WorkbenchResultPlaybackSnapshot {
   readonly label: string;
@@ -47,48 +47,50 @@ export interface WorkbenchResultPlaybackActions {
 
 interface ResultPlaybackOwner {
   readonly model: WorkbenchModel;
-  resultMode: ResultDisplayMode;
-  resultPlaybackIndex: number;
-  resultPlaybackRate: number;
-  resultPlaybackPlaying: boolean;
-  resultPlaybackActive: boolean;
-  resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  readonly activeSlot: () => { readonly id: ViewportSlotId };
+  readonly showState: (slotId: ViewportSlotId) => WorkbenchShowState;
+  readonly applyResultModeForSlot: (slotId: ViewportSlotId, render: boolean) => void;
   readonly disposed: boolean;
-  applyResultMode(render: boolean): void;
   publishSnapshot(): void;
+}
+
+interface ResultPlaybackSlot {
+  readonly owner: ResultPlaybackOwner;
+  readonly id: ViewportSlotId;
+  readonly state: WorkbenchShowState;
 }
 
 /** Creates host-owned controls for one finite authored result sequence. */
 export function createResultPlaybackActions(
   owner: ResultPlaybackOwner,
 ): WorkbenchResultPlaybackActions {
-  resetForModel(owner, owner.model);
+  resetForModel(playbackSlot(owner), owner.model);
   return {
-    currentStep: () => currentStep(owner),
-    snapshot: () => playbackSnapshot(owner),
+    currentStep: () => currentStep(playbackSlot(owner)),
+    snapshot: () => playbackSnapshot(playbackSlot(owner)),
     resetForModel: (model) => {
-      resetForModel(owner, model);
+      resetForModel(playbackSlot(owner), model);
     },
     disable: () => {
-      disable(owner);
+      disable(playbackSlot(owner));
     },
     setIndex: (value) => {
-      setIndex(owner, value);
+      setIndex(playbackSlot(owner), value);
     },
     previous: () => {
-      stepBy(owner, -1);
+      stepBy(playbackSlot(owner), -1);
     },
     next: () => {
-      stepBy(owner, 1);
+      stepBy(playbackSlot(owner), 1);
     },
     togglePlaying: () => {
-      togglePlaying(owner);
+      togglePlaying(playbackSlot(owner));
     },
     setRate: (value) => {
-      setRate(owner, value);
+      setRate(playbackSlot(owner), value);
     },
     stop: () => {
-      stop(owner);
+      stop(playbackSlot(owner));
     },
   };
 }
@@ -107,12 +109,17 @@ export function installResultPlaybackVisibility(
   );
 }
 
-function sequence(owner: ResultPlaybackOwner): AuthoredResultSequence | undefined {
-  return owner.model.resultSequence;
+function playbackSlot(owner: ResultPlaybackOwner): ResultPlaybackSlot {
+  const id = owner.activeSlot().id;
+  return { owner, id, state: owner.showState(id) };
 }
 
-function currentStep(owner: ResultPlaybackOwner): WorkbenchResultPlaybackStep | undefined {
-  return resultPlaybackStepForState(owner.model, owner);
+function sequence(slot: ResultPlaybackSlot): AuthoredResultSequence | undefined {
+  return slot.owner.model.resultSequence;
+}
+
+function currentStep(slot: ResultPlaybackSlot): WorkbenchResultPlaybackStep | undefined {
+  return resultPlaybackStepForState(slot.owner.model, slot.state);
 }
 
 /** Resolves one slot's current authored playback step without reading another slot. */
@@ -128,32 +135,33 @@ export function resultPlaybackStepForState(
     : { snapshot, range: source.range };
 }
 
-function playbackSnapshot(owner: ResultPlaybackOwner): WorkbenchResultPlaybackSnapshot | undefined {
-  const source = sequence(owner);
-  const step = source?.steps[owner.resultPlaybackIndex];
+function playbackSnapshot(slot: ResultPlaybackSlot): WorkbenchResultPlaybackSnapshot | undefined {
+  const source = sequence(slot);
+  const state = slot.state;
+  const step = source?.steps[state.resultPlaybackIndex];
   if (source === undefined || step === undefined) return undefined;
   return Object.freeze({
     label: source.label,
     range: Object.freeze({ ...source.range }),
     scalar: playbackField(step.scalar),
     deformation: playbackField(step.deformation),
-    index: owner.resultPlaybackIndex,
+    index: state.resultPlaybackIndex,
     count: source.steps.length,
     time: step.time,
     stepLabel: step.label,
-    active: owner.resultPlaybackActive,
-    playing: owner.resultPlaybackPlaying,
-    rate: owner.resultPlaybackRate,
-    hasPrevious: owner.resultPlaybackIndex > 0,
-    hasNext: owner.resultPlaybackIndex < source.steps.length - 1,
+    active: state.resultPlaybackActive,
+    playing: state.resultPlaybackPlaying,
+    rate: state.resultPlaybackRate,
+    hasPrevious: state.resultPlaybackIndex > 0,
+    hasNext: state.resultPlaybackIndex < source.steps.length - 1,
   });
 }
 
-function resetForModel(owner: ResultPlaybackOwner, _model: WorkbenchModel): void {
-  clearTimer(owner);
-  owner.resultPlaybackIndex = 0;
-  owner.resultPlaybackPlaying = false;
-  owner.resultPlaybackActive = false;
+function resetForModel(slot: ResultPlaybackSlot, _model: WorkbenchModel): void {
+  clearTimer(slot);
+  slot.state.resultPlaybackIndex = 0;
+  slot.state.resultPlaybackPlaying = false;
+  slot.state.resultPlaybackActive = false;
 }
 
 function playbackField(
@@ -167,14 +175,14 @@ function playbackField(
   });
 }
 
-function disable(owner: ResultPlaybackOwner): void {
-  clearTimer(owner);
-  owner.resultPlaybackPlaying = false;
-  owner.resultPlaybackActive = false;
+function disable(slot: ResultPlaybackSlot): void {
+  clearTimer(slot);
+  slot.state.resultPlaybackPlaying = false;
+  slot.state.resultPlaybackActive = false;
 }
 
-function setIndex(owner: ResultPlaybackOwner, value: string): void {
-  const source = sequence(owner);
+function setIndex(slot: ResultPlaybackSlot, value: string): void {
+  const source = sequence(slot);
   const parsed = Number(value);
   if (
     source === undefined ||
@@ -184,69 +192,80 @@ function setIndex(owner: ResultPlaybackOwner, value: string): void {
   ) {
     return;
   }
-  owner.resultPlaybackActive = true;
-  owner.resultPlaybackIndex = parsed;
-  owner.resultMode = "deformed";
-  owner.applyResultMode(true);
+  slot.state.resultPlaybackActive = true;
+  slot.state.resultPlaybackIndex = parsed;
+  slot.state.resultMode = "deformed";
+  applyResultMode(slot);
 }
 
-function stepBy(owner: ResultPlaybackOwner, delta: -1 | 1): void {
-  const source = sequence(owner);
+function stepBy(slot: ResultPlaybackSlot, delta: -1 | 1): void {
+  const source = sequence(slot);
   if (source === undefined) return;
-  stop(owner);
-  const next = Math.min(source.steps.length - 1, Math.max(0, owner.resultPlaybackIndex + delta));
-  setIndex(owner, String(next));
+  stop(slot);
+  const next = Math.min(
+    source.steps.length - 1,
+    Math.max(0, slot.state.resultPlaybackIndex + delta),
+  );
+  setIndex(slot, String(next));
 }
 
-function togglePlaying(owner: ResultPlaybackOwner): void {
-  const source = sequence(owner);
+function togglePlaying(slot: ResultPlaybackSlot): void {
+  const source = sequence(slot);
   if (source === undefined) return;
-  if (owner.resultPlaybackPlaying) {
-    stop(owner);
+  if (slot.state.resultPlaybackPlaying) {
+    stop(slot);
     return;
   }
-  owner.resultPlaybackActive = true;
-  owner.resultMode = "deformed";
-  if (owner.resultPlaybackIndex >= source.steps.length - 1) owner.resultPlaybackIndex = 0;
-  owner.resultPlaybackPlaying = true;
-  owner.applyResultMode(true);
-  schedule(owner);
+  slot.state.resultPlaybackActive = true;
+  slot.state.resultMode = "deformed";
+  if (slot.state.resultPlaybackIndex >= source.steps.length - 1) slot.state.resultPlaybackIndex = 0;
+  slot.state.resultPlaybackPlaying = true;
+  applyResultMode(slot);
+  schedule(slot);
 }
 
-function setRate(owner: ResultPlaybackOwner, value: string): void {
+function setRate(slot: ResultPlaybackSlot, value: string): void {
   const parsed = Number(value);
   if (parsed !== 0.5 && parsed !== 1 && parsed !== 2) return;
-  owner.resultPlaybackRate = parsed;
-  if (owner.resultPlaybackPlaying) schedule(owner);
-  owner.publishSnapshot();
+  slot.state.resultPlaybackRate = parsed;
+  if (slot.state.resultPlaybackPlaying) schedule(slot);
+  publishIfActive(slot);
 }
 
-function stop(owner: ResultPlaybackOwner): void {
-  clearTimer(owner);
-  if (!owner.resultPlaybackPlaying) return;
-  owner.resultPlaybackPlaying = false;
-  owner.publishSnapshot();
+function stop(slot: ResultPlaybackSlot): void {
+  clearTimer(slot);
+  if (!slot.state.resultPlaybackPlaying) return;
+  slot.state.resultPlaybackPlaying = false;
+  publishIfActive(slot);
 }
 
-function schedule(owner: ResultPlaybackOwner): void {
-  clearTimer(owner);
-  owner.resultPlaybackTimer = globalThis.setTimeout(() => {
-    owner.resultPlaybackTimer = undefined;
-    if (owner.disposed || !owner.resultPlaybackPlaying) return;
-    const source = sequence(owner);
-    if (source === undefined || owner.resultPlaybackIndex >= source.steps.length - 1) {
-      owner.resultPlaybackPlaying = false;
-      owner.publishSnapshot();
+function schedule(slot: ResultPlaybackSlot): void {
+  clearTimer(slot);
+  slot.state.resultPlaybackTimer = globalThis.setTimeout(() => {
+    slot.state.resultPlaybackTimer = undefined;
+    if (slot.owner.disposed || !slot.state.resultPlaybackPlaying) return;
+    const source = sequence(slot);
+    if (source === undefined || slot.state.resultPlaybackIndex >= source.steps.length - 1) {
+      slot.state.resultPlaybackPlaying = false;
+      publishIfActive(slot);
       return;
     }
-    owner.resultPlaybackIndex += 1;
-    owner.applyResultMode(true);
-    schedule(owner);
-  }, 1000 / owner.resultPlaybackRate);
+    slot.state.resultPlaybackIndex += 1;
+    applyResultMode(slot);
+    schedule(slot);
+  }, 1000 / slot.state.resultPlaybackRate);
 }
 
-function clearTimer(owner: ResultPlaybackOwner): void {
-  if (owner.resultPlaybackTimer === undefined) return;
-  globalThis.clearTimeout(owner.resultPlaybackTimer);
-  owner.resultPlaybackTimer = undefined;
+function applyResultMode(slot: ResultPlaybackSlot): void {
+  slot.owner.applyResultModeForSlot(slot.id, true);
+}
+
+function publishIfActive(slot: ResultPlaybackSlot): void {
+  if (slot.owner.activeSlot().id === slot.id) slot.owner.publishSnapshot();
+}
+
+function clearTimer(slot: ResultPlaybackSlot): void {
+  if (slot.state.resultPlaybackTimer === undefined) return;
+  globalThis.clearTimeout(slot.state.resultPlaybackTimer);
+  slot.state.resultPlaybackTimer = undefined;
 }
