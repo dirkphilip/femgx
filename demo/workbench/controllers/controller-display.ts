@@ -141,7 +141,14 @@ export function applyActiveStateForOwner(owner: ControllerDisplayOwner): void {
   owner.applyResultMode(false);
   owner.applyCurrentDisplayState();
   applySectionPlane(owner, false);
-  owner.activeSlot().viewport.presentation.setBackground(owner.background);
+  try {
+    owner.activeSlot().viewport.presentation.setBackground(owner.background);
+  } catch (error) {
+    owner.presentation.setFeedback(
+      `Background could not be restored: ${errorMessage(error)}`,
+      "error",
+    );
+  }
   owner.activeSlot().renderLoop.setEnabled(owner.continuousEnabled, performance.now());
 }
 

@@ -168,10 +168,7 @@ export class WorkbenchViewportSlots {
       this.slots.set("secondary", slot);
       this.bindSecondarySlot(slot);
       this.setActiveSlot("secondary");
-      this.options.applyActiveState();
-      this.options.rebuildVisibility();
       slot.viewport.render();
-      this.options.render();
     } catch (error) {
       this.cleanupFailedSecondary(error);
     } finally {
