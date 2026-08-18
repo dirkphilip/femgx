@@ -77,6 +77,22 @@ allocations; a browser or Node `usedJSHeapSize` value is neither portable nor
 authoritative. The existing opt-in system-Chrome benchmark remains the authority
 for runtime compilation and first-upload measurements.
 
+## High-cardinality scaling rule
+
+Construction and bulk-update paths expected to process many model records must
+remain approximately linear in their declared cardinality. Immutable published
+state is still the ownership contract, but a tight loop may not create one
+whole-state copy per element, node, geometry, part, assembly, body, instance, or
+comparable record. Use a locally owned mutable builder/transient followed by one
+published snapshot, or one bulk immutable transition.
+
+New or changed high-cardinality paths need representative multi-size scaling
+evidence. Add a default-CI budget when the CPU workload is deterministic and
+bounded; use an opt-in large lane when representative sizes are too expensive
+for the default gate. A bottleneck found in one measured path does not authorize
+a speculative repository-wide rewrite: profile the named path, fix the owning
+boundary, and retain focused evidence for that regression.
+
 ## Budget gate (runs in default CI)
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any
