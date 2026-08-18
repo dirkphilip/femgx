@@ -303,8 +303,8 @@ describe("WebGPU benchmark models", () => {
       800,
       600,
     );
-    expect(tet4Memory.geometryBytes).toBe(0);
-    expect(tet4Memory.pickMetadataBytes).toBe(0);
+    expect(tet4Memory.geometryBytes).toBeGreaterThan(0);
+    expect(tet4Memory.pickMetadataBytes).toBeGreaterThan(0);
     expect(tet4Memory.subsetBytes).toBeGreaterThan(0);
   });
 

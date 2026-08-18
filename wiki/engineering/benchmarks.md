@@ -378,6 +378,12 @@ their exact visible and hidden selection passes. The
 `fe-tet4-solid-132k` case adds `all-but-one` and `all-authored` phases that
 select 131,711 and 131,712 retained element identities directly; their raster
 readback fields are zero because no box query is involved.
+Boundary-subset solids prepare their retained full interaction geometry during
+the cold attachment rather than on the first partial selection. The dense Tet4
+`broad` phase therefore guards a sub-33.3 ms first selected frame in addition
+to the steady-frame budgets; a delayed full-geometry upload must not reappear as
+a mobile interaction warm-up hitch. Memory estimates include both the compact
+exterior draw resource and the full interaction resource for these solids.
 Dense element-only selection uses one selected-region skin: the validated exterior
 subset plus authored faces whose selected owner borders an unselected neighbor.
 Fragmented skins that exceed the bounded range-draw budget retain the full exact

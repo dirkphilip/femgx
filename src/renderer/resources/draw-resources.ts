@@ -1,5 +1,6 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { Geometry, Primitive } from "../../geometry/part";
+import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { DeformationState } from "../../results/deform";
 import type { ResultColorMap } from "../../results/colors";
 import type { SectionPlane } from "../../math/section-plane";
@@ -174,6 +175,7 @@ export function uploadGeometryPart(
         subset.subsetIndices.length,
         primitiveColorBuffer,
       );
+      prepareBoundarySolidGeometry(draw, part, geometry, resource);
       resources.set(geometry.primitive, resource);
       draw.primitiveParts.set(part.id, resources);
       if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
@@ -212,6 +214,17 @@ export function uploadGeometryPart(
   draw.primitiveParts.set(part.id, resources);
   if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
   return resource;
+}
+
+function prepareBoundarySolidGeometry(
+  draw: DrawResources,
+  part: Part,
+  geometry: Extract<Geometry, { readonly primitive: "triangles" }>,
+  resource: PartResource,
+): void {
+  if (getPartSemanticIndex(part).hasBoundaryFaceSubset) {
+    materializeFullGeometry(draw.device, part, geometry, resource);
+  }
 }
 
 function geometryColorBuffer(device: GPUDevice, geometry: Geometry): GPUBuffer | undefined {
