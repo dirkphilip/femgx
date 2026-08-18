@@ -65,7 +65,7 @@ export function createScalarColorMap(options: ScalarColorMapOptions): ScalarColo
   validateRange(options.min, options.max);
   const stops = sortStops(options.stops ?? DEFAULT_STOPS);
   const thresholds =
-    options.thresholds === undefined
+    options.thresholds === undefined || options.thresholds.length === 0
       ? undefined
       : validateThresholds(options.thresholds, options.min, options.max);
   const missingColor = options.missingColor === undefined ? DEFAULT_MISSING : options.missingColor;
