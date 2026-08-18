@@ -65,6 +65,9 @@ export async function measureSelectionBenchmark(
     ] as const) {
       phases.push(await measureAuthoredScenario(options, id, targetCount));
     }
+  } else if (options.benchmarkCase.id === "unique-1m") {
+    const count = authoredElementCount(options.benchmarkCase, options.runtime);
+    phases.push(await measureAuthoredScenario(options, "all-authored", count));
   } else if (options.benchmarkCase.id === "fe-tet4-solid-132k") {
     const count = authoredElementCount(options.benchmarkCase, options.runtime);
     phases.push(await measureAuthoredScenario(options, "all-but-one", count - 1));
@@ -197,11 +200,16 @@ async function measureSelectedTargets(
   );
   const firstSelectedFrameMs = await renderFrame(renderer, runtime, camera, parts, device);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
-  assertElementEmphasisDraw(
-    interactionGpuCost,
-    `${benchmarkCase.id} ${id} selection`,
-    expectedAuthoredIndices(benchmarkCase, id, targets.length),
-  );
+  const selectionLabel = `${benchmarkCase.id} ${id} selection`;
+  if (benchmarkCase.id === "unique-1m" && id === "all-authored") {
+    assertNoElementEmphasisDraw(interactionGpuCost, selectionLabel);
+  } else {
+    assertElementEmphasisDraw(
+      interactionGpuCost,
+      selectionLabel,
+      expectedAuthoredIndices(benchmarkCase, id, targets.length),
+    );
+  }
   const dense = denseSelectionFacts(runtime, parts, selected);
   if (requiresDenseSelection(id)) {
     if (dense.selectedCount !== targets.length || dense.occurrenceCount !== changedSlots.length) {

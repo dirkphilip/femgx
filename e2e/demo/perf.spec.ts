@@ -7,6 +7,7 @@ import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions
 import { expectDenseTet4HoverReport } from "./perf-tet4-assertions";
 import { expectTwoMillionInteractions } from "./perf-two-million-assertions";
 import { expectManyPieceReport } from "./perf-many-piece-assertions";
+import * as selectionAssertions from "./perf-selection-assertions";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -168,9 +169,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         const phases = entry.selection?.phases;
         const authoredTwoMillionCase =
           entry.id === "instanced-2.10m" || entry.id === "unique-2m-local";
-        expect(phases).toHaveLength(
-          entry.id === "fe-tet4-solid-132k" ? 5 : authoredTwoMillionCase ? 6 : 3,
-        );
+        expect(phases).toHaveLength(selectionAssertions.expectedSelectionPhaseCount(entry.id));
         if (phases === undefined) throw new Error("selection benchmark phases are missing");
         expect(entry.estimatedMemory.highlightBytes).toBeGreaterThan(0);
         expect(entry.estimatedMemory.pickReadbackBytes).toBeGreaterThan(0);
@@ -229,6 +228,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           expect(half?.denseSelectionBytes).toBeGreaterThan(0);
           expect(all?.denseSelectionBytes).toBeGreaterThan(0);
         }
+        selectionAssertions.expectCompleteUniqueSelection(entry);
       }
       expectTwoMillionInteractions(entry);
       expectManyPieceReport(entry);
@@ -291,6 +291,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           indices: 28_233,
           instances: 4,
         });
+        expect(allButOne.steadySelectedFrameMs.p95).toBeLessThan(8.3);
         expect(allAuthored.returnedTargetCount).toBe(131_712);
         expect(allAuthored.selectedOccurrenceCount).toBe(1);
         expect(allAuthored.denseSelectionBytes).toBe(16_468);
@@ -340,7 +341,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           expect(sample.intervalsOver33_3Percent).toBeGreaterThanOrEqual(0);
         }
         expect(
-          cameraDistance(
+          selectionAssertions.cameraPositionDistance(
             entry.interactive.fixedCamera.finalCamera,
             entry.interactive.movingCamera.finalCamera,
           ),
@@ -396,15 +397,4 @@ async function runBenchmarkWithTimeout(
   } finally {
     if (timer !== undefined) clearTimeout(timer);
   }
-}
-
-function cameraDistance(
-  first: { readonly position: readonly number[] },
-  second: { readonly position: readonly number[] },
-): number {
-  return Math.hypot(
-    (first.position[0] ?? 0) - (second.position[0] ?? 0),
-    (first.position[1] ?? 0) - (second.position[1] ?? 0),
-    (first.position[2] ?? 0) - (second.position[2] ?? 0),
-  );
 }

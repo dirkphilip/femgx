@@ -150,6 +150,12 @@ describe("dense selection skin ranges", () => {
     const fixture = selectionFixture(interiorSubsetPart, [101, 102, 103]);
     expect(buildCalls(interiorSubsetPart, fixture)).toBeUndefined();
   });
+
+  it("uses the ordinary surface pass when dense selection covers complete geometry", () => {
+    const part = completeSurfacePart();
+    const fixture = selectionFixture(part, [101, 102, 103]);
+    expect(buildCalls(part, fixture)).toEqual([]);
+  });
 });
 
 function selectionFixture(
@@ -258,6 +264,18 @@ function mixedPrimitivePart(): Part {
           }
         : element,
     ),
+  });
+}
+
+function completeSurfacePart(): Part {
+  const geometry = denseSelectionPart.geometries.find(
+    (candidate) => candidate.primitive === "triangles",
+  );
+  if (geometry?.primitive !== "triangles") throw new Error("Dense triangle fixture missing");
+  const { faces: _faces, faceSubset: _faceSubset, ...completeGeometry } = geometry;
+  return createPart(8, {
+    geometries: [completeGeometry],
+    elements: denseSelectionPart.elements ?? [],
   });
 }
 

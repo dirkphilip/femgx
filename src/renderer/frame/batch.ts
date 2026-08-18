@@ -8,6 +8,7 @@ import {
   pipelineAdmission,
   pipelineForIntent,
   selectionRangesForIntent,
+  visibilitySkinForIntent,
   type DrawIntent,
   type DrawIntentState,
 } from "./draw-admission";
@@ -145,23 +146,18 @@ function prepareBatch(batch: {
   if (part === undefined || storage === undefined) return undefined;
   if (nodes && part.geometries.every((candidate) => candidate.primitive === "points"))
     return undefined;
-  const subset = usesFaceSubset({
-    intent,
-    geometry,
-    nodes,
-    range,
-    exteriorSubsets: context.usesExteriorFaceSubsets,
-    callSurfaceSubset: call.surfaceSubset,
-  });
+  const visibilitySkin = visibilitySkinForIntent(call, geometry, intent, { overlay, edgePick });
+  const subset =
+    visibilitySkin === undefined &&
+    usesFaceSubset({
+      intent,
+      geometry,
+      nodes,
+      range,
+      exteriorSubsets: context.usesExteriorFaceSubsets,
+      callSurfaceSubset: call.surfaceSubset,
+    });
   const resource = uploadBatchGeometry(draw, part, geometry, nodes, subset);
-  const visibilitySkin =
-    geometry?.primitive === "triangles" &&
-    !overlay &&
-    !edgePick &&
-    intent.kind === "surface" &&
-    intent.pass !== "selection-visible"
-      ? call.visibilitySkin
-      : undefined;
   if (
     !hasBatchResources({
       draw,

@@ -196,6 +196,10 @@ skin storage; a later re-hide recomputes it. The 64 KiB–16 MiB working budget 
 an allocation-pressure target, not a semantic limit: every currently active
 signature receives its exact skin even when that active data exceeds the
 target. There is no incomplete or complete-topology fallback at the limit.
+Visibility-skin indices address the full expanded surface, so the draw-path
+regression requires full-vertex materialization instead of binding the compact
+exterior-subset vertices. That binding contract applies equally to packed Tet4
+and generic Hex solid meshes.
 
 The opt-in `npm run bench:tet4-visibility-sync` lane fixes the packed Tet4
 fixture at 131,712 elements and 526,848 oriented faces, then times exact cold
@@ -273,6 +277,7 @@ observed cold, unsampled `PartSemanticIndex` construction for this distinct
 `Part` identity took 250.930250 ms. Attachment eagerly pays that construction
 for each distinct or replacement `Part` identity; it is not part of per-pick
 timings.
+
 It emits one fingerprinted JSON report. Set `PERF_BASELINE_FILE` to write it to
 an explicit path; otherwise the report is printed only. Its CPU/fake-GPU
 highlight case measures renderer CPU table encoding/diff plus fake queue writes;
@@ -365,6 +370,11 @@ steady selected-frame p50/p95, clearing, selected occurrence count, renderer
 cost counters, and selected element-record byte count. Authored one/half/all
 phases additionally time target construction, so resolving selected occurrence
 slots is not hidden outside the named orchestration boundary. The
+`unique-1m` case includes an `all-authored` phase for all 999,698 elements. A
+complete selection over triangle geometry without an authored face subset must
+stay in the ordinary highlighted surface pass: both selection replay draw
+counts remain zero. Partial, face-subset, and interior-skin selections retain
+their exact visible and hidden selection passes. The
 `fe-tet4-solid-132k` case adds `all-but-one` and `all-authored` phases that
 select 131,711 and 131,712 retained element identities directly; their raster
 readback fields are zero because no box query is involved.

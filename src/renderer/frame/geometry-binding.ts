@@ -15,7 +15,7 @@ export function bindDrawGeometry(
 ): number | undefined {
   const { geometry, overlay, subset, edgePick, bindVertexBuffer, visibilitySkin } = options;
   if (!overlay && !subset && !edgePick && visibilitySkin !== undefined) {
-    pass.setVertexBuffer(0, geometry.vertexBuffer);
+    pass.setVertexBuffer(0, geometry.fullVertexBuffer ?? geometry.vertexBuffer);
     pass.setIndexBuffer(visibilitySkin.indexBuffer, "uint32");
     return visibilitySkin.indexCount;
   }
