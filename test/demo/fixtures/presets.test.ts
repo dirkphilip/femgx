@@ -85,9 +85,14 @@ describe("createGalleryPreset", () => {
     });
     expect(preset.results?.loads?.field).toMatchObject({
       id: "gallery-nodal-loads",
-      partId: 1,
+      partId: 16,
       shape: "load",
+      count: 1,
     });
+    expect(Array.from(preset.results?.loads?.field.values ?? [])).toHaveLength(6);
+    expect(
+      Array.from(preset.results?.loads?.field.values ?? []).every((value) => value !== 0),
+    ).toBe(true);
     expect(preset.resultVectorFields?.map((field) => field.id)).toEqual([
       "gallery-element-frames",
       "gallery-shell-normals",
