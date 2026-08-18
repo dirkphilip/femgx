@@ -274,7 +274,8 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         ).toBe(2_596_612);
         expect(entry.interactive).toBeDefined();
         const broad = entry.selection?.phases.find((phase) => phase.id === "broad");
-        expect(broad?.returnedTargetCount).toBe(4_704);
+        if (broad === undefined) throw new Error("Tet4 broad selection phase is missing");
+        expect(broad.returnedTargetCount).toBe(4_704);
         const allAuthored = entry.selection?.phases.find((phase) => phase.id === "all-authored");
         const allButOne = entry.selection?.phases.find((phase) => phase.id === "all-but-one");
         if (allAuthored === undefined) throw new Error("Tet4 all-authored phase is missing");
@@ -292,6 +293,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
           instances: 4,
         });
         expect(allButOne.steadySelectedFrameMs.p95).toBeLessThan(8.3);
+        expect(broad.firstSelectedFrameMs).toBeLessThan(33.3);
         expect(allAuthored.returnedTargetCount).toBe(131_712);
         expect(allAuthored.selectedOccurrenceCount).toBe(1);
         expect(allAuthored.denseSelectionBytes).toBe(16_468);

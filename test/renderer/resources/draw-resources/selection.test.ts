@@ -34,7 +34,7 @@ describe("GPU draw path", () => {
       drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }]);
       const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
       if (resource === undefined) throw new Error("Subset resource was not uploaded");
-      expect(resource.fullVertexBuffer).toBeUndefined();
+      expect(resource.fullVertexBuffer).toBeDefined();
       drawBatches(pass, draw, context, [
         {
           partId: subsetPart.id,

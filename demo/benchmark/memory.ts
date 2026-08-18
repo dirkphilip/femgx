@@ -1,4 +1,5 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
+import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/frame/deformation";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/frame/pipelines";
@@ -137,9 +138,11 @@ export function estimateBenchmarkMemory(
         canonicalEdge,
       );
       const subset = subsetEstimate(geometry, edgeMaterialized);
+      const retainsFullGeometry = getPartSemanticIndex(part).hasBoundaryFaceSubset;
       if (subset.bufferBytes > 0) {
         subsetBytes += subset.bufferBytes;
-      } else {
+      }
+      if (subset.bufferBytes === 0 || retainsFullGeometry) {
         geometryBytes +=
           gpuBufferBytes(mainPositionBytes) +
           gpuBufferBytes(mainIndexBytes) +
