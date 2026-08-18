@@ -51,7 +51,8 @@ function buildNodeCsr(storage: PackedSemanticStorage): {
     const end = storage.faceNodeOffsets[face + 1] ?? start;
     for (let index = start; index < end; index += 1) {
       const nodeId = storage.faceNodeIds[index] ?? 0;
-      const cursor = cursors[nodeId] ?? 0;
+      const cursor = cursors[nodeId];
+      if (cursor === undefined) continue;
       ids[cursor] = face;
       cursors[nodeId] = cursor + 1;
     }

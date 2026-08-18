@@ -2,7 +2,6 @@ import { expect, it, describe } from "vitest";
 import {
   createDrawResources,
   destroyDrawResources,
-  uploadPart,
   patchInstances,
   writeDrawOrder,
   writeEdgeOrder,
@@ -11,10 +10,14 @@ import {
   HIGHLIGHT_HEADER,
   fakeGpuDevice,
   installGpuGlobals,
+  createPart,
   part,
   record,
+  uploadPart,
   writeRanges,
 } from "./support";
+import { orderBindGroup } from "../../../../src/renderer/resources/bind-groups";
+import { reconcilePartResources } from "../../../../src/renderer/resources/part-resources";
 
 describe("GPU draw path", () => {
   it.each([1, 100, 1000])(
@@ -123,6 +126,60 @@ describe("GPU draw path", () => {
       expect(gpu.writes.length).toBe(afterInitial);
       writeEdgeOrder(draw, part.id, new Uint32Array([0, 2]));
       expect(writeRanges(gpu, afterInitial)).toEqual([[4, 8]]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("invalidates cached bind groups when a part definition is replaced", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const firstResource = uploadPart(draw, part);
+      patchInstances(draw, part.id, [{ slot: 0, data: record(0) }]);
+      writeDrawOrder(draw, part.id, new Uint32Array([0]));
+      const storage = draw.storages.get(part.id);
+      if (storage === undefined) throw new Error("Part storage was not created");
+      const inputs = {
+        geometry: firstResource,
+        deformation: draw.emptyDeformationBuffer,
+        resultColors: draw.emptyResultColorBuffer,
+        admission: "topology" as const,
+      };
+      const firstBindGroup = orderBindGroup(
+        gpu.device,
+        {} as GPUBindGroupLayout,
+        storage,
+        "opaque",
+        inputs,
+      );
+
+      const replacement = createPart(1, {
+        geometries: [
+          {
+            positions: new Float32Array([0, 0, 0, 2, 0, 0, 0, 2, 0]),
+            indices: new Uint32Array([0, 1, 2]),
+            primitive: "triangles" as const,
+          },
+        ],
+      });
+      reconcilePartResources(
+        new Map([[part.id, part]]),
+        new Map([[replacement.id, replacement]]),
+        draw,
+      );
+
+      expect(storage.bindGroup).toBeUndefined();
+      const secondResource = uploadPart(draw, replacement);
+      const secondBindGroup = orderBindGroup(
+        gpu.device,
+        {} as GPUBindGroupLayout,
+        storage,
+        "opaque",
+        { ...inputs, geometry: secondResource },
+      );
+      expect(secondBindGroup).not.toBe(firstBindGroup);
     } finally {
       restore();
     }
