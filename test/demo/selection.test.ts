@@ -313,6 +313,8 @@ describe("demo selection policy", () => {
         { partId: 4, visible: true },
         { partId: 9, visible: false },
       ],
+      getVisiblePartOccurrenceIds: () => ["visible"],
+      getPartId: (partOccurrenceId: string) => (partOccurrenceId === "visible" ? 4 : 9),
       isPartOccurrenceVisible: (partOccurrenceId: string) => partOccurrenceId === "visible",
     } as unknown as SceneRuntime;
     const visibleInstance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "visible" };
@@ -334,6 +336,35 @@ describe("demo selection policy", () => {
         runtime,
       ),
     ).toBe(false);
+  });
+
+  it("uses visible occurrence ids without materializing transform records", () => {
+    let materialized = 0;
+    let visibleQueries = 0;
+    const runtime = {
+      getPartOccurrences: () => {
+        materialized += 1;
+        return [{ partId: 4, visible: true }];
+      },
+      getVisiblePartOccurrenceIds: () => {
+        visibleQueries += 1;
+        return ["visible"];
+      },
+      getPartId: () => 4,
+      isPartOccurrenceVisible: () => true,
+    } as unknown as SceneRuntime;
+
+    expect(
+      hasVisibleSelection(
+        toggleSelection(createInteractionState(), {
+          kind: "partOccurrence",
+          partOccurrenceId: "visible",
+        }),
+        runtime,
+      ),
+    ).toBe(true);
+    expect(visibleQueries).toBe(1);
+    expect(materialized).toBe(0);
   });
 });
 

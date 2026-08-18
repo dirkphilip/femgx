@@ -59,7 +59,10 @@ export function applyControllerResultModeForSlot(
         ? owner.presentation.reflectResults.bind(owner.presentation)
         : () => undefined,
   });
-  if (render) owner.render();
+  if (render) {
+    if (slotId === owner.viewportSlots.activeSlot().id) owner.render();
+    else slot.viewport.render();
+  }
 }
 
 /** Applies visibility and interaction presentation state to the active viewport. */

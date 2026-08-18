@@ -77,6 +77,18 @@ describe("benchmark worker client", () => {
     await expect(second).resolves.toBe(2);
     expect(worker.terminated).toBe(true);
   });
+
+  it("leaves retained-byte accounting to the main-thread reconstruction", () => {
+    const metrics: BenchmarkWorkerResult["metrics"] = {
+      generationMs: 0,
+      topologyMs: 0,
+      tessellationMs: 0,
+      transferPreparationMs: 0,
+      transferredBytes: 0,
+    };
+
+    expect(metrics).not.toHaveProperty("finalRetainedTypedBytes");
+  });
 });
 
 function heavySpec() {
@@ -97,7 +109,6 @@ function resultFor(requestId: number): BenchmarkWorkerResult {
       tessellationMs: 0,
       transferPreparationMs: 0,
       transferredBytes: 0,
-      finalRetainedTypedBytes: 0,
     },
   };
 }

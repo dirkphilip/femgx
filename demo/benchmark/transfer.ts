@@ -15,7 +15,6 @@ export interface BenchmarkTransferMetrics {
   readonly tessellationMs: number;
   readonly transferPreparationMs: number;
   readonly transferredBytes: number;
-  readonly finalRetainedTypedBytes: number;
 }
 
 /** A worker result with its request identity and transfer accounting. */

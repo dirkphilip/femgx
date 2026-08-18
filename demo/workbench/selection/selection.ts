@@ -12,6 +12,7 @@ import {
   selectedTargetCount,
   selectedTargetSummary,
 } from "../../../src/interaction/selection-queries";
+import type { PartId } from "../../../src/entries/root";
 import type { SceneRuntime } from "../../../src/entries/runtime";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
 
@@ -92,18 +93,22 @@ export function selectionDatasetValue(interaction: InteractionState): string {
 
 /** Returns whether the current selection contains geometry in a visible occurrence. */
 export function hasVisibleSelection(interaction: InteractionState, runtime: SceneRuntime): boolean {
-  const visiblePartIds = new Set(
-    runtime
-      .getPartOccurrences()
-      .filter((instance) => instance.visible)
-      .map((instance) => instance.partId),
-  );
+  const visiblePartIds = visiblePartIdsFor(runtime);
   const selection = selectedTargetSummary(interaction);
   for (const partId of selection.partIds) if (visiblePartIds.has(partId)) return true;
   for (const partOccurrenceId of selection.partOccurrenceIds) {
     if (runtime.isPartOccurrenceVisible(partOccurrenceId)) return true;
   }
   return false;
+}
+
+function visiblePartIdsFor(runtime: SceneRuntime): Set<PartId> {
+  const visiblePartIds = new Set<PartId>();
+  for (const partOccurrenceId of runtime.getVisiblePartOccurrenceIds()) {
+    const partId = runtime.getPartId(partOccurrenceId);
+    if (partId !== undefined) visiblePartIds.add(partId);
+  }
+  return visiblePartIds;
 }
 
 function isSelected(interaction: InteractionState, target: SelectTarget): boolean {
