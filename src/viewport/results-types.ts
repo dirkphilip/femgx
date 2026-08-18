@@ -119,7 +119,7 @@ export interface ViewportResultsConfig {
   /** Optional nodal deformation role. */
   readonly deformation?: ViewportDeformationConfig;
   /** Optional authored elemental orientation role. */
-  readonly vectors?: ViewportElementVectorConfig | ViewportElementFrameConfig;
+  readonly orientation?: ViewportElementVectorConfig | ViewportElementFrameConfig;
   /** Optional authored nodal force and moment role. */
   readonly loads?: ViewportLoadConfig;
 }
@@ -143,11 +143,11 @@ export interface ViewportScalarState {
  * Resolved elemental vector role installed on a viewport.
  * @category Results
  */
-export type ViewportElementVectorState =
+export type ViewportOrientationState =
   | {
       /** Original vector-role configuration. */
       readonly config: ViewportElementVectorConfig;
-      /** Validated authored elemental vectors. */
+      /** Validated authored elemental orientation. */
       readonly field: VectorField<"elemental">;
       /** Renderer-owned glyph shape. */
       readonly glyph: "arrow" | "axis";
@@ -185,7 +185,7 @@ export interface ViewportResultsState {
   /** Resolved nodal deformation, when deformation is active. */
   readonly deformation: DeformationState | undefined;
   /** Resolved elemental orientation role, when active. */
-  readonly vectors: ViewportElementVectorState | undefined;
+  readonly orientation: ViewportOrientationState | undefined;
   /** Resolved authored loads, when active. */
   readonly loads?: ViewportLoadConfig;
 }

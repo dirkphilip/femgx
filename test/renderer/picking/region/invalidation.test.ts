@@ -39,7 +39,7 @@ describe("GPU pick regions", () => {
 
       for (let index = 0; index < 3; index += 1) {
         await expect(targets(gpu, context, "element", selection, pick)).resolves.toEqual([
-          { kind: "element", instanceId: "root/0", elementId: 4 },
+          { kind: "element", partOccurrenceId: "root/0", elementId: 4 },
         ]);
       }
 

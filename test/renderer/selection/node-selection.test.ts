@@ -50,8 +50,12 @@ describe("dense node selections", () => {
   it("retains hovered and highlighted nodes over dense selected membership", () => {
     const fixture = nodeFixture(1);
     let interaction = select(Array.from({ length: 128 }, (_, nodeId) => nodeId));
-    interaction = setNodeHighlighted(interaction, { instanceId: "1/0", nodeId: 2 }, true);
-    interaction = setTargetHovered(interaction, { kind: "node", instanceId: "1/0", nodeId: 3 });
+    interaction = setNodeHighlighted(interaction, { partOccurrenceId: "1/0", nodeId: 2 }, true);
+    interaction = setTargetHovered(interaction, {
+      kind: "node",
+      partOccurrenceId: "1/0",
+      nodeId: 3,
+    });
     const selections = collectDenseNodeSelections(
       fixture.runtime,
       fixture.layout,
@@ -60,8 +64,8 @@ describe("dense node selections", () => {
     );
     const refs = sparseNodes(fixture, interaction, selections);
     expect(refs).toEqual([
-      { instanceId: "1/0", nodeId: 3 },
-      { instanceId: "1/0", nodeId: 2 },
+      { partOccurrenceId: "1/0", nodeId: 3 },
+      { partOccurrenceId: "1/0", nodeId: 2 },
     ]);
     expect(emphasis(fixture, interaction, selections).get(1)).toHaveLength(2);
   });
@@ -90,7 +94,7 @@ describe("dense node selections", () => {
     expect(emphasis(fixture, invalidOnly, new Map()).get(1)).toBeUndefined();
     const stale = setTargetsSelected(
       createInteractionState(),
-      [{ kind: "node" as const, instanceId: "stale", nodeId: 0 }],
+      [{ kind: "node" as const, partOccurrenceId: "stale", nodeId: 0 }],
       true,
     );
     expect(emphasis(fixture, stale, new Map()).get(1)).toBeUndefined();
@@ -135,7 +139,7 @@ describe("dense node selections", () => {
       createInteractionState(),
       Array.from({ length: 128 }, (_, nodeId) => ({
         kind: "node" as const,
-        instanceId: "1/1",
+        partOccurrenceId: "1/1",
         nodeId,
       })),
       true,
@@ -152,10 +156,10 @@ describe("dense node selections", () => {
 
   it("charges one shared slot table across dense occurrences at crossover", () => {
     const fixture = nodeFixture(32);
-    const targets = ["1/0", "1/1"].flatMap((instanceId) =>
+    const targets = ["1/0", "1/1"].flatMap((partOccurrenceId) =>
       Array.from({ length: 5 }, (_, nodeId) => ({
         kind: "node" as const,
-        instanceId,
+        partOccurrenceId,
         nodeId,
       })),
     );
@@ -366,7 +370,7 @@ function selectWithTheme(
 ) {
   return setTargetsSelected(
     createInteractionState(theme),
-    nodeIds.map((nodeId) => ({ kind: "node" as const, instanceId: "1/0", nodeId })),
+    nodeIds.map((nodeId) => ({ kind: "node" as const, partOccurrenceId: "1/0", nodeId })),
     true,
   );
 }

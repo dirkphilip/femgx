@@ -3,28 +3,29 @@ import { createBoltedPlateFixture } from "../../../demo/fixtures/bolted-plate";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { sceneBounds } from "../../../demo/scene-bounds";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import type { Assembly, SubAssemblyPlacement } from "../../../src/scene/assembly";
+import type { AssemblyDefinition, AssemblyPlacement } from "../../../src/scene/assembly";
 import type { Scene } from "../../../src/scene/scene";
-import type { Instance } from "../../../src/scene/types";
+import type { PartOccurrence } from "../../../src/scene/types";
 
-function runtimeInstances(scene: Scene): readonly Instance[] {
+function runtimeInstances(scene: Scene): readonly PartOccurrence[] {
   const runtime = createPackedSceneRuntime(scene);
-  const instances: Instance[] = [];
+  const instances: PartOccurrence[] = [];
   const drawList = runtime.getDrawList();
   for (let index = 0; index < drawList.length; index += 1) {
     const slot = drawList[index];
     if (slot === undefined) continue;
-    const instanceId = runtime.getInstanceId(slot);
+    const partOccurrenceId = runtime.getInstanceId(slot);
     const partId = runtime.getPartId(slot);
     const worldTransform = runtime.getTransform(slot);
-    if (instanceId === undefined || partId === undefined || worldTransform === undefined) continue;
-    instances.push({ instanceId, partId, worldTransform });
+    if (partOccurrenceId === undefined || partId === undefined || worldTransform === undefined)
+      continue;
+    instances.push({ partOccurrenceId, partId, worldTransform });
   }
   return instances;
 }
 
 /** The display name of a registered assembly, when it carries one. */
-function assemblyName(assembly: Assembly | undefined): string | undefined {
+function assemblyName(assembly: AssemblyDefinition | undefined): string | undefined {
   return (assembly as { readonly name?: string }).name;
 }
 
@@ -50,7 +51,7 @@ describe("createBoltedPlateFixture", () => {
     expect(fixture.assemblyIds.fasteners).toBe(3);
     expect(fixture.assemblyIds.fastener).toBe(4);
     expect(fixture.assemblyIds.washers).toBe(5);
-    expect(fixture.instanceCount).toBe(34);
+    expect(fixture.partOccurrenceCount).toBe(34);
     expect(fixture.visibleInstanceCount).toBe(34);
     expect(fixture.scene.parts.size).toBe(4);
     expect(fixture.scene.assemblies.size).toBe(5);
@@ -74,7 +75,7 @@ describe("createBoltedPlateFixture", () => {
     const fastenerPlacements = fasteners?.placements ?? [];
     expect(fastenerPlacements.every((placement) => placement.kind === "assembly")).toBe(true);
     const fastenerNested = fastenerPlacements.filter(
-      (placement): placement is SubAssemblyPlacement => placement.kind === "assembly",
+      (placement): placement is AssemblyPlacement => placement.kind === "assembly",
     );
     expect(fastenerNested).toHaveLength(8);
     expect(fastenerNested.every((placement) => placement.assemblyId === assemblyIds.fastener)).toBe(
@@ -158,13 +159,13 @@ describe("createBoltedPlateFixture", () => {
   it("produces deterministic, stable instance ordering", () => {
     const fixture = createBoltedPlateFixture();
     const instances = runtimeInstances(fixture.scene);
-    expect(instances[0]?.instanceId).toBe("1/0/0");
-    expect(instances[1]?.instanceId).toBe("1/0/1");
-    expect(instances[2]?.instanceId).toBe("1/1/0/0");
-    expect(instances[3]?.instanceId).toBe("1/1/0/1/0");
-    expect(instances[4]?.instanceId).toBe("1/1/0/1/1");
-    expect(instances[5]?.instanceId).toBe("1/1/0/2");
-    expect(instances[instances.length - 1]?.instanceId).toBe("1/1/7/2");
+    expect(instances[0]?.partOccurrenceId).toBe("1/0/0");
+    expect(instances[1]?.partOccurrenceId).toBe("1/0/1");
+    expect(instances[2]?.partOccurrenceId).toBe("1/1/0/0");
+    expect(instances[3]?.partOccurrenceId).toBe("1/1/0/1/0");
+    expect(instances[4]?.partOccurrenceId).toBe("1/1/0/1/1");
+    expect(instances[5]?.partOccurrenceId).toBe("1/1/0/2");
+    expect(instances[instances.length - 1]?.partOccurrenceId).toBe("1/1/7/2");
   });
 
   it("reports the model bounds including protruding fasteners", () => {
@@ -228,8 +229,8 @@ describe("createBoltedPlateFixture", () => {
   it("produces identical output on repeated calls", () => {
     const first = runtimeInstances(createBoltedPlateFixture().scene);
     const second = runtimeInstances(createBoltedPlateFixture().scene);
-    expect(first.map((instance) => instance.instanceId)).toEqual(
-      second.map((instance) => instance.instanceId),
+    expect(first.map((instance) => instance.partOccurrenceId)).toEqual(
+      second.map((instance) => instance.partOccurrenceId),
     );
     expect(first.map((instance) => instance.worldTransform[12])).toEqual(
       second.map((instance) => instance.worldTransform[12]),
@@ -244,7 +245,7 @@ describe("createBoltedPlateFixture", () => {
     });
     expect(fixture.dimensions.plateLength).toBe(20);
     expect(fixture.dimensions.plateThickness).toBe(1);
-    expect(fixture.instanceCount).toBe(34);
+    expect(fixture.partOccurrenceCount).toBe(34);
     expect(fixture.visibleInstanceCount).toBe(34);
     expect(sceneBounds(fixture.scene)).toEqual({
       minX: -10,

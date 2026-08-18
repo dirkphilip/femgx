@@ -60,6 +60,25 @@ export interface Part {
   readonly bounds: Bounds;
 }
 
+/**
+ * Authoring payload for {@link createPart}.
+ *
+ * Geometry groups are retained by reference. Optional FE identity tables must
+ * describe the same local geometry and are validated together with the
+ * required geometry collection.
+ * @category Scene and geometry
+ */
+export interface PartInput {
+  /** Indexed geometry groups, one group per primitive topology. */
+  readonly geometries: readonly Geometry[];
+  /** Optional element-to-primitive ownership table. */
+  readonly elements?: readonly ElementTessellation[];
+  /** Optional dense part-local node coordinates for nodal results/deformation. */
+  readonly nodePositions?: Float32Array;
+  /** Optional semantic body table with direct element membership. */
+  readonly bodies?: readonly GeometryBody[];
+}
+
 const partBrand: unique symbol = Symbol("Part");
 
 /**
@@ -99,15 +118,7 @@ const partBrand: unique symbol = Symbol("Part");
  * ```
  * @category Start here
  */
-export function createPart(
-  id: PartId,
-  input: {
-    readonly geometries: readonly Geometry[];
-    readonly elements?: readonly ElementTessellation[];
-    readonly nodePositions?: Float32Array;
-    readonly bodies?: readonly GeometryBody[];
-  },
-): Part {
+export function createPart(id: PartId, input: PartInput): Part {
   validatePartId(id);
   const groups = input.geometries;
   if (groups.length === 0) throw new Error("Part must contain at least one geometry group");
@@ -138,15 +149,7 @@ export function createPart(
 }
 
 /** Internal branded record construction after an owning boundary has validated its inputs. */
-export function createPartRecord(
-  id: PartId,
-  input: {
-    readonly geometries: readonly Geometry[];
-    readonly elements?: readonly ElementTessellation[];
-    readonly nodePositions?: Float32Array;
-    readonly bodies?: readonly GeometryBody[];
-  },
-): Part {
+export function createPartRecord(id: PartId, input: PartInput): Part {
   return {
     [partBrand]: true,
     id,

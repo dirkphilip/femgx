@@ -89,7 +89,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | Case                              | Model                                  | Workload                                                          |
 | --------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
 | public runtime rebuild scaling    | 50k / 100k / 200k placements           | exported `createSceneRuntime`                                     |
-| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `Viewport.setScene`                                      |
+| public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `Viewport.replaceScene`                                  |
 | `createSceneRuntime` (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
 | structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `elementPart`                                            |
 | `createElementModelFromFemModel`  | 250 000 Triangle3 elements             | typed connectivity conversion                                     |
@@ -99,7 +99,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setPartVisible` toggle           | part with 1 000 instances              | hide then show                                                    |
 | `setAssemblyVisible` toggle       | subcase with 2 000 instances           | hide then show                                                    |
 | `setInstanceVisible` toggle       | single instance                        | override, hide then show                                          |
-| host surface variant update       | 1 024 / 4 096 / 16 384 placements      | `Viewport.updateScene` with one stable occurrence rebound         |
+| host surface variant update       | 1 024 / 4 096 / 16 384 placements      | `Viewport.reconcileScene` with one stable occurrence rebound      |
 | resident visibility skin update   | 1 / 2 / 4 / 8 elements and occurrences | one hidden element, shared signature, and exterior-subset restore |
 | `getDrawList`                     | 200 000 visible                        | rebuild draw list                                                 |
 | `sceneWorldBounds`                | 32 768 triangles × 64 placements       | reusable-part bounds and world transforms                         |

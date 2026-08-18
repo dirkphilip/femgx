@@ -23,7 +23,7 @@ describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {
     const scene = createBoltedPlatePreset().scene;
     const runtime = createSceneRuntime(scene);
-    const instances = runtime.getInstances();
+    const instances = runtime.getPartOccurrences();
     const first = instances[0];
     const second = instances[1];
     if (first === undefined || second === undefined) {
@@ -36,15 +36,19 @@ describe("WorkbenchVisibilityActions", () => {
     }
     const firstTarget = {
       kind: "element" as const,
-      instanceId: first.instanceId,
+      partOccurrenceId: first.partOccurrenceId,
       elementId: firstElement.id,
     };
     const secondTarget = {
       kind: "element" as const,
-      instanceId: second.instanceId,
+      partOccurrenceId: second.partOccurrenceId,
       elementId: secondElement.id,
     };
-    const nodeTarget = { kind: "node" as const, instanceId: first.instanceId, nodeId: 999 };
+    const nodeTarget = {
+      kind: "node" as const,
+      partOccurrenceId: first.partOccurrenceId,
+      nodeId: 999,
+    };
     let interaction = createInteractionState();
     interaction = setTargetSelected(interaction, firstTarget, true);
     interaction = setTargetSelected(interaction, secondTarget, true);
@@ -68,26 +72,26 @@ describe("WorkbenchVisibilityActions", () => {
   it("reports only visible selected elements as hide eligibility", () => {
     const scene = createBoltedPlatePreset().scene;
     const runtime = createSceneRuntime(scene);
-    const instance = runtime.getInstances()[0];
+    const instance = runtime.getPartOccurrences()[0];
     if (instance === undefined) throw new Error("Fixture must contain an instance");
     const element = scene.parts.get(instance.partId)?.elements?.[0];
     if (element === undefined) throw new Error("Fixture must contain an element");
     const elementTarget = {
       kind: "element" as const,
-      instanceId: instance.instanceId,
+      partOccurrenceId: instance.partOccurrenceId,
       elementId: element.id,
     };
     let interaction = createInteractionState();
     for (const target of [
-      { kind: "body" as const, instanceId: instance.instanceId, bodyId: 1 },
+      { kind: "body" as const, partOccurrenceId: instance.partOccurrenceId, bodyId: 1 },
       {
         kind: "face" as const,
-        instanceId: instance.instanceId,
+        partOccurrenceId: instance.partOccurrenceId,
         elementId: element.id,
         faceIndex: 0,
       },
-      { kind: "node" as const, instanceId: instance.instanceId, nodeId: 0 },
-      { kind: "edge" as const, instanceId: instance.instanceId, key: "0:1" },
+      { kind: "node" as const, partOccurrenceId: instance.partOccurrenceId, nodeId: 0 },
+      { kind: "edge" as const, partOccurrenceId: instance.partOccurrenceId, key: "0:1" },
       elementTarget,
     ]) {
       interaction = setTargetSelected(interaction, target, true);
@@ -102,13 +106,13 @@ describe("WorkbenchVisibilityActions", () => {
   it("reports no-op feedback without rendering when selected elements are already hidden", () => {
     const scene = createBoltedPlatePreset().scene;
     const runtime = createSceneRuntime(scene);
-    const instance = runtime.getInstances()[0];
+    const instance = runtime.getPartOccurrences()[0];
     if (instance === undefined) throw new Error("Fixture must contain an instance");
     const element = scene.parts.get(instance.partId)?.elements?.[0];
     if (element === undefined) throw new Error("Fixture must contain an element");
     const target = {
       kind: "element" as const,
-      instanceId: instance.instanceId,
+      partOccurrenceId: instance.partOccurrenceId,
       elementId: element.id,
     };
     let interaction = setElementVisible(createInteractionState(), target, false);
@@ -127,21 +131,21 @@ describe("WorkbenchVisibilityActions", () => {
   it("restores every visibility layer while preserving one interaction update", () => {
     const scene = createBoltedPlatePreset().scene;
     const runtime = createSceneRuntime(scene);
-    const firstInstance = runtime.getInstances()[0];
+    const firstInstance = runtime.getPartOccurrences()[0];
     if (firstInstance === undefined) throw new Error("Fixture must contain an instance");
     const firstBody = scene.parts.get(firstInstance.partId)?.bodies?.[0];
     if (firstBody === undefined) throw new Error("Fixture must contain a body");
 
     let interaction = setBodyVisible(
       createInteractionState(),
-      { instanceId: firstInstance.instanceId, bodyId: firstBody.id },
+      { partOccurrenceId: firstInstance.partOccurrenceId, bodyId: firstBody.id },
       false,
     );
     const firstElement = scene.parts.get(firstInstance.partId)?.elements?.[0];
     if (firstElement === undefined) throw new Error("Fixture must contain an element");
     interaction = setElementVisible(
       interaction,
-      { instanceId: firstInstance.instanceId, elementId: firstElement.id },
+      { partOccurrenceId: firstInstance.partOccurrenceId, elementId: firstElement.id },
       false,
     );
     let appliedInteractionCount = 0;
@@ -163,8 +167,8 @@ describe("WorkbenchVisibilityActions", () => {
         setPart(partId: number, visible: boolean): void {
           calls.push(`part:${partId}:${visible}`);
         },
-        setInstance(instanceId: string, visible: boolean): void {
-          calls.push(`instance:${instanceId}:${visible}`);
+        setPartOccurrence(partOccurrenceId: string, visible: boolean): void {
+          calls.push(`instance:${partOccurrenceId}:${visible}`);
         },
       },
     } as unknown as Viewport;
@@ -199,20 +203,26 @@ describe("WorkbenchVisibilityActions", () => {
       ...[...scene.assemblies.keys()].map((id) => `assembly:${id}:true`),
       ...runtime.getOccurrenceIds().map((id) => `occurrence:${id}:true`),
       ...[...scene.parts.keys()].map((id) => `part:${id}:true`),
-      ...runtime.getInstanceIds().map((id) => `instance:${id}:true`),
+      ...runtime.getPartOccurrenceIds().map((id) => `instance:${id}:true`),
     ];
     expect(calls).toEqual(expectedCalls);
 
-    for (const instance of runtime.getInstances()) {
+    for (const instance of runtime.getPartOccurrences()) {
       const bodies = scene.parts.get(instance.partId)?.bodies ?? [];
       for (const body of bodies) {
         expect(
-          isBodyVisible(interaction, { instanceId: instance.instanceId, bodyId: body.id }),
+          isBodyVisible(interaction, {
+            partOccurrenceId: instance.partOccurrenceId,
+            bodyId: body.id,
+          }),
         ).toBe(true);
       }
       for (const element of scene.parts.get(instance.partId)?.elements ?? []) {
         expect(
-          isElementVisible(interaction, { instanceId: instance.instanceId, elementId: element.id }),
+          isElementVisible(interaction, {
+            partOccurrenceId: instance.partOccurrenceId,
+            elementId: element.id,
+          }),
         ).toBe(true);
       }
     }

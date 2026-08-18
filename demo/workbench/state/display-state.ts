@@ -92,7 +92,7 @@ function resultRoles(options: ResultRolesOptions): ViewportResultsConfig | undef
   return {
     ...(scalar === undefined ? {} : { scalar }),
     ...(deformation === undefined ? {} : { deformation }),
-    ...(vector === undefined ? {} : { vectors: vector }),
+    ...(vector === undefined ? {} : { orientation: vector }),
     ...(loads === undefined ? {} : { loads }),
   };
 }

@@ -4,7 +4,7 @@
  */
 export class UnknownSceneIdentityError extends Error {
   /** Identity category that was not found. */
-  readonly kind: "part" | "assembly" | "assembly-occurrence" | "instance";
+  readonly kind: "part" | "assembly" | "assembly-occurrence" | "partOccurrence";
   /** Missing stable id supplied to the visibility operation. */
   readonly id: number | string;
 

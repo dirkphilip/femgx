@@ -38,7 +38,7 @@ if (tet4InstanceId === undefined) throw new Error("Tet4 benchmark instance is mi
 const tet4Elements = tet4Part.elements ?? [];
 const tet4Targets = tet4Elements.map((element) => ({
   kind: "element" as const,
-  instanceId: tet4InstanceId,
+  partOccurrenceId: tet4InstanceId,
   elementId: element.id,
 }));
 getPartSemanticIndex(tet4Part);

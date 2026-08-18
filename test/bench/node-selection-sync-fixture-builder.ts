@@ -23,7 +23,7 @@ interface Tet4Setup {
   readonly parts: ReadonlyMap<number, Part>;
   readonly runtime: ReturnType<typeof createPackedSceneRuntime>;
   readonly layout: ReturnType<typeof buildInstanceLayout>;
-  readonly instanceIds: readonly string[];
+  readonly partOccurrenceIds: readonly string[];
   readonly nodeCount: number;
   readonly elementCount: number;
 }
@@ -50,19 +50,19 @@ function createTet4Setup(): Tet4Setup {
   if (part === undefined) throw new Error("Tet4 benchmark part is missing");
   const runtime = createPackedSceneRuntime(benchmark.scene);
   const layout = buildInstanceLayout(runtime);
-  const instanceIds = runtimeInstanceIds(runtime);
+  const partOccurrenceIds = runtimeInstanceIds(runtime);
   const nodeCount = (part.nodePositions?.length ?? 0) / 3;
   const elementCount = (part.elements ?? []).length;
   if (nodeCount !== NODE_COUNT) throw new Error(`Tet4 node count changed: ${nodeCount}`);
   if (elementCount !== ELEMENT_COUNT)
     throw new Error(`Tet4 element count changed: ${elementCount}`);
-  if (instanceIds[0] === undefined) throw new Error("Tet4 benchmark instance is missing");
+  if (partOccurrenceIds[0] === undefined) throw new Error("Tet4 benchmark instance is missing");
   return {
     part,
     parts: benchmark.scene.parts,
     runtime,
     layout,
-    instanceIds,
+    partOccurrenceIds,
     nodeCount,
     elementCount,
   };
@@ -77,9 +77,9 @@ function buildCases(setup: Tet4Setup): ReadonlyMap<NodeCase["id"], NodeCase> {
 }
 
 function buildCase(setup: Tet4Setup, id: NodeCase["id"], nodeIds: readonly number[]): NodeCase {
-  const instanceId = setup.instanceIds[0];
-  if (instanceId === undefined) throw new Error("Tet4 benchmark instance is missing");
-  const targets = nodeIds.map((nodeId) => ({ kind: "node" as const, instanceId, nodeId }));
+  const partOccurrenceId = setup.partOccurrenceIds[0];
+  if (partOccurrenceId === undefined) throw new Error("Tet4 benchmark instance is missing");
+  const targets = nodeIds.map((nodeId) => ({ kind: "node" as const, partOccurrenceId, nodeId }));
   const interaction = setTargetsSelected(createInteractionState(), targets, true);
   const denseNodeSelections = collectDenseNodeSelections(
     setup.runtime,
@@ -98,7 +98,7 @@ function buildCase(setup: Tet4Setup, id: NodeCase["id"], nodeIds: readonly numbe
       denseNodeSelections,
     },
   );
-  assertNodeSelection(interaction, instanceId, nodeIds.length);
+  assertNodeSelection(interaction, partOccurrenceId, nodeIds.length);
   return {
     id,
     interaction,

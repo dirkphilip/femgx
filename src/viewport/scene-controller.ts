@@ -12,7 +12,7 @@ import {
 import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
 import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
-import type { SceneUpdateOutcome } from "./types";
+import type { SceneReconciliationOutcome } from "./types";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
@@ -21,7 +21,7 @@ interface PreparedSceneReplacement {
   readonly originTriadNominalScale: number;
   readonly baseInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
-  readonly outcome: SceneUpdateOutcome;
+  readonly outcome: SceneReconciliationOutcome;
 }
 
 interface SceneControllerOptions {
@@ -71,12 +71,12 @@ export class ViewportSceneController {
     return this.originTriadNominalScale;
   }
 
-  setScene(scene: Scene, cancelCamera: () => void): void {
-    this.replaceScene(scene, false, true, cancelCamera);
+  replaceScene(scene: Scene, cancelCamera: () => void): void {
+    this.applySceneReplacement(scene, false, true, cancelCamera);
   }
 
-  updateScene(scene: Scene, cancelCamera: () => void): SceneUpdateOutcome {
-    return this.replaceScene(scene, true, false, cancelCamera);
+  reconcileScene(scene: Scene, cancelCamera: () => void): SceneReconciliationOutcome {
+    return this.applySceneReplacement(scene, true, false, cancelCamera);
   }
 
   setInteraction(interaction: InteractionState): void {
@@ -98,12 +98,12 @@ export class ViewportSceneController {
     applyResolvedViewportResults(this.options.renderer, undefined);
   }
 
-  private replaceScene(
+  private applySceneReplacement(
     scene: Scene,
     preserveResults: boolean,
     resetRenderer: boolean,
     cancelCamera: () => void,
-  ): SceneUpdateOutcome {
+  ): SceneReconciliationOutcome {
     const replacement = this.prepareSceneReplacement(scene, preserveResults);
     if (resetRenderer) this.options.renderer.resetScene(replacement.scene.parts);
     cancelCamera();
@@ -149,7 +149,7 @@ export class ViewportSceneController {
     runtime: PackedSceneRuntime,
   ): {
     readonly results: ViewportResultsState | undefined;
-    readonly outcome: SceneUpdateOutcome;
+    readonly outcome: SceneReconciliationOutcome;
   } {
     const previous = this.currentResults;
     if (previous === undefined) {

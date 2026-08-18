@@ -5,7 +5,7 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 import type { PartId } from "../geometry/part";
 import { applySelectionStyle, resolveInstanceStyle } from "./interaction";
 import type { EdgeRef } from "./refs";
@@ -18,7 +18,7 @@ function updateEdgeSet(
   enabled: boolean,
 ): InteractionState {
   const data = readInteractionState(state);
-  const map = updateNestedMap(data[key], ref.instanceId, ref.key, enabled ? ref : undefined);
+  const map = updateNestedMap(data[key], ref.partOccurrenceId, ref.key, enabled ? ref : undefined);
   if (map === data[key]) return state;
   return updateInteractionState(state, { [key]: map });
 }
@@ -43,7 +43,7 @@ export function setEdgeHighlighted(
 
 /** Resolves the renderer style of one authored edge occurrence. */
 export function resolveEdgeStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   ref: EdgeRef,
   base: ResolvedStyle,
   state: InteractionState,
@@ -51,10 +51,10 @@ export function resolveEdgeStyle(
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
   return applyStyleLayers(style, [
-    data.selectedEdges.get(ref.instanceId)?.has(ref.key) === true
+    data.selectedEdges.get(ref.partOccurrenceId)?.has(ref.key) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedEdges.get(ref.instanceId)?.has(ref.key) === true
+    data.highlightedEdges.get(ref.partOccurrenceId)?.has(ref.key) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, { kind: "edge", ...ref })
@@ -68,9 +68,9 @@ export function emphasizedEdgeRefs(state: InteractionState): readonly EdgeRef[] 
   const data = readInteractionState(state);
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "edge"
-      ? { instanceId: data.hoveredTarget.instanceId, key: data.hoveredTarget.key }
+      ? { partOccurrenceId: data.hoveredTarget.partOccurrenceId, key: data.hoveredTarget.key }
       : undefined,
-    (ref) => `${ref.instanceId}/${ref.key}`,
+    (ref) => `${ref.partOccurrenceId}/${ref.key}`,
     (push) => {
       for (const [, edges] of data.highlightedEdges) {
         for (const key of sortedStrings(edges.keys())) {

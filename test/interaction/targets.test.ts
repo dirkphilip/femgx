@@ -23,17 +23,17 @@ import {
 } from "../../src/interaction/selection-queries";
 import type { PickHit } from "../../src/picking/types";
 import { identity } from "../../src/math/mat4";
-import type { Instance } from "../../src/scene/types";
+import type { PartOccurrence } from "../../src/scene/types";
 import { readInteractionState } from "../../src/interaction/state";
 
 const targets = [
   { kind: "part", partId: 1 },
-  { kind: "instance", instanceId: "1/0" },
-  { kind: "body", instanceId: "1/0", bodyId: 2 },
-  { kind: "element", instanceId: "1/0", elementId: 3 },
-  { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
-  { kind: "node", instanceId: "1/0", nodeId: 4 },
-  { kind: "edge", instanceId: "1/0", key: "0,2" },
+  { kind: "partOccurrence", partOccurrenceId: "1/0" },
+  { kind: "body", partOccurrenceId: "1/0", bodyId: 2 },
+  { kind: "element", partOccurrenceId: "1/0", elementId: 3 },
+  { kind: "face", partOccurrenceId: "1/0", elementId: 3, faceIndex: 0 },
+  { kind: "node", partOccurrenceId: "1/0", nodeId: 4 },
+  { kind: "edge", partOccurrenceId: "1/0", key: "0,2" },
 ] as const satisfies readonly InteractionTarget[];
 
 describe("InteractionTarget helpers", () => {
@@ -87,7 +87,7 @@ describe("InteractionTarget helpers", () => {
     expect(selectedTargetSummary(state)).toEqual({
       count: targets.length,
       partIds: new Set([1]),
-      instanceIds: new Set(["1/0"]),
+      partOccurrenceIds: new Set(["1/0"]),
     });
     expect(selectedTargetCount(state, "element")).toBe(1);
     expect(setTargetsSelected(state, duplicateTargets, true)).toBe(state);
@@ -115,18 +115,22 @@ describe("InteractionTarget helpers", () => {
     let state = createInteractionState();
     for (const target of targets) state = setTargetSelected(state, target, true);
     state = setTargetHighlighted(state, { kind: "part", partId: 1 }, true);
-    state = setTargetHighlighted(state, { kind: "element", instanceId: "1/0", elementId: 5 }, true);
-    state = setTargetHovered(state, { kind: "element", instanceId: "1/0", elementId: 5 });
-    state = setElementOverride(state, { instanceId: "1/0", elementId: 5 }, { emissive: 0.8 });
+    state = setTargetHighlighted(
+      state,
+      { kind: "element", partOccurrenceId: "1/0", elementId: 5 },
+      true,
+    );
+    state = setTargetHovered(state, { kind: "element", partOccurrenceId: "1/0", elementId: 5 });
+    state = setElementOverride(state, { partOccurrenceId: "1/0", elementId: 5 }, { emissive: 0.8 });
     const cleared = clearSelection(state);
     for (const target of targets) expect(isTargetSelected(cleared, target)).toBe(false);
     expect(isTargetHighlighted(cleared, { kind: "part", partId: 1 })).toBe(true);
-    expect(isTargetHighlighted(cleared, { kind: "element", instanceId: "1/0", elementId: 5 })).toBe(
-      true,
-    );
+    expect(
+      isTargetHighlighted(cleared, { kind: "element", partOccurrenceId: "1/0", elementId: 5 }),
+    ).toBe(true);
     expect(readInteractionState(cleared).hoveredTarget).toEqual({
       kind: "element",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 5,
     });
     expect(readInteractionState(cleared).elementOverrides.get("1/0")?.get(5)).toEqual({
@@ -136,12 +140,18 @@ describe("InteractionTarget helpers", () => {
 
   it("accepts rich PickHit values directly", () => {
     const hits: PickHit[] = [
-      { kind: "instance", partId: 1, instanceId: "1/0", worldPosition: [0, 0, 0] },
-      { kind: "element", partId: 1, instanceId: "1/0", elementId: 3, worldPosition: [0, 0, 0] },
+      { kind: "partOccurrence", partId: 1, partOccurrenceId: "1/0", worldPosition: [0, 0, 0] },
+      {
+        kind: "element",
+        partId: 1,
+        partOccurrenceId: "1/0",
+        elementId: 3,
+        worldPosition: [0, 0, 0],
+      },
       {
         kind: "face",
         partId: 1,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId: 3,
         faceIndex: 0,
         key: "0,1,2",
@@ -153,7 +163,7 @@ describe("InteractionTarget helpers", () => {
       {
         kind: "node",
         partId: 1,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId: 3,
         nodeId: 4,
         localPosition: [0, 0, 0],
@@ -164,7 +174,7 @@ describe("InteractionTarget helpers", () => {
       {
         kind: "edge",
         partId: 1,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         key: "0,2",
         nodeIds: [0, 2],
         incidentElementIds: [3],
@@ -179,8 +189,8 @@ describe("InteractionTarget helpers", () => {
   });
 
   it("keeps authored-edge targets occurrence-scoped and ordered", () => {
-    const edge = { kind: "edge", instanceId: "1/0", key: "0,2" } as const;
-    const other = { kind: "edge", instanceId: "2/0", key: "0,2" } as const;
+    const edge = { kind: "edge", partOccurrenceId: "1/0", key: "0,2" } as const;
+    const other = { kind: "edge", partOccurrenceId: "2/0", key: "0,2" } as const;
     let state = setTargetSelected(createInteractionState(), other, true);
     state = setTargetSelected(state, edge, true);
     expect(isTargetSelected(state, edge)).toBe(true);
@@ -191,7 +201,7 @@ describe("InteractionTarget helpers", () => {
         {
           kind: "edge",
           partId: 1,
-          instanceId: "1/0",
+          partOccurrenceId: "1/0",
           key: "0,2",
           nodeIds: [0, 2],
           incidentElementIds: [3],
@@ -215,12 +225,12 @@ describe("element highlight state", () => {
     edge: false,
     nodes: false,
   } as const;
-  const instance: Instance = {
-    instanceId: "1/0",
+  const instance: PartOccurrence = {
+    partOccurrenceId: "1/0",
     partId: 1,
     worldTransform: identity(),
   };
-  const ref = { instanceId: "1/0", elementId: 3 } as const;
+  const ref = { partOccurrenceId: "1/0", elementId: 3 } as const;
 
   it("keeps highlight and hover emphasis visible over selection color", () => {
     let state = setTargetHighlighted(createInteractionState(), { kind: "element", ...ref }, true);

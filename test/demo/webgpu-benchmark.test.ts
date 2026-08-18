@@ -228,8 +228,8 @@ describe("WebGPU benchmark models", () => {
     const runtime = createPackedSceneRuntime(benchmarkCase.scene);
     const targets = authoredElementTargets(benchmarkCase, runtime);
     expect(targets).toHaveLength(48);
-    expect(targets[0]).toEqual({ kind: "element", instanceId: "1/0", elementId: 1 });
-    expect(targets.at(-1)).toEqual({ kind: "element", instanceId: "1/0", elementId: 48 });
+    expect(targets[0]).toEqual({ kind: "element", partOccurrenceId: "1/0", elementId: 1 });
+    expect(targets.at(-1)).toEqual({ kind: "element", partOccurrenceId: "1/0", elementId: 48 });
   });
 
   it("keeps the opt-in orientation workload aligned to structured element ids", () => {

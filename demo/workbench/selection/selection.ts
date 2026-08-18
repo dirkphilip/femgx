@@ -94,14 +94,14 @@ export function selectionDatasetValue(interaction: InteractionState): string {
 export function hasVisibleSelection(interaction: InteractionState, runtime: SceneRuntime): boolean {
   const visiblePartIds = new Set(
     runtime
-      .getInstances()
+      .getPartOccurrences()
       .filter((instance) => instance.visible)
       .map((instance) => instance.partId),
   );
   const selection = selectedTargetSummary(interaction);
   for (const partId of selection.partIds) if (visiblePartIds.has(partId)) return true;
-  for (const instanceId of selection.instanceIds) {
-    if (runtime.isInstanceVisible(instanceId)) return true;
+  for (const partOccurrenceId of selection.partOccurrenceIds) {
+    if (runtime.isPartOccurrenceVisible(partOccurrenceId)) return true;
   }
   return false;
 }

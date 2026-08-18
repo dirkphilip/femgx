@@ -64,8 +64,8 @@ export function throughIntersectionBoxSelectionResolver(
     const deformation = view.results.state?.deformation;
     const targets: InteractionTarget[] = [];
 
-    for (const instanceId of view.runtime.getVisibleInstanceIds()) {
-      const instance = view.runtime.getInstance(instanceId);
+    for (const partOccurrenceId of view.runtime.getVisiblePartOccurrenceIds()) {
+      const instance = view.runtime.getPartOccurrence(partOccurrenceId);
       if (instance === undefined || !instance.visible || !instance.partVisible) continue;
       const occurrence = view.runtime.getOccurrence(instance.occurrenceId);
       if (occurrence === undefined || !occurrence.effectiveVisible) continue;
@@ -73,11 +73,11 @@ export function throughIntersectionBoxSelectionResolver(
       if (part === undefined) continue;
       const partQuery = queryData(part);
       for (const element of partQuery.elements) {
-        if (!isElementVisible(view.interaction.state, { instanceId, elementId: element.id }))
+        if (!isElementVisible(view.interaction.state, { partOccurrenceId, elementId: element.id }))
           continue;
         if (
           element.bodyId !== undefined &&
-          !isBodyVisible(view.interaction.state, { instanceId, bodyId: element.bodyId })
+          !isBodyVisible(view.interaction.state, { partOccurrenceId, bodyId: element.bodyId })
         ) {
           continue;
         }
@@ -93,7 +93,7 @@ export function throughIntersectionBoxSelectionResolver(
             tolerance,
           })
         ) {
-          targets.push({ kind: "element", instanceId, elementId: element.id });
+          targets.push({ kind: "element", partOccurrenceId, elementId: element.id });
         }
       }
     }

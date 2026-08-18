@@ -1,4 +1,4 @@
-import type { Assembly, Placement } from "../../../src/scene/assembly";
+import type { AssemblyDefinition, Placement } from "../../../src/scene/assembly";
 
 import { identity, translation } from "../../../src/math/mat4";
 
@@ -21,7 +21,7 @@ export function part(id: number): Part {
 /** Shared core test helper. */
 export function buildScene(
   rootAssemblyId: number,
-  assemblies: readonly Assembly[],
+  assemblies: readonly AssemblyDefinition[],
   parts: readonly number[],
   hiddenPartIds: readonly number[] = [],
   hiddenAssemblyIds: readonly number[] = [],
@@ -68,7 +68,7 @@ export function sceneWithPlacement(placement: Placement): Scene {
 }
 
 export {
-  type Assembly,
+  type AssemblyDefinition,
   type Placement,
   identity,
   translation,

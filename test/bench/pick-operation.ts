@@ -12,7 +12,7 @@ import type { OperationSpec } from "./operation-report";
 
 interface PickBenchmarkInput {
   readonly part: Part;
-  readonly instanceId: string;
+  readonly partOccurrenceId: string;
 }
 
 interface PickBenchmarkSetup {
@@ -88,12 +88,7 @@ function buildPickBenchmarkSetup(input: PickBenchmarkInput): PickBenchmarkSetup 
   if (physicalElementPickId === 0 || physicalFacePickId === 0 || physicalNodePickId === 0) {
     throw new Error("Pick operation fixture has no complete final rendered triangle ids");
   }
-  const context: PickContext = {
-    instances: [
-      { instanceId: input.instanceId, partId: input.part.id, worldTransform: identity() },
-    ],
-    parts: new Map([[input.part.id, input.part]]),
-  };
+  const context = pickContext(input);
   return {
     context,
     directIds: {
@@ -119,6 +114,19 @@ function buildPickBenchmarkSetup(input: PickBenchmarkInput): PickBenchmarkSetup 
         semantic.nodeTriangleFaceOffsets.byteLength + semantic.nodeTriangleFaceIds.byteLength,
       semanticIndexSetupMs,
     },
+  };
+}
+
+function pickContext(input: PickBenchmarkInput): PickContext {
+  return {
+    instances: [
+      {
+        partOccurrenceId: input.partOccurrenceId,
+        partId: input.part.id,
+        worldTransform: identity(),
+      },
+    ],
+    parts: new Map([[input.part.id, input.part]]),
   };
 }
 

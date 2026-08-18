@@ -51,9 +51,9 @@ describe("importGlb", () => {
     const result = await importGlb(ONShapeCylinder);
     const runtime = createSceneRuntime(result.scene);
 
-    expect(runtime.instanceCount).toBe(4);
+    expect(runtime.partOccurrenceCount).toBe(4);
     expect(runtime.visibleCount).toBe(4);
-    expect(runtime.getInstances().map((instance) => instance.partId)).toEqual([0, 1, 2, 3]);
+    expect(runtime.getPartOccurrences().map((instance) => instance.partId)).toEqual([0, 1, 2, 3]);
   });
 
   it("allocates deterministic ids and rejects strict ignored-feature diagnostics", async () => {
@@ -116,7 +116,7 @@ describe("importGlb", () => {
     expect(result.scene.assemblies.get(1)?.placements).toHaveLength(2);
     expect(result.scene.assemblies.get(2)?.placements).toHaveLength(1);
     expect(result.scene.assemblies.get(3)?.placements).toHaveLength(1);
-    expect(createSceneRuntime(result.scene).instanceCount).toBe(3);
+    expect(createSceneRuntime(result.scene).partOccurrenceCount).toBe(3);
     expect([...(result.scene.assemblies.get(0)?.placements[0]?.transform ?? [])]).toEqual([
       1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1,
     ]);

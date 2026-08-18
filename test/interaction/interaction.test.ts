@@ -5,7 +5,7 @@ import {
   resolveElementStyle,
   resolveInstanceStyle,
   setElementOverride,
-  setInstanceOverride,
+  setPartOccurrenceOverride,
   setPartOverride,
   type InteractionState,
   type ResolvedStyle,
@@ -21,7 +21,7 @@ import { setBodyOverride } from "../../src/interaction/bodies";
 import { readInteractionState } from "../../src/interaction/state";
 import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import { identity } from "../../src/math/mat4";
-import type { ElementRef, Instance } from "../../src/scene/types";
+import type { ElementRef, PartOccurrence } from "../../src/scene/types";
 
 const base: ResolvedStyle = {
   color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
@@ -31,16 +31,16 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: Instance = { instanceId: "1/0", partId: 1, worldTransform: identity() };
-const other: Instance = { instanceId: "2/0", partId: 2, worldTransform: identity() };
+const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
+const other: PartOccurrence = { partOccurrenceId: "2/0", partId: 2, worldTransform: identity() };
 
 function filledState(): InteractionState {
   let state = createInteractionState();
   state = setTargetSelected(state, { kind: "part", partId: 1 }, true);
-  state = setTargetSelected(state, { kind: "instance", instanceId: "1/0" }, true);
-  state = setTargetHovered(state, { kind: "instance", instanceId: "1/0" });
+  state = setTargetSelected(state, { kind: "partOccurrence", partOccurrenceId: "1/0" }, true);
+  state = setTargetHovered(state, { kind: "partOccurrence", partOccurrenceId: "1/0" });
   state = setPartOverride(state, 1, { emissive: 0.1 });
-  state = setInstanceOverride(state, "1/0", { opacity: 0.25 });
+  state = setPartOccurrenceOverride(state, "1/0", { opacity: 0.25 });
   return state;
 }
 
@@ -75,8 +75,10 @@ describe("opaque interaction state", () => {
     const selected = setTargetSelected(initial, { kind: "part", partId: 1 }, true);
     expect(setTargetSelected(selected, { kind: "part", partId: 1 }, true)).toBe(selected);
     expect(setTargetSelected(initial, { kind: "part", partId: 1 }, false)).toBe(initial);
-    const hovered = setTargetHovered(initial, { kind: "instance", instanceId: "1/0" });
-    expect(setTargetHovered(hovered, { kind: "instance", instanceId: "1/0" })).toBe(hovered);
+    const hovered = setTargetHovered(initial, { kind: "partOccurrence", partOccurrenceId: "1/0" });
+    expect(setTargetHovered(hovered, { kind: "partOccurrence", partOccurrenceId: "1/0" })).toBe(
+      hovered,
+    );
     expect(setTargetHovered(hovered, undefined)).not.toBe(hovered);
     expect(hoveredTarget(setTargetHovered(hovered, undefined))).toBeUndefined();
   });
@@ -84,11 +86,11 @@ describe("opaque interaction state", () => {
   it("supports every target kind through the same selection query", () => {
     const targets = [
       { kind: "part", partId: 1 },
-      { kind: "instance", instanceId: "1/0" },
-      { kind: "body", instanceId: "1/0", bodyId: 2 },
-      { kind: "element", instanceId: "1/0", elementId: 3 },
-      { kind: "face", instanceId: "1/0", elementId: 3, faceIndex: 0 },
-      { kind: "node", instanceId: "1/0", nodeId: 4 },
+      { kind: "partOccurrence", partOccurrenceId: "1/0" },
+      { kind: "body", partOccurrenceId: "1/0", bodyId: 2 },
+      { kind: "element", partOccurrenceId: "1/0", elementId: 3 },
+      { kind: "face", partOccurrenceId: "1/0", elementId: 3, faceIndex: 0 },
+      { kind: "node", partOccurrenceId: "1/0", nodeId: 4 },
     ] as const;
     for (const target of targets) {
       const state = setTargetSelected(createInteractionState(), target, true);
@@ -106,19 +108,19 @@ describe("instance style resolution", () => {
   it("resolves node membership from part to instance with instance precedence", () => {
     let state = setPartOverride(createInteractionState(), item.partId, { nodes: true });
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
-    state = setInstanceOverride(state, item.instanceId, { nodes: false });
+    state = setPartOccurrenceOverride(state, item.partOccurrenceId, { nodes: false });
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(false);
-    state = setInstanceOverride(state, item.instanceId, { nodes: true });
+    state = setPartOccurrenceOverride(state, item.partOccurrenceId, { nodes: true });
     expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
   });
 
   it("resolves line width only through part and instance overrides", () => {
     let state = setPartOverride(createInteractionState(), item.partId, { lineWidthPixels: 6 });
     expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(6);
-    state = setInstanceOverride(state, item.instanceId, { lineWidthPixels: 3 });
+    state = setPartOccurrenceOverride(state, item.partOccurrenceId, { lineWidthPixels: 3 });
     expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(3);
     expect(() =>
-      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, {
+      setElementOverride(createInteractionState(), { partOccurrenceId: "1/0", elementId: 2 }, {
         lineWidthPixels: 4,
       } as never),
     ).toThrow("lineWidthPixels is only supported on part and instance overrides");
@@ -127,7 +129,11 @@ describe("instance style resolution", () => {
   it("rejects overlay membership on primitive-specific override boundaries", () => {
     const invalid = { nodes: true } as never;
     expect(() =>
-      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, invalid),
+      setElementOverride(
+        createInteractionState(),
+        { partOccurrenceId: "1/0", elementId: 2 },
+        invalid,
+      ),
     ).toThrow("edge and nodes are only supported on part and instance overrides");
     expect(() =>
       createInteractionState({
@@ -136,16 +142,16 @@ describe("instance style resolution", () => {
       }),
     ).toThrow("edge and nodes are only supported on part and instance overrides");
     expect(() =>
-      setElementOverride(createInteractionState(), { instanceId: "1/0", elementId: 2 }, {
+      setElementOverride(createInteractionState(), { partOccurrenceId: "1/0", elementId: 2 }, {
         edge: true,
       } as never),
     ).toThrow("edge and nodes are only supported on part and instance overrides");
   });
 
   it("rejects non-finite and out-of-range alpha values at override boundaries", () => {
-    expect(() => setInstanceOverride(createInteractionState(), "1/0", { opacity: -0.1 })).toThrow(
-      /opacity must be finite and in \[0, 1\]/,
-    );
+    expect(() =>
+      setPartOccurrenceOverride(createInteractionState(), "1/0", { opacity: -0.1 }),
+    ).toThrow(/opacity must be finite and in \[0, 1\]/);
     expect(() =>
       setPartOverride(createInteractionState(), 1, {
         color: { r: 0, g: 0, b: 0, a: Number.NaN },
@@ -163,15 +169,19 @@ describe("instance style resolution", () => {
         setPartOverride(createInteractionState(), 1, { emissive });
       },
       (emissive: number) => {
-        setInstanceOverride(createInteractionState(), "1/0", { emissive });
+        setPartOccurrenceOverride(createInteractionState(), "1/0", { emissive });
       },
       (emissive: number) => {
-        setBodyOverride(createInteractionState(), { instanceId: "1/0", bodyId: 3 }, { emissive });
+        setBodyOverride(
+          createInteractionState(),
+          { partOccurrenceId: "1/0", bodyId: 3 },
+          { emissive },
+        );
       },
       (emissive: number) => {
         setElementOverride(
           createInteractionState(),
-          { instanceId: "1/0", elementId: 2 },
+          { partOccurrenceId: "1/0", elementId: 2 },
           { emissive },
         );
       },
@@ -203,17 +213,21 @@ describe("instance style resolution", () => {
       resolveInstanceStyle(
         item,
         base,
-        setTargetSelected(createInteractionState(), { kind: "instance", instanceId: "1/0" }, true),
+        setTargetSelected(
+          createInteractionState(),
+          { kind: "partOccurrence", partOccurrenceId: "1/0" },
+          true,
+        ),
       ),
     ).toMatchObject({ color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, emissive: 0 });
     const hovered = setTargetHovered(createInteractionState(), {
-      kind: "instance",
-      instanceId: "1/0",
+      kind: "partOccurrence",
+      partOccurrenceId: "1/0",
     });
     expect(resolveInstanceStyle(item, base, hovered)).toMatchObject({ emissive: 0.35 });
     expect(resolveInstanceStyle(other, base, filledState())).toBe(base);
     const override = setPartOverride(
-      setInstanceOverride(createInteractionState(), "1/0", { opacity: 0.25 }),
+      setPartOccurrenceOverride(createInteractionState(), "1/0", { opacity: 0.25 }),
       1,
       { color: { r: 0, g: 0, b: 0, a: 1 } },
     );
@@ -225,7 +239,7 @@ describe("instance style resolution", () => {
 });
 
 describe("element interaction", () => {
-  const ref: ElementRef = { instanceId: "1/0", elementId: 2 };
+  const ref: ElementRef = { partOccurrenceId: "1/0", elementId: 2 };
 
   it("preserves nested immutable collections and explicit override precedence", () => {
     const selected = setTargetSelected(createInteractionState(), { kind: "element", ...ref }, true);
@@ -252,13 +266,15 @@ describe("element interaction", () => {
   it("tracks visibility per element occurrence and preserves no-op identity", () => {
     const initial = createInteractionState();
     const hidden = setElementVisible(initial, ref, false);
-    const other = { instanceId: "2/0", elementId: ref.elementId };
+    const other = { partOccurrenceId: "2/0", elementId: ref.elementId };
     expect(isElementVisible(initial, ref)).toBe(true);
     expect(isElementVisible(hidden, ref)).toBe(false);
     expect(isElementVisible(hidden, other)).toBe(true);
     expect(setElementVisible(hidden, ref, false)).toBe(hidden);
     expect(setElementVisible(hidden, ref, true)).not.toBe(hidden);
-    expect(readInteractionState(hidden).hiddenElementIds.get(ref.instanceId)).toEqual(new Set([2]));
+    expect(readInteractionState(hidden).hiddenElementIds.get(ref.partOccurrenceId)).toEqual(
+      new Set([2]),
+    );
   });
 
   it("keeps hidden elements in the emphasis stream for GPU updates", () => {

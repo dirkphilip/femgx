@@ -1,7 +1,7 @@
 import type { Mat4 } from "../math/mat4";
 import { validateScene, type Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
 import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
@@ -27,9 +27,9 @@ interface RuntimeMethods {
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
   /** Resolves a stable instance slot to its authoring placement handle. */
-  getInstanceId(instanceId: number): InstanceId | undefined;
+  getInstanceId(instanceId: number): PartOccurrenceId | undefined;
   /** Resolves an authoring placement handle to its packed slot. */
-  getInstanceSlot(instanceId: InstanceId): number | undefined;
+  getInstanceSlot(instanceId: PartOccurrenceId): number | undefined;
   /** Resolves a packed node slot to its stable occurrence handle. */
   getNodeId(nodeId: number): AssemblyOccurrenceId | undefined;
   /** Resolves an assembly occurrence handle to its packed node slot. */
@@ -59,12 +59,12 @@ function matrixView(transforms: Float32Array, count: number, index: number): Mat
 }
 
 interface RuntimeMaps {
-  readonly instanceSlots: ReadonlyMap<InstanceId, number>;
+  readonly instanceSlots: ReadonlyMap<PartOccurrenceId, number>;
   readonly nodeSlots: ReadonlyMap<AssemblyOccurrenceId, number>;
 }
 
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
-  const instanceSlots = new Map<InstanceId, number>();
+  const instanceSlots = new Map<PartOccurrenceId, number>();
   for (let slot = 0; slot < state.instanceInstanceIds.length; slot++) {
     const instanceId = invariantValue(state.instanceInstanceIds[slot], `instance id at ${slot}`);
     instanceSlots.set(instanceId, slot);
@@ -106,10 +106,10 @@ function createRuntimeQueries(
     getPartId(instanceId: number): PartId | undefined {
       return state.instancePartIds[instanceId];
     },
-    getInstanceId(instanceId: number): InstanceId | undefined {
+    getInstanceId(instanceId: number): PartOccurrenceId | undefined {
       return state.instanceInstanceIds[instanceId];
     },
-    getInstanceSlot(instanceId: InstanceId): number | undefined {
+    getInstanceSlot(instanceId: PartOccurrenceId): number | undefined {
       return maps.instanceSlots.get(instanceId);
     },
     getNodeId(nodeId: number): AssemblyOccurrenceId | undefined {

@@ -3,7 +3,7 @@ import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget } from "../interaction/target-types";
 import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
 import { readInteractionState } from "../interaction/state";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 
 /**
@@ -35,11 +35,11 @@ export function changedInstanceSlots(
       if (slot !== undefined) changed.add(slot);
     }
   };
-  const addInstance = (instanceId: InstanceId | undefined): void => {
-    if (instanceId === undefined) {
+  const addInstance = (partOccurrenceId: PartOccurrenceId | undefined): void => {
+    if (partOccurrenceId === undefined) {
       return;
     }
-    const slot = runtime.getInstanceSlot(instanceId);
+    const slot = runtime.getInstanceSlot(partOccurrenceId);
     if (slot !== undefined) {
       changed.add(slot);
     }
@@ -47,9 +47,21 @@ export function changedInstanceSlots(
   diffSetMembers(previousData.highlightedPartIds, nextData.highlightedPartIds, addPart);
   diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, addPart);
   diffMapValues(previousData.partOverrides, nextData.partOverrides, addPart);
-  diffSetMembers(previousData.highlightedInstanceIds, nextData.highlightedInstanceIds, addInstance);
-  diffSetMembers(previousData.selectedInstanceIds, nextData.selectedInstanceIds, addInstance);
-  diffMapValues(previousData.instanceOverrides, nextData.instanceOverrides, addInstance);
+  diffSetMembers(
+    previousData.highlightedPartOccurrenceIds,
+    nextData.highlightedPartOccurrenceIds,
+    addInstance,
+  );
+  diffSetMembers(
+    previousData.selectedPartOccurrenceIds,
+    nextData.selectedPartOccurrenceIds,
+    addInstance,
+  );
+  diffMapValues(
+    previousData.partOccurrenceOverrides,
+    nextData.partOccurrenceOverrides,
+    addInstance,
+  );
   diffNestedSetMembers(
     previousData.highlightedElementIds,
     nextData.highlightedElementIds,
@@ -63,6 +75,6 @@ export function changedInstanceSlots(
   return Array.from(changed).sort((a, b) => a - b);
 }
 
-function hoveredInstanceId(target: InteractionTarget | undefined): InstanceId | undefined {
-  return target === undefined || target.kind === "part" ? undefined : target.instanceId;
+function hoveredInstanceId(target: InteractionTarget | undefined): PartOccurrenceId | undefined {
+  return target === undefined || target.kind === "part" ? undefined : target.partOccurrenceId;
 }

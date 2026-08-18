@@ -10,7 +10,7 @@ import {
   buildTransparentOrder,
   createInteractionState,
   setElementSelected,
-  setInstanceSelected,
+  setPartOccurrenceSelected,
   setPartSelected,
   setFaceSelected,
   setNodeSelected,
@@ -61,8 +61,8 @@ describe("renderer runtime state", () => {
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
     let interaction = setPartSelected(createInteractionState(), 1, true);
-    interaction = setNodeSelected(interaction, { instanceId: "1/1", nodeId: 2 }, true);
-    interaction = setInstanceSelected(interaction, "1/2", true);
+    interaction = setNodeSelected(interaction, { partOccurrenceId: "1/1", nodeId: 2 }, true);
+    interaction = setPartOccurrenceSelected(interaction, "1/2", true);
     runtime.setInstanceVisible(1, false);
     const parts = new Map([[1, triangle]]);
 
@@ -90,7 +90,7 @@ describe("renderer runtime state", () => {
     const layout = buildInstanceLayout(runtime);
     const selectedElement = setElementSelected(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 102 },
+      { partOccurrenceId: "1/0", elementId: 102 },
       true,
     );
     const rangedParts = new Map([[rangedSelectionPart.id, rangedSelectionPart]]);
@@ -120,7 +120,7 @@ describe("renderer runtime state", () => {
     ]);
     const selectedFace = setFaceSelected(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 103, faceIndex: 0 },
+      { partOccurrenceId: "1/0", elementId: 103, faceIndex: 0 },
       true,
     );
     const faceOrder = buildSelectionOrder(
@@ -147,7 +147,7 @@ describe("renderer runtime state", () => {
         selectionRanges: [{ primitive: "triangles", firstIndex: 6, indexCount: 3 }],
       },
     ]);
-    const selectedInstance = setInstanceSelected(createInteractionState(), "1/0", true);
+    const selectedInstance = setPartOccurrenceSelected(createInteractionState(), "1/0", true);
     const instanceOrder = buildSelectionOrder(
       layout,
       runtime,
@@ -170,7 +170,7 @@ describe("renderer runtime state", () => {
       createInteractionState(),
       [101, 102, 103].map((elementId) => ({
         kind: "element" as const,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId,
       })),
       true,
@@ -201,7 +201,7 @@ describe("renderer runtime state", () => {
     ]);
     const allElementsAndFace = setFaceSelected(
       allElements,
-      { instanceId: "1/0", elementId: 103, faceIndex: 0 },
+      { partOccurrenceId: "1/0", elementId: 103, faceIndex: 0 },
       true,
     );
     expect(
@@ -216,7 +216,7 @@ describe("renderer runtime state", () => {
     ).toBeUndefined();
     const allElementsAndUnknown = setElementSelected(
       allElements,
-      { instanceId: "1/0", elementId: 999 },
+      { partOccurrenceId: "1/0", elementId: 999 },
       true,
     );
     expect(
@@ -237,7 +237,7 @@ describe("renderer runtime state", () => {
     runtime.setInstanceVisible(0, true);
     const staleElement = setElementSelected(
       createInteractionState(),
-      { instanceId: "1/9", elementId: 7 },
+      { partOccurrenceId: "1/9", elementId: 7 },
       true,
     );
     expect(
@@ -259,7 +259,7 @@ describe("renderer runtime state", () => {
     const layout = buildInstanceLayout(runtime);
     const targets = Array.from({ length: 1025 }, (_, index) => ({
       kind: "element" as const,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: index * 2 + 1,
     }));
     const interaction = setTargetsSelected(createInteractionState(), targets, true);
@@ -299,7 +299,7 @@ describe("renderer runtime state", () => {
       createInteractionState(),
       [101, 102, 103].map((elementId) => ({
         kind: "element" as const,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId,
       })),
       true,
@@ -340,7 +340,7 @@ describe("renderer runtime state", () => {
       createInteractionState(),
       [101, 102].map((elementId) => ({
         kind: "element" as const,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId,
       })),
       true,

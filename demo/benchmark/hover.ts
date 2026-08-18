@@ -37,7 +37,7 @@ export async function measureHoverBenchmark(
   if (target?.kind !== "element") {
     throw new Error(`${benchmarkCase.id} hover point did not resolve an element`);
   }
-  const slot = runtime.getInstanceSlot(target.instanceId);
+  const slot = runtime.getInstanceSlot(target.partOccurrenceId);
   if (slot === undefined) throw new Error(`${benchmarkCase.id} hover occurrence is missing`);
   const stateStart = performance.now();
   const hovered = setTargetHovered(createInteractionState(), target);

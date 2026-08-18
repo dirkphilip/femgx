@@ -140,7 +140,7 @@ function fakeViewport(): FakeViewport {
     setPart: vi.fn(),
     setAssembly: vi.fn(),
     setAssemblyOccurrence: vi.fn(),
-    setInstance: vi.fn(),
+    setPartOccurrence: vi.fn(),
   } as Viewport["visibility"];
   return {
     render,
@@ -159,15 +159,15 @@ function fakeViewport(): FakeViewport {
       visibility,
       results,
       presentation,
-      updateScene: vi.fn(() => ({ results: "none" as const })),
-      setScene: vi.fn(),
+      reconcileScene: vi.fn(() => ({ results: "none" as const })),
+      replaceScene: vi.fn(),
       batch: <T>(operation: () => T): T => operation(),
       resize: vi.fn(),
       invalidate: vi.fn(),
       render,
       recover: vi.fn(),
       destroy,
-      stats: vi.fn(() => ({ visibleInstances: 0, drawBatches: 0 })),
+      stats: vi.fn(() => ({ visiblePartOccurrences: 0, drawBatches: 0 })),
     },
   };
 }

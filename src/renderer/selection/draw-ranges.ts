@@ -2,7 +2,7 @@ import { logicalPrimitiveCount, type Part, type PartId, type Primitive } from ".
 import { getPartSemanticIndex, type PartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState } from "../../interaction/state";
-import type { InstanceId } from "../../scene/types";
+import type { PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { DrawCall, SelectionDrawRange } from "../resources/draw-resources";
 import type { InstanceLayout } from "../runtime-state";
@@ -86,14 +86,14 @@ export function buildSelectionDrawCalls(options: {
 
 function selectionGeometryForInstance(
   data: ReturnType<typeof readInteractionState>,
-  instanceId: InstanceId,
+  instanceId: PartOccurrenceId,
   localSlot: number,
   part: Part,
   denseSelections: DenseElementSelections,
 ): SelectionGeometry | undefined {
   if (
     data.selectedPartIds.has(part.id) ||
-    data.selectedInstanceIds.has(instanceId) ||
+    data.selectedPartOccurrenceIds.has(instanceId) ||
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0
   ) {
     return undefined;

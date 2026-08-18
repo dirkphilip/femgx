@@ -22,7 +22,7 @@ material clones.
   adjust instance counts — never rebuild geometry or instance lists (see
   [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body selection, highlight, hover, and explicit style overrides use the same
-  immutable interaction state pattern, keyed by `(instanceId, bodyId)`.
+  immutable interaction state pattern, keyed by `(partOccurrenceId, bodyId)`.
 - `InteractionTarget` is the identity-only union for part, instance, body,
   element, face, node, and authored-edge targets. `setTargetSelected` and
   `setTargetHighlighted` dispatch to the owning granular state without a

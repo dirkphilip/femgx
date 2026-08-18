@@ -151,7 +151,7 @@
       onchange={setSelectionGranularity}
     >
       <option value="part">Part</option>
-      <option value="instance">Instance</option>
+      <option value="partOccurrence">Instance</option>
       <option value="body">Body</option>
       <option value="element">Element</option>
       <option value="face">Face</option>

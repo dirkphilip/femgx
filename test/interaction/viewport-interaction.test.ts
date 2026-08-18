@@ -54,7 +54,7 @@ describe("installViewportInteraction", () => {
   it("replaces on plain click and toggles only the clicked target with Control or Meta", async () => {
     const other: InteractionTarget = {
       kind: "face",
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 3,
       faceIndex: 0,
     };

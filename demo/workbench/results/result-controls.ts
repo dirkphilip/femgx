@@ -109,7 +109,7 @@ export function parseVectorWidthPixels(value: string): number | undefined {
 /** Returns the demo-owned elemental vector choices, including an active imported role. */
 export function resultVectorFieldsForModel(model: WorkbenchModel): readonly OrientationField[] {
   const fields = [...(model.resultVectorFields ?? [])];
-  const active = model.results?.vectors?.field;
+  const active = model.results?.orientation?.field;
   if (active !== undefined && !fields.some((field) => field.id === active.id)) fields.push(active);
   return fields;
 }
@@ -143,7 +143,7 @@ export function displayedScalarFieldId(mode: ResultDisplayMode, fieldId: string)
 
 /** Returns the initial orientation controls for one model. */
 export function vectorDisplayForModel(model: WorkbenchModel): VectorDisplayState {
-  const active = model.results?.vectors;
+  const active = model.results?.orientation;
   const first = resultVectorFieldsForModel(model)[0];
   return {
     fieldId: active?.field.id ?? first?.id ?? VECTOR_OFF_VALUE,

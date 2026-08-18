@@ -29,7 +29,7 @@ describe("viewport results workflow", () => {
     } as never;
     const scalar = { field: elementalScalar() };
     const deformation = { field: nodalDisplacement() };
-    const vectors = {
+    const orientation = {
       field: elementalVector(),
       glyph: "arrow" as const,
       transform: "direction" as const,
@@ -37,18 +37,18 @@ describe("viewport results workflow", () => {
     const combinations = [
       { scalar },
       { deformation },
-      { vectors },
+      { orientation },
       { scalar, deformation },
-      { scalar, vectors },
-      { deformation, vectors },
-      { scalar, deformation, vectors },
+      { scalar, orientation },
+      { deformation, orientation },
+      { scalar, deformation, orientation },
     ];
 
     for (const config of combinations) {
       const result = resolveViewportResults(config, scene, runtime);
       expect(result.scalar !== undefined).toBe(config.scalar !== undefined);
       expect(result.deformation !== undefined).toBe(config.deformation !== undefined);
-      expect(result.vectors !== undefined).toBe(config.vectors !== undefined);
+      expect(result.orientation !== undefined).toBe(config.orientation !== undefined);
     }
   });
 
@@ -116,10 +116,10 @@ describe("viewport results workflow", () => {
     expect(viewport.results.state?.loads?.field).toBe(load);
     viewport.results.set({
       loads: { field: load },
-      vectors: { field: vector, glyph: "arrow", transform: "normal" },
+      orientation: { field: vector, glyph: "arrow", transform: "normal" },
     });
     expect(viewport.results.state?.loads?.field).toBe(load);
-    expect(viewport.results.state?.vectors?.transform).toBe("normal");
+    expect(viewport.results.state?.orientation?.transform).toBe("normal");
     viewport.destroy();
   });
 
@@ -132,21 +132,21 @@ describe("viewport results workflow", () => {
     } as never;
     const field = elementalVector();
     const first = resolveViewportResults(
-      { vectors: { field, glyph: "arrow", transform: "direction" } },
+      { orientation: { field, glyph: "arrow", transform: "direction" } },
       scene,
       runtime,
     );
     const second = resolveViewportResults(
-      { vectors: { field, glyph: "axis", transform: "direction", lengthScale: 2 } },
+      { orientation: { field, glyph: "axis", transform: "direction", lengthScale: 2 } },
       scene,
       runtime,
       first,
     );
 
     expect(first.scalar).toBeUndefined();
-    expect(first.vectors?.field).toBe(field);
-    expect(first.vectors?.widthPixels).toBe(2);
-    expect(second.vectors?.lengthScale).toBe(2);
+    expect(first.orientation?.field).toBe(field);
+    expect(first.orientation?.widthPixels).toBe(2);
+    expect(second.orientation?.lengthScale).toBe(2);
     expect(viewportOrientationRecords(second)?.get(1)?.directions).toBe(
       viewportOrientationRecords(first)?.get(1)?.directions,
     );
@@ -167,8 +167,12 @@ describe("viewport results workflow", () => {
       unit: "unitless",
       values: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
     });
-    const result = resolveViewportResults({ vectors: { field, glyph: "triad" } }, scene, runtime);
-    expect(result.vectors?.glyph).toBe("triad");
+    const result = resolveViewportResults(
+      { orientation: { field, glyph: "triad" } },
+      scene,
+      runtime,
+    );
+    expect(result.orientation?.glyph).toBe("triad");
     const records = viewportOrientationRecords(result)?.get(1);
     expect(records?.elementIds).toEqual(new Uint32Array([0, 0, 0]));
     expect(records?.axisIndices).toEqual(new Uint32Array([0, 1, 2]));
@@ -185,16 +189,16 @@ describe("viewport results workflow", () => {
     const field = elementalVector();
     for (const widthPixels of [1, 1.5, 2, 8]) {
       const result = resolveViewportResults(
-        { vectors: { field, glyph: "arrow", transform: "direction", widthPixels } },
+        { orientation: { field, glyph: "arrow", transform: "direction", widthPixels } },
         scene,
         runtime,
       );
-      expect(result.vectors?.widthPixels).toBe(widthPixels);
+      expect(result.orientation?.widthPixels).toBe(widthPixels);
     }
     for (const widthPixels of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1, 8.1]) {
       expect(() =>
         resolveViewportResults(
-          { vectors: { field, glyph: "arrow", transform: "direction", widthPixels } },
+          { orientation: { field, glyph: "arrow", transform: "direction", widthPixels } },
           scene,
           runtime,
         ),
@@ -208,12 +212,12 @@ describe("viewport results workflow", () => {
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
-      results: { vectors: { field, glyph: "arrow", transform: "direction", widthPixels: 2 } },
+      results: { orientation: { field, glyph: "arrow", transform: "direction", widthPixels: 2 } },
     });
     const previous = viewport.results.state;
     expect(() => {
       viewport.results.set({
-        vectors: { field, glyph: "axis", transform: "direction", widthPixels: 9 },
+        orientation: { field, glyph: "axis", transform: "direction", widthPixels: 9 },
       });
     }).toThrow("widthPixels");
     expect(viewport.results.state).toBe(previous);
@@ -230,7 +234,7 @@ describe("viewport results workflow", () => {
       canvas: fakeCanvas(),
       scene,
       device: gpu.device,
-      results: { vectors: { field: vector, glyph: "arrow", transform: "direction" } },
+      results: { orientation: { field: vector, glyph: "arrow", transform: "direction" } },
     });
     const previous = viewport.results.state;
 
@@ -240,7 +244,7 @@ describe("viewport results workflow", () => {
     }).toThrow("must include");
     expect(viewport.results.state).toBe(previous);
     expect(() => {
-      viewport.results.set({ vectors: { field: vector, glyph: "axis", transform: "normal" } });
+      viewport.results.set({ orientation: { field: vector, glyph: "axis", transform: "normal" } });
     }).toThrow("normal transform");
     expect(viewport.results.state).toBe(previous);
 

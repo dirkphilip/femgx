@@ -2,7 +2,7 @@ import type { Part, PartId } from "../../geometry/part";
 import { createInteractionState, type InteractionState } from "../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PreviousInstanceLayout, InstanceLayout } from "../runtime-state";
-import type { Instance } from "../../scene/types";
+import type { PartOccurrence } from "../../scene/types";
 import { buildDrawOrder, buildInstanceSnapshot, type DrawCallLists } from "../runtime-state";
 import type { GpuBundle } from "../recovery";
 import type { SelectionState } from "../selection-state";
@@ -111,7 +111,7 @@ export interface AttachmentFlagState {
 
 export interface AttachmentState {
   flags: AttachmentFlagState;
-  instances: Instance[];
+  instances: PartOccurrence[];
   slotByInstanceId: Map<string, number>;
 }
 

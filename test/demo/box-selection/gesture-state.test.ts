@@ -137,7 +137,7 @@ describe("workbench gesture-state", () => {
     await vi.waitFor(() => {
       expect(hoveredTarget(getInteraction())).toEqual({
         kind: "element",
-        instanceId: "instance-a",
+        partOccurrenceId: "instance-a",
         elementId: 2,
       });
     });

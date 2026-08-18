@@ -33,18 +33,18 @@ describe("through box selection", () => {
     );
 
     await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 1 },
-      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 3 },
-      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 4 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 1 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 3 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 4 },
     ]);
   });
 
   it("applies hidden element state before testing authored primitive ranges", async () => {
     const { scene, runtime } = fixture();
-    const instanceId = runtime.getVisibleInstanceIds()[0];
+    const partOccurrenceId = runtime.getVisiblePartOccurrenceIds()[0];
     const interaction = setElementVisible(
       createInteractionState(),
-      { instanceId: instanceId as string, elementId: 1 },
+      { partOccurrenceId: partOccurrenceId as string, elementId: 1 },
       false,
     );
     const resolver = throughIntersectionBoxSelectionResolver(() =>
@@ -52,8 +52,8 @@ describe("through box selection", () => {
     );
 
     await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId, elementId: 3 },
-      { kind: "element", instanceId, elementId: 4 },
+      { kind: "element", partOccurrenceId, elementId: 3 },
+      { kind: "element", partOccurrenceId, elementId: 4 },
     ]);
   });
 
@@ -64,7 +64,7 @@ describe("through box selection", () => {
     );
 
     await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", instanceId: runtime.getVisibleInstanceIds()[0], elementId: 4 },
+      { kind: "element", partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0], elementId: 4 },
     ]);
   });
 
@@ -79,7 +79,7 @@ describe("through box selection", () => {
     await expect(resolver(request("element"))).resolves.toEqual([
       {
         kind: "element",
-        instanceId: runtime.getVisibleInstanceIds()[0],
+        partOccurrenceId: runtime.getVisiblePartOccurrenceIds()[0],
         elementId: 2,
       },
     ]);
@@ -155,7 +155,7 @@ function viewport(
           scale: 1,
           displacements: new Map([[1, new Float32Array([-2, -2, 0, 0, 0, 0])]]),
         },
-        vectors: undefined,
+        orientation: undefined,
       },
     },
     presentation: { sectionPlane },

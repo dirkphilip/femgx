@@ -33,7 +33,7 @@ describe("WebGPU renderer", () => {
       () =>
         setBodyOverride(
           createInteractionState(),
-          { instanceId: "1/0", bodyId: 3 },
+          { partOccurrenceId: "1/0", bodyId: 3 },
           { opacity: 0.5 },
         ),
     ],
@@ -42,7 +42,7 @@ describe("WebGPU renderer", () => {
       () =>
         setElementOverride(
           createInteractionState(),
-          { instanceId: "1/0", elementId: 0 },
+          { partOccurrenceId: "1/0", elementId: 0 },
           { opacity: 0.5 },
         ),
     ],
@@ -173,7 +173,7 @@ describe("WebGPU renderer", () => {
 
     const selected = setElementSelected(
       createInteractionState(),
-      { instanceId: "1/0", elementId: 101 },
+      { partOccurrenceId: "1/0", elementId: 101 },
       true,
     );
     renderer.updateElements(runtime, selected);
@@ -209,7 +209,11 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     renderer.updateElements(
       runtime,
-      setElementSelected(createInteractionState(), { instanceId: "1/0", elementId: 101 }, true),
+      setElementSelected(
+        createInteractionState(),
+        { partOccurrenceId: "1/0", elementId: 101 },
+        true,
+      ),
     );
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(3);
@@ -223,7 +227,11 @@ describe("WebGPU renderer", () => {
 
     renderer.setSectionPlane(undefined);
     const fractional = setPartOverride(createInteractionState(), 1, { opacity: 0.5 });
-    const selected = setElementSelected(fractional, { instanceId: "1/0", elementId: 101 }, true);
+    const selected = setElementSelected(
+      fractional,
+      { partOccurrenceId: "1/0", elementId: 101 },
+      true,
+    );
     renderer.updateElements(runtime, selected);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
@@ -252,7 +260,11 @@ describe("WebGPU renderer", () => {
 
     renderer.updateElements(
       runtime,
-      setElementVisible(createInteractionState(), { instanceId: "1/0", elementId: 101 }, false),
+      setElementVisible(
+        createInteractionState(),
+        { partOccurrenceId: "1/0", elementId: 101 },
+        false,
+      ),
     );
     renderer.render(runtime, camera, scene.parts);
 

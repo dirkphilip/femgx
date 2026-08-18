@@ -32,9 +32,9 @@ describe("resolvePick", () => {
 describe("resolvePickHit", () => {
   it("resolves an instance-only hit to an instance target", () => {
     expect(resolvePickHit(context, ids({ instancePickId: 1 }), [0, 0, 0])).toEqual({
-      kind: "instance",
+      kind: "partOccurrence",
       partId: 1,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       worldPosition: [0, 0, 0],
     });
   });
@@ -45,7 +45,7 @@ describe("resolvePickHit", () => {
     ).toEqual({
       kind: "element",
       partId: 1,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 1,
       worldPosition: [0, 0, 0],
     });
@@ -98,9 +98,9 @@ describe("resolvePickHit", () => {
     expect(
       resolvePickHit(context, ids({ instancePickId: 1, elementPickId: 99 }), [0, 0, 0]),
     ).toEqual({
-      kind: "instance",
+      kind: "partOccurrence",
       partId: 1,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       worldPosition: [0, 0, 0],
     });
   });
@@ -160,7 +160,7 @@ describe("resolvePickHit", () => {
     ).toEqual({
       kind: "element",
       partId: 1,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 1,
       worldPosition: [0, 0, 0],
     });
@@ -222,7 +222,7 @@ describe("resolvePickHit", () => {
     ).toEqual({
       kind: "element",
       partId: 2,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       elementId: 5,
       worldPosition: [0, 0, 0],
     });
@@ -235,7 +235,7 @@ describe("resolvePickHit", () => {
     ).toMatchObject({
       kind: "node",
       partId: 3,
-      instanceId: "1/1",
+      partOccurrenceId: "1/1",
       elementId: 8,
       nodeId: 1,
       localPosition: [1, 0, 0],
@@ -264,7 +264,7 @@ describe("resolvePickHit", () => {
     ).toEqual({
       kind: "node",
       partId: 4,
-      instanceId: "1/0",
+      partOccurrenceId: "1/0",
       nodeId: 0,
       localPosition: [2, 3, 4],
       worldPosition: [2, 3, 4],

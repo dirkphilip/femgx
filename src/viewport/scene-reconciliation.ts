@@ -9,7 +9,7 @@ import {
 import type { InteractionTarget } from "../interaction/target-types";
 import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 
 /**
  * Carries viewport-local visibility and interaction identity across a packed
@@ -20,9 +20,9 @@ export function preserveRuntimeVisibility(
   next: PackedSceneRuntime,
 ): void {
   for (let slot = 0; slot < next.instanceCount; slot += 1) {
-    const instanceId = next.getInstanceId(slot);
+    const partOccurrenceId = next.getInstanceId(slot);
     const previousSlot =
-      instanceId === undefined ? undefined : previous.getInstanceSlot(instanceId);
+      partOccurrenceId === undefined ? undefined : previous.getInstanceSlot(partOccurrenceId);
     if (previousSlot !== undefined) {
       next.setInstanceVisible(slot, previous.isInstanceVisible(previousSlot));
     }
@@ -36,14 +36,15 @@ export function reconcileInteractionState(
   parts: ReadonlyMap<PartId, Part>,
 ): InteractionState {
   const data = readInteractionState(state);
-  const identityCache = new Map<InstanceId, SceneIdentity | undefined>();
-  const identityFor = (instanceId: InstanceId): SceneIdentity | undefined => {
-    if (!identityCache.has(instanceId)) {
-      identityCache.set(instanceId, sceneIdentity(instanceId, runtime, parts));
+  const identityCache = new Map<PartOccurrenceId, SceneIdentity | undefined>();
+  const identityFor = (partOccurrenceId: PartOccurrenceId): SceneIdentity | undefined => {
+    if (!identityCache.has(partOccurrenceId)) {
+      identityCache.set(partOccurrenceId, sceneIdentity(partOccurrenceId, runtime, parts));
     }
-    return identityCache.get(instanceId);
+    return identityCache.get(partOccurrenceId);
   };
-  const keepInstance = (instanceId: InstanceId): boolean => identityFor(instanceId) !== undefined;
+  const keepInstance = (partOccurrenceId: PartOccurrenceId): boolean =>
+    identityFor(partOccurrenceId) !== undefined;
   const keepPart = (partId: PartId): boolean => parts.has(partId);
   const { hoveredTarget: previousHoveredTarget, ...dataWithoutHover } = data;
   const nextHoveredTarget = targetInScene(previousHoveredTarget, keepPart, identityFor);
@@ -72,8 +73,8 @@ function reconcilePartState(
 
 type ReconciledOccurrenceState = Pick<
   InteractionStateData,
-  | "highlightedInstanceIds"
-  | "selectedInstanceIds"
+  | "highlightedPartOccurrenceIds"
+  | "selectedPartOccurrenceIds"
   | "selectedBodyIds"
   | "highlightedBodyIds"
   | "bodyOverrides"
@@ -82,7 +83,7 @@ type ReconciledOccurrenceState = Pick<
   | "highlightedElementIds"
   | "hiddenElementIds"
   | "elementOverrides"
-  | "instanceOverrides"
+  | "partOccurrenceOverrides"
   | "selectedNodeIds"
   | "highlightedNodeIds"
   | "selectedFaces"
@@ -93,8 +94,8 @@ type ReconciledOccurrenceState = Pick<
 
 function reconcileOccurrenceState(
   data: InteractionStateData,
-  identityFor: (instanceId: InstanceId) => SceneIdentity | undefined,
-  keepInstance: (instanceId: InstanceId) => boolean,
+  identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
+  keepInstance: (partOccurrenceId: PartOccurrenceId) => boolean,
 ): ReconciledOccurrenceState {
   const body = (owner: SceneIdentity, id: number): boolean => owner.semantic.bodies.has(id);
   const element = (owner: SceneIdentity, id: number): boolean => owner.semantic.elements.has(id);
@@ -107,8 +108,8 @@ function reconcileOccurrenceState(
   ): boolean => owner.semantic.faces.has(key) && faceId(ref.elementId, ref.faceIndex) === key;
   const edge = (owner: SceneIdentity, key: string): boolean => owner.semantic.edges.has(key);
   return {
-    highlightedInstanceIds: filterSet(data.highlightedInstanceIds, keepInstance),
-    selectedInstanceIds: filterSet(data.selectedInstanceIds, keepInstance),
+    highlightedPartOccurrenceIds: filterSet(data.highlightedPartOccurrenceIds, keepInstance),
+    selectedPartOccurrenceIds: filterSet(data.selectedPartOccurrenceIds, keepInstance),
     selectedBodyIds: filterNested(data.selectedBodyIds, identityFor, body),
     highlightedBodyIds: filterNested(data.highlightedBodyIds, identityFor, body),
     bodyOverrides: filterNestedMaps(data.bodyOverrides, identityFor, body),
@@ -117,7 +118,7 @@ function reconcileOccurrenceState(
     highlightedElementIds: filterNested(data.highlightedElementIds, identityFor, element),
     hiddenElementIds: filterNested(data.hiddenElementIds, identityFor, element),
     elementOverrides: filterNestedMaps(data.elementOverrides, identityFor, element),
-    instanceOverrides: filterMap(data.instanceOverrides, keepInstance),
+    partOccurrenceOverrides: filterMap(data.partOccurrenceOverrides, keepInstance),
     selectedNodeIds: filterNested(data.selectedNodeIds, identityFor, node),
     highlightedNodeIds: filterNested(data.highlightedNodeIds, identityFor, node),
     selectedFaces: filterNestedMaps(data.selectedFaces, identityFor, face),
@@ -130,13 +131,13 @@ function reconcileOccurrenceState(
 function targetInScene(
   target: InteractionTarget | undefined,
   keepPart: (partId: PartId) => boolean,
-  identityFor: (instanceId: InstanceId) => SceneIdentity | undefined,
+  identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
 ): InteractionTarget | undefined {
   if (target === undefined) return undefined;
   if (target.kind === "part") return keepPart(target.partId) ? target : undefined;
-  const owner = identityFor(target.instanceId);
+  const owner = identityFor(target.partOccurrenceId);
   if (owner === undefined) return undefined;
-  if (target.kind === "instance") return target;
+  if (target.kind === "partOccurrence") return target;
   if (target.kind === "body") return owner.semantic.bodies.has(target.bodyId) ? target : undefined;
   if (target.kind === "element") {
     return owner.semantic.elements.has(target.elementId) ? target : undefined;
@@ -176,11 +177,11 @@ interface SceneIdentity {
 }
 
 function sceneIdentity(
-  instanceId: InstanceId,
+  partOccurrenceId: PartOccurrenceId,
   runtime: PackedSceneRuntime,
   parts: ReadonlyMap<PartId, Part>,
 ): SceneIdentity | undefined {
-  const slot = runtime.getInstanceSlot(instanceId);
+  const slot = runtime.getInstanceSlot(partOccurrenceId);
   if (slot === undefined) return undefined;
   const partId = runtime.getPartId(slot);
   const part = partId === undefined ? undefined : parts.get(partId);
@@ -188,14 +189,14 @@ function sceneIdentity(
 }
 
 function filterNestedMaps<K, V>(
-  current: ReadonlyMap<InstanceId, ReadonlyMap<K, V>>,
-  identityFor: (instanceId: InstanceId) => SceneIdentity | undefined,
+  current: ReadonlyMap<PartOccurrenceId, ReadonlyMap<K, V>>,
+  identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
   keep: (owner: SceneIdentity, key: K, value: V) => boolean,
-): ReadonlyMap<InstanceId, ReadonlyMap<K, V>> {
+): ReadonlyMap<PartOccurrenceId, ReadonlyMap<K, V>> {
   let changed = false;
-  const next = new Map<InstanceId, ReadonlyMap<K, V>>();
-  for (const [instanceId, values] of current) {
-    const owner = identityFor(instanceId);
+  const next = new Map<PartOccurrenceId, ReadonlyMap<K, V>>();
+  for (const [partOccurrenceId, values] of current) {
+    const owner = identityFor(partOccurrenceId);
     if (owner === undefined) {
       changed = true;
       continue;
@@ -205,21 +206,22 @@ function filterNestedMaps<K, V>(
       if (keep(owner, key, value)) filtered.set(key, value);
       else changed = true;
     }
-    if (filtered.size > 0) next.set(instanceId, filtered.size === values.size ? values : filtered);
+    if (filtered.size > 0)
+      next.set(partOccurrenceId, filtered.size === values.size ? values : filtered);
     else changed = true;
   }
   return changed ? next : current;
 }
 
 function filterNested<K>(
-  current: ReadonlyMap<InstanceId, ReadonlySet<K>>,
-  identityFor: (instanceId: InstanceId) => SceneIdentity | undefined,
+  current: ReadonlyMap<PartOccurrenceId, ReadonlySet<K>>,
+  identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
   keep: (owner: SceneIdentity, value: K) => boolean,
-): ReadonlyMap<InstanceId, ReadonlySet<K>> {
+): ReadonlyMap<PartOccurrenceId, ReadonlySet<K>> {
   let changed = false;
-  const next = new Map<InstanceId, ReadonlySet<K>>();
-  for (const [instanceId, values] of current) {
-    const owner = identityFor(instanceId);
+  const next = new Map<PartOccurrenceId, ReadonlySet<K>>();
+  for (const [partOccurrenceId, values] of current) {
+    const owner = identityFor(partOccurrenceId);
     if (owner === undefined) {
       changed = true;
       continue;
@@ -229,7 +231,8 @@ function filterNested<K>(
       if (keep(owner, value)) filtered.add(value);
       else changed = true;
     }
-    if (filtered.size > 0) next.set(instanceId, filtered.size === values.size ? values : filtered);
+    if (filtered.size > 0)
+      next.set(partOccurrenceId, filtered.size === values.size ? values : filtered);
     else changed = true;
   }
   return changed ? next : current;
@@ -239,8 +242,8 @@ function sameInteractionData(left: InteractionStateData, right: InteractionState
   return (
     left.highlightedPartIds === right.highlightedPartIds &&
     left.selectedPartIds === right.selectedPartIds &&
-    left.highlightedInstanceIds === right.highlightedInstanceIds &&
-    left.selectedInstanceIds === right.selectedInstanceIds &&
+    left.highlightedPartOccurrenceIds === right.highlightedPartOccurrenceIds &&
+    left.selectedPartOccurrenceIds === right.selectedPartOccurrenceIds &&
     left.selectedBodyIds === right.selectedBodyIds &&
     left.highlightedBodyIds === right.highlightedBodyIds &&
     left.bodyOverrides === right.bodyOverrides &&
@@ -250,7 +253,7 @@ function sameInteractionData(left: InteractionStateData, right: InteractionState
     left.hiddenElementIds === right.hiddenElementIds &&
     left.elementOverrides === right.elementOverrides &&
     left.partOverrides === right.partOverrides &&
-    left.instanceOverrides === right.instanceOverrides &&
+    left.partOccurrenceOverrides === right.partOccurrenceOverrides &&
     left.selectedNodeIds === right.selectedNodeIds &&
     left.highlightedNodeIds === right.highlightedNodeIds &&
     left.selectedFaces === right.selectedFaces &&

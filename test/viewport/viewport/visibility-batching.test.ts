@@ -49,7 +49,7 @@ describe("Viewport", () => {
     expect(onRender).toHaveBeenCalledTimes(4);
     expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 8]));
     viewport.resize();
-    viewport.setScene(scene(10));
+    viewport.replaceScene(scene(10));
     viewport.render();
     expect(latestCameraUniform(gpu).slice(18, 22)).toEqual(new Float32Array([20, 24, 1, 8]));
     viewport.destroy();
@@ -77,7 +77,7 @@ describe("Viewport", () => {
     }).toThrow("Section plane");
     expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
 
-    viewport.setScene(scene(10));
+    viewport.replaceScene(scene(10));
     expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
     viewport.presentation.clearSectionPlane();
     expect(viewport.presentation.sectionPlane).toBeUndefined();
@@ -135,13 +135,13 @@ describe("Viewport", () => {
     const finalInteraction = viewport.batch(() => {
       let interaction = setBodyVisible(
         viewport.interaction.state,
-        { instanceId: "1/0", bodyId: 0 },
+        { partOccurrenceId: "1/0", bodyId: 0 },
         false,
       );
       viewport.interaction.set(interaction);
       interaction = setBodyOverride(
         interaction,
-        { instanceId: "1/0", bodyId: 0 },
+        { partOccurrenceId: "1/0", bodyId: 0 },
         { emissive: 0.5 },
       );
       viewport.interaction.set(interaction);
@@ -174,7 +174,7 @@ describe("Viewport", () => {
     first.visibility.setPart(1, false);
     expect(first.runtime.visibleCount).toBe(0);
     expect(second.runtime.visibleCount).toBe(1);
-    expect(second.runtime.isInstanceVisible("1/0")).toBe(true);
+    expect(second.runtime.isPartOccurrenceVisible("1/0")).toBe(true);
 
     first.destroy();
     second.destroy();

@@ -8,9 +8,9 @@ describe("WebGPU dense node-selection benchmark", () => {
   it("builds distinct authored targets without inventing node identities", () => {
     const targets = authoredNodeTargets("assembly/part", 3);
     expect(targets).toEqual([
-      { kind: "node", instanceId: "assembly/part", nodeId: 0 },
-      { kind: "node", instanceId: "assembly/part", nodeId: 1 },
-      { kind: "node", instanceId: "assembly/part", nodeId: 2 },
+      { kind: "node", partOccurrenceId: "assembly/part", nodeId: 0 },
+      { kind: "node", partOccurrenceId: "assembly/part", nodeId: 1 },
+      { kind: "node", partOccurrenceId: "assembly/part", nodeId: 2 },
     ]);
     expect(() => authoredNodeTargets("assembly/part", 0)).toThrow(/positive integer/);
   });

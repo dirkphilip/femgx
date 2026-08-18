@@ -40,18 +40,18 @@ export function applyResolvedViewportResults(
   renderer: WebGpuRenderer,
   results: ViewportResultsState | undefined,
 ): void {
-  const vectors = results?.vectors;
+  const orientation = results?.orientation;
   const load = results?.loads;
-  const widthPixels = Math.max(vectors?.widthPixels ?? 1, load?.widthPixels ?? 1);
+  const widthPixels = Math.max(orientation?.widthPixels ?? 1, load?.widthPixels ?? 1);
   setRendererOrientationGlyphs(
     renderer,
-    vectors === undefined && load === undefined
+    orientation === undefined && load === undefined
       ? undefined
       : {
           parts:
             results === undefined ? new Map() : (viewportOrientationRecords(results) ?? new Map()),
-          mode: vectors === undefined || load !== undefined ? "arrow" : vectors.glyph,
-          transform: vectors?.transform ?? "direction",
+          mode: orientation === undefined || load !== undefined ? "arrow" : orientation.glyph,
+          transform: orientation?.transform ?? "direction",
           lengthScale: 1,
           widthPixels,
         },

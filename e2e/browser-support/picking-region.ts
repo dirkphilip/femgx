@@ -12,7 +12,7 @@ export function regionGranularityForKey(
   if (kind === "n") return "node";
   if (kind === "f") return "face";
   if (kind === "e") return "element";
-  if (kind === "i") return "instance";
+  if (kind === "i") return "partOccurrence";
   if (kind === "p") return "part";
   if (kind === "ed") return "edge";
   return selectedGranularity ?? "element";
@@ -27,32 +27,32 @@ export function regionTargetKey(target: unknown): string | undefined {
     const result = value[key];
     return typeof result === "string" || typeof result === "number" ? String(result) : undefined;
   };
-  const instanceId = text("instanceId");
+  const partOccurrenceId = text("partOccurrenceId");
   switch (kind) {
     case "node":
-      return instanceId === undefined || text("nodeId") === undefined
+      return partOccurrenceId === undefined || text("nodeId") === undefined
         ? undefined
-        : `n:${instanceId}:${text("nodeId")}`;
+        : `n:${partOccurrenceId}:${text("nodeId")}`;
     case "face":
-      return instanceId === undefined ||
+      return partOccurrenceId === undefined ||
         text("elementId") === undefined ||
         text("faceIndex") === undefined
         ? undefined
-        : `f:${instanceId}:${text("elementId")}:${text("faceIndex")}`;
+        : `f:${partOccurrenceId}:${text("elementId")}:${text("faceIndex")}`;
     case "element":
-      return instanceId === undefined || text("elementId") === undefined
+      return partOccurrenceId === undefined || text("elementId") === undefined
         ? undefined
-        : `e:${instanceId}:${text("elementId")}`;
-    case "instance":
-      return instanceId === undefined ? undefined : `i:${instanceId}`;
+        : `e:${partOccurrenceId}:${text("elementId")}`;
+    case "partOccurrence":
+      return partOccurrenceId === undefined ? undefined : `i:${partOccurrenceId}`;
     case "part": {
       const partId = text("partId");
       return partId === undefined ? undefined : `p:${partId}`;
     }
     case "edge":
-      return instanceId === undefined || text("key") === undefined
+      return partOccurrenceId === undefined || text("key") === undefined
         ? undefined
-        : `ed:${instanceId}:${text("key")}`;
+        : `ed:${partOccurrenceId}:${text("key")}`;
     default:
       return undefined;
   }

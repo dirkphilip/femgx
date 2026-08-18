@@ -5,7 +5,7 @@ import type { InteractionTarget } from "../interaction/target-types";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId, InstanceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { ViewportVisibilityController } from "./visibility-controller";
 import type {
   CameraTransitionOptions,
@@ -100,9 +100,9 @@ function createViewportVisibilityCapability(
       owner.ensureAlive();
       controller.setAssembly(assemblyId, visible);
     },
-    setInstance(instanceId: InstanceId, visible: boolean): void {
+    setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setInstance(instanceId, visible);
+      controller.setPartOccurrence(partOccurrenceId, visible);
     },
   };
 }

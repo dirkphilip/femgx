@@ -9,7 +9,7 @@ import {
 } from "./state";
 import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
 import type { FaceRef } from "./refs";
-import type { InstanceId } from "../scene/types";
+import type { PartOccurrenceId } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
 function updateFaceSet(
@@ -21,7 +21,7 @@ function updateFaceSet(
   const data = readInteractionState(state);
   const map = updateNestedMap(
     data[key],
-    ref.instanceId,
+    ref.partOccurrenceId,
     faceId(ref.elementId, ref.faceIndex),
     enabled ? ref : undefined,
   );
@@ -54,7 +54,7 @@ export function setFaceHighlighted(
  * @category Interaction and picking
  */
 export function resolveFaceStyle(
-  instance: { readonly instanceId: InstanceId; readonly partId: PartId },
+  instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   ref: FaceRef,
   base: ResolvedStyle,
   state: InteractionState,
@@ -66,15 +66,16 @@ export function resolveFaceStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.selectedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
+    data.selectedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
-    data.highlightedFaces.get(ref.instanceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
+    data.highlightedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) ===
+    true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
     isHoveredTarget(state, {
       kind: "face",
-      instanceId: ref.instanceId,
+      partOccurrenceId: ref.partOccurrenceId,
       elementId: ref.elementId,
       faceIndex: ref.faceIndex,
     })
@@ -94,12 +95,12 @@ export function emphasizedFaceRefs(state: InteractionState): readonly FaceRef[] 
   return collectUniqueRefs(
     data.hoveredTarget?.kind === "face"
       ? {
-          instanceId: data.hoveredTarget.instanceId,
+          partOccurrenceId: data.hoveredTarget.partOccurrenceId,
           elementId: data.hoveredTarget.elementId,
           faceIndex: data.hoveredTarget.faceIndex,
         }
       : undefined,
-    (ref) => `${ref.instanceId}/${faceId(ref.elementId, ref.faceIndex)}`,
+    (ref) => `${ref.partOccurrenceId}/${faceId(ref.elementId, ref.faceIndex)}`,
     (push) => {
       for (const [, faces] of data.highlightedFaces) {
         for (const key of sortedStrings(faces.keys())) {

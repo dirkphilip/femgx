@@ -44,7 +44,7 @@ const tet4InstanceId = firstInstanceId(tet4Runtime);
 const tet4Part = requirePart([...tet4Case.scene.parts.values()][0]);
 const tet4Targets = (tet4Part.elements ?? []).map((element) => ({
   kind: "element" as const,
-  instanceId: tet4InstanceId,
+  partOccurrenceId: tet4InstanceId,
   elementId: element.id,
 }));
 const halfTet4Targets = tet4Targets.slice(0, TET4_ELEMENT_COUNT / 2);
@@ -57,7 +57,7 @@ const bodyFixture = {
   part: emphasisPart,
   scene: emphasisScene,
   runtime: emphasisRuntime,
-  instanceId: requireInstanceId(emphasisInstanceId),
+  partOccurrenceId: requireInstanceId(emphasisInstanceId),
 };
 const bodyIds = (bodyFixture.part.bodies ?? []).map((body) => body.id);
 if (bodyIds.length !== BODY_COUNT) throw new Error("Body operation fixture has unexpected bodies");
@@ -154,7 +154,7 @@ function operationSpecs(): readonly OperationSpec[] {
       workloadCount: 1,
       run: updateElementalResultInteraction(activeElementalResultFixture),
     },
-    ...pickResolutionOperations({ part: tet4Part, instanceId: tet4InstanceId }),
+    ...pickResolutionOperations({ part: tet4Part, partOccurrenceId: tet4InstanceId }),
     highWaterHighlightHoverOperation(),
     {
       name: "scene-runtime-rebuild",
@@ -215,10 +215,18 @@ function sparseElementVisibility(): () => void {
   return () => {
     let state = createInteractionState();
     for (const elementId of sparseVisibilityIds) {
-      state = setElementVisible(state, { instanceId: bodyFixture.instanceId, elementId }, false);
+      state = setElementVisible(
+        state,
+        { partOccurrenceId: bodyFixture.partOccurrenceId, elementId },
+        false,
+      );
     }
     for (const elementId of sparseVisibilityIds) {
-      state = setElementVisible(state, { instanceId: bodyFixture.instanceId, elementId }, true);
+      state = setElementVisible(
+        state,
+        { partOccurrenceId: bodyFixture.partOccurrenceId, elementId },
+        true,
+      );
     }
     if (readInteractionState(state).hiddenElementIds.size !== 0) {
       throw new Error("Visibility operation did not restore the empty state");
@@ -232,12 +240,16 @@ function recolorBodies(): () => void {
     for (const bodyId of bodyIds) {
       state = setBodyOverride(
         state,
-        { instanceId: bodyFixture.instanceId, bodyId },
+        { partOccurrenceId: bodyFixture.partOccurrenceId, bodyId },
         { color: { r: (bodyId % 3) / 2, g: (bodyId % 5) / 4, b: (bodyId % 7) / 6, a: 1 } },
       );
     }
     for (const bodyId of bodyIds) {
-      state = setBodyOverride(state, { instanceId: bodyFixture.instanceId, bodyId }, undefined);
+      state = setBodyOverride(
+        state,
+        { partOccurrenceId: bodyFixture.partOccurrenceId, bodyId },
+        undefined,
+      );
     }
     if (readInteractionState(state).bodyOverrides.size !== 0) {
       throw new Error("Body recolor operation did not restore the empty state");
@@ -246,12 +258,12 @@ function recolorBodies(): () => void {
 }
 
 function updateElementalResultInteraction(fixture: ElementalResultFixture): () => void {
-  const instanceId = requireInstanceId(fixture.runtime.getInstanceId(0));
+  const partOccurrenceId = requireInstanceId(fixture.runtime.getInstanceId(0));
   const colors = viewportResultColors(fixture.state);
   return () => {
     const interaction = setTargetHovered(createInteractionState(), {
       kind: "element",
-      instanceId,
+      partOccurrenceId,
       elementId: 1,
     });
     if (
@@ -272,9 +284,9 @@ function buildElementalResultSnapshot(fixture: ElementalResultFixture): () => vo
   };
 }
 
-function requireInstanceId(instanceId: string | undefined): string {
-  if (instanceId === undefined) throw new Error("Operation fixture has no instance");
-  return instanceId;
+function requireInstanceId(partOccurrenceId: string | undefined): string {
+  if (partOccurrenceId === undefined) throw new Error("Operation fixture has no instance");
+  return partOccurrenceId;
 }
 
 function requirePart(part: Part | undefined): Part {
@@ -313,9 +325,9 @@ function buildTet4Case() {
 
 function firstInstanceId(runtime: ReturnType<typeof createPackedSceneRuntime>): string {
   const slot = runtime.getDrawList()[0];
-  const instanceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
-  if (instanceId === undefined) throw new Error("Operation fixture has no instance");
-  return instanceId;
+  const partOccurrenceId = slot === undefined ? undefined : runtime.getInstanceId(slot);
+  if (partOccurrenceId === undefined) throw new Error("Operation fixture has no instance");
+  return partOccurrenceId;
 }
 
 interface ElementalResultFixture {

@@ -107,7 +107,7 @@ describe("WebGPU renderer", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildBodyScene();
     const runtime = createPackedSceneRuntime(scene);
-    const body = { instanceId: "1/0", bodyId: 3 } as const;
+    const body = { partOccurrenceId: "1/0", bodyId: 3 } as const;
     let interaction = createInteractionState();
 
     renderer.render(runtime, camera, scene.parts);
@@ -173,7 +173,7 @@ describe("WebGPU renderer", () => {
       await expect(renderer.pick(400, 300)).resolves.toMatchObject({
         kind: "face",
         partId: 1,
-        instanceId: "1/0",
+        partOccurrenceId: "1/0",
         elementId: 0,
         key: "0:1:2",
         worldPosition: unprojectPoint(faceCamera, [400.5, 300.5, depth]),

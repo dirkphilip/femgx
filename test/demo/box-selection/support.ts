@@ -154,16 +154,16 @@ function harness(
   };
 }
 
-const element = (instanceId: string, elementId: number): InteractionTarget => ({
+const element = (partOccurrenceId: string, elementId: number): InteractionTarget => ({
   kind: "element",
-  instanceId,
+  partOccurrenceId,
   elementId,
 });
 
 const nodeHit: PickHit = {
   kind: "node",
   partId: 1,
-  instanceId: "instance-a",
+  partOccurrenceId: "instance-a",
   elementId: 2,
   nodeId: 3,
   localPosition: [0, 0, 0],
@@ -175,7 +175,7 @@ const nodeHit: PickHit = {
 const faceHit: PickHit = {
   kind: "face",
   partId: 1,
-  instanceId: "instance-a",
+  partOccurrenceId: "instance-a",
   elementId: 2,
   faceIndex: 1,
   key: "1:0:1:2",
@@ -188,7 +188,7 @@ const faceHit: PickHit = {
 const edgeHit: PickHit = {
   kind: "edge",
   partId: 1,
-  instanceId: "instance-a",
+  partOccurrenceId: "instance-a",
   key: "1,2",
   nodeIds: [1, 2],
   incidentElementIds: [2],

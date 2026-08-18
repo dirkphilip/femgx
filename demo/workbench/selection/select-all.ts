@@ -35,8 +35,8 @@ export function selectAllTargets(
 ): readonly SelectTarget[] {
   const targets: SelectTarget[] = [];
   const selectedPartIds = new Set<number>();
-  for (const instanceId of viewport.runtime.getVisibleInstanceIds()) {
-    const instance = viewport.runtime.getInstance(instanceId);
+  for (const partOccurrenceId of viewport.runtime.getVisiblePartOccurrenceIds()) {
+    const instance = viewport.runtime.getPartOccurrence(partOccurrenceId);
     const part = instance === undefined ? undefined : viewport.scene.parts.get(instance.partId);
     if (part === undefined) continue;
     if (granularity === "part") {
@@ -45,23 +45,24 @@ export function selectAllTargets(
       targets.push({ kind: "part", partId: part.id });
       continue;
     }
-    if (granularity === "instance") {
-      targets.push({ kind: "instance", instanceId });
+    if (granularity === "partOccurrence") {
+      targets.push({ kind: "partOccurrence", partOccurrenceId });
       continue;
     }
     const elementIds = new Set(
-      visibleElements(viewport, part, instanceId).map((element) => element.id),
+      visibleElements(viewport, part, partOccurrenceId).map((element) => element.id),
     );
     if (granularity === "element") {
-      for (const elementId of elementIds) targets.push({ kind: "element", instanceId, elementId });
+      for (const elementId of elementIds)
+        targets.push({ kind: "element", partOccurrenceId, elementId });
     } else if (granularity === "body") {
-      appendBodies(targets, part, instanceId, elementIds);
+      appendBodies(targets, part, partOccurrenceId, elementIds);
     } else if (granularity === "face") {
-      appendFaces(targets, part, instanceId, elementIds);
+      appendFaces(targets, part, partOccurrenceId, elementIds);
     } else if (granularity === "node") {
-      appendNodes(targets, part, instanceId, elementIds);
+      appendNodes(targets, part, partOccurrenceId, elementIds);
     } else {
-      appendEdges(targets, part, instanceId, elementIds);
+      appendEdges(targets, part, partOccurrenceId, elementIds);
     }
   }
   return targets;
@@ -70,12 +71,12 @@ export function selectAllTargets(
 function appendBodies(
   targets: SelectTarget[],
   part: Part,
-  instanceId: string,
+  partOccurrenceId: string,
   elementIds: ReadonlySet<number>,
 ): void {
   for (const body of part.bodies ?? []) {
     if (body.elementIds.some((elementId) => elementIds.has(elementId))) {
-      targets.push({ kind: "body", instanceId, bodyId: body.id });
+      targets.push({ kind: "body", partOccurrenceId, bodyId: body.id });
     }
   }
 }
@@ -83,18 +84,18 @@ function appendBodies(
 function visibleElements(
   viewport: Viewport,
   part: Part,
-  instanceId: string,
+  partOccurrenceId: string,
 ): readonly ElementTessellation[] {
   const bodyByElement = new Map(
     part.bodies?.flatMap((body) => body.elementIds.map((id) => [id, body.id] as const)),
   );
   return (part.elements ?? []).filter((element) => {
-    if (!isElementVisible(viewport.interaction.state, { instanceId, elementId: element.id }))
+    if (!isElementVisible(viewport.interaction.state, { partOccurrenceId, elementId: element.id }))
       return false;
     const bodyId = element.bodyId ?? bodyByElement.get(element.id);
     if (
       bodyId !== undefined &&
-      !isBodyVisible(viewport.interaction.state, { instanceId, bodyId })
+      !isBodyVisible(viewport.interaction.state, { partOccurrenceId, bodyId })
     ) {
       return false;
     }
@@ -105,7 +106,7 @@ function visibleElements(
 function appendFaces(
   targets: SelectTarget[],
   part: Part,
-  instanceId: string,
+  partOccurrenceId: string,
   elementIds: ReadonlySet<number>,
 ): void {
   const geometry = part.geometries.find((candidate) => candidate.primitive === "triangles");
@@ -119,7 +120,7 @@ function appendFaces(
     if (included !== undefined && !included.has(`${face.elementId}:${face.faceIndex}`)) continue;
     targets.push({
       kind: "face",
-      instanceId,
+      partOccurrenceId,
       elementId: face.elementId,
       faceIndex: face.faceIndex,
     });
@@ -129,7 +130,7 @@ function appendFaces(
 function appendNodes(
   targets: SelectTarget[],
   part: Part,
-  instanceId: string,
+  partOccurrenceId: string,
   elementIds: ReadonlySet<number>,
 ): void {
   const nodeIds = new Set<number>();
@@ -156,14 +157,14 @@ function appendNodes(
     }
   }
   for (const nodeId of [...nodeIds].sort((left, right) => left - right)) {
-    targets.push({ kind: "node", instanceId, nodeId });
+    targets.push({ kind: "node", partOccurrenceId, nodeId });
   }
 }
 
 function appendEdges(
   targets: SelectTarget[],
   part: Part,
-  instanceId: string,
+  partOccurrenceId: string,
   elementIds: ReadonlySet<number>,
 ): void {
   const seen = new Set<string>();
@@ -178,6 +179,6 @@ function appendEdges(
       continue;
     }
     seen.add(edge.key);
-    targets.push({ kind: "edge", instanceId, key: edge.key });
+    targets.push({ kind: "edge", partOccurrenceId, key: edge.key });
   }
 }

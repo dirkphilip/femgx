@@ -24,21 +24,21 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 | Concept             | Current representation | Responsibility                                                                     |
 | ------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
 | Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges |
-| Part instance       | `PartPlacement`        | A reference to a part definition plus a local transform                            |
-| Assembly definition | `NamedAssembly`        | Ordered hierarchy of part and assembly placements                                  |
+| Part occurrence     | `PartPlacement`        | A reference to a part definition plus a local transform                            |
+| Assembly definition | `AssemblyDefinition`   | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
 | Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
 | Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, and stable capability facades               |
 
 `SceneRuntime` is the defensive query boundary: its public transforms and
-collections are snapshots, and `RuntimeOccurrence.instanceIds` contains only
+collections are snapshots, and `RuntimeAssemblyOccurrence.partOccurrenceIds` contains only
 direct part placements. The canonical viewport owns the current live facade at
 `viewport.runtime`; standalone `createSceneRuntime(scene)` is a CPU-only
 immutable compiled snapshot for intentional host inspection.
 
-The API may eventually introduce explicit `PartDefinition` and
-`PartInstance` names, but it must preserve this semantic distinction even
-while the implementation uses the shorter current names.
+The public API keeps part definitions distinct from their placed part
+occurrences: a definition owns reusable geometry, while each occurrence owns
+its placement transform and visibility state.
 
 `Viewport` remains the single lifecycle owner. Its stable non-owning facades
 are `viewport.view` for camera/navigation, `viewport.interaction` for live
@@ -62,7 +62,7 @@ Surface-derived topology ───┴─→ Part + assembly placements
                         viewport.runtime
 ```
 
-Reusable geometry is defined once. Instances refer to that definition by a
+Reusable geometry is defined once. Part occurrences refer to that definition by a
 stable part key and carry only placement-specific state such as transform,
 visibility, and interaction style. The renderer must never become the source
 of truth for scene data.
@@ -150,7 +150,7 @@ const part = surfacePart(10, {
   the private packed runtime and GPU buffers are compiled representations. The
   public `SceneRuntime` exposes stable handles and defensive query objects, not
   slots or mutation deltas. `Viewport.runtime` is the current live facade;
-  hosts should reacquire it after `setScene` or `updateScene`. Standalone
+  hosts should reacquire it after `replaceScene` or `reconcileScene`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
   intentional host inspection. Live visibility changes and transactional
   structural scene updates go through `Viewport`.
@@ -166,12 +166,12 @@ The main user workflow should be expressible as:
 5. Apply interaction, visibility, structural updates, results, and lifecycle
    operations through it.
 
-`Viewport.updateScene(scene)` is the transactional structural-update
+`Viewport.reconcileScene(scene)` is the transactional structural-update
 boundary. It recompiles the candidate scene before committing it, preserves the
 camera and state tied to surviving placement ids, prunes references to removed
 inner geometry identities, and revalidates active results. Its
-`SceneUpdateOutcome` makes a result clear actionable without exposing runtime
-slots or renderer resources; `setScene` remains the explicit full-replacement
+`SceneReconciliationOutcome` makes a result clear actionable without exposing runtime
+slots or renderer resources; `replaceScene` remains the explicit full-replacement
 operation.
 
 Low-level flattening, batching, culling, draw-order buffers, GPU record
@@ -192,7 +192,7 @@ transform semantics, and a finite positive element-relative scale:
 viewport.results.set({
   scalar: { field: stress },
   deformation: { field: displacement, scale: 1.5 },
-  vectors: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
+  orientation: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
 });
 ```
 

@@ -151,9 +151,11 @@ function capElementVisible(
   element: ElementTessellation,
   metadata: ReturnType<typeof getPartSemanticIndex>,
 ): boolean {
-  if (!isElementVisible(interaction, { instanceId, elementId: element.id })) return false;
+  if (!isElementVisible(interaction, { partOccurrenceId: instanceId, elementId: element.id }))
+    return false;
   const bodyId = metadata.bodyByElement.get(element.id);
-  if (bodyId !== undefined && !isBodyVisible(interaction, { instanceId, bodyId })) return false;
+  if (bodyId !== undefined && !isBodyVisible(interaction, { partOccurrenceId: instanceId, bodyId }))
+    return false;
   return true;
 }
 

@@ -102,7 +102,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     await expect(renderer.pick(400, 300)).resolves.toMatchObject({
-      kind: "instance",
+      kind: "partOccurrence",
       partId: 1,
     });
     renderer.destroy();
