@@ -120,6 +120,8 @@ export class WorkbenchModelSession {
       }
     } finally {
       if (generation === this.generation) {
+        this.pendingProgressDisposer?.();
+        this.pendingProgressDisposer = undefined;
         this.pendingCancel = undefined;
         this.options.presentation.setLoading(false, { allowModelSelection: true });
       }
