@@ -98,7 +98,9 @@ export function createWorkbenchInfrastructure(
     sectionAxis: options.sectionAxis,
     sectionOffset: options.sectionOffset,
     interaction: () => options.interactionForSlot("primary"),
-    setInteraction: (value) => options.setInteractionForSlot("primary", value),
+    setInteraction: (value) => {
+      options.setInteractionForSlot("primary", value);
+    },
     getInspection: options.getInspection,
     setInspection: options.setInspection,
     setInspectionForSlot: options.setInspectionForSlot,

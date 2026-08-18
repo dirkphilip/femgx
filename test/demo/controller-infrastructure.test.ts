@@ -13,7 +13,7 @@ import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructureOptions,
 } from "../../demo/workbench/controllers/controller-infrastructure";
-import type { DemoView, ViewportSlotId } from "../../demo/workbench/viewport/view";
+import type { ViewportSlotId } from "../../demo/workbench/viewport/view";
 
 describe("workbench controller infrastructure", () => {
   it("keeps primary picking and state scoped to primary when secondary is active", async () => {
@@ -67,7 +67,7 @@ describe("workbench controller infrastructure", () => {
 
     expect(isTargetSelected(states.get("primary") as InteractionState, target)).toBe(true);
     expect(isTargetSelected(states.get("secondary") as InteractionState, target)).toBe(false);
-    expect(primaryViewport.interaction.set).toHaveBeenCalledWith(states.get("primary"));
+    expect(vi.mocked(primaryViewport.interaction.set)).toHaveBeenCalledWith(states.get("primary"));
     expect(inspections.get("primary")?.visible).toBe(true);
     expect(inspections.get("secondary")?.visible).toBe(false);
   });
@@ -96,7 +96,7 @@ function infrastructureOptions(
     return value;
   };
   return {
-    view: { primaryPane, secondaryPane } as DemoView,
+    view: { primaryPane, secondaryPane },
     canvas: primaryPane.canvas,
     rendererName: "test",
     viewport: primaryViewport,
@@ -116,7 +116,9 @@ function infrastructureOptions(
     sectionAxis: () => "off",
     sectionOffset: () => 0,
     interaction: () => interactionForSlot(activeSlot),
-    setInteraction: (value) => setInteractionForSlot(activeSlot, value),
+    setInteraction: (value) => {
+      setInteractionForSlot(activeSlot, value);
+    },
     getInspection: activeInspection,
     setInspection: (value) => {
       inspections.set(activeSlot, { ...value });
