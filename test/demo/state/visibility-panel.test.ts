@@ -50,7 +50,7 @@ function createPanel(
   getModel: () => WorkbenchModel,
   getRuntime: () => SceneRuntime,
 ): VisibilityPanelController {
-  let interaction = createInteractionState();
+  const interaction = createInteractionState();
   return new VisibilityPanelController({
     getModel,
     getRuntime,
