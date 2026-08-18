@@ -11,6 +11,8 @@ import {
   type Viewport,
   type ViewportElementVectorConfig,
   type ViewportResultsConfig,
+  type AssemblyOccurrenceId,
+  type PartOccurrenceId,
 } from "../../src/entries/root";
 
 async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise<void> {
@@ -32,6 +34,17 @@ function assertPartOccurrenceOverrideContracts(): void {
   setPartOccurrenceOverrides(state, [["1/0", { emissive: 0.2 }]]);
   // @ts-expect-error Part-occurrence override keys use stable string identities.
   setPartOccurrenceOverrides(state, [[1, { emissive: 0.2 }]]);
+}
+
+function assertOccurrenceIdentityContracts(
+  partOccurrenceId: PartOccurrenceId,
+  assemblyOccurrenceId: AssemblyOccurrenceId,
+): void {
+  // @ts-expect-error Assembly-occurrence identities cannot address part occurrences.
+  const wrongPartIdentity: PartOccurrenceId = assemblyOccurrenceId;
+  // @ts-expect-error Part-occurrence identities cannot address assembly occurrences.
+  const wrongAssemblyIdentity: AssemblyOccurrenceId = partOccurrenceId;
+  void [wrongPartIdentity, wrongAssemblyIdentity];
 }
 
 function assertResultAndReconciliationContracts(outcome: SceneReconciliationOutcome): void {
@@ -59,8 +72,11 @@ function assertResultAndReconciliationContracts(outcome: SceneReconciliationOutc
 
 describe("public compiler contracts", () => {
   it("keeps invalid states and mismatched picking results unrepresentable", () => {
+    expectTypeOf<PartOccurrenceId>().toExtend<string>();
+    expectTypeOf<AssemblyOccurrenceId>().toExtend<string>();
     expectTypeOf(assertPickingContracts).toBeFunction();
     expectTypeOf(assertResultAndReconciliationContracts).toBeFunction();
     expectTypeOf(assertPartOccurrenceOverrideContracts).toBeFunction();
+    expectTypeOf(assertOccurrenceIdentityContracts).toBeFunction();
   });
 });

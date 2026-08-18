@@ -1,5 +1,5 @@
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 import { invariantValue } from "./invariants";
 import type { KeyedGroupIndex } from "./group-index";
@@ -30,7 +30,7 @@ export interface RuntimeState {
   readonly instanceVisible: Uint8Array;
   readonly instanceWorldTransforms: Float32Array;
   /** Authoring placement handle per instance, mirroring flatten paths. */
-  readonly instanceInstanceIds: readonly string[];
+  readonly instanceInstanceIds: readonly PartOccurrenceId[];
   readonly sortedPartIds: Uint32Array;
   readonly partInstanceOffset: Uint32Array;
   readonly partInstanceList: Uint32Array;
@@ -109,7 +109,7 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   const instancePartVisible = new Uint8Array(count);
   const instanceVisible = new Uint8Array(count);
   const instanceWorldTransforms = new Float32Array(count * 16);
-  const instanceInstanceIds: string[] = [];
+  const instanceInstanceIds: PartOccurrenceId[] = [];
   let visibleCount = 0;
   for (let i = 0; i < count; i++) {
     const draft = invariantValue(instances[i], `instance draft at ${i}`);

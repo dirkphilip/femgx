@@ -28,7 +28,9 @@ not a formal or universally standardized methodology.
 ## Placement rules
 
 - Validate once at the boundary that owns admission of a value.
-- Use TypeScript types for structural constraints. Use runtime checks for
+- Use TypeScript types for structural constraints, including branded domain
+  handles when distinct categories share the same runtime representation. Use
+  runtime checks for
   numeric, cardinality, referential, and lifecycle constraints types cannot
   express.
 - Treat a closed TypeScript union or const-derived discriminant as the complete

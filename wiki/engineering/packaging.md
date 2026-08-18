@@ -54,7 +54,7 @@ consumers get `.d.ts`, so each format is type-checked against its own tree.
 `sideEffects: false` is set so bundlers can tree-shake. The root and all
 non-GLB entries have no GLB/Draco closure; only `femgx/io/glb` includes it.
 
-## `@webgpu/types` is a devDependency only
+## WebGPU types across TypeScript versions
 
 TypeScript 6 ships WebGPU globals in `lib.dom.d.ts`, so the emitted declarations
 reference no package that consumers must install:
@@ -66,8 +66,11 @@ reference no package that consumers must install:
   namespaces (`GPUBufferUsage`, `GPUTextureUsage`, `GPUMapMode`,
   `GPUShaderStage`) and constants, which `lib.dom` does not declare.
 - Shipping `@webgpu/types` as a dependency would double-declare the WebGPU
-  globals and break strict consumers (`skipLibCheck: false`). Consumers need
-  TypeScript ≥ 6 so their DOM lib includes the WebGPU types.
+  globals and break strict TypeScript 6 consumers (`skipLibCheck: false`). It
+  therefore remains a repository devDependency rather than a femgx dependency.
+- TypeScript 5.9 consumers may install `@webgpu/types` themselves. The package
+  smoke test compiles the packed public surface with that combination and
+  `skipLibCheck: false`; TypeScript 6 remains the dependency-free path.
 
 ## Clean package guarantees
 
@@ -104,7 +107,10 @@ reference no package that consumers must install:
    no `preinstall`.
 5. Runs `node` ESM `import` and CJS `require` of the root and every domain entry.
 6. Type-checks all entries under `bundler` and `nodenext` (`.mts` + `.cts`),
-   plus the canonical root under legacy `node10`, with `skipLibCheck: false`.
+   plus the canonical root under legacy `node10`, with TypeScript 6 and
+   `skipLibCheck: false`.
+7. Type-checks the same packed public surface with TypeScript 5.9 and
+   consumer-supplied `@webgpu/types`, also with `skipLibCheck: false`.
 
 `npm publish` runs `test:package` automatically via `prepublishOnly`. attw is a
 devDependency only (`@arethetypeswrong/cli`), so the published package and the

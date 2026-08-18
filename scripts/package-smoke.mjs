@@ -269,6 +269,7 @@ function main() {
 
     // 8. Type-level consumption under each supported moduleResolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
+    const tsc5 = join(repoRoot, "node_modules", "typescript-5", "bin", "tsc");
     const smokeTs = [
       'import { boxSelectionFrustum, createViewport, createInteractionState, createPart, createResultField, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride, setTargetHighlighted, setTargetSelected, translation, UnknownSceneIdentityError, type Viewport, type InteractionTarget, type StyleOverride } from "femgx";',
       'import { createElement, createElementModel, elementPart, ElementShape } from "femgx/model";',
@@ -400,6 +401,18 @@ function main() {
       JSON.stringify(tsconfigBundler, null, 2),
     );
 
+    const tsconfigTypeScript5 = {
+      compilerOptions: {
+        ...tsconfigBundler.compilerOptions,
+        types: ["@webgpu/types"],
+      },
+      files: ["smoke.ts"],
+    };
+    writeFileSync(
+      join(consumer, "tsconfig.typescript5.json"),
+      JSON.stringify(tsconfigTypeScript5, null, 2),
+    );
+
     const tsconfigNode10 = {
       compilerOptions: {
         target: "es2022",
@@ -442,6 +455,27 @@ function main() {
       runCommand(tsc, ["-p", join(consumer, config)], consumer);
       console.log(`${config} type-check OK`);
     }
+    runCommand(
+      "npm",
+      [
+        "install",
+        join(repoRoot, "node_modules", "@webgpu", "types"),
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--no-package-lock",
+        "--no-save",
+        "--offline",
+        "--cache",
+        installCache,
+        "--userconfig",
+        userConfig,
+      ],
+      consumer,
+      isolatedNpmEnvironment(installCache, userConfig),
+    );
+    runCommand(tsc5, ["-p", join(consumer, "tsconfig.typescript5.json")], consumer);
+    console.log("tsconfig.typescript5.json type-check OK");
 
     console.log("Package smoke tests passed.");
   } finally {
