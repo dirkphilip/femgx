@@ -62,3 +62,18 @@ export type InteractionTarget =
       /** Canonical authored edge key. */
       readonly key: EdgeKey;
     };
+
+/**
+ * The interaction-target variant produced for one requested granularity.
+ *
+ * Use this when a host abstraction carries the granularity as a generic type;
+ * ordinary calls to picking helpers infer it automatically.
+ * @category Interaction and picking
+ */
+export type InteractionTargetFor<K extends InteractionTarget["kind"]> = Extract<
+  InteractionTarget,
+  {
+    /** Target discriminator matching the requested granularity. */
+    readonly kind: K;
+  }
+>;

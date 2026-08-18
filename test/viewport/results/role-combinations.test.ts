@@ -18,6 +18,7 @@ import {
   installTestGpuGlobals,
 } from "./support";
 import { createElementFrameField, createNodalLoadField } from "../../../src/results/fields";
+import type { ViewportElementVectorConfig } from "../../../src/viewport/results";
 
 describe("viewport results workflow", () => {
   it("accepts every non-empty combination of independent result roles", () => {
@@ -244,7 +245,13 @@ describe("viewport results workflow", () => {
     }).toThrow("must include");
     expect(viewport.results.state).toBe(previous);
     expect(() => {
-      viewport.results.set({ orientation: { field: vector, glyph: "axis", transform: "normal" } });
+      viewport.results.set({
+        orientation: {
+          field: vector,
+          glyph: "axis",
+          transform: "normal",
+        } as unknown as ViewportElementVectorConfig,
+      });
     }).toThrow("normal transform");
     expect(viewport.results.state).toBe(previous);
 

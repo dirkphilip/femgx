@@ -104,6 +104,7 @@ function resultState(field: ViewportScalarState["field"]): ViewportResultsState 
     scalar,
     deformation: undefined,
     orientation: undefined,
+    loads: undefined,
   };
 }
 
@@ -123,6 +124,7 @@ function vectorResultState(
     scalar: undefined,
     deformation: undefined,
     orientation,
+    loads: undefined,
   };
 }
 

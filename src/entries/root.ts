@@ -83,6 +83,7 @@ export {
   setTargetSelected,
   interactionTargetFromHit,
   type InteractionTarget,
+  type InteractionTargetFor,
 } from "../interaction/targets";
 export {
   emphasizedBodyRefs,

@@ -69,7 +69,7 @@ export function resolveViewportResults(
     scalar,
     deformation,
     orientation,
-    ...(resolvedLoads === undefined ? {} : { loads: resolvedLoads.config }),
+    loads: resolvedLoads?.config,
   };
   resolveViewportResultColors(state, scalar, scene, runtime, previous);
   orientationRecords.set(state, mergeRecords(resolvedOrientation?.records, resolvedLoads?.records));
