@@ -133,6 +133,17 @@ export function removeShowStateForSlot(
   return hoverOwners.delete(slotId);
 }
 
+/** Clears pending playback timers for every slot during controller teardown. */
+export function clearResultPlaybackTimers(
+  states: ReadonlyMap<ViewportSlotId, WorkbenchShowState>,
+): void {
+  for (const state of states.values()) {
+    if (state.resultPlaybackTimer === undefined) continue;
+    globalThis.clearTimeout(state.resultPlaybackTimer);
+    state.resultPlaybackTimer = undefined;
+  }
+}
+
 /** Resets model-dependent state while preserving each slot's presentation background. */
 export function resetShowStatesForModel(
   states: Map<ViewportSlotId, WorkbenchShowState>,
@@ -201,6 +212,7 @@ export function cloneWorkbenchShowState(state: WorkbenchShowState): WorkbenchSho
       ? { elementDetail: undefined }
       : { elementDetail: { ...state.elementDetail } }),
     inspection: { ...state.inspection },
+    resultPlaybackActive: false,
     resultPlaybackPlaying: false,
     resultPlaybackTimer: undefined,
   };

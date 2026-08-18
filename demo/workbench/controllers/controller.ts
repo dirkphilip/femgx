@@ -37,6 +37,7 @@ import {
   createWorkbenchShowState,
   installWorkbenchShowStateAccessors,
   cloneShowStateForSlot,
+  clearResultPlaybackTimers,
   removeShowStateForSlot,
   resetShowStatesForModel,
   setInspectionForSlot,
@@ -46,6 +47,7 @@ import {
 import {
   applyControllerDisplayState as applyDisplayStateForOwner,
   applyControllerResultMode as applyResultModeForOwner,
+  applyControllerResultModeForSlot,
   applyActiveStateForOwner,
   applyStateForOwner,
   setBackgroundForOwner,
@@ -171,11 +173,6 @@ export class WorkbenchController {
   declare elementDetail: WorkbenchElementDetailSnapshot | undefined;
   declare scalarFieldId: string;
   declare background: ViewportBackground;
-  declare resultPlaybackIndex: number;
-  declare resultPlaybackRate: number;
-  declare resultPlaybackPlaying: boolean;
-  declare resultPlaybackActive: boolean;
-  declare resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
   declare inspection: { visible: boolean; text: string };
 
   constructor(options: WorkbenchOptions) {
@@ -198,10 +195,10 @@ export class WorkbenchController {
     );
     this.snapshotBridge = new WorkbenchSnapshotBridge(() => snapshotInputFromOwner(this));
     this.elementDetailActions = createElementDetailActions(this);
+    this.initializeInfrastructure(options);
     this.resultPlaybackActions = createResultPlaybackActions(this);
     this.commandSurface = createWorkbenchCommands(this);
     installResultPlaybackVisibility(this.resultPlaybackActions, this.listenerController.signal);
-    this.initializeInfrastructure(options);
     this.modelSession = new WorkbenchModelSession({
       presentation: this.presentation,
       resolveModel: (id) => this.catalog.resolveModel(id),
@@ -414,6 +411,7 @@ export class WorkbenchController {
   destroy(): void {
     if (this.disposed) return;
     this.resultPlaybackActions.stop();
+    clearResultPlaybackTimers(this.showStates);
     this.modelSession.cancel();
     this.disposed = true;
     this.boxSelectionDisposer?.();
@@ -441,6 +439,8 @@ export class WorkbenchController {
   setSectionOffset = applySectionOffset.bind(null, this);
 
   applyResultMode: (render: boolean) => void = applyResultModeForOwner.bind(null, this);
+
+  applyResultModeForSlot = applyControllerResultModeForSlot.bind(null, this);
 
   applyCurrentDisplayState: () => void = applyDisplayStateForOwner.bind(null, this);
 
