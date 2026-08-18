@@ -2,7 +2,6 @@ import { expect, it, describe } from "vitest";
 import {
   createDrawResources,
   destroyDrawResources,
-  uploadPart,
   patchInstances,
   writeDrawOrder,
   writeEdgeOrder,
