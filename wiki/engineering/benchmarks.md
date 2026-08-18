@@ -136,8 +136,10 @@ several multiples, so budgets are only meaningful on clean timing runs.
   Scaling series use one warmup and three samples to keep the default gate
   bounded.
 - Scaling cases compare milliseconds per declared unit across their fixed
-  sizes and permit at most a 3x normalized-cost spread. This catches quadratic
-  growth without encoding one developer machine's absolute speed.
+  sizes and permit at most a 3x normalized-cost spread, except the allocation-
+  heavy many-part scene-build and public `Viewport.setScene` cases, which
+  permit 5x because their samples are noisier. This catches quadratic growth
+  without encoding one developer machine's absolute speed.
 - Mutating workloads (visibility updates) are written as toggles that
   restore state, so every sample does the same amount of work instead of
   short-circuiting on a second no-op call.

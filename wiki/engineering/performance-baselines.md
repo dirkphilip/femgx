@@ -23,8 +23,9 @@ universal hardware capacity:
 
 Structural updates, model construction, and upload are capacity/throughput
 trends rather than interaction gates. Default CI budgets remain deliberately
-loose, approximately 10× the measured median, and scaling series retain their
-≤3× normalized-cost-spread guard.
+loose, approximately 10× the measured median, and scaling series retain a
+≤3× normalized-cost-spread guard by default, with documented noisy-case
+exceptions.
 
 ## Local CPU operation report
 
