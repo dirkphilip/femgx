@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setElementVisible } from "../../src/interaction/elements";
+import { setBodyVisible } from "../../src/interaction/bodies";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
 import { RendererAttachment } from "../../src/renderer/attachment";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -113,6 +114,116 @@ function buildBudgetScene() {
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
 
+function buildOversizeScene() {
+  const primitiveCount = Math.floor((16 * 1024 * 1024) / 12) + 1;
+  const part = createPart(88, {
+    geometries: [
+      {
+        primitive: "triangles" as const,
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array((primitiveCount + 1) * 3),
+        faces: [
+          {
+            elementId: 1,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount,
+            key: "1:0",
+            nodeIds: [0, 1, 2],
+            neighborElementId: 2,
+          },
+          {
+            elementId: 2,
+            faceIndex: 0,
+            primitiveStart: primitiveCount,
+            primitiveCount: 1,
+            key: "2:0",
+            nodeIds: [0, 1, 2],
+          },
+        ],
+        faceSubset: { faceIds: [{ elementId: 2, faceIndex: 0 }] },
+      },
+    ],
+    elements: [
+      {
+        id: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount }],
+      },
+      {
+        id: 2,
+        primitiveRanges: [
+          { primitive: "triangles", primitiveStart: primitiveCount, primitiveCount: 1 },
+        ],
+      },
+    ],
+  });
+  const scene = createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "oversize",
+      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+  return { part, scene, runtime: createPackedSceneRuntime(scene) };
+}
+
+function buildMixedPrimitiveScene() {
+  const part = createPart(89, {
+    geometries: [
+      {
+        primitive: "triangles",
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        faces: [
+          {
+            elementId: 1,
+            faceIndex: 0,
+            primitiveStart: 0,
+            primitiveCount: 1,
+            key: "1:0",
+            nodeIds: [0, 1, 2],
+            bodyId: 1,
+          },
+        ],
+        faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
+      },
+      {
+        primitive: "points",
+        positions: new Float32Array([0, 0, 0]),
+        indices: new Uint32Array([0]),
+      },
+    ],
+    elements: [
+      {
+        id: 1,
+        bodyId: 1,
+        primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+      },
+      {
+        id: 2,
+        bodyId: 2,
+        primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }],
+      },
+    ],
+    bodies: [
+      { id: 1, elementIds: [1] },
+      { id: 2, elementIds: [2] },
+    ],
+  });
+  const scene = createScene()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "mixed",
+      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+    })
+    .withRoot(1)
+    .build();
+  return { part, scene, runtime: createPackedSceneRuntime(scene) };
+}
+
 describe("bounded visibility skins", () => {
   it("shares a compact order and preserves the exterior subset for unaffected occurrences", async () => {
     const restore = installGpuGlobals();
@@ -164,7 +275,7 @@ describe("bounded visibility skins", () => {
         false,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
-      expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBeGreaterThan(0);
+      expect(attachment.calls[0]?.visibilitySkin).not.toBe(firstSkin);
       attachment.clear(bundle);
       expect(bundle.draw.visibilitySkins.size).toBe(0);
       destroyGpuBundle(bundle);
@@ -173,7 +284,7 @@ describe("bounded visibility skins", () => {
     }
   });
 
-  it("falls back to complete topology when active skins exceed the part budget", async () => {
+  it("retains every required active skin when their total exceeds the part budget", async () => {
     const restore = installGpuGlobals();
     try {
       const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -194,9 +305,61 @@ describe("bounded visibility skins", () => {
 
       const cache = bundle.draw.visibilitySkins.get(part.id);
       expect(cache).toBeDefined();
-      expect(cache?.residentBytes).toBeLessThanOrEqual(cache?.budgetBytes ?? 0);
-      expect(attachment.calls.filter((call) => call.visibilitySkin !== undefined)).toHaveLength(2);
-      expect(attachment.calls.filter((call) => call.visibilitySkin === undefined)).toHaveLength(1);
+      expect(cache?.residentBytes).toBeGreaterThan(cache?.budgetBytes ?? Infinity);
+      expect(attachment.calls.filter((call) => call.visibilitySkin !== undefined)).toHaveLength(3);
+      destroyGpuBundle(bundle);
+    } finally {
+      restore();
+    }
+  });
+
+  it("admits one required hidden skin larger than the normal 16 MiB cache budget", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
+      const { scene, runtime } = buildOversizeScene();
+      const attachment = new RendererAttachment();
+      attachment.prepareParts(scene.parts, bundle);
+      attachment.attach(runtime, bundle);
+      const hidden = setElementVisible(
+        createInteractionState(),
+        { partOccurrenceId: "1/only", elementId: 2 },
+        false,
+      );
+      attachment.updateElements(runtime, hidden, bundle, scene.parts);
+
+      expect(attachment.calls[0]?.visibilitySkin?.byteLength).toBeGreaterThan(16 * 1024 * 1024);
+      destroyGpuBundle(bundle);
+    } finally {
+      restore();
+    }
+  });
+
+  it("does not build a triangle skin for a point-only hidden element", async () => {
+    const restore = installGpuGlobals();
+    try {
+      const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
+      const { part, scene, runtime } = buildMixedPrimitiveScene();
+      const attachment = new RendererAttachment();
+      attachment.prepareParts(scene.parts, bundle);
+      attachment.attach(runtime, bundle);
+      const hidden = setElementVisible(
+        createInteractionState(),
+        { partOccurrenceId: "1/only", elementId: 2 },
+        false,
+      );
+      attachment.updateElements(runtime, hidden, bundle, scene.parts);
+
+      expect(attachment.calls).toEqual([{ partId: part.id, instanceCount: 1 }]);
+      expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBe(0);
+      const hiddenBody = setBodyVisible(
+        createInteractionState(),
+        { partOccurrenceId: "1/only", bodyId: 2 },
+        false,
+      );
+      attachment.updateElements(runtime, hiddenBody, bundle, scene.parts);
+      expect(attachment.calls).toEqual([{ partId: part.id, instanceCount: 1 }]);
+      expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBe(0);
       destroyGpuBundle(bundle);
     } finally {
       restore();

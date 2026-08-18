@@ -180,6 +180,40 @@ source of truth and the changelog records the before/after milestones.
 | All build draw ranges           | 131,712 elements |  0.001 |  0.001 | CPU full-selection shortcut       |
 | Unchanged repeat collect cache  | 131,712 elements |  0.000 |  0.010 | CPU identity-cache hit            |
 
+## Packed Tet4 visibility synchronization
+
+Run the current-state-only visibility matrix with:
+
+```sh
+PERF_BASELINE_FILE=perf-reports/<machine>-<sha>-visibility.json \
+  npm run bench:tet4-visibility-sync
+```
+
+The current clean Apple M3 Pro / Node 24.18.0 source is commit
+`808450803d7b0b8b6115bb83cdf4efd8195a8842` and
+`36-local-tet4-visibility.json`. The cold builder classifies all 526,848
+oriented faces; output and signature bytes are exact typed-array accounting.
+
+| Operation                     | Hidden elements |      p50 / p95 ms | Output indices / bytes | Signature typed bytes |
+| ----------------------------- | --------------: | ----------------: | ---------------------: | --------------------: |
+| Cold packed skin, one hidden  |               1 |     8.856 / 8.908 |       28,230 / 112,920 |                     0 |
+| Cold packed skin, half hidden |          65,856 |     5.807 / 5.848 |        18,816 / 75,264 |               279,888 |
+| Cold packed skin, all hidden  |         131,712 |     2.023 / 2.057 |                  0 / 0 |               543,312 |
+| Half cold hide, fake-GPU sync |          65,856 | 409.194 / 414.058 |        18,816 / 75,264 |                     — |
+| Half show and destroy         |               0 |     0.215 / 0.285 |                  0 / 0 |                     — |
+| Half re-hide and recompute    |          65,856 | 416.082 / 434.754 |        18,816 / 75,264 |                     — |
+
+The one-hidden regression protects bounded output allocation: a sparse hidden
+signature must not create millions of boxed output indices, and its exact skin
+is 112,920 typed bytes. Half selection uses a dense ordinal signature and emits
+only the 75,264-byte exterior skin; all hidden takes the zero-output shortcut.
+Despite broader hidden sets, those paths are 1.53× and 4.38× faster at p50 than
+the sparse one-hidden builder on this fixture.
+The full-sync rows include attachment orchestration and fake queue writes, so
+they are not native GPU or frame timings. Show releases the current skin and
+re-hide deliberately recomputes it; no historical interaction-state result is
+retained.
+
 ## Dense node-selection synchronization
 
 Run the opt-in local CPU/fake-GPU matrix with:
@@ -190,27 +224,29 @@ PERF_BASELINE_FILE=perf-reports/<machine>-<sha>-node-selection.json \
 ```
 
 The current clean Apple M3 Pro / Node 24.18.0 reference is commit
-`c5293aad5169aa0f7204bd262fb3e999b9170624`. Its source artifact is
-`28-local-node-selection-dense.json`. Rows are isolated and non-additive:
+`808450803d7b0b8b6115bb83cdf4efd8195a8842`. Its source artifact is
+`37-local-node-selection-compact.json`. Rows are isolated and non-additive:
 
-| Operation                              | Workload                               | p50 ms | p95 ms | Evidence boundary                             |
-| -------------------------------------- | -------------------------------------- | -----: | -----: | --------------------------------------------- |
-| Cold node sprite expansion             | 24,389 centers; 2,146,232 output bytes |  0.332 |  0.393 | CPU allocation + scalar typed-array fill      |
-| Cold node topology                     | 526,848 owners; 9,112,460 output bytes | 14.346 | 99.124 | CPU count/fill + order check; allocation tail |
-| Half immutable interaction state       | 12,194 selected nodes                  |  0.687 |  0.753 | CPU immutable state construction              |
-| Half dense membership                  | 12,194 selected; 3,056-byte payload    |  0.136 |  0.372 | CPU classification + profitable bitset        |
-| Half fresh highlight encode/copy       | 3,200-byte fresh storage               |  0.008 |  0.014 | CPU encoding + fake queue copy                |
-| All immutable interaction state        | 24,389 selected nodes                  |  1.495 |  1.669 | CPU immutable state construction              |
-| All dense membership                   | 24,389 selected; 3,056-byte payload    |  0.204 |  0.225 | CPU classification + profitable bitset        |
-| All fresh highlight encode/copy        | 3,200-byte fresh storage               |  0.007 |  0.009 | CPU encoding + fake queue copy                |
-| 32-occurrence selected-node order sync | one selected node in each occurrence   |  0.028 |  0.036 | isolated CPU + fresh fake order buffers       |
+| Operation                              | Workload                               | p50 ms | p95 ms | Evidence boundary                          |
+| -------------------------------------- | -------------------------------------- | -----: | -----: | ------------------------------------------ |
+| Compact indexed sprite payload         | 24,389 centers; 975,560 GPU bytes      |  0.126 |  0.195 | CPU index build; source centers/ids reused |
+| Direct final-packed node topology      | 526,848 owners; 9,210,036 packed bytes | 15.488 | 75.211 | CPU count/fill + final packing             |
+| Half immutable interaction state       | 12,194 selected nodes                  |  0.757 |  0.784 | CPU immutable state construction           |
+| Half dense membership                  | 12,194 selected; 3,056-byte payload    |  0.129 |  0.415 | CPU classification + profitable bitset     |
+| Half fresh highlight encode/copy       | 3,200-byte fresh storage               |  0.011 |  0.082 | CPU encoding + fake queue copy             |
+| All immutable interaction state        | 24,389 selected nodes                  |  1.655 |  1.747 | CPU immutable state construction           |
+| All dense membership                   | 24,389 selected; 3,056-byte payload    |  0.241 |  0.271 | CPU classification + profitable bitset     |
+| All fresh highlight encode/copy        | 3,200-byte fresh storage               |  0.006 |  0.009 | CPU encoding + fake queue copy             |
+| 32-occurrence selected-node order sync | one selected node in each occurrence   |  0.028 |  0.038 | isolated CPU + fresh fake order buffers    |
 
-The topology p95 is the maximum-like tail of seven cold 8.69 MiB allocations on
-this small sample count, not a steady-frame latency. It is retained because it
-exposes the GC risk that the median hides. The implementation has no per-node
-JS objects or strings: canonical owner order stays linear, noncanonical input
-sorts each node's bounded owner slice in-place, and point-sprite expansion uses
-scalar typed-array writes without per-sprite views or mapped arrays.
+The topology p95 is the allocation tail of seven cold final-packed builds, not
+a steady-frame latency. The builder retains a 9,210,036-byte packed topology and
+uses 487,780 temporary typed bytes; direct packing eliminates 9,112,460 raw
+topology bytes plus 97,556 element-ordinal bytes of staging. The compact indexed
+sprite output is exactly 40 GPU bytes per node (12 center, 4 id, 24 index), down
+from 88 bytes and saving 1,170,672 bytes on this fixture. Sequential centers and
+ids reuse their authored typed arrays; sparse/reordered ids gather centers
+without per-node JS objects.
 
 ### Current real-WebGPU node reference
 
@@ -219,29 +255,29 @@ DPR-1, four-sample viewport and the 131,712-element / 24,389-node Tet4 case:
 
 | Phase               | Targets | State ms | Sync ms | First frame ms | Steady p50 / p95 ms | Clear ms |
 | ------------------- | ------: | -------: | ------: | -------------: | ------------------: | -------: |
-| Half nodes, cold    |  12,194 |    0.900 |   0.400 |        125.600 |       2.400 / 4.400 |    1.200 |
-| All nodes, resident |  24,389 |    1.000 |   0.900 |          2.400 |       1.900 / 2.200 |    1.200 |
+| Half nodes, cold    |  12,194 |    1.000 |   0.400 |        142.000 |       3.500 / 4.200 |    1.100 |
+| All nodes, resident |  24,389 |    1.400 |   0.900 |          2.800 |       2.400 / 2.900 |    1.300 |
 
 Each phase uses one 3,056-byte dense membership payload in 3,200 bytes of
 highlight storage. Each visible and hidden node replay is one instance and
 146,334 indices. Desktop and actual 390×844 system-Chrome captures were
-nonblank and showed the selected nodes. The cold half-node first frame remains
-above the 16.7 ms interaction target; the resident path and steady frames meet
-it.
+nonblank and passed an orange selected-node pixel assertion. The clean
+schema-12 artifact is `38-local-tet4-node-selection-compact.json`. The cold
+half-node first frame remains above the 16.7 ms interaction target; the resident
+path and steady frames meet it. The original object-heavy cold path was
+observed at 311.9 ms on this hardware; the current 142.0 ms cold result is
+2.20× faster.
 
-The original object-heavy cold path was observed at 311.9 ms with the same
-hardware, fixture, and schema-11 lane. Dense typed topology and zero-churn
-sprite expansion reduce the final integrated cold observation to 125.6 ms, a
-2.48× improvement. Clean runs of this one-shot phase ranged from 50.5 to
-125.6 ms, consistent with the separately measured allocation tail; resident
-selection remained stable. The remaining cold work includes about 14 ms median
-CPU topology construction plus topology packing, GPU buffer creation/upload,
-and the frame. At a projected one million nodes and roughly four million owner
-occurrences, current raw topology, packed topology, sprite outputs, and build
-temporaries can peak around 284–304 MiB of typed arrays before source mesh and
-native queue copies. Direct construction into the final packed allocation and
-eventual one-center procedural sprite storage are the next measured memory and
-first-use targets; they are not claims of current one-million-node readiness.
+The clean `unique-2m-local` artifact
+`39-local-two-million-compact-nodes.json` exercises 1,002,001 node centers on
+the same Metal 3 adapter. Cold node presentation is 296.4 ms CPU and 354.7 ms
+queue-drained, versus 519.9 / 580.7 ms in report 29 (1.75× / 1.64×). With nodes
+and presentation edges resident, fixed-camera RAF is 8.3 / 8.7 ms p50/p95 and
+moving-camera RAF is 8.3 / 9.1 ms, with no interval over 16.7 ms. The compact
+sprite GPU payload is 40,080,040 bytes instead of 88,176,088, an exact
+48,096,048-byte reduction. The schema-12 retained-memory estimator still
+excludes node sidecars; these structural bytes are reported separately rather
+than silently added to that estimate.
 
 ## Many-piece real-WebGPU reference
 
@@ -321,11 +357,14 @@ Two capacity cases deliberately keep reuse and unique ownership separate:
   scene construction, dense selection, and lazy node/edge presentation costs
   visible instead of hiding them behind instancing.
 
-The current unique-geometry source of truth is clean implementation SHA
-`b7ab6b37ce878626e52736b957ea54df1a2567b6` and schema-12 report
-`29-local-two-million-triangle.json`. It used system Chrome 151 on the Apple
-Metal 3 adapter, 800×600 at DPR 1, two warmups, and seven timed steady samples.
-CPU construction/encoding and queue-drained wall time are separate boundaries:
+The surface and dense presentation-edge milestone below is clean implementation
+SHA `b7ab6b37ce878626e52736b957ea54df1a2567b6` and schema-12 report
+`29-local-two-million-triangle.json`. The current compact-node extension is
+clean SHA `808450803d7b0b8b6115bb83cdf4efd8195a8842` and report
+`39-local-two-million-compact-nodes.json`, summarized in the node section above.
+Both used system Chrome 151 on the Apple Metal 3 adapter, 800×600 at DPR 1, two
+warmups, and seven timed steady samples. CPU construction/encoding and
+queue-drained wall time are separate boundaries:
 
 | Workload                            | Exact clean result                                                                                                              |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -387,6 +426,8 @@ number.
 | 2026-08-18 | —                                          | Apple M3 Pro / Chrome 151              | BEFORE many-piece slot/recolor package, same-session observations          | Shared 10k-placement immutable recolor state half/all **427.3 / 1,823.9 ms**; synthetic renderer attachment at 1,024/4,096/16,384 placements **1.113 / 4.274 / 19.276 ms**                                                                                                              | No durable clean JSON or clean SHA for these observations. The recolor values are immutable state construction; attachment is a CPU/fake-GPU seam. Public `Viewport.setScene` at 16,384 placements stayed about **47 ms** before/after with noisy variation, so no end-to-end improvement is claimed.                                                                                                                              |
 | 2026-08-18 | `ba7c04c31f506c358992cd974e03aca2bab23983` | Apple M3 Pro / Chrome 151              | Clean schema-12 distinct-part and shared-placement reference               | Parts: build/runtime/renderer **140.2 / 1.2 / 38.9 ms**, first CPU/queue **450.0 / 472.4 ms**, steady queue **5.0 / 5.5 ms**. Placements: **6.1 / 7.2 / 41.0 ms**, **14.3 / 29.1 ms**, **2.3 / 2.5 ms**. Shared recolor state half/all **1.2 / 1.2 ms**                                 | `30-local-many-parts-1000.json` and `31-local-placements-10k.json`, clean real-WebGPU artifacts. The bulk part-occurrence transition is **356.1× / 1,519.9×** faster than the non-artifact recolor observations. Synthetic attachment after: **0.667 / 2.497 / 10.481 ms** (**1.67× / 1.71× / 1.84×**); it is not hardware evidence. Full operation, write, draw, replacement, and memory rows are above.                          |
 | 2026-08-18 | `c52e4ea9d8648436f6c24500b61b8241f09cf278` | Apple M3 Pro / Node 24.18 + Chrome 151 | Affected-part targeting and direct cold attachment encoding                | Synthetic sparse selection at 100k: **0.466 / 0.510 ms**, **244 B**; cold attach shared 4k **0.955 / 1.489 ms**, distinct 4k **6.503 / 19.302 ms**. Hardware parts first CPU/queue **390.9 / 417.2 ms**; placements **4.0 / 13.9 ms**.                                                  | `32-local-affected-part-sync.json` and `33-local-cold-attachment.json` are seven-sample CPU/fake-GPU artifacts; `34-local-many-parts-1000-after-affected-sync.json` and `35-local-placements-10k-after-affected-sync.json` are real-WebGPU artifacts. Sparse pre-edit **7.621 / 7.734 ms, 400,200 B** and cold pre-edit three-sample values have no durable artifact. Desktop and 390×844 combined-overlay captures were nonblank. |
+| 2026-08-18 | `808450803d7b0b8b6115bb83cdf4efd8195a8842` | Apple M3 Pro / Node 24.18.0            | Current-state packed Tet4 visibility (6 rows)                              | Cold skin one **8.856 / 8.908 ms, 112,920 B**; half **5.807 / 5.848 ms, 75,264 B**; all **2.023 / 2.057 ms, 0 B**. Half hide/show/re-hide fake-GPU sync **409.194 / 414.058**, **0.215 / 0.285**, **416.082 / 434.754 ms**.                                                             | `36-local-tet4-visibility.json`, clean CPU/fake-GPU artifact. One hidden protects bounded typed output; show releases the skin and re-hide recomputes it. No native GPU/frame claim and no historical state cache.                                                                                                                                                                                                                 |
+| 2026-08-18 | `808450803d7b0b8b6115bb83cdf4efd8195a8842` | Apple M3 Pro / Node 24.18 + Chrome 151 | Direct-packed topology and compact indexed node sprites                    | CPU sprite **0.126 / 0.195 ms**, topology **15.488 / 75.211 ms**. Tet4 half cold **142.0 ms**, steady **3.5 / 4.2 ms**; all first **2.8 ms**, steady **2.4 / 2.9 ms**. Unique-2m cold node **296.4 / 354.7 ms CPU/queue**, fixed/moving RAF **8.3/8.7 · 8.3/9.1 ms**.                   | `37-local-node-selection-compact.json`, `38-local-tet4-node-selection-compact.json`, and `39-local-two-million-compact-nodes.json`, all clean-SHA evidence. Final topology removes **9,210,016 B** staging; compact sprites use **40 B/node** and save **48,096,048 B** at 1,002,001 nodes.                                                                                                                                        |
 
 To append a milestone, run the command with `PERF_BASELINE_FILE`, inspect the
 JSON, then add the exact fingerprint and selected p50/p95 values to this table.

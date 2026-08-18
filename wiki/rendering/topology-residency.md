@@ -72,13 +72,14 @@ signature share one compact index order; unaffected occurrences remain on the
 immutable exterior subset. The compact order references the canonical expanded
 vertex, node, and topology buffers, so it does not duplicate semantic geometry.
 
-The per-part skin cache is bounded to two resident full-order equivalents,
-clamped to 64 KiB–16 MiB. Current signatures are pinned while calls are
-rebuilt. Inactive entries are released immediately, and a new signature that
-would exceed the budget uses the existing complete-topology shader path rather
-than producing an incomplete skin. A single hidden element remains sparse
-interaction state; the skin builder scans authoritative oriented faces only on
-the visibility transition, never on an unchanged frame.
+The per-part skin store owns only signatures used by the current interaction
+state. Repeated occurrences with the same active signature share one skin;
+inactive entries are released immediately and a later re-hide recomputes them.
+The 64 KiB–16 MiB working budget guides allocation pressure but is not a
+semantic cap: every active signature receives its exact oriented skin even when
+simultaneous active data exceeds the target. A single hidden element remains
+sparse interaction state; the builder scans authoritative oriented faces only
+on the visibility transition, never on an unchanged frame.
 
 The compact path is observationally equivalent to full residency and preserves
 the same stable identities for color, transparency, selection, picking, nodes,
@@ -120,8 +121,16 @@ Dense exterior presentation uses the measured overlay path:
   nodes-only presentation retains 4× MSAA.
 - Presentation edges use compact authored endpoints as one-device-pixel native
   lines. Exact edge picking keeps separate lazy screen-space-width quads.
-- Node display and node interaction data remain separable so a high-performance
-  presentation does not imply FE-scale selection storage.
+- Node display and node interaction data remain separable. Node presentation
+  uses one authored center (12 bytes), one pick id (4 bytes), and the indexed
+  quad order (24 bytes) per node; the vertex shader derives the four corners.
+  The exact 40-byte GPU payload avoids the former four-center/four-id expansion
+  without changing depth, deformation, visibility, or selection semantics.
+- Node owner topology is constructed directly in its final packed allocation.
+  The 131,712-element Tet4 fixture retains 9,210,036 packed bytes with 487,780
+  builder-temporary bytes and no 9,210,016-byte raw-topology/ordinal staging
+  copy. This immutable geometry-derived topology may remain cached across
+  interaction states.
 
 The final `instanced-2.10m` 800×600 DPR1 system-Chrome case, pinned to merged
 SHA `86f55e5`, measured 119.5 FPS for surface-only presentation, 119.6 FPS for

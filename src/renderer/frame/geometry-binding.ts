@@ -9,10 +9,11 @@ export function bindDrawGeometry(
     readonly overlay: boolean;
     readonly subset: boolean;
     readonly edgePick: boolean;
+    readonly bindVertexBuffer: boolean;
     readonly visibilitySkin: DrawCall["visibilitySkin"];
   },
 ): number | undefined {
-  const { geometry, overlay, subset, edgePick, visibilitySkin } = options;
+  const { geometry, overlay, subset, edgePick, bindVertexBuffer, visibilitySkin } = options;
   if (!overlay && !subset && !edgePick && visibilitySkin !== undefined) {
     pass.setVertexBuffer(0, geometry.vertexBuffer);
     pass.setIndexBuffer(visibilitySkin.indexBuffer, "uint32");
@@ -41,7 +42,7 @@ export function bindDrawGeometry(
         : geometry.indexCount;
   if (indexBuffer === undefined || vertexBuffer === undefined || count === undefined)
     return undefined;
-  pass.setVertexBuffer(0, vertexBuffer);
+  if (bindVertexBuffer) pass.setVertexBuffer(0, vertexBuffer);
   pass.setIndexBuffer(indexBuffer, "uint32");
   return count;
 }

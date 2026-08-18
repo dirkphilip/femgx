@@ -4,10 +4,9 @@ import type { DeformationState } from "../../results/deform";
 import type { ResultColorMap } from "../../results/colors";
 import type { SectionPlane } from "../../math/section-plane";
 import { createEmptyDeformationBuffer } from "../frame/deformation";
-import { packTopologyData } from "../resources/geometry-buffers";
 import { createEmptyOrderBuffer } from "../resources/instance-storage";
 import { createHighlightStorage } from "../selection/highlight-storage";
-import { buildNodeSpritePickIds, buildNodeTopologyData } from "../picking/node-topology";
+import { buildNodeSpritePickIds, buildPackedNodeTopologyData } from "../picking/node-topology";
 import type { DrawPipelines } from "../frame/pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometry";
 import { createBuffer, type PartResource } from "./foundation";
@@ -125,31 +124,13 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   if (existing !== undefined) return existing;
   const nodes = part.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part);
-  const nodeTopology = buildNodeTopologyData(part, spritePickIds);
+  const nodeTopology = buildPackedNodeTopologyData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
-  const vertexBuffer = createBuffer(
-    draw.device,
-    positions,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
+  const vertexBuffer = createBuffer(draw.device, positions, GPUBufferUsage.STORAGE);
   const resource: PartResource = {
     vertexBuffer,
     indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX),
-    facePickIdsBuffer: createBuffer(
-      draw.device,
-      packTopologyData(
-        nodeTopology.faceBodyPickIds,
-        nodeTopology.bodyRanges,
-        nodeTopology.bodyIds,
-        nodeTopology.elementIds,
-        {
-          elementOrdinals: new Uint32Array(spritePickIds.length),
-          primitiveIds: [],
-          edgeIds: [],
-        },
-      ),
-      GPUBufferUsage.STORAGE,
-    ),
+    facePickIdsBuffer: createBuffer(draw.device, nodeTopology, GPUBufferUsage.STORAGE),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edge: undefined,
     edgePick: undefined,

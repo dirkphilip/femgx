@@ -76,7 +76,8 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("displaces point sprites by the vertex index, which carries the point's node", () => {
-    expect(pointVertexShader).toMatch(/displaced\(position, vertexIndex\)/);
+    expect(pointVertexShader).toMatch(/displaced\(position, nodeIndex\)/);
+    expect(pointVertexShader).toMatch(/vertexNodePickIds\[nodeIndex\]/);
   });
 
   it("keeps node emphasis on the node glyph instead of recoloring surface triangles", () => {
@@ -86,9 +87,11 @@ describe("GPU deformation shader contract", () => {
   });
 
   it("keeps regular points at model depth and gives node annotations an independent size", () => {
-    expect(pointVertexShader).toMatch(/pointVertex\(position, instanceIndex, vertexIndex, false\)/);
     expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, true\)/,
+      /pointVertex\(position, instanceIndex, vertexIndex \/ 4u, vertexIndex, vertexIndex % 4u, false\)/,
+    );
+    expect(pointVertexShader).toMatch(
+      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true\)/,
     );
     expect(pointVertexShader).toMatch(/select\(camera\.pointSize, camera\.nodeSize, nodeOverlay\)/);
     expect(pointVertexShader).toMatch(/clip\.z,/);
@@ -104,7 +107,7 @@ describe("GPU deformation shader contract", () => {
 
   it("keeps a shared node visible when hiding one incident element exposes it", () => {
     expect(pointVertexShader).toMatch(
-      /nodeOverlay && !topologyAnyOwnerVisible\(drawOrder\[instanceIndex\], vertexIndex \/ 4u\)/,
+      /nodeOverlay && !topologyAnyOwnerVisible\(drawOrder\[instanceIndex\], primitiveIndex\)/,
     );
     expect(pointVertexShader).toMatch(
       /fn topologyAnyOwnerVisible[\s\S]*if \(ownerVisible[\s\S]*return true;/,
@@ -151,7 +154,7 @@ describe("GPU deformation shader contract", () => {
     expect(pointVertexShader).toContain("vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a)");
     expect(pointVertexShader).toContain("nodeOverlay,");
     expect(pointVertexShader).toMatch(
-      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex, false\)/,
+      /pointVertexMain[\s\S]*pointVertex\(position, instanceIndex, vertexIndex \/ 4u, vertexIndex, vertexIndex % 4u, false\)/,
     );
     expect(edgeVertexShader).toMatch(
       /output\.color = vec4<f32>\(0\.0, 0\.0, 0\.0, 0\.45 \* instance\.color\.a\)/,

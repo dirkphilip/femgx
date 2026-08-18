@@ -84,6 +84,8 @@ async function captureEvidence(
 ): Promise<void> {
   const metrics = await pixelMetrics(canvas);
   expect(metrics.distinctColors).toBeGreaterThan(1);
+  expect(metrics.saturatedPixels).toBeGreaterThan(100);
+  expect(metrics.orangePixels).toBeGreaterThan(100);
   const path = testInfo.outputPath(`dense-node-selection-${label}.png`);
   await page.screenshot({ path });
   await testInfo.attach(`dense-node-selection-${label}`, { path, contentType: "image/png" });

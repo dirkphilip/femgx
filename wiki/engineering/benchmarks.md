@@ -157,11 +157,23 @@ Fully resident visibility evidence is separate from host replacement evidence.
 The focused renderer regression compares one hidden element against its
 exterior subset: submitted surface and pick indices remain the compact visible
 skin count, while an unaffected repeated occurrence keeps the exterior subset.
-Repeated occurrences with the same sparse body/element signature reuse one
-GPU index buffer. Restoring visibility releases inactive skin storage. The
-bounded cache retains at most two full-order equivalents per part (64 KiB
-minimum, 16 MiB maximum); budget overflow is reported by the correct complete
-topology fallback rather than a guessed surface.
+Repeated occurrences with the same currently active body/element signature
+share one GPU index buffer. Restoring or replacing visibility releases obsolete
+skin storage; a later re-hide recomputes it. The 64 KiB–16 MiB working budget is
+an allocation-pressure target, not a semantic limit: every currently active
+signature receives its exact skin even when that active data exceeds the
+target. There is no incomplete or complete-topology fallback at the limit.
+
+The opt-in `npm run bench:tet4-visibility-sync` lane fixes the packed Tet4
+fixture at 131,712 elements and 526,848 oriented faces, then times exact cold
+skin construction for one, half, and all hidden elements. It also times a
+half-hide, show, and re-hide through the full fake-GPU attachment seam. Each
+sample begins from the opposite authoritative interaction state: show destroys
+the obsolete skin, and re-hide recomputes it rather than measuring a historical
+state cache hit. Workload facts assert exact output index/byte counts, signature
+typed bytes, active draw classification, and resident skin bytes. The fake-GPU
+sync rows include CPU attachment work and fake buffer writes; they do not claim
+native queue completion or frame time.
 
 ### Interpreting budgets
 
@@ -248,24 +260,31 @@ Method, targets, current numbers, and the before/after changelog live in
 [[engineering/performance-baselines|Performance baselines]].
 
 The opt-in `npm run bench:node-selection-sync` lane records 26 isolated CPU and
-fake-GPU seams for the same Tet4 part: cold node-sprite expansion, cold dense
-node-topology construction, immutable selection construction, profitable dense
+fake-GPU seams for the same Tet4 part: compact indexed node-sprite payload
+construction, direct final-packed node-topology construction, immutable
+selection construction, profitable dense
 membership classification, sparse emphasis collection, fresh highlight-storage
 encoding/copy, selected-node order construction, and isolated node-order sync.
 It covers two nodes, half and all 24,389 nodes in one occurrence, plus one node
 across 32 occurrences. Fixture/model construction and semantic-index work are
 outside timing. Each cold topology sample writes 526,848 element-node owner
-occurrences into 9,112,460 bytes of raw typed output; each dense half/all
+occurrences directly into the 9,210,036-byte final packed payload with 487,780
+bytes of typed builder temporaries. This removes 9,210,016 bytes of raw topology
+and element-ordinal staging. The compact indexed sprite payload is 40 bytes per
+node (12 position, 4 id, 24 index), versus the former 88 bytes per expanded
+sprite. Each dense half/all
 selection uses a 3,056-byte payload in 3,200 bytes of fresh highlight storage.
 The rows are deliberately non-additive and do not claim real queue submission,
 upload completion, draw, or frame time. Those boundaries are measured by the
-schema-11 system-Chrome report's `nodeSelection` section.
+schema-12 system-Chrome report's `nodeSelection` section.
 
-The real-WebGPU node lane is opt-in and limited to `fe-tet4-solid-132k`. It
+The real-WebGPU node lane is opt-in for `fe-tet4-solid-132k`, while the local
+`unique-2m-local` lane supplies the million-node stress result. It
 records half/all immutable-state and renderer-sync CPU time, queue-drained first
 frame, seven steady frames, clear, structural node draw work, and highlight
 storage bytes. A separate `RUN_PERF_NODE_VISUAL=1` Playwright lane reapplies all
-nodes and captures nonblank real-WebGPU screenshots at desktop and 390×844.
+nodes and captures real-WebGPU screenshots at desktop and 390×844; the capture
+asserts both nonblank pixels and the orange selected-node presentation.
 The first half-node frame intentionally includes lazy node-overlay topology,
 sprite-buffer, GPU-buffer, and bind-group preparation; the following all-node
 phase is resident and must not be compared as another cold upload.
@@ -590,9 +609,11 @@ no `setScene` speedup is claimed.
 
 ### Schema-12 two-million local evidence
 
-The current unique-geometry reference is the clean system-Chrome report
-`perf-reports/29-local-two-million-triangle.json` from implementation SHA
-`b7ab6b37ce878626e52736b957ea54df1a2567b6`. It was recorded on Apple Metal 3
+The dense presentation-edge build reference remains the clean system-Chrome
+report `perf-reports/29-local-two-million-triangle.json` from implementation
+SHA `b7ab6b37ce878626e52736b957ea54df1a2567b6`. The current compact-node
+extension is report `39-local-two-million-compact-nodes.json` from clean SHA
+`808450803d7b0b8b6115bb83cdf4efd8195a8842`. Both were recorded on Apple Metal 3
 with Chrome 151, an 800×600 DPR-1 four-sample viewport, two untimed warmups,
 seven timed steady samples, and a non-fallback WebGPU adapter. Cold CPU fields
 time synchronous construction/encoding; cold frame fields drain the GPU queue.
@@ -627,16 +648,20 @@ half/all. The separate narrow/shell/broad visible-region rows remain in the
 JSON, including readback, state, sync, first/steady frame, and clear boundaries.
 
 Nodes and derived presentation edges are lazy and are measured separately from
-surface attachment. Cold node presentation took 519.9 ms CPU and 580.7 ms
-queue-drained after 0.5 ms interaction sync, submitting 6,012,006 node indices.
-Adding presentation edges then took 905.9 ms CPU and 1,003.8 ms queue-drained
-after 0.3 ms sync, submitting 6,004,000 edge indices. With both overlays
-resident, fixed/moving RAF measured 119.611/120.002 FPS and 9.71/9.80 ms p95,
-with no interval over 16.7 ms. Overlay hover measured 26.2 ms pick, 0.5 ms sync,
-0.5 ms first frame, and 0.5/1.0 ms steady p50/p95. The overlay all-element
-selection measured 24.6 ms target construction, 221.2 ms state construction,
-293.0 ms sync, and 1.7 ms first frame while retaining exact 6,000,000-index visible/hidden
-selection work.
+surface attachment. In report 39, cold node presentation took 296.4 ms CPU and
+354.7 ms queue-drained after 0.4 ms interaction sync, submitting 6,012,006 node
+indices. The same boundary in report 29 was 519.9 / 580.7 ms, so the compact
+path is 1.75× / 1.64× faster. Adding presentation edges then took 814.8 ms CPU
+and 916.1 ms queue-drained after 0.2 ms sync, submitting 6,004,000 edge indices.
+With both overlays resident, fixed/moving RAF measured 119.784/119.494 FPS and
+8.70/9.10 ms p95, with no interval over 16.7 ms. The compact node GPU payload
+is exactly 40,080,040 bytes for 1,002,001 nodes, 48,096,048 bytes below the old
+expanded representation. Overlay hover measured 41.6 ms pick, 0.9 ms sync,
+0.6 ms first frame, and 0.6/14.3 ms steady p50/p95. The overlay all-element
+selection measured 32.3 ms target construction, 306.7 ms state construction,
+485.2 ms sync, and 10.2 ms first frame while retaining exact 6,000,000-index
+visible/hidden selection work. The one-shot interaction values remain noisy;
+the two-second fixed/moving lanes are the steady-render comparison.
 
 The schema-12 memory fields deliberately distinguish retained estimates from
 construction allocations. With presentation edges materialized, the retained

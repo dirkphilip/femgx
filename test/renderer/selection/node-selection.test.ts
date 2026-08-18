@@ -45,6 +45,13 @@ describe("dense node selections", () => {
     expect(occurrence?.words).toBeInstanceOf(Uint32Array);
     expect(occurrence?.words[0]).toBe(0xffffffff);
     expect(sparseNodes(fixture, dense, selections)).toHaveLength(0);
+    expect(collectDenseNodeSelections(fixture.runtime, fixture.layout, fixture.parts, dense)).toBe(
+      selections,
+    );
+    collectDenseNodeSelections(fixture.runtime, fixture.layout, fixture.parts, sparse);
+    expect(
+      collectDenseNodeSelections(fixture.runtime, fixture.layout, fixture.parts, dense),
+    ).not.toBe(selections);
   });
 
   it("retains hovered and highlighted nodes over dense selected membership", () => {

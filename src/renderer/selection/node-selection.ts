@@ -31,14 +31,15 @@ export interface DenseNodeSelection {
 /** Dense selected-node membership grouped by reusable part. */
 export type DenseNodeSelections = ReadonlyMap<PartId, DenseNodeSelection>;
 
+interface DenseNodeCacheEntry {
+  readonly selectedIds: InteractionStateData["selectedNodeIds"];
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly selections: DenseNodeSelections;
+}
+
 const selectionCache = new WeakMap<
-  InteractionStateData["selectedNodeIds"],
-  readonly {
-    readonly runtime: PackedSceneRuntime;
-    readonly layout: DenseNodeLayout;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly selections: DenseNodeSelections;
-  }[]
+  PackedSceneRuntime,
+  WeakMap<DenseNodeLayout, DenseNodeCacheEntry>
 >();
 
 /** Resolves valid large node selections to compact typed bitsets. */
@@ -49,12 +50,11 @@ export function collectDenseNodeSelections(
   interaction: InteractionState,
 ): DenseNodeSelections {
   const data = readInteractionState(interaction);
-  const cached = selectionCache
-    .get(data.selectedNodeIds)
-    ?.find(
-      (entry) => entry.runtime === runtime && entry.layout === layout && entry.parts === parts,
-    );
-  if (cached !== undefined) return cached.selections;
+  const runtimeCache = selectionCache.get(runtime);
+  const cached = runtimeCache?.get(layout);
+  if (cached?.selectedIds === data.selectedNodeIds && cached.parts === parts) {
+    return cached.selections;
+  }
   const byPart = new Map<PartId, DenseNodeBuilder>();
   const context: DenseNodeContext = { runtime, layout, parts, byPart };
   for (const [instanceId, nodeIds] of data.selectedNodeIds) {
@@ -70,8 +70,9 @@ export function collectDenseNodeSelections(
       occurrences,
     });
   }
-  const entries = selectionCache.get(data.selectedNodeIds) ?? [];
-  selectionCache.set(data.selectedNodeIds, [...entries, { runtime, layout, parts, selections }]);
+  const cache = runtimeCache ?? new WeakMap<DenseNodeLayout, DenseNodeCacheEntry>();
+  if (runtimeCache === undefined) selectionCache.set(runtime, cache);
+  cache.set(layout, { selectedIds: data.selectedNodeIds, parts, selections });
   return selections;
 }
 

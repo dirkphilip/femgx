@@ -1,71 +1,101 @@
 import type { ElementTessellation, Geometry, Part } from "../../geometry/part";
+import { nodeOwnersAreCanonical, sortNodeOwners } from "./node-topology-order";
 
-/** Dense node topology packed for the shared face and ownership binding. */
-export interface NodeTopologyData {
+interface NodeTopologyData {
   readonly faceBodyPickIds: Uint32Array;
   readonly bodyRanges: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly elementIds: Uint32Array;
 }
 
-/** Builds node face records and variable-length owners with dense count/fill passes. */
-export function buildNodeTopologyData(
+/** Builds the node topology directly in its immutable GPU binding layout. */
+export function buildPackedNodeTopologyData(
   part: Part,
   spritePickIds?: ArrayLike<number>,
-): NodeTopologyData {
+): Uint32Array {
+  const build = prepareNodeTopology(part, spritePickIds);
+  const ownerCount = countNodeOwners(build);
+  const faceCount = Math.max(1, build.sprites.length);
+  const rangeCount = Math.max(1, build.sprites.length);
+  const faceLength = faceCount * 5;
+  const rangeLength = rangeCount * 2;
+  const ownerLength = ownerCount * 2;
+  const metadataLength = build.sprites.length;
+  const data = new Uint32Array(4 + faceLength + rangeLength + ownerLength * 2 + metadataLength + 1);
+  data[0] = faceCount;
+  data[1] = rangeCount;
+  data[2] = ownerCount;
+  data[3] = metadataLength;
+  const bodyRangeOffset = 4 + faceLength;
+  const bodyIdOffset = bodyRangeOffset + rangeLength;
+  const elementIdOffset = bodyIdOffset + ownerLength;
+  const output = {
+    faceBodyPickIds: data.subarray(4, bodyRangeOffset),
+    bodyRanges: data.subarray(bodyRangeOffset, bodyIdOffset),
+    bodyIds: data.subarray(bodyIdOffset, elementIdOffset),
+    elementIds: data.subarray(elementIdOffset, elementIdOffset + ownerLength),
+  };
+  writeNodeBodyRanges(output.bodyRanges, build);
+  fillNodeTopology(build, output);
+  return data;
+}
+
+interface NodeTopologyBuild extends NodeOwnerPass {
+  readonly sprites: ArrayLike<number>;
+  readonly nodeCount: number;
+  readonly canonicalOwners: boolean;
+}
+
+function prepareNodeTopology(
+  part: Part,
+  spritePickIds: ArrayLike<number> | undefined,
+): NodeTopologyBuild {
   const nodeCount = Math.floor((part.nodePositions?.length ?? 0) / 3);
   const sprites = spritePickIds ?? sequentialNodePickIds(nodeCount);
   const elements = part.elements ?? [];
-  const canonicalOwners = elementsAreCanonical(elements);
-  const stamps = new Uint32Array(nodeCount);
-  const counts = new Uint32Array(nodeCount);
-  const spriteMap = mapNodeSprites(sprites, nodeCount);
-  const pass = {
+  const build = {
     geometries: part.geometries,
     elements,
-    stamps,
-    counts,
-    ...spriteMap,
+    stamps: new Uint32Array(nodeCount),
+    counts: new Uint32Array(nodeCount),
+    ...mapNodeSprites(sprites, nodeCount),
+    sprites,
+    nodeCount,
+    canonicalOwners: nodeOwnersAreCanonical(elements),
   };
-  accumulateNodeOwners(pass);
-  const bodyRanges = buildNodeBodyRanges(sprites, counts, nodeCount);
-  const ownerCount = totalNodeOwners(bodyRanges, sprites.length);
-  const faceBodyPickIds = new Uint32Array(Math.max(5, sprites.length * 5));
-  const bodyIds = new Uint32Array(ownerCount * 2);
-  const elementIds = new Uint32Array(ownerCount * 2);
-  const output = { faceBodyPickIds, bodyRanges, bodyIds, elementIds };
-  stamps.fill(0);
-  accumulateNodeOwners({
-    ...pass,
-    cursors: buildNodeOwnerCursors(bodyRanges, sprites.length),
-    output,
-  });
-  if (!canonicalOwners) sortNodeOwners(output);
-  writeNodeFaceOwners(output);
-  return withNodeTopologySentinels(output);
+  accumulateNodeOwners(build);
+  return build;
 }
 
-function buildNodeBodyRanges(
-  sprites: ArrayLike<number>,
-  counts: Uint32Array,
-  nodeCount: number,
-): Uint32Array {
-  const ranges = new Uint32Array(sprites.length * 2);
+function countNodeOwners(build: NodeTopologyBuild): number {
   let ownerCount = 0;
-  for (let sprite = 0; sprite < sprites.length; sprite += 1) {
-    const nodeId = (sprites[sprite] ?? 0) - 1;
-    const count = nodeId >= 0 && nodeId < nodeCount ? (counts[nodeId] ?? 0) : 0;
+  for (let sprite = 0; sprite < build.sprites.length; sprite += 1) {
+    const nodeId = (build.sprites[sprite] ?? 0) - 1;
+    if (nodeId >= 0 && nodeId < build.nodeCount) ownerCount += build.counts[nodeId] ?? 0;
+  }
+  return ownerCount;
+}
+
+function writeNodeBodyRanges(ranges: Uint32Array, build: NodeTopologyBuild): void {
+  let ownerCount = 0;
+  for (let sprite = 0; sprite < build.sprites.length; sprite += 1) {
+    const nodeId = (build.sprites[sprite] ?? 0) - 1;
+    const count = nodeId >= 0 && nodeId < build.nodeCount ? (build.counts[nodeId] ?? 0) : 0;
     ranges[sprite * 2] = ownerCount;
     ranges[sprite * 2 + 1] = count;
     ownerCount += count;
   }
-  return ranges;
 }
 
-function totalNodeOwners(ranges: Uint32Array, spriteCount: number): number {
-  if (spriteCount === 0) return 0;
-  const last = (spriteCount - 1) * 2;
-  return (ranges[last] ?? 0) + (ranges[last + 1] ?? 0);
+function fillNodeTopology(build: NodeTopologyBuild, output: NodeTopologyData): void {
+  build.stamps.fill(0);
+  accumulateNodeOwners({
+    ...build,
+    cursors: buildNodeOwnerCursors(output.bodyRanges, build.sprites.length),
+    output,
+  });
+  if (!build.canonicalOwners) sortNodeOwners(output);
+  writeNodeFaceOwners(output);
 }
 
 function buildNodeOwnerCursors(ranges: Uint32Array, spriteCount: number): Uint32Array {
@@ -74,15 +104,6 @@ function buildNodeOwnerCursors(ranges: Uint32Array, spriteCount: number): Uint32
     cursors[sprite] = ranges[sprite * 2] ?? 0;
   }
   return cursors;
-}
-
-function withNodeTopologySentinels(output: NodeTopologyData): NodeTopologyData {
-  return {
-    faceBodyPickIds: output.faceBodyPickIds,
-    bodyRanges: output.bodyRanges.length === 0 ? new Uint32Array([0, 0]) : output.bodyRanges,
-    bodyIds: output.bodyIds.length === 0 ? new Uint32Array([0, 0]) : output.bodyIds,
-    elementIds: output.elementIds.length === 0 ? new Uint32Array([0, 0]) : output.elementIds,
-  };
 }
 
 interface NodeOwnerPass {
@@ -175,78 +196,6 @@ function mapNodeSprites(
     spriteByNode[nodeId] = sprite;
   }
   return { spriteByNode, nextSprite };
-}
-
-function elementsAreCanonical(elements: readonly ElementTessellation[]): boolean {
-  for (let ordinal = 1; ordinal < elements.length; ordinal += 1) {
-    const previous = elements[ordinal - 1];
-    const current = elements[ordinal];
-    if (previous === undefined || current === undefined) continue;
-    if ((previous.bodyId ?? -1) > (current.bodyId ?? -1)) return false;
-    if ((previous.bodyId ?? -1) === (current.bodyId ?? -1) && previous.id > current.id)
-      return false;
-  }
-  return true;
-}
-
-function sortNodeOwners(output: NodeTopologyData): void {
-  const spriteCount = output.bodyRanges.length / 2;
-  for (let sprite = 0; sprite < spriteCount; sprite += 1) {
-    const start = output.bodyRanges[sprite * 2] ?? 0;
-    const count = output.bodyRanges[sprite * 2 + 1] ?? 0;
-    if (count > 1) heapSortNodeOwners(output, start, count);
-  }
-}
-
-function heapSortNodeOwners(output: NodeTopologyData, start: number, count: number): void {
-  for (let root = Math.floor(count / 2) - 1; root >= 0; root -= 1) {
-    siftNodeOwnerDown(output, start, root, count);
-  }
-  for (let end = count - 1; end > 0; end -= 1) {
-    swapNodeOwners(output, start, start + end);
-    siftNodeOwnerDown(output, start, 0, end);
-  }
-}
-
-function siftNodeOwnerDown(
-  output: NodeTopologyData,
-  start: number,
-  root: number,
-  count: number,
-): void {
-  let current = root;
-  while (current * 2 + 1 < count) {
-    const left = current * 2 + 1;
-    const right = left + 1;
-    const largest =
-      right < count && compareNodeOwners(output, start + left, start + right) < 0 ? right : left;
-    if (compareNodeOwners(output, start + current, start + largest) >= 0) return;
-    swapNodeOwners(output, start + current, start + largest);
-    current = largest;
-  }
-}
-
-function compareNodeOwners(output: NodeTopologyData, first: number, second: number): number {
-  return (
-    (output.bodyIds[first * 2] ?? 0) - (output.bodyIds[second * 2] ?? 0) ||
-    (output.elementIds[first * 2] ?? 0) - (output.elementIds[second * 2] ?? 0)
-  );
-}
-
-function swapNodeOwners(output: NodeTopologyData, first: number, second: number): void {
-  swapOwnerPair(output.bodyIds, first, second);
-  swapOwnerPair(output.elementIds, first, second);
-}
-
-function swapOwnerPair(values: Uint32Array, first: number, second: number): void {
-  const firstOffset = first * 2;
-  const secondOffset = second * 2;
-  const owner = values[firstOffset] ?? 0;
-  const neighbor = values[firstOffset + 1] ?? 0;
-  values[firstOffset] = values[secondOffset] ?? 0;
-  values[firstOffset + 1] = values[secondOffset + 1] ?? 0;
-  values[secondOffset] = owner;
-  values[secondOffset + 1] = neighbor;
 }
 
 function writeNodeFaceOwners(output: NodeTopologyData): void {

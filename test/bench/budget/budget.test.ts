@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { measureMs, measureScaling } from "./measure";
+import { measureMs, measureScaling } from "../measure";
 import {
   BENCH_INSTANCE_COUNT,
   BENCH_PART_COUNT,
   BENCH_PLACEMENTS_PER_SUBCASE,
   BENCH_SUBCASE_COUNT,
-} from "./fixtures";
-import type { BudgetCase, ScalingCase } from "./budget/types";
-import { report, reportScaling } from "./budget/types";
-import { runtime, sceneBudgets, sceneScalingCases } from "./budget/scene-budgets";
-import { geometryBudgets, geometryScalingCases } from "./budget/geometry-budgets";
-import { interactionBudgets, interactionScalingCases } from "./budget/interaction-budgets";
-import { pickingBudgets, pickingScalingCases } from "./budget/picking-budgets";
+} from "../fixtures";
+import type { BudgetCase, ScalingCase } from "./types";
+import { report, reportScaling } from "./types";
+import { runtime, sceneBudgets, sceneScalingCases } from "./scene-budgets";
+import { geometryBudgets, geometryScalingCases } from "./geometry-budgets";
+import { interactionBudgets, interactionScalingCases } from "./interaction-budgets";
+import { pickingBudgets, pickingScalingCases } from "./picking-budgets";
 
 const budgets: readonly BudgetCase[] = [
   ...sceneBudgets,

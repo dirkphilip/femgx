@@ -116,6 +116,12 @@ describe("GPU draw path", () => {
         [{ partId: nodePart.id, instanceCount: 2 }],
         { kind: "nodes", pipeline: {} as GPURenderPipeline },
       );
+      const nodeResource = draw.nodeParts.get(nodePart.id);
+      const positionBuffer = gpu.buffers.find(
+        (candidate) => candidate.resource === nodeResource?.vertexBuffer,
+      );
+      expect(positionBuffer?.usage).toBe(GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+      expect((positionBuffer?.usage ?? 0) & GPUBufferUsage.VERTEX).toBe(0);
       drawBatches(
         pass,
         draw,

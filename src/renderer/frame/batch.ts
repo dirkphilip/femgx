@@ -99,6 +99,7 @@ function drawOneBatch(
     overlay,
     subset,
     edgePick,
+    bindVertexBuffer: intent.kind !== "nodes",
     visibilitySkin,
   });
   if (geometryCount === undefined) return batch.current;

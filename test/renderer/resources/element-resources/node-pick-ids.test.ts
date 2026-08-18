@@ -2,16 +2,17 @@ import { expect, it, describe } from "vitest";
 import {
   createPart,
   buildNodeSpritePickIds,
-  buildNodeTopologyData,
+  buildPackedNodeTopologyData,
   partFor,
+  type Part,
   type SemanticTestGeometry,
 } from "./support";
 
-describe("buildNodeTopologyData", () => {
+describe("packed node topology semantics", () => {
   it("keeps an empty node binding large enough for one record", () => {
     expect(
       Array.from(
-        buildNodeTopologyData(
+        unpackNodeTopology(
           partFor({
             positions: new Float32Array(),
             indices: new Uint32Array(),
@@ -38,7 +39,7 @@ describe("buildNodeTopologyData", () => {
       ],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildNodeTopologyData(partFor(geometry)).faceBodyPickIds)).toEqual([
+    expect(Array.from(unpackNodeTopology(partFor(geometry)).faceBodyPickIds)).toEqual([
       0, 8, 0, 5, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
     ]);
   });
@@ -59,7 +60,7 @@ describe("buildNodeTopologyData", () => {
       ],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(buildNodeTopologyData(partFor(geometry), new Uint32Array([1, 2, 4]))).toEqual({
+    expect(unpackNodeTopology(partFor(geometry), new Uint32Array([1, 2, 4]))).toEqual({
       faceBodyPickIds: new Uint32Array([0, 0, 0, 0, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0]),
       bodyRanges: new Uint32Array([0, 0, 0, 1, 1, 1]),
       bodyIds: new Uint32Array([8, 0, 8, 0]),
@@ -91,12 +92,12 @@ describe("buildNodeTopologyData", () => {
         { id: 8, elementIds: [5] },
       ],
     };
-    expect(buildNodeTopologyData(partFor(geometry), new Uint32Array([1, 2, 3]))).toMatchObject({
+    expect(unpackNodeTopology(partFor(geometry), new Uint32Array([1, 2, 3]))).toMatchObject({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 2]),
       bodyIds: new Uint32Array([8, 0, 9, 0, 8, 0, 9, 0, 8, 0, 9, 0]),
       elementIds: new Uint32Array([5, 0, 6, 0, 5, 0, 6, 0, 5, 0, 6, 0]),
     });
-    expect(Array.from(buildNodeTopologyData(partFor(geometry)).faceBodyPickIds)).toEqual([
+    expect(Array.from(unpackNodeTopology(partFor(geometry)).faceBodyPickIds)).toEqual([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ]);
   });
@@ -123,7 +124,7 @@ describe("buildNodeTopologyData", () => {
       bodies: [{ id: 7, elementIds: [4, 5] }],
     };
 
-    expect(buildNodeTopologyData(partFor(geometry), new Uint32Array([1]))).toEqual({
+    expect(unpackNodeTopology(partFor(geometry), new Uint32Array([1]))).toEqual({
       faceBodyPickIds: new Uint32Array([0, 8, 0, 0, 0]),
       bodyRanges: new Uint32Array([0, 2]),
       bodyIds: new Uint32Array([8, 0, 8, 0]),
@@ -156,7 +157,7 @@ describe("buildNodeTopologyData", () => {
       ],
     };
 
-    expect(buildNodeTopologyData(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toMatchObject({
+    expect(unpackNodeTopology(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toMatchObject({
       bodyRanges: new Uint32Array([0, 1, 1, 2, 3, 2, 5, 1]),
       bodyIds: new Uint32Array([8, 0, 8, 0, 9, 0, 8, 0, 9, 0, 9, 0]),
       elementIds: new Uint32Array([5, 0, 5, 0, 6, 0, 5, 0, 6, 0, 6, 0]),
@@ -184,12 +185,12 @@ describe("buildNodeTopologyData", () => {
       bodies: [{ id: 7, elementIds: [4] }],
     };
 
-    expect(buildNodeTopologyData(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toMatchObject({
+    expect(unpackNodeTopology(partFor(geometry), new Uint32Array([1, 2, 3, 4]))).toMatchObject({
       bodyRanges: new Uint32Array([0, 2, 2, 2, 4, 1, 5, 1]),
       bodyIds: new Uint32Array([0, 0, 8, 0, 0, 0, 8, 0, 8, 0, 0, 0]),
       elementIds: new Uint32Array([6, 0, 5, 0, 6, 0, 5, 0, 5, 0, 6, 0]),
     });
-    expect(Array.from(buildNodeTopologyData(partFor(geometry)).faceBodyPickIds)).toEqual([
+    expect(Array.from(unpackNodeTopology(partFor(geometry)).faceBodyPickIds)).toEqual([
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 5, 0, 0, 0, 0, 6, 0,
     ]);
   });
@@ -231,7 +232,7 @@ describe("buildNodeTopologyData", () => {
       bodies: [{ id: 7, elementIds: [4] }],
     });
 
-    expect(buildNodeTopologyData(part, new Uint32Array([1, 2, 3, 4]))).toEqual({
+    expect(unpackNodeTopology(part, new Uint32Array([1, 2, 3, 4]))).toEqual({
       faceBodyPickIds: new Uint32Array([
         0, 8, 0, 5, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0, 0, 8, 0, 5, 0,
       ]),
@@ -277,3 +278,26 @@ describe("buildNodeSpritePickIds", () => {
     expect(Array.from(buildNodeSpritePickIds(part))).toEqual([1, 2, 3]);
   });
 });
+
+function unpackNodeTopology(
+  part: Part,
+  sprites?: Uint32Array,
+): {
+  readonly faceBodyPickIds: Uint32Array;
+  readonly bodyRanges: Uint32Array;
+  readonly bodyIds: Uint32Array;
+  readonly elementIds: Uint32Array;
+} {
+  const data = buildPackedNodeTopologyData(part, sprites);
+  const faceEnd = 4 + (data[0] ?? 0) * 5;
+  const rangeEnd = faceEnd + (data[1] ?? 0) * 2;
+  const bodyEnd = rangeEnd + (data[2] ?? 0) * 2;
+  const elementEnd = bodyEnd + (data[2] ?? 0) * 2;
+  const sentinel = new Uint32Array([0, 0]);
+  return {
+    faceBodyPickIds: data.subarray(4, faceEnd),
+    bodyRanges: data.subarray(faceEnd, rangeEnd),
+    bodyIds: bodyEnd === rangeEnd ? sentinel : data.subarray(rangeEnd, bodyEnd),
+    elementIds: elementEnd === bodyEnd ? sentinel : data.subarray(bodyEnd, elementEnd),
+  };
+}

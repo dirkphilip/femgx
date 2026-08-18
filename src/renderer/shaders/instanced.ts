@@ -260,21 +260,23 @@ ${spriteCornerFn}
 fn pointVertex(
   position: vec3<f32>,
   instanceIndex: u32,
-  vertexIndex: u32,
+  primitiveIndex: u32,
+  nodeIndex: u32,
+  cornerIndex: u32,
   nodeOverlay: bool,
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
-  let corner = spriteCorner(vertexIndex % 4u);
-  let displayedPosition = displaced(position, vertexIndex);
+  let corner = spriteCorner(cornerIndex);
+  let displayedPosition = displaced(position, nodeIndex);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
   let clip = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
   let diameter = select(camera.pointSize, camera.nodeSize, nodeOverlay);
   let offset = (corner * diameter) / camera.viewport;
   let ndc = clip.xy / clip.w;
-  let elementPickId = primitiveElementId(vertexIndex / 4u);
-  let elementOrdinal = primitiveElementOrdinal(vertexIndex / 4u);
-  let bodyPickId = primitiveFaceBodyPickIds(vertexIndex / 4u).y;
-  let nodePickId = vertexNodePickIds[vertexIndex];
+  let elementPickId = primitiveElementId(primitiveIndex);
+  let elementOrdinal = primitiveElementOrdinal(primitiveIndex);
+  let bodyPickId = primitiveFaceBodyPickIds(primitiveIndex).y;
+  let nodePickId = vertexNodePickIds[nodeIndex];
   var output: VertexOutput;
   output.position = vec4<f32>(
     clip.x + offset.x * clip.w,
@@ -329,10 +331,10 @@ ${bodyAndElementHighlighting}
     }
   }
   }
-  if (nodeOverlay && !topologyAnyOwnerVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+  if (nodeOverlay && !topologyAnyOwnerVisible(drawOrder[instanceIndex], primitiveIndex)) {
     hidden = true;
   }
-  if (!nodeOverlay && !primitiveVisible(drawOrder[instanceIndex], vertexIndex / 4u)) {
+  if (!nodeOverlay && !primitiveVisible(drawOrder[instanceIndex], primitiveIndex)) {
     hidden = true;
   }
   if (hidden) {
@@ -359,11 +361,18 @@ ${bodyAndElementHighlighting}
 
 @vertex
 fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, false);
+  return pointVertex(position, instanceIndex, vertexIndex / 4u, vertexIndex, vertexIndex % 4u, false);
 }
 
 @vertex
-fn nodeOverlayVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  return pointVertex(position, instanceIndex, vertexIndex, true);
+fn nodeOverlayVertexMain(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  let spriteIndex = vertexIndex / 4u;
+  let positionBase = spriteIndex * 3u;
+  let position = vec3<f32>(
+    geometryPosition(positionBase),
+    geometryPosition(positionBase + 1u),
+    geometryPosition(positionBase + 2u),
+  );
+  return pointVertex(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true);
 }
 `;

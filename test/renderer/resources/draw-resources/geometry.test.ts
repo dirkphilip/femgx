@@ -10,6 +10,7 @@ import {
   fakeGpuDevice,
   installGpuGlobals,
   part,
+  nodePart,
   authoredEdgePart,
   subsetPart,
   mixedPart,
@@ -18,8 +19,38 @@ import {
   type DrawCallContext,
   type DrawPipelines,
 } from "./support";
+import { bindDrawGeometry } from "../../../../src/renderer/frame/geometry-binding";
+import { uploadNodePart } from "../../../../src/renderer/resources/draw-resources";
 
 describe("GPU draw path", () => {
+  it("does not bind compact node centers as a vertex buffer", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const resource = uploadNodePart(createDrawResources(gpu.device), nodePart);
+      let vertexBinds = 0;
+      const pass = {
+        setVertexBuffer: () => {
+          vertexBinds += 1;
+        },
+        setIndexBuffer: () => undefined,
+      } as unknown as GPURenderPassEncoder;
+      expect(
+        bindDrawGeometry(pass, {
+          geometry: resource,
+          overlay: false,
+          subset: false,
+          edgePick: false,
+          bindVertexBuffer: false,
+          visibilitySkin: undefined,
+        }),
+      ).toBe(resource.indexCount);
+      expect(vertexBinds).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
   it("admits plain triangle surfaces minimally and promotes feature state", () => {
     const restore = installGpuGlobals();
     try {

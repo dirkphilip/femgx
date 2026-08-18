@@ -54,6 +54,11 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     }
   }
   const triangleIndex = buildTriangleSemanticIndex(part, partElements, elementOrdinalById);
+  const visibilityBodyIds = buildVisibilityBodyIds(
+    partElements,
+    bodyByElement,
+    triangleIndex.faces,
+  );
   const nonTriangleElementOrdinals =
     triangleIndex.hasBoundaryFaceSubset && triangleIndex.hasCompleteNeighborTriangleIndex
       ? buildNonTriangleElementOrdinals(partElements)
@@ -69,6 +74,7 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     elementOrdinalById,
     bodies,
     bodyByElement,
+    visibilityBodyIds,
     faces: triangleIndex.faces,
     edges,
     nodeCount: triangleIndex.nodeCount,
@@ -80,6 +86,26 @@ function buildPartSemanticIndex(part: Part): PartSemanticIndex {
     hasBoundaryFaceSubset: triangleIndex.hasBoundaryFaceSubset,
     hasCompleteNeighborTriangleIndex: triangleIndex.hasCompleteNeighborTriangleIndex,
   };
+}
+
+function buildVisibilityBodyIds(
+  elements: readonly ElementTessellation[],
+  bodyByElement: ReadonlyMap<ElementId, BodyId>,
+  faces: ReadonlyMap<string, FaceMetadata>,
+): ReadonlySet<BodyId> {
+  const result = new Set<BodyId>();
+  for (const element of elements) {
+    if (!element.primitiveRanges.some((range) => range.primitive === "triangles")) continue;
+    const bodyId = bodyByElement.get(element.id);
+    if (bodyId !== undefined) result.add(bodyId);
+  }
+  for (const { face } of faces.values()) {
+    if (face.bodyId !== undefined) result.add(face.bodyId);
+    if (face.neighborElementId === undefined) continue;
+    const bodyId = bodyByElement.get(face.neighborElementId);
+    if (bodyId !== undefined) result.add(bodyId);
+  }
+  return result;
 }
 
 function buildTriangleSemanticIndex(

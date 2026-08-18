@@ -57,6 +57,23 @@ not a formal or universally standardized methodology.
 - Can a fallback, repair branch, duplicated validator, mutable intermediate, or
   new abstraction be deleted?
 
+## Immutable interaction-state lifecycle
+
+Authoritative public visibility, selection, highlight, hover, and style
+transitions are functional and produce a new immutable interaction state by
+default. Renderer-owned derived CPU and GPU data may mutate in place only when
+measurement shows a material allocation or copy bottleneck, the data has one
+clear owner, and externally immutable behavior plus release/replacement are
+covered by lifecycle tests. Derived data may remain resident for the current
+state and be reused by unchanged frames or shared active signatures. Replacing
+that state releases obsolete payloads rather than retaining a historical-state
+memoization cache; returning to an older value recomputes them. Immutable part,
+geometry, and semantic metadata are scene-owned and may remain cached because
+they do not encode a prior interaction transition. Visibility skins and dense
+selection payloads are concrete examples of current-state derived data: an
+unchanged frame may reuse them, but show/clear/replacement releases them and a
+later equivalent transition recomputes them.
+
 ## Repository examples
 
 - `ElementShape` makes unsupported shapes unrepresentable in typed callers;

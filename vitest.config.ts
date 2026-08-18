@@ -6,12 +6,13 @@ export default defineConfig({
     // The performance budget gate runs standalone (see config/vitest.budget.config.ts)
     // so wall-clock budgets are not distorted by coverage instrumentation.
     exclude: [
-      "test/bench/budget.test.ts",
+      "test/bench/budget/budget.test.ts",
       "test/bench/large-scaling.test.ts",
       "test/bench/operations.test.ts",
       "test/bench/selection-sync.test.ts",
       "test/bench/scene-update-scaling.test.ts",
       "test/bench/node-selection-sync.test.ts",
+      "test/bench/visibility/tet4-visibility-sync.test.ts",
       "test/bench/affected-part-sync.test.ts",
       "test/bench/cold-attachment.test.ts",
       // Svelte component tests run with the plugin in the demo component gate.
