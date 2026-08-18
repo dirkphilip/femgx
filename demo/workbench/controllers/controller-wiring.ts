@@ -92,6 +92,7 @@ export function createControllerInfrastructure(
     canvas: context.canvas,
     rendererName: context.rendererName,
     viewport: context.viewport,
+    primaryViewport: () => context.viewport,
     createViewport: options.createViewport,
     model: () => context.model,
     activeViewport: context.activeViewport.bind(context),

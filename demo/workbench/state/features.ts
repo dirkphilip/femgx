@@ -37,6 +37,10 @@ export interface WorkbenchFeatureOptions {
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly getInspection: () => { readonly visible: boolean; readonly text: string };
   readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
+  readonly setInspectionForSlot: (
+    slotId: ViewportSlotId,
+    value: { readonly visible: boolean; readonly text: string },
+  ) => void;
   readonly hoverSlotId: ViewportSlotId;
   readonly canClearCanvasHover: (slotId: ViewportSlotId) => boolean;
   readonly markCanvasHover: (slotId: ViewportSlotId) => void;
@@ -108,10 +112,19 @@ function createPrimaryInteraction(
     setInteraction: options.setInteraction,
     partName: (partId) => options.model().partNames.get(partId),
     menu,
-    render: options.render,
+    render: () => {
+      const primaryViewport = options.interactionViewport();
+      if (primaryViewport !== options.viewport()) {
+        primaryViewport.interaction.set(options.interaction());
+        primaryViewport.render();
+      }
+      options.render();
+    },
     selectionGranularity: options.selectionGranularity,
     touchMode: options.touchInteractionMode,
-    setInspection: presentation.setInspection.bind(presentation),
+    setInspection: (text, visible) => {
+      options.setInspectionForSlot("primary", { text, visible });
+    },
     selectionFeedback: presentation.setFeedback.bind(presentation),
     hoverOwnership: {
       canClear: () => {

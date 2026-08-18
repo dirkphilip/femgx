@@ -21,6 +21,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
   readonly viewport: WorkbenchOptions["viewport"];
+  readonly primaryViewport: () => Viewport;
   readonly createViewport: WorkbenchOptions["createViewport"];
   readonly model: () => WorkbenchModel;
   readonly toggles: () => DisplayToggles;
@@ -83,7 +84,7 @@ export function createWorkbenchInfrastructure(
     canvas: options.canvas,
     rendererName: options.rendererName,
     viewport: options.activeViewport,
-    interactionViewport: options.activeViewport,
+    interactionViewport: options.primaryViewport,
     runtime: options.runtime,
     model: options.model,
     toggles: options.toggles,
@@ -96,10 +97,11 @@ export function createWorkbenchInfrastructure(
     touchInteractionMode: options.touchInteractionMode,
     sectionAxis: options.sectionAxis,
     sectionOffset: options.sectionOffset,
-    interaction: options.interaction,
-    setInteraction: options.setInteraction,
+    interaction: () => options.interactionForSlot("primary"),
+    setInteraction: (value) => options.setInteractionForSlot("primary", value),
     getInspection: options.getInspection,
     setInspection: options.setInspection,
+    setInspectionForSlot: options.setInspectionForSlot,
     hoverSlotId: "primary",
     canClearCanvasHover: options.canClearCanvasHover,
     markCanvasHover: options.markCanvasHover,
