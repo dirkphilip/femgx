@@ -13,8 +13,10 @@ import type {
   WorkbenchOptions,
 } from "../types";
 import type { SelectionGranularity } from "../selection/pick";
+import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import type { VectorGlyph, VectorTransform } from "../results/result-controls";
+import { applyBoxSelectionResolvers } from "./controller-box-selection";
 
 export interface WorkbenchInfrastructureOptions {
   readonly view: DemoView;
@@ -31,6 +33,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly vectorTransform: () => VectorTransform;
   readonly continuous: () => boolean;
   readonly selectionGranularity: () => SelectionGranularity;
+  readonly boxSelectionStrategy: () => BoxSelectionStrategy;
   readonly selectionGranularityForSlot: (slotId: ViewportSlotId) => SelectionGranularity;
   readonly touchInteractionMode: () => TouchInteractionMode;
   readonly touchInteractionModeForSlot: (slotId: ViewportSlotId) => TouchInteractionMode;
@@ -116,9 +119,16 @@ export function createWorkbenchInfrastructure(
     },
   });
   features.current = createdFeatures;
+  const viewportSlots = createViewportSlots(options, createdFeatures);
+  applyBoxSelectionResolvers({
+    boxSelectionStrategy: options.boxSelectionStrategy(),
+    selectionGranularity: options.selectionGranularity(),
+    viewportSlots,
+    render: options.render,
+  });
   return {
     features: createdFeatures,
-    viewportSlots: createViewportSlots(options, createdFeatures),
+    viewportSlots,
   };
 }
 

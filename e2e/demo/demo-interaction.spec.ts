@@ -244,9 +244,12 @@ test("keeps the Through box strategy truthful across selection granularities", a
   await openCommandPanel(page, "selection");
   const canvas = page.getByTestId("view-canvas");
   const strategy = page.getByTestId("box-selection-strategy");
+  await expect(strategy).toHaveValue("through-intersection");
+  await expect(canvas).toHaveAttribute("data-box-selection-strategy", "through-intersection");
+
+  await strategy.selectOption("visible-surface");
   await expect(strategy).toHaveValue("visible-surface");
   await expect(canvas).toHaveAttribute("data-box-selection-strategy", "visible-surface");
-
   await strategy.selectOption("through-intersection");
   await expect(strategy).toHaveValue("through-intersection");
   await expect(canvas).toHaveAttribute("data-box-selection-strategy", "through-intersection");

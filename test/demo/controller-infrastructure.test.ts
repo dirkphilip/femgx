@@ -3,10 +3,12 @@ import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
+  type InteractionTarget,
   type InteractionState,
   type PickHit,
   type Viewport,
 } from "../../src/entries/root";
+import { createCamera } from "../../src/camera/camera";
 import type { SceneRuntime } from "../../src/entries/runtime";
 import type { WorkbenchModel } from "../../demo/workbench/models/model";
 import {
@@ -72,6 +74,50 @@ describe("workbench controller infrastructure", () => {
     expect(inspections.get("primary")?.visible).toBe(true);
     expect(inspections.get("secondary")?.visible).toBe(false);
   });
+
+  it("installs the through-intersection resolver for the initial element strategy", async () => {
+    const primaryPickRegion = vi.fn(() =>
+      Promise.resolve([{ kind: "element", partOccurrenceId: "visible", elementId: 1 }] as const),
+    );
+    const primaryViewport = viewport(
+      vi.fn(() => Promise.resolve(undefined)),
+      vi.fn(),
+      primaryPickRegion,
+    );
+    const secondaryViewport = viewport(vi.fn(() => Promise.resolve(undefined)));
+    const states = new Map<ViewportSlotId, InteractionState>([
+      ["primary", createInteractionState()],
+      ["secondary", createInteractionState()],
+    ]);
+    const inspections = new Map<ViewportSlotId, { visible: boolean; text: string }>([
+      ["primary", { visible: false, text: "" }],
+      ["secondary", { visible: false, text: "" }],
+    ]);
+    const infrastructure = createWorkbenchInfrastructure(
+      infrastructureOptions(primaryViewport, secondaryViewport, states, inspections),
+    );
+    const resolveRegion =
+      infrastructure.features.interactionController.viewportInteractionOptions().resolveRegion;
+    if (resolveRegion === undefined) throw new Error("missing region resolver");
+
+    const rect = { left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100 } as const;
+    const event = {
+      type: "complete" as const,
+      anchor: { x: 0, y: 0 },
+      current: { x: 100, y: 100 },
+      rect,
+      modifiers: { shift: false, control: false, alt: false, meta: false },
+    };
+    const targets = await resolveRegion({
+      event,
+      rect,
+      granularity: "element",
+      frustum: {} as never,
+    });
+
+    expect(targets).toEqual([]);
+    expect(primaryPickRegion).not.toHaveBeenCalled();
+  });
 });
 
 function infrastructureOptions(
@@ -112,6 +158,7 @@ function infrastructureOptions(
     continuous: () => false,
     selectionGranularity: () => "element",
     selectionGranularityForSlot: () => "element",
+    boxSelectionStrategy: () => "through-intersection",
     touchInteractionMode: () => "navigate",
     touchInteractionModeForSlot: () => "navigate",
     sectionAxis: () => "off",
@@ -183,10 +230,14 @@ function pane(id: ViewportSlotId): {
 function viewport(
   pick: (x: number, y: number) => Promise<PickHit | undefined>,
   set = vi.fn(),
+  pickRegion = vi.fn<() => Promise<readonly InteractionTarget[]>>(() => Promise.resolve([])),
 ): Viewport {
   return {
+    view: { camera: createCamera({ width: 300, height: 200 }) },
+    runtime: { getVisiblePartOccurrenceIds: () => [] },
     interaction: {
       pick,
+      pickRegion,
       state: createInteractionState(),
       set,
     },
