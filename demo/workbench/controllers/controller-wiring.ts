@@ -14,6 +14,7 @@ import type { SelectionGranularity } from "../selection/pick";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";
 import type { SectionAxis } from "../section-controls";
 import type { VectorDisplayState } from "../results/result-controls";
+import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructure,
@@ -32,6 +33,7 @@ export interface WorkbenchControllerWiringContext {
   readonly vectorDisplay: VectorDisplayState;
   readonly continuousEnabled: boolean;
   readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly selectionGranularityForSlot: (slotId: ViewportSlotId) => SelectionGranularity;
   readonly touchInteractionMode: TouchInteractionMode;
   readonly touchInteractionModeForSlot: (slotId: ViewportSlotId) => TouchInteractionMode;
@@ -106,6 +108,7 @@ export function createControllerInfrastructure(
     vectorTransform: () => context.vectorDisplay.transform,
     continuous: () => context.continuousEnabled,
     selectionGranularity: () => context.selectionGranularity,
+    boxSelectionStrategy: () => context.boxSelectionStrategy,
     selectionGranularityForSlot: context.selectionGranularityForSlot.bind(context),
     touchInteractionMode: () => context.touchInteractionMode,
     touchInteractionModeForSlot: context.touchInteractionModeForSlot.bind(context),

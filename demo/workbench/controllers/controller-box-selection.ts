@@ -13,7 +13,8 @@ interface BoxSelectionOwner {
   elementBoxSelectionStrategy?: BoxSelectionStrategy;
   readonly selectionGranularity: SelectionGranularity;
   readonly showState?: (slotId: "primary" | "secondary") => {
-    readonly boxSelectionStrategy: BoxSelectionStrategy;
+    boxSelectionStrategy: BoxSelectionStrategy;
+    elementBoxSelectionStrategy: BoxSelectionStrategy;
     readonly selectionGranularity: SelectionGranularity;
   };
   readonly viewportSlots: WorkbenchViewportSlots;
@@ -46,7 +47,16 @@ export function applyBoxSelectionResolvers(owner: BoxSelectionOwner): void {
 export function setBoxSelectionStrategy(owner: BoxSelectionOwner, value: string): void {
   const strategy = parseBoxSelectionStrategy(value);
   if (strategy === undefined) return;
-  if (owner.selectionGranularity === "element") owner.elementBoxSelectionStrategy = strategy;
+  if (owner.showState === undefined) {
+    if (owner.selectionGranularity === "element") owner.elementBoxSelectionStrategy = strategy;
+  } else {
+    for (const slot of owner.viewportSlots.all()) {
+      const state = owner.showState(slot.id);
+      state.elementBoxSelectionStrategy = strategy;
+      state.boxSelectionStrategy =
+        state.selectionGranularity === "element" ? strategy : "visible-surface";
+    }
+  }
   normalizeBoxSelectionStrategyForGranularity(owner);
   applyBoxSelectionResolvers(owner);
   owner.render();
