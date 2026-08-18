@@ -36,6 +36,7 @@ export type MutableVec3 = [number, number, number];
 const queryDataByPart = new WeakMap<Part, PartQueryData>();
 const EMPTY_ELEMENTS: readonly ElementTessellation[] = [];
 
+/** Builds and caches the ordered geometry and local bounds used by box queries. */
 export function queryData(part: Part): PartQueryData {
   const cached = queryDataByPart.get(part);
   if (cached !== undefined) return cached;
@@ -143,6 +144,7 @@ export interface ElementQuery {
   readonly points: readonly MutableVec3[];
 }
 
+/** Tests one element against the exact frustum and any active section plane. */
 export function elementIntersectsBox(query: ElementQuery): boolean {
   // Deformation changes the cached local bounds, so those queries keep the exact primitive path.
   if (query.deformation === undefined && !boundsMayIntersect(query)) return false;
@@ -172,26 +174,10 @@ export function elementIntersectsBox(query: ElementQuery): boolean {
 
 function boundsMayIntersect(query: ElementQuery): boolean {
   const base = query.elementIndex * 6;
-  const minX = query.elementBounds[base];
-  const minY = query.elementBounds[base + 1];
-  const minZ = query.elementBounds[base + 2];
-  const maxX = query.elementBounds[base + 3];
-  const maxY = query.elementBounds[base + 4];
-  const maxZ = query.elementBounds[base + 5];
-  if (
-    minX === undefined ||
-    minY === undefined ||
-    minZ === undefined ||
-    maxX === undefined ||
-    maxY === undefined ||
-    maxZ === undefined ||
-    !isAffineTransform(query.transform)
-  ) {
-    return true;
-  }
+  if (!isAffineTransform(query.transform)) return true;
   for (const name of FRUSTUM_PLANES) {
     if (
-      maxBoundsDistance(minX, minY, minZ, maxX, maxY, maxZ, query.transform, query.frustum[name]) <
+      maxBoundsDistance(query.elementBounds, base, query.transform, query.frustum[name]) <
       -query.tolerance
     ) {
       return false;
@@ -199,7 +185,7 @@ function boundsMayIntersect(query: ElementQuery): boolean {
   }
   return (
     query.sectionPlane === undefined ||
-    maxBoundsDistance(minX, minY, minZ, maxX, maxY, maxZ, query.transform, query.sectionPlane) >=
+    maxBoundsDistance(query.elementBounds, base, query.transform, query.sectionPlane) >=
       -query.tolerance
   );
 }
@@ -214,15 +200,17 @@ function isAffineTransform(transform: Mat4): boolean {
 }
 
 function maxBoundsDistance(
-  minX: number,
-  minY: number,
-  minZ: number,
-  maxX: number,
-  maxY: number,
-  maxZ: number,
+  bounds: Float64Array,
+  base: number,
   transform: Mat4,
   plane: { readonly normal: Vec3; readonly distance: number },
 ): number {
+  const minX = bounds[base] ?? Infinity;
+  const minY = bounds[base + 1] ?? Infinity;
+  const minZ = bounds[base + 2] ?? Infinity;
+  const maxX = bounds[base + 3] ?? -Infinity;
+  const maxY = bounds[base + 4] ?? -Infinity;
+  const maxZ = bounds[base + 5] ?? -Infinity;
   const x =
     plane.normal[0] * matrixValue(transform, 0) +
     plane.normal[1] * matrixValue(transform, 1) +

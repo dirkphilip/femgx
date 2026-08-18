@@ -2,6 +2,8 @@ import {
   boxSelectionFrustum,
   isBodyVisible,
   isElementVisible,
+  type BoxSelectionFrustum,
+  type DeformationState,
   type InteractionTarget,
   type Viewport,
 } from "../../../src/entries/root";
@@ -9,7 +11,26 @@ import {
   BoxSelectionResolverContractError,
   type BoxSelectionResolver,
 } from "./box-selection-resolver";
-import { elementIntersectsBox, queryData, type MutableVec3 } from "./through-box-geometry";
+import {
+  elementIntersectsBox,
+  queryData,
+  type ElementQuery,
+  type MutableVec3,
+} from "./through-box-geometry";
+
+interface ThroughQueryContext {
+  readonly view: Viewport;
+  readonly frustum: BoxSelectionFrustum;
+  readonly tolerance: number;
+  readonly deformation: DeformationState | undefined;
+  readonly points: MutableVec3[];
+  readonly targets: InteractionTarget[];
+}
+
+interface ReusableElementQuery extends Omit<ElementQuery, "element" | "elementIndex"> {
+  element: ElementQuery["element"];
+  elementIndex: number;
+}
 
 /**
  * Creates the Core through-intersection resolver for element box selection.
@@ -37,50 +58,69 @@ export function throughIntersectionBoxSelectionResolver(
       [0, 0, 0],
       [0, 0, 0],
     ];
+    const context: ThroughQueryContext = {
+      view,
+      frustum,
+      tolerance,
+      deformation,
+      points,
+      targets,
+    };
 
     for (const partOccurrenceId of view.runtime.getVisiblePartOccurrenceIds()) {
-      const instance = view.runtime.getPartOccurrence(partOccurrenceId);
-      if (instance === undefined || !instance.visible || !instance.partVisible) continue;
-      const occurrence = view.runtime.getOccurrence(instance.occurrenceId);
-      if (occurrence === undefined || !occurrence.effectiveVisible) continue;
-      const part = view.scene.parts.get(instance.partId);
-      if (part === undefined) continue;
-      const partQuery = queryData(part);
-      for (let elementIndex = 0; elementIndex < partQuery.elements.length; elementIndex += 1) {
-        const element = partQuery.elements[elementIndex];
-        if (element === undefined) continue;
-        if (
-          !isElementVisible(view.interaction.state, { partOccurrenceId, elementId: element.id })
-        ) {
-          continue;
-        }
-        if (
-          element.bodyId !== undefined &&
-          !isBodyVisible(view.interaction.state, { partOccurrenceId, bodyId: element.bodyId })
-        ) {
-          continue;
-        }
-        if (
-          elementIntersectsBox({
-            part,
-            element,
-            geometryByPrimitive: partQuery.geometryByPrimitive,
-            transform: instance.transform,
-            frustum,
-            sectionPlane: view.presentation.sectionPlane,
-            deformation,
-            tolerance,
-            elementBounds: partQuery.elementBounds,
-            elementIndex,
-            points,
-          })
-        ) {
-          targets.push({ kind: "element", partOccurrenceId, elementId: element.id });
-        }
-      }
+      appendVisibleOccurrenceTargets(context, partOccurrenceId);
     }
     return Promise.resolve(targets);
   };
+}
+
+function appendVisibleOccurrenceTargets(
+  context: ThroughQueryContext,
+  partOccurrenceId: string,
+): void {
+  const { view } = context;
+  const instance = view.runtime.getPartOccurrence(partOccurrenceId);
+  if (instance === undefined || !instance.visible || !instance.partVisible) return;
+  const occurrence = view.runtime.getOccurrence(instance.occurrenceId);
+  if (occurrence === undefined || !occurrence.effectiveVisible) return;
+  const part = view.scene.parts.get(instance.partId);
+  if (part === undefined) return;
+  const partQuery = queryData(part);
+  let elementQuery: ReusableElementQuery | undefined;
+  for (let elementIndex = 0; elementIndex < partQuery.elements.length; elementIndex += 1) {
+    const element = partQuery.elements[elementIndex];
+    if (element === undefined) continue;
+    if (!isElementVisible(view.interaction.state, { partOccurrenceId, elementId: element.id })) {
+      continue;
+    }
+    if (
+      element.bodyId !== undefined &&
+      !isBodyVisible(view.interaction.state, { partOccurrenceId, bodyId: element.bodyId })
+    ) {
+      continue;
+    }
+    if (elementQuery === undefined) {
+      elementQuery = {
+        part,
+        element,
+        geometryByPrimitive: partQuery.geometryByPrimitive,
+        transform: instance.transform,
+        frustum: context.frustum,
+        sectionPlane: view.presentation.sectionPlane,
+        deformation: context.deformation,
+        tolerance: context.tolerance,
+        elementBounds: partQuery.elementBounds,
+        elementIndex,
+        points: context.points,
+      };
+    } else {
+      elementQuery.element = element;
+      elementQuery.elementIndex = elementIndex;
+    }
+    if (elementIntersectsBox(elementQuery)) {
+      context.targets.push({ kind: "element", partOccurrenceId, elementId: element.id });
+    }
+  }
 }
 
 function selectionTolerance(view: Viewport): number {
