@@ -4,6 +4,7 @@ import { createBoltedPlatePreset, createGalleryPreset } from "../../demo/fixture
 import { createExampleModel } from "../../demo/workbench/models/model";
 import { setResultField } from "../../demo/workbench/results/result-actions";
 import { createResultPlaybackActions } from "../../demo/workbench/results/result-playback";
+import { createWorkbenchShowState } from "../../demo/workbench/state/show-state";
 import { setVectorField, setVectorWidthPixels } from "../../demo/workbench/results/vector-actions";
 import {
   BASE_RESULT_VALUE,
@@ -273,19 +274,17 @@ describe("demo orientation result controls", () => {
 
   it("steps exact authored snapshots through one stable range", () => {
     const model = createExampleModel(createResultsPreset());
+    const state = createWorkbenchShowState(model);
     const applied: boolean[] = [];
     const published: number[] = [];
     const owner = {
       model,
-      resultMode: "base" as const,
-      resultPlaybackIndex: 0,
-      resultPlaybackRate: 1,
-      resultPlaybackPlaying: false,
-      resultPlaybackActive: false,
-      resultPlaybackTimer: undefined,
+      activeSlot: () => ({ id: "primary" as const }),
+      showState: () => state,
+      applyResultModeForSlot: (_slotId: "primary" | "secondary", render: boolean) =>
+        applied.push(render),
       disposed: false,
-      applyResultMode: (render: boolean) => applied.push(render),
-      publishSnapshot: () => published.push(owner.resultPlaybackIndex),
+      publishSnapshot: () => published.push(state.resultPlaybackIndex),
     };
     const actions = createResultPlaybackActions(owner);
 
@@ -305,7 +304,7 @@ describe("demo orientation result controls", () => {
     expect(actions.currentStep()).toBeUndefined();
     actions.setIndex("2");
     expect(actions.snapshot()).toMatchObject({ active: true, index: 2, time: 2 });
-    expect(owner.resultMode).toBe("deformed");
+    expect(state.resultMode).toBe("deformed");
     expect(actions.currentStep()?.snapshot.scalar.id).toBe("demo-temperature-snapshot-2");
     expect(applied).toEqual([true]);
     actions.setIndex("99");
@@ -320,17 +319,15 @@ describe("demo orientation result controls", () => {
     vi.useFakeTimers();
     try {
       const model = createExampleModel(createResultsPreset());
+      const state = createWorkbenchShowState(model);
       const applied: boolean[] = [];
       const owner = {
         model,
-        resultMode: "base" as const,
-        resultPlaybackIndex: 0,
-        resultPlaybackRate: 1,
-        resultPlaybackPlaying: false,
-        resultPlaybackActive: false,
-        resultPlaybackTimer: undefined,
+        activeSlot: () => ({ id: "primary" as const }),
+        showState: () => state,
+        applyResultModeForSlot: (_slotId: "primary" | "secondary", render: boolean) =>
+          applied.push(render),
         disposed: false,
-        applyResultMode: (render: boolean) => applied.push(render),
         publishSnapshot: () => undefined,
       };
       const actions = createResultPlaybackActions(owner);
@@ -351,6 +348,43 @@ describe("demo orientation result controls", () => {
       expect(actions.snapshot()).toMatchObject({ playing: false, index: 0, active: false });
       vi.advanceTimersByTime(3000);
       expect(actions.snapshot()).toMatchObject({ playing: false, index: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a scheduled timer attached to its originating slot", () => {
+    vi.useFakeTimers();
+    try {
+      const model = createExampleModel(createResultsPreset());
+      const primary = createWorkbenchShowState(model);
+      const secondary = createWorkbenchShowState(model);
+      let activeSlot: "primary" | "secondary" = "primary";
+      const owner = {
+        model,
+        activeSlot: () => ({ id: activeSlot }),
+        showState: (slotId: "primary" | "secondary") =>
+          slotId === "primary" ? primary : secondary,
+        applyResultModeForSlot: () => undefined,
+        disposed: false,
+        publishSnapshot: () => undefined,
+      };
+      const actions = createResultPlaybackActions(owner);
+
+      actions.togglePlaying();
+      activeSlot = "secondary";
+      vi.advanceTimersByTime(1000);
+
+      expect(primary.resultPlaybackIndex).toBe(1);
+      expect(primary.resultPlaybackPlaying).toBe(true);
+      expect(primary.resultPlaybackTimer).toBeDefined();
+      expect(secondary.resultPlaybackIndex).toBe(0);
+
+      vi.advanceTimersByTime(3000);
+
+      expect(primary.resultPlaybackIndex).toBe(3);
+      expect(primary.resultPlaybackPlaying).toBe(false);
+      expect(primary.resultPlaybackTimer).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
