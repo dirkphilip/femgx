@@ -342,6 +342,13 @@ describe("WebGPU benchmark models", () => {
     });
   });
 
+  it("labels the instanced quad case with its actual unique element count", () => {
+    const spec = benchmarkCaseSpecs(false).find((candidate) => candidate.id === "instanced-2.10m");
+    expect(spec?.name).toBe(
+      "Performance Lab · 16,384 unique Quad elements · 2,097,152 submitted triangles",
+    );
+  });
+
   it("offers bounded dense Tet4 worker presets for interactive scaling", () => {
     const tet4Specs = benchmarkCaseSpecs(true).filter((spec) => spec.structuredFamily === "tet4");
     expect(tet4Specs.map(({ id, gridCells }) => ({ id, gridCells }))).toEqual([

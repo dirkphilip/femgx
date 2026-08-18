@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel } from "../../../demo/workbench/models/model";
+import { createResultPlaybackActions } from "../../../demo/workbench/results/result-playback";
 import {
+  clearResultPlaybackTimers,
   cloneShowStateForSlot,
   createWorkbenchShowState,
   installWorkbenchShowStateAccessors,
@@ -30,6 +32,8 @@ describe("workbench viewport show state", () => {
     const primary = createWorkbenchShowState(model);
     primary.toggles.edges = false;
     primary.selectionGranularity = "node";
+    primary.resultPlaybackActive = true;
+    primary.resultPlaybackPlaying = true;
     const states = new Map<"primary" | "secondary", ReturnType<typeof createWorkbenchShowState>>([
       ["primary", primary],
     ]);
@@ -41,12 +45,61 @@ describe("workbench viewport show state", () => {
     expect(secondary).toBeDefined();
     expect(secondary?.toggles).toEqual(primary.toggles);
     expect(secondary?.selectionGranularity).toBe("node");
+    expect(secondary?.resultPlaybackActive).toBe(false);
+    expect(secondary?.resultPlaybackPlaying).toBe(false);
+    expect(secondary?.resultPlaybackTimer).toBeUndefined();
     if (secondary === undefined) throw new Error("secondary state was not created");
 
     secondary.toggles.edges = true;
     secondary.selectionGranularity = "face";
     expect(primary.toggles.edges).toBe(false);
     expect(primary.selectionGranularity).toBe("node");
+  });
+
+  it("clears pending playback timers for every viewport slot", () => {
+    vi.useFakeTimers();
+    try {
+      const model = createExampleModel(createResultsPreset());
+      const primary = createWorkbenchShowState(model);
+      const secondary = createWorkbenchShowState(model);
+      const states = new Map<"primary" | "secondary", ReturnType<typeof createWorkbenchShowState>>([
+        ["primary", primary],
+        ["secondary", secondary],
+      ]);
+      let activeSlot: "primary" | "secondary" = "primary";
+      const actions = createResultPlaybackActions({
+        model,
+        activeSlot: () => ({ id: activeSlot }),
+        showState: (slotId) => {
+          const state = states.get(slotId);
+          if (state === undefined) throw new Error(`Missing show state for ${slotId}`);
+          return state;
+        },
+        applyResultModeForSlot: () => undefined,
+        disposed: false,
+        publishSnapshot: () => undefined,
+      });
+
+      actions.togglePlaying();
+      activeSlot = "secondary";
+      actions.togglePlaying();
+      expect(primary.resultPlaybackTimer).toBeDefined();
+      expect(secondary.resultPlaybackTimer).toBeDefined();
+      expect(primary.resultPlaybackPlaying).toBe(true);
+      expect(secondary.resultPlaybackPlaying).toBe(true);
+
+      clearResultPlaybackTimers(states);
+      vi.advanceTimersByTime(1000);
+
+      expect(primary.resultPlaybackTimer).toBeUndefined();
+      expect(secondary.resultPlaybackTimer).toBeUndefined();
+      expect(primary.resultPlaybackIndex).toBe(0);
+      expect(secondary.resultPlaybackIndex).toBe(0);
+      expect(primary.resultPlaybackPlaying).toBe(true);
+      expect(secondary.resultPlaybackPlaying).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("routes controller-compatible properties through the focused slot", () => {

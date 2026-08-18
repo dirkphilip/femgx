@@ -158,6 +158,7 @@ function uniqueElementCount(context: WorkbenchSceneContext): number {
 function submittedElementOccurrences(context: WorkbenchSceneContext): number {
   let elements = 0;
   for (const instance of context.runtime.getPartOccurrences()) {
+    if (!instance.visible) continue;
     elements += context.model.scene.parts.get(instance.partId)?.elements?.length ?? 0;
   }
   return elements;

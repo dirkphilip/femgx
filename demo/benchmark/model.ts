@@ -63,7 +63,7 @@ export function benchmarkCaseSpecs(includeLarge: boolean): readonly WebGpuBenchm
   return [
     {
       id: "instanced-2.10m",
-      name: "Performance Lab · 32,768 unique Quad elements · 2,097,152 submitted triangles",
+      name: "Performance Lab · 16,384 unique Quad elements · 2,097,152 submitted triangles",
       kind: "instancing-heavy",
       gridCells: 128,
       partCount: 1,
