@@ -26,79 +26,36 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/femgx.cjs",
-  "module": "./dist/femgx.js",
+  "main": "./dist/femgx.js",
   "types": "./dist/entries/root.d.ts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/entries/root.d.ts",
-        "default": "./dist/femgx.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/root.d.cts",
-        "default": "./dist/femgx.cjs"
-      }
+      "types": "./dist/entries/root.d.ts",
+      "default": "./dist/femgx.js"
     },
     "./model": {
-      "import": {
-        "types": "./dist/entries/model.d.ts",
-        "default": "./dist/model.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/model.d.cts",
-        "default": "./dist/model.cjs"
-      }
+      "types": "./dist/entries/model.d.ts",
+      "default": "./dist/model.js"
     },
     "./io": {
-      "import": {
-        "types": "./dist/entries/io.d.ts",
-        "default": "./dist/io.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/io.d.cts",
-        "default": "./dist/io.cjs"
-      }
+      "types": "./dist/entries/io.d.ts",
+      "default": "./dist/io.js"
     },
     "./io/glb": {
-      "import": {
-        "types": "./dist/entries/io/glb.d.ts",
-        "default": "./dist/io/glb.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/io/glb.d.cts",
-        "default": "./dist/io/glb.cjs"
-      }
+      "types": "./dist/entries/io/glb.d.ts",
+      "default": "./dist/io/glb.js"
     },
     "./camera": {
-      "import": {
-        "types": "./dist/entries/camera.d.ts",
-        "default": "./dist/camera.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/camera.d.cts",
-        "default": "./dist/camera.cjs"
-      }
+      "types": "./dist/entries/camera.d.ts",
+      "default": "./dist/camera.js"
     },
     "./runtime": {
-      "import": {
-        "types": "./dist/entries/runtime.d.ts",
-        "default": "./dist/runtime.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/runtime.d.cts",
-        "default": "./dist/runtime.cjs"
-      }
+      "types": "./dist/entries/runtime.d.ts",
+      "default": "./dist/runtime.js"
     },
     "./platform": {
-      "import": {
-        "types": "./dist/entries/platform.d.ts",
-        "default": "./dist/platform.js"
-      },
-      "require": {
-        "types": "./dist/cjs/entries/platform.d.cts",
-        "default": "./dist/platform.cjs"
-      }
+      "types": "./dist/entries/platform.d.ts",
+      "default": "./dist/platform.js"
     },
     "./package.json": "./package.json"
   },

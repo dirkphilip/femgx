@@ -75,8 +75,8 @@ Then install the generated tarball from your application directory:
 npm install ../femgx/femgx-0.1.0.tgz
 ```
 
-FemGx ships ESM and CommonJS builds with declarations and requires a modern
-WebGPU browser. TypeScript 6 includes WebGPU types; TypeScript 5.9 applications
+FemGx ships ESM with declarations and requires a modern WebGPU browser.
+TypeScript 6 includes WebGPU types; TypeScript 5.9 applications
 also need `@webgpu/types` in `devDependencies` and `compilerOptions.types`.
 
 ## API model

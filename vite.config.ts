@@ -26,21 +26,17 @@ export default defineConfig({
         platform: resolve(import.meta.dirname, "src/entries/platform.ts"),
       },
       name: "femgx",
-      formats: ["es", "cjs"],
-      fileName: (format, entryName) => (format === "es" ? `${entryName}.js` : `${entryName}.cjs`),
+      formats: ["es"],
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
     sourcemap: true,
   },
   plugins: [
     dts({
       include: ["src"],
-      outDirs: ["dist", { dir: "dist/cjs", moduleFormat: "cjs" }],
+      outDirs: ["dist"],
       beforeWriteFile(filePath, content) {
-        const isEsm = filePath.endsWith(".d.ts");
-        const isCts = filePath.endsWith(".d.cts");
-        if (isEsm) return { filePath, content: esmSpecifiers(content) };
-        if (isCts)
-          return { filePath, content: esmSpecifiers(content).replace(/\.js(['"])/g, ".cts$1") };
+        if (filePath.endsWith(".d.ts")) return { filePath, content: esmSpecifiers(content) };
       },
     }),
   ],

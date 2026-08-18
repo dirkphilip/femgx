@@ -70,19 +70,18 @@ function main() {
     const publicEntries = ["model", "io", "io/glb", "camera", "runtime", "platform"];
     const expectedArtifacts = [
       "dist/femgx.js",
-      "dist/femgx.cjs",
       "dist/entries/root.d.ts",
-      "dist/cjs/entries/root.d.cts",
-      ...publicEntries.flatMap((entry) => [
-        `dist/${entry}.js`,
-        `dist/${entry}.cjs`,
-        `dist/entries/${entry}.d.ts`,
-        `dist/cjs/entries/${entry}.d.cts`,
-      ]),
+      ...publicEntries.flatMap((entry) => [`dist/${entry}.js`, `dist/entries/${entry}.d.ts`]),
     ];
     for (const artifact of expectedArtifacts) {
       expect(tarballFiles.includes(artifact), `missing ${artifact} in tarball`);
     }
+    expect(
+      !tarballFiles.some(
+        (path) => path.startsWith("dist/cjs/") || path.endsWith(".cjs") || path.endsWith(".d.cts"),
+      ),
+      "tarball includes obsolete CommonJS artifacts",
+    );
     expect(tarballFiles.includes("package.json"), "missing package.json in tarball");
     expect(tarballFiles.includes("README.md"), "missing README.md in tarball");
     expect(
@@ -101,19 +100,21 @@ function main() {
     );
     expect(leaked.length === 0, `tarball leaks non-publishable files: ${leaked.join(", ")}`);
 
-    // 4. Validate the dual ESM/CJS types against the exports map with
-    //    @arethetypeswrong/cli (attw). Fails on any finding so hazards such as
-    //    masquerading as CJS/ESM or wrong types-condition placement cannot slip in.
+    // 4. Validate the ESM declarations and exports map with @arethetypeswrong/cli.
     console.log("Running @arethetypeswrong/cli on the packed tarball...");
     const attw = join(repoRoot, "node_modules", ".bin", "attw");
     let attwOutput;
     try {
-      // TypeScript's legacy node10 resolver cannot interpret package exports for
-      // subpaths. The explicit root-only node10 smoke below remains required;
-      // attw still checks every entry under node16 and bundler resolution.
       attwOutput = runCommand(
         attw,
-        [tarball, "--no-color", "--no-emoji", "--ignore-rules", "no-resolution"],
+        [
+          tarball,
+          "--no-color",
+          "--no-emoji",
+          "--ignore-rules",
+          "cjs-resolves-to-esm",
+          "no-resolution",
+        ],
         repoRoot,
         env,
       ).stdout;
@@ -162,12 +163,9 @@ function main() {
       "published package must not carry a preinstall script",
     );
     const expectedExports = {
-      ".": ["dist/entries/root.d.ts", "dist/cjs/entries/root.d.cts"],
+      ".": "dist/entries/root.d.ts",
       ...Object.fromEntries(
-        publicEntries.map((entry) => [
-          `./${entry}`,
-          [`dist/entries/${entry}.d.ts`, `dist/cjs/entries/${entry}.d.cts`],
-        ]),
+        publicEntries.map((entry) => [`./${entry}`, `dist/entries/${entry}.d.ts`]),
       ),
     };
     expect(
@@ -175,15 +173,12 @@ function main() {
         [...Object.keys(expectedExports), "./package.json"].sort().join(","),
       "package exports contain an undeclared or missing entry",
     );
-    for (const [entry, [importTypes, requireTypes]] of Object.entries(expectedExports)) {
+    for (const [entry, types] of Object.entries(expectedExports)) {
       expect(
-        installedPkg.exports[entry]?.import?.types === `./${importTypes}`,
-        `${entry} import types condition is wrong`,
+        installedPkg.exports[entry]?.types === `./${types}`,
+        `${entry} types condition is wrong`,
       );
-      expect(
-        installedPkg.exports[entry]?.require?.types === `./${requireTypes}`,
-        `${entry} require types condition is wrong`,
-      );
+      expect(!("require" in installedPkg.exports[entry]), `${entry} must not expose CommonJS`);
     }
     expect(
       !existsSync(join(consumerNodeModules, "node_modules")),
@@ -230,44 +225,7 @@ function main() {
     );
     console.log(runCommand("node", ["smoke.mjs"], consumer).stdout.trim());
 
-    // 7. CommonJS require at runtime.
-    writeFileSync(
-      join(consumer, "smoke.cjs"),
-      [
-        'const { createInteractionState, createScene, identity, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } = require("femgx");',
-        'const { createCamera } = require("femgx/camera");',
-        'const model = require("femgx/model");',
-        'const io = require("femgx/io");',
-        'const glb = require("femgx/io/glb");',
-        'const runtime = require("femgx/runtime");',
-        'const platform = require("femgx/platform");',
-        "const scene = createScene();",
-        "const camera = createCamera();",
-        'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
-        'if (identity().length !== 16) throw new Error("identity() is not a 4x4 matrix");',
-        'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function" || typeof setPartOccurrenceOverrides !== "function") throw new Error("part-occurrence override exports failed");',
-        "let interaction = createInteractionState();",
-        "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
-        'interaction = setPartOccurrenceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
-        'interaction = setPartOccurrenceOverrides(interaction, [["1/0", { emissive: 0.2 }]]);',
-        'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
-        "const builder = io.createModelBuilder();",
-        "builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);",
-        "builder.openElementShapeBlock(model.ElementShape.Triangle);",
-        "builder.appendElements([1], [0, 1, 2]);",
-        "const femModel = builder.build();",
-        'if (io.validateModel(femModel).length !== 0) throw new Error("io validation failed");',
-        'if (io.createElementModelFromFemModel(femModel).elements.length !== 1) throw new Error("io conversion failed");',
-        'if (typeof io.createResultFieldFromModelResult !== "function") throw new Error("io result conversion failed");',
-        'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
-        'if (typeof runtime.createSceneRuntime !== "function") throw new Error("runtime entry failed");',
-        'if (typeof platform.queryWebGpuSupport !== "function") throw new Error("platform entry failed");',
-        'console.log("CJS require OK");',
-      ].join("\n"),
-    );
-    console.log(runCommand("node", ["smoke.cjs"], consumer).stdout.trim());
-
-    // 8. Type-level consumption under each supported moduleResolution.
+    // 7. Type-level consumption under each supported ESM module resolution.
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const tsc5 = join(repoRoot, "node_modules", "typescript-5", "bin", "tsc");
     const smokeTs = [
@@ -375,15 +333,6 @@ function main() {
       "if (ioField.values[0] !== 1) throw new Error();",
     ].join("\n");
     writeFileSync(join(consumer, "smoke.ts"), smokeTs);
-    const rootSmokeTs = [
-      'import { createScene, identity } from "femgx";',
-      "const scene = createScene().build();",
-      "const matrix = identity();",
-      "void scene;",
-      "void matrix;",
-    ].join("\n");
-    writeFileSync(join(consumer, "root-smoke.ts"), rootSmokeTs);
-
     const tsconfigBundler = {
       compilerOptions: {
         target: "es2022",
@@ -413,23 +362,7 @@ function main() {
       JSON.stringify(tsconfigTypeScript5, null, 2),
     );
 
-    const tsconfigNode10 = {
-      compilerOptions: {
-        target: "es2022",
-        module: "commonjs",
-        moduleResolution: "node10",
-        lib: ["es2022", "dom"],
-        strict: true,
-        skipLibCheck: false,
-        noEmit: true,
-        ignoreDeprecations: "6.0",
-      },
-      files: ["root-smoke.ts"],
-    };
-    writeFileSync(join(consumer, "tsconfig.node10.json"), JSON.stringify(tsconfigNode10, null, 2));
-
     writeFileSync(join(consumer, "smoke.mts"), smokeTs);
-    writeFileSync(join(consumer, "smoke.cts"), smokeTs);
     const tsconfigNodeNext = {
       compilerOptions: {
         target: "es2022",
@@ -440,18 +373,14 @@ function main() {
         skipLibCheck: false,
         noEmit: true,
       },
-      files: ["smoke.mts", "smoke.cts"],
+      files: ["smoke.mts"],
     };
     writeFileSync(
       join(consumer, "tsconfig.nodenext.json"),
       JSON.stringify(tsconfigNodeNext, null, 2),
     );
 
-    for (const config of [
-      "tsconfig.bundler.json",
-      "tsconfig.node10.json",
-      "tsconfig.nodenext.json",
-    ]) {
+    for (const config of ["tsconfig.bundler.json", "tsconfig.nodenext.json"]) {
       runCommand(tsc, ["-p", join(consumer, config)], consumer);
       console.log(`${config} type-check OK`);
     }

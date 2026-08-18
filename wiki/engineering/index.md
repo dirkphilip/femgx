@@ -9,8 +9,7 @@
   optional-resource memory rules.
 - [[engineering/e2e-policy|E2E test classification and skip policy]] — which
   e2e tests are required, what may skip and why, and how skips stay visible.
-- [[engineering/packaging|Packaging]] — ESM/CJS builds and declaration
-  resolution.
+- [[engineering/packaging|Packaging]] — ESM build and declaration resolution.
 - [[engineering/pre-commit-hooks|Pre-commit hooks]] — popular validators layered
   on top of husky, run by CI.
 - [[engineering/quality-gate|Quality gate]] — local and CI validation.

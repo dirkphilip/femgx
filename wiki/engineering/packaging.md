@@ -10,47 +10,42 @@ range; revisit it when the lint toolchain supports a newer compiler.
 
 `npm run build` (typecheck + `vite build`) emits into `dist/`:
 
-- `dist/femgx.js` and `dist/femgx.cjs` — canonical ESM/CommonJS bundles.
-- `dist/{model,io,camera,runtime,platform}.js` and `.cjs` — explicit domain
-  bundles; `dist/io/glb.js` and `.cjs` own the optional GLB importer.
-- `dist/**/*.d.ts` and `dist/cjs/**/*.d.cts` — per-module declarations plus
-  entry declarations used by the exports map.
+- `dist/femgx.js` — canonical ESM bundle.
+- `dist/{model,io,camera,runtime,platform}.js` — explicit domain bundles;
+  `dist/io/glb.js` owns the optional GLB importer.
+- `dist/**/*.d.ts` — per-module declarations plus entry declarations used by
+  the exports map.
 
-`vite-plugin-dts` is configured with two out dirs (`dist` and `dist/cjs`, the
-latter with `moduleFormat: "cjs"`). Demo fixtures live under `demo/fixtures/`
-and are outside the library entry, so they never ship.
+`vite-plugin-dts` emits declarations into `dist`. Demo fixtures live under
+`demo/fixtures/` and are outside the library entry, so they never ship.
 
 ### Declaration extension rewriting
 
-Relative specifiers inside the emitted declarations must carry the right
-extension for the resolution mode:
+Relative specifiers inside emitted declarations carry `.js` extensions so
+NodeNext consumers can resolve the ESM package:
 
-- `.d.ts` (ESM): `'./scene/assembly'` → `'./scene/assembly.js'`, so
-  `moduleResolution: nodenext` accepts the package. Consumers under `bundler`
-  and legacy `node10` resolution also accept the `.js` form.
-- `.d.cts` (CJS): `'./scene/assembly.js'` → `'./scene/assembly.cts'`, because
-  nodenext rejects both extensionless and `.js` specifiers in `.d.cts`.
+- `'./scene/assembly'` → `'./scene/assembly.js'`.
 
-This is implemented in `vite.config.ts` with a `beforeWriteFile` hook. Verified
-by `scripts/package-smoke.mjs` under `bundler`, `nodenext`, and `node10`.
+This is implemented in `vite.config.ts` with a `beforeWriteFile` hook and
+verified by `scripts/package-smoke.mjs` under `bundler` and `nodenext`.
 
 ## Exports map
 
 ```json
 "exports": {
-  ".": { "import": { "types": "./dist/entries/root.d.ts", "default": "./dist/femgx.js" }, "require": { "types": "./dist/cjs/entries/root.d.cts", "default": "./dist/femgx.cjs" } },
-  "./model": { "import": { "types": "./dist/entries/model.d.ts", "default": "./dist/model.js" }, "require": { "types": "./dist/cjs/entries/model.d.cts", "default": "./dist/model.cjs" } },
-  "./io": { "import": { "types": "./dist/entries/io.d.ts", "default": "./dist/io.js" }, "require": { "types": "./dist/cjs/entries/io.d.cts", "default": "./dist/io.cjs" } },
-  "./io/glb": { "import": { "types": "./dist/entries/io/glb.d.ts", "default": "./dist/io/glb.js" }, "require": { "types": "./dist/cjs/entries/io/glb.d.cts", "default": "./dist/io/glb.cjs" } },
-  "./camera": { "import": { "types": "./dist/entries/camera.d.ts", "default": "./dist/camera.js" }, "require": { "types": "./dist/cjs/entries/camera.d.cts", "default": "./dist/camera.cjs" } },
-  "./runtime": { "import": { "types": "./dist/entries/runtime.d.ts", "default": "./dist/runtime.js" }, "require": { "types": "./dist/cjs/entries/runtime.d.cts", "default": "./dist/runtime.cjs" } },
-  "./platform": { "import": { "types": "./dist/entries/platform.d.ts", "default": "./dist/platform.js" }, "require": { "types": "./dist/cjs/entries/platform.d.cts", "default": "./dist/platform.cjs" } },
+  ".": { "types": "./dist/entries/root.d.ts", "default": "./dist/femgx.js" },
+  "./model": { "types": "./dist/entries/model.d.ts", "default": "./dist/model.js" },
+  "./io": { "types": "./dist/entries/io.d.ts", "default": "./dist/io.js" },
+  "./io/glb": { "types": "./dist/entries/io/glb.d.ts", "default": "./dist/io/glb.js" },
+  "./camera": { "types": "./dist/entries/camera.d.ts", "default": "./dist/camera.js" },
+  "./runtime": { "types": "./dist/entries/runtime.d.ts", "default": "./dist/runtime.js" },
+  "./platform": { "types": "./dist/entries/platform.d.ts", "default": "./dist/platform.js" },
   "./package.json": "./package.json"
 }
 ```
 
-The nested per-condition `types` lets CJS consumers get `.d.cts` while ESM
-consumers get `.d.ts`, so each format is type-checked against its own tree.
+The `types` condition maps every ESM entry to its declaration file. There is no
+`require` condition or CommonJS artifact; consumers import the package as ESM.
 `sideEffects: false` is set so bundlers can tree-shake. The root and all
 non-GLB entries have no GLB/Draco closure; only `femgx/io/glb` includes it.
 
@@ -92,23 +87,18 @@ reference no package that consumers must install:
    malformed or polluted output reports the command, status, stdout, and stderr.
 2. Checks the tarball contents (declarations present, no source/demo/wiki
    leakage), then runs `@arethetypeswrong/cli` (attw) against the packed
-   tarball, failing on
-   any finding. This catches hazards the bespoke checks do not, notably
-   masquerading as CJS/ESM, wrong `types`-condition placement, and per-condition
-   `.d.ts`/`.d.cts` resolution edge cases across every modern
-   `moduleResolution` mode. The package reports "No problems found"; the
-   explicit legacy node10 subpath no-resolution limitation is ignored because
-   node10 cannot interpret package `exports`, while the root-only node10 smoke
-   remains required.
+   tarball, failing on any finding. This catches ESM declaration and
+   `types`-condition resolution hazards the bespoke checks do not. Its expected
+   CommonJS-to-ESM and legacy node10-resolution findings are ignored because
+   CommonJS is unsupported.
 3. Installs the tarball with lifecycle scripts, audit, funding, lockfile
    generation, registry access, and inherited npm configuration disabled, using
    a second temporary cache and empty user config.
 4. Asserts the installed manifest has no runtime deps, is not private, and has
    no `preinstall`.
-5. Runs `node` ESM `import` and CJS `require` of the root and every domain entry.
-6. Type-checks all entries under `bundler` and `nodenext` (`.mts` + `.cts`),
-   plus the canonical root under legacy `node10`, with TypeScript 6 and
-   `skipLibCheck: false`.
+5. Runs `node` ESM `import` of the root and every domain entry.
+6. Type-checks all entries under `bundler` and `nodenext` (`.mts`) with
+   TypeScript 6 and `skipLibCheck: false`.
 7. Type-checks the same packed public surface with TypeScript 5.9 and
    consumer-supplied `@webgpu/types`, also with `skipLibCheck: false`.
 
