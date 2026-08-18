@@ -24,6 +24,8 @@ export interface CameraContentInset {
 /** Keeps fitted bounds strictly inside the configured clip interval. */
 const FIT_POSITION_MARGIN = 0.01;
 const FIT_MIN_NEAR = 0.0001;
+const PERSPECTIVE_CENTER_EPSILON = 1e-6;
+const PERSPECTIVE_CENTER_ITERATIONS = 20;
 
 /**
  * Frames bounds around their center while preserving the camera orientation.
@@ -65,7 +67,9 @@ export function fitCamera(
     inset,
   };
   const fitted = camera.mode === "orthographic" ? fitOrthographic(inputs) : fitPerspective(inputs);
-  return shiftToContentCenter(fitted, inset);
+  return camera.mode === "perspective"
+    ? centerPerspectiveBounds(fitted, bounds, inset)
+    : shiftToContentCenter(fitted, inset);
 }
 
 interface ViewOrientation {
@@ -171,6 +175,70 @@ function fitPerspective(inputs: FitInputs): Camera {
     width,
     height,
   };
+}
+
+function centerPerspectiveBounds(
+  camera: Camera,
+  bounds: Bounds,
+  inset: Required<CameraContentInset>,
+): Camera {
+  let centered = shiftToContentCenter(camera, inset);
+  const desiredX = (camera.width + inset.left - inset.right) / 2;
+  const desiredY = (camera.height + inset.top - inset.bottom) / 2;
+  const corners = boundsCorners(bounds);
+  for (let iteration = 0; iteration < PERSPECTIVE_CENTER_ITERATIONS; iteration += 1) {
+    const projected = projectBounds(centered, corners);
+    const deltaX = (projected.minX + projected.maxX) / 2 - desiredX;
+    const deltaY = (projected.minY + projected.maxY) / 2 - desiredY;
+    if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) <= PERSPECTIVE_CENTER_EPSILON) {
+      break;
+    }
+    const pixelsPerWorldUnit =
+      centered.height /
+      (2 * Math.tan(centered.fovY / 2) * length(subtract(centered.position, centered.target)));
+    const orientation = viewOrientation(centered);
+    const delta = add(
+      scale(orientation.right, deltaX / pixelsPerWorldUnit),
+      scale(orientation.up, -deltaY / pixelsPerWorldUnit),
+    );
+    centered = {
+      ...centered,
+      position: add(centered.position, delta),
+      target: add(centered.target, delta),
+    };
+  }
+  return centered;
+}
+
+interface ScreenBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function projectBounds(camera: Camera, corners: readonly Vec3[]): ScreenBounds {
+  const orientation = viewOrientation(camera);
+  const bounds: ScreenBounds = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
+  const pixelsPerWorldUnit = camera.height / (2 * Math.tan(camera.fovY / 2));
+  for (const corner of corners) {
+    const relative = subtract(corner, camera.position);
+    const depth = dot(relative, orientation.forward);
+    const horizontal = dot(relative, orientation.right);
+    const vertical = dot(relative, orientation.up);
+    const x = camera.width / 2 + (pixelsPerWorldUnit * horizontal) / depth;
+    const y = camera.height / 2 - (pixelsPerWorldUnit * vertical) / depth;
+    bounds.minX = Math.min(bounds.minX, x);
+    bounds.minY = Math.min(bounds.minY, y);
+    bounds.maxX = Math.max(bounds.maxX, x);
+    bounds.maxY = Math.max(bounds.maxY, y);
+  }
+  return bounds;
 }
 
 function fittedNear(depth: readonly number[]): number {
