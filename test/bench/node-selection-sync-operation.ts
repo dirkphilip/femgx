@@ -8,7 +8,7 @@ import type { DenseNodeSelections } from "../../src/renderer/selection/node-sele
 import type { OperationSpec } from "./operation-report";
 import { buildNodeSelectionCaseOperations } from "./node-selection-sync-operations";
 import { nodeSpriteBufferOperation } from "./node-sprite-buffer-operation";
-import { nodeTopologyOperation } from "./node-topology-operation";
+import { packedNodeTopologyOperation } from "./node-topology-operation";
 import { CASES, type MULTI_CASE_ID } from "./node-selection-sync-shared";
 
 export type CaseId = (typeof CASES)[number];
@@ -45,7 +45,7 @@ export { createNodeSelectionFixture } from "./node-selection-sync-fixture-builde
 export function nodeSelectionOperations(fixture: NodeSelectionFixture): readonly OperationSpec[] {
   return [
     nodeSpriteBufferOperation(fixture),
-    nodeTopologyOperation(fixture),
+    packedNodeTopologyOperation(fixture),
     ...CASES.flatMap((id) => nodeSelectionCaseOperations(fixture, id)),
   ];
 }

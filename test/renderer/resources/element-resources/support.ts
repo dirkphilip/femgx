@@ -64,7 +64,7 @@ import {
 } from "../../../../src/renderer/picking/ids";
 import {
   buildNodeSpritePickIds,
-  buildNodeTopologyData,
+  buildPackedNodeTopologyData,
 } from "../../../../src/renderer/picking/node-topology";
 
 import { HIGHLIGHT_BUCKET_SIZE } from "../../../../src/renderer/selection/highlight-table";
@@ -244,7 +244,7 @@ export {
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
   buildNodeSpritePickIds,
-  buildNodeTopologyData,
+  buildPackedNodeTopologyData,
   buildPrimitiveFaceBodyPickData,
   HIGHLIGHT_BUCKET_SIZE,
   createDrawResources,

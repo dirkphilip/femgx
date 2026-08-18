@@ -1,12 +1,15 @@
-import { buildNodeTopologyData } from "../../src/renderer/picking/node-topology";
+import {
+  buildNodeSpritePickIds,
+  buildPackedNodeTopologyData,
+} from "../../src/renderer/picking/node-topology";
 import type { OperationSpec } from "./operation-report";
 import type { NodeSelectionFixture } from "./node-selection-sync-operation";
 
-interface NodeTopologyFacts {
+interface PackedNodeTopologyFacts {
   readonly faceRecordCount: number;
   readonly rangeCount: number;
   readonly ownerOccurrenceCount: number;
-  readonly outputBytes: number;
+  readonly packedBytes: number;
   readonly firstOwnerCount: number;
   readonly lastOwnerOffset: number;
   readonly lastOwnerCount: number;
@@ -16,13 +19,18 @@ interface NodeTopologyFacts {
   readonly lastElementPickId: number;
 }
 
-/** Measures cold dense node-topology construction without packing or GPU upload. */
-export function nodeTopologyOperation(fixture: NodeSelectionFixture): OperationSpec {
-  const expected = topologyFacts(buildNodeTopologyData(fixture.part));
+/** Measures final topology construction; memory facts exclude authored source and native GPU data. */
+export function packedNodeTopologyOperation(fixture: NodeSelectionFixture): OperationSpec {
+  const spritePickIds = buildNodeSpritePickIds(fixture.part);
+  const expected = packedTopologyFacts(buildPackedNodeTopologyData(fixture.part, spritePickIds));
   assertTet4TopologyFacts(expected, fixture);
+  const rawStagingBytes = rawTopologyBytes(spritePickIds.length, expected.ownerOccurrenceCount);
+  const ordinalStagingBytes = spritePickIds.byteLength;
+  const temporaryBytes = fixture.nodeCount * 12 + spritePickIds.length * 8;
+  assertTet4MemoryFacts(rawStagingBytes, ordinalStagingBytes, temporaryBytes);
   return {
-    name: "node-build-topology-cold",
-    workloadUnit: "element-node owner occurrences written into dense topology",
+    name: "node-build-and-pack-topology-cold",
+    workloadUnit: "element-node owners constructed directly in final packed topology",
     workloadCount: expected.ownerOccurrenceCount,
     workloadDetails: {
       nodeCount: fixture.nodeCount,
@@ -30,7 +38,14 @@ export function nodeTopologyOperation(fixture: NodeSelectionFixture): OperationS
       faceRecordCount: expected.faceRecordCount,
       rangeCount: expected.rangeCount,
       ownerOccurrenceCount: expected.ownerOccurrenceCount,
-      outputBytes: expected.outputBytes,
+      suppliedSpritePickIdInputBytes: spritePickIds.byteLength,
+      retainedPackedTopologyBytes: expected.packedBytes,
+      builderTemporaryTypedArrayBytes: temporaryBytes,
+      eliminatedRawTopologyStagingBytes: rawStagingBytes,
+      eliminatedElementOrdinalStagingBytes: ordinalStagingBytes,
+      eliminatedTotalStagingBytes: rawStagingBytes + ordinalStagingBytes,
+      authoredSourceBytesIncluded: 0,
+      nativeGpuAllocationBytesIncluded: 0,
       firstOwnerCount: expected.firstOwnerCount,
       lastOwnerOffset: expected.lastOwnerOffset,
       lastOwnerCount: expected.lastOwnerCount,
@@ -40,35 +55,59 @@ export function nodeTopologyOperation(fixture: NodeSelectionFixture): OperationS
       lastElementPickId: expected.lastElementPickId,
     },
     run: () => {
-      const actual = topologyFacts(buildNodeTopologyData(fixture.part));
-      if (!sameTopologyFacts(actual, expected)) throw new Error("Node topology output changed");
+      const actual = packedTopologyFacts(buildPackedNodeTopologyData(fixture.part, spritePickIds));
+      if (!sameTopologyFacts(actual, expected)) throw new Error("Packed node topology changed");
     },
   };
 }
 
-function topologyFacts(topology: ReturnType<typeof buildNodeTopologyData>): NodeTopologyFacts {
-  const ownerOccurrenceCount = topology.bodyIds.length / 2;
-  const lastRange = topology.bodyRanges.length - 2;
+function packedTopologyFacts(data: Uint32Array): PackedNodeTopologyFacts {
+  const faceRecordCount = data[0] ?? 0;
+  const rangeCount = data[1] ?? 0;
+  const ownerOccurrenceCount = data[2] ?? 0;
+  const faceEnd = 4 + faceRecordCount * 5;
+  const rangeEnd = faceEnd + rangeCount * 2;
+  const bodyEnd = rangeEnd + ownerOccurrenceCount * 2;
+  const elementEnd = bodyEnd + ownerOccurrenceCount * 2;
+  const lastRange = faceEnd + (rangeCount - 1) * 2;
   return {
-    faceRecordCount: topology.faceBodyPickIds.length / 5,
-    rangeCount: topology.bodyRanges.length / 2,
+    faceRecordCount,
+    rangeCount,
     ownerOccurrenceCount,
-    outputBytes:
-      topology.faceBodyPickIds.byteLength +
-      topology.bodyRanges.byteLength +
-      topology.bodyIds.byteLength +
-      topology.elementIds.byteLength,
-    firstOwnerCount: topology.bodyRanges[1] ?? 0,
-    lastOwnerOffset: topology.bodyRanges[lastRange] ?? 0,
-    lastOwnerCount: topology.bodyRanges[lastRange + 1] ?? 0,
-    firstBodyPickId: topology.bodyIds[0] ?? 0,
-    firstElementPickId: topology.elementIds[0] ?? 0,
-    lastBodyPickId: topology.bodyIds.at(-2) ?? 0,
-    lastElementPickId: topology.elementIds.at(-2) ?? 0,
+    packedBytes: data.byteLength,
+    firstOwnerCount: data[faceEnd + 1] ?? 0,
+    lastOwnerOffset: data[lastRange] ?? 0,
+    lastOwnerCount: data[lastRange + 1] ?? 0,
+    firstBodyPickId: data[rangeEnd] ?? 0,
+    firstElementPickId: data[bodyEnd] ?? 0,
+    lastBodyPickId: data[bodyEnd - 2] ?? 0,
+    lastElementPickId: data[elementEnd - 2] ?? 0,
   };
 }
 
-function assertTet4TopologyFacts(facts: NodeTopologyFacts, fixture: NodeSelectionFixture): void {
+function rawTopologyBytes(spriteCount: number, ownerOccurrenceCount: number): number {
+  return spriteCount * 5 * 4 + spriteCount * 2 * 4 + ownerOccurrenceCount * 2 * 4 * 2;
+}
+
+function assertTet4MemoryFacts(
+  rawStagingBytes: number,
+  ordinalStagingBytes: number,
+  temporaryBytes: number,
+): void {
+  if (
+    rawStagingBytes !== 9_112_460 ||
+    ordinalStagingBytes !== 97_556 ||
+    rawStagingBytes + ordinalStagingBytes !== 9_210_016 ||
+    temporaryBytes !== 487_780
+  ) {
+    throw new Error("Large Tet4 node topology memory facts changed");
+  }
+}
+
+function assertTet4TopologyFacts(
+  facts: PackedNodeTopologyFacts,
+  fixture: NodeSelectionFixture,
+): void {
   if (
     facts.faceRecordCount !== fixture.nodeCount ||
     facts.rangeCount !== fixture.nodeCount ||
@@ -79,16 +118,19 @@ function assertTet4TopologyFacts(facts: NodeTopologyFacts, fixture: NodeSelectio
     facts.lastBodyPickId === 0 ||
     facts.lastElementPickId === 0
   ) {
-    throw new Error("Large Tet4 node topology facts changed");
+    throw new Error("Large Tet4 packed node topology facts changed");
   }
 }
 
-function sameTopologyFacts(actual: NodeTopologyFacts, expected: NodeTopologyFacts): boolean {
+function sameTopologyFacts(
+  actual: PackedNodeTopologyFacts,
+  expected: PackedNodeTopologyFacts,
+): boolean {
   return (
     actual.faceRecordCount === expected.faceRecordCount &&
     actual.rangeCount === expected.rangeCount &&
     actual.ownerOccurrenceCount === expected.ownerOccurrenceCount &&
-    actual.outputBytes === expected.outputBytes &&
+    actual.packedBytes === expected.packedBytes &&
     actual.firstOwnerCount === expected.firstOwnerCount &&
     actual.lastOwnerOffset === expected.lastOwnerOffset &&
     actual.lastOwnerCount === expected.lastOwnerCount &&
