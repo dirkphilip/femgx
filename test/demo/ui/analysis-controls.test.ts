@@ -150,6 +150,31 @@ describe("workbench analysis-controls", () => {
     await tick();
   });
 
+  it("keeps visible model feedback on the styled feedback surface", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const snapshot = createSnapshot(false);
+    const component = mount(PrimaryToolbar, {
+      target,
+      props: {
+        controller: undefined,
+        snapshot: {
+          ...snapshot,
+          overlays: {
+            ...snapshot.overlays,
+            feedback: { message: "Import failed", kind: "error" },
+          },
+        },
+      },
+    });
+
+    const feedback = element(target, "#model-feedback");
+    expect(feedback.hidden).toBe(false);
+    expect(feedback.classList.contains("model-feedback")).toBe(true);
+
+    await unmount(component);
+  });
+
   it("keeps dependent analysis controls out of layout until their role is active", async () => {
     const target = document.createElement("div");
     document.body.append(target);

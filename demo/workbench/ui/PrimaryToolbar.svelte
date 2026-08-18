@@ -318,6 +318,7 @@
 
   <div
     id="model-feedback"
+    class="model-feedback"
     data-testid="model-feedback"
     role="status"
     aria-live="polite"
