@@ -190,20 +190,20 @@ PERF_BASELINE_FILE=perf-reports/<machine>-<sha>-node-selection.json \
 ```
 
 The current clean Apple M3 Pro / Node 24.18.0 reference is commit
-`7f7c16d1d852b5c61224774308b83786d239570e`. Its source artifact is
+`4ddea1e044335074369f6f8a93fa91ffa9020405`. Its source artifact is
 `28-local-node-selection-dense.json`. Rows are isolated and non-additive:
 
 | Operation                              | Workload                               | p50 ms |  p95 ms | Evidence boundary                             |
 | -------------------------------------- | -------------------------------------- | -----: | ------: | --------------------------------------------- |
-| Cold node sprite expansion             | 24,389 centers; 2,146,232 output bytes |  0.273 |   0.341 | CPU allocation + scalar typed-array fill      |
-| Cold node topology                     | 526,848 owners; 9,112,460 output bytes | 14.006 | 136.408 | CPU count/fill + order check; allocation tail |
-| Half immutable interaction state       | 12,194 selected nodes                  |  0.694 |   0.777 | CPU immutable state construction              |
-| Half dense membership                  | 12,194 selected; 3,056-byte payload    |  0.108 |   0.384 | CPU classification + profitable bitset        |
-| Half fresh highlight encode/copy       | 3,200-byte fresh storage               |  0.006 |   0.012 | CPU encoding + fake queue copy                |
-| All immutable interaction state        | 24,389 selected nodes                  |  1.532 |   1.647 | CPU immutable state construction              |
-| All dense membership                   | 24,389 selected; 3,056-byte payload    |  0.208 |   0.214 | CPU classification + profitable bitset        |
-| All fresh highlight encode/copy        | 3,200-byte fresh storage               |  0.006 |   0.011 | CPU encoding + fake queue copy                |
-| 32-occurrence selected-node order sync | one selected node in each occurrence   |  0.029 |   0.036 | isolated CPU + fresh fake order buffers       |
+| Cold node sprite expansion             | 24,389 centers; 2,146,232 output bytes |  0.272 |   0.404 | CPU allocation + scalar typed-array fill      |
+| Cold node topology                     | 526,848 owners; 9,112,460 output bytes | 14.270 | 140.055 | CPU count/fill + order check; allocation tail |
+| Half immutable interaction state       | 12,194 selected nodes                  |  0.689 |   0.862 | CPU immutable state construction              |
+| Half dense membership                  | 12,194 selected; 3,056-byte payload    |  0.108 |   0.381 | CPU classification + profitable bitset        |
+| Half fresh highlight encode/copy       | 3,200-byte fresh storage               |  0.007 |   0.011 | CPU encoding + fake queue copy                |
+| All immutable interaction state        | 24,389 selected nodes                  |  1.534 |   1.640 | CPU immutable state construction              |
+| All dense membership                   | 24,389 selected; 3,056-byte payload    |  0.207 |   0.231 | CPU classification + profitable bitset        |
+| All fresh highlight encode/copy        | 3,200-byte fresh storage               |  0.006 |   0.010 | CPU encoding + fake queue copy                |
+| 32-occurrence selected-node order sync | one selected node in each occurrence   |  0.031 |   0.035 | isolated CPU + fresh fake order buffers       |
 
 The topology p95 is the maximum-like tail of seven cold 8.69 MiB allocations on
 this small sample count, not a steady-frame latency. It is retained because it
@@ -219,8 +219,8 @@ DPR-1, four-sample viewport and the 131,712-element / 24,389-node Tet4 case:
 
 | Phase               | Targets | State ms | Sync ms | First frame ms | Steady p50 / p95 ms | Clear ms |
 | ------------------- | ------: | -------: | ------: | -------------: | ------------------: | -------: |
-| Half nodes, cold    |  12,194 |    1.000 |   0.400 |         51.800 |       2.100 / 5.500 |    1.000 |
-| All nodes, resident |  24,389 |    1.100 |   0.900 |          2.300 |       1.900 / 2.100 |    1.400 |
+| Half nodes, cold    |  12,194 |    0.900 |   0.300 |         55.400 |       3.000 / 5.000 |    1.500 |
+| All nodes, resident |  24,389 |    1.200 |   0.900 |          3.500 |       2.400 / 2.600 |    1.100 |
 
 Each phase uses one 3,056-byte dense membership payload in 3,200 bytes of
 highlight storage. Each visible and hidden node replay is one instance and
@@ -231,8 +231,8 @@ it.
 
 The original object-heavy cold path was observed at 311.9 ms with the same
 hardware, fixture, and schema-11 lane. Dense typed topology and zero-churn
-sprite expansion reduce the corresponding clean cold result to 51.8 ms, a
-6.02× improvement. The remaining cold work includes about 14 ms median CPU
+sprite expansion reduce the corresponding clean cold result to 55.4 ms, a
+5.63× improvement. The remaining cold work includes about 14 ms median CPU
 topology construction plus topology packing, GPU buffer creation/upload, and
 the frame. At a projected one million nodes and roughly four million owner
 occurrences, current raw topology, packed topology, sprite outputs, and build
@@ -260,7 +260,7 @@ number.
 | 2026-08-17 | `9a5a9f8f966041fd520fca4903fa8a0594d7e7ff` | Apple M3 Pro / 24.18.0 | BEFORE dense selection collect-plus-pack (7 selection-sync rows)           | Payload half **7.698625 / 11.904708 ms**; all-but-one **12.963000 / 14.972875 ms**; all **13.325958 / 16.409750 ms**; draw half **18.364750 / 21.350041 ms**, all-but-one **22.953250 / 25.787250 ms**, all **8.015666 / 8.130833 ms**; unchanged **0.000333 / 0.008334 ms**             | `24-local-selection-sync-before.json`, clean final harness; `gitDirty: false`. Draw-range values are a separate unchanged/noise baseline; no GPU/frame claim.                                                                                                                                                                                                                                              |
 | 2026-08-17 | `ef7d58806e5c188e168c105035b791dfc611141e` | Apple M3 Pro / 24.18.0 | AFTER direct typed-bitset collect-plus-pack (7 selection-sync rows)        | Payload half **1.778709 / 1.893875 ms**; all-but-one **3.159917 / 3.432084 ms**; all **2.892666 / 3.066250 ms**; draw half **20.383417 / 22.806042 ms**, all-but-one **22.362208 / 23.139292 ms**, all **7.930875 / 8.572750 ms**; unchanged **0.000375 / 0.010042 ms**                  | `25-local-selection-sync-after-dense-bitset.json`, clean final harness; `gitDirty: false`. Draw-range values remain a separate unchanged/noise baseline; the measured win is collect-plus-pack.                                                                                                                                                                                                            |
 | 2026-08-18 | `61d7ec8c1a654b6d5d973bf5df04e979068f7a05` | Apple M3 Pro / 24.18.0 | AFTER dense selection complement traversal (7 selection-sync rows)         | Payload half **1.919166 / 2.051833 ms**; all-but-one **3.224417 / 3.268875 ms**; all **2.996708 / 3.615583 ms**; draw half **6.321084 / 7.268500 ms**, all-but-one **0.012541 / 0.017166 ms**, all **0.000916 / 0.001042 ms**; unchanged **0.000333 / 0.007458 ms**                      | `26-local-selection-face-ranges-after.json`, clean final harness; `gitDirty: false`. Half exceeds the 1,024-range cap and returns the intentional full-draw fallback. Neighbor CSR is 2,596,612 bytes; real GPU submission/draw/frame evidence remains separate.                                                                                                                                           |
-| 2026-08-18 | `7f7c16d1d852b5c61224774308b83786d239570e` | Apple M3 Pro / 24.18.0 | Dense node selection and zero-churn node upload (26 node-sync rows)        | CPU sprite **0.272834 / 0.340666 ms**; topology **14.005708 / 136.407959 ms**; half state/dense/upload **0.693833 / 0.777000**, **0.108042 / 0.383750**, **0.006459 / 0.011625 ms**; all state/dense/upload **1.531834 / 1.647084**, **0.207625 / 0.213834**, **0.005792 / 0.010916 ms** | `28-local-node-selection-dense.json`, clean CPU/fake-GPU harness; `gitDirty: false`. Real Metal 3 half-node cold first frame **311.9 → 51.8 ms (6.02×)**; resident all-node first frame **2.3 ms**, steady **1.9 / 2.1 ms**. The cold path remains above target and the projected 1M typed-array peak remains open.                                                                                        |
+| 2026-08-18 | `4ddea1e044335074369f6f8a93fa91ffa9020405` | Apple M3 Pro / 24.18.0 | Dense node selection and zero-churn node upload (26 node-sync rows)        | CPU sprite **0.271875 / 0.403584 ms**; topology **14.269708 / 140.054542 ms**; half state/dense/upload **0.689208 / 0.861875**, **0.107792 / 0.380500**, **0.006958 / 0.011208 ms**; all state/dense/upload **1.534333 / 1.639792**, **0.206958 / 0.231333**, **0.005583 / 0.009583 ms** | `28-local-node-selection-dense.json`, clean CPU/fake-GPU harness after rebasing onto current `main`; `gitDirty: false`. Final post-rebase Metal 3 half-node cold first frame **311.9 → 55.4 ms (5.63×)**; resident all-node first frame **3.5 ms**, steady **2.4 / 2.6 ms**. The cold path remains above target and the projected 1M typed-array peak remains open.                                        |
 
 To append a milestone, run the command with `PERF_BASELINE_FILE`, inspect the
 JSON, then add the exact fingerprint and selected p50/p95 values to this table.
