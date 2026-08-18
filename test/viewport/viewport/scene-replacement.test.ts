@@ -202,6 +202,7 @@ describe("Viewport", () => {
     expect(viewport.results.state).toBeDefined();
     const cleared = viewport.reconcileScene(resultScene(6));
     expect(cleared.results).toBe("cleared");
+    if (cleared.results !== "cleared") throw new Error("expected cleared results");
     expect(cleared.reason).toMatch(/no value/);
     expect(viewport.results.state).toBeUndefined();
     viewport.destroy();

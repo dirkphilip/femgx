@@ -21,8 +21,8 @@ import {
 } from "./interaction";
 import { hoveredTarget, isHoveredTarget } from "./state";
 import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics";
-export type { InteractionTarget } from "./target-types";
-import type { InteractionTarget } from "./target-types";
+export type { InteractionTarget, InteractionTargetFor } from "./target-types";
+import type { InteractionTarget, InteractionTargetFor } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 export { bodyOverride, clearSelection, selectedTargets } from "./selection-queries";
 
@@ -30,6 +30,10 @@ export { bodyOverride, clearSelection, selectedTargets } from "./selection-queri
  * Converts a complete physical hit to a host-owned interaction identity.
  * @category Interaction and picking
  */
+export function interactionTargetFromHit<K extends InteractionGranularity>(
+  hit: PickHit,
+  granularity: K,
+): InteractionTargetFor<K> | undefined;
 export function interactionTargetFromHit(
   hit: PickHit,
   granularity: InteractionGranularity,
@@ -125,7 +129,7 @@ export function setTargetsSelected(
 }
 
 type PartTarget = Extract<InteractionTarget, { readonly kind: "part" }>;
-type InstanceTarget = Extract<InteractionTarget, { readonly kind: "partOccurrence" }>;
+type PartOccurrenceTarget = Extract<InteractionTarget, { readonly kind: "partOccurrence" }>;
 type BodyTarget = Extract<InteractionTarget, { readonly kind: "body" }>;
 type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
@@ -134,7 +138,7 @@ type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
 
 interface TargetGroups {
   readonly partIds: Set<PartTarget["partId"]>;
-  readonly partOccurrenceIds: Set<InstanceTarget["partOccurrenceId"]>;
+  readonly partOccurrenceIds: Set<PartOccurrenceTarget["partOccurrenceId"]>;
   readonly bodyIds: Map<BodyTarget["partOccurrenceId"], Set<BodyTarget["bodyId"]>>;
   readonly elementIds: Map<ElementTarget["partOccurrenceId"], Set<ElementTarget["elementId"]>>;
   readonly faceRefs: Map<FaceTarget["partOccurrenceId"], Map<string, FaceRef>>;
@@ -144,7 +148,7 @@ interface TargetGroups {
 
 interface TargetCollections {
   readonly partIds: ReadonlySet<PartTarget["partId"]>;
-  readonly partOccurrenceIds: ReadonlySet<InstanceTarget["partOccurrenceId"]>;
+  readonly partOccurrenceIds: ReadonlySet<PartOccurrenceTarget["partOccurrenceId"]>;
   readonly bodyIds: ReadonlyMap<BodyTarget["partOccurrenceId"], ReadonlySet<BodyTarget["bodyId"]>>;
   readonly elementIds: ReadonlyMap<
     ElementTarget["partOccurrenceId"],

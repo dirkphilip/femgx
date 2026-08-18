@@ -1,5 +1,6 @@
 import type {
   ElementFrameField,
+  PartId,
   ScalarField,
   VectorField,
   ViewportElementFrameConfig,
@@ -189,14 +190,24 @@ export function vectorConfigForDisplay(
           lengthScale: display.lengthScale,
           widthPixels: display.widthPixels,
         }
-      : {
-          field,
-          ...(partId === undefined ? {} : { partId }),
-          glyph: display.glyph === "triad" ? "axis" : display.glyph,
-          transform: display.transform,
-          lengthScale: display.lengthScale,
-          widthPixels: display.widthPixels,
-        };
+      : vectorRole(field, partId, display);
+}
+
+function vectorRole(
+  field: VectorField<"elemental">,
+  partId: PartId | undefined,
+  display: VectorDisplayState,
+): ViewportElementVectorConfig {
+  const shared = {
+    field,
+    ...(partId === undefined ? {} : { partId }),
+    lengthScale: display.lengthScale,
+    widthPixels: display.widthPixels,
+  };
+  const glyph = display.glyph === "triad" ? "axis" : display.glyph;
+  return glyph === "axis"
+    ? { ...shared, glyph, transform: "direction" }
+    : { ...shared, glyph, transform: display.transform };
 }
 
 /** Accepts only the user-selectable single-vector glyph presentations. */

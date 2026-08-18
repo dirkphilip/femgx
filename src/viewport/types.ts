@@ -1,11 +1,11 @@
 import type { Camera } from "../camera/camera";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionState } from "../interaction/interaction";
-import type { InteractionTarget } from "../interaction/target-types";
+import type { InteractionTarget, InteractionTargetFor } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { PartId } from "../geometry/part";
-import type { InteractionGranularity, PickHit } from "../picking/types";
+import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { Scene } from "../scene/scene";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
@@ -31,15 +31,24 @@ export type { SectionPlane } from "../math/section-plane";
  *
  * `reconcileScene` preserves a result snapshot only when its fields still cover
  * the candidate scene. A cleared result is reported instead of leaving a
- * partially applied scalar, deformation, or orientation state installed.
+ * partially applied scalar, deformation, orientation, or loads state installed.
  * @category Viewport lifecycle
  */
-export interface SceneReconciliationOutcome {
-  /** Whether active authored result data remained valid after the update. */
-  readonly results: "none" | "preserved" | "cleared";
-  /** Validation reason when active results were cleared. */
-  readonly reason?: string;
-}
+export type SceneReconciliationOutcome =
+  | {
+      /** No authored result snapshot was active during reconciliation. */
+      readonly results: "none";
+    }
+  | {
+      /** The active authored result snapshot remains valid and installed. */
+      readonly results: "preserved";
+    }
+  | {
+      /** The active authored result snapshot was invalid for the new scene and was cleared. */
+      readonly results: "cleared";
+      /** Actionable validation reason for clearing the result snapshot. */
+      readonly reason: string;
+    };
 
 /**
  * Inputs for the opinionated WebGPU FEM viewport.
@@ -111,9 +120,46 @@ export interface ViewportInteraction {
   readonly state: InteractionState;
   /** Replaces the immutable host interaction snapshot. */
   set(interaction: InteractionState): void;
-  /** Reads the topmost rendered target at canvas CSS coordinates. */
+  /** Reads the nearest authored edge at canvas CSS coordinates. */
+  pick(x: number, y: number, granularity: "edge"): Promise<EdgePickHit | undefined>;
+  /** Reads the topmost rendered target, or accepts a dynamic edge-only mode. */
   pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
   /** Resolves unique visible targets intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "part",
+  ): Promise<readonly InteractionTargetFor<"part">[]>;
+  /** Resolves visible placed-part occurrences intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "partOccurrence",
+  ): Promise<readonly InteractionTargetFor<"partOccurrence">[]>;
+  /** Resolves visible bodies intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "body",
+  ): Promise<readonly InteractionTargetFor<"body">[]>;
+  /** Resolves visible authored elements intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "element",
+  ): Promise<readonly InteractionTargetFor<"element">[]>;
+  /** Resolves visible authored faces intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "face",
+  ): Promise<readonly InteractionTargetFor<"face">[]>;
+  /** Resolves visible authored nodes intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "node",
+  ): Promise<readonly InteractionTargetFor<"node">[]>;
+  /** Resolves visible authored edges intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "edge",
+  ): Promise<readonly InteractionTargetFor<"edge">[]>;
+  /** Dynamic-granularity fallback retaining the complete target union. */
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,

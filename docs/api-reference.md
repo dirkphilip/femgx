@@ -581,6 +581,12 @@ const nextInteraction = setTargetsSelected(
 viewport.interaction.set(nextInteraction);
 ```
 
+The requested granularity narrows the return type: the `"element"` call above
+is `readonly InteractionTargetFor<"element">[]`, while an edge-only `pick`
+returns `EdgePickHit | undefined`. The same inference applies to
+`interactionTargetFromHit`, so hosts do not need assertions after choosing a
+literal granularity.
+
 `pickRegion` is nearest-visible raster discovery. For the Core-now Through
 strategy, use `boxSelectionFrustum` with the authoritative placed FE geometry
 in the host; it is an element-only CPU query and intentionally does not apply
@@ -609,13 +615,15 @@ const nextScene = createScene()
 
 const outcome = viewport.reconcileScene(nextScene);
 console.log(outcome.results); // "none", "preserved", or "cleared"
+if (outcome.results === "cleared") console.warn(outcome.reason);
 const currentRuntime = viewport.runtime; // new facade after the replacement
 ```
 
 The return value is a `SceneReconciliationOutcome`: `reconcileScene` reports
 whether the active authored results were preserved or cleared after the new
-scene was validated. Use `replaceScene` when the new scene is a deliberate
-reset and no placement-scoped state should carry across.
+scene was validated. It is a discriminated union: `reason` is required and
+available only for the `"cleared"` outcome. Use `replaceScene` when the new
+scene is a deliberate reset and no placement-scoped state should carry across.
 
 `reconcileScene` recompiles before committing, preserves compatible placement
 state, prunes stale interaction references, and revalidates active results.
@@ -676,6 +684,9 @@ scalar, deformation, and optional orientation roles. To show a host-owned
 sequence, call `viewport.results.set` again with the next complete snapshot; FemGx retains
 only the current one.
 
+`ViewportResultsConfig` requires at least one role at compile time. Use
+`viewport.results.clear()` instead of passing an empty object.
+
 Elemental scalar coloring uses element ids rather than tessellated triangle
 indices:
 
@@ -731,8 +742,10 @@ viewport.results.set({
 });
 ```
 
-The orientation role is deliberately bounded: authored elemental data only,
-`"arrow"` or `"axis"`, and `"direction"` or `"normal"` transforms. FemGx
+The orientation role is deliberately bounded: authored elemental data only.
+Arrows accept `"direction"` or `"normal"`; axes are directed and therefore
+accept only `"direction"`. TypeScript rejects the meaningless axis/normal
+combination before it reaches runtime validation. FemGx
 does not compute engineering vectors, magnitudes, tensor glyphs, legends, or
 playback controls.
 
