@@ -162,7 +162,7 @@ describe("workbench viewport lifecycle ownership", () => {
 
     expect(slots.isSecondaryVisible()).toBe(false);
     expect(slots.isSecondaryOpening()).toBe(false);
-    expect(failedSecondaryViewport.viewport.destroy).toHaveBeenCalledOnce();
+    expect(failedSecondaryViewport.destroy).toHaveBeenCalledOnce();
 
     await slots.toggleSecondaryViewport();
 
@@ -217,7 +217,7 @@ describe("workbench viewport lifecycle ownership", () => {
     resolveCreate(pendingSecondaryViewport.viewport);
     await opening;
 
-    expect(pendingSecondaryViewport.viewport.destroy).toHaveBeenCalledOnce();
+    expect(pendingSecondaryViewport.destroy).toHaveBeenCalledOnce();
     expect(slots.get("secondary")).toBeUndefined();
     expect(slots.isSecondaryVisible()).toBe(false);
   });
@@ -277,7 +277,7 @@ describe("workbench viewport lifecycle ownership", () => {
     await opening;
 
     expect(slots.get("secondary")?.viewport).toBe(retriedSecondaryViewport.viewport);
-    expect(retriedSecondaryViewport.viewport.destroy).not.toHaveBeenCalled();
+    expect(retriedSecondaryViewport.destroy).not.toHaveBeenCalled();
     expect(removeShowState).toHaveBeenCalledOnce();
   });
 });
@@ -360,6 +360,7 @@ function pane(id: ViewportSlotId): WorkbenchPane {
 
 interface ViewportFixture {
   readonly viewport: Viewport;
+  readonly destroy: MockFunction;
   readonly setBackground: MockFunction;
   readonly render: MockFunction;
 }
@@ -367,6 +368,7 @@ interface ViewportFixture {
 function viewport(): ViewportFixture {
   const setBackground = vi.fn();
   const render = vi.fn();
+  const destroy = vi.fn();
   const clearSectionPlane = vi.fn();
   const setSectionPlane = vi.fn();
   return {
@@ -378,8 +380,9 @@ function viewport(): ViewportFixture {
       },
       interaction: { state: createInteractionState() },
       render,
-      destroy: vi.fn(),
+      destroy,
     } as unknown as Viewport,
+    destroy,
     setBackground,
     render,
   };
