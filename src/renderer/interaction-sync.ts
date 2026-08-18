@@ -10,6 +10,7 @@ import { collectEmphasisUpdates } from "./resources/element-resources";
 import { syncElementHighlights } from "./selection/highlight-storage";
 import { syncInstanceEmphasisAdmission } from "./selection/instance-emphasis";
 import type { DenseElementSelections } from "./selection/element-selection";
+import type { DenseNodeSelections } from "./selection/node-selection";
 import { defaultStyle } from "./resources/foundation";
 import type { GpuBundle } from "./recovery";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
@@ -29,6 +30,8 @@ export interface TransparencySyncOptions {
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
   readonly emphasisUpdates: EmphasisUpdates;
+  readonly denseSelections?: DenseElementSelections;
+  readonly denseNodeSelections?: DenseNodeSelections;
 }
 
 export interface InteractionEmphasisSyncOptions {
@@ -42,6 +45,7 @@ export interface InteractionEmphasisSyncOptions {
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
   readonly denseSelections: DenseElementSelections;
+  readonly denseNodeSelections: DenseNodeSelections;
 }
 
 export interface InteractionElementSyncOptions {
@@ -174,6 +178,9 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
       }
     }
   }
+  if (selectionThemeIsTransparent(options.interaction)) {
+    addDenseTransparencySlots(options, emphasisTransparent);
+  }
   const changed = new Set<PartId>();
   for (const slot of options.changedSlots) {
     if (slot < 0 || slot >= options.runtime.instanceCount) continue;
@@ -191,6 +198,32 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
   return changed;
 }
 
+function selectionThemeIsTransparent(interaction: InteractionState): boolean {
+  const theme = readInteractionState(interaction).theme.selected;
+  return (theme.color?.a ?? 1) < 1 || (theme.opacity ?? 1) < 1;
+}
+
+function addDenseTransparencySlots(
+  options: TransparencySyncOptions,
+  destination: Set<number>,
+): void {
+  const addSelections = (
+    selections: DenseElementSelections | DenseNodeSelections | undefined,
+  ): void => {
+    for (const [partId, selection] of selections ?? []) {
+      if (!options.affectedParts.has(partId)) continue;
+      const slots = options.layout.partSlots.get(partId);
+      if (slots === undefined) continue;
+      for (const occurrence of selection.occurrences) {
+        const slot = slots[occurrence.slot];
+        if (slot !== undefined) destination.add(slot);
+      }
+    }
+  };
+  addSelections(options.denseSelections);
+  addSelections(options.denseNodeSelections);
+}
+
 /** Derives emphasis once and shares it between highlight and transparency sync. */
 export function syncInteractionEmphasis(
   options: InteractionEmphasisSyncOptions,
@@ -203,6 +236,7 @@ export function syncInteractionEmphasis(
       parts: options.parts,
       interaction: options.interaction,
       denseSelections: options.denseSelections,
+      denseNodeSelections: options.denseNodeSelections,
       edgeKeysByPart: renderedEdgeKeys(options.bundle.draw),
     },
   );
@@ -215,6 +249,7 @@ export function syncInteractionEmphasis(
       slotByInstanceId: options.slotByInstanceId,
       parts: options.parts,
       denseSelections: options.denseSelections,
+      denseNodeSelections: options.denseNodeSelections,
     },
     options.interaction,
     options.affectedParts,
@@ -229,6 +264,7 @@ export function syncInteractionEmphasis(
     emphasisUpdates,
     options.affectedParts,
     options.denseSelections,
+    options.denseNodeSelections,
   );
   return refreshTransparencyFlags({
     runtime: options.runtime,
@@ -240,6 +276,8 @@ export function syncInteractionEmphasis(
     changedSlots: options.changedSlots,
     affectedParts: options.affectedParts,
     emphasisUpdates,
+    denseSelections: options.denseSelections,
+    denseNodeSelections: options.denseNodeSelections,
   });
 }
 

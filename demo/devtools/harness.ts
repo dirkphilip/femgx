@@ -12,7 +12,11 @@ export interface DemoPickProbe {
 export interface DemoHarness {
   readonly destroyRenderer: () => void;
   readonly recreateRenderer: () => Promise<void>;
-  readonly runBenchmark: (includeLarge: boolean, caseId?: string) => Promise<unknown>;
+  readonly runBenchmark: (
+    includeLarge: boolean,
+    caseId?: string,
+    holdNodeSelectionForCapture?: boolean,
+  ) => Promise<unknown>;
   readonly pickPoint: (x: number, y: number) => Promise<readonly number[] | undefined>;
   readonly probePick: (x: number, y: number) => Promise<DemoPickProbe>;
   readonly pickRegion: (

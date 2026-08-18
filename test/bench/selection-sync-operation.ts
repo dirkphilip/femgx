@@ -82,7 +82,7 @@ export function createSelectionFixture(): SelectionFixture {
     const interaction = interactions.get(id);
     if (interaction === undefined) throw new Error(`Missing ${id} interaction`);
     const denseSelections = collectDenseElementSelections(runtime, layout, parts, interaction);
-    const order = buildSelectionOrder(layout, runtime, PART_ID, interaction);
+    const order = buildSelectionOrder(layout, runtime, PART_ID, interaction, parts);
     cases.set(id, {
       id,
       interaction,
@@ -225,7 +225,11 @@ function unchangedCollectOperation(fixture: SelectionFixture): OperationSpec {
 function createSelectionStorage(selected: SelectionCase) {
   installGpuGlobals();
   const device = fakeGpuDevice().device;
-  const storage = createHighlightStorage(device, 1, 1, 1, DENSE_WORD_COUNT);
+  const storage = createHighlightStorage(device, 1, {
+    selectionSlotCapacity: 1,
+    selectionRecordCapacity: 1,
+    selectionWordCapacity: DENSE_WORD_COUNT,
+  });
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const dense = selected.denseSelections.get(PART_ID);
   writeSelectionHeader(new Uint32Array(header.buffer), storage, dense, undefined);

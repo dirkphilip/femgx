@@ -7,11 +7,7 @@ import { createEmptyDeformationBuffer } from "../frame/deformation";
 import { packTopologyData } from "../resources/geometry-buffers";
 import { createEmptyOrderBuffer } from "../resources/instance-storage";
 import { createHighlightStorage } from "../selection/highlight-storage";
-import {
-  buildNodeBodyPickData,
-  buildNodeBodyOwnerData,
-  buildNodeSpritePickIds,
-} from "../picking/ids";
+import { buildNodeSpritePickIds, buildNodeTopologyData } from "../picking/node-topology";
 import type { DrawPipelines } from "../frame/pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometry";
 import { createBuffer, type PartResource } from "./foundation";
@@ -26,14 +22,13 @@ import { GpuCostAccumulator } from "../diagnostics/cost";
 import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
 import type { DrawResources } from "./draw-types";
 import type { VisibilitySkin } from "../visibility/types";
+import { buildNodeSpriteBuffers, expandPointGeometry, type PointVertexData } from "./point-sprites";
 
 export type { DrawResources } from "./draw-types";
 
 export { destroyDrawResources, destroyPartResource, destroyPartResources } from "./draw-lifecycle";
 
 export { destroyInstancePartResources, destroyInstanceResources } from "./instance-lifecycle";
-
-const POINT_SPRITE_INDICES = [0, 1, 2, 0, 2, 3] as const;
 
 export {
   INSTANCE_STRIDE,
@@ -130,7 +125,7 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   if (existing !== undefined) return existing;
   const nodes = part.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part);
-  const nodeBodyData = buildNodeBodyOwnerData(part, spritePickIds);
+  const nodeTopology = buildNodeTopologyData(part, spritePickIds);
   const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
   const vertexBuffer = createBuffer(
     draw.device,
@@ -143,10 +138,10 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     facePickIdsBuffer: createBuffer(
       draw.device,
       packTopologyData(
-        buildNodeBodyPickData(part, spritePickIds),
-        nodeBodyData.bodyRanges,
-        nodeBodyData.bodyIds,
-        nodeBodyData.elementIds,
+        nodeTopology.faceBodyPickIds,
+        nodeTopology.bodyRanges,
+        nodeTopology.bodyIds,
+        nodeTopology.elementIds,
         {
           elementOrdinals: new Uint32Array(spritePickIds.length),
           primitiveIds: [],
@@ -163,25 +158,6 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   };
   draw.nodeParts.set(part.id, resource);
   return resource;
-}
-
-function buildNodeSpriteBuffers(
-  nodes: Float32Array,
-  spritePickIds: Uint32Array,
-): { readonly positions: Float32Array; readonly ids: Uint32Array; readonly indices: Uint32Array } {
-  const positions = new Float32Array(spritePickIds.length * 12);
-  const ids = new Uint32Array(spritePickIds.length * 4);
-  const indices = new Uint32Array(spritePickIds.length * 6);
-  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
-    const pickId = spritePickIds[sprite] ?? 0;
-    const source = (pickId - 1) * 3;
-    for (let corner = 0; corner < 4; corner += 1) {
-      positions.set(nodes.subarray(source, source + 3), (sprite * 4 + corner) * 3);
-      ids[sprite * 4 + corner] = pickId;
-    }
-    writePointSpriteIndices(indices, sprite);
-  }
-  return { positions, ids, indices };
 }
 
 /** Uploads and caches one homogeneous primitive leaf of a semantic part. */
@@ -281,47 +257,4 @@ export function ensureEdgePickResources(
   if (edgePick === undefined) return undefined;
   resource.edgePick = edgePick;
   return edgePick;
-}
-
-interface PointVertexData {
-  readonly positions: Float32Array;
-  readonly indices: Uint32Array;
-  readonly nodePickIds: Uint32Array;
-  readonly primitiveIds: Uint32Array;
-}
-
-/** Expands logical point centers into the camera-facing sprite vertices. */
-function expandPointGeometry(
-  geometry: Extract<Geometry, { primitive: "points" }>,
-): PointVertexData {
-  const pointCount = geometry.indices.length;
-  const positions = new Float32Array(pointCount * 12);
-  const indices = new Uint32Array(pointCount * 6);
-  const nodePickIds = new Uint32Array(pointCount * 4);
-  const primitiveIds = new Uint32Array(pointCount * 4);
-  for (let point = 0; point < pointCount; point += 1) {
-    const sourceIndex = geometry.indices[point] ?? 0;
-    const sourceOffset = sourceIndex * 3;
-    const targetOffset = point * 12;
-    const x = geometry.positions[sourceOffset] ?? 0;
-    const y = geometry.positions[sourceOffset + 1] ?? 0;
-    const z = geometry.positions[sourceOffset + 2] ?? 0;
-    for (let corner = 0; corner < 4; corner += 1) {
-      const offset = targetOffset + corner * 3;
-      positions[offset] = x;
-      positions[offset + 1] = y;
-      positions[offset + 2] = z;
-      nodePickIds[point * 4 + corner] = geometry.nodePickIds?.[sourceIndex] ?? 0;
-      primitiveIds[point * 4 + corner] = point;
-    }
-    writePointSpriteIndices(indices, point);
-  }
-  return { positions, indices, nodePickIds, primitiveIds };
-}
-
-function writePointSpriteIndices(indices: Uint32Array, sprite: number): void {
-  indices.set(
-    POINT_SPRITE_INDICES.map((index) => index + sprite * 4),
-    sprite * POINT_SPRITE_INDICES.length,
-  );
 }

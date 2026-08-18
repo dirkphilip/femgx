@@ -24,8 +24,10 @@ import {
 } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
 import { measureSelectionBenchmark } from "./selection";
+import { measureNodeSelectionBenchmark } from "./node-selection";
 import type {
   BenchmarkTimings,
+  NodeSelectionBenchmarkReport,
   SelectionBenchmarkReport,
   WebGpuBenchmarkCaseResult,
 } from "./types";
@@ -66,6 +68,7 @@ export async function measureBenchmarkCase(
   options: {
     readonly timestampQueriesRequested?: boolean;
     readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+    readonly holdNodeSelectionForCapture?: () => Promise<void>;
   } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
@@ -79,6 +82,7 @@ export async function measureBenchmarkCase(
   let interactive: WebGpuBenchmarkCaseResult["interactive"];
   let overlayInteractive: WebGpuBenchmarkCaseResult["overlayInteractive"];
   let selection: SelectionBenchmarkReport | undefined;
+  let nodeSelection: NodeSelectionBenchmarkReport | undefined;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"];
   let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
   let materializedEdgePartIds: ReadonlySet<number>;
@@ -148,6 +152,17 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "authored node-selection sample";
+    nodeSelection = await measureNodeSelectionBenchmark({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+      ...(options.holdNodeSelectionForCapture === undefined
+        ? {}
+        : { holdFinalSelection: options.holdNodeSelectionForCapture }),
+    });
     phase = "timestamp readback";
     await drainGpuTimestampSamples(renderer);
     gpuTimestamps = readGpuTimestampSnapshot(renderer);
@@ -183,6 +198,7 @@ export async function measureBenchmarkCase(
     ...(interactive === undefined ? {} : { interactive }),
     ...(overlayInteractive === undefined ? {} : { overlayInteractive }),
     ...(selection === undefined ? {} : { selection }),
+    ...(nodeSelection === undefined ? {} : { nodeSelection }),
     estimatedMemory: estimateBenchmarkMemory(
       benchmarkCase.scene,
       runtime.instanceCount,

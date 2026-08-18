@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { rendererMode } from "./demo-support";
+import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
 
 const enabled = process.env["RUN_PERF"] === "1";
 const includeLarge = process.env["RUN_PERF_LARGE"] === "1";
@@ -94,7 +95,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       });
       console.log(`WEBGPU_BENCHMARK_JSON ${JSON.stringify(report)}`);
 
-      expect(report.schemaVersion).toBe(10);
+      expect(report.schemaVersion).toBe(11);
       expect(report.cases).toHaveLength(1);
       const [entry] = report.cases;
       expect(entry?.id).toBe(spec.id);
@@ -217,6 +218,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
         expect(entry.faceCount).toBeGreaterThan(0);
       }
       if (entry.id === "fe-tet4-solid-132k") {
+        expectDenseNodeSelectionReport(entry);
         expect(entry.denseBuild).toMatchObject({
           generationMs: expect.any(Number),
           topologyMs: expect.any(Number),

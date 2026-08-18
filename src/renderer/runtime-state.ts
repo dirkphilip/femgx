@@ -3,6 +3,7 @@ import type { Part, PartId } from "../geometry/part";
 import type { Instance, InstanceId } from "../scene/types";
 import { readInteractionState, type InteractionState } from "../interaction/state";
 import type { DrawCall } from "./resources/draw-resources";
+import { hasValidNodeSelection, partNodeCount } from "./selection/node-selection";
 
 /**
  * CPU-side bridge between the packed scene runtime and per-part GPU storage.
@@ -223,6 +224,7 @@ export function buildSelectionOrder(
   runtime: PackedSceneRuntime,
   partId: PartId,
   interaction: InteractionState,
+  parts: ReadonlyMap<PartId, Part>,
 ): Uint32Array {
   const data = readInteractionState(interaction);
   return buildCompactedOrder(layout, partId, (slot) => {
@@ -230,7 +232,7 @@ export function buildSelectionOrder(
     return (
       instanceId !== undefined &&
       runtime.isInstanceVisible(slot) &&
-      hasSelectedTarget(data, instanceId, partId)
+      hasSelectedTarget(data, instanceId, partId, parts.get(partId))
     );
   });
 }
@@ -239,6 +241,7 @@ function hasSelectedTarget(
   data: ReturnType<typeof readInteractionState>,
   instanceId: InstanceId,
   partId: PartId,
+  part: Part | undefined,
 ): boolean {
   return (
     data.selectedPartIds.has(partId) ||
@@ -246,7 +249,10 @@ function hasSelectedTarget(
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
-    (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0
+    hasValidNodeSelection(
+      data.selectedNodeIds.get(instanceId),
+      part === undefined ? 0 : partNodeCount(part),
+    )
   );
 }
 

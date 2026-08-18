@@ -18,6 +18,12 @@ import {
   collectDenseElementSelections,
   type DenseElementSelections,
 } from "./selection/element-selection";
+import {
+  denseNodeOccurrenceAtSlot,
+  hasValidNodeSelection,
+  partNodeCount,
+  type DenseNodeSelections,
+} from "./selection/node-selection";
 import type { GpuBundle } from "./recovery";
 
 /** Mutable selection-only mirrors owned by the renderer attachment. */
@@ -38,26 +44,25 @@ export function syncSelectionState(options: {
   readonly nodeParts: ReadonlySet<PartId>;
   readonly changedInstanceIds: readonly number[] | undefined;
   readonly denseSelections: DenseElementSelections;
+  readonly denseNodeSelections: DenseNodeSelections;
 }): boolean {
   const interactionData = readInteractionState(options.interaction);
+  const nodeFlagContext: SelectedNodeFlagContext = {
+    data: interactionData,
+    runtime: options.runtime,
+    selectedNodeFlags: options.selection.selectedNodeFlags,
+    parts: options.parts,
+    layout: options.layout,
+    denseNodeSelections: options.denseNodeSelections,
+  };
   if (options.changedInstanceIds === undefined) {
     options.selection.selectedNodeFlags.fill(false);
     for (let slot = 0; slot < options.runtime.instanceCount; slot += 1) {
-      updateSelectedNodeFlag(
-        interactionData,
-        options.runtime,
-        options.selection.selectedNodeFlags,
-        slot,
-      );
+      updateSelectedNodeFlag(nodeFlagContext, slot);
     }
   } else {
     for (const slot of options.changedInstanceIds) {
-      updateSelectedNodeFlag(
-        interactionData,
-        options.runtime,
-        options.selection.selectedNodeFlags,
-        slot,
-      );
+      updateSelectedNodeFlag(nodeFlagContext, slot);
     }
   }
   const selectionChanged =
@@ -75,16 +80,31 @@ export function syncSelectionState(options: {
   return nodeChanged || selectionChanged;
 }
 
-function updateSelectedNodeFlag(
-  data: ReturnType<typeof readInteractionState>,
-  runtime: PackedSceneRuntime,
-  selectedNodeFlags: boolean[],
-  slot: number,
-): void {
+interface SelectedNodeFlagContext {
+  readonly data: ReturnType<typeof readInteractionState>;
+  readonly runtime: PackedSceneRuntime;
+  readonly selectedNodeFlags: boolean[];
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly layout: InstanceLayout;
+  readonly denseNodeSelections: DenseNodeSelections;
+}
+
+function updateSelectedNodeFlag(context: SelectedNodeFlagContext, slot: number): void {
+  const { data, runtime, selectedNodeFlags, parts, layout, denseNodeSelections } = context;
   if (slot < 0 || slot >= runtime.instanceCount) return;
   const instanceId = runtime.getInstanceId(slot);
+  const partId = runtime.instancePartIds[slot];
+  const local = layout.slotPartLocal[slot];
+  const dense =
+    partId === undefined || local === undefined || local < 0
+      ? undefined
+      : denseNodeOccurrenceAtSlot(denseNodeSelections.get(partId), local);
+  const part = partId === undefined ? undefined : parts.get(partId);
+  const nodeCount = part === undefined ? 0 : partNodeCount(part);
   selectedNodeFlags[slot] =
-    instanceId !== undefined && (data.selectedNodeIds.get(instanceId)?.size ?? 0) > 0;
+    dense !== undefined ||
+    (instanceId !== undefined &&
+      hasValidNodeSelection(data.selectedNodeIds.get(instanceId), nodeCount));
 }
 
 /** Rewrites node orders after the current part map or runtime visibility changes. */
@@ -140,7 +160,7 @@ function syncSelectedInstanceOrders(options: {
 }): boolean {
   const { runtime, layout, interaction, draw, parts, partDefinitions } = options;
   for (const partId of parts) {
-    const order = buildSelectionOrder(layout, runtime, partId, interaction);
+    const order = buildSelectionOrder(layout, runtime, partId, interaction, partDefinitions);
     writeSelectionOrder(draw, partId, order);
     layout.partSelectionCounts.set(partId, order.length);
     const part = partDefinitions.get(partId);

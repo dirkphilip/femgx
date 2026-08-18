@@ -66,7 +66,7 @@ describe("renderer runtime state", () => {
     runtime.setInstanceVisible(1, false);
     const parts = new Map([[1, triangle]]);
 
-    expect(Array.from(buildSelectionOrder(layout, runtime, 1, interaction))).toEqual([0, 2]);
+    expect(Array.from(buildSelectionOrder(layout, runtime, 1, interaction, parts))).toEqual([0, 2]);
     expect(
       Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
     ).toEqual([]);
@@ -93,7 +93,14 @@ describe("renderer runtime state", () => {
       { instanceId: "1/0", elementId: 102 },
       true,
     );
-    const order = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedElement);
+    const rangedParts = new Map([[rangedSelectionPart.id, rangedSelectionPart]]);
+    const order = buildSelectionOrder(
+      layout,
+      runtime,
+      rangedSelectionPart.id,
+      selectedElement,
+      rangedParts,
+    );
     expect(
       buildSelectionDrawCallsForTest({
         layout,
@@ -116,7 +123,13 @@ describe("renderer runtime state", () => {
       { instanceId: "1/0", elementId: 103, faceIndex: 0 },
       true,
     );
-    const faceOrder = buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedFace);
+    const faceOrder = buildSelectionOrder(
+      layout,
+      runtime,
+      rangedSelectionPart.id,
+      selectedFace,
+      rangedParts,
+    );
     expect(
       buildSelectionDrawCallsForTest({
         layout,
@@ -140,6 +153,7 @@ describe("renderer runtime state", () => {
       runtime,
       rangedSelectionPart.id,
       selectedInstance,
+      rangedParts,
     );
     expect(
       buildSelectionDrawCallsForTest({
@@ -166,6 +180,7 @@ describe("renderer runtime state", () => {
       runtime,
       rangedSelectionPart.id,
       allElements,
+      rangedParts,
     );
     expect(
       buildSelectionDrawCallsForTest({
@@ -216,18 +231,18 @@ describe("renderer runtime state", () => {
     ).toBeUndefined();
 
     runtime.setInstanceVisible(0, false);
-    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedInstance)).toEqual(
-      new Uint32Array(),
-    );
+    expect(
+      buildSelectionOrder(layout, runtime, rangedSelectionPart.id, selectedInstance, rangedParts),
+    ).toEqual(new Uint32Array());
     runtime.setInstanceVisible(0, true);
     const staleElement = setElementSelected(
       createInteractionState(),
       { instanceId: "1/9", elementId: 7 },
       true,
     );
-    expect(buildSelectionOrder(layout, runtime, rangedSelectionPart.id, staleElement)).toEqual(
-      new Uint32Array(),
-    );
+    expect(
+      buildSelectionOrder(layout, runtime, rangedSelectionPart.id, staleElement, rangedParts),
+    ).toEqual(new Uint32Array());
   });
 
   it("falls back when one grouped instance would issue too many range draws", () => {
@@ -248,7 +263,13 @@ describe("renderer runtime state", () => {
       elementId: index * 2 + 1,
     }));
     const interaction = setTargetsSelected(createInteractionState(), targets, true);
-    const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
+    const order = buildSelectionOrder(
+      layout,
+      runtime,
+      fragmentedSelectionPart.id,
+      interaction,
+      new Map([[fragmentedSelectionPart.id, fragmentedSelectionPart]]),
+    );
 
     expect(
       buildSelectionDrawCallsForTest({
@@ -283,7 +304,13 @@ describe("renderer runtime state", () => {
       })),
       true,
     );
-    const order = buildSelectionOrder(layout, runtime, interiorSubsetPart.id, interaction);
+    const order = buildSelectionOrder(
+      layout,
+      runtime,
+      interiorSubsetPart.id,
+      interaction,
+      new Map([[interiorSubsetPart.id, interiorSubsetPart]]),
+    );
 
     expect(
       buildSelectionDrawCallsForTest({
@@ -318,7 +345,13 @@ describe("renderer runtime state", () => {
       })),
       true,
     );
-    const order = buildSelectionOrder(layout, runtime, denseSelectionPart.id, interaction);
+    const order = buildSelectionOrder(
+      layout,
+      runtime,
+      denseSelectionPart.id,
+      interaction,
+      new Map([[denseSelectionPart.id, denseSelectionPart]]),
+    );
 
     expect(
       buildSelectionDrawCallsForTest({

@@ -9,6 +9,7 @@ import {
 import { writeChangedRecordRanges } from "../resources/buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { DenseElementSelections } from "./element-selection";
+import type { DenseNodeSelections } from "./node-selection";
 
 interface InstanceEmphasisSync {
   readonly device: GPUDevice;
@@ -22,6 +23,7 @@ export function syncInstanceEmphasisAdmission(
   updates: EmphasisUpdates,
   affectedParts: ReadonlySet<PartId>,
   denseSelections?: DenseElementSelections,
+  denseNodeSelections?: DenseNodeSelections,
 ): void {
   for (const [partId, storage] of sync.storages) {
     if (!affectedParts.has(partId)) continue;
@@ -31,6 +33,9 @@ export function syncInstanceEmphasisAdmission(
       partUpdates.filter((update) => update.edgePickId !== undefined).map((update) => update.slot),
     );
     for (const occurrence of denseSelections?.get(partId)?.occurrences ?? []) {
+      nextSlots.add(occurrence.slot);
+    }
+    for (const occurrence of denseNodeSelections?.get(partId)?.occurrences ?? []) {
       nextSlots.add(occurrence.slot);
     }
     const changedSlots = new Set([

@@ -36,7 +36,13 @@ describe("renderer runtime state", () => {
       elementId: index + 1,
     })).reverse();
     const interaction = setTargetsSelected(createInteractionState(), targets, true);
-    const order = buildSelectionOrder(layout, runtime, fragmentedSelectionPart.id, interaction);
+    const order = buildSelectionOrder(
+      layout,
+      runtime,
+      fragmentedSelectionPart.id,
+      interaction,
+      new Map([[fragmentedSelectionPart.id, fragmentedSelectionPart]]),
+    );
 
     expect(
       buildSelectionDrawCallsForTest({
@@ -106,7 +112,7 @@ describe("renderer runtime state", () => {
       },
       true,
     );
-    expect(Array.from(buildSelectionOrder(layout, runtime, 2, selectedPoint))).toEqual([0]);
+    expect(Array.from(buildSelectionOrder(layout, runtime, 2, selectedPoint, parts))).toEqual([0]);
     expect(buildNodeSelectionOrder(layout, runtime, 2, [false, false, true], parts)).toEqual(
       new Uint32Array(),
     );
