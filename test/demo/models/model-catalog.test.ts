@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { benchmarkCaseSpecs } from "../../../demo/benchmark/model";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
-import { createExampleModel, createLazyBenchmarkModel } from "../../../demo/workbench/models/model";
+import { WorkbenchController } from "../../../demo/workbench/controllers/controller";
+import * as modelActivation from "../../../demo/workbench/models/model-activation";
+import {
+  createExampleModel,
+  createLazyBenchmarkModel,
+  type WorkbenchModel,
+} from "../../../demo/workbench/models/model";
 import {
   PERFORMANCE_MODEL_RETENTION_CAP_BYTES,
   WorkbenchModelCatalog,
@@ -140,5 +146,39 @@ describe("workbench model catalog", () => {
     catalog.ensurePerformanceModel(extra);
     catalog.setMode("performance");
     expect(catalog.models.map((model) => model.id)).toEqual([first.id, extra.id]);
+  });
+
+  it("does not remember a model when activation fails", () => {
+    const ordinary = createExampleModel(createBoltedPlatePreset());
+    const failed = {
+      ...ordinary,
+      id: "opened-model-1",
+      name: "failed.glb",
+      source: "file" as const,
+    };
+    const catalog = new WorkbenchModelCatalog([ordinary], []);
+    const controller = Object.create(WorkbenchController.prototype) as WorkbenchController;
+    Object.assign(controller, {
+      catalog,
+      models: catalog.models,
+      resultPlaybackActions: { resetForModel: vi.fn() },
+      resetHoverOwner: vi.fn(),
+      resetShowStates: vi.fn(),
+      elementDetail: undefined,
+    });
+    const activateModel = controller as unknown as {
+      activateModel: (model: WorkbenchModel) => void;
+    };
+    const activation = vi.spyOn(modelActivation, "activateModelForOwner").mockImplementation(() => {
+      throw new Error("activation failed");
+    });
+
+    expect(() => {
+      activateModel.activateModel(failed);
+    }).toThrow("activation failed");
+    expect(catalog.models).toEqual([ordinary]);
+    expect(catalog.selectedId).toBe(ordinary.id);
+
+    activation.mockRestore();
   });
 });

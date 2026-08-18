@@ -87,6 +87,8 @@ export interface ImportedModelData {
   readonly issues: readonly Issue[];
 }
 
+let importedModelSequence = 0;
+
 /** Adapts an existing fixture to the common workbench model contract. */
 export function createExampleModel(preset: ModelPreset): WorkbenchModel {
   const partStyles = new Map<PartId, StyleOverride>();
@@ -216,7 +218,7 @@ function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec
 /** Creates the active workbench descriptor for one imported local model file. */
 export function createImportedModel(fileName: string, imported: ImportedModelData): WorkbenchModel {
   return {
-    id: "opened-model",
+    id: `opened-model-${++importedModelSequence}`,
     name: fileName,
     source: "file",
     scene: imported.scene,
