@@ -57,13 +57,14 @@ export interface AuthoredResultSequence {
 export function createGalleryPreset(): ModelPreset {
   const fixture = createElementFixture();
   const partIds = fixture.partIds;
-  const results = createGalleryResults(fixture.scene, partIds.hex8);
+  const results = createGalleryResults(fixture.scene, partIds.hex8, partIds.controlNode);
   return {
     id: "gallery",
     name: "Element tessellation and mapping gallery",
     scene: fixture.scene,
     elementModels: fixture.elementModels,
     partColors: new Map<PartId, Color>([
+      [partIds.controlNode, { r: 1, g: 0.86, b: 0.18, a: 1 }],
       [partIds.point, { r: 0.98, g: 0.78, b: 0.24, a: 1 }],
       [partIds.line, { r: 0.18, g: 0.72, b: 0.98, a: 1 }],
       [partIds.line3, { r: 0.15, g: 0.92, b: 0.65, a: 1 }],
@@ -82,6 +83,7 @@ export function createGalleryPreset(): ModelPreset {
     ]),
     fallbackColor: { r: 0.5, g: 0.5, b: 0.5, a: 1 },
     partNames: new Map<PartId, string>([
+      [partIds.controlNode, "Detached control node · Force + moment"],
       [partIds.point, "Built-in helper · Point"],
       [partIds.line, "Built-in helper · Line"],
       [partIds.line3, "Built-in helper · Line3"],

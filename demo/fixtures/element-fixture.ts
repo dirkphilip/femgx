@@ -1,4 +1,5 @@
 import {
+  createPart,
   createScene,
   multiply,
   scale,
@@ -31,6 +32,7 @@ import {
 
 /** Stable part identifiers for the helper and generic mapping examples. */
 export interface ElementFixtureParts {
+  readonly controlNode: PartId;
   readonly point: PartId;
   readonly line: PartId;
   readonly line3: PartId;
@@ -65,6 +67,7 @@ export interface ElementFixture {
 }
 
 const POINT_PART_ID: PartId = 1;
+const CONTROL_NODE_PART_ID: PartId = 16;
 const LINE_PART_ID: PartId = 2;
 const LINE3_PART_ID: PartId = 3;
 const TRIANGLE_PART_ID: PartId = 8;
@@ -93,9 +96,17 @@ export interface ElementGalleryEntry {
 
 export const ELEMENT_GALLERY_ENTRIES: readonly ElementGalleryEntry[] = [
   {
-    partId: POINT_PART_ID,
+    partId: CONTROL_NODE_PART_ID,
     category: "0d-1d",
     order: 0,
+    cell: [-0.5, 0.5],
+    displayScale: 1,
+    centering: "bounds",
+  },
+  {
+    partId: POINT_PART_ID,
+    category: "0d-1d",
+    order: 1,
     cell: [1, 0],
     displayScale: 1,
     centering: "bounds",
@@ -103,7 +114,7 @@ export const ELEMENT_GALLERY_ENTRIES: readonly ElementGalleryEntry[] = [
   {
     partId: LINE_PART_ID,
     category: "0d-1d",
-    order: 1,
+    order: 2,
     cell: [2, 0],
     displayScale: 1,
     centering: "bounds",
@@ -111,7 +122,7 @@ export const ELEMENT_GALLERY_ENTRIES: readonly ElementGalleryEntry[] = [
   {
     partId: LINE3_PART_ID,
     category: "0d-1d",
-    order: 2,
+    order: 3,
     cell: [3, 0],
     displayScale: 1,
     centering: "bounds",
@@ -262,6 +273,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   ]);
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
+    createControlNodePart(),
     elementPart(POINT_PART_ID, elementsOf(pointLineModel, "point")),
     elementPart(LINE_PART_ID, elementsOf(lineModel, "line", 1)),
     elementPart(LINE3_PART_ID, elementsOf(line3Model, "line", 2)),
@@ -282,6 +294,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   return {
     scene,
     partIds: {
+      controlNode: CONTROL_NODE_PART_ID,
       point: POINT_PART_ID,
       line: LINE_PART_ID,
       line3: LINE3_PART_ID,
@@ -301,6 +314,22 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     elementModels: models,
     instanceCount: parts.length,
   };
+}
+
+/** One selectable node without element ownership, suitable for control points. */
+function createControlNodePart(): Part {
+  const positions = new Float32Array([0, 0, 0]);
+  return createPart(CONTROL_NODE_PART_ID, {
+    geometries: [
+      {
+        positions,
+        indices: new Uint32Array([0]),
+        primitive: "points",
+        nodePickIds: new Uint32Array([1]),
+      },
+    ],
+    nodePositions: positions,
+  });
 }
 
 /** One semantic element rendered through point, line, and triangle leaves. */

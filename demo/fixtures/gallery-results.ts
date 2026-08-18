@@ -20,7 +20,11 @@ export interface GalleryResults {
 }
 
 /** Builds the static result examples shown by the landing element gallery. */
-export function createGalleryResults(scene: Scene, framePartId: PartId): GalleryResults {
+export function createGalleryResults(
+  scene: Scene,
+  framePartId: PartId,
+  loadPartId: PartId,
+): GalleryResults {
   const elementalCount = elementCount(scene);
   const nodalCount = nodeCount(scene);
   const elemental = createResultField({
@@ -65,7 +69,7 @@ export function createGalleryResults(scene: Scene, framePartId: PartId): Gallery
       [1, 0.35, 0],
     ),
   ];
-  const loads = createGalleryLoads(scene);
+  const loads = createGalleryLoads(scene, loadPartId);
   return {
     active: {
       scalar: { field: elemental },
@@ -118,18 +122,17 @@ function createGalleryVector(
   });
 }
 
-function createGalleryLoads(scene: Scene): ViewportLoadConfig {
-  const partId = 1;
+function createGalleryLoads(scene: Scene, partId: PartId): ViewportLoadConfig {
   const part = scene.parts.get(partId);
   const count = part?.nodePositions === undefined ? 0 : part.nodePositions.length / 3;
   const values = new Float32Array(count * 6);
   values.fill(Number.NaN);
-  if (count > 0) values.set([0.9, 0.15, 0, 0, 0, 0.7], 0);
+  if (count > 0) values.set([0.8, 0.45, 0.25, 0.2, 0.35, 0.7], 0);
   return {
     field: createNodalLoadField({
       partId,
       id: "gallery-nodal-loads",
-      name: "Point force + moment",
+      name: "Control-node force + moment",
       count,
       forceUnit: "N",
       momentUnit: "N·m",
