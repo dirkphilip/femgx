@@ -149,6 +149,20 @@ describe("mapScalar", () => {
     expect(mapScalar(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
   });
 
+  it("treats empty thresholds as a continuous map", () => {
+    const gradient = createScalarColorMap({
+      min: 0,
+      max: 100,
+      thresholds: [],
+      stops: [
+        { offset: 0, color: { r: 0, g: 0, b: 0, a: 1 } },
+        { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
+      ],
+    });
+    expect(gradient.thresholds).toBeUndefined();
+    expect(mapScalar(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
+  });
+
   it("interpolates between interior stops", () => {
     const gradient = createScalarColorMap({
       min: 0,
