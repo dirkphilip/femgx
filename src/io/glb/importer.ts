@@ -11,7 +11,12 @@ import type { StyleOverride } from "../../interaction/state";
 import { IoError } from "../diagnostics";
 import { createGlbGeometryCache } from "./accessors";
 import { GlbDiagnostics, parseFailure } from "./diagnostics";
-import { importMeshParts, type GlbPartRecord } from "./geometry";
+import {
+  flattenPlacedParts,
+  importMeshParts,
+  type GlbPartRecord,
+  type GlbPlacedPartRecord,
+} from "./geometry";
 import type { GlbImportOptions, GlbSceneImport } from "./types";
 
 export type { GlbImportOptions, GlbIssueCode, GlbSceneImport } from "./types";
@@ -26,11 +31,10 @@ const KHR_DRACO_MESH_COMPRESSION = "KHR_draco_mesh_compression";
  * {@link root.Scene}.
  *
  * The input is self-contained GLB bytes. The selected glTF scene becomes a
- * synthetic root assembly; each reachable node becomes a named assembly and
- * each supported mesh primitive becomes one reusable {@link root.Part}. Repeated
- * mesh use remains instanced geometry, while node transforms become placement
- * transforms. glTF coordinates are preserved numerically; no unit conversion
- * is applied.
+ * synthetic root assembly. Flat single-use leaf meshes are transform-baked and
+ * coalesced by resolved display style before entering the scene; hierarchy and
+ * repeated mesh use retain named assemblies and instanced geometry. glTF
+ * coordinates are preserved numerically; no unit conversion is applied.
  *
  * This is a display-scene importer, not FE interchange: it does not invent
  * nodes/elements/results and intentionally excludes external resources,
@@ -103,13 +107,15 @@ interface BuiltScene {
 function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScene {
   const nodes = reachableNodes(selected, diagnostics);
   const collection = collectPartRecords(nodes, diagnostics);
-  const partRecords = collection.records;
+  const flattened = flatSingleUseRootParts(selected, nodes, collection, diagnostics);
+  const partRecords = flattened ?? collection.records;
   if (partRecords.length === 0) {
     diagnostics.fatal(
       "glb-no-supported-geometry",
       "Selected GLB scene has no supported drawable triangle primitive.",
     );
   }
+  if (flattened !== undefined) return buildFlatScene(selected, flattened);
   const nodeIds = new Map<Node, number>();
   nodes.forEach((node, index) => nodeIds.set(node, index + 1));
   let builder = createScene();
@@ -153,6 +159,47 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
   };
   const scene = builder.addAssembly(rootAssembly).withRoot(rootId).build();
   return { scene, partNames, partStyles };
+}
+
+function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]): BuiltScene {
+  let builder = createScene();
+  const partNames = new Map<PartId, string>();
+  const partStyles = new Map<PartId, StyleOverride>();
+  const placements: Placement[] = [];
+  for (const record of records) {
+    builder = builder.addPart(record.part);
+    partNames.set(record.part.id, record.name);
+    partStyles.set(record.part.id, record.style);
+    placements.push({ kind: "part", partId: record.part.id, transform: identity() });
+  }
+  const root: AssemblyDefinition = {
+    id: 0,
+    name: selected.getName().trim() || "GLB scene",
+    placements,
+  };
+  return { scene: builder.addAssembly(root).withRoot(root.id).build(), partNames, partStyles };
+}
+
+function flatSingleUseRootParts(
+  selected: GltfScene,
+  nodes: readonly Node[],
+  collection: PartCollection,
+  diagnostics: GlbDiagnostics,
+): readonly GlbPartRecord[] | undefined {
+  const roots = selected.listChildren();
+  if (roots.length !== nodes.length || roots.some((node) => node.listChildren().length > 0)) {
+    return undefined;
+  }
+  const seenMeshes = new Set<Mesh>();
+  const placed: GlbPlacedPartRecord[] = [];
+  for (const node of roots) {
+    const mesh = node.getMesh();
+    if (mesh === null || seenMeshes.has(mesh)) return undefined;
+    seenMeshes.add(mesh);
+    const transform = nodeTransform(node, diagnostics);
+    for (const record of collection.byMesh.get(mesh) ?? []) placed.push({ record, transform });
+  }
+  return flattenPlacedParts(placed);
 }
 
 function reachableNodes(selected: GltfScene, diagnostics: GlbDiagnostics): readonly Node[] {

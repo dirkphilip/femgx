@@ -10,7 +10,10 @@ FE elements, nodes, bodies, results, or a parallel runtime graph.
 - The declared default glTF scene is selected; when absent, the first scene is selected with an
   informational diagnostic.
 - A synthetic root assembly contains one named assembly per reachable glTF node. Node matrix/TRS
-  transforms are preserved as column-major femgx matrices, and node order is deterministic.
+  transforms are preserved as column-major femgx matrices, and node order is deterministic. The
+  exception is a flat selected scene made entirely of single-use leaf meshes: their transforms are
+  baked once and equivalent display styles are coalesced directly under the synthetic root. Source
+  mesh boundaries carry no CAD, FE, or interaction identity in this display-only path.
 - Supported indexed or non-indexed `TRIANGLES` primitives with a FLOAT `POSITION` VEC3 are grouped
   by material within each reusable glTF mesh. Each material group becomes one reusable `Part`, so
   primitive-heavy display meshes retain their authored style boundaries without creating one scene

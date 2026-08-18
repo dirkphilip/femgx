@@ -3,7 +3,7 @@ import { importGlb } from "../../../src/io/glb/importer";
 import { createImportedModel } from "../../../demo/workbench/models/model";
 import { createModelInteraction } from "../../../demo/workbench/state/preset";
 import { createDefaultDisplayToggles } from "../../../demo/workbench/types";
-import { makeManyPrimitiveGlb } from "./glb-import-fixture";
+import { makeManyPartGlb, makeManyPrimitiveGlb } from "../../../demo/benchmark/glb-fixture";
 
 const PRIMITIVE_COUNTS = [25_000, 50_000, 100_000] as const;
 const sources = PRIMITIVE_COUNTS.map((count) => makeManyPrimitiveGlb(count));
@@ -38,6 +38,23 @@ describe("many-primitive GLB scaling", () => {
         .map(({ count, milliseconds }) => `${count}=${milliseconds.toFixed(1)} ms`)
         .join(", ")}`,
     );
+    expect(spread).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("flat many-part GLB scaling", () => {
+  it("coalesces source mesh parts with approximately linear import cost", async () => {
+    const measurements: number[] = [];
+    for (const count of PRIMITIVE_COUNTS) {
+      const source = makeManyPartGlb(count);
+      const start = performance.now();
+      const imported = await importGlb(source);
+      measurements.push((performance.now() - start) / count);
+      expect(imported.scene.parts).toHaveLength(1);
+      expect(imported.scene.assemblies).toHaveLength(1);
+      expect(imported.scene.parts.get(0)?.geometries[0]?.indices).toHaveLength(count * 3);
+    }
+    const spread = Math.max(...measurements) / Math.min(...measurements);
     expect(spread).toBeLessThanOrEqual(4);
   });
 });

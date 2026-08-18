@@ -197,6 +197,10 @@ function installWorkbenchHarness(
       }
     },
     runBenchmark: benchmarkRunner(canvas, controller, state),
+    runGlbViewportBenchmark: async (primitiveCount, holdMilliseconds) => {
+      const { runGlbViewportBenchmark } = await import("../benchmark/glb-viewport");
+      return runGlbViewportBenchmark(primaryPane.scene, primitiveCount, holdMilliseconds);
+    },
     pickPoint: async (x: number, y: number) =>
       (await state.viewport?.interaction.pick(x, y))?.worldPosition,
     probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),

@@ -2,6 +2,7 @@ import { Primitive } from "@gltf-transform/core";
 import type { Material, Mesh, vec4 } from "@gltf-transform/core";
 import { createPartRecord, type Bounds, type Part, type PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
+import { transformPoint, type Mat4 } from "../../math/mat4";
 import type { GlbDiagnostics } from "./diagnostics";
 import {
   readPositionData,
@@ -17,6 +18,25 @@ export interface GlbPartRecord {
   readonly part: Part;
   readonly name: string;
   readonly style: StyleOverride;
+}
+
+export interface GlbPlacedPartRecord {
+  readonly record: GlbPartRecord;
+  readonly transform: Mat4;
+}
+
+/** Coalesces single-use display parts by their complete imported style. */
+export function flattenPlacedParts(
+  placed: readonly GlbPlacedPartRecord[],
+): readonly GlbPartRecord[] {
+  const groups = new Map<string, GlbPlacedPartRecord[]>();
+  for (const entry of placed) {
+    const key = styleKey(entry.record.style);
+    const group = groups.get(key);
+    if (group === undefined) groups.set(key, [entry]);
+    else group.push(entry);
+  }
+  return [...groups.values()].map((group, partId) => flattenPlacedGroup(group, partId));
 }
 
 /** Imports the supported primitives of one reusable glTF mesh. */
@@ -193,6 +213,60 @@ function mergeBounds(first: Bounds, second: Bounds): Bounds {
     maxY: Math.max(first.maxY, second.maxY),
     maxZ: Math.max(first.maxZ, second.maxZ),
   };
+}
+
+function flattenPlacedGroup(group: readonly GlbPlacedPartRecord[], partId: PartId): GlbPartRecord {
+  const first = group[0];
+  if (first === undefined) throw new Error("GLB placed-part group must not be empty");
+  const geometries = group.flatMap(({ record }) => record.part.geometries);
+  const positionLength = geometries.reduce(
+    (total, geometry) => total + geometry.positions.length,
+    0,
+  );
+  const indexLength = geometries.reduce((total, geometry) => total + geometry.indices.length, 0);
+  const positions = new Float32Array(positionLength);
+  const indices = new Uint32Array(indexLength);
+  let positionOffset = 0;
+  let indexOffset = 0;
+  for (const { record, transform } of group) {
+    for (const geometry of record.part.geometries) {
+      appendTransformedPositions(positions, positionOffset, geometry.positions, transform);
+      const vertexOffset = positionOffset / 3;
+      for (const index of geometry.indices) indices[indexOffset++] = index + vertexOffset;
+      positionOffset += geometry.positions.length;
+    }
+  }
+  return {
+    part: createPartRecord(partId, {
+      geometries: [{ primitive: "triangles", positions, indices }],
+    }),
+    name: group.length === 1 ? first.record.name : `${group.length} GLB meshes`,
+    style: first.record.style,
+  };
+}
+
+function appendTransformedPositions(
+  target: Float32Array,
+  offset: number,
+  source: Float32Array,
+  transform: Mat4,
+): void {
+  for (let index = 0; index < source.length; index += 3) {
+    const point = transformPoint(
+      transform,
+      source[index] ?? 0,
+      source[index + 1] ?? 0,
+      source[index + 2] ?? 0,
+    );
+    target[offset + index] = point[0];
+    target[offset + index + 1] = point[1];
+    target[offset + index + 2] = point[2];
+  }
+}
+
+function styleKey(style: StyleOverride): string {
+  const color = style.color;
+  return color === undefined ? "default" : `${color.r},${color.g},${color.b},${color.a}`;
 }
 
 function materialStyle(material: Material | null, diagnostics: GlbDiagnostics): StyleOverride {
