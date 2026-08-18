@@ -25,7 +25,7 @@ export interface CameraContentInset {
 const FIT_POSITION_MARGIN = 0.01;
 const FIT_MIN_NEAR = 0.0001;
 const PERSPECTIVE_CENTER_EPSILON = 1e-6;
-const PERSPECTIVE_CENTER_ITERATIONS = 20;
+const PERSPECTIVE_CENTER_ITERATIONS = 7;
 
 /**
  * Frames bounds around their center while preserving the camera orientation.
@@ -67,9 +67,7 @@ export function fitCamera(
     inset,
   };
   const fitted = camera.mode === "orthographic" ? fitOrthographic(inputs) : fitPerspective(inputs);
-  return camera.mode === "perspective"
-    ? centerPerspectiveBounds(fitted, bounds, inset)
-    : shiftToContentCenter(fitted, inset);
+  return centerCameraOnBounds(fitted, bounds, inset);
 }
 
 interface ViewOrientation {
@@ -177,11 +175,14 @@ function fitPerspective(inputs: FitInputs): Camera {
   };
 }
 
-function centerPerspectiveBounds(
+/** Recentres already-fitted bounds without changing camera depth. */
+export function centerCameraOnBounds(
   camera: Camera,
   bounds: Bounds,
-  inset: Required<CameraContentInset>,
+  contentInset: CameraContentInset = {},
 ): Camera {
+  const inset = normalizedInset(contentInset, camera.width, camera.height);
+  if (camera.mode === "orthographic") return shiftToContentCenter(camera, inset);
   let centered = shiftToContentCenter(camera, inset);
   const desiredX = (camera.width + inset.left - inset.right) / 2;
   const desiredY = (camera.height + inset.top - inset.bottom) / 2;
