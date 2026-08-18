@@ -2,7 +2,7 @@ import { identity, multiply, type Mat4 } from "../math/mat4";
 import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
-import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { invariantValue } from "./invariants";
 
 /** Mutable intermediate for a compiled assembly expansion. */
@@ -26,7 +26,7 @@ export interface InstanceDraft {
   readonly partVisible: 0 | 1;
   readonly effective: 0 | 1;
   readonly world: Mat4;
-  readonly instanceId: string;
+  readonly instanceId: PartOccurrenceId;
 }
 
 function linkChild(nodes: NodeDraft[], parent: number, nodeIndex: number): void {
@@ -62,7 +62,7 @@ class DraftWriter {
     nodeIndex: number,
     placement: PartPlacement,
     world: Mat4,
-    path: string,
+    path: PartOccurrenceId,
     effective: 0 | 1,
   ): void {
     const partVisible: 0 | 1 = this.visiblePartIds.has(placement.partId) ? 1 : 0;
@@ -101,7 +101,7 @@ class DraftWriter {
   }
 
   /** Compiles every assembly expansion with an explicit depth-first stack. */
-  public walk(assemblyId: AssemblyId, world: Mat4, path: string): void {
+  public walk(assemblyId: AssemblyId, world: Mat4, path: AssemblyOccurrenceId): void {
     const root = this.pushNode(assemblyId, -1, path);
     const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
     while (stack.length > 0) {
@@ -151,7 +151,7 @@ interface WalkItem {
   readonly nodeIndex: number;
   readonly assemblyId: AssemblyId;
   readonly world: Mat4;
-  readonly path: string;
+  readonly path: AssemblyOccurrenceId;
   nextPlacement: number;
 }
 

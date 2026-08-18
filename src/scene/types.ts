@@ -10,17 +10,33 @@ export type { ElementId } from "../elements/element";
  */
 export type AssemblyId = number;
 
+declare const occurrenceIdBrand: unique symbol;
+
 /**
  * Stable identity of a placement in an assembly tree.
+ *
+ * This is a category-distinct string handle. It is intentionally distinct from
+ * `AssemblyOccurrenceId` so the compiler catches a lookup against the wrong
+ * hierarchy level without adding a runtime wrapper or validation cost.
  * @category Scene and geometry
  */
-export type PartOccurrenceId = string;
+export type PartOccurrenceId = string & {
+  /** Optional marker preserves literal-string authoring ergonomics. */
+  readonly [occurrenceIdBrand]?: "PartOccurrenceId";
+};
 
 /**
  * Stable identity of one expanded assembly occurrence in a scene runtime.
+ *
+ * This is a category-distinct string handle. It is intentionally distinct from
+ * `PartOccurrenceId` so the compiler catches a lookup against the wrong
+ * hierarchy level without adding a runtime wrapper or validation cost.
  * @category Scene and geometry
  */
-export type AssemblyOccurrenceId = string;
+export type AssemblyOccurrenceId = string & {
+  /** Optional marker preserves literal-string authoring ergonomics. */
+  readonly [occurrenceIdBrand]?: "AssemblyOccurrenceId";
+};
 
 /**
  * Stable identity of one element occurrence (an element placed in the scene).

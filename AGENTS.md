@@ -158,8 +158,10 @@ See [[architecture/api-design|API design north star]].
 ## Engineering standards
 
 - Use modern strict TypeScript. Prefer explicit types, `satisfies`, readonly
-  data, const objects, pure transitions, and immutable CPU-side state. Avoid
-  `any`.
+  data, const objects, pure transitions, and immutable CPU-side state. Use
+  branded or discriminated domain types when they make category errors
+  unrepresentable, letting the compiler provide correctness checks without
+  redundant runtime validation. Avoid `any`.
 - Follow the contracts and negative-space rules above.
 - Every test must protect a distinct public contract, regression, boundary, or
   invariant. Prefer extending an existing table or golden case; do not mirror
