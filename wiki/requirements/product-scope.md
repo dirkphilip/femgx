@@ -376,10 +376,13 @@ instance transforms, respects assembly, part, instance, body, element,
 and section-plane visibility, and returns stable occurrence-scoped element
 targets through the existing selection mutation path.
 
-Visible-surface selection remains the default and continues to use
-`ViewportInteraction.pickRegion`. Through is element-only, is intersection rather than
-full containment, and does not apply to faces, nodes, edges, bodies, parts,
-instances, or GLB display geometry. It is a host-side geometry query and must
+Through is the default for element selection and uses the existing host-side
+geometry query. Visible-surface selection continues to use
+`ViewportInteraction.pickRegion` for other granularities. Through is element-only,
+is intersection rather than full containment, and does not apply to faces, nodes,
+edges, bodies, parts, instances, or GLB display geometry. The workbench preserves
+the last element strategy while another granularity is active and restores it when
+returning to Element. The query must
 not add a GPU pass, buffer, attachment, readback, CPU rendering fallback,
 spatial index, or public geometry-query subsystem. Ordered multi-hit point
 picking, depth peeling, drag-direction containment rules, and live selection

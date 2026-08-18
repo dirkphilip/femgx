@@ -17,6 +17,8 @@ describe("workbench viewport show state", () => {
     expect(state.resultPlaybackIndex).toBe(0);
     expect(state.resultPlaybackPlaying).toBe(false);
     expect(state.resultPlaybackActive).toBe(false);
+    expect(state.boxSelectionStrategy).toBe("through-intersection");
+    expect(state.elementBoxSelectionStrategy).toBe("through-intersection");
 
     const states = new Map([["primary" as const, state]]);
     resetShowStatesForModel(states, new Map(), model);
