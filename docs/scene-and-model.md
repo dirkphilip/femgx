@@ -152,4 +152,3 @@ pass it through the conversion options instead of rebuilding the model.
 - [Viewport lifecycle and interaction](viewport-interaction.md)
 - [Results and import](results-and-import.md)
 - [Runtime, camera, and WebGPU](runtime-and-platform.md)
-- [0.x entry-point migration](migration-0.x-entry-points.md)

@@ -44,9 +44,7 @@
     "../docs/scene-and-model.md",
     "../docs/viewport-interaction.md",
     "../docs/results-and-import.md",
-    "../docs/runtime-and-platform.md",
-    "../docs/migration-0.x-entry-points.md",
-    "../docs/migration-0.x-viewport.md"
+    "../docs/runtime-and-platform.md"
   ],
   "requiredToBeDocumented": [
     "Enum",
