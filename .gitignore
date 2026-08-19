@@ -8,5 +8,6 @@ coverage
 *.log
 .vite
 .cache/actionlint/
+.cache/eslint
 playwright-report
 test-results
