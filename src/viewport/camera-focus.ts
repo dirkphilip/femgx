@@ -111,7 +111,7 @@ export class CameraFocusController {
     );
     this.setCamera(
       camera,
-      { durationMs: action.kind === "face" ? 0 : DEFAULT_CAMERA_TRANSITION_DURATION_MS },
+      { durationMs: DEFAULT_CAMERA_TRANSITION_DURATION_MS },
       interpolateOrientationCamera,
     );
   }
@@ -130,15 +130,29 @@ export class CameraFocusController {
       if (invalidate) this.options.invalidate();
       return;
     }
+    let appliedSize = {
+      width: this.options.cameraRef.camera.width,
+      height: this.options.cameraRef.camera.height,
+    };
+    let resizedSize: typeof appliedSize | undefined;
     const update = (next: Camera, complete: boolean): void => {
+      const current = this.options.cameraRef.camera;
+      if (current.width !== appliedSize.width || current.height !== appliedSize.height) {
+        resizedSize = { width: current.width, height: current.height };
+      }
+      const sized = resizedSize === undefined ? next : { ...next, ...resizedSize };
       this.options.cameraRef.camera = complete
-        ? target
+        ? sized
         : protectSceneCamera(
-            next,
+            sized,
             this.options.scene(),
             this.options.runtime(),
             this.options.deformation(),
           );
+      appliedSize = {
+        width: this.options.cameraRef.camera.width,
+        height: this.options.cameraRef.camera.height,
+      };
       this.options.invalidate();
     };
     this.transition.start(this.options.cameraRef.camera, target, durationMs, update, interpolate);
