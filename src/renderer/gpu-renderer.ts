@@ -8,6 +8,9 @@ import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
 import type { ResultColorMap } from "../results/colors";
 import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnostics/timestamps";
+import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
+import type { InteractionState } from "../interaction/interaction";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
 
@@ -67,6 +70,19 @@ export function setRendererResultColors(
     throw new Error("Authored scalar colors require the built-in WebGPU renderer");
   }
   renderer.setResultColors(colors);
+}
+
+/** Applies private structural occurrence changes without widening the public renderer API. */
+export function updateRendererOccurrences(
+  renderer: WebGpuRenderer,
+  runtime: PackedSceneRuntime,
+  interaction: InteractionState,
+  delta: RuntimeOccurrenceDelta,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
+  }
+  renderer.updateOccurrences(runtime, interaction, delta);
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

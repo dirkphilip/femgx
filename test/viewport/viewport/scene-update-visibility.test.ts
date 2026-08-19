@@ -27,6 +27,28 @@ describe("Viewport scene-update visibility", () => {
     viewport.destroy();
   });
 
+  it("preserves occurrence visibility when a replacement runtime changes its slot", async () => {
+    const viewport = await testViewport();
+    viewport.updateScene((update) => {
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "retained",
+        partId: 1,
+        transform: translation(0, 0, 0),
+      });
+    });
+    viewport.visibility.setPartOccurrence("1/retained", false);
+    viewport.updateScene((update) => {
+      update.removePartOccurrence({ assemblyId: 1, placementId: "keep" });
+      const replacementPart = identityScene(false).parts.get(1);
+      if (replacementPart === undefined) throw new Error("test part is missing");
+      update.replacePart(replacementPart);
+    });
+
+    expect(viewport.runtime.isPartOccurrenceVisible("1/retained")).toBe(false);
+    viewport.destroy();
+  });
+
   it("keeps a definition policy without occurrences and applies it to a new occurrence", async () => {
     const viewport = await testViewport();
     viewport.visibility.setPart(1, false);

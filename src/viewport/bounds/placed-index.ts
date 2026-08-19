@@ -15,13 +15,13 @@ const MINIMUM_BOUNDS: Bounds = {
 
 /** Private segment tree for complete placed-scene bounds under incremental transforms. */
 export class PlacedBoundsIndex {
-  private readonly leafCapacity: number;
-  private readonly minX: Float64Array;
-  private readonly minY: Float64Array;
-  private readonly minZ: Float64Array;
-  private readonly maxX: Float64Array;
-  private readonly maxY: Float64Array;
-  private readonly maxZ: Float64Array;
+  private leafCapacity: number;
+  private minX: Float64Array;
+  private minY: Float64Array;
+  private minZ: Float64Array;
+  private maxX: Float64Array;
+  private maxY: Float64Array;
+  private maxZ: Float64Array;
   private readonly partBounds = new Map<PartId, Bounds | undefined>();
 
   constructor(
@@ -42,6 +42,10 @@ export class PlacedBoundsIndex {
 
   /** Updates changed occurrence leaves and their logarithmic ancestor paths. */
   update(runtime: PackedSceneRuntime, changedSlots: readonly number[]): void {
+    if (runtime.instanceCount > this.leafCapacity) {
+      this.rebuild(runtime);
+      return;
+    }
     for (const slot of changedSlots) {
       if (slot < 0 || slot >= runtime.instanceCount) continue;
       this.writeLeaf(runtime, slot);
@@ -65,6 +69,8 @@ export class PlacedBoundsIndex {
 
   private writeLeaf(runtime: PackedSceneRuntime, slot: number): void {
     const node = this.leafCapacity + slot;
+    this.minX[node] = this.minY[node] = this.minZ[node] = Number.POSITIVE_INFINITY;
+    this.maxX[node] = this.maxY[node] = this.maxZ[node] = Number.NEGATIVE_INFINITY;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const local = partId === undefined ? undefined : this.localBounds(partId);
@@ -76,6 +82,19 @@ export class PlacedBoundsIndex {
     this.maxX[node] = world.maxX;
     this.maxY[node] = world.maxY;
     this.maxZ[node] = world.maxZ;
+  }
+
+  private rebuild(runtime: PackedSceneRuntime): void {
+    this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
+    const size = this.leafCapacity * 2;
+    this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.minY = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.minZ = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.maxX = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    this.maxY = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    this.maxZ = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    for (let slot = 0; slot < runtime.instanceCount; slot += 1) this.writeLeaf(runtime, slot);
+    for (let node = this.leafCapacity - 1; node > 0; node -= 1) this.merge(node);
   }
 
   private localBounds(partId: PartId): Bounds | undefined {

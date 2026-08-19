@@ -2,7 +2,12 @@ import type { Part, PartId } from "../geometry/part";
 import type { AssemblyDefinition, AssemblyPlacement, PartPlacement, Placement } from "./assembly";
 import { validatePlacementTransform, validateScene, type Scene } from "./scene";
 import type { AssemblyId } from "./types";
-import { explicitPlacementIndex, retainPlacementIndex } from "./assembly-index";
+import {
+  explicitPlacementIndex,
+  retainAppendedPlacementIndex,
+  retainPlacementIndex,
+  retainRemovedPlacementIndex,
+} from "./assembly-index";
 import {
   definitionChanges,
   isTransformOnlyChanges,
@@ -28,6 +33,10 @@ import type {
   TransformAssemblyOccurrenceInput,
   TransformPartOccurrenceInput,
 } from "./update-types";
+import {
+  hasOnlyDirectPartPlacementChanges,
+  validateExplicitPlacementId,
+} from "./update-validation";
 
 export type {
   AddAssemblyOccurrenceInput,
@@ -271,7 +280,9 @@ class SceneUpdateDraft implements SceneUpdate {
       ),
       placements: this.placementChanges,
     };
-    if (!isTransformOnlyChanges(changes)) validateScene(candidate);
+    if (!isTransformOnlyChanges(changes) && !hasOnlyDirectPartPlacementChanges(changes)) {
+      validateScene(candidate);
+    }
     return { scene: candidate, changes };
   }
 
@@ -301,7 +312,9 @@ class SceneUpdateDraft implements SceneUpdate {
     if (replacement === undefined) placements.splice(index, 1);
     else placements[index] = replacement;
     const revision = { ...assembly, placements };
-    if (replacement !== undefined) retainPlacementIndex(assembly, revision);
+    if (replacement === undefined) {
+      retainRemovedPlacementIndex(assembly, revision, placementId, index);
+    } else retainPlacementIndex(assembly, revision);
     this.mutableAssemblies().set(assemblyId, revision);
     this.placementChanges.push({
       ownerAssemblyId: assemblyId,
@@ -312,13 +325,17 @@ class SceneUpdateDraft implements SceneUpdate {
 
   private appendPlacement(assemblyId: AssemblyId, placementId: string, placement: Placement): void {
     const assembly = this.requireAssembly(assemblyId);
+    validateExplicitPlacementId(placementId, assemblyId, assembly.placements.length);
+    validatePlacementTransform(placement.transform, assemblyId, assembly.placements.length);
     if (explicitPlacementIndex(assembly, placementId) >= 0) {
       throw new Error(`AssemblyDefinition ${assemblyId} already has placement ${placementId}`);
     }
-    this.mutableAssemblies().set(assemblyId, {
+    const revision = {
       ...assembly,
       placements: [...assembly.placements, placement],
-    });
+    };
+    retainAppendedPlacementIndex(assembly, revision, placementId, assembly.placements.length);
+    this.mutableAssemblies().set(assemblyId, revision);
     this.placementChanges.push({
       ownerAssemblyId: assemblyId,
       before: undefined,

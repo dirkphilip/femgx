@@ -44,6 +44,7 @@ beforeAll(async () => {
     scene: createReplacementFixture(100_000).first,
     device: fakeGpuDevice().device,
   });
+  transformViewport.render();
   variantFixtures = await Promise.all(PLACEMENT_COUNTS.map(createVariantFixture));
 });
 
@@ -111,6 +112,33 @@ describe("public scene update scaling", () => {
     );
     if (process.env["PERF_REPORT"] !== undefined) {
       console.log(`Viewport.updateScene transform (100k): ${measuredMs.toFixed(3)} ms`);
+    }
+    expect(measuredMs).toBeLessThanOrEqual(16.7);
+  });
+
+  it("keeps one direct add or removal in a 100k-occurrence scene within one frame", () => {
+    const viewport = transformViewport;
+    if (viewport === undefined) throw new Error("Occurrence viewport is missing");
+    let present = true;
+    const measuredMs = measureMs(
+      () => {
+        viewport.updateScene((update) => {
+          if (present) update.removePartOccurrence({ assemblyId: 1, placementId: "99999" });
+          else {
+            update.addPartOccurrence({
+              assemblyId: 1,
+              placementId: "99999",
+              partId: 1,
+              transform: identity(),
+            });
+          }
+        });
+        present = !present;
+      },
+      { warmup: 2, samples: 7 },
+    );
+    if (process.env["PERF_REPORT"] !== undefined) {
+      console.log(`Viewport.updateScene occurrence (100k): ${measuredMs.toFixed(3)} ms`);
     }
     expect(measuredMs).toBeLessThanOrEqual(16.7);
   });

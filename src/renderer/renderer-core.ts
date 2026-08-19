@@ -104,9 +104,7 @@ export class GpuRenderer implements WebGpuRenderer {
         this.lastCamera = camera;
       },
       deformation: () => this.deformation,
-      ensureSectionCaps: (runtime) => {
-        this.ensureSectionCaps(runtime);
-      },
+      ensureSectionCaps: this.ensureSectionCaps.bind(this),
       frameOptions: () => this.frameOptions(),
     });
     writeBackgroundColors(
@@ -226,9 +224,19 @@ export class GpuRenderer implements WebGpuRenderer {
       this.lifecycle.bundle,
     );
     if (interactionChanged || changed) this.sectionCaps.invalidate();
-    if (changed) {
-      this.picking.invalidate();
-    }
+    if (changed) this.picking.invalidate();
+  }
+
+  public updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: Parameters<RendererAttachment["updateOccurrences"]>[2],
+  ): void {
+    this.ensureAlive();
+    this.interaction = interaction;
+    this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
+    this.sectionCaps.invalidate();
+    this.picking.invalidate();
   }
 
   public updateElements(
@@ -247,9 +255,7 @@ export class GpuRenderer implements WebGpuRenderer {
       changedInstanceIds,
     );
     if (interactionChanged || changed) this.sectionCaps.invalidate();
-    if (changed) {
-      this.picking.invalidate();
-    }
+    if (changed) this.picking.invalidate();
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -286,15 +292,9 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public updateVisibility(runtime: PackedSceneRuntime, affectedPartIds: readonly PartId[]): void {
     this.ensureAlive();
-    const changed = this.attachment.updateVisibility(
-      runtime,
-      affectedPartIds,
-      this.lifecycle.bundle,
-    );
-    if (changed) {
-      this.sectionCaps.invalidate();
-      this.picking.invalidate();
-    }
+    if (!this.attachment.updateVisibility(runtime, affectedPartIds, this.lifecycle.bundle)) return;
+    this.sectionCaps.invalidate();
+    this.picking.invalidate();
   }
 
   public async pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {

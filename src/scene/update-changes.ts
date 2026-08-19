@@ -59,7 +59,8 @@ export function definitionChanges<K, V>(
   return { added, replaced, removed };
 }
 
-function hasDefinitionChanges(changes: DefinitionChanges<unknown>): boolean {
+/** Whether a definition registry has any prepared identity changes. */
+export function hasDefinitionChanges(changes: DefinitionChanges<unknown>): boolean {
   return changes.added.size + changes.replaced.size + changes.removed.size > 0;
 }
 

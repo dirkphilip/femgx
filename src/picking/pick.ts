@@ -8,7 +8,7 @@ import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
-  readonly instances: readonly PartOccurrence[];
+  readonly instances: readonly (PartOccurrence | undefined)[];
   readonly parts: ReadonlyMap<PartId, Part>;
 }
 
@@ -22,7 +22,7 @@ export interface ResolvedPickIds {
 
 /** Resolves a 0-based instance slot back to the instance it was drawn from. */
 export function resolvePick(
-  instances: readonly PartOccurrence[],
+  instances: readonly (PartOccurrence | undefined)[],
   pickId: number,
 ): PartOccurrence | undefined {
   if (pickId < 0 || pickId >= instances.length) {
