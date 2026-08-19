@@ -345,10 +345,8 @@ test("shows an accessible interactive view cube", async ({ page }) => {
   await expect(gizmo.locator("[data-view-corner]")).toHaveCount(8);
   await expect(gizmo.locator("[data-rotate]")).toHaveCount(6);
   await expect(gizmo.locator("circle")).toHaveCount(9);
-  await expect(gizmo.locator("text")).toHaveCount(9);
-  await expect(gizmo).toContainText("XY");
-  await expect(gizmo).toContainText("YZ");
-  await expect(gizmo).toContainText("XZ");
+  await expect(gizmo.locator("[data-view-face] text")).toHaveCount(0);
+  await expect(gizmo.locator("[data-view-axis-triad] text")).toHaveCount(3);
   await expect(gizmo.locator("[data-view-axis-triad]")).toHaveAttribute("aria-hidden", "true");
   await expect(gizmo.locator('[data-view-face="right"]')).toHaveAttribute(
     "aria-label",

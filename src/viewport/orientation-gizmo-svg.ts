@@ -63,7 +63,6 @@ interface FaceElements {
   readonly direction: Vec3;
   readonly group: SVGGElement;
   readonly polygon: SVGPolygonElement;
-  readonly label: SVGTextElement;
 }
 
 interface CornerElements {
@@ -130,9 +129,6 @@ export function updateOrientationGizmoElements(
     const visible = depth > 0;
     const points = FACE_CORNERS[face.id].map(project);
     face.polygon.setAttribute("points", points.map(formatPoint).join(" "));
-    const center = project(face.direction);
-    face.label.setAttribute("x", center.x.toFixed(2));
-    face.label.setAttribute("y", center.y.toFixed(2));
     setTargetVisibility(face.group, visible);
     elements.svg.appendChild(face.group);
   }
@@ -199,7 +195,6 @@ function createSvg(): SVGSVGElement {
     }
     [data-view-cube-target]:focus { outline: none; }
     [data-view-corner] circle { fill-opacity: 0; stroke-opacity: 0; }
-    [data-view-corner]:hover circle,
     [data-view-corner]:focus-visible circle { fill-opacity: .9; stroke-opacity: 1; }
     [data-view-cube-target]:focus-visible polygon,
     [data-view-cube-target]:focus-visible circle,
@@ -230,7 +225,6 @@ function createFaces(
   return VIEW_CUBE_FACES.map((face) => {
     const group = document.createElementNS(SVG_NAMESPACE, "g");
     const polygon = document.createElementNS(SVG_NAMESPACE, "polygon");
-    const label = document.createElementNS(SVG_NAMESPACE, "text");
     const color = axisColor(face.axis);
     group.setAttribute("data-view-face", face.id);
     configureTarget(
@@ -245,17 +239,9 @@ function createFaces(
     polygon.setAttribute("fill-opacity", "0.82");
     polygon.setAttribute("stroke", "#0b1728");
     polygon.setAttribute("stroke-width", "0.8");
-    label.setAttribute("fill", "#f5f8fc");
-    label.setAttribute("font-size", "8");
-    label.setAttribute("font-weight", "750");
-    label.setAttribute("text-anchor", "middle");
-    label.setAttribute("dominant-baseline", "middle");
-    label.setAttribute("pointer-events", "none");
-    label.textContent = face.plane;
     group.appendChild(polygon);
-    group.appendChild(label);
     svg.appendChild(group);
-    return { id: face.id, direction: face.direction, group, polygon, label };
+    return { id: face.id, direction: face.direction, group, polygon };
   });
 }
 
@@ -362,8 +348,12 @@ function configureTarget(
   target.setAttribute("aria-hidden", "false");
   target.setAttribute("aria-label", label);
   target.style.pointerEvents = "auto";
-  target.addEventListener("click", (event: MouseEvent) => {
+  target.addEventListener("pointerup", (event: PointerEvent) => {
+    if (!event.isPrimary || event.button !== 0) return;
     onAction(action(event));
+  });
+  target.addEventListener("click", (event: MouseEvent) => {
+    if (event.detail === 0) onAction(action(event));
   });
   target.addEventListener("keydown", (event: KeyboardEvent) => {
     if (event.key !== "Enter" && event.key !== " ") return;

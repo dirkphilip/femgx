@@ -214,8 +214,8 @@ describe("camera focus gizmo actions", () => {
       if (match === undefined) throw new Error(`Missing gizmo target ${attribute}=${value}`);
       return match;
     };
-    const dispatch = (action: TestNode, event: unknown = {}): void => {
-      action.dispatchEvent("click", event);
+    const dispatch = (action: TestNode, event: Readonly<Record<string, unknown>> = {}): void => {
+      action.dispatchEvent("pointerup", { button: 0, isPrimary: true, ...event });
     };
     const initial = viewport.view.camera;
     const expectedFace = applyViewCubeAction(initial, bounds, { kind: "face", face: "back" });

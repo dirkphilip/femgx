@@ -231,7 +231,7 @@ describe("orientation gizmo", () => {
     gizmo.destroy();
   });
 
-  it("maps keyboard and modifier actions, then ignores destroyed controls", () => {
+  it("maps primary-pointer and keyboard actions, then ignores destroyed controls", () => {
     installDocument();
     const container = new FakeNode();
     const canvas = new FakeNode();
@@ -244,7 +244,13 @@ describe("orientation gizmo", () => {
       (child) => child.attributes.get("data-rotate") === "left",
     );
     if (arrow === undefined) throw new Error("left arrow is missing");
-    arrow.dispatchEvent("click", { shiftKey: false, ctrlKey: true, metaKey: false });
+    arrow.dispatchEvent("pointerup", {
+      button: 0,
+      isPrimary: true,
+      shiftKey: false,
+      ctrlKey: true,
+      metaKey: false,
+    });
     arrow.dispatchEvent("keydown", {
       key: "Enter",
       shiftKey: true,
@@ -261,7 +267,13 @@ describe("orientation gizmo", () => {
       (child) => child.attributes.get("data-rotate") === "clockwise",
     );
     if (clockwise === undefined) throw new Error("clockwise arrow is missing");
-    clockwise.dispatchEvent("click", { shiftKey: false, ctrlKey: false, metaKey: false });
+    clockwise.dispatchEvent("pointerup", {
+      button: 0,
+      isPrimary: true,
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+    });
     clockwise.dispatchEvent("keydown", {
       key: " ",
       shiftKey: false,
@@ -283,7 +295,13 @@ describe("orientation gizmo", () => {
 
     const actionCount = actions.length;
     gizmo.destroy();
-    arrow.dispatchEvent("click", { shiftKey: false, ctrlKey: false, metaKey: false });
+    arrow.dispatchEvent("pointerup", {
+      button: 0,
+      isPrimary: true,
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: false,
+    });
     expect(actions).toHaveLength(actionCount);
   });
 
