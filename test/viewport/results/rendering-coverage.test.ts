@@ -49,7 +49,7 @@ describe("viewport results workflow", () => {
     const resultColors = () => setResultColors.mock.calls.at(-1)?.[0];
     const colorA = resultColors()?.get(1)?.values.slice(4, 8);
 
-    expect(viewport.reconcileScene(createTestScene())).toEqual({ results: "preserved" });
+    expect(viewport.updateScene(() => undefined)).toEqual({ results: "preserved" });
     expect(viewport.interaction.state).toBe(hostInteraction);
     expect(readInteractionState(viewport.interaction.state).elementOverrides.size).toBe(0);
 

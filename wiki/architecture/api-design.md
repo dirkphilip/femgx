@@ -161,7 +161,7 @@ product decision must establish any narrower boundary.
   the private packed runtime and GPU buffers are compiled representations. The
   public `SceneRuntime` exposes stable handles and defensive query objects, not
   slots or mutation deltas. `Viewport.runtime` is the current live facade;
-  hosts should reacquire it after `replaceScene` or `reconcileScene`. Standalone
+  hosts should reacquire it after `replaceScene` or a committed `updateScene`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
   intentional host inspection. Live visibility changes and transactional
   structural scene updates go through `Viewport`.
@@ -177,13 +177,14 @@ The main user workflow should be expressible as:
 5. Apply interaction, visibility, structural updates, results, and lifecycle
    operations through it.
 
-`Viewport.reconcileScene(scene)` is the transactional structural-update
-boundary. It recompiles the candidate scene before committing it, preserves the
-camera and state tied to surviving placement ids, prunes references to removed
-inner geometry identities, and revalidates active results. Its
-`SceneReconciliationOutcome` makes a result clear actionable without exposing runtime
-slots or renderer resources; `replaceScene` remains the explicit full-replacement
-operation.
+`Viewport.updateScene(operation)` is the transactional structural-update
+boundary. The synchronous operation edits a copy-on-write draft by definition
+and explicit authoring-placement identity. The viewport validates and compiles
+the complete candidate before committing it, preserves the camera and state tied
+to surviving placement ids, prunes references to removed inner geometry
+identities, and revalidates active results. `SceneUpdateOutcome` makes a result
+clear actionable without exposing runtime slots or renderer resources;
+`replaceScene` remains the explicit unrelated-model operation.
 
 Low-level flattening, batching, culling, draw-order buffers, GPU record
 layouts, and storage capacities are renderer/runtime implementation details.

@@ -45,8 +45,8 @@ renderer may transfer and retain content-addressed immutable chunks so variants
 share unchanged bytes, but chunks are private storage: they have no scene,
 selection, visibility, style, result, or picking identity.
 
-The existing `Viewport.reconcileScene(scene)` path applies these revisions
-incrementally after the next packed runtime is available. Stable placement
+`Viewport.updateScene(operation)` applies these revisions incrementally after
+the next packed runtime is available. Stable placement
 identities retain their part-local instance slots; a transform/style-only
 change patches that occurrence, a rebind patches only the source and
 destination part storage/orders, and a new variant uploads only when its part

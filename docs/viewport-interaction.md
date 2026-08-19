@@ -10,6 +10,7 @@ visibility, results, and presentation.
 | Symbol                                                                                                                                                                                                      | Role                                   |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | [`createViewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L92) / [`Viewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L35)                   | WebGPU lifecycle and capability facade |
+| [`SceneUpdate`](https://github.com/dirkphilip/femgx/blob/main/src/scene/update-types.ts)                                                                                                                    | Transaction-local structural editor    |
 | [`PickHit`](https://github.com/dirkphilip/femgx/blob/main/src/picking/types.ts#L115)                                                                                                                        | Physical GPU pick result               |
 | [`interactionTargetFromHit`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L33)                                                                                                  | Host-facing identity mapping           |
 | [`setTargetSelected`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L82) / [`setTargetsSelected`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L111) | Immutable selection transitions        |
@@ -91,20 +92,32 @@ viewport.visibility.setAssemblyOccurrence(assemblyOccurrenceId, true);
 ```
 
 Unknown identities are rejected at the active scene/runtime boundary before a
-renderer mutation. For a structural change, build a new immutable scene and
-call `reconcileScene`; reacquire `viewport.runtime` afterward:
+renderer mutation. For a structural change, edit definitions and their
+explicitly identified authoring placements in one synchronous transaction:
 
 ```ts
-const outcome = viewport.reconcileScene(nextScene);
+const outcome = viewport.updateScene((update) => {
+  update.addPart(newPart);
+  update.addPartOccurrence({
+    assemblyId: rootAssemblyId,
+    placementId: "new-part",
+    partId: newPart.id,
+    transform: identity(),
+  });
+});
 if (outcome.results === "cleared") {
   console.warn(outcome.reason);
 }
 const currentRuntime = viewport.runtime;
 ```
 
-Use `replaceScene` when the change is an intentional reset. Reconciliation
+The editor uses copy-on-write registries and publishes one immutable scene and
+runtime revision only after complete validation. A thrown, nested, async, or
+semantic no-op callback publishes nothing. Definition removal rejects live
+references unless explicit cascade removal is requested. `updateScene`
 preserves compatible camera, interaction, visibility, and authored-result state;
-it clears only state that cannot address the new scene.
+it clears only state that cannot address the new scene. Use `replaceScene` when
+the change is an intentional unrelated-model reset.
 
 ## Related pages
 

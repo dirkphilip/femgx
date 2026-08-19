@@ -136,7 +136,11 @@ describe("Viewport", () => {
     viewport.render();
     viewport.resize();
     viewport.replaceScene(scene(10));
-    viewport.reconcileScene(scene(20));
+    const replacementPart = scene(20).parts.get(1);
+    if (replacementPart === undefined) throw new Error("test part is missing");
+    viewport.updateScene((update) => {
+      update.replacePart(replacementPart);
+    });
     await viewport.recover();
 
     expect(viewport.view).toBe(capabilities.view);
@@ -235,7 +239,7 @@ describe("Viewport", () => {
         void current.presentation.sectionPlane;
       },
       (current) => {
-        current.reconcileScene(scene());
+        current.updateScene(() => undefined);
       },
       (current) => {
         current.visibility.setPart(1, false);

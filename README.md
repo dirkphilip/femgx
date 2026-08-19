@@ -88,9 +88,24 @@ also need `@webgpu/types` in `devDependencies` and `compilerOptions.types`.
 | `Scene`              | The authoritative definitions and root assembly           |
 | `Viewport`           | Rendering, camera, interaction, results, and GPU lifetime |
 
-Use `replaceScene()` for a new model. Use `reconcileScene()` for structural
+Use `replaceScene()` for an unrelated model. Use `updateScene()` for structural
 edits that should preserve compatible camera, interaction, visibility, and
-result state. Re-read `viewport.runtime` after either operation because the
+result state. Its synchronous transaction editor builds one validated immutable
+snapshot without requiring the host to rebuild the complete scene:
+
+```ts
+viewport.updateScene((update) => {
+  update.addPart(newPart);
+  update.addPartOccurrence({
+    assemblyId: rootAssemblyId,
+    placementId: "new-part",
+    partId: newPart.id,
+    transform: identity(),
+  });
+});
+```
+
+Re-read `viewport.runtime` after a committed update or replacement because the
 viewport installs a new compiled snapshot.
 
 The primary entry points are:

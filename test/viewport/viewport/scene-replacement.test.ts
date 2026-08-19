@@ -79,14 +79,30 @@ describe("Viewport", () => {
     });
 
     setOrientationGlyphs.mockClear();
-    expect(viewport.reconcileScene(identityScene(false))).toEqual({ results: "preserved" });
+    const compatiblePart = identityScene(false).parts.get(1);
+    if (compatiblePart === undefined) throw new Error("test part is missing");
+    expect(
+      viewport.updateScene((update) => {
+        update.replacePart(compatiblePart);
+      }),
+    ).toEqual({
+      results: "preserved",
+    });
     expect(setOrientationGlyphs).toHaveBeenLastCalledWith(
       expect.objectContaining({ mode: "arrow", transform: "direction" }),
     );
     expect(viewport.results.state?.orientation).toBeDefined();
 
     setOrientationGlyphs.mockClear();
-    expect(viewport.reconcileScene(scene())).toMatchObject({ results: "cleared" });
+    const incompatiblePart = scene().parts.get(1);
+    if (incompatiblePart === undefined) throw new Error("test part is missing");
+    expect(
+      viewport.updateScene((update) => {
+        update.replacePart(incompatiblePart);
+      }),
+    ).toMatchObject({
+      results: "cleared",
+    });
     expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
     expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
@@ -113,10 +129,15 @@ describe("Viewport", () => {
       ),
     );
 
-    const outcome = viewport.reconcileScene(replacement);
+    const replacementPart = replacement.parts.get(1);
+    if (replacementPart === undefined) throw new Error("test part is missing");
+    const outcome = viewport.updateScene((update) => {
+      update.replacePart(replacementPart);
+    });
 
     expect(outcome).toEqual({ results: "none" });
-    expect(viewport.scene).toBe(replacement);
+    expect(viewport.scene).not.toBe(initial);
+    expect(viewport.scene.parts.get(1)).toBe(replacementPart);
     expect(viewport.view.camera).toBe(camera);
     expect(viewport.runtime.getPartOccurrenceIds()).toEqual(["1/keep"]);
     expect(viewport.runtime.isPartOccurrenceVisible("1/keep")).toBe(false);
@@ -127,6 +148,55 @@ describe("Viewport", () => {
       }),
     ).toBe(true);
     expect(resetScene).not.toHaveBeenCalled();
+    viewport.destroy();
+  });
+
+  it("retains the current revision for no-ops and rejected update callbacks", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      device: fakeGpuDevice().device,
+    });
+    const currentScene = viewport.scene;
+    const currentRuntime = viewport.runtime;
+
+    expect(viewport.updateScene(() => undefined)).toEqual({ results: "none" });
+    expect(viewport.scene).toBe(currentScene);
+    expect(viewport.runtime).toBe(currentRuntime);
+    expect(() =>
+      viewport.updateScene(() => {
+        viewport.updateScene(() => undefined);
+      }),
+    ).toThrow(/already active/);
+    const asyncOperation = (() => Promise.resolve()) as unknown as Parameters<
+      typeof viewport.updateScene
+    >[0];
+    expect(() => viewport.updateScene(asyncOperation)).toThrow(/synchronous/);
+    expect(viewport.scene).toBe(currentScene);
+    expect(viewport.runtime).toBe(currentRuntime);
+    viewport.destroy();
+  });
+
+  it("preserves definition visibility without flattening it into occurrence overrides", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      device: fakeGpuDevice().device,
+    });
+    viewport.visibility.setPart(1, false);
+    const replacementPart = identityScene(false).parts.get(1);
+    if (replacementPart === undefined) throw new Error("test part is missing");
+
+    viewport.updateScene((update) => {
+      update.replacePart(replacementPart);
+    });
+    viewport.visibility.setPart(1, true);
+
+    expect(viewport.runtime.isPartOccurrenceVisible("1/keep")).toBe(true);
     viewport.destroy();
   });
 
@@ -162,7 +232,11 @@ describe("Viewport", () => {
     );
     viewport.interaction.set(interaction);
 
-    viewport.reconcileScene(identityScene(false));
+    const replacementPart = identityScene(false).parts.get(1);
+    if (replacementPart === undefined) throw new Error("test part is missing");
+    viewport.updateScene((update) => {
+      update.replacePart(replacementPart);
+    });
 
     expect(
       isTargetSelected(viewport.interaction.state, { kind: "body", partOccurrenceId, bodyId: 1 }),
@@ -198,9 +272,21 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    expect(viewport.reconcileScene(resultScene(3))).toEqual({ results: "preserved" });
+    const compatiblePart = resultScene(3).parts.get(1);
+    if (compatiblePart === undefined) throw new Error("test part is missing");
+    expect(
+      viewport.updateScene((update) => {
+        update.replacePart(compatiblePart);
+      }),
+    ).toEqual({
+      results: "preserved",
+    });
     expect(viewport.results.state).toBeDefined();
-    const cleared = viewport.reconcileScene(resultScene(6));
+    const incompatiblePart = resultScene(6).parts.get(1);
+    if (incompatiblePart === undefined) throw new Error("test part is missing");
+    const cleared = viewport.updateScene((update) => {
+      update.replacePart(incompatiblePart);
+    });
     expect(cleared.results).toBe("cleared");
     if (cleared.results !== "cleared") throw new Error("expected cleared results");
     expect(cleared.reason).toMatch(/no value/);

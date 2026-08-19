@@ -3,6 +3,7 @@ import { createInteractionState } from "../interaction/interaction";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
+import { prepareSceneUpdate, type SceneUpdate } from "../scene/update";
 import { sceneOriginTriadScale } from "./origin-triad";
 import {
   resolveViewportResults,
@@ -12,7 +13,7 @@ import {
 import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
 import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
-import type { SceneReconciliationOutcome } from "./types";
+import type { SceneUpdateOutcome } from "./types";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
@@ -21,13 +22,18 @@ interface PreparedSceneReplacement {
   readonly originTriadNominalScale: number;
   readonly baseInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
-  readonly outcome: SceneReconciliationOutcome;
+  readonly outcome: SceneUpdateOutcome;
 }
 
 interface SceneControllerOptions {
   readonly scene: Scene;
   readonly interaction: InteractionState | undefined;
   readonly renderer: WebGpuRenderer;
+}
+
+interface SceneUpdateResult {
+  readonly committed: boolean;
+  readonly outcome: SceneUpdateOutcome;
 }
 
 /** Owns the live scene, runtime, results, and interaction transaction state. */
@@ -38,6 +44,7 @@ export class ViewportSceneController {
   private baseInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
+  private updateActive = false;
 
   constructor(private readonly options: SceneControllerOptions) {
     this.currentScene = options.scene;
@@ -75,8 +82,26 @@ export class ViewportSceneController {
     this.applySceneReplacement(scene, false, true, cancelCamera);
   }
 
-  reconcileScene(scene: Scene, cancelCamera: () => void): SceneReconciliationOutcome {
-    return this.applySceneReplacement(scene, true, false, cancelCamera);
+  updateScene(
+    operation: (update: SceneUpdate) => void,
+    cancelCamera: () => void,
+  ): SceneUpdateResult {
+    if (this.updateActive) throw new Error("A scene update is already active");
+    this.updateActive = true;
+    let scene: Scene | undefined;
+    try {
+      scene = prepareSceneUpdate(this.currentScene, operation);
+    } finally {
+      this.updateActive = false;
+    }
+    if (scene === undefined) {
+      const results = this.currentResults === undefined ? "none" : "preserved";
+      return { committed: false, outcome: { results } };
+    }
+    return {
+      committed: true,
+      outcome: this.applySceneReplacement(scene, true, false, cancelCamera),
+    };
   }
 
   setInteraction(interaction: InteractionState): void {
@@ -103,7 +128,7 @@ export class ViewportSceneController {
     preserveResults: boolean,
     resetRenderer: boolean,
     cancelCamera: () => void,
-  ): SceneReconciliationOutcome {
+  ): SceneUpdateOutcome {
     const replacement = this.prepareSceneReplacement(scene, preserveResults);
     if (resetRenderer) this.options.renderer.resetScene(replacement.scene.parts);
     cancelCamera();
@@ -149,7 +174,7 @@ export class ViewportSceneController {
     runtime: PackedSceneRuntime,
   ): {
     readonly results: ViewportResultsState | undefined;
-    readonly outcome: SceneReconciliationOutcome;
+    readonly outcome: SceneUpdateOutcome;
   } {
     const previous = this.currentResults;
     if (previous === undefined) {
