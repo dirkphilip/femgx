@@ -11,15 +11,15 @@ export { buildSelectionOrder } from "./selection/order";
  * order lists from the current visibility bits without touching geometry.
  */
 export interface InstanceLayout {
-  readonly instanceCount: number;
+  instanceCount: number;
   /** Part-local slot per global instance slot. */
-  readonly slotPartLocal: Int32Array;
+  slotPartLocal: Int32Array;
   /** Global slots of each part in ascending order. */
-  readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  readonly partSlots: Map<PartId, Uint32Array>;
   /** Global slot by stable part-local slot, with `-1` for retained holes. */
-  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
+  readonly partLocalSlots: Map<PartId, Int32Array>;
   /** Deterministic part draw order (ascending part id). */
-  readonly partOrder: readonly PartId[];
+  readonly partOrder: PartId[];
   /** Visible instance count per part. */
   readonly partVisibleCounts: Map<PartId, number>;
   /** Edge-overlay visible instance count per part. */
@@ -107,7 +107,7 @@ export function buildInstanceLayout(
 function buildPartLocalSlots(
   partSlots: ReadonlyMap<PartId, Uint32Array>,
   slotPartLocal: Int32Array,
-): ReadonlyMap<PartId, Int32Array> {
+): Map<PartId, Int32Array> {
   const localSlots = new Map<PartId, Int32Array>();
   for (const [partId, slots] of partSlots) {
     let capacity = 0;
@@ -284,20 +284,23 @@ export function instanceAt(
 
 /** The stable instance descriptors and their id-to-slot map for one runtime. */
 export interface InstanceSnapshot {
-  readonly instances: PartOccurrence[];
+  readonly instances: Array<PartOccurrence | undefined>;
   readonly slotByInstanceId: Map<PartOccurrenceId, number>;
 }
 
 /** Snapshots every placed instance for CPU-side pick resolution. */
 export function buildInstanceSnapshot(runtime: PackedSceneRuntime): InstanceSnapshot {
-  const instances: PartOccurrence[] = [];
+  const instances = Array.from(
+    { length: runtime.instanceCount },
+    (): PartOccurrence | undefined => undefined,
+  );
   const slotByInstanceId = new Map<PartOccurrenceId, number>();
   for (let slot = 0; slot < runtime.instanceCount; slot++) {
     const instanceId = runtime.getInstanceId(slot);
     const partId = runtime.instancePartIds[slot];
     if (instanceId === undefined || partId === undefined) continue;
     slotByInstanceId.set(instanceId, slot);
-    instances.push(instanceAt(runtime, slot, partId));
+    instances[slot] = instanceAt(runtime, slot, partId);
   }
   return { instances, slotByInstanceId };
 }

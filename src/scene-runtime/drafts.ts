@@ -14,8 +14,6 @@ export interface NodeDraft {
   firstChild: number;
   nextSibling: number;
   lastChild: number;
-  readonly instanceStart: number;
-  instanceEnd: number;
   readonly visible: 0 | 1;
   readonly effective: 0 | 1;
 }
@@ -96,8 +94,6 @@ class DraftWriter {
       firstChild: -1,
       nextSibling: -1,
       lastChild: -1,
-      instanceStart: this.instances.length,
-      instanceEnd: -1,
       visible,
       effective,
     });
@@ -118,11 +114,6 @@ class DraftWriter {
         `assembly ${item.assemblyId}`,
       );
       if (item.nextPlacement >= assembly.placements.length) {
-        const node = invariantValue(
-          this.nodes[item.nodeIndex],
-          `assembly node at ${item.nodeIndex}`,
-        );
-        node.instanceEnd = this.instances.length;
         stack.pop();
         continue;
       }

@@ -40,6 +40,7 @@ function parentEffectiveVisible(state: RuntimeState, node: number): 0 | 1 {
 }
 
 function recomputeInstance(state: RuntimeState, instanceId: number, affected: Set<PartId>): void {
+  if (state.instanceActive[instanceId] !== 1) return;
   const owningNode = invariantValue(
     state.instanceOwningNode[instanceId],
     `owning node at instance ${instanceId}`,
@@ -81,19 +82,14 @@ function recomputeSubtree(state: RuntimeState, entryNode: number, affected: Set<
       continue;
     }
     state.nodeEffectiveVisible[node] = effective;
+    for (const instanceId of state.nodeInstanceGroups.slots(node)) {
+      recomputeInstance(state, instanceId, affected);
+    }
     let child = invariantValue(state.nodeFirstChild[node], `first child at node ${node}`);
     while (child !== -1) {
       stack.push(child);
       child = invariantValue(state.nodeNextSibling[child], `next sibling at node ${child}`);
     }
-  }
-  const start = invariantValue(
-    state.nodeInstanceStart[entryNode],
-    `instance start at node ${entryNode}`,
-  );
-  const end = invariantValue(state.nodeInstanceEnd[entryNode], `instance end at node ${entryNode}`);
-  for (let instanceId = start; instanceId < end; instanceId++) {
-    recomputeInstance(state, instanceId, affected);
   }
 }
 
@@ -104,7 +100,11 @@ export function setInstanceVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  if (instanceId < 0 || instanceId >= state.instanceCount) {
+  if (
+    instanceId < 0 ||
+    instanceId >= state.instanceCount ||
+    state.instanceActive[instanceId] !== 1
+  ) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
@@ -127,7 +127,12 @@ export function setInstancesVisible(
   const flag = visible ? 1 : 0;
   const affected = new Set<PartId>();
   for (const instanceId of instanceIds) {
-    if (instanceId < 0 || instanceId >= state.instanceCount) continue;
+    if (
+      instanceId < 0 ||
+      instanceId >= state.instanceCount ||
+      state.instanceActive[instanceId] !== 1
+    )
+      continue;
     if (state.instanceOverrideVisible[instanceId] === flag) continue;
     state.instanceOverrideVisible[instanceId] = flag;
     recomputeInstance(state, instanceId, affected);
@@ -165,20 +170,14 @@ export function setPartVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  const range = findGroupRange(
-    state.sortedPartIds,
-    state.partInstanceOffset,
-    state.partInstanceList.length,
-    partId,
-  );
-  if (range === undefined) {
+  const slots = state.partInstanceGroups.slots(partId);
+  if (slots.length === 0) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   let changed = false;
   let visibleCount = state.visibleCount;
-  for (let index = range[0]; index < range[1]; index++) {
-    const instanceId = invariantValue(state.partInstanceList[index], "part instance");
+  for (const instanceId of slots) {
     if (state.instancePartVisible[instanceId] === flag) {
       continue;
     }
@@ -240,7 +239,7 @@ export function getDrawList(state: RuntimeState): Uint32Array {
   const drawList = new Uint32Array(state.visibleCount);
   let write = 0;
   for (let instanceId = 0; instanceId < state.instanceCount; instanceId++) {
-    if (state.instanceVisible[instanceId] === 1) {
+    if (state.instanceActive[instanceId] === 1 && state.instanceVisible[instanceId] === 1) {
       drawList[write] = instanceId;
       write++;
     }

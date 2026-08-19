@@ -104,13 +104,9 @@ export interface SceneRuntime {
 }
 
 class PublicSceneRuntime implements SceneRuntime {
-  private readonly partOccurrenceIds: readonly PartOccurrenceId[];
   private readonly occurrenceIds: readonly AssemblyOccurrenceId[];
 
   constructor(private readonly packed: PackedSceneRuntime) {
-    this.partOccurrenceIds = Array.from({ length: packed.instanceCount }, (_, slot) =>
-      invariantValue(packed.getInstanceId(slot), `instance id at ${slot}`),
-    );
     this.occurrenceIds = Array.from({ length: packed.nodeCount }, (_, slot) =>
       invariantValue(packed.getNodeId(slot), `node id at ${slot}`),
     );
@@ -123,19 +119,19 @@ class PublicSceneRuntime implements SceneRuntime {
     return this.packed.nodeCount;
   }
   get partOccurrenceCount(): number {
-    return this.packed.instanceCount;
+    return this.packed.activeInstanceCount;
   }
   get visibleCount(): number {
     return this.packed.visibleCount;
   }
   getPartOccurrenceIds(): readonly PartOccurrenceId[] {
-    return [...this.partOccurrenceIds];
+    return activePartOccurrenceIds(this.packed);
   }
   getOccurrenceIds(): readonly AssemblyOccurrenceId[] {
     return [...this.occurrenceIds];
   }
   getPartOccurrences(): readonly RuntimePartOccurrence[] {
-    return this.partOccurrenceIds.map((partOccurrenceId) =>
+    return activePartOccurrenceIds(this.packed).map((partOccurrenceId) =>
       invariantValue(
         this.getPartOccurrence(partOccurrenceId),
         `part occurrence ${partOccurrenceId}`,
@@ -188,13 +184,7 @@ class PublicSceneRuntime implements SceneRuntime {
       child = invariantValue(this.packed.nodeNextSibling[child], `next sibling at node ${child}`);
     }
     const partOccurrenceIds: PartOccurrenceId[] = [];
-    const start = invariantValue(
-      this.packed.nodeInstanceStart[node],
-      `instance start at node ${node}`,
-    );
-    const end = invariantValue(this.packed.nodeInstanceEnd[node], `instance end at node ${node}`);
-    for (let slot = start; slot < end; slot++) {
-      if (this.packed.instanceOwningNode[slot] !== node) continue;
+    for (const slot of this.packed.getNodeInstanceSlots(node)) {
       partOccurrenceIds.push(
         invariantValue(this.packed.getInstanceId(slot), `instance id at ${slot}`),
       );
@@ -236,6 +226,15 @@ class PublicSceneRuntime implements SceneRuntime {
       invariantValue(this.packed.getInstanceId(slot), `instance id at draw slot ${slot}`),
     );
   }
+}
+
+function activePartOccurrenceIds(packed: PackedSceneRuntime): PartOccurrenceId[] {
+  const ids: PartOccurrenceId[] = [];
+  for (let slot = 0; slot < packed.instanceCount; slot += 1) {
+    const id = packed.getInstanceId(slot);
+    if (id !== undefined) ids.push(id);
+  }
+  return ids;
 }
 
 /** Adapts packed runtime storage to the stable public runtime boundary. */

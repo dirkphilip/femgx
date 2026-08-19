@@ -1,24 +1,26 @@
 import type { PartId } from "../geometry/part";
 import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { VisibilityDelta } from "../scene-runtime/visibility";
 
-/** Viewport-local visibility policy keyed only by stable scene identities. */
+/** Viewport-local visibility policy retained across scene revisions. */
 export class ViewportVisibilityState {
   private constructor(
     private readonly parts: DefinitionVisibility<PartId>,
     private readonly assemblies: DefinitionVisibility<AssemblyId>,
-    private readonly hiddenPartOccurrenceIds: Set<PartOccurrenceId>,
+    private readonly hiddenPartOccurrenceSlots: Set<number>,
     private readonly hiddenAssemblyOccurrenceIds: Set<AssemblyOccurrenceId>,
+    private readonly runtime: PackedSceneRuntime,
   ) {}
 
-  static create(scene: Scene): ViewportVisibilityState {
+  static create(scene: Scene, runtime: PackedSceneRuntime): ViewportVisibilityState {
     return new ViewportVisibilityState(
       definitionVisibility(scene.parts.keys(), scene.visiblePartIds),
       definitionVisibility(scene.assemblies.keys(), scene.visibleAssemblyIds),
       new Set(),
       new Set(),
+      runtime,
     );
   }
 
@@ -35,8 +37,10 @@ export class ViewportVisibilityState {
       this.assemblies.hidden,
       scene.visibleAssemblyIds,
     );
-    const hiddenPartOccurrences = retainedIds(this.hiddenPartOccurrenceIds, (id) =>
-      runtime.getInstanceSlot(id),
+    const hiddenPartOccurrences = retainedPartSlots(
+      this.hiddenPartOccurrenceSlots,
+      this.runtime,
+      runtime,
     );
     const hiddenAssemblyOccurrences = retainedIds(this.hiddenAssemblyOccurrenceIds, (id) =>
       runtime.getNodeSlot(id),
@@ -48,12 +52,23 @@ export class ViewportVisibilityState {
       { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
       hiddenPartOccurrences,
       hiddenAssemblyOccurrences,
+      runtime,
     );
   }
 
   setPart(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
     updateHidden(this.parts.hidden, partId, visible);
     return runtime.setPartVisible(partId, visible);
+  }
+
+  /** Resolves the retained viewport policy for a newly expanded occurrence. */
+  isPartVisible(partId: PartId, authoredVisible: boolean): boolean {
+    return this.parts.known.has(partId) ? !this.parts.hidden.has(partId) : authoredVisible;
+  }
+
+  /** Drops viewport-local state for occurrence identities removed by a scene revision. */
+  prunePartOccurrences(slots: readonly number[]): void {
+    for (const slot of slots) this.hiddenPartOccurrenceSlots.delete(slot);
   }
 
   setAssembly(
@@ -77,13 +92,10 @@ export class ViewportVisibilityState {
 
   setPartOccurrences(
     runtime: PackedSceneRuntime,
-    occurrenceIds: readonly PartOccurrenceId[],
     slots: readonly number[],
     visible: boolean,
   ): VisibilityDelta {
-    for (const occurrenceId of occurrenceIds) {
-      updateHidden(this.hiddenPartOccurrenceIds, occurrenceId, visible);
-    }
+    for (const slot of slots) updateHidden(this.hiddenPartOccurrenceSlots, slot, visible);
     return runtime.setInstancesVisible(slots, visible);
   }
 }
@@ -121,6 +133,20 @@ function retainedIds<T>(hidden: ReadonlySet<T>, resolve: (id: T) => number | und
   return new Set([...hidden].filter((id) => resolve(id) !== undefined));
 }
 
+function retainedPartSlots(
+  hidden: ReadonlySet<number>,
+  previous: PackedSceneRuntime,
+  runtime: PackedSceneRuntime,
+): Set<number> {
+  const retained = new Set<number>();
+  for (const slot of hidden) {
+    const id = previous.getInstanceId(slot);
+    const next = id === undefined ? undefined : runtime.getInstanceSlot(id);
+    if (next !== undefined) retained.add(next);
+  }
+  return retained;
+}
+
 function applyDefinitionPolicy(
   runtime: PackedSceneRuntime,
   scene: Scene,
@@ -135,11 +161,10 @@ function applyDefinitionPolicy(
 
 function applyOccurrencePolicy(
   runtime: PackedSceneRuntime,
-  hiddenParts: ReadonlySet<PartOccurrenceId>,
+  hiddenParts: ReadonlySet<number>,
   hiddenAssemblies: ReadonlySet<AssemblyOccurrenceId>,
 ): void {
-  for (const id of hiddenParts)
-    runtime.setInstanceVisible(runtime.getInstanceSlot(id) ?? -1, false);
+  for (const slot of hiddenParts) runtime.setInstanceVisible(slot, false);
   for (const id of hiddenAssemblies) {
     runtime.setAssemblyNodeVisible(runtime.getNodeSlot(id) ?? -1, false);
   }

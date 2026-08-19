@@ -117,8 +117,14 @@ export interface AttachmentFlagState {
 
 export interface AttachmentState {
   flags: AttachmentFlagState;
-  instances: PartOccurrence[];
+  instances: Array<PartOccurrence | undefined>;
   slotByInstanceId: Map<string, number>;
+}
+
+export interface AttachmentOrderParts {
+  readonly edge: ReadonlySet<PartId>;
+  readonly node: ReadonlySet<PartId>;
+  readonly transparent: ReadonlySet<PartId>;
 }
 
 /** Creates all placement records and orders for the first runtime attachment. */
@@ -211,6 +217,7 @@ export function rebuildAttachmentOrders(options: {
   readonly partDefinitions: ReadonlyMap<PartId, Part>;
   readonly selection: SelectionState;
   readonly bundle: GpuBundle;
+  readonly optionalParts?: AttachmentOrderParts;
 }): DrawCallLists {
   const activeParts = new Set(
     [...options.parts].filter((partId) => options.layout.partSlots.has(partId)),
@@ -219,7 +226,7 @@ export function rebuildAttachmentOrders(options: {
   rebuildEdgeOrders({
     runtime: options.runtime,
     layout: options.layout,
-    parts: activeParts,
+    parts: activeOptionalParts(activeParts, options.optionalParts?.edge),
     flags: options.flags.edgeFlags,
     emphasisFlags: options.flags.edgeEmphasisFlags,
     draw: options.bundle.draw,
@@ -227,7 +234,7 @@ export function rebuildAttachmentOrders(options: {
   rebuildTransparentOrders(
     options.runtime,
     options.layout,
-    activeParts,
+    activeOptionalParts(activeParts, options.optionalParts?.transparent),
     options.flags.transparentFlags,
     options.bundle.draw,
   );
@@ -239,7 +246,7 @@ export function rebuildAttachmentOrders(options: {
       selection: options.selection,
       bundle: options.bundle,
     },
-    activeParts,
+    activeOptionalParts(activeParts, options.optionalParts?.node),
   );
   syncVisibleSelectionOrders(options.runtime, options.layout, options.interaction, options.bundle, {
     parts: activeParts,
@@ -247,6 +254,15 @@ export function rebuildAttachmentOrders(options: {
   });
   options.layout.visibleCount = options.runtime.visibleCount;
   return rebuildAttachmentCalls(options.layout, options.bundle.draw.cost);
+}
+
+function activeOptionalParts(
+  active: ReadonlySet<PartId>,
+  requested: ReadonlySet<PartId> | undefined,
+): ReadonlySet<PartId> {
+  return requested === undefined
+    ? active
+    : new Set([...requested].filter((partId) => active.has(partId)));
 }
 
 function rebuildSurfaceOrders(

@@ -37,6 +37,10 @@ describe("large viewport visibility transitions", () => {
         },
       );
 
+      if (process.env["PERF_REPORT"] === "1") {
+        console.log({ partP95, occurrenceP95 });
+      }
+
       expect(partP95).toBeLessThanOrEqual(16.7);
       expect(occurrenceP95).toBeLessThanOrEqual(50);
       fixture.resetCounts();

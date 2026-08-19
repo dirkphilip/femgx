@@ -37,9 +37,12 @@ interface RuntimeMethods {
   getNodeSlot(nodeId: AssemblyOccurrenceId): number | undefined;
   /** Returns the world transform of an instance as a matrix view. */
   getTransform(instanceId: number): Mat4 | undefined;
+  isInstanceActive(instanceId: number): boolean;
   isInstanceVisible(instanceId: number): boolean;
   /** Returns the precomputed instance slots belonging to a part. */
   getPartInstanceSlots(partId: PartId): Uint32Array;
+  /** Returns direct placed-part slots owned by one expanded assembly node. */
+  getNodeInstanceSlots(nodeId: number): readonly number[];
   /** Returns the expanded node slots belonging to an assembly definition. */
   getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array;
   /** Returns visible instance ids in deterministic depth-first order. */
@@ -50,6 +53,21 @@ interface RuntimeMethods {
   /** Sets visibility for one expanded assembly occurrence. */
   setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta;
+  /** Adds one already-validated expanded placement to reusable private storage. */
+  addInstance(input: RuntimeInstanceInput): number;
+  /** Removes one active expanded placement while retaining its reusable slot. */
+  removeInstance(instanceId: number): void;
+  /** Replaces one active expanded placement in its existing stable slot. */
+  updateInstance(instanceId: number, input: RuntimeInstanceInput): void;
+}
+
+export interface RuntimeInstanceInput {
+  readonly instanceId: PartOccurrenceId;
+  readonly partId: PartId;
+  readonly owningNode: number;
+  readonly partVisible: boolean;
+  readonly overrideVisible: boolean;
+  readonly worldTransform: Mat4;
 }
 
 /** Packed scene storage plus internal behavior and stable identity indexes. */
@@ -63,15 +81,15 @@ function matrixView(transforms: Float32Array, count: number, index: number): Mat
 }
 
 interface RuntimeMaps {
-  readonly instanceSlots: ReadonlyMap<PartOccurrenceId, number>;
+  readonly instanceSlots: Map<PartOccurrenceId, number>;
   readonly nodeSlots: ReadonlyMap<AssemblyOccurrenceId, number>;
 }
 
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
   const instanceSlots = new Map<PartOccurrenceId, number>();
-  for (let slot = 0; slot < state.instanceInstanceIds.length; slot++) {
-    const instanceId = invariantValue(state.instanceInstanceIds[slot], `instance id at ${slot}`);
-    instanceSlots.set(instanceId, slot);
+  for (let slot = 0; slot < state.instanceCount; slot++) {
+    const instanceId = state.instanceInstanceIds[slot];
+    if (instanceId !== undefined) instanceSlots.set(instanceId, slot);
   }
   const nodeSlots = new Map<AssemblyOccurrenceId, number>();
   for (let node = 0; node < state.nodeNodeIds.length; node++) {
@@ -95,7 +113,7 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
 function createRuntimeMethods(state: RuntimeState, maps: RuntimeMaps): RuntimeMethods {
   return {
     ...createRuntimeQueries(state, maps),
-    ...createRuntimeMutations(state),
+    ...createRuntimeMutations(state, maps),
   };
 }
 
@@ -109,13 +127,16 @@ function createRuntimeQueries(
   | "setPartVisible"
   | "setAssemblyNodeVisible"
   | "setAssemblyVisible"
+  | "addInstance"
+  | "removeInstance"
+  | "updateInstance"
 > {
   return {
     getPartId(instanceId: number): PartId | undefined {
-      return state.instancePartIds[instanceId];
+      return isActive(state, instanceId) ? state.instancePartIds[instanceId] : undefined;
     },
     getInstanceId(instanceId: number): PartOccurrenceId | undefined {
-      return state.instanceInstanceIds[instanceId];
+      return isActive(state, instanceId) ? state.instanceInstanceIds[instanceId] : undefined;
     },
     getInstanceSlot(instanceId: PartOccurrenceId): number | undefined {
       return maps.instanceSlots.get(instanceId);
@@ -127,12 +148,10 @@ function createRuntimeQueries(
       return maps.nodeSlots.get(nodeId);
     },
     getPartInstanceSlots(partId: PartId): Uint32Array {
-      return groupSlots(
-        state.sortedPartIds,
-        state.partInstanceOffset,
-        state.partInstanceList,
-        partId,
-      );
+      return new Uint32Array(state.partInstanceGroups.slots(partId));
+    },
+    getNodeInstanceSlots(nodeId: number): readonly number[] {
+      return state.nodeInstanceGroups.slots(nodeId);
     },
     getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array {
       return groupSlots(
@@ -143,14 +162,15 @@ function createRuntimeQueries(
       );
     },
     getTransform(instanceId: number): Mat4 | undefined {
-      return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);
+      return isActive(state, instanceId)
+        ? matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId)
+        : undefined;
+    },
+    isInstanceActive(instanceId: number): boolean {
+      return isActive(state, instanceId);
     },
     isInstanceVisible(instanceId: number): boolean {
-      return (
-        instanceId >= 0 &&
-        instanceId < state.instanceCount &&
-        state.instanceVisible[instanceId] === 1
-      );
+      return isActive(state, instanceId) && state.instanceVisible[instanceId] === 1;
     },
     getDrawList(): Uint32Array {
       return computeDrawList(state);
@@ -170,6 +190,7 @@ function groupSlots(
 
 function createRuntimeMutations(
   state: RuntimeState,
+  maps: RuntimeMaps,
 ): Pick<
   RuntimeMethods,
   | "setInstanceVisible"
@@ -177,6 +198,9 @@ function createRuntimeMutations(
   | "setPartVisible"
   | "setAssemblyNodeVisible"
   | "setAssemblyVisible"
+  | "addInstance"
+  | "removeInstance"
+  | "updateInstance"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
@@ -194,5 +218,156 @@ function createRuntimeMutations(
     setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
       return setAssemblyVisible(state, assemblyId, visible);
     },
+    addInstance(input: RuntimeInstanceInput): number {
+      return addRuntimeInstance(state, maps, input);
+    },
+    removeInstance(instanceId: number): void {
+      removeRuntimeInstance(state, maps, instanceId);
+    },
+    updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
+      updateRuntimeInstance(state, instanceId, input);
+    },
   };
+}
+
+function addRuntimeInstance(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+  input: RuntimeInstanceInput,
+): number {
+  if (maps.instanceSlots.has(input.instanceId)) {
+    throw new Error(`Part occurrence ${input.instanceId} already exists`);
+  }
+  const slot = state.instanceFreeSlots.pop() ?? state.instanceCount++;
+  reserveInstances(state, state.instanceCount);
+  writeInstance(state, slot, input);
+  maps.instanceSlots.set(input.instanceId, slot);
+  const newPart = state.partInstanceGroups.slots(input.partId).length === 0;
+  state.partInstanceGroups.add(input.partId, slot);
+  if (newPart) state.sortedPartIds = insertSortedId(state.sortedPartIds, input.partId);
+  state.nodeInstanceGroups.add(input.owningNode, slot);
+  state.activeInstanceCount += 1;
+  if (state.instanceVisible[slot] === 1) state.visibleCount += 1;
+  return slot;
+}
+
+function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceId: number): void {
+  if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
+  const id = invariantValue(state.instanceInstanceIds[instanceId], `instance id at ${instanceId}`);
+  const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
+  const node = invariantValue(state.instanceOwningNode[instanceId], `node at ${instanceId}`);
+  if (state.instanceVisible[instanceId] === 1) state.visibleCount -= 1;
+  state.partInstanceGroups.remove(partId, instanceId);
+  if (state.partInstanceGroups.slots(partId).length === 0) {
+    state.sortedPartIds = removeSortedId(state.sortedPartIds, partId);
+  }
+  state.nodeInstanceGroups.remove(node, instanceId);
+  maps.instanceSlots.delete(id);
+  state.instanceActive[instanceId] = 0;
+  state.instanceVisible[instanceId] = 0;
+  state.instanceInstanceIds[instanceId] = "";
+  state.instanceFreeSlots.push(instanceId);
+  state.activeInstanceCount -= 1;
+}
+
+function updateRuntimeInstance(
+  state: RuntimeState,
+  instanceId: number,
+  input: RuntimeInstanceInput,
+): void {
+  if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
+  if (state.instanceInstanceIds[instanceId] !== input.instanceId) {
+    throw new Error("Cannot replace an instance identity");
+  }
+  const previousPart = invariantValue(state.instancePartIds[instanceId], "previous part");
+  const previousNode = invariantValue(state.instanceOwningNode[instanceId], "previous node");
+  const wasVisible = state.instanceVisible[instanceId] === 1;
+  if (previousPart !== input.partId) {
+    state.partInstanceGroups.remove(previousPart, instanceId);
+    if (state.partInstanceGroups.slots(previousPart).length === 0) {
+      state.sortedPartIds = removeSortedId(state.sortedPartIds, previousPart);
+    }
+    const newPart = state.partInstanceGroups.slots(input.partId).length === 0;
+    state.partInstanceGroups.add(input.partId, instanceId);
+    if (newPart) state.sortedPartIds = insertSortedId(state.sortedPartIds, input.partId);
+  }
+  if (previousNode !== input.owningNode) {
+    state.nodeInstanceGroups.remove(previousNode, instanceId);
+    state.nodeInstanceGroups.add(input.owningNode, instanceId);
+  }
+  writeInstance(state, instanceId, input);
+  const visible = state.instanceVisible[instanceId] === 1;
+  if (wasVisible !== visible) state.visibleCount += visible ? 1 : -1;
+}
+
+function isActive(state: RuntimeState, instanceId: number): boolean {
+  return (
+    instanceId >= 0 && instanceId < state.instanceCount && state.instanceActive[instanceId] === 1
+  );
+}
+
+function writeInstance(state: RuntimeState, slot: number, input: RuntimeInstanceInput): void {
+  state.instancePartIds[slot] = input.partId;
+  state.instanceOwningNode[slot] = input.owningNode;
+  state.instancePartVisible[slot] = input.partVisible ? 1 : 0;
+  state.instanceOverrideVisible[slot] = input.overrideVisible ? 1 : 0;
+  state.instanceVisible[slot] =
+    input.partVisible && input.overrideVisible && state.nodeEffectiveVisible[input.owningNode] === 1
+      ? 1
+      : 0;
+  state.instanceActive[slot] = 1;
+  state.instanceWorldTransforms.set(input.worldTransform, slot * 16);
+  state.instanceInstanceIds[slot] = input.instanceId;
+}
+
+function reserveInstances(state: RuntimeState, required: number): void {
+  if (required <= state.instanceCapacity) return;
+  let capacity = Math.max(1, state.instanceCapacity);
+  while (capacity < required) capacity *= 2;
+  state.instancePartIds = growUint32(state.instancePartIds, capacity);
+  state.instanceOwningNode = growUint32(state.instanceOwningNode, capacity);
+  state.instancePartVisible = growUint8(state.instancePartVisible, capacity);
+  state.instanceOverrideVisible = growUint8(state.instanceOverrideVisible, capacity);
+  state.instanceVisible = growUint8(state.instanceVisible, capacity);
+  state.instanceActive = growUint8(state.instanceActive, capacity);
+  state.instanceWorldTransforms = growFloat32(state.instanceWorldTransforms, capacity * 16);
+  state.instanceInstanceIds.length = capacity;
+  state.instanceCapacity = capacity;
+}
+
+function growUint8(values: Uint8Array, length: number): Uint8Array {
+  const next = new Uint8Array(length);
+  next.set(values);
+  return next;
+}
+
+function growUint32(values: Uint32Array, length: number): Uint32Array {
+  const next = new Uint32Array(length);
+  next.set(values);
+  return next;
+}
+
+function growFloat32(values: Float32Array, length: number): Float32Array {
+  const next = new Float32Array(length);
+  next.set(values);
+  return next;
+}
+
+function insertSortedId(values: Uint32Array, id: number): Uint32Array {
+  const next = new Uint32Array(values.length + 1);
+  let index = 0;
+  while (index < values.length && (values[index] ?? 0) < id) index += 1;
+  next.set(values.subarray(0, index));
+  next[index] = id;
+  next.set(values.subarray(index), index + 1);
+  return next;
+}
+
+function removeSortedId(values: Uint32Array, id: number): Uint32Array {
+  const index = values.indexOf(id);
+  if (index < 0) return values;
+  const next = new Uint32Array(values.length - 1);
+  next.set(values.subarray(0, index));
+  next.set(values.subarray(index + 1), index);
+  return next;
 }

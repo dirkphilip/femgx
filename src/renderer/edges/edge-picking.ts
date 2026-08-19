@@ -24,7 +24,7 @@ export interface EdgePickContext {
   readonly state: EdgePickState;
   readonly camera: Camera;
   readonly parts: ReadonlyMap<PartId, Part>;
-  readonly instances: readonly PartOccurrence[];
+  readonly instances: readonly (PartOccurrence | undefined)[];
   readonly frame: () => FrameOptions;
 }
 
@@ -33,7 +33,7 @@ export function createEdgePickContext(
   state: EdgePickState,
   camera: Camera,
   parts: ReadonlyMap<PartId, Part>,
-  instances: readonly PartOccurrence[],
+  instances: readonly (PartOccurrence | undefined)[],
   frame: () => FrameOptions,
 ): EdgePickContext {
   return { state, camera, parts, instances, frame };

@@ -18,6 +18,7 @@ import {
   rebuildAttachmentOrders,
   type AttachmentState,
   type AttachmentFlagState,
+  type AttachmentOrderParts,
 } from "./attachment/reconciliation";
 import { writeNodeOrders, type SelectionState } from "./selection-state";
 import {
@@ -32,6 +33,8 @@ import {
   syncAttachmentInteraction,
   type AttachmentInteractionState,
 } from "./attachment/interaction";
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
+import { applyOccurrenceAttachment } from "./attachment/occurrences";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -54,7 +57,7 @@ export class RendererAttachment {
   public nodeCalls: readonly DrawCall[] = [];
   public selectionCalls: readonly DrawCall[] = [];
   public selectedNodeCalls: readonly DrawCall[] = [];
-  public instances: PartOccurrence[] = [];
+  public instances: Array<PartOccurrence | undefined> = [];
   public slotByInstanceId = new Map<PartOccurrenceId, number>();
   private edgeFlags: boolean[] = [];
   private edgeEmphasisFlags: boolean[] = [];
@@ -173,6 +176,32 @@ export class RendererAttachment {
       edgeChanged.size > 0 ||
       transparentChanged.size > 0
     );
+  }
+
+  /** Applies exact direct-placement membership changes to an attached runtime. */
+  public updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: RuntimeOccurrenceDelta,
+    bundle: GpuBundle,
+  ): boolean {
+    const layout = this.layout;
+    if (this.runtime !== runtime || layout === undefined) return false;
+    this.interactionBeforeLastInstanceUpdate = this.interactionState;
+    this.interactionState = interaction;
+    const state = this.attachmentState();
+    const optionalParts = applyOccurrenceAttachment({
+      runtime,
+      layout,
+      delta,
+      interaction,
+      state,
+      draw: bundle.draw,
+    });
+    this.instances = state.instances;
+    this.slotByInstanceId = state.slotByInstanceId;
+    this.applyAttachmentOrders(runtime, layout, delta.affectedPartIds, bundle, optionalParts);
+    return true;
   }
 
   public updateNodeOrders(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
@@ -313,6 +342,7 @@ export class RendererAttachment {
     layout: InstanceLayout,
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
+    optionalParts?: AttachmentOrderParts,
   ): void {
     Object.assign(
       this,
@@ -325,6 +355,7 @@ export class RendererAttachment {
         partDefinitions: this.attachedParts,
         selection: this.selection,
         bundle,
+        ...(optionalParts === undefined ? {} : { optionalParts }),
       }),
     );
   }
