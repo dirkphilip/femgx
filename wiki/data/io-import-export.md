@@ -39,6 +39,10 @@ duplicate identities, invalid connectivity, unknown set/result references, and
 unsupported result shapes. `createElementModelFromFemModel(model)` validates
 the payload and then creates the dense `ElementModel` consumed by
 `elementPart`; node ids must already be dense and in coordinate order.
+Hosts retain direct body ownership in that same conversion by passing
+validated `bodies`, avoiding a second full model build and copy. The copyable
+[`examples/host-integration`](../../examples/host-integration/README.md) shows
+the complete sparse-host-id to dense-ordinal boundary and reverse mapping.
 
 `createResultFieldFromModelResult(model, result, { id, unit, shape })` is the
 narrow bridge from one host-authored result to the viewport:

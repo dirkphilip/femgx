@@ -140,7 +140,8 @@
   },
   "knip": {
     "entry": [
-      "e2e/core/core-host.ts"
+      "e2e/core/core-host.ts",
+      "examples/host-integration/main.ts"
     ],
     "ignore": [
       "scripts/*.d.mts"

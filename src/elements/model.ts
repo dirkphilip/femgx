@@ -88,12 +88,19 @@ export function createElementModel(
 export function createElementModelFromOwnedElements(
   nodes: ArrayLike<number>,
   elements: readonly Element[],
+  options: ElementModelOptions = {},
 ): ElementModel {
   if (nodes.length % 3 !== 0) {
     throw new Error("Node coordinate array length must be a multiple of 3");
   }
   validateNodeCoordinates(nodes, nodes.length / 3);
-  return { nodes: new Float32Array(nodes), elements };
+  if (options.bodies !== undefined) validateElementModel(elements, options.bodies);
+  const copiedBodies = copyBodies(options.bodies);
+  return {
+    nodes: new Float32Array(nodes),
+    elements,
+    ...(copiedBodies === undefined ? {} : { bodies: copiedBodies }),
+  };
 }
 
 /** Resolves authored body ownership without allocating state for bodyless models. */

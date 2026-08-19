@@ -786,6 +786,12 @@ Node ids must be dense and in coordinate order for the conversion. Element ids
 remain authored identities, and the conversion creates dense single-precision
 coordinates for rendering. Host-supplied result fields can be converted with
 `createResultFieldFromModelResult` before calling `viewport.results.set()`.
+When the host already has validated direct body ownership, pass `bodies` to
+`createElementModelFromFemModel` so conversion retains it without rebuilding
+the dense model. The
+[complete host integration](../examples/host-integration/README.md) maps string
+node identities once and demonstrates repeated placements, occurrence-specific
+results, selection, sectioning, result inspection, and teardown.
 
 ## Workflow 7: import a GLB display scene
 

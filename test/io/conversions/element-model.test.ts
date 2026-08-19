@@ -34,6 +34,19 @@ describe("createElementModelFromFemModel", () => {
     expect([...result.nodes]).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0]);
   });
 
+  it("attaches validated body ownership during the single dense conversion", () => {
+    const builder = createModelBuilder();
+    builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]);
+    builder.openElementShapeBlock(ElementShape.Triangle);
+    builder.appendElements([11, 12], [0, 1, 2, 0, 2, 3]);
+
+    const result = createElementModelFromFemModel(builder.build(), {
+      bodies: [{ id: 7, name: "plate", elementIds: [11, 12] }],
+    });
+
+    expect(result.bodies).toEqual([{ id: 7, name: "plate", elementIds: [11, 12] }]);
+  });
+
   it("preserves the largest element id supported by the render model", () => {
     const builder = createModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
