@@ -6,12 +6,13 @@ import {
 export { emphasisStructs } from "./emphasis";
 export {
   colorFragmentShader,
+  displayedColorFunction,
   edgeFragmentShader,
   sectionPlaneBindings,
   sectionPlaneFunction,
   sectionPlaneStruct,
 } from "./fragment";
-import { sectionPlaneBindings, sectionPlaneFunction } from "./fragment";
+import { displayedColorFunction, sectionPlaneBindings, sectionPlaneFunction } from "./fragment";
 export { pickDataBindings } from "./topology";
 
 /**
@@ -385,6 +386,7 @@ ${frameBindings}
 ${sectionPlaneBindings}
 ${sectionPlaneFunction}
 ${surfaceLightingFunction}
+${displayedColorFunction}
 
 @fragment
 fn fragmentMain(
@@ -396,7 +398,7 @@ fn fragmentMain(
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
-  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  let displayedColor = resolvedDisplayedColor(color, resultColor, resultColorEnabled != 0u);
   if (dot(local, local) > 1.0 || displayedColor.a < 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   let litColor = surfaceLighting(
     worldPosition,

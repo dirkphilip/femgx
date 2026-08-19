@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openCommandPanel, pixelHash, pixelMetrics, waitForRenderer } from "./demo-support";
 
 async function expectGizmoPointerActivation(page: Page, perspective = false): Promise<void> {
@@ -31,6 +31,18 @@ async function expectGizmoPointerActivation(page: Page, perspective = false): Pr
   await expect(canvas).toHaveAttribute("data-selected", "");
 }
 
+async function expectStableCanvas(canvas: Locator): Promise<void> {
+  const metrics = await pixelMetrics(canvas);
+  expect(metrics.distinctColors).toBeGreaterThan(32);
+  expect(metrics.saturatedPixels).toBeGreaterThan(1_000);
+  const hashes = [metrics.hash];
+  for (let frame = 0; frame < 3; frame += 1) {
+    await canvas.page().waitForTimeout(50);
+    hashes.push(await pixelHash(canvas));
+  }
+  expect(new Set(hashes).size).toBe(1);
+}
+
 test("keeps overlapping face clicks out of the canvas and animates the camera", async ({
   page,
 }) => {
@@ -42,7 +54,9 @@ test("keeps the same gizmo interaction contract at the mobile breakpoint", async
   await expectGizmoPointerActivation(page);
 });
 
-test("keeps the perspective gallery stable across continuous frames", async ({ page }) => {
+test("keeps result-colored perspective views stable across distance and angle", async ({
+  page,
+}) => {
   await page.goto("/");
   await waitForRenderer(page);
   const canvas = page.getByTestId("view-canvas");
@@ -52,13 +66,22 @@ test("keeps the perspective gallery stable across continuous frames", async ({ p
   await openCommandPanel(page, "display");
   await page.getByTestId("continuous-rendering").click();
 
-  const metrics = await pixelMetrics(canvas);
-  expect(metrics.distinctColors).toBeGreaterThan(32);
-  expect(metrics.saturatedPixels).toBeGreaterThan(1_000);
-  const hashes = [metrics.hash];
-  for (let frame = 0; frame < 3; frame += 1) {
-    await page.waitForTimeout(50);
-    hashes.push(await pixelHash(canvas));
-  }
-  expect(new Set(hashes).size).toBe(1);
+  await expectStableCanvas(canvas);
+  const box = await canvas.boundingBox();
+  if (box === null) throw new Error("perspective canvas has no bounding box");
+  const initialCamera = await canvas.getAttribute("data-camera");
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.35);
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(initialCamera);
+  await page.mouse.move(1, 1);
+  await expectStableCanvas(canvas);
+
+  const orbitCamera = await canvas.getAttribute("data-camera");
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.mouse.wheel(0, -600);
+  await expect.poll(() => canvas.getAttribute("data-camera")).not.toBe(orbitCamera);
+  await page.mouse.move(1, 1);
+  await expectStableCanvas(canvas);
 });
