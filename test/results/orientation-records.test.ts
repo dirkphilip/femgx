@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type ElementTessellation, type Part } from "../../src/geometry/part";
 import { ElementShape } from "../../src/elements/shapes";
-import { createResultField } from "../../src/results/fields";
-import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
+import { createElementFrameField, createResultField } from "../../src/results/fields";
+import {
+  resolveElementalFrameRecords,
+  resolveElementalOrientationRecords,
+} from "../../src/results/orientation-records";
 
 interface ElementInput {
   readonly id: number;
@@ -124,6 +127,47 @@ describe("elemental orientation records", () => {
     expectFloats(records.referenceLengths, [Math.hypot(2, 4, 0), Math.hypot(2, 2, 2)]);
     expectFloats(records.directions, [0.6, 0.8, 0, 0, 0, -1]);
     expect(records.anchorDeltas).toBeUndefined();
+  });
+
+  it("uses dense part rows for sparse element ids", () => {
+    const part = makePart([
+      { id: 80, nodePickIds: [4, 5, 6] },
+      { id: 20, nodePickIds: [1, 2, 3], bodyId: 4 },
+    ]);
+    const field = createResultField({
+      id: "dense-orientation",
+      name: "Dense orientation",
+      location: "elemental",
+      shape: "vector",
+      count: 2,
+      unit: "unitless",
+      values: new Float32Array([0, 0, -2, 3, 4, 0]),
+    });
+    const records = resolveElementalOrientationRecords(part, field);
+
+    expect(records.elementIds).toEqual(new Uint32Array([20, 80]));
+    expectFloats(records.directions, [0.6, 0.8, 0, 0, 0, -1]);
+  });
+
+  it("uses dense part rows for sparse authored frame ids", () => {
+    const part = makePart([
+      { id: 80, nodePickIds: [4, 5, 6] },
+      { id: 20, nodePickIds: [1, 2, 3], bodyId: 4 },
+    ]);
+    const field = createElementFrameField({
+      partId: part.id,
+      id: "dense-frame",
+      name: "Dense frame",
+      count: 2,
+      unit: "unitless",
+      values: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1]),
+    });
+    const records = resolveElementalFrameRecords(part, field);
+
+    expect(records.elementIds).toEqual(new Uint32Array([20, 20, 20, 80, 80, 80]));
+    expect(records.directions).toEqual(
+      new Float32Array([0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1]),
+    );
   });
 
   it.each([
