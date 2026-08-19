@@ -99,6 +99,12 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(instanceVertexShader).toContain("color = highlight.color;");
   });
 
+  it("keeps dense selection color above active scalar results", () => {
+    expect(instanceVertexShader).toContain("(elementHighlights.selectionFlags & 1u) != 0u");
+    expect(instanceVertexShader).toContain("output.selectionDepthBias = selectionDepthBias;");
+    expect(triangleColorFragmentShader).toContain("selectionDepthBias != 0u");
+  });
+
   it("tests dense node membership for point and node-overlay vertices", () => {
     expect(pointVertexShader).toContain("denseNodeSelected(drawOrder[instanceIndex], nodePickId)");
     expect(pointVertexShader).toContain("nodeOverlayVertexMain");

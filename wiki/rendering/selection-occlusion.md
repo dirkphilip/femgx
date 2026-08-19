@@ -31,3 +31,11 @@ weighted transparency blend as the ordinary transparent scene. Selection
 color and opacity layers therefore preserve translucent inspection without
 making a solid selected surface read as a translucent volume. This keeps
 hover/highlight depth-tested and leaves selection identity out of picking.
+
+Dense element selection keeps the complete-selection fast path in the ordinary
+surface draw; it does not restore a full selected-geometry replay. The ordinary
+fragment output applies a small, fixed depth bias to every selected dense
+element, making the selected cue win an exact-depth tie regardless of opaque
+submission order while leaving genuinely behind geometry occluded. A selected
+theme color takes precedence over an authored scalar result; opacity-only and
+emissive-only selection themes retain the authored result color.

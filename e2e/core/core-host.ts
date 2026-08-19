@@ -16,6 +16,11 @@ import {
 } from "../../src/entries/interaction";
 import { createResultField } from "../../src/entries/results";
 import { orbitCamera, projectPoint } from "../../src/entries/camera";
+import {
+  createSelectionPhaseController,
+  selectionScene,
+  type SelectionPhase,
+} from "./selection-precedence";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");
 const statusElement = document.querySelector<HTMLOutputElement>("#core-status");
@@ -30,6 +35,7 @@ const hostWindow = window as typeof window & {
   femgxCore?: {
     destroy: () => void;
     toggleEmphasis?: () => void;
+    setSelectionPhase?: (phase: SelectionPhase) => void;
   };
 };
 
@@ -90,10 +96,16 @@ function coreScene(placementCount = 1, separated = false) {
 
 async function start(): Promise<void> {
   const caseName = new URLSearchParams(location.search).get("case") ?? "foundation";
-  const scene = coreScene(
-    caseName === "instancing" || caseName === "transparency" ? 2 : 1,
-    caseName === "transparency",
-  );
+  const selectionCase = caseName.startsWith("selection-precedence");
+  const scene = selectionCase
+    ? selectionScene(
+        caseName.includes("reverse") || caseName.includes("behind"),
+        caseName.includes("behind"),
+      )
+    : coreScene(
+        caseName === "instancing" || caseName === "transparency" ? 2 : 1,
+        caseName === "transparency",
+      );
   let frames = 0;
   try {
     viewport = await createViewport({
@@ -145,6 +157,11 @@ async function runCase(caseName: string, current: Viewport): Promise<void> {
       return;
     case "transparency":
       runTransparency(current);
+      return;
+    case "selection-precedence-forward":
+    case "selection-precedence-reverse":
+    case "selection-precedence-behind":
+      installSelectionPrecedence(current, caseName, caseName.includes("behind"));
       return;
     default:
       throw new Error(`Unknown core browser case ${caseName}`);
@@ -291,6 +308,18 @@ function runTransparency(current: Viewport): void {
     },
   };
   setStatus("transparency", "front-0.45-back-0.75");
+}
+
+function installSelectionPrecedence(current: Viewport, caseName: string, behind: boolean): void {
+  if (hostWindow.femgxCore === undefined) throw new Error("Core viewport host is not ready");
+  const setSelectionPhase = createSelectionPhaseController({
+    current,
+    caseName,
+    behind,
+    setStatus,
+  });
+  hostWindow.femgxCore = { ...hostWindow.femgxCore, setSelectionPhase };
+  setSelectionPhase("all-elemental");
 }
 
 window.addEventListener("beforeunload", () => viewport?.destroy(), { once: true });

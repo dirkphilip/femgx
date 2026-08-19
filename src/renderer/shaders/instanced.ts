@@ -60,9 +60,14 @@ const bodyAndElementHighlighting = /* wgsl */ `
   if (elementOrdinal != 0u && denseElementSelected(drawOrder[instanceIndex], elementOrdinal)) {
     color = applyDenseSelectionColor(color);
     emissive = applyDenseSelectionEmissive(emissive);
-    resultColorEnabled = resultColorActive(nodePickId, elementOrdinal);
+    resultColorEnabled = select(
+      resultColorActive(nodePickId, elementOrdinal),
+      false,
+      (elementHighlights.selectionFlags & 1u) != 0u,
+    );
     selected = true;
     exactSelection = true;
+    selectionDepthBias = 1u;
   }
   if (elementPickId != 0u && elementHighlights.bucketCount != 0u) {
     let bucket = highlightHash(drawOrder[instanceIndex], elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
@@ -100,6 +105,7 @@ function instanceHighlighting(nodeIndex: string): string {
   var matched = false;
   var selected = instanceSelected(instance.selected);
   var exactSelection = false;
+  var selectionDepthBias = 0u;
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
 ${bodyAndElementHighlighting}
   if (!matched && facePickId != 0u && elementHighlights.bucketCount != 0u) {
@@ -177,6 +183,7 @@ ${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection
   output.selected = select(0u, 1u, selected);
   output.resultColor = baseResultColor;
   output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
+  output.selectionDepthBias = selectionDepthBias;
   output.edgeDepthRadius = select(
     0.0,
     instance.lineWidth * camera.devicePixelRatio * 0.70710678,
@@ -307,6 +314,7 @@ fn pointVertex(
   var matched = false;
   var selected = instanceSelected(instance.selected);
   var exactSelection = false;
+  var selectionDepthBias = 0u;
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
   let denseNode = denseNodeSelected(drawOrder[instanceIndex], nodePickId);
   if (!nodeOverlay) {
@@ -363,6 +371,7 @@ ${bodyAndElementHighlighting}
   output.selected = select(0u, 1u, selected);
   output.resultColor = baseResultColor;
   output.resultColorEnabled = select(0u, 1u, resultColorEnabled);
+  output.selectionDepthBias = selectionDepthBias;
   output.edgeDepthRadius = 0.0;
   return output;
 }
