@@ -1,20 +1,18 @@
 # Scenes, parts, and finite-element models
 
 This guide covers the data that exists before a viewport is created. The
-public entrypoints are [`femgx`](https://github.com/dirkphilip/femgx/blob/main/src/entries/root.ts),
-[`femgx/model`](https://github.com/dirkphilip/femgx/blob/main/src/entries/model.ts), and
-[`femgx/io`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io.ts).
+public entrypoints are `femgx`, `femgx/model`, and `femgx/io`.
 
 ## Public symbols
 
-| Symbol                                                                                                                                                                                      | Role                                            |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| [`Part`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/part.ts#L46) / [`createPart`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/part.ts#L121)                  | Immutable reusable display geometry             |
-| [`Scene`](https://github.com/dirkphilip/femgx/blob/main/src/scene/scene.ts#L16) / [`createScene`](https://github.com/dirkphilip/femgx/blob/main/src/scene/scene.ts#L361)                    | Authored definitions and root assembly          |
-| [`ElementModel`](https://github.com/dirkphilip/femgx/blob/main/src/elements/model.ts#L27) / [`createElementModel`](https://github.com/dirkphilip/femgx/blob/main/src/elements/model.ts#L56) | Dense FE nodes, elements, and optional bodies   |
-| [`createElement`](https://github.com/dirkphilip/femgx/blob/main/src/elements/element.ts#L51) / [`ElementShape`](https://github.com/dirkphilip/femgx/blob/main/src/elements/shapes.ts)       | Validated element connectivity and topology     |
-| [`elementPart`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/element-part.ts#L67)                                                                                             | FE model to reusable renderable part            |
-| [`surfacePart`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/surface-part.ts#L42)                                                                                             | Host-authored surface, line, and point geometry |
+| Symbol                                                                                        | Role                                            |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| {@link root.Part Part} / {@link root.createPart createPart}                                   | Immutable reusable display geometry             |
+| {@link root.Scene Scene} / {@link root.createScene createScene}                               | Authored definitions and root assembly          |
+| {@link model.ElementModel ElementModel} / {@link model.createElementModel createElementModel} | Dense FE nodes, elements, and optional bodies   |
+| {@link model.createElement createElement} / {@link model.ElementShape ElementShape}           | Validated element connectivity and topology     |
+| {@link model.elementPart elementPart}                                                         | FE model to reusable renderable part            |
+| {@link model.surfacePart surfacePart}                                                         | Host-authored surface, line, and point geometry |
 
 ## The canonical flow
 
@@ -29,7 +27,7 @@ expands placements into occurrence identities while retaining shared geometry.
 
 ## Raw display geometry
 
-Use [`createPart`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/part.ts#L121) when the host already owns
+Use {@link root.createPart createPart} when the host already owns
 display geometry rather than FE connectivity. Each geometry group has a
 `primitive` (`"triangles"`, `"lines"`, or `"points"`), positions, and indices.
 
@@ -67,8 +65,8 @@ matter.
 
 ## Typed FE geometry
 
-[`createElement`](https://github.com/dirkphilip/femgx/blob/main/src/elements/element.ts#L51) validates one element, while
-[`createElementModel`](https://github.com/dirkphilip/femgx/blob/main/src/elements/model.ts#L56) validates the complete
+{@link model.createElement createElement} validates one element, while
+{@link model.createElementModel createElementModel} validates the complete
 node/element collection. Node ids are dense and zero-based. Element ids remain
 authored identities, so tessellation does not replace the ids used by picking,
 selection, or elemental results.
@@ -88,7 +86,7 @@ const part = elementPart(30, model);
 ```
 
 Bodies are optional direct element ownership. There is no public semantic block
-layer. [`elementPart`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/element-part.ts#L67) creates homogeneous
+layer. {@link model.elementPart elementPart} creates homogeneous
 primitive groups for rendering while retaining the model's semantic element,
 face, edge, body, and node mappings.
 
@@ -136,12 +134,12 @@ visibility, selection, and pick identities. Use the stable runtime handles from
 
 ## Host model conversion
 
-For serializable host data, use [`createModelBuilder`](https://github.com/dirkphilip/femgx/blob/main/src/io/model-builder.ts#L171),
-[`validateModel`](https://github.com/dirkphilip/femgx/blob/main/src/io/model-validation.ts), and
-[`createElementModelFromFemModel`](https://github.com/dirkphilip/femgx/blob/main/src/io/conversions/element-model.ts#L36).
+For serializable host data, use {@link io.createModelBuilder createModelBuilder},
+{@link io.validateModel validateModel}, and
+{@link io.createElementModelFromFemModel createElementModelFromFemModel}.
 Validate once at the IO boundary, convert once to the typed FE model, and then
 follow the ordinary `elementPart → Scene → Viewport` path. Result payloads use
-[`createResultFieldFromModelResult`](https://github.com/dirkphilip/femgx/blob/main/src/io/conversions/result-field.ts#L58).
+{@link io.createResultFieldFromModelResult createResultFieldFromModelResult}.
 
 The conversion requires dense node ordinals for rendering but preserves
 authored element ids. If the host already has validated direct body ownership,

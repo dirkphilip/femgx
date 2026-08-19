@@ -6,13 +6,13 @@ engineering quantities or own a result timeline.
 
 ## Public symbols
 
-| Symbol                                                                                                                                                                                      | Role                                        |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| [`ResultField`](https://github.com/dirkphilip/femgx/blob/main/src/results/fields.ts#L143) / [`createResultField`](https://github.com/dirkphilip/femgx/blob/main/src/results/fields.ts#L257) | Typed nodal or elemental scalar/vector data |
-| [`scalarRange`](https://github.com/dirkphilip/femgx/blob/main/src/results/range.ts#L39)                                                                                                     | Finite authored scalar range                |
-| [`createElementFrameField`](https://github.com/dirkphilip/femgx/blob/main/src/results/fields.ts#L265)                                                                                       | Authored elemental orientation frames       |
-| [`createResultFieldFromModelResult`](https://github.com/dirkphilip/femgx/blob/main/src/io/conversions/result-field.ts#L58)                                                                  | IO result conversion                        |
-| [`FemModel`](https://github.com/dirkphilip/femgx/blob/main/src/io/fem-model.ts) / [`importGlb`](https://github.com/dirkphilip/femgx/blob/main/src/io/glb/importer.ts#L51)                   | Serializable FE and GLB input boundaries    |
+| Symbol                                                                                        | Role                                        |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| {@link results.ResultField ResultField} / {@link results.createResultField createResultField} | Typed nodal or elemental scalar/vector data |
+| {@link results.scalarRange scalarRange}                                                       | Finite authored scalar range                |
+| {@link results.createElementFrameField createElementFrameField}                               | Authored elemental orientation frames       |
+| {@link io.createResultFieldFromModelResult createResultFieldFromModelResult}                  | IO result conversion                        |
+| {@link io.FemModel FemModel} / {@link io/glb.importGlb}                                       | Serializable FE and GLB input boundaries    |
 
 ## Scalar fields and deformation
 
@@ -88,7 +88,7 @@ not compute magnitudes, tensors, legends, or playback controls.
 
 ## Serializable FE input
 
-The [`femgx/io`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io.ts) entrypoint is a narrow staging boundary:
+The `femgx/io` entrypoint is a narrow staging boundary:
 validate the host payload, convert it once, and continue through the ordinary
 model workflow.
 
@@ -118,7 +118,7 @@ occurrence-specific results, selection, sectioning, and teardown.
 
 ## GLB display-scene input
 
-[`importGlb`](https://github.com/dirkphilip/femgx/blob/main/src/io/glb/importer.ts#L51) is published only from
+{@link io/glb.importGlb} is published only from
 `femgx/io/glb`. It preserves hierarchy, reusable triangle geometry, names, and
 basic color/alpha metadata. It does not invent FE nodes or elements and does
 not import external resources, textures, animation, lights, or units.
