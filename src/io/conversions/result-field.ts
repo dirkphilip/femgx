@@ -1,4 +1,9 @@
-import { createResultField, type ScalarField, type VectorField } from "../../results/fields";
+import {
+  createResultField,
+  registerElementalResultSource,
+  type ScalarField,
+  type VectorField,
+} from "../../results/fields";
 import { IoError, type Issue } from "../diagnostics";
 import type { FemModel, ModelResultField } from "../fem-model";
 import { validateModel } from "../model-validation";
@@ -29,9 +34,10 @@ export type ModelResultFieldConversionOptions =
  * Converts one interchange result into the dense field consumed by the
  * viewport.
  *
- * Node result ids map through the model's node table; element ids remain direct
- * indices so authored element identity stays pick-aligned. Missing source rows
- * become `NaN`, while duplicate or unknown identities throw an {@link IoError}.
+ * Node result ids map through the model's node table; elemental rows are packed
+ * in stable model element order while their source-id mapping remains private
+ * for the viewport boundary. Missing source rows become `NaN`, while duplicate
+ * or unknown identities throw an {@link IoError}.
  * A scalar result can be nodal or elemental. A vector result is deliberately
  * limited to three-component nodal data so it can drive viewport deformation.
  * @example Convert a parsed nodal result.
@@ -95,7 +101,11 @@ export function createResultFieldFromModelResult(
       values[targetOffset + component] = result.values[sourceOffset + component] ?? Number.NaN;
     }
   }
-  return createConvertedField(result, options, entityIndexes.count, values);
+  const field = createConvertedField(result, options, entityIndexes.count, values);
+  if (field.location === "elemental") {
+    registerElementalResultSource(field, entityIndexes.ids);
+  }
+  return field;
 }
 
 function createConvertedField(
@@ -139,26 +149,28 @@ function createConvertedField(
 interface EntityIndex {
   readonly count: number;
   readonly byId: ReadonlyMap<number, number>;
+  readonly ids: readonly number[];
 }
 
 function entityIndex(model: FemModel, location: ModelResultField["location"]): EntityIndex {
   if (location === "node") {
     const byId = new Map<number, number>();
+    const ids: number[] = [];
     for (let row = 0; row < model.nodes.ids.length; row += 1) {
       const id = model.nodes.ids[row];
-      if (id !== undefined) byId.set(id, row);
+      if (id !== undefined) {
+        byId.set(id, row);
+        ids.push(id);
+      }
     }
-    return { count: model.nodes.count, byId };
+    return { count: model.nodes.count, byId, ids };
   }
-  const byId = new Map<number, number>();
-  let count = 0;
+  const ids: number[] = [];
   for (const block of model.elementShapeBlocks) {
-    for (const id of block.ids) {
-      byId.set(id, id);
-      count = Math.max(count, id + 1);
-    }
+    ids.push(...block.ids);
   }
-  return { count, byId };
+  ids.sort((left, right) => left - right);
+  return { count: ids.length, byId: new Map(ids.map((id, ordinal) => [id, ordinal])), ids };
 }
 
 function validateConversion(

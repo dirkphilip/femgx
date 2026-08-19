@@ -1,7 +1,8 @@
 import type { Part, PartId } from "../geometry/part";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
-import { scalarAt, type ScalarField } from "../results/fields";
+import { elementalResultIndex, scalarAt, type ScalarField } from "../results/fields";
 import { mapScalar, type ScalarColorMap } from "../results/mapping";
+import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import { renderedPartIds } from "./results-roles";
@@ -60,8 +61,19 @@ export function validateResultCoverage(
     return;
   }
   for (const renderedPartId of targetPartIds(runtime, partId)) {
-    for (const element of scene.parts.get(renderedPartId)?.elements ?? []) {
-      validateElementId(field, renderedPartId, element.id);
+    const part = scene.parts.get(renderedPartId);
+    const elements = part?.elements ?? [];
+    const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
+    for (const [ordinal, element] of elements.entries()) {
+      const privateOrdinal = metadata?.elementOrdinalById.get(element.id);
+      const index = elementalResultIndex(
+        field,
+        element.id,
+        privateOrdinal === undefined ? ordinal : privateOrdinal - 1,
+        elements.length,
+        partId !== undefined,
+      );
+      if (index === undefined) validateElementId(field, renderedPartId, element.id);
     }
   }
 }
@@ -150,11 +162,24 @@ function buildElementalResultColors(
 ): ResultColorMap {
   const colors = new Map<PartId, ResultColorTable>();
   for (const renderedPartId of targetPartIds(runtime, partId)) {
-    const elements = scene.parts.get(renderedPartId)?.elements;
-    if (elements === undefined || elements.length === 0) continue;
+    const part = scene.parts.get(renderedPartId);
+    if (part === undefined || part.elements === undefined || part.elements.length === 0) continue;
+    const elements = part.elements;
+    const metadata = getPartSemanticIndex(part);
     const values = new Float32Array((elements.length + 1) * 4);
     for (const [index, element] of elements.entries()) {
-      const color = mapScalar(colorMap, scalarAt(field, element.id));
+      const privateOrdinal = metadata.elementOrdinalById.get(element.id);
+      const fieldIndex = elementalResultIndex(
+        field,
+        element.id,
+        privateOrdinal === undefined ? index : privateOrdinal - 1,
+        elements.length,
+        partId !== undefined,
+      );
+      const color = mapScalar(
+        colorMap,
+        fieldIndex === undefined ? NaN : scalarAt(field, fieldIndex),
+      );
       const offset = (index + 1) * 4;
       values[offset] = color.r;
       values[offset + 1] = color.g;

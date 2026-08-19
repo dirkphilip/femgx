@@ -15,8 +15,10 @@ element orientation uses the separate `createElementFrameField` constructor:
   authored nodal vectors drive deformation, while authored elemental vectors can
   drive the bounded orientation glyph role.
 - `values` is `count * FIELD_COMPONENT_COUNT[shape]` floats, one entity after
-  another, index-aligned with the owning model's node/element numbering. The
-  array is referenced (not copied) so large models stay cheap; treat it as
+  another. Nodal rows retain their dense node-row convention; part-targeted
+  elemental rows use private part-local ordinals. The IO conversion preserves
+  stable source element ids in a private mapping while storing only dense rows.
+  The array is referenced (not copied) so large models stay cheap; treat it as
   immutable after construction.
 - `unit` is an opaque display string ("mm", "MPa", ...); the library never
   converts units.
@@ -33,8 +35,9 @@ element orientation uses the separate `createElementFrameField` constructor:
 
 Host-supplied `FemModel` results enter this same authored-field path through
 `createResultFieldFromModelResult`. It maps model node identities to dense
-coordinate rows, keeps element ids aligned with picking, and fills absent rows
-with `NaN`; it does not derive or average any engineering quantity.
+coordinate rows and compiles elemental source ids into dense rows while keeping
+the stable id mapping at the IO boundary; absent rows become `NaN`. It does not
+derive or average any engineering quantity.
 
 ## Ranges (`range.ts`)
 
@@ -58,7 +61,7 @@ private element ordinals, while nodal values use exact one-based node pick ids
 and the existing tessellation interpolates them on the GPU. Both paths preserve
 host interaction state and share the table across placements. A scalar config
 may name one reusable `partId` when the dense field is part-local; omitting it
-retains the scene-wide identity contract.
+retains the scene-wide stable-id mapping contract.
 
 ## Canonical viewport workflow
 
@@ -66,8 +69,8 @@ retains the scene-wide identity contract.
 helpers into one atomic authored result snapshot. Each role is optional, but
 at least one must be present. An authored scalar field may be nodal or
 elemental. Nodal values map through exact node pick ids and interpolate over
-existing tessellation nodes; elemental values map directly to element ids and
-render flat. An omitted range is computed from finite values (constant fields
+existing tessellation nodes; elemental values resolve stable ids to private
+part-local ordinals and render flat. An omitted range is computed from finite values (constant fields
 receive a small expanded range), while an explicit color map must use the same
 range.
 

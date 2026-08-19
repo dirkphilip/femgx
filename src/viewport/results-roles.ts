@@ -75,8 +75,13 @@ export function resolveOrientation(
       partId,
       decorateRecords(
         config.glyph === "triad"
-          ? resolveElementalFrameRecords(part, config.field, displacements)
-          : resolveElementalOrientationRecords(part, config.field, displacements),
+          ? resolveElementalFrameRecords(part, config.field, displacements, true)
+          : resolveElementalOrientationRecords(
+              part,
+              config.field,
+              displacements,
+              config.partId !== undefined,
+            ),
         config.glyph === "triad" ? 2 : config.glyph === "axis" ? 1 : 0,
         config.glyph === "triad" ? "direction" : config.transform,
         lengthScale,

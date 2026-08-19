@@ -5,6 +5,9 @@ import {
   nodalDisplacement,
   nodalScalar,
   createResultField,
+  createPart,
+  createScene,
+  identity,
   resolveViewportResults,
   viewportResultColors,
 } from "./support";
@@ -81,6 +84,59 @@ describe("viewport results workflow", () => {
     expect(() =>
       resolveViewportResults({ scalar: { field: elementalScalar(), partId: 2 } }, scene, runtime),
     ).toThrow("part 2 is not rendered");
+  });
+
+  it("maps dense part rows to sparse authored element ids", () => {
+    const part = createPart(1, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1]),
+          indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+          primitive: "triangles" as const,
+        },
+      ],
+      elements: [
+        {
+          id: 80,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 20,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
+      ],
+    });
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "sparse",
+        placements: [{ kind: "part", partId: 1, transform: identity() }],
+      })
+      .withRoot(1)
+      .build();
+    const field = createResultField({
+      id: "dense-sparse-elements",
+      name: "Dense sparse elements",
+      location: "elemental",
+      shape: "scalar",
+      count: 2,
+      unit: "MPa",
+      values: new Float32Array([8, 2]),
+    });
+    const runtime = {
+      instanceCount: 1,
+      getPartId: () => 1,
+      getInstanceId: () => "1/0",
+    } as never;
+
+    const resolved = resolveViewportResults(
+      { scalar: { field, partId: 1, range: { min: 0, max: 10 } } },
+      scene,
+      runtime,
+    );
+    const values = viewportResultColors(resolved)?.get(1)?.values;
+    expect(values?.slice(4, 8)).not.toEqual(values?.slice(8, 12));
   });
 
   it("reuses derived result buffers when authored arrays are unchanged", () => {

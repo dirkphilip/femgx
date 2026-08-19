@@ -125,7 +125,9 @@ export const FIELD_COMPONENT_COUNT: Readonly<Record<FieldShape, number>> = {
  *
  * - `values` holds `count * components` floats, one entity after another. The
  *   entity index aligns with the owning model's node or element numbering
- *   (the field does not copy the model, it is index-aligned to it).
+ *   (the field does not copy the model, it is index-aligned to it). Imported
+ *   elemental fields retain their stable source-id mapping privately while
+ *   storing rows densely.
  * - Missing values are encoded as `NaN` anywhere a component is unknown. All
  *   range helpers skip `NaN` rather than treating it as zero.
  * - `unit` is an opaque, human-readable unit string ("mm", "MPa", ...). The
@@ -174,13 +176,43 @@ export type VectorField<L extends FieldLocation> = ResultField<"vector", L>;
 export type AnyResultField =
   ResultField<FieldShape, FieldLocation> | ElementFrameField | NodalLoadField;
 
+interface ElementalResultSource {
+  readonly ordinalById: ReadonlyMap<number, number>;
+}
+
+const elementalResultSources = new WeakMap<object, ElementalResultSource>();
+
+/** Registers stable source identities for an imported elemental field. */
+export function registerElementalResultSource(
+  field: ResultField<FieldShape, "elemental">,
+  elementIds: readonly number[],
+): void {
+  const ordinalById = new Map<number, number>();
+  elementIds.forEach((elementId, ordinal) => ordinalById.set(elementId, ordinal));
+  elementalResultSources.set(field, { ordinalById });
+}
+
+/** Resolves a stable element id to a dense field row at a private boundary. */
+export function elementalResultIndex(
+  field: { readonly count: number },
+  elementId: number,
+  elementOrdinal: number,
+  elementCount: number,
+  densePartLocal = true,
+): number | undefined {
+  const source = elementalResultSources.get(field);
+  if (source !== undefined) return source.ordinalById.get(elementId);
+  if (densePartLocal && field.count === elementCount) return elementOrdinal;
+  return elementId >= 0 && elementId < field.count ? elementId : undefined;
+}
+
 /**
  * Inputs for {@link createResultField}.
  *
  * `count` is the number of addressable model entities, not the number of finite
- * values. For elemental fields it must exceed the highest element id that the
- * scene references; individual entries may still be `NaN` when the source
- * result is missing.
+ * values. Elemental fields authored directly for a part use its dense element
+ * order; imported elemental fields are compiled densely from stable source ids.
+ * Individual entries may still be `NaN` when the source result is missing.
  * @category Results
  */
 export interface ResultFieldOptions<S extends FieldShape, L extends FieldLocation> {

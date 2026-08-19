@@ -43,7 +43,7 @@ describe("createResultFieldFromModelResult", () => {
     expect([...field.values.slice(2)]).toEqual([3]);
   });
 
-  it("maps sparse element ids without changing pick identity", () => {
+  it("maps sparse element ids into dense rows without changing identity", () => {
     const field = createResultFieldFromModelResult(model(), result("element", 1, [300], [8]), {
       id: "stress",
       unit: "MPa",
@@ -51,9 +51,20 @@ describe("createResultFieldFromModelResult", () => {
     });
 
     expect(field.location).toBe("elemental");
-    expect(field.count).toBe(301);
-    expect(Number.isNaN(field.values[100])).toBe(true);
-    expect(field.values[300]).toBe(8);
+    expect(field.count).toBe(2);
+    expect(Number.isNaN(field.values[0])).toBe(true);
+    expect(field.values[1]).toBe(8);
+  });
+
+  it("orders dense rows independently of source result row order", () => {
+    const field = createResultFieldFromModelResult(
+      model(),
+      result("element", 1, [300, 100], [8, 4]),
+      { id: "stress-ordered", unit: "MPa", shape: "scalar" },
+    );
+
+    expect(field.count).toBe(2);
+    expect([...field.values]).toEqual([4, 8]);
   });
 
   it("converts only explicitly requested three-component nodal vectors", () => {
