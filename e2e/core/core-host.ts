@@ -22,6 +22,7 @@ import {
   type SelectionPhase,
 } from "./selection-precedence";
 import { runOccurrenceResults } from "./occurrence-results";
+import { hardwareConformanceScene, runHardwareConformance } from "./hardware-conformance";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");
 const statusElement = document.querySelector<HTMLOutputElement>("#core-status");
@@ -30,6 +31,9 @@ if (canvasElement === null || statusElement === null) {
 }
 const canvas = canvasElement;
 const status = statusElement;
+const stageElement = document.querySelector<HTMLElement>("#core-stage");
+if (stageElement === null) throw new Error("core host stage is missing");
+const stage: HTMLElement = stageElement;
 let viewport: Viewport | undefined;
 
 const hostWindow = window as typeof window & {
@@ -97,20 +101,24 @@ function coreScene(placementCount = 1, separated = false) {
 
 async function start(): Promise<void> {
   const caseName = new URLSearchParams(location.search).get("case") ?? "foundation";
+  document.body.dataset["case"] = caseName;
   const selectionCase = caseName.startsWith("selection-precedence");
-  const scene = selectionCase
-    ? selectionScene(
-        caseName.includes("reverse") || caseName.includes("behind"),
-        caseName.includes("behind"),
-      )
-    : coreScene(
-        caseName === "instancing" ||
-          caseName === "transparency" ||
-          caseName === "occurrence-results"
-          ? 2
-          : 1,
-        caseName === "transparency",
-      );
+  const scene =
+    caseName === "hardware-conformance"
+      ? hardwareConformanceScene()
+      : selectionCase
+        ? selectionScene(
+            caseName.includes("reverse") || caseName.includes("behind"),
+            caseName.includes("behind"),
+          )
+        : coreScene(
+            caseName === "instancing" ||
+              caseName === "transparency" ||
+              caseName === "occurrence-results"
+              ? 2
+              : 1,
+            caseName === "transparency",
+          );
   let frames = 0;
   try {
     viewport = await createViewport({
@@ -120,6 +128,7 @@ async function start(): Promise<void> {
         frames += 1;
         canvas.dataset["frames"] = String(frames);
       },
+      ...(caseName === "hardware-conformance" ? { orientationGizmo: { container: stage } } : {}),
     });
     hostWindow.femgxCore = {
       destroy: () => {
@@ -159,6 +168,9 @@ async function runCase(caseName: string, current: Viewport): Promise<void> {
       return;
     case "occurrence-results":
       runOccurrenceResults(current, setStatus);
+      return;
+    case "hardware-conformance":
+      await runHardwareConformance(current, canvas, setStatus);
       return;
     case "camera":
       runCamera(current);

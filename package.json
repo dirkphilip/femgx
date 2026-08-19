@@ -121,6 +121,8 @@
     "test:e2e:core": "playwright test --project=chrome e2e/core",
     "test:e2e:demo": "playwright test --project=chrome e2e/demo",
     "test:e2e:combined": "playwright test --project=chrome --workers=1",
+    "test:e2e:conformance": "playwright test --project=chrome --workers=1 e2e/core/core-journeys.spec.ts -g \"captures bounded hardware-WebGPU conformance evidence\"",
+    "test:e2e:conformance:summary": "node scripts/webgpu-conformance.mjs summary test-results",
     "test:e2e:layout": "playwright test --project=chrome e2e/demo/demo-layout.spec.ts",
     "test:e2e:software": "playwright test --project=chrome-software --project=chrome-software-interaction",
     "test:e2e:performance": "RUN_PERF=1 playwright test --project=chrome e2e/demo/perf.spec.ts",

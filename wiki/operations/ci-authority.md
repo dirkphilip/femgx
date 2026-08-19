@@ -24,8 +24,14 @@ not lost when a run fails.
 The required `e2e` job runs only the WebGPU-unsupported smoke. It uses the
 Ubuntu runner's installed branded Google Chrome, verifies its executable and
 version before launching Playwright, and does not download a Playwright browser.
-The full hardware-WebGPU lane remains local until a GPU runner is available;
-the CI smoke must not enable SwiftShader or imply visual WebGPU coverage.
+The full hardware-WebGPU lane remains local; the CI smoke must not enable
+SwiftShader or imply visual WebGPU coverage. The manually dispatched
+`Hardware WebGPU conformance` workflow is a separate evidence lane over a
+bounded deterministic journey. It targets explicitly labelled Apple and
+Windows/NVIDIA self-hosted runners, retains browser/adapter JSON and
+desktop/mobile screenshots for 30 days, and fails when requested hardware is
+unavailable. It is not a required branch-protection context and does not compare
+frame rates across devices.
 
 The required `check` context is a small aggregator over three parallel jobs:
 `check-static` owns pre-commit, formatting, type checking, linting, and API

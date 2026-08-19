@@ -66,6 +66,7 @@ describe("browser suite ownership", () => {
       "test:e2e:core",
       "test:e2e:demo",
       "test:e2e:combined",
+      "test:e2e:conformance",
       "test:e2e:layout",
       "test:e2e:software",
       "test:e2e:performance",
