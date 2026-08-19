@@ -23,10 +23,26 @@ fn sectionPlaneVisible(worldPosition: vec3<f32>) -> bool {
 }
 `;
 
+/** Resolves fragment color while snapping interpolation noise at the alpha boundaries. */
+export const displayedColorFunction = /* wgsl */ `
+fn resolvedDisplayedColor(
+  color: vec4<f32>,
+  resultColor: vec4<f32>,
+  resultColorEnabled: bool,
+) -> vec4<f32> {
+  let resolved = select(color, resultColor, resultColorEnabled);
+  let alpha = clamp(resolved.a, 0.0, 1.0);
+  let nonzeroAlpha = select(alpha, 0.0, alpha <= 1e-5);
+  let stableAlpha = select(nonzeroAlpha, 1.0, nonzeroAlpha >= 1.0 - 1e-5);
+  return vec4<f32>(resolved.rgb, stableAlpha);
+}
+`;
+
 /** Fragment stage for the visible color pass; emissive adds a white glow. */
 export const colorFragmentShader = /* wgsl */ `
 ${sectionPlaneBindings}
 ${sectionPlaneFunction}
+${displayedColorFunction}
 
 @fragment
 fn fragmentMain(
@@ -37,7 +53,7 @@ fn fragmentMain(
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
 ) -> @location(0) vec4<f32> {
-  let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
+  let displayedColor = resolvedDisplayedColor(color, resultColor, resultColorEnabled != 0u);
   if (dot(local, local) > 1.0 || displayedColor.a < 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   return vec4<f32>(displayedColor.rgb + vec3<f32>(emissive), displayedColor.a);
 }

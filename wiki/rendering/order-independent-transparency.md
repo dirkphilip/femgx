@@ -92,10 +92,12 @@ opacity does not create click-through or multi-hit semantics. Per-part order
 buffers remain deterministic; no CPU depth tracking, sorting, or material
 clones are needed.
 
-Resolved style color is a flat per-primitive shader varying. This preserves the
-exact alpha written by the CPU: perspective interpolation must not perturb
-opaque alpha below `1` and make the opaque-pass classification discard scattered
-samples on some GPU backends.
+Resolved style color is a flat per-primitive shader varying. Nodal result color
+must remain perspective-interpolated, so the fragment stage snaps only
+interpolation noise within `1e-5` of transparent and opaque alpha boundaries
+before pass classification. This preserves meaningful fractional values while
+preventing an authored opaque result alpha from rounding below `1` and
+discarding scattered perspective samples on some GPU backends.
 
 The deterministic `transparency` demo preset contains a translucent shell, a
 solid interior, and two overlapping placements of one translucent part. The

@@ -1,5 +1,8 @@
 import { expect, it, describe } from "vitest";
-import { resultColorFunctions } from "../../../../src/renderer/shaders/scene";
+import {
+  displayedColorFunction,
+  resultColorFunctions,
+} from "../../../../src/renderer/shaders/scene";
 import {
   EMISSIVE_BYTE_OFFSET,
   INSTANCE_STRIDE,
@@ -283,6 +286,21 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     ]) {
       expect(shader).toContain("@location(0) @interpolate(flat) color: vec4<f32>");
     }
+  });
+
+  it("stabilizes interpolated result alpha before opaque and transparent classification", () => {
+    expect(displayedColorFunction).toContain("alpha <= 1e-5");
+    expect(displayedColorFunction).toContain("nonzeroAlpha >= 1.0 - 1e-5");
+    for (const shader of [
+      colorFragmentShader,
+      triangleColorFragmentShader,
+      transparencyFragmentShader,
+      triangleTransparencyFragmentShader,
+    ]) {
+      expect(shader).toContain("resolvedDisplayedColor(");
+    }
+    expect(vertexOutput).toContain("@location(10) resultColor: vec4<f32>");
+    expect(vertexOutput).not.toContain("@location(10) @interpolate(flat) resultColor");
   });
 
   it("lights only triangle surfaces from displayed world-space derivatives", () => {
