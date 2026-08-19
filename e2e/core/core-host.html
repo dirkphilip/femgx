@@ -26,12 +26,26 @@
         height: 480px;
         background: #252d38;
       }
+      #core-stage {
+        position: relative;
+        width: 640px;
+      }
+      body[data-case="hardware-conformance"] {
+        min-width: 0;
+      }
+      body[data-case="hardware-conformance"] #core-stage {
+        width: min(960px, calc(100vw - 32px));
+      }
+      body[data-case="hardware-conformance"] #core-canvas {
+        width: 100%;
+        height: min(640px, calc(100vh - 80px));
+      }
     </style>
   </head>
   <body>
     <main>
       <output id="core-status" data-result="loading">Core host loading</output>
-      <canvas id="core-canvas" width="640" height="480"></canvas>
+      <div id="core-stage"><canvas id="core-canvas" width="640" height="480"></canvas></div>
     </main>
     <script type="module" src="./core-host.ts"></script>
   </body>

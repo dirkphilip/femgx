@@ -5,9 +5,10 @@ WebGPU is the product's only renderer (see
 contract (render, pick, pixels, recovery) runs against **system Chrome with
 hardware WebGPU** via `npm run test:e2e`. That is the developer lane today.
 
-CI does **not** use SwiftShader as a stand-in for real WebGPU. Until a GPU
-runner exists, CI only runs the no-GPU unsupported-contract smoke
-(`npm run test:e2e:no-gpu`).
+CI does **not** use SwiftShader as a stand-in for real WebGPU. Merge CI runs the
+no-GPU unsupported-contract smoke (`npm run test:e2e:no-gpu`). A separate
+manual conformance workflow records hardware evidence without weakening that
+merge contract.
 
 ## How it runs
 
@@ -54,11 +55,30 @@ WebGPU:
    byte-identical before comparing states. Dynamic and focus-sensitive demo
    chrome is masked when the assertion concerns renderer pixels.
 
-## Future: GPU CI runner
+## Cross-vendor conformance evidence
 
-A self-hosted (or cloud) runner with a real GPU should run the full
-`--project=chrome` suite in CI. Until then, treat local `npm run test:e2e` as
-the authoritative WebGPU interaction/pixel gate.
+Run `npm run test:e2e:conformance` for the bounded local journey, or dispatch
+`Hardware WebGPU conformance` in GitHub Actions to compare Apple and
+Windows/NVIDIA. The workflow discovers online self-hosted runners by these
+fixed labels:
+
+- `femgx-webgpu-apple` — system Chrome on Apple hardware and macOS;
+- `femgx-webgpu-nvidia` — system Chrome on NVIDIA hardware and Windows.
+
+The journey deterministically combines perspective projection, authored scalar
+color, simultaneous selection and highlight, transparency, a section plane,
+region and point picking, and orientation-gizmo interaction. It retains JSON
+adapter/browser identity plus full-page desktop and 390×844 screenshots for 30
+days. The comparison verifies the expected operating system and adapter vendor,
+rejects fallback/software adapters, and requires both captures and all semantic
+assertions. A requested target without an online labelled runner is reported as
+**unavailable** and fails the workflow; it is never converted into a skip or a
+green result. This is a correctness comparison, not a cross-device frame-rate
+benchmark.
+
+The complete local `npm run test:e2e` system-Chrome suite remains the
+authoritative pre-merge interaction/pixel gate. The manual cross-vendor lane
+adds retained hardware evidence for the bounded combined journey.
 
 ## Demo test surface
 

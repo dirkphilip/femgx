@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { drawnPixels, pixelHash, pixelMetrics } from "../browser-support/helpers";
 
@@ -14,6 +15,14 @@ async function openCase(page: Page, name: string) {
 interface OrangeMetrics {
   readonly pixels: number;
   readonly dominantRgb: number;
+}
+
+interface HardwareAdapterEvidence {
+  readonly architecture: string;
+  readonly description: string;
+  readonly device: string;
+  readonly isFallbackAdapter: boolean;
+  readonly vendor: string;
 }
 
 test("presents two reusable public part occurrences as one instanced frame", async ({ page }) => {
@@ -118,6 +127,98 @@ test("renders the copyable dense host integration at desktop and mobile", async 
     });
   }
 });
+
+test("captures bounded hardware-WebGPU conformance evidence", async ({ page }, testInfo) => {
+  const captures: Array<{
+    readonly name: string;
+    readonly width: number;
+    readonly height: number;
+    readonly distinctColors: number;
+    readonly saturatedPixels: number;
+    readonly hash: string;
+    readonly screenshot: string;
+  }> = [];
+  let adapter: HardwareAdapterEvidence | null = null;
+  for (const viewport of [
+    { name: "desktop", width: 1280, height: 720 },
+    { name: "mobile-390x844", width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const { canvas, status } = await openCase(page, "hardware-conformance");
+    const detail = JSON.parse((await status.getAttribute("data-detail")) ?? "{}") as {
+      projection?: string;
+      scalar?: string;
+      section?: boolean;
+      selectedAndHighlighted?: boolean;
+      transparentOccurrence?: boolean;
+      region?: number;
+      picked?: string;
+    };
+    expect(detail).toEqual({
+      projection: "perspective",
+      scalar: "conformance-scalar",
+      section: true,
+      selectedAndHighlighted: true,
+      transparentOccurrence: true,
+      region: 2,
+      picked: "face",
+    });
+    adapter ??= await readHardwareAdapter(page);
+    expect(adapter).not.toBeNull();
+    expect(adapter?.isFallbackAdapter).toBe(false);
+    expect(`${adapter?.vendor} ${adapter?.device} ${adapter?.description}`).not.toMatch(
+      /swiftshader|llvmpipe|lavapipe|software/i,
+    );
+    const metrics = await pixelMetrics(canvas);
+    expect(metrics.distinctColors).toBeGreaterThan(32);
+    expect(metrics.saturatedPixels).toBeGreaterThan(1_000);
+    const face = page.locator('[data-femgx-orientation-gizmo="true"] [data-view-face="front"]');
+    const before = await face.locator("polygon").getAttribute("points");
+    await page
+      .locator('[data-femgx-orientation-gizmo="true"] [data-view-corner="+++"] circle')
+      .click();
+    await expect.poll(() => face.locator("polygon").getAttribute("points")).not.toBe(before);
+    const screenshot = `hardware-conformance-${viewport.name}.png`;
+    await page.screenshot({ path: testInfo.outputPath(screenshot), fullPage: true });
+    captures.push({ ...viewport, ...metrics, screenshot });
+  }
+  const evidence = {
+    schemaVersion: 1,
+    kind: "hardware-webgpu-conformance",
+    capturedAt: new Date().toISOString(),
+    target: process.env["FEMGX_CONFORMANCE_TARGET"] ?? null,
+    gitSha: process.env["GITHUB_SHA"] ?? "local",
+    platform: process.platform,
+    architecture: process.arch,
+    browser: { name: "Google Chrome", version: page.context().browser()?.version() ?? "unknown" },
+    adapter,
+    assertions: {
+      perspective: true,
+      scalarColors: true,
+      selectedAndHighlighted: true,
+      transparency: true,
+      sectionCaps: true,
+      picking: true,
+      orientationGizmo: true,
+    },
+    captures,
+  };
+  const serialized = `${JSON.stringify(evidence, null, 2)}\n`;
+  await writeFile(testInfo.outputPath("hardware-conformance.json"), serialized, "utf8");
+  await testInfo.attach("hardware-conformance", {
+    body: serialized,
+    contentType: "application/json",
+  });
+});
+
+async function readHardwareAdapter(page: Page): Promise<HardwareAdapterEvidence | null> {
+  return page.evaluate(async () => {
+    const resolved = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+    if (resolved === null) return null;
+    const { architecture, description, device, isFallbackAdapter, vendor } = resolved.info;
+    return { architecture, description, device, isFallbackAdapter, vendor };
+  });
+}
 
 test("applies a public camera transition and restores a fitted view", async ({ page }) => {
   const { canvas, status } = await openCase(page, "camera");

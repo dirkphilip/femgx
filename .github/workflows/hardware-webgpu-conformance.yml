@@ -1,0 +1,112 @@
+name: Hardware WebGPU conformance
+
+on:
+  workflow_dispatch:
+    inputs:
+      apple:
+        description: Require Apple hardware evidence
+        type: boolean
+        default: true
+      windows_nvidia:
+        description: Require Windows / NVIDIA hardware evidence
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: hardware-webgpu-conformance
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      required: ${{ steps.plan.outputs.required }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Discover hardware runners
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" > "$RUNNER_TEMP/runners.json"
+
+      - name: Plan requested targets
+        id: plan
+        env:
+          REQUEST_APPLE: ${{ inputs.apple }}
+          REQUEST_WINDOWS_NVIDIA: ${{ inputs.windows_nvidia }}
+        run: node scripts/webgpu-conformance.mjs plan "$RUNNER_TEMP/runners.json"
+
+  conformance:
+    name: ${{ matrix.name }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - name: Report unrequested target
+        if: ${{ matrix.state == 'not-requested' }}
+        shell: bash
+        run: echo "${{ matrix.name }} was not requested." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report unavailable hardware
+        if: ${{ matrix.state == 'unavailable' }}
+        shell: bash
+        run: |
+          echo "${{ matrix.name }} hardware is unavailable: no online runner has the required label." | tee -a "$GITHUB_STEP_SUMMARY"
+          exit 1
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: ${{ matrix.state == 'available' }}
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: ${{ matrix.state == 'available' }}
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        if: ${{ matrix.state == 'available' }}
+        run: npm ci
+
+      - name: Capture deterministic conformance evidence
+        if: ${{ matrix.state == 'available' }}
+        env:
+          FEMGX_CONFORMANCE_TARGET: ${{ matrix.target }}
+        run: npm run test:e2e:conformance
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: ${{ always() && matrix.state == 'available' }}
+        with:
+          name: hardware-webgpu-${{ matrix.target }}
+          path: |
+            test-results/**/hardware-conformance.json
+            test-results/**/hardware-conformance-*.png
+          if-no-files-found: warn
+          retention-days: 30
+
+  summary:
+    if: ${{ always() }}
+    needs: [plan, conformance]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download available evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        continue-on-error: true
+        with:
+          pattern: hardware-webgpu-*
+          path: conformance-evidence
+
+      - name: Compare requested targets
+        env:
+          FEMGX_CONFORMANCE_REQUIRE: ${{ needs.plan.outputs.required }}
+        run: node scripts/webgpu-conformance.mjs summary conformance-evidence
