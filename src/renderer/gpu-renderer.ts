@@ -11,6 +11,7 @@ import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnos
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import type { InteractionState } from "../interaction/interaction";
+import type { Part } from "../geometry/part";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
 
@@ -78,11 +79,12 @@ export function updateRendererOccurrences(
   runtime: PackedSceneRuntime,
   interaction: InteractionState,
   delta: RuntimeOccurrenceDelta,
+  parts: ReadonlyMap<PartId, Part>,
 ): void {
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("Incremental scene updates require the built-in WebGPU renderer");
   }
-  renderer.updateOccurrences(runtime, interaction, delta);
+  renderer.updateOccurrences(runtime, interaction, delta, parts);
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

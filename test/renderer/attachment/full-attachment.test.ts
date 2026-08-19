@@ -2,15 +2,22 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "../../../src/geometry/part";
 import { translation } from "../../../src/math/mat4";
 import { RendererAttachment } from "../../../src/renderer/attachment";
+import { createInteractionState } from "../../../src/interaction/interaction";
 import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
 import {
   encodeInstanceRecord,
   INSTANCE_STRIDE,
   type InstanceStorage,
 } from "../../../src/renderer/resources/instance-storage";
+import { uploadPart } from "../../../src/renderer/resources/draw-resources";
 import { defaultStyle } from "../../../src/renderer/resources/foundation";
+import {
+  applyOccurrenceMutations,
+  prepareOccurrenceMutations,
+} from "../../../src/scene-runtime/occurrence-update";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { createScene } from "../../../src/scene/scene";
+import { prepareSceneTransition } from "../../../src/scene/update";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 describe("cold renderer attachment", () => {
@@ -43,7 +50,66 @@ describe("cold renderer attachment", () => {
       restore();
     }
   });
+
+  it("retires only removed-part geometry and instance storage", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = buildTwoPartScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const attachment = new RendererAttachment();
+      attachment.prepareParts(scene.parts, bundle);
+      attachment.attach(runtime, bundle);
+      const removedPart = scene.parts.get(1);
+      const retainedPart = scene.parts.get(2);
+      if (removedPart === undefined || retainedPart === undefined) throw new Error("parts missing");
+      const removedGeometry = uploadPart(bundle.draw, removedPart);
+      const retainedGeometry = uploadPart(bundle.draw, retainedPart);
+      const removedStorage = bundle.draw.storages.get(1);
+      const retainedStorage = bundle.draw.storages.get(2);
+      if (removedStorage === undefined || retainedStorage === undefined) {
+        throw new Error("instance storage missing");
+      }
+      const prepared = prepareSceneTransition(scene, (update) => {
+        update.removePart(1, { occurrences: "remove" });
+      });
+      if (prepared === undefined) throw new Error("transition missing");
+      const occurrenceUpdate = prepareOccurrenceMutations(
+        runtime,
+        prepared.scene,
+        prepared.changes,
+      );
+      if (occurrenceUpdate === undefined) throw new Error("occurrence update missing");
+      const writesBefore = gpu.writes.length;
+
+      const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
+      attachment.updateOccurrences(runtime, createInteractionState(), delta, bundle);
+      const partDefinitions = new Map(scene.parts);
+      attachment.removeParts(delta.removedPartIds, partDefinitions, bundle);
+
+      expect(bundle.draw.parts.has(1)).toBe(false);
+      expect(partDefinitions.has(1)).toBe(false);
+      expect(bundle.draw.parts.get(2)).toBe(retainedGeometry);
+      expect(bundle.draw.storages.has(1)).toBe(false);
+      expect(bundle.draw.storages.get(2)).toBe(retainedStorage);
+      expect(bufferDestroyed(gpu, removedGeometry.vertexBuffer)).toBe(true);
+      expect(bufferDestroyed(gpu, retainedGeometry.vertexBuffer)).toBe(false);
+      expect(bufferDestroyed(gpu, removedStorage.buffer)).toBe(true);
+      expect(bufferDestroyed(gpu, retainedStorage.buffer)).toBe(false);
+      expect(
+        gpu.writes.slice(writesBefore).some(({ buffer }) => buffer === retainedStorage.buffer),
+      ).toBe(false);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
 });
+
+function bufferDestroyed(gpu: ReturnType<typeof fakeGpuDevice>, resource: GPUBuffer): boolean {
+  return gpu.buffers.find((buffer) => buffer.resource === resource)?.destroyed ?? false;
+}
 
 function assertStorage(
   storage: InstanceStorage | undefined,
@@ -86,6 +152,26 @@ function buildScene() {
         partId: 1,
         transform: translation(slot, slot * 2, slot * 3),
       })),
+    })
+    .withRoot(1)
+    .build();
+}
+
+function buildTwoPartScene() {
+  const geometry = {
+    primitive: "triangles" as const,
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+  };
+  return createScene()
+    .addPart(createPart(1, { geometries: [geometry] }))
+    .addPart(createPart(2, { geometries: [geometry] }))
+    .addAssembly({
+      id: 1,
+      placements: [
+        { kind: "part", placementId: "removed", partId: 1, transform: translation(0, 0, 0) },
+        { kind: "part", placementId: "retained", partId: 2, transform: translation(1, 0, 0) },
+      ],
     })
     .withRoot(1)
     .build();

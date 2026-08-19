@@ -1,11 +1,70 @@
-import type { PartId } from "../../geometry/part";
+import type { Part, PartId } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
 import type { RuntimeOccurrenceDelta } from "../../scene-runtime/occurrence-update";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { collectInstanceUpdates } from "../instance-updates";
-import { patchInstances, type DrawResources } from "../resources/draw-resources";
+import {
+  destroyInstancePartResources,
+  destroyPartResources,
+  patchInstances,
+  type DrawResources,
+} from "../resources/draw-resources";
 import { instanceAt, type InstanceLayout } from "../runtime-state";
 import type { AttachmentOrderParts, AttachmentState } from "./reconciliation";
+
+/** Releases renderer-local placement state after a part has no live occurrences. */
+export function releasePartAttachment(options: {
+  readonly runtime: PackedSceneRuntime | undefined;
+  readonly layout: InstanceLayout | undefined;
+  readonly partId: PartId;
+  readonly draw: DrawResources;
+}): void {
+  const runtimeSlots = options.runtime?.getPartInstanceSlots(options.partId);
+  if (runtimeSlots !== undefined && runtimeSlots.length > 0) {
+    throw new Error(`Cannot retire part ${options.partId} while occurrences remain attached`);
+  }
+  const { layout } = options;
+  if (layout !== undefined) {
+    layout.partSlots.delete(options.partId);
+    layout.partLocalSlots.delete(options.partId);
+    const orderIndex = layout.partOrder.indexOf(options.partId);
+    if (orderIndex >= 0) layout.partOrder.splice(orderIndex, 1);
+    for (const counts of partCountMaps(layout)) counts.delete(options.partId);
+  }
+  destroyInstancePartResources(options.draw, options.partId);
+}
+
+/** Retires exact removed definitions and reports whether attached resources changed. */
+export function releasePartDefinitions(options: {
+  readonly runtime: PackedSceneRuntime | undefined;
+  readonly layout: InstanceLayout | undefined;
+  readonly attachedParts: Map<PartId, Part>;
+  readonly sourceParts: Map<PartId, Part>;
+  readonly partIds: ReadonlySet<PartId>;
+  readonly draw: DrawResources;
+}): boolean {
+  let removed = false;
+  for (const partId of options.partIds) {
+    options.sourceParts.delete(partId);
+    if (!options.attachedParts.has(partId)) continue;
+    releasePartAttachment({ ...options, partId });
+    destroyPartResources(options.draw, partId);
+    options.attachedParts.delete(partId);
+    removed = true;
+  }
+  return removed;
+}
+
+function partCountMaps(layout: InstanceLayout): readonly Map<PartId, number>[] {
+  return [
+    layout.partVisibleCounts,
+    layout.partEdgeCounts,
+    layout.partNodeCounts,
+    layout.partTransparentCounts,
+    layout.partSelectionCounts,
+    layout.partSelectedNodeCounts,
+  ];
+}
 
 /** Applies exact occurrence membership and record changes to a retained attachment. */
 export function applyOccurrenceAttachment(options: {

@@ -7,9 +7,13 @@ import {
   fakeGpuDevice,
   installNavigator,
   installTestGpuGlobals,
+  isTargetSelected,
   identityScene,
+  nodalResult,
   RendererAttachment,
+  resultScene,
   setPartOverride,
+  setTargetSelected,
   translation,
 } from "./support";
 
@@ -96,6 +100,91 @@ describe("Viewport incremental part occurrences", () => {
     expect(attachment?.edgeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.nodeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.transparentCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
+    viewport.destroy();
+  });
+
+  it("removes a part and all occurrences without replacing unrelated runtime or GPU state", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const geometry = {
+      positions: new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles" as const,
+    };
+    const removedPart = createPart(1, { geometries: [geometry] });
+    const retainedPart = createPart(2, { geometries: [geometry] });
+    const scene = explicitScene(
+      [removedPart, retainedPart],
+      [
+        { kind: "part", placementId: "removed", partId: 1, transform: translation(0, 0, 0) },
+        { kind: "part", placementId: "retained", partId: 2, transform: translation(1, 0, 0) },
+      ],
+    );
+    const gpu = fakeGpuDevice();
+    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const clear = vi.spyOn(RendererAttachment.prototype, "clear");
+    const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
+    viewport.render();
+    const runtime = viewport.runtime;
+    let interaction = setTargetSelected(
+      viewport.interaction.state,
+      { kind: "part", partId: 1 },
+      true,
+    );
+    interaction = setTargetSelected(interaction, { kind: "part", partId: 2 }, true);
+    viewport.interaction.set(interaction);
+    updateOccurrences.mockClear();
+    clear.mockClear();
+
+    viewport.updateScene((update) => {
+      update.removePart(1, { occurrences: "remove" });
+    });
+
+    const attachment = updateOccurrences.mock.instances[0] as RendererAttachment | undefined;
+    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.scene.parts.has(1)).toBe(false);
+    expect(viewport.runtime.getPartOccurrence("1/removed")).toBeUndefined();
+    expect(viewport.runtime.getPartId("1/retained")).toBe(2);
+    expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 1 })).toBe(false);
+    expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 2 })).toBe(true);
+    expect(attachment?.layout?.partOrder).toEqual([2]);
+    expect(attachment?.calls).toEqual([{ partId: 2, instanceCount: 1 }]);
+    expect(updateOccurrences).toHaveBeenCalledTimes(1);
+    expect(clear).not.toHaveBeenCalled();
+    expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
+    expect(gpu.buffers.some((buffer) => !buffer.destroyed)).toBe(true);
+    viewport.destroy();
+  });
+
+  it("clears result roles owned by a removed part on the incremental path", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const part = resultScene(3).parts.get(1);
+    if (part === undefined) throw new Error("result part missing");
+    const scene = explicitScene(
+      [part],
+      [
+        {
+          kind: "part",
+          placementId: "result",
+          partId: 1,
+          transform: translation(0, 0, 0),
+        },
+      ],
+    );
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene,
+      results: { scalar: { ...nodalResult(3).scalar, partId: 1 } },
+      device: fakeGpuDevice().device,
+    });
+
+    const outcome = viewport.updateScene((update) => {
+      update.removePart(1, { occurrences: "remove" });
+    });
+
+    expect(outcome.results).toBe("cleared");
+    expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
 });

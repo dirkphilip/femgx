@@ -7,16 +7,19 @@ import {
   translation,
   type Viewport,
   type Scene,
-} from "../../src/entries/root";
-import { RendererAttachment } from "../../src/renderer/attachment";
-import { remapAttachmentFlags } from "../../src/renderer/attachment/reconciliation";
-import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
-import { destroyVisibilitySkinCache } from "../../src/renderer/visibility/skins";
-import { createPackedSceneRuntime, type PackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createInteractionState } from "../../src/interaction/interaction";
-import { setElementVisible } from "../../src/interaction/elements";
-import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
-import { measureMs, measureScaling } from "./measure";
+} from "../../../src/entries/root";
+import { RendererAttachment } from "../../../src/renderer/attachment";
+import { remapAttachmentFlags } from "../../../src/renderer/attachment/reconciliation";
+import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
+import { destroyVisibilitySkinCache } from "../../../src/renderer/visibility/skins";
+import {
+  createPackedSceneRuntime,
+  type PackedSceneRuntime,
+} from "../../../src/scene-runtime/runtime";
+import { createInteractionState } from "../../../src/interaction/interaction";
+import { setElementVisible } from "../../../src/interaction/elements";
+import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
+import { measureMs, measureScaling } from "../measure";
 
 const PLACEMENT_COUNTS = [1_024, 4_096, 16_384] as const;
 const VISIBILITY_FACE_COUNTS = [16_384, 65_536, 262_144] as const;

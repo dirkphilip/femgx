@@ -231,11 +231,14 @@ export class GpuRenderer implements WebGpuRenderer {
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     delta: Parameters<RendererAttachment["updateOccurrences"]>[2],
+    parts: ReadonlyMap<PartId, Part>,
   ): void {
     this.ensureAlive();
     this.interaction = interaction;
     this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
-    this.sectionCaps.invalidate();
+    if (this.sourceParts !== undefined) this.sourceParts = parts;
+    this.attachment.removeParts(delta.removedPartIds, this.parts, this.lifecycle.bundle);
+    this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
     this.picking.invalidate();
   }
 

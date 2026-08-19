@@ -43,6 +43,7 @@ interface CapBuildOptions {
 
 export interface SectionCapFrame {
   readonly parts: ReadonlyMap<PartId, Part>;
+  readonly sourcePartIds: ReadonlyMap<PartId, PartId>;
   readonly calls: readonly DrawCall[];
   readonly transparentCalls: readonly DrawCall[];
   readonly allCalls: readonly DrawCall[];
@@ -54,6 +55,7 @@ const CAP_TRANSFORM = identity();
 /** Builds active occurrence caps into renderer-private reusable draw records. */
 export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame {
   const capParts = new Map<PartId, Part>();
+  const sourcePartIds = new Map<PartId, PartId>();
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
@@ -92,6 +94,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         const style = capStyle(options, instance, element.id, metadata);
         const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
+        sourcePartIds.set(capId, sourcePart.id);
         const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
         allCalls.push(call);
         if (style.color.a * style.opacity < 1) transparentCalls.push(call);
@@ -108,7 +111,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
       }
     }
   }
-  return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+  return { parts: capParts, sourcePartIds, calls, transparentCalls, allCalls, resultColors };
 }
 
 function capStyle(
