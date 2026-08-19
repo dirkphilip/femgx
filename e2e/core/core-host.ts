@@ -158,6 +158,11 @@ async function runCase(caseName: string, current: Viewport): Promise<void> {
     case "transparency":
       runTransparency(current);
       return;
+    case "emphasis-minimal":
+    case "emphasis-feature":
+    case "emphasis-transparent":
+      runSelectedHighlight(current, caseName);
+      return;
     case "selection-precedence-forward":
     case "selection-precedence-reverse":
     case "selection-precedence-behind":
@@ -308,6 +313,44 @@ function runTransparency(current: Viewport): void {
     },
   };
   setStatus("transparency", "front-0.45-back-0.75");
+}
+
+function runSelectedHighlight(current: Viewport, caseName: string): void {
+  const feature = caseName === "emphasis-feature";
+  const transparent = caseName === "emphasis-transparent";
+  let interaction = createInteractionState({
+    highlighted: {
+      color: { r: 0.1, g: 0.4, b: 1, a: 1 },
+      emissive: 0.1,
+      opacity: 0.5,
+    },
+    selected: {
+      color: { r: 0.95, g: 0.5, b: 0.1, a: transparent ? 0.55 : 1 },
+      opacity: 1,
+    },
+  });
+  const target = { kind: "partOccurrence", partOccurrenceId: "1/0" } as const;
+  interaction = setTargetHighlighted(interaction, target, true);
+  interaction = setTargetSelected(interaction, target, true);
+  if (feature) {
+    current.results.set({
+      scalar: {
+        field: createResultField({
+          id: "emphasis-result",
+          name: "Emphasis result",
+          location: "elemental",
+          shape: "scalar",
+          count: 2,
+          unit: "unitless",
+          values: new Float32Array([Number.NaN, 0.25]),
+        }),
+        range: { min: 0, max: 1 },
+      },
+    });
+  }
+  current.interaction.set(interaction);
+  current.render();
+  setStatus(caseName, "selected-plus-highlighted");
 }
 
 function installSelectionPrecedence(current: Viewport, caseName: string, behind: boolean): void {

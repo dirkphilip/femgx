@@ -96,6 +96,26 @@ test("weights transparent instances and changes exact element emphasis", async (
   await expect.poll(() => pixelHash(canvas)).not.toBe(initial);
 });
 
+test("keeps selection color beneath highlight across minimal and feature admission", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const captures = new Map<string, OrangeMetrics>();
+    for (const admission of ["minimal", "feature", "transparent"] as const) {
+      const { canvas } = await openCase(page, `emphasis-${admission}`);
+      captures.set(admission, await orangeMetrics(canvas, page));
+    }
+    expect(captures.get("minimal")?.pixels).toBeGreaterThan(0);
+    expect(captures.get("feature")?.pixels).toBeGreaterThan(0);
+    expect(captures.get("feature")?.dominantRgb).toBe(captures.get("minimal")?.dominantRgb);
+    expect(captures.get("transparent")?.pixels).toBeGreaterThan(0);
+  }
+});
+
 test("keeps equal-depth selected cues independent of fast-path order", async ({ page }) => {
   const captures = new Map<string, OrangeMetrics>();
   for (const order of ["forward", "reverse"] as const) {

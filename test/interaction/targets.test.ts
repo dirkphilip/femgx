@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
   resolveElementStyle,
+  resolveInstanceStyle,
   setElementOverride,
 } from "../../src/interaction/interaction";
 import {
@@ -250,6 +251,37 @@ describe("element highlight state", () => {
     state = setElementOverride(state, ref, { emissive: 0.8 });
     expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
       emissive: 0.8,
+    });
+  });
+
+  it("keeps selection color while applying custom highlight emphasis", () => {
+    const theme = {
+      highlighted: {
+        color: { r: 0.1, g: 0.4, b: 1, a: 1 },
+        emissive: 0.4,
+        opacity: 0.5,
+      },
+      selected: {
+        color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+        opacity: 0.8,
+      },
+    } as const;
+    let state = createInteractionState(theme);
+    state = setTargetHighlighted(state, { kind: "partOccurrence", partOccurrenceId: "1/0" }, true);
+    state = setTargetSelected(state, { kind: "partOccurrence", partOccurrenceId: "1/0" }, true);
+    expect(resolveInstanceStyle(instance, base, state)).toMatchObject({
+      color: theme.selected.color,
+      emissive: theme.highlighted.emissive,
+      opacity: theme.selected.opacity,
+    });
+
+    state = createInteractionState(theme);
+    state = setTargetHighlighted(state, { kind: "element", ...ref }, true);
+    state = setTargetSelected(state, { kind: "element", ...ref }, true);
+    expect(resolveElementStyle(instance, ref.elementId, base, state)).toMatchObject({
+      color: theme.selected.color,
+      emissive: theme.highlighted.emissive,
+      opacity: theme.selected.opacity,
     });
   });
 
