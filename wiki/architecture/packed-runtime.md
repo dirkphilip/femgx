@@ -87,6 +87,11 @@ back to slots.
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
   inspection and does not own a renderer or visibility mutations.
 
-Visibility deltas are now wired to GPU subrange updates in the
+Visibility is the conjunction of part-definition, assembly-definition,
+assembly-occurrence, and part-occurrence causes. Viewports retain those policies
+by stable identity across a scene revision, including definitions with no current
+placements, while committed removals prune occurrence overrides. Runtime deltas
+carry affected part identities rather than one expanded slot list and are wired
+to compact draw-order updates in the
 [[rendering/renderer-subrange-updates|renderer]].
 [rendering/renderer-subrange-updates|renderer]: ../rendering/renderer-subrange-updates.md

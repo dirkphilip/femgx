@@ -11,42 +11,6 @@ import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartOccurrenceId } from "../scene/types";
 
-/**
- * Carries viewport-local visibility and interaction identity across a packed
- * runtime replacement without exposing packed slots to the public API.
- */
-export function preserveRuntimeVisibility(
-  previous: PackedSceneRuntime,
-  next: PackedSceneRuntime,
-): void {
-  const partVisibility = new Map<PartId, boolean>();
-  for (let slot = 0; slot < previous.instanceCount; slot += 1) {
-    const partId = previous.getPartId(slot);
-    if (partId !== undefined && !partVisibility.has(partId)) {
-      partVisibility.set(partId, previous.instancePartVisible[slot] === 1);
-    }
-  }
-  for (const [partId, visible] of partVisibility) next.setPartVisible(partId, visible);
-
-  for (let node = 0; node < next.nodeCount; node += 1) {
-    const occurrenceId = next.getNodeId(node);
-    const previousNode =
-      occurrenceId === undefined ? undefined : previous.getNodeSlot(occurrenceId);
-    if (previousNode !== undefined) {
-      next.setAssemblyNodeVisible(node, previous.nodeVisible[previousNode] === 1);
-    }
-  }
-
-  for (let slot = 0; slot < next.instanceCount; slot += 1) {
-    const partOccurrenceId = next.getInstanceId(slot);
-    const previousSlot =
-      partOccurrenceId === undefined ? undefined : previous.getInstanceSlot(partOccurrenceId);
-    if (previousSlot !== undefined) {
-      next.setInstanceVisible(slot, previous.instanceOverrideVisible[previousSlot] === 1);
-    }
-  }
-}
-
 /** Removes references to parts and placement occurrences absent from a scene. */
 export function reconcileInteractionState(
   state: InteractionState,

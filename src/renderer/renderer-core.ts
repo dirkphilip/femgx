@@ -284,14 +284,11 @@ export class GpuRenderer implements WebGpuRenderer {
     this.orbitPivot = pivot;
   }
 
-  public updateVisibility(
-    runtime: PackedSceneRuntime,
-    changedInstanceIds: readonly number[],
-  ): void {
+  public updateVisibility(runtime: PackedSceneRuntime, affectedPartIds: readonly PartId[]): void {
     this.ensureAlive();
     const changed = this.attachment.updateVisibility(
       runtime,
-      changedInstanceIds,
+      affectedPartIds,
       this.lifecycle.bundle,
     );
     if (changed) {

@@ -4,10 +4,10 @@ import type { RuntimeState } from "./compile";
 import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
 
-/** Result of a visibility update: the affected instance slots and counts. */
+/** Result of a visibility update, compacted to renderer-owned part batches. */
 export interface VisibilityDelta {
-  /** Instance ids whose effective visibility changed, in ascending order. */
-  readonly changedInstanceIds: readonly number[];
+  /** Part batches containing instances whose effective visibility changed. */
+  readonly affectedPartIds: readonly PartId[];
   /** Number of visible instances before the update. */
   readonly previousVisibleCount: number;
   /** Number of visible instances after the update. */
@@ -16,10 +16,14 @@ export interface VisibilityDelta {
 
 function makeDelta(
   state: RuntimeState,
-  changed: readonly number[],
+  affected: ReadonlySet<PartId>,
   previousVisibleCount: number,
 ): VisibilityDelta {
-  return { changedInstanceIds: changed, previousVisibleCount, visibleCount: state.visibleCount };
+  return {
+    affectedPartIds: [...affected].sort((a, b) => a - b),
+    previousVisibleCount,
+    visibleCount: state.visibleCount,
+  };
 }
 
 function parentEffectiveVisible(state: RuntimeState, node: number): 0 | 1 {
@@ -35,7 +39,7 @@ function parentEffectiveVisible(state: RuntimeState, node: number): 0 | 1 {
     : 0;
 }
 
-function recomputeInstance(state: RuntimeState, instanceId: number, changed: number[]): void {
+function recomputeInstance(state: RuntimeState, instanceId: number, affected: Set<PartId>): void {
   const owningNode = invariantValue(
     state.instanceOwningNode[instanceId],
     `owning node at instance ${instanceId}`,
@@ -60,15 +64,19 @@ function recomputeInstance(state: RuntimeState, instanceId: number, changed: num
   } else {
     state.visibleCount--;
   }
-  changed.push(instanceId);
+  affected.add(invariantValue(state.instancePartIds[instanceId], `part at instance ${instanceId}`));
 }
 
-function recomputeSubtree(state: RuntimeState, entryNode: number, changed: number[]): void {
+function recomputeSubtree(state: RuntimeState, entryNode: number, affected: Set<PartId>): void {
   const stack = [entryNode];
   while (stack.length > 0) {
     const node = invariantValue(stack.pop(), "visibility traversal stack entry");
     const effective =
-      state.nodeVisible[node] === 1 && parentEffectiveVisible(state, node) === 1 ? 1 : 0;
+      state.nodeAssemblyVisible[node] === 1 &&
+      state.nodeOverrideVisible[node] === 1 &&
+      parentEffectiveVisible(state, node) === 1
+        ? 1
+        : 0;
     if (effective === state.nodeEffectiveVisible[node]) {
       continue;
     }
@@ -85,7 +93,7 @@ function recomputeSubtree(state: RuntimeState, entryNode: number, changed: numbe
   );
   const end = invariantValue(state.nodeInstanceEnd[entryNode], `instance end at node ${entryNode}`);
   for (let instanceId = start; instanceId < end; instanceId++) {
-    recomputeInstance(state, instanceId, changed);
+    recomputeInstance(state, instanceId, affected);
   }
 }
 
@@ -97,16 +105,34 @@ export function setInstanceVisible(
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
   if (instanceId < 0 || instanceId >= state.instanceCount) {
-    return makeDelta(state, [], previousVisibleCount);
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   if (state.instanceOverrideVisible[instanceId] === flag) {
-    return makeDelta(state, [], previousVisibleCount);
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
   state.instanceOverrideVisible[instanceId] = flag;
-  const changed: number[] = [];
-  recomputeInstance(state, instanceId, changed);
-  return makeDelta(state, changed, previousVisibleCount);
+  const affected = new Set<PartId>();
+  recomputeInstance(state, instanceId, affected);
+  return makeDelta(state, affected, previousVisibleCount);
+}
+
+/** Toggles occurrence visibility for already-resolved instance slots in one transition. */
+export function setInstancesVisible(
+  state: RuntimeState,
+  instanceIds: readonly number[],
+  visible: boolean,
+): VisibilityDelta {
+  const previousVisibleCount = state.visibleCount;
+  const flag = visible ? 1 : 0;
+  const affected = new Set<PartId>();
+  for (const instanceId of instanceIds) {
+    if (instanceId < 0 || instanceId >= state.instanceCount) continue;
+    if (state.instanceOverrideVisible[instanceId] === flag) continue;
+    state.instanceOverrideVisible[instanceId] = flag;
+    recomputeInstance(state, instanceId, affected);
+  }
+  return makeDelta(state, affected, previousVisibleCount);
 }
 
 /** Sets visibility for one expanded assembly occurrence and its subtree. */
@@ -117,16 +143,16 @@ export function setAssemblyNodeVisible(
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
   if (nodeId < 0 || nodeId >= state.nodeCount) {
-    return makeDelta(state, [], previousVisibleCount);
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
-  if (state.nodeVisible[nodeId] === flag) {
-    return makeDelta(state, [], previousVisibleCount);
+  if (state.nodeOverrideVisible[nodeId] === flag) {
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
-  state.nodeVisible[nodeId] = flag;
-  const changed: number[] = [];
-  recomputeSubtree(state, nodeId, changed);
-  return makeDelta(state, changed, previousVisibleCount);
+  state.nodeOverrideVisible[nodeId] = flag;
+  const affected = new Set<PartId>();
+  recomputeSubtree(state, nodeId, affected);
+  return makeDelta(state, affected, previousVisibleCount);
 }
 
 /**
@@ -146,19 +172,35 @@ export function setPartVisible(
     partId,
   );
   if (range === undefined) {
-    return makeDelta(state, [], previousVisibleCount);
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
-  const changed: number[] = [];
+  let changed = false;
+  let visibleCount = state.visibleCount;
   for (let index = range[0]; index < range[1]; index++) {
-    const instanceId = invariantValue(state.partInstanceList[index], `part instance at ${index}`);
+    const instanceId = invariantValue(state.partInstanceList[index], "part instance");
     if (state.instancePartVisible[instanceId] === flag) {
       continue;
     }
     state.instancePartVisible[instanceId] = flag;
-    recomputeInstance(state, instanceId, changed);
+    const owningNode = invariantValue(state.instanceOwningNode[instanceId], "owning node");
+    const effective =
+      flag === 1 &&
+      state.instanceOverrideVisible[instanceId] === 1 &&
+      state.nodeEffectiveVisible[owningNode] === 1
+        ? 1
+        : 0;
+    if (effective === state.instanceVisible[instanceId]) continue;
+    state.instanceVisible[instanceId] = effective;
+    visibleCount += effective === 1 ? 1 : -1;
+    changed = true;
   }
-  return makeDelta(state, changed, previousVisibleCount);
+  state.visibleCount = visibleCount;
+  return {
+    affectedPartIds: changed ? [partId] : [],
+    previousVisibleCount,
+    visibleCount,
+  };
 }
 
 /** Sets the authoring visibility of an assembly and everything beneath it. */
@@ -175,19 +217,19 @@ export function setAssemblyVisible(
     assemblyId,
   );
   if (range === undefined) {
-    return makeDelta(state, [], previousVisibleCount);
+    return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
-  const changed: number[] = [];
+  const affected = new Set<PartId>();
   for (let index = range[0]; index < range[1]; index++) {
     const node = invariantValue(state.assemblyNodeList[index], `assembly node at ${index}`);
-    if (state.nodeVisible[node] === flag) {
+    if (state.nodeAssemblyVisible[node] === flag) {
       continue;
     }
-    state.nodeVisible[node] = flag;
-    recomputeSubtree(state, node, changed);
+    state.nodeAssemblyVisible[node] = flag;
+    recomputeSubtree(state, node, affected);
   }
-  return makeDelta(state, changed, previousVisibleCount);
+  return makeDelta(state, affected, previousVisibleCount);
 }
 
 /**

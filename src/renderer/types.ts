@@ -72,7 +72,7 @@ export interface WebGpuRenderer {
   /** Shows the library-styled world-space rotation pivot, or clears it. */
   setOrbitPivot(pivot: Vec3 | undefined): void;
   /** Rebuilds draw order after runtime visibility changes. */
-  updateVisibility(runtime: PackedSceneRuntime, changedInstanceIds: readonly number[]): void;
+  updateVisibility(runtime: PackedSceneRuntime, affectedPartIds: readonly PartId[]): void;
   /** Picks the deepest physical hit under a CSS-local canvas pixel. */
   pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined>;
   pickRegion(

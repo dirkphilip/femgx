@@ -141,6 +141,7 @@ function fakeViewport(): FakeViewport {
     setAssembly: vi.fn(),
     setAssemblyOccurrence: vi.fn(),
     setPartOccurrence: vi.fn(),
+    setPartOccurrences: vi.fn(),
   } as Viewport["visibility"];
   return {
     render,

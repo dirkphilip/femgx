@@ -82,17 +82,22 @@ transforms. Tessellation diagonals are never authored edge identities.
 
 ## Visibility and structural changes
 
-Definition-wide visibility and occurrence-specific visibility are separate:
+Part/assembly-wide convenience visibility and occurrence-specific visibility
+are separate viewport-local policies:
 
 ```ts
 viewport.visibility.setPart(partId, false);
 viewport.visibility.setPartOccurrence(partOccurrenceId, true);
+viewport.visibility.setPartOccurrences(partOccurrenceIds, false);
 viewport.visibility.setAssembly(assemblyId, false);
 viewport.visibility.setAssemblyOccurrence(assemblyOccurrenceId, true);
 ```
 
-Unknown identities are rejected at the active scene/runtime boundary before a
-renderer mutation. For a structural change, edit definitions and their
+Definition and occurrence causes remain independent, so showing one layer does
+not clear a hide in another. The bulk occurrence setter validates the complete
+iterable before one atomic renderer synchronization. Unknown identities are
+rejected at the active scene/runtime boundary before a renderer mutation. For a
+structural change, edit definitions and their
 explicitly identified authoring placements in one synchronous transaction:
 
 ```ts

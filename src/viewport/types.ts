@@ -170,7 +170,8 @@ export interface ViewportInteraction {
 /** Visibility mutations against the active scene and expanded runtime. */
 export interface ViewportVisibility {
   /**
-   * Changes live visibility for every occurrence of one part definition.
+   * Applies a viewport-local convenience policy to every current and future
+   * occurrence of one reusable part without mutating the part or scene.
    * @throws {UnknownSceneIdentityError} when `partId` is not registered.
    */
   setPart(partId: PartId, visible: boolean): void;
@@ -189,6 +190,11 @@ export interface ViewportVisibility {
    * @throws {UnknownSceneIdentityError} when `partOccurrenceId` is absent.
    */
   setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void;
+  /**
+   * Changes live visibility for many placed-part occurrences in one atomic update.
+   * @throws {UnknownSceneIdentityError} when any supplied id is absent.
+   */
+  setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void;
 }
 
 /** Authored result state and atomic result replacement operations. */

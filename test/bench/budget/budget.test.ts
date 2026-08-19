@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { measureMs, measureScaling } from "../measure";
-import {
-  BENCH_INSTANCE_COUNT,
-  BENCH_PART_COUNT,
-  BENCH_PLACEMENTS_PER_SUBCASE,
-  BENCH_SUBCASE_COUNT,
-} from "../fixtures";
+import { BENCH_INSTANCE_COUNT } from "../fixtures";
 import type { BudgetCase, ScalingCase } from "./types";
 import { report, reportScaling } from "./types";
 import { runtime, sceneBudgets, sceneScalingCases } from "./scene-budgets";
@@ -60,9 +55,7 @@ describe("performance budgets", () => {
 
   it("toggles visibility on a part with a known instance count", () => {
     const delta = runtime.setPartVisible(1, false);
-    expect(delta.changedInstanceIds).toHaveLength(
-      (BENCH_PLACEMENTS_PER_SUBCASE / BENCH_PART_COUNT) * BENCH_SUBCASE_COUNT,
-    );
+    expect(delta.affectedPartIds).toEqual([1]);
     runtime.setPartVisible(1, true);
     expect(runtime.visibleCount).toBe(BENCH_INSTANCE_COUNT);
   });

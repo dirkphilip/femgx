@@ -21,7 +21,7 @@ describe("createPackedSceneRuntime", () => {
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
-    expect(hidden.changedInstanceIds).toEqual([0, 1, 2]);
+    expect(hidden.affectedPartIds).toEqual([1]);
     expect(hidden.previousVisibleCount).toBe(3);
     expect(hidden.visibleCount).toBe(0);
     expect(runtime.visibleCount).toBe(0);
@@ -29,7 +29,7 @@ describe("createPackedSceneRuntime", () => {
     expect(runtime.isInstanceVisible(1)).toBe(false);
 
     const shown = runtime.setPartVisible(1, true);
-    expect(shown.changedInstanceIds).toEqual([0, 1, 2]);
+    expect(shown.affectedPartIds).toEqual([1]);
     expect(shown.visibleCount).toBe(3);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2]);
     expect(runtime.getPartId(0)).toBe(1);
@@ -64,12 +64,12 @@ describe("createPackedSceneRuntime", () => {
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2, 3]);
 
     const delta = runtime.setAssemblyVisible(2, false);
-    expect(delta.changedInstanceIds).toEqual([1, 2]);
+    expect(delta.affectedPartIds).toEqual([2, 3]);
     expect(delta.visibleCount).toBe(2);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 3]);
 
     const restored = runtime.setAssemblyVisible(2, true);
-    expect(restored.changedInstanceIds).toEqual([1, 2]);
+    expect(restored.affectedPartIds).toEqual([2, 3]);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1, 2, 3]);
   });
 
@@ -92,10 +92,10 @@ describe("createPackedSceneRuntime", () => {
     const runtime = createPackedSceneRuntime(scene);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1]);
 
-    expect(runtime.setAssemblyVisible(3, false).changedInstanceIds).toEqual([1]);
-    expect(runtime.setAssemblyVisible(2, false).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyVisible(2, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyVisible(3, true).changedInstanceIds).toEqual([1]);
+    expect(runtime.setAssemblyVisible(3, false).affectedPartIds).toEqual([2]);
+    expect(runtime.setAssemblyVisible(2, false).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(2, true).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(3, true).affectedPartIds).toEqual([2]);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1]);
   });
 
@@ -115,13 +115,13 @@ describe("createPackedSceneRuntime", () => {
       [1, 2],
     );
     const runtime = createPackedSceneRuntime(scene);
-    expect(runtime.setAssemblyVisible(2, false).changedInstanceIds).toEqual([1]);
-    expect(runtime.setPartVisible(2, true).changedInstanceIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(2, false).affectedPartIds).toEqual([2]);
+    expect(runtime.setPartVisible(2, true).affectedPartIds).toEqual([]);
     expect(runtime.visibleCount).toBe(1);
-    expect(runtime.setPartVisible(2, false).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyVisible(2, true).changedInstanceIds).toEqual([]);
+    expect(runtime.setPartVisible(2, false).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(2, true).affectedPartIds).toEqual([]);
     expect(runtime.visibleCount).toBe(1);
-    expect(runtime.setPartVisible(2, true).changedInstanceIds).toEqual([1]);
+    expect(runtime.setPartVisible(2, true).affectedPartIds).toEqual([2]);
     expect(runtime.visibleCount).toBe(2);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 1]);
   });
@@ -143,12 +143,12 @@ describe("createPackedSceneRuntime", () => {
     );
     const runtime = createPackedSceneRuntime(scene);
     const delta = runtime.setInstanceVisible(1, false);
-    expect(delta.changedInstanceIds).toEqual([1]);
+    expect(delta.affectedPartIds).toEqual([1]);
     expect(delta.visibleCount).toBe(2);
     expect(runtime.isInstanceVisible(1)).toBe(false);
     expect(runtime.isInstanceVisible(0)).toBe(true);
     expect(Array.from(runtime.getDrawList())).toEqual([0, 2]);
-    expect(runtime.setInstanceVisible(1, true).changedInstanceIds).toEqual([1]);
+    expect(runtime.setInstanceVisible(1, true).affectedPartIds).toEqual([1]);
     expect(runtime.visibleCount).toBe(3);
   });
 
@@ -171,12 +171,41 @@ describe("createPackedSceneRuntime", () => {
     expect(runtime.nodeAssemblyIds).toEqual(new Uint32Array([1, 2, 2]));
 
     expect(runtime.setAssemblyNodeVisible(1, false)).toMatchObject({
-      changedInstanceIds: [0],
+      affectedPartIds: [1],
       visibleCount: 1,
     });
     expect(runtime.isInstanceVisible(0)).toBe(false);
     expect(runtime.isInstanceVisible(1)).toBe(true);
-    expect(runtime.setAssemblyNodeVisible(1, true).changedInstanceIds).toEqual([0]);
+    expect(runtime.setAssemblyNodeVisible(1, true).affectedPartIds).toEqual([1]);
+  });
+
+  it("combines four independent definition and occurrence causes", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }],
+        },
+        { id: 2, placements: [{ kind: "part", partId: 1, transform: identity() }] },
+      ],
+      [1],
+    );
+    const runtime = createPackedSceneRuntime(scene);
+
+    runtime.setPartVisible(1, false);
+    runtime.setInstanceVisible(0, false);
+    runtime.setAssemblyNodeVisible(1, false);
+    runtime.setAssemblyVisible(2, false);
+    runtime.setAssemblyVisible(2, true);
+    expect(runtime.isInstanceVisible(0)).toBe(false);
+
+    runtime.setAssemblyNodeVisible(1, true);
+    expect(runtime.isInstanceVisible(0)).toBe(false);
+    runtime.setPartVisible(1, true);
+    expect(runtime.isInstanceVisible(0)).toBe(false);
+    runtime.setInstanceVisible(0, true);
+    expect(runtime.isInstanceVisible(0)).toBe(true);
   });
 
   it("returns empty deltas for out-of-range or no-op updates", () => {
@@ -186,16 +215,16 @@ describe("createPackedSceneRuntime", () => {
       [1],
     );
     const runtime = createPackedSceneRuntime(scene);
-    expect(runtime.setPartVisible(1, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setPartVisible(999, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyVisible(999, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyVisible(1, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyNodeVisible(0, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyNodeVisible(99, false).changedInstanceIds).toEqual([]);
-    expect(runtime.setAssemblyNodeVisible(-1, false).changedInstanceIds).toEqual([]);
-    expect(runtime.setInstanceVisible(0, true).changedInstanceIds).toEqual([]);
-    expect(runtime.setInstanceVisible(99, false).changedInstanceIds).toEqual([]);
-    expect(runtime.setInstanceVisible(-1, false).changedInstanceIds).toEqual([]);
+    expect(runtime.setPartVisible(1, true).affectedPartIds).toEqual([]);
+    expect(runtime.setPartVisible(999, true).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(999, true).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyVisible(1, true).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(0, true).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(99, false).affectedPartIds).toEqual([]);
+    expect(runtime.setAssemblyNodeVisible(-1, false).affectedPartIds).toEqual([]);
+    expect(runtime.setInstanceVisible(0, true).affectedPartIds).toEqual([]);
+    expect(runtime.setInstanceVisible(99, false).affectedPartIds).toEqual([]);
+    expect(runtime.setInstanceVisible(-1, false).affectedPartIds).toEqual([]);
     expect(runtime.getPartId(99)).toBeUndefined();
     expect(runtime.getTransform(99)).toBeUndefined();
     expect(runtime.isInstanceVisible(99)).toBe(false);

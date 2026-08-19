@@ -35,7 +35,12 @@ export const GPU_COST_WRITES = [
 export type GpuCostWrite = (typeof GPU_COST_WRITES)[number];
 
 /** CPU submission work counted by the internal cost model. */
-export const GPU_COST_CPU = ["instance-scan", "order-rebuild", "call-rebuild"] as const;
+export const GPU_COST_CPU = [
+  "instance-scan",
+  "part-scan",
+  "order-rebuild",
+  "call-rebuild",
+] as const;
 export type GpuCostCpu = (typeof GPU_COST_CPU)[number];
 
 /** Internal draw-path admissions reported by the opt-in cost snapshot. */
@@ -221,7 +226,7 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
 }
 
 function emptyCpuCounts(): Record<GpuCostCpu, number> {
-  return { "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
+  return { "instance-scan": 0, "part-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
 }
 
 function emptyAdmissionCounts(): Record<GpuCostAdmission, number> {
