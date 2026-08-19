@@ -3,7 +3,7 @@ import { createInteractionState } from "../interaction/interaction";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
-import { prepareSceneUpdate, type SceneUpdate } from "../scene/update";
+import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
 import { sceneOriginTriadScale } from "./origin-triad";
 import {
   resolveViewportResults,
@@ -98,7 +98,7 @@ export class ViewportSceneController {
     this.updateActive = true;
     let scene: Scene | undefined;
     try {
-      scene = prepareSceneUpdate(this.currentScene, operation);
+      scene = prepareSceneTransition(this.currentScene, operation)?.scene;
     } finally {
       this.updateActive = false;
     }

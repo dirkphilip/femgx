@@ -1,8 +1,13 @@
 import type { Part, PartId } from "../geometry/part";
-import type { Mat4 } from "../math/mat4";
 import type { AssemblyDefinition, AssemblyPlacement, PartPlacement, Placement } from "./assembly";
 import { validateScene, type Scene } from "./scene";
 import type { AssemblyId } from "./types";
+import {
+  definitionChanges,
+  type PlacementChange,
+  type PreparedSceneUpdate,
+} from "./update-changes";
+import { equalAssembly, equalTransform, sameSceneStorage } from "./update-equality";
 import type {
   AddAssemblyOccurrenceInput,
   AddPartOccurrenceInput,
@@ -34,6 +39,14 @@ export function prepareSceneUpdate(
   scene: Scene,
   operation: (update: SceneUpdate) => unknown,
 ): Scene | undefined {
+  return prepareSceneTransition(scene, operation)?.scene;
+}
+
+/** Prepares the private structural changes consumed by a live viewport update. */
+export function prepareSceneTransition(
+  scene: Scene,
+  operation: (update: SceneUpdate) => unknown,
+): PreparedSceneUpdate | undefined {
   const draft = new SceneUpdateDraft(scene);
   let result: unknown;
   try {
@@ -56,6 +69,9 @@ class SceneUpdateDraft implements SceneUpdate {
   private assemblies: Map<AssemblyId, AssemblyDefinition> | undefined;
   private visibleParts: Set<PartId> | undefined;
   private visibleAssemblies: Set<AssemblyId> | undefined;
+  private readonly touchedParts = new Set<PartId>();
+  private readonly touchedAssemblies = new Set<AssemblyId>();
+  private readonly placementChanges: PlacementChange[] = [];
 
   constructor(private readonly source: Scene) {}
 
@@ -68,13 +84,17 @@ class SceneUpdateDraft implements SceneUpdate {
     if (this.currentParts().has(part.id)) throw new Error(`Part ${part.id} is already registered`);
     this.mutableParts().set(part.id, part);
     this.mutableVisibleParts().add(part.id);
+    this.touchedParts.add(part.id);
   }
 
   replacePart(part: Part): void {
     this.ensureActive();
     const previous = this.currentParts().get(part.id);
     if (previous === undefined) throw new Error(`Part ${part.id} is not registered`);
-    if (previous !== part) this.mutableParts().set(part.id, part);
+    if (previous !== part) {
+      this.mutableParts().set(part.id, part);
+      this.touchedParts.add(part.id);
+    }
   }
 
   removePart(partId: PartId, options?: DefinitionRemovalOptions): void {
@@ -90,6 +110,7 @@ class SceneUpdateDraft implements SceneUpdate {
       );
     this.mutableParts().delete(partId);
     this.mutableVisibleParts().delete(partId);
+    this.touchedParts.add(partId);
   }
 
   addAssembly(assembly: AssemblyDefinition): void {
@@ -99,6 +120,7 @@ class SceneUpdateDraft implements SceneUpdate {
     }
     this.mutableAssemblies().set(assembly.id, assembly);
     this.mutableVisibleAssemblies().add(assembly.id);
+    this.touchedAssemblies.add(assembly.id);
   }
 
   replaceAssembly(assembly: AssemblyDefinition): void {
@@ -106,7 +128,10 @@ class SceneUpdateDraft implements SceneUpdate {
     const previous = this.currentAssemblies().get(assembly.id);
     if (previous === undefined)
       throw new Error(`AssemblyDefinition ${assembly.id} is not registered`);
-    if (!equalAssembly(previous, assembly)) this.mutableAssemblies().set(assembly.id, assembly);
+    if (!equalAssembly(previous, assembly)) {
+      this.mutableAssemblies().set(assembly.id, assembly);
+      this.touchedAssemblies.add(assembly.id);
+    }
   }
 
   removeAssembly(assemblyId: AssemblyId, options?: DefinitionRemovalOptions): void {
@@ -128,6 +153,7 @@ class SceneUpdateDraft implements SceneUpdate {
       );
     this.mutableAssemblies().delete(assemblyId);
     this.mutableVisibleAssemblies().delete(assemblyId);
+    this.touchedAssemblies.add(assemblyId);
   }
 
   addPartOccurrence(input: AddPartOccurrenceInput): void {
@@ -208,7 +234,7 @@ class SceneUpdateDraft implements SceneUpdate {
     });
   }
 
-  finish(): Scene | undefined {
+  finish(): PreparedSceneUpdate | undefined {
     const candidate: Scene = {
       rootAssemblyId: this.source.rootAssemblyId,
       parts: normalizedMap(this.source.parts, this.parts, (left, right) => left === right),
@@ -218,7 +244,18 @@ class SceneUpdateDraft implements SceneUpdate {
     };
     if (sameSceneStorage(candidate, this.source)) return undefined;
     validateScene(candidate);
-    return candidate;
+    return {
+      scene: candidate,
+      changes: {
+        parts: definitionChanges(this.source.parts, candidate.parts, this.touchedParts),
+        assemblies: definitionChanges(
+          this.source.assemblies,
+          candidate.assemblies,
+          this.touchedAssemblies,
+        ),
+        placements: this.placementChanges,
+      },
+    };
   }
 
   private editPlacement(assemblyId: AssemblyId, placementId: string, edit: PlacementEdit): void {
@@ -244,6 +281,11 @@ class SceneUpdateDraft implements SceneUpdate {
     if (replacement === undefined) placements.splice(index, 1);
     else placements[index] = replacement;
     this.mutableAssemblies().set(assemblyId, { ...assembly, placements });
+    this.placementChanges.push({
+      ownerAssemblyId: assemblyId,
+      before: placement,
+      after: replacement,
+    });
   }
 
   private appendPlacement(assemblyId: AssemblyId, placementId: string, placement: Placement): void {
@@ -255,11 +297,20 @@ class SceneUpdateDraft implements SceneUpdate {
       ...assembly,
       placements: [...assembly.placements, placement],
     });
+    this.placementChanges.push({
+      ownerAssemblyId: assemblyId,
+      before: undefined,
+      after: placement,
+    });
   }
 
   private removePlacements(matches: (placement: Placement) => boolean): void {
     for (const [id, assembly] of this.currentAssemblies()) {
-      const placements = assembly.placements.filter((placement) => !matches(placement));
+      const placements = assembly.placements.filter((placement) => {
+        if (!matches(placement)) return true;
+        this.placementChanges.push({ ownerAssemblyId: id, before: placement, after: undefined });
+        return false;
+      });
       if (placements.length !== assembly.placements.length) {
         this.mutableAssemblies().set(id, { ...assembly, placements });
       }
@@ -364,42 +415,6 @@ function normalizedSet<T>(
   if (changed === undefined || changed.size !== source.size) return changed ?? source;
   for (const value of changed) if (!source.has(value)) return changed;
   return source;
-}
-
-function equalAssembly(left: AssemblyDefinition, right: AssemblyDefinition): boolean {
-  if (
-    left.id !== right.id ||
-    left.name !== right.name ||
-    left.placements.length !== right.placements.length
-  )
-    return false;
-  return left.placements.every((placement, index) =>
-    equalPlacement(placement, right.placements[index]),
-  );
-}
-
-function equalPlacement(left: Placement, right: Placement | undefined): boolean {
-  if (right === undefined || left.kind !== right.kind || left.placementId !== right.placementId)
-    return false;
-  const sameTarget =
-    left.kind === "part"
-      ? right.kind === "part" && left.partId === right.partId
-      : right.kind === "assembly" && left.assemblyId === right.assemblyId;
-  return sameTarget && equalTransform(left.transform, right.transform);
-}
-
-function equalTransform(left: Mat4, right: Mat4): boolean {
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
-}
-
-function sameSceneStorage(left: Scene, right: Scene): boolean {
-  return (
-    left.parts === right.parts &&
-    left.assemblies === right.assemblies &&
-    left.visiblePartIds === right.visiblePartIds &&
-    left.visibleAssemblyIds === right.visibleAssemblyIds
-  );
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {

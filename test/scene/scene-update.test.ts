@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
 import { identity, translation } from "../../src/math/mat4";
 import { createScene } from "../../src/scene/scene";
-import { prepareSceneUpdate, type SceneUpdate } from "../../src/scene/update";
+import {
+  prepareSceneTransition,
+  prepareSceneUpdate,
+  type SceneUpdate,
+} from "../../src/scene/update";
 
 const firstPart = createPart(1, {
   geometries: [
@@ -40,6 +44,31 @@ function scene() {
 }
 
 describe("prepareSceneUpdate", () => {
+  it("prepares stable-identity structural changes without exposing runtime slots", () => {
+    const source = scene();
+    const prepared = prepareSceneTransition(source, (update) => {
+      update.addPart(secondPart);
+      update.rebindPartOccurrence({ assemblyId: 1, placementId: "first", partId: 2 });
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "added",
+        partId: 1,
+        transform: translation(2, 0, 0),
+      });
+    });
+
+    expect([...(prepared?.changes.parts.added ?? [])]).toEqual([2]);
+    expect(prepared?.changes.assemblies.replaced.size).toBe(0);
+    const rebound = prepared?.changes.placements[0];
+    expect(rebound?.ownerAssemblyId).toBe(1);
+    expect(rebound?.before).toBe(source.assemblies.get(1)?.placements[0]);
+    expect(rebound?.after).toMatchObject({ kind: "part", placementId: "first", partId: 2 });
+    const added = prepared?.changes.placements[1];
+    expect(added?.ownerAssemblyId).toBe(1);
+    expect(added?.before).toBeUndefined();
+    expect(added?.after).toMatchObject({ kind: "part", placementId: "added", partId: 1 });
+  });
+
   it("adds and edits placements while retaining untouched definitions", () => {
     const source = scene();
     const next = prepareSceneUpdate(source, (update) => {
