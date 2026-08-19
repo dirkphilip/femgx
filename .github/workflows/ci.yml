@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # These two jobs are parallel work shards. The final `check` job below is
+  # These three jobs are parallel work shards. The final `check` job below is
   # the stable branch-protection context.
   check-static:
     runs-on: ubuntu-latest
@@ -25,6 +25,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Restore ESLint cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: .cache/eslint
+          key: eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'eslint.config.js') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ runner.os }}-${{ hashFiles('package-lock.json', 'eslint.config.js') }}-
 
       - name: Pre-commit hooks
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
@@ -61,12 +69,6 @@ jobs:
       - name: Demo workbench coverage
         run: npm run test:demo:coverage
 
-      - name: Performance budgets
-        run: npm run bench:budget
-
-      - name: Package smoke tests
-        run: npm run test:package
-
       - name: Upload coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -76,22 +78,43 @@ jobs:
           # longer-lived copy on main for historical investigation.
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 14 }}
 
+  check-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Performance budgets
+        run: npm run bench:budget
+
+      - name: Package smoke tests
+        run: npm run test:package
+
   # Keep this job id stable: it is the required branch-protection context.
   check:
     if: ${{ always() }}
-    needs: [check-static, check-runtime]
+    needs: [check-static, check-runtime, check-package]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Fail when a check shard did not succeed
-        if: ${{ needs.check-static.result != 'success' || needs.check-runtime.result != 'success' }}
+        if: ${{ needs.check-static.result != 'success' || needs.check-runtime.result != 'success' || needs.check-package.result != 'success' }}
         run: |
           echo "check-static: ${{ needs.check-static.result }}"
           echo "check-runtime: ${{ needs.check-runtime.result }}"
+          echo "check-package: ${{ needs.check-package.result }}"
           exit 1
 
       - name: Confirm check shards passed
-        run: echo "check-static and check-runtime passed"
+        run: echo "check-static, check-runtime, and check-package passed"
 
   e2e:
     runs-on: ubuntu-latest

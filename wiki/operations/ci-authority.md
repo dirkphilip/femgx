@@ -27,12 +27,18 @@ version before launching Playwright, and does not download a Playwright browser.
 The full hardware-WebGPU lane remains local until a GPU runner is available;
 the CI smoke must not enable SwiftShader or imply visual WebGPU coverage.
 
-The required `check` context is a small aggregator over two parallel jobs:
+The required `check` context is a small aggregator over three parallel jobs:
 `check-static` owns pre-commit, formatting, type checking, linting, and API
 documentation validation;
-`check-runtime` owns coverage, performance budgets, and package smoke tests.
+`check-runtime` owns non-demo library coverage, while `check-package` owns
+performance budgets and package smoke tests. Demo coverage remains in
+`check-runtime` through its dedicated core and component suites, so those tests
+run once and retain their independent coverage thresholds and reports.
+`check-static` restores and saves ESLint's content-addressed cache. It still
+checks every changed source file and invalidates on dependency or lint-config
+changes; the cache only avoids rechecking unchanged files from an earlier run.
 The aggregator runs even when a dependency is skipped, cancelled, or fails, and
-returns failure unless both shards succeed. `e2e` remains an independent
+returns failure unless all three shards succeed. `e2e` remains an independent
 required context.
 
 The required `check` job's pre-commit step runs the pinned actionlint semantic
