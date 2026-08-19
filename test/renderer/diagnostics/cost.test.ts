@@ -44,8 +44,6 @@ describe("GPU cost accounting", () => {
       opaque: 0,
       transparency: 0,
       composite: 0,
-      "overlay-depth": 0,
-      overlay: 0,
       pick: 0,
     });
     expect(cleared.draws.opaque).toEqual({ calls: 0, indices: 0, instances: 0 });

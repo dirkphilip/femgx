@@ -24,7 +24,7 @@ describe("offline WGSL validation", () => {
         ["--bulk-validate", ...files.map((file) => relative(process.cwd(), file))],
         { stdio: "pipe", env: { ...process.env, NODE_NO_WARNINGS: "1" } },
       );
-      expect(files).toHaveLength(32);
+      expect(files).toHaveLength(31);
     } finally {
       restore();
       await rm(temporaryDirectory, { recursive: true, force: true });

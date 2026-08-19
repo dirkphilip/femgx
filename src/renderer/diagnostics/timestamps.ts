@@ -308,8 +308,6 @@ function passRecord<T>(factory: (pass: GpuCostPass) => T): Record<GpuCostPass, T
     opaque: factory("opaque"),
     transparency: factory("transparency"),
     composite: factory("composite"),
-    "overlay-depth": factory("overlay-depth"),
-    overlay: factory("overlay"),
     pick: factory("pick"),
   };
 }

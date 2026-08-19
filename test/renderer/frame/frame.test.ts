@@ -22,7 +22,7 @@ import {
   zoomCameraAtPoint,
 } from "../../../src/camera/camera";
 import { cross, dot, normalize, scale, subtract, type Vec3 } from "../../../src/math/vec3";
-import { beginColorPass, beginOverlayPass } from "../../../src/renderer/frame/passes";
+import { beginColorPass } from "../../../src/renderer/frame/passes";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 
@@ -122,24 +122,6 @@ describe("visible pass attachments", () => {
 
     expect(descriptor?.timestampWrites).toBe(timestampWrites);
     expect(descriptor?.colorAttachments).toHaveLength(1);
-  });
-
-  it("loads resolved color without a multisampled depth attachment for presentation overlays", () => {
-    let descriptor: GPURenderPassDescriptor | undefined;
-    const pass = {} as GPURenderPassEncoder;
-    const encoder = {
-      beginRenderPass: (next: GPURenderPassDescriptor) => {
-        descriptor = next;
-        return pass;
-      },
-    } as GPUCommandEncoder;
-
-    expect(beginOverlayPass(encoder, {} as GPUTextureView, {} as GPUTextureView)).toBe(pass);
-    expect(descriptor?.colorAttachments[0]).toMatchObject({ loadOp: "load", storeOp: "store" });
-    expect(descriptor?.depthStencilAttachment).toMatchObject({
-      depthLoadOp: "load",
-      depthStoreOp: "discard",
-    });
   });
 });
 

@@ -121,8 +121,6 @@ describe("WebGPU renderer", () => {
       opaque: 1,
       transparency: 1,
       composite: 1,
-      "overlay-depth": 0,
-      overlay: 0,
       pick: 0,
     });
     expect(cost.draws.background).toEqual({ calls: 1, indices: 3, instances: 1 });
