@@ -94,6 +94,36 @@ afterEach(() => {
 });
 
 describe("camera focus gizmo actions", () => {
+  it("applies face snaps immediately without depending on the animation clock", () => {
+    const frames: Array<(time: number) => void> = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: (time: number) => void) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => undefined);
+
+    const currentScene = scene();
+    const runtime = createPackedSceneRuntime(currentScene);
+    const initial = createCamera({ position: [4, 3, 8], target: [0, 0, 0] });
+    const cameraRef = { camera: initial };
+    const focus = new CameraFocusController({
+      cameraRef,
+      canvas: fakeCanvas(),
+      scene: () => currentScene,
+      runtime: () => runtime,
+      interaction: createInteractionState,
+      deformation: () => undefined,
+      invalidate: vi.fn(),
+    });
+
+    focus.applyOrientationAction({ kind: "face", face: "right" });
+
+    expect(frames).toHaveLength(0);
+    expect(cameraRef.camera.position[1]).toBe(cameraRef.camera.target[1]);
+    expect(cameraRef.camera.position[2]).toBe(cameraRef.camera.target[2]);
+    expect(cameraRef.camera.position[0]).toBeGreaterThan(cameraRef.camera.target[0]);
+  });
+
   it("animates orientation actions with the default camera transition", () => {
     const frames: Array<(time: number) => void> = [];
     vi.stubGlobal("requestAnimationFrame", (callback: (time: number) => void) => {
@@ -183,16 +213,13 @@ describe("camera focus gizmo actions", () => {
     };
     const initial = viewport.view.camera;
     dispatch(target("data-view-face", "back"));
+    const snapped = viewport.view.camera;
+    expect(snapped).not.toBe(initial);
+    expect(Math.hypot(...snapped.position)).toBeGreaterThan(7.9);
     expect(frames).toHaveLength(1);
     runFrame(0);
-    runFrame(200);
-    runFrame(200);
-    const inFlight = viewport.view.camera;
-    expect(inFlight).not.toBe(initial);
-    expect(Math.hypot(...inFlight.position)).toBeGreaterThan(7.9);
     const cornerAction: ViewCubeAction = { kind: "corner", corner: "+++" };
-    const expectedCorner = applyViewCubeAction(inFlight, bounds, cornerAction);
-    runFrame(200);
+    const expectedCorner = applyViewCubeAction(snapped, bounds, cornerAction);
     dispatch(target("data-view-corner", "+++"));
     expect(frames).toHaveLength(1);
     runFrame(200);
