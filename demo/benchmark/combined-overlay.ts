@@ -13,7 +13,6 @@ import {
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { measureInteractiveSamples } from "./interactive";
 import {
-  assertElementEmphasisDraw,
   assertNoElementEmphasisDraw,
   assertOpaqueSurfaceDraw,
   highlightWriteBytesSince,
@@ -199,11 +198,13 @@ async function measureOverlaySelection(
   const firstSelectedFrameMs = await renderFrame(options);
   const gpuCost = readGpuCostSnapshot(options.renderer);
   assertOverlayWork(options, gpuCost, readMaterializedEdgePartIds(options.renderer));
-  assertElementEmphasisDraw(
+  assertOpaqueSurfaceDraw(
     gpuCost,
     `${options.benchmarkCase.id} overlay selection`,
-    targets.length * (options.benchmarkCase.elementFamily === "quad" ? 6 : 3),
+    options.benchmarkCase.gridCells * options.benchmarkCase.gridCells * 6,
+    options.runtime.instanceCount,
   );
+  assertNoElementEmphasisDraw(gpuCost, `${options.benchmarkCase.id} overlay selection`);
   await options.holdSelectionForCapture?.();
   options.renderer.updateElements(options.runtime, interaction, [slot]);
   await renderFrame(options);
