@@ -1,4 +1,4 @@
-import { assertValidCamera, createCamera, resizeCamera, type Camera } from "../camera/camera";
+import { createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -151,7 +151,6 @@ class ViewportCore implements Viewport {
         deformation(),
       );
     this.cameraFocus = this.createCameraFocus(options, deformation);
-    assertValidCamera(this.cameraRef.camera);
     const bindings = installViewportCanvasBindings({
       options,
       renderer,
@@ -168,6 +167,7 @@ class ViewportCore implements Viewport {
         options.onGestureChange?.(active);
       },
       onOrientationAction: (action) => {
+        this.autoFitOnResize = false;
         this.cameraFocus.applyOrientationAction(action);
       },
     });
@@ -405,14 +405,13 @@ class ViewportCore implements Viewport {
   resize(invalidate = true): void {
     this.ensureAlive();
     const refit = this.autoFitOnResize;
-    this.cameraFocus.cancel();
+    if (refit) this.cameraFocus.cancel();
     const size = cssSize(this.options.canvas);
     this.renderer.resize(size.width, size.height);
     this.cameraRef.camera = resizeCamera(this.cameraRef.camera, size.width, size.height);
     if (refit) this.cameraFocus.fitView(undefined, false);
     if (invalidate) this.invalidate();
   }
-
   invalidate(): void {
     this.ensureAlive();
     this.lifecycle.invalidate();

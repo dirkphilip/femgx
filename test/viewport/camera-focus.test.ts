@@ -94,7 +94,7 @@ afterEach(() => {
 });
 
 describe("camera focus gizmo actions", () => {
-  it("applies face snaps immediately without depending on the animation clock", () => {
+  it("animates face snaps to the exact endpoint across a viewport resize", () => {
     const frames: Array<(time: number) => void> = [];
     vi.stubGlobal("requestAnimationFrame", (callback: (time: number) => void) => {
       frames.push(callback);
@@ -118,10 +118,16 @@ describe("camera focus gizmo actions", () => {
 
     focus.applyOrientationAction({ kind: "face", face: "right" });
 
-    expect(frames).toHaveLength(0);
+    expect(frames).toHaveLength(1);
+    frames.shift()?.(0);
+    cameraRef.camera = { ...cameraRef.camera, width: 1200, height: 700 };
+    frames.shift()?.(200);
+    frames.shift()?.(400);
     expect(cameraRef.camera.position[1]).toBe(cameraRef.camera.target[1]);
     expect(cameraRef.camera.position[2]).toBe(cameraRef.camera.target[2]);
     expect(cameraRef.camera.position[0]).toBeGreaterThan(cameraRef.camera.target[0]);
+    expect(cameraRef.camera.width).toBe(1200);
+    expect(cameraRef.camera.height).toBe(700);
   });
 
   it("animates orientation actions with the default camera transition", () => {
@@ -168,7 +174,7 @@ describe("camera focus gizmo actions", () => {
     expect(frames).toHaveLength(0);
   });
 
-  it("animates public gizmo actions and restarts from the in-flight camera", async () => {
+  it("animates public gizmo actions across viewport resize", async () => {
     vi.stubGlobal("document", new TestDocument());
     installTestGpuGlobals();
     installNavigator();
@@ -212,14 +218,24 @@ describe("camera focus gizmo actions", () => {
       action.dispatchEvent("click", event);
     };
     const initial = viewport.view.camera;
+    const expectedFace = applyViewCubeAction(initial, bounds, { kind: "face", face: "back" });
     dispatch(target("data-view-face", "back"));
-    const snapped = viewport.view.camera;
-    expect(snapped).not.toBe(initial);
-    expect(Math.hypot(...snapped.position)).toBeGreaterThan(7.9);
     expect(frames).toHaveLength(1);
     runFrame(0);
+    runFrame(200);
+    runFrame(200);
+    const inFlight = viewport.view.camera;
+    expect(inFlight).not.toBe(initial);
+    expect(Math.hypot(...inFlight.position)).toBeGreaterThan(7.9);
+    Object.defineProperty(canvas, "clientWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(canvas, "clientHeight", { configurable: true, value: 700 });
+    viewport.resize();
+    runFrame(600);
+    runFrame(600);
+    runFrame(600);
+    expect(viewport.view.camera).toEqual({ ...expectedFace, width: 1200, height: 700 });
     const cornerAction: ViewCubeAction = { kind: "corner", corner: "+++" };
-    const expectedCorner = applyViewCubeAction(snapped, bounds, cornerAction);
+    const expectedCorner = applyViewCubeAction(viewport.view.camera, bounds, cornerAction);
     dispatch(target("data-view-corner", "+++"));
     expect(frames).toHaveLength(1);
     runFrame(200);

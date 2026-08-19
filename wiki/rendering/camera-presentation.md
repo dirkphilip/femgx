@@ -106,10 +106,10 @@ a non-interactive projected positive X/Y/Z triad; its arms follow the current
 camera basis, collapse deterministically when viewed end-on, and never change
 navigation hit regions. Pitch and yaw arrow names describe the visible scene
 rotation: up/down move projected content toward smaller/larger viewport Y,
-while left/right retain their corresponding horizontal directions. Face snaps
-apply immediately without depending on an animation clock. Corner and arrow
-actions use the same interruptible, eased approximately 400-millisecond camera
-transition as fit-to-selection. Roll is
+while left/right retain their corresponding horizontal directions. Face,
+corner, and arrow actions use the same interruptible, eased approximately
+400-millisecond camera transition as fit-to-selection. Ordinary viewport resize
+preserves an active gizmo transition and its resized frame. Roll is
 defined by the visible result: clockwise moves a point above the target to the
 right, and counterclockwise moves it to the left, without changing the line of
 sight, target, framing, or clip planes. Face and corner snaps restore their canonical
