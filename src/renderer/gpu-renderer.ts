@@ -12,6 +12,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import type { InteractionState } from "../interaction/interaction";
 import type { Part } from "../geometry/part";
+import { prepareAddedAttachmentParts } from "./attachment/part-definitions";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
 
@@ -85,6 +86,18 @@ export function updateRendererOccurrences(
     throw new Error("Incremental scene updates require the built-in WebGPU renderer");
   }
   renderer.updateOccurrences(runtime, interaction, delta, parts);
+}
+
+/** Prepares exact added definitions before the live runtime is mutated. */
+export function prepareRendererPartAdditions(
+  renderer: WebGpuRenderer,
+  parts: ReadonlyMap<PartId, Part>,
+  partIds: ReadonlySet<PartId>,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
+  }
+  prepareAddedAttachmentParts(parts, partIds);
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

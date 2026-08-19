@@ -94,6 +94,7 @@ describe("Viewport scene-update visibility", () => {
 
   it("prunes removed part policy before the same definition id is registered again", async () => {
     const viewport = await testViewport();
+    const runtime = viewport.runtime;
     const part = viewport.scene.parts.get(1);
     if (part === undefined) throw new Error("test part is missing");
     viewport.visibility.setPart(1, false);
@@ -110,6 +111,7 @@ describe("Viewport scene-update visibility", () => {
       });
     });
 
+    expect(viewport.runtime).toBe(runtime);
     expect(viewport.runtime.isPartOccurrenceVisible("1/restored")).toBe(true);
     viewport.destroy();
   });

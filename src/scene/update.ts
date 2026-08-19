@@ -1,13 +1,8 @@
-import type { Part, PartId } from "../geometry/part";
+import { validatePartId, type Part, type PartId } from "../geometry/part";
 import type { AssemblyDefinition, AssemblyPlacement, PartPlacement, Placement } from "./assembly";
 import { validatePlacementTransform, validateScene, type Scene } from "./scene";
 import type { AssemblyId } from "./types";
-import {
-  explicitPlacementIndex,
-  retainAppendedPlacementIndex,
-  retainPlacementIndex,
-  retainRemovedPlacementIndex,
-} from "./assembly-index";
+import { explicitPlacementIndex } from "./assembly-index";
 import {
   definitionChanges,
   isTransformOnlyChanges,
@@ -34,6 +29,7 @@ import type {
   TransformPartOccurrenceInput,
 } from "./update-types";
 import { hasOnlyDirectPartRuntimeChanges, validateExplicitPlacementId } from "./update-validation";
+import { ScenePlacementDrafts } from "./update-placements";
 
 export type {
   AddAssemblyOccurrenceInput,
@@ -86,8 +82,13 @@ class SceneUpdateDraft implements SceneUpdate {
   private readonly touchedParts = new Set<PartId>();
   private readonly touchedAssemblies = new Set<AssemblyId>();
   private readonly placementChanges: PlacementChange[] = [];
+  private readonly placementDrafts: ScenePlacementDrafts;
 
-  constructor(private readonly source: Scene) {}
+  constructor(private readonly source: Scene) {
+    this.placementDrafts = new ScenePlacementDrafts((id, assembly) => {
+      this.mutableAssemblies().set(id, assembly);
+    });
+  }
 
   close(): void {
     this.active = false;
@@ -95,6 +96,7 @@ class SceneUpdateDraft implements SceneUpdate {
 
   addPart(part: Part): void {
     this.ensureActive();
+    validatePartId(part.id);
     if (this.currentParts().has(part.id)) throw new Error(`Part ${part.id} is already registered`);
     this.mutableParts().set(part.id, part);
     this.mutableVisibleParts().add(part.id);
@@ -133,6 +135,7 @@ class SceneUpdateDraft implements SceneUpdate {
       throw new Error(`AssemblyDefinition ${assembly.id} is already registered`);
     }
     this.mutableAssemblies().set(assembly.id, assembly);
+    this.placementDrafts.discard(assembly.id);
     this.mutableVisibleAssemblies().add(assembly.id);
     this.touchedAssemblies.add(assembly.id);
   }
@@ -144,6 +147,7 @@ class SceneUpdateDraft implements SceneUpdate {
       throw new Error(`AssemblyDefinition ${assembly.id} is not registered`);
     if (!equalAssembly(previous, assembly)) {
       this.mutableAssemblies().set(assembly.id, assembly);
+      this.placementDrafts.discard(assembly.id);
       this.touchedAssemblies.add(assembly.id);
     }
   }
@@ -166,6 +170,7 @@ class SceneUpdateDraft implements SceneUpdate {
         (placement) => placement.kind === "assembly" && placement.assemblyId === assemblyId,
       );
     this.mutableAssemblies().delete(assemblyId);
+    this.placementDrafts.discard(assemblyId);
     this.mutableVisibleAssemblies().delete(assemblyId);
     this.touchedAssemblies.add(assemblyId);
   }
@@ -305,14 +310,7 @@ class SceneUpdateDraft implements SceneUpdate {
     if (replacement !== undefined) {
       validatePlacementTransform(replacement.transform, assemblyId, index);
     }
-    const placements = assembly.placements.slice();
-    if (replacement === undefined) placements.splice(index, 1);
-    else placements[index] = replacement;
-    const revision = { ...assembly, placements };
-    if (replacement === undefined) {
-      retainRemovedPlacementIndex(assembly, revision, placementId, index);
-    } else retainPlacementIndex(assembly, revision);
-    this.mutableAssemblies().set(assemblyId, revision);
+    this.placementDrafts.edit(assemblyId, assembly, index, placementId, replacement);
     this.placementChanges.push({
       ownerAssemblyId: assemblyId,
       before: placement,
@@ -327,12 +325,7 @@ class SceneUpdateDraft implements SceneUpdate {
     if (explicitPlacementIndex(assembly, placementId) >= 0) {
       throw new Error(`AssemblyDefinition ${assemblyId} already has placement ${placementId}`);
     }
-    const revision = {
-      ...assembly,
-      placements: [...assembly.placements, placement],
-    };
-    retainAppendedPlacementIndex(assembly, revision, placementId, assembly.placements.length);
-    this.mutableAssemblies().set(assemblyId, revision);
+    this.placementDrafts.append(assemblyId, assembly, placementId, placement);
     this.placementChanges.push({
       ownerAssemblyId: assemblyId,
       before: undefined,
@@ -348,7 +341,7 @@ class SceneUpdateDraft implements SceneUpdate {
         return false;
       });
       if (placements.length !== assembly.placements.length) {
-        this.mutableAssemblies().set(id, { ...assembly, placements });
+        this.placementDrafts.replaceAll(id, assembly, placements);
       }
     }
   }

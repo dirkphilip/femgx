@@ -151,33 +151,62 @@ function assignCurrentLocals(
   layout: InstanceLayout,
   delta: RuntimeOccurrenceDelta,
 ): void {
+  const required = new Map<PartId, number>();
+  for (const { afterPartId } of delta.slots) {
+    if (afterPartId !== undefined) required.set(afterPartId, (required.get(afterPartId) ?? 0) + 1);
+  }
+  const allocators = new Map<PartId, PartLocalAllocator>();
+  for (const [partId, count] of required) {
+    allocators.set(partId, preparePartLocalAllocator(layout, partId, count));
+  }
   for (const change of delta.slots) {
     if (change.afterPartId === undefined) continue;
-    const local = allocatePartLocal(layout, change.afterPartId);
+    const allocator = allocators.get(change.afterPartId);
+    if (allocator === undefined)
+      throw new Error(`Missing part-local allocator for ${change.afterPartId}`);
+    const local = allocator.free[allocator.next++];
+    if (local === undefined)
+      throw new Error(`Exhausted part-local slots for ${change.afterPartId}`);
     layout.slotPartLocal[change.slot] = local;
-    const byLocal = layout.partLocalSlots.get(change.afterPartId);
-    if (byLocal === undefined)
-      throw new Error(`Missing part-local slots for ${change.afterPartId}`);
-    byLocal[local] = change.slot;
+    allocator.slots[local] = change.slot;
     if (!runtime.isInstanceActive(change.slot))
       throw new Error(`Inactive changed slot ${change.slot}`);
   }
 }
 
-function allocatePartLocal(layout: InstanceLayout, partId: PartId): number {
+interface PartLocalAllocator {
+  readonly slots: Int32Array;
+  readonly free: readonly number[];
+  next: number;
+}
+
+function preparePartLocalAllocator(
+  layout: InstanceLayout,
+  partId: PartId,
+  required: number,
+): PartLocalAllocator {
   let slots = layout.partLocalSlots.get(partId);
   if (slots === undefined) {
-    slots = new Int32Array(1).fill(-1);
-    layout.partLocalSlots.set(partId, slots);
+    slots = new Int32Array();
     initializePartCounts(layout, partId);
     insertPartOrder(layout.partOrder, partId);
   }
-  const free = slots.indexOf(-1);
-  if (free >= 0) return free;
-  const next = new Int32Array(Math.max(1, slots.length * 2)).fill(-1);
-  next.set(slots);
-  layout.partLocalSlots.set(partId, next);
-  return slots.length;
+  const free: number[] = [];
+  for (let local = 0; local < slots.length && free.length < required; local += 1) {
+    if (slots[local] === -1) free.push(local);
+  }
+  const missing = required - free.length;
+  if (missing > 0) {
+    const previousLength = slots.length;
+    let capacity = Math.max(1, previousLength);
+    while (capacity < previousLength + missing) capacity *= 2;
+    const next = new Int32Array(capacity).fill(-1);
+    next.set(slots);
+    slots = next;
+    for (let local = previousLength; free.length < required; local += 1) free.push(local);
+  }
+  layout.partLocalSlots.set(partId, slots);
+  return { slots, free, next: 0 };
 }
 
 function updatePartMembership(

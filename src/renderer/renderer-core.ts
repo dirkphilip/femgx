@@ -74,8 +74,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.depthFormat = construction.depthFormat;
     this.timestampQueriesRequested = construction.timestampQueriesRequested ?? false;
     this.timestampRecorder = construction.timestampRecorder;
-    this.pointSize = options.pointSizePixels ?? 8;
-    this.nodeSize = options.nodeSizePixels ?? 6;
+    [this.pointSize, this.nodeSize] = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
     this.originTriadEnabled = options.originTriad ?? true;
     this.edgePick = createEdgePickState(construction.validation);
     this.background = options.background ?? "studio";
@@ -235,11 +234,14 @@ export class GpuRenderer implements WebGpuRenderer {
   ): void {
     this.ensureAlive();
     this.interaction = interaction;
-    this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
+    this.attachment.addParts(parts, delta.addedPartIds, this.parts);
+    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) {
+      this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
+    }
     if (this.sourceParts !== undefined) this.sourceParts = parts;
     this.attachment.removeParts(delta.removedPartIds, this.parts, this.lifecycle.bundle);
     this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
-    this.picking.invalidate();
+    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) this.picking.invalidate();
   }
 
   public updateElements(

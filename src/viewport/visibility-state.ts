@@ -79,6 +79,14 @@ export class ViewportVisibilityState {
     }
   }
 
+  /** Seeds definition policy for newly registered parts from authored visibility. */
+  admitParts(scene: Scene, partIds: ReadonlySet<PartId>): void {
+    for (const partId of partIds) {
+      this.parts.known.add(partId);
+      updateHidden(this.parts.hidden, partId, scene.visiblePartIds.has(partId));
+    }
+  }
+
   setAssembly(
     runtime: PackedSceneRuntime,
     assemblyId: AssemblyId,

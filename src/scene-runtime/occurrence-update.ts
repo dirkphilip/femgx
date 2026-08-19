@@ -1,6 +1,6 @@
 import type { PartId } from "../geometry/part";
 import { multiply, type Mat4 } from "../math/mat4";
-import type { PartPlacement } from "../scene/assembly";
+import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { SceneStructuralChanges } from "../scene/update-changes";
 import { hasOnlyDirectPartRuntimeChanges } from "../scene/update-validation";
@@ -25,11 +25,13 @@ export interface RuntimeOccurrenceDelta {
   readonly slots: readonly RuntimeOccurrenceSlotChange[];
   readonly affectedPartIds: ReadonlySet<PartId>;
   readonly removedOccurrenceSlots: readonly number[];
+  readonly addedPartIds: ReadonlySet<PartId>;
   readonly removedPartIds: ReadonlySet<PartId>;
 }
 
 export interface PreparedOccurrenceUpdate {
   readonly mutations: readonly PreparedOccurrenceMutation[];
+  readonly addedPartIds: ReadonlySet<PartId>;
   readonly removedPartIds: ReadonlySet<PartId>;
 }
 
@@ -50,11 +52,12 @@ export function prepareOccurrenceMutations(
   const authored = aggregatePlacementChanges(changes);
   if (authored === undefined) return undefined;
   const mutations: PreparedOccurrenceMutation[] = [];
+  const implicitPlacementOwners = new Map<number, boolean>();
   for (const change of authored) {
     const owner = scene.assemblies.get(change.ownerAssemblyId);
     if (
       (change.before === undefined || change.after === undefined) &&
-      owner?.placements.some(({ placementId }) => placementId === undefined)
+      hasImplicitPlacements(change.ownerAssemblyId, owner, implicitPlacementOwners)
     )
       return undefined;
     for (const ownerNode of runtime.getAssemblyNodeSlots(change.ownerAssemblyId)) {
@@ -75,7 +78,23 @@ export function prepareOccurrenceMutations(
       mutations.push({ slot, beforePartId, after });
     }
   }
-  return { mutations, removedPartIds: changes.parts.removed };
+  return {
+    mutations,
+    addedPartIds: changes.parts.added,
+    removedPartIds: changes.parts.removed,
+  };
+}
+
+function hasImplicitPlacements(
+  ownerId: number,
+  owner: AssemblyDefinition | undefined,
+  cache: Map<number, boolean>,
+): boolean {
+  const cached = cache.get(ownerId);
+  if (cached !== undefined) return cached;
+  const result = owner?.placements.some(({ placementId }) => placementId === undefined) ?? false;
+  cache.set(ownerId, result);
+  return result;
 }
 
 /** Applies a fully prepared direct-placement revision without recompiling the scene. */
@@ -115,6 +134,7 @@ export function applyOccurrenceMutations(
     slots,
     affectedPartIds,
     removedOccurrenceSlots,
+    addedPartIds: prepared.addedPartIds,
     removedPartIds: prepared.removedPartIds,
   };
 }

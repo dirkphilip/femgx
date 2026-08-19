@@ -18,6 +18,78 @@ import {
 } from "./support";
 
 describe("Viewport incremental part occurrences", () => {
+  it("admits an unplaced definition without broad attachment preparation", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      device: fakeGpuDevice().device,
+    });
+    viewport.render();
+    const runtime = viewport.runtime;
+    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const added = createPart(2, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+        },
+      ],
+    });
+
+    viewport.updateScene((update) => {
+      update.addPart(added);
+    });
+
+    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.scene.parts.get(2)).toBe(added);
+    expect(updateOccurrences).not.toHaveBeenCalled();
+    viewport.destroy();
+  });
+
+  it("admits a new definition and its first occurrence without broad attachment preparation", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(false),
+      device: fakeGpuDevice().device,
+    });
+    viewport.render();
+    const runtime = viewport.runtime;
+    const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
+    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const added = createPart(2, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0, 2, 0, 0, 0, 2, 0]),
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+        },
+      ],
+    });
+
+    viewport.updateScene((update) => {
+      update.addPart(added);
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "new-part",
+        partId: 2,
+        transform: translation(5, 0, 0),
+      });
+    });
+    viewport.render();
+
+    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.scene.parts.get(2)).toBe(added);
+    expect(viewport.runtime.getPartId("1/new-part")).toBe(2);
+    expect(updateOccurrences).toHaveBeenCalledTimes(1);
+    expect(prepareParts).not.toHaveBeenCalled();
+    viewport.destroy();
+  });
+
   it("updates retained runtime and GPU attachment slots without clearing scene storage", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -100,6 +172,40 @@ describe("Viewport incremental part occurrences", () => {
     expect(attachment?.edgeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.nodeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.transparentCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
+    viewport.destroy();
+  });
+
+  it("preserves results explicitly owned by a retained part", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: resultScene(3),
+      results: { scalar: { ...nodalResult(3).scalar, partId: 1 } },
+      device: fakeGpuDevice().device,
+    });
+    const added = createPart(2, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0]),
+          indices: new Uint32Array([0]),
+          primitive: "points",
+        },
+      ],
+    });
+
+    const outcome = viewport.updateScene((update) => {
+      update.addPart(added);
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "uncolored",
+        partId: 2,
+        transform: translation(4, 0, 0),
+      });
+    });
+
+    expect(outcome.results).toBe("preserved");
+    expect(viewport.results.state?.config.scalar?.partId).toBe(1);
     viewport.destroy();
   });
 

@@ -105,6 +105,67 @@ describe("cold renderer attachment", () => {
       restore();
     }
   });
+
+  it("admits only new-part resources and leaves retained buffers write-free", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = buildScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const attachment = new RendererAttachment();
+      attachment.prepareParts(scene.parts, bundle);
+      attachment.attach(runtime, bundle);
+      const retainedPart = scene.parts.get(1);
+      if (retainedPart === undefined) throw new Error("retained part missing");
+      const retainedGeometry = uploadPart(bundle.draw, retainedPart);
+      const retainedStorage = bundle.draw.storages.get(1);
+      if (retainedStorage === undefined) throw new Error("retained storage missing");
+      const addedPart = createPart(2, {
+        geometries: [
+          {
+            primitive: "triangles",
+            positions: new Float32Array([0, 0, 0, 2, 0, 0, 0, 2, 0]),
+            indices: new Uint32Array([0, 1, 2]),
+          },
+        ],
+      });
+      const prepared = prepareSceneTransition(scene, (update) => {
+        update.addPart(addedPart);
+        update.addPartOccurrence({
+          assemblyId: 1,
+          placementId: "added-part",
+          partId: 2,
+          transform: translation(4, 0, 0),
+        });
+      });
+      if (prepared === undefined) throw new Error("transition missing");
+      const occurrenceUpdate = prepareOccurrenceMutations(
+        runtime,
+        prepared.scene,
+        prepared.changes,
+      );
+      if (occurrenceUpdate === undefined) throw new Error("occurrence update missing");
+      attachment.prepareAddedParts(prepared.scene.parts, occurrenceUpdate.addedPartIds);
+      const writesBefore = gpu.writes.length;
+
+      const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
+      attachment.addParts(prepared.scene.parts, delta.addedPartIds);
+      attachment.updateOccurrences(runtime, createInteractionState(), delta, bundle);
+      const addedGeometry = uploadPart(bundle.draw, addedPart);
+
+      expect(uploadPart(bundle.draw, addedPart)).toBe(addedGeometry);
+      expect(bundle.draw.parts.get(1)).toBe(retainedGeometry);
+      expect(bundle.draw.storages.get(1)).toBe(retainedStorage);
+      expect(bundle.draw.storages.get(2)).toBeDefined();
+      expect(
+        gpu.writes.slice(writesBefore).some(({ buffer }) => buffer === retainedStorage.buffer),
+      ).toBe(false);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
 });
 
 function bufferDestroyed(gpu: ReturnType<typeof fakeGpuDevice>, resource: GPUBuffer): boolean {

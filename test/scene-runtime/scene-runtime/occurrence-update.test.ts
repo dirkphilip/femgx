@@ -5,7 +5,7 @@ import {
   prepareOccurrenceMutations,
 } from "../../../src/scene-runtime/occurrence-update";
 import { prepareSceneTransition } from "../../../src/scene/update";
-import { buildScene, createPackedSceneRuntime, identity, translation } from "./support";
+import { buildScene, createPackedSceneRuntime, identity, part, translation } from "./support";
 
 describe("incremental part occurrence storage", () => {
   it("reuses removed slots without moving surviving identities or exposing holes", () => {
@@ -65,10 +65,11 @@ describe("incremental part occurrence storage", () => {
     );
     const runtime = createPackedSceneRuntime(scene);
     const prepared = prepareSceneTransition(scene, (update) => {
+      update.addPart(part(2));
       update.addPartOccurrence({
         assemblyId: 2,
         placementId: "shared",
-        partId: 1,
+        partId: 2,
         transform: identity(),
       });
     });
@@ -76,11 +77,29 @@ describe("incremental part occurrence storage", () => {
     const mutations = prepareOccurrenceMutations(runtime, prepared.scene, prepared.changes);
     if (mutations === undefined) throw new Error("expected occurrence mutations");
 
-    applyOccurrenceMutations(runtime, mutations);
+    const delta = applyOccurrenceMutations(runtime, mutations);
 
+    expect(delta.addedPartIds).toEqual(new Set([2]));
     expect(runtime.activeInstanceCount).toBe(2);
     expect(runtime.getInstanceSlot("1/left/shared")).toBeDefined();
     expect(runtime.getInstanceSlot("1/right/shared")).toBeDefined();
+  });
+
+  it("admits an unplaced definition without compiling or allocating an occurrence", () => {
+    const scene = buildScene(1, [{ id: 1, placements: [] }], [1]);
+    const runtime = createPackedSceneRuntime(scene);
+    const prepared = prepareSceneTransition(scene, (update) => {
+      update.addPart(part(2));
+    });
+    if (prepared === undefined) throw new Error("expected a scene transition");
+    const mutations = prepareOccurrenceMutations(runtime, prepared.scene, prepared.changes);
+    if (mutations === undefined) throw new Error("expected occurrence mutations");
+
+    const delta = applyOccurrenceMutations(runtime, mutations);
+
+    expect(delta.addedPartIds).toEqual(new Set([2]));
+    expect(delta.slots).toEqual([]);
+    expect(runtime.activeInstanceCount).toBe(0);
   });
 
   it("releases every nested expansion in a part-definition removal cascade", () => {

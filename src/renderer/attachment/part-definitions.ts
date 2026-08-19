@@ -17,6 +17,31 @@ interface PartAttachmentOptions {
   readonly bundle: GpuBundle;
 }
 
+/** Builds lazy semantic metadata for exact added definitions before live mutation. */
+export function prepareAddedAttachmentParts(
+  parts: ReadonlyMap<PartId, Part>,
+  partIds: ReadonlySet<PartId>,
+): void {
+  for (const partId of partIds) {
+    const part = parts.get(partId);
+    if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
+    getPartSemanticIndex(part);
+  }
+}
+
+/** Admits exact added definitions without scanning or replacing retained resources. */
+export function addAttachmentParts(
+  attachedParts: Map<PartId, Part>,
+  parts: ReadonlyMap<PartId, Part>,
+  partIds: ReadonlySet<PartId>,
+): void {
+  for (const partId of partIds) {
+    const part = parts.get(partId);
+    if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
+    attachedParts.set(partId, part);
+  }
+}
+
 /** Reconciles immutable definition resources for a general runtime replacement. */
 export function prepareAttachmentParts(
   options: PartAttachmentOptions,
