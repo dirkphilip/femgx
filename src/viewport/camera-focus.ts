@@ -111,7 +111,7 @@ export class CameraFocusController {
     );
     this.setCamera(
       camera,
-      { durationMs: DEFAULT_CAMERA_TRANSITION_DURATION_MS },
+      { durationMs: action.kind === "face" ? 0 : DEFAULT_CAMERA_TRANSITION_DURATION_MS },
       interpolateOrientationCamera,
     );
   }
