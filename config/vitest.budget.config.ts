@@ -10,7 +10,8 @@ export default defineConfig({
   test: {
     include: [
       "test/bench/budget/budget.test.ts",
-      "test/bench/scene-update-scaling.test.ts",
+      "test/bench/scene/part-removal-scaling.test.ts",
+      "test/bench/scene/scene-update-scaling.test.ts",
       "test/bench/visibility/part-occurrence-visibility.test.ts",
     ],
     env: { FEMGX_PERFORMANCE_BUDGET: "1" },

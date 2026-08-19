@@ -82,4 +82,44 @@ describe("incremental part occurrence storage", () => {
     expect(runtime.getInstanceSlot("1/left/shared")).toBeDefined();
     expect(runtime.getInstanceSlot("1/right/shared")).toBeDefined();
   });
+
+  it("releases every nested expansion in a part-definition removal cascade", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [
+            { kind: "assembly", placementId: "left", assemblyId: 2, transform: identity() },
+            { kind: "assembly", placementId: "right", assemblyId: 2, transform: identity() },
+          ],
+        },
+        {
+          id: 2,
+          placements: [
+            { kind: "part", placementId: "removed", partId: 1, transform: identity() },
+            { kind: "part", placementId: "retained", partId: 2, transform: identity() },
+          ],
+        },
+      ],
+      [1, 2],
+    );
+    const runtime = createPackedSceneRuntime(scene);
+    const prepared = prepareSceneTransition(scene, (update) => {
+      update.removePart(1, { occurrences: "remove" });
+    });
+    if (prepared === undefined) throw new Error("expected a scene transition");
+    const mutations = prepareOccurrenceMutations(runtime, prepared.scene, prepared.changes);
+    if (mutations === undefined) throw new Error("expected occurrence mutations");
+
+    const delta = applyOccurrenceMutations(runtime, mutations);
+
+    expect(delta.removedPartIds).toEqual(new Set([1]));
+    expect(delta.removedOccurrenceSlots).toHaveLength(2);
+    expect(runtime.getInstanceSlot("1/left/removed")).toBeUndefined();
+    expect(runtime.getInstanceSlot("1/right/removed")).toBeUndefined();
+    expect(runtime.getInstanceSlot("1/left/retained")).toBeDefined();
+    expect(runtime.getInstanceSlot("1/right/retained")).toBeDefined();
+    expect(runtime.activeInstanceCount).toBe(2);
+  });
 });

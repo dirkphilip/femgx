@@ -71,6 +71,14 @@ export class ViewportVisibilityState {
     for (const slot of slots) this.hiddenPartOccurrenceSlots.delete(slot);
   }
 
+  /** Drops definition policy for parts removed from the authoritative scene. */
+  pruneParts(partIds: ReadonlySet<PartId>): void {
+    for (const partId of partIds) {
+      this.parts.known.delete(partId);
+      this.parts.hidden.delete(partId);
+    }
+  }
+
   setAssembly(
     runtime: PackedSceneRuntime,
     assemblyId: AssemblyId,
@@ -101,7 +109,7 @@ export class ViewportVisibilityState {
 }
 
 interface DefinitionVisibility<T> {
-  readonly known: ReadonlySet<T>;
+  readonly known: Set<T>;
   readonly hidden: Set<T>;
 }
 

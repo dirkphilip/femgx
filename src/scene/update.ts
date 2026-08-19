@@ -33,10 +33,7 @@ import type {
   TransformAssemblyOccurrenceInput,
   TransformPartOccurrenceInput,
 } from "./update-types";
-import {
-  hasOnlyDirectPartPlacementChanges,
-  validateExplicitPlacementId,
-} from "./update-validation";
+import { hasOnlyDirectPartRuntimeChanges, validateExplicitPlacementId } from "./update-validation";
 
 export type {
   AddAssemblyOccurrenceInput,
@@ -280,7 +277,7 @@ class SceneUpdateDraft implements SceneUpdate {
       ),
       placements: this.placementChanges,
     };
-    if (!isTransformOnlyChanges(changes) && !hasOnlyDirectPartPlacementChanges(changes)) {
+    if (!isTransformOnlyChanges(changes) && !hasOnlyDirectPartRuntimeChanges(changes)) {
       validateScene(candidate);
     }
     return { scene: candidate, changes };

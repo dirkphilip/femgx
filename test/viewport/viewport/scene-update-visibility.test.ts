@@ -92,6 +92,28 @@ describe("Viewport scene-update visibility", () => {
     viewport.destroy();
   });
 
+  it("prunes removed part policy before the same definition id is registered again", async () => {
+    const viewport = await testViewport();
+    const part = viewport.scene.parts.get(1);
+    if (part === undefined) throw new Error("test part is missing");
+    viewport.visibility.setPart(1, false);
+    viewport.updateScene((update) => {
+      update.removePart(1, { occurrences: "remove" });
+    });
+    viewport.updateScene((update) => {
+      update.addPart(part);
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "restored",
+        partId: 1,
+        transform: translation(0, 0, 0),
+      });
+    });
+
+    expect(viewport.runtime.isPartOccurrenceVisible("1/restored")).toBe(true);
+    viewport.destroy();
+  });
+
   it("preserves independent assembly definition and occurrence causes", async () => {
     const viewport = await testViewport(nestedScene());
     viewport.visibility.setAssemblyOccurrence("1/child", false);

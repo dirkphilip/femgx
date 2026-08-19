@@ -4,8 +4,13 @@ import type { Part, PartId } from "../geometry/part";
 import type { SectionPlane } from "../math/section-plane";
 import type { DeformationState } from "../results/deform";
 import { buildSectionCapFrame, destroySectionCapFrame, type SectionCapFrame } from "./section-caps";
-import type { DrawResources } from "./resources/draw-resources";
+import {
+  destroyInstancePartResources,
+  destroyPartResources,
+  type DrawResources,
+} from "./resources/draw-resources";
 import type { ResultColorMap } from "../results/colors";
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 
 interface SectionCapSyncOptions {
   readonly runtime: PackedSceneRuntime;
@@ -39,6 +44,18 @@ export class SectionCapController {
 
   public invalidate(): void {
     this.dirty = true;
+  }
+
+  /** Applies occurrence changes while retiring exact removed-part cap fragments. */
+  public updateOccurrences(
+    delta: RuntimeOccurrenceDelta,
+    parts: ReadonlyMap<PartId, Part>,
+    draw: DrawResources,
+  ): void {
+    this.removeParts(delta.removedPartIds, parts, draw);
+    if ([...delta.affectedPartIds].some((partId) => !delta.removedPartIds.has(partId))) {
+      this.invalidate();
+    }
   }
 
   public sync(options: SectionCapSyncOptions): void {
@@ -94,6 +111,64 @@ export class SectionCapController {
     destroySectionCapFrame(this.frame, draw);
     this.frame = undefined;
   }
+
+  private removeParts(
+    partIds: ReadonlySet<PartId>,
+    parts: ReadonlyMap<PartId, Part>,
+    draw: DrawResources,
+  ): void {
+    if (partIds.size === 0) {
+      this.invalidate();
+      return;
+    }
+    const frame = this.frame;
+    if (frame === undefined) {
+      this.renderedParts = parts;
+      this.renderedColors = retainedEntries(this.renderedColors, partIds);
+      return;
+    }
+    const capIds = new Set(
+      [...frame.sourcePartIds].flatMap(([capId, sourceId]) =>
+        partIds.has(sourceId) ? [capId] : [],
+      ),
+    );
+    for (const capId of capIds) {
+      destroyPartResources(draw, capId);
+      destroyInstancePartResources(draw, capId);
+    }
+    const capParts = retainedEntries(frame.parts, capIds);
+    this.frame = {
+      parts: capParts,
+      sourcePartIds: retainedEntries(frame.sourcePartIds, capIds),
+      calls: retainedCalls(frame.calls, capIds),
+      transparentCalls: retainedCalls(frame.transparentCalls, capIds),
+      allCalls: retainedCalls(frame.allCalls, capIds),
+      resultColors: retainedEntries(frame.resultColors, capIds),
+    };
+    this.renderedParts = new Map([...parts, ...capParts]);
+    this.renderedColors = retainedEntries(this.renderedColors, new Set([...partIds, ...capIds]));
+  }
+}
+
+function retainedEntries<K, V>(values: ReadonlyMap<K, V>, removed: ReadonlySet<K>): Map<K, V>;
+function retainedEntries<K, V>(
+  values: ReadonlyMap<K, V> | undefined,
+  removed: ReadonlySet<K>,
+): Map<K, V> | undefined;
+function retainedEntries<K, V>(
+  values: ReadonlyMap<K, V> | undefined,
+  removed: ReadonlySet<K>,
+): Map<K, V> | undefined {
+  return values === undefined
+    ? undefined
+    : new Map([...values].filter(([key]) => !removed.has(key)));
+}
+
+function retainedCalls<T extends { readonly partId: PartId }>(
+  calls: readonly T[],
+  removed: ReadonlySet<PartId>,
+): T[] {
+  return calls.filter(({ partId }) => !removed.has(partId));
 }
 
 /** Compares section-plane values without requiring a new object identity. */

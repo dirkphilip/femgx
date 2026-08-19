@@ -121,6 +121,7 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | public runtime rebuild scaling    | 50k / 100k / 200k placements           | exported `createSceneRuntime`                                     |
 | public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `Viewport.replaceScene`                                  |
 | public scene update scaling       | 100 000 placements                     | one stable transform edit or direct occurrence add/removal        |
+| whole-part cascade removal        | 100 000 shared-part occurrences        | retained-runtime removal and exact part-resource retirement       |
 | `createSceneRuntime` (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
 | structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `elementPart`                                            |
 | `createElementModelFromFemModel`  | 250 000 Triangle3 elements             | typed connectivity conversion                                     |

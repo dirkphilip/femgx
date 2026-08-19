@@ -2,7 +2,8 @@ import type { PartId } from "../geometry/part";
 import { multiply, type Mat4 } from "../math/mat4";
 import type { PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
-import { hasDefinitionChanges, type SceneStructuralChanges } from "../scene/update-changes";
+import type { SceneStructuralChanges } from "../scene/update-changes";
+import { hasOnlyDirectPartRuntimeChanges } from "../scene/update-validation";
 import type { PartOccurrenceId } from "../scene/types";
 import { invariantValue } from "./invariants";
 import type { PackedSceneRuntime, RuntimeInstanceInput } from "./runtime";
@@ -24,11 +25,17 @@ export interface RuntimeOccurrenceDelta {
   readonly slots: readonly RuntimeOccurrenceSlotChange[];
   readonly affectedPartIds: ReadonlySet<PartId>;
   readonly removedOccurrenceSlots: readonly number[];
+  readonly removedPartIds: ReadonlySet<PartId>;
+}
+
+export interface PreparedOccurrenceUpdate {
+  readonly mutations: readonly PreparedOccurrenceMutation[];
+  readonly removedPartIds: ReadonlySet<PartId>;
 }
 
 /**
- * Expands only direct part-placement edits through retained assembly nodes.
- * Assembly topology and definition edits intentionally remain on replacement.
+ * Expands direct part-placement edits and part-removal cascades through retained assembly nodes.
+ * Assembly topology and other definition edits intentionally remain on replacement.
  */
 export function prepareOccurrenceMutations(
   runtime: PackedSceneRuntime,
@@ -38,13 +45,8 @@ export function prepareOccurrenceMutations(
     _partId,
     authoredVisible,
   ) => authoredVisible,
-): readonly PreparedOccurrenceMutation[] | undefined {
-  if (
-    hasDefinitionChanges(changes.parts) ||
-    hasDefinitionChanges(changes.assemblies) ||
-    changes.placements.length === 0
-  )
-    return undefined;
+): PreparedOccurrenceUpdate | undefined {
+  if (!hasOnlyDirectPartRuntimeChanges(changes)) return undefined;
   const authored = aggregatePlacementChanges(changes);
   if (authored === undefined) return undefined;
   const mutations: PreparedOccurrenceMutation[] = [];
@@ -73,14 +75,15 @@ export function prepareOccurrenceMutations(
       mutations.push({ slot, beforePartId, after });
     }
   }
-  return mutations.length === 0 ? undefined : mutations;
+  return { mutations, removedPartIds: changes.parts.removed };
 }
 
 /** Applies a fully prepared direct-placement revision without recompiling the scene. */
 export function applyOccurrenceMutations(
   runtime: PackedSceneRuntime,
-  mutations: readonly PreparedOccurrenceMutation[],
+  prepared: PreparedOccurrenceUpdate,
 ): RuntimeOccurrenceDelta {
+  const { mutations } = prepared;
   const bySlot = new Map<number, RuntimeOccurrenceSlotChange>();
   const removedOccurrenceSlots: number[] = [];
   for (const mutation of mutations) {
@@ -107,7 +110,13 @@ export function applyOccurrenceMutations(
     if (change.beforePartId !== undefined) affectedPartIds.add(change.beforePartId);
     if (change.afterPartId !== undefined) affectedPartIds.add(change.afterPartId);
   }
-  return { slots, affectedPartIds, removedOccurrenceSlots };
+  for (const partId of prepared.removedPartIds) affectedPartIds.add(partId);
+  return {
+    slots,
+    affectedPartIds,
+    removedOccurrenceSlots,
+    removedPartIds: prepared.removedPartIds,
+  };
 }
 
 interface AggregatedPlacementChange {

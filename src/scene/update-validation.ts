@@ -4,13 +4,22 @@ import { hasDefinitionChanges, type SceneStructuralChanges } from "./update-chan
 /** Whether transaction methods already validated every changed ownership boundary. */
 export function hasOnlyDirectPartPlacementChanges(changes: SceneStructuralChanges): boolean {
   if (hasDefinitions(changes)) return false;
-  return (
-    changes.placements.length > 0 &&
-    changes.placements.every(
-      ({ before, after }) =>
-        (before === undefined || (before.kind === "part" && before.placementId !== undefined)) &&
-        (after === undefined || (after.kind === "part" && after.placementId !== undefined)),
-    )
+  return hasOnlyExplicitPartPlacements(changes);
+}
+
+/** Whether a revision can use retained runtime slots, including part-definition removal. */
+export function hasOnlyDirectPartRuntimeChanges(changes: SceneStructuralChanges): boolean {
+  if (hasDefinitionChanges(changes.assemblies)) return false;
+  if (changes.parts.added.size > 0 || changes.parts.replaced.size > 0) return false;
+  if (changes.parts.removed.size === 0 && changes.placements.length === 0) return false;
+  return hasOnlyExplicitPartPlacements(changes);
+}
+
+function hasOnlyExplicitPartPlacements(changes: SceneStructuralChanges): boolean {
+  return changes.placements.every(
+    ({ before, after }) =>
+      (before === undefined || (before.kind === "part" && before.placementId !== undefined)) &&
+      (after === undefined || (after.kind === "part" && after.placementId !== undefined)),
   );
 }
 

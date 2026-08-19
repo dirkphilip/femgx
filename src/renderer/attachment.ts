@@ -25,8 +25,6 @@ import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
   rebuildTransparentOrders as rebuildTransparentOrdersForParts,
 } from "./attachment/orders";
-import { changedPartDefinitions, reconcilePartResources } from "./resources/part-resources";
-import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { rebuildAttachmentCalls } from "./attachment/calls";
 import { destroyVisibilitySkinCaches, rebuildVisibilitySurface } from "./visibility/skins";
 import {
@@ -35,6 +33,7 @@ import {
 } from "./attachment/interaction";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { applyOccurrenceAttachment } from "./attachment/occurrences";
+import { prepareAttachmentParts, removeAttachmentParts } from "./attachment/part-definitions";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -67,34 +66,25 @@ export class RendererAttachment {
   private interactionState = createInteractionState();
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
-  private attachedParts: ReadonlyMap<PartId, Part> = new Map();
+  private attachedParts = new Map<PartId, Part>();
 
   public usesExteriorFaceSubsets = true;
 
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
-    const changedPartIds = changedPartDefinitions(this.attachedParts, parts);
-    changedPartIds?.forEach((partId) => {
-      this.layout?.partSelectionDrawCalls.delete(partId);
-      this.layout?.partSurfaceDrawCalls.delete(partId);
-    });
-    this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
-    if (changedPartIds !== undefined && this.runtime !== undefined && this.layout !== undefined) {
-      for (const partId of changedPartIds) {
-        const part = parts.get(partId);
-        if (part === undefined) continue;
-        rebuildVisibilitySurface({
-          runtime: this.runtime,
-          layout: this.layout,
-          part,
-          interaction: this.interactionState,
-          draw: bundle.draw,
-        });
-      }
-      this.rebuildCalls(bundle.draw.cost);
-    }
-    // Region queries reuse this immutable index; prepare it outside their timed readback path.
-    for (const part of parts.values()) getPartSemanticIndex(part);
+    const result = prepareAttachmentParts(this.partAttachmentOptions(bundle), parts);
+    this.attachedParts = result.parts;
+    if (result.calls !== undefined) Object.assign(this, result.calls);
+  }
+
+  /** Retires exact removed definitions without scanning the retained part registry. */
+  public removeParts(
+    partIds: ReadonlySet<PartId>,
+    sourceParts: Map<PartId, Part>,
+    bundle: GpuBundle,
+  ): void {
+    const calls = removeAttachmentParts(this.partAttachmentOptions(bundle), sourceParts, partIds);
+    if (calls !== undefined) Object.assign(this, calls);
   }
 
   /**
@@ -200,7 +190,10 @@ export class RendererAttachment {
     });
     this.instances = state.instances;
     this.slotByInstanceId = state.slotByInstanceId;
-    this.applyAttachmentOrders(runtime, layout, delta.affectedPartIds, bundle, optionalParts);
+    const retainedParts = new Set(
+      [...delta.affectedPartIds].filter((partId) => !delta.removedPartIds.has(partId)),
+    );
+    this.applyAttachmentOrders(runtime, layout, retainedParts, bundle, optionalParts);
     return true;
   }
 
@@ -381,6 +374,16 @@ export class RendererAttachment {
 
   private rebuildCalls(cost: GpuCostAccumulator): void {
     Object.assign(this, rebuildAttachmentCalls(this.layout, cost));
+  }
+
+  private partAttachmentOptions(bundle: GpuBundle) {
+    return {
+      attachedParts: this.attachedParts,
+      runtime: this.runtime,
+      layout: this.layout,
+      interaction: this.interactionState,
+      bundle,
+    };
   }
 
   private rebuildVisibilitySurface(

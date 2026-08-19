@@ -186,13 +186,20 @@ export class ViewportSceneController {
     cancelCamera();
     const delta = applyOccurrenceMutations(this.currentRuntime, mutations);
     this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
+    this.currentVisibility.pruneParts(delta.removedPartIds);
     const nextInteraction = reconcileInteractionState(
       this.baseInteraction,
       this.currentRuntime,
       scene.parts,
     );
     const resultUpdate = this.prepareSceneResults(scene, this.currentRuntime);
-    updateRendererOccurrences(this.options.renderer, this.currentRuntime, nextInteraction, delta);
+    updateRendererOccurrences(
+      this.options.renderer,
+      this.currentRuntime,
+      nextInteraction,
+      delta,
+      scene.parts,
+    );
     this.currentScene = scene;
     this.baseInteraction = nextInteraction;
     this.currentResults = resultUpdate.results;
