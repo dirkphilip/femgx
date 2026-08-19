@@ -177,17 +177,24 @@ interface ViewportOccurrenceResultRoles {
  * snapshot. Geometry and topology remain owned by the reusable part.
  * @category Results
  */
-export type ViewportOccurrenceResultsConfig = { readonly partOccurrenceId: PartOccurrenceId } & (
+export type ViewportOccurrenceResultsConfig = {
+  /** Stable identity of the placed part receiving these role overrides. */
+  readonly partOccurrenceId: PartOccurrenceId;
+} & (
   | (ViewportOccurrenceResultRoles & {
+      /** Required scalar role for this non-empty occurrence variant. */
       readonly scalar: ViewportOccurrenceScalarConfig;
     })
   | (ViewportOccurrenceResultRoles & {
+      /** Required deformation role for this non-empty occurrence variant. */
       readonly deformation: ViewportDeformationConfig;
     })
   | (ViewportOccurrenceResultRoles & {
+      /** Required orientation role for this non-empty occurrence variant. */
       readonly orientation: ViewportOccurrenceElementVectorConfig | ViewportElementFrameConfig;
     })
   | (ViewportOccurrenceResultRoles & {
+      /** Required load role for this non-empty occurrence variant. */
       readonly loads: ViewportLoadConfig;
     })
 );
