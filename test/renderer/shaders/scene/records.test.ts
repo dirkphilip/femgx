@@ -159,7 +159,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("does not globally re-enable results after an element override disables them", () => {
     expect(instanceVertexShader).not.toContain("selectionKeepsResult");
     expect(instanceVertexShader).toContain(
-      "resultColorEnabled = select(\n          false,\n          resultColorActive(nodePickId, elementOrdinal),\n          highlight.keepsResultColor,\n        );",
+      "resultColorEnabled = select(\n          false,\n          resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal),\n          highlight.keepsResultColor,\n        );",
     );
   });
 

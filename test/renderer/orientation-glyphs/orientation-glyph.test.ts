@@ -193,7 +193,7 @@ describe("orientation glyph data", () => {
 
     renderer.render(runtime, camera, scene.parts);
 
-    expect(readGpuCostSnapshot(renderer).writes["vector-glyph"].bytes).toBe(64 + 16 + 48);
+    expect(readGpuCostSnapshot(renderer).writes["vector-glyph"].bytes).toBe(64 + 16 + 48 + 4);
     renderer.destroy();
   });
 
@@ -275,7 +275,7 @@ describe("orientation glyph data", () => {
     renderer.render(runtime, { ...camera, width: 800, height: 600 }, scene.parts);
     const first = readGpuCostSnapshot(renderer);
     expect(first.draws["vector-glyph"]).toEqual({ calls: 2, indices: 18, instances: 4 });
-    expect(first.writes["vector-glyph"].bytes).toBe(64 + 16);
+    expect(first.writes["vector-glyph"].bytes).toBe(64 + 16 + 8);
     expect(
       gpu.buffers.some(
         (buffer) => buffer.size === 16 && (buffer.usage & GPUBufferUsage.UNIFORM) !== 0,
@@ -308,6 +308,48 @@ describe("orientation glyph data", () => {
       widthPixels: 1.5,
     });
     expect(gpu.writes.length).toBe(afterWidth);
+    renderer.destroy();
+  });
+
+  it("draws one compact shared group and one occurrence override group", async () => {
+    restoreGpuGlobals = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const { part, records } = orientationRecords();
+    const override = {
+      ...records,
+      directions: new Float32Array([0, 1, 0]),
+    };
+    const scene = createScene()
+      .addPart(part)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+        ],
+      })
+      .withRoot(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    setRendererOrientationGlyphs(renderer, {
+      parts: new Map([
+        [1, records],
+        ["1/1" as never, override],
+      ]),
+      mode: "arrow",
+      transform: "direction",
+      lengthScale: 1,
+      widthPixels: 2,
+    });
+
+    renderer.render(runtime, camera, scene.parts);
+
+    const cost = readGpuCostSnapshot(renderer);
+    expect(cost.draws["vector-glyph"]).toEqual({ calls: 4, indices: 36, instances: 4 });
+    expect(cost.writes["vector-glyph"].bytes).toBe(64 * 2 + 16 + 4 * 2);
     renderer.destroy();
   });
 });

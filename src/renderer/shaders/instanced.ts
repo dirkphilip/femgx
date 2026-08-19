@@ -47,7 +47,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
         color = highlight.color;
         resultColorEnabled = select(
           false,
-          resultColorActive(nodePickId, elementOrdinal),
+          resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal),
           highlight.keepsResultColor,
         );
         emissive = highlight.emissive;
@@ -61,7 +61,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
     color = applyDenseSelectionColor(color);
     emissive = applyDenseSelectionEmissive(emissive);
     resultColorEnabled = select(
-      resultColorActive(nodePickId, elementOrdinal),
+      resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal),
       false,
       (elementHighlights.selectionFlags & 1u) != 0u,
     );
@@ -77,7 +77,7 @@ const bodyAndElementHighlighting = /* wgsl */ `
         color = highlight.color;
         resultColorEnabled = select(
           false,
-          resultColorActive(nodePickId, elementOrdinal),
+          resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal),
           highlight.keepsResultColor,
         );
         emissive = highlight.emissive;
@@ -96,9 +96,9 @@ function instanceHighlighting(nodeIndex: string): string {
   let facePickId = faceBodyPickIds.x;
   let bodyPickId = faceBodyPickIds.y;
   let nodePickId = vertexNodePickIds[${nodeIndex}];
-  let baseResultColor = resultColorFor(nodePickId, elementOrdinal, instance.color);
+  let baseResultColor = resultColorFor(drawOrder[instanceIndex], nodePickId, elementOrdinal, instance.color);
   var color = baseResultColor;
-  var resultColorEnabled = resultColorActive(nodePickId, elementOrdinal);
+  var resultColorEnabled = resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal);
   var emissive = instance.emissive;
   var hidden = false;
   var matched = false;
@@ -167,7 +167,7 @@ function createInstanceVertexOutput(
     : `primitiveVisible(drawOrder[instanceIndex], ${primitiveIndex})`;
   return /* wgsl */ `
   var output: VertexOutput;
-  let displayedPosition = displaced(position, ${sourceIndex});
+  let displayedPosition = displaced(position, ${sourceIndex}, drawOrder[instanceIndex]);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
 ${linePass ? lineExpandedPosition() : "  output.position = camera.viewProjection * vec4<f32>(worldPosition, 1.0);"}
   if (hidden) {
@@ -215,8 +215,8 @@ function lineExpandedPosition(): string {
     geometryPosition((lineBase + 1u) * 3u + 1u),
     geometryPosition((lineBase + 1u) * 3u + 2u),
   );
-  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase), 1.0);
-  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u), 1.0);
+  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase, drawOrder[instanceIndex]), 1.0);
+  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u, drawOrder[instanceIndex]), 1.0);
   output.position = lineExpandedPosition(
     lineClipA,
     lineClipB,
@@ -278,7 +278,7 @@ fn pointVertex(
 ) -> VertexOutput {
   let instance = instances[drawOrder[instanceIndex]];
   let corner = spriteCorner(cornerIndex);
-  let displayedPosition = displaced(position, nodeIndex);
+  let displayedPosition = displaced(position, nodeIndex, drawOrder[instanceIndex]);
   let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz;
   let clip = camera.viewProjection * vec4<f32>(worldPosition, 1.0);
   let diameter = select(camera.pointSize, camera.nodeSize, nodeOverlay);
@@ -295,13 +295,13 @@ fn pointVertex(
     clip.z,
     clip.w,
   );
-  let baseResultColor = resultColorFor(nodePickId, elementOrdinal, instance.color);
+  let baseResultColor = resultColorFor(drawOrder[instanceIndex], nodePickId, elementOrdinal, instance.color);
   var color = select(
     baseResultColor,
     vec4<f32>(0.0, 0.0, 0.0, 0.45 * instance.color.a),
     nodeOverlay,
   );
-  var resultColorEnabled = !nodeOverlay && resultColorActive(nodePickId, elementOrdinal);
+  var resultColorEnabled = !nodeOverlay && resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal);
   if (nodeOverlay && instanceSelected(instance.selected)) {
     color = instance.color;
   }

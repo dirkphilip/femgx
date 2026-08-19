@@ -1,65 +1,36 @@
 import type { PartId } from "../../geometry/part";
+import type { ResultBindingId } from "../../results/bindings";
 import type { ElementalOrientationRecords } from "../../results/orientation-records";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { InstanceStorage } from "../resources/instance-storage";
 import {
-  normalMatrix3,
   orientationGlyphRecordSource,
   ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
   ORIENTATION_GLYPH_RECORD_STRIDE,
   packOrientationRecords,
   sameOrientationGlyphRecordSource,
-  type OrientationGlyphRecordSource,
 } from "./data";
 import type { OrientationGlyphPipelines } from "./pipelines";
+import { effectiveRecordGroups, syncGlyphOrder, type OrientationInstanceLayout } from "./groups";
+import { buildNormalMatrices, needsNormalMatrices, writeNormalMatrices } from "./normal-matrices";
+import type {
+  OrientationGlyphDrawResources,
+  OrientationGlyphGroupResource,
+  OrientationGlyphPartResource,
+  OrientationGlyphState,
+} from "./types";
 
-/** Renderer-owned glyph presentation mode. */
-export type OrientationGlyphMode = "arrow" | "axis" | "triad";
-
-/** Renderer-owned occurrence direction transform mode. */
-export type OrientationGlyphTransform = "direction" | "normal";
-
-/** Internal handoff from the viewport result resolver to the renderer. */
-export interface OrientationGlyphState {
-  readonly parts: ReadonlyMap<PartId, ElementalOrientationRecords>;
-  readonly mode: OrientationGlyphMode;
-  readonly transform: OrientationGlyphTransform;
-  readonly lengthScale: number;
-  readonly widthPixels: number;
-}
-
-/** GPU resources retained for one active per-part glyph record array. */
-export interface OrientationGlyphPartResource {
-  readonly partId: PartId;
-  recordBuffer: GPUBuffer;
-  recordData: Uint8Array<ArrayBuffer>;
-  recordCapacity: number;
-  recordCount: number;
-  source: OrientationGlyphRecordSource | undefined;
-  normalBuffer: GPUBuffer;
-  normalData: Float32Array;
-  normalCapacity: number;
-  bindGroup: GPUBindGroup | undefined;
-  instanceBindGroup: GPUBindGroup | undefined;
-  instanceBindGroupSources: readonly [GPUBuffer, GPUBuffer, GPUBuffer] | undefined;
-}
-
-/** Device-bound owner for all active orientation glyph buffers. */
-export interface OrientationGlyphDrawResources {
-  readonly device: GPUDevice;
-  readonly cost: GpuCostAccumulator;
-  paramsBuffer: GPUBuffer | undefined;
-  readonly paramsData: ArrayBuffer;
-  readonly parts: Map<PartId, OrientationGlyphPartResource>;
-  state: OrientationGlyphState | undefined;
-}
+export type {
+  OrientationGlyphDrawResources,
+  OrientationGlyphGroupResource,
+  OrientationGlyphMode,
+  OrientationGlyphPartResource,
+  OrientationGlyphState,
+  OrientationGlyphTransform,
+} from "./types";
 
 const PARAMS_SIZE = 16;
-
-interface OrientationInstanceLayout {
-  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
-}
 
 /** Creates the persistent parameter buffer and empty per-part resource map. */
 export function createOrientationGlyphDrawResources(
@@ -93,17 +64,27 @@ export function syncOrientationGlyphs(
   if (!Number.isFinite(state.widthPixels) || state.widthPixels < 1 || state.widthPixels > 8) {
     throw new Error(`Elemental orientation glyph widthPixels must be finite and between 1 and 8`);
   }
-  const normalMatrices =
-    state.transform === "normal" ? syncNormalMatrices(state, runtime, layout) : undefined;
+  const normalMatrices = needsNormalMatrices(state)
+    ? buildNormalMatrices(state, runtime, layout)
+    : undefined;
   writeParams(resources, state);
   const active = new Set<PartId>();
-  for (const [partId, records] of state.parts) {
-    if (records.elementIds.length === 0) continue;
-    const resource = ensurePartResource(resources, partId, records);
-    active.add(partId);
-    syncRecords(resources, resource, records);
-    if (normalMatrices !== undefined)
-      writeNormalMatrices(resources, resource, normalMatrices, partId);
+  for (const binding of effectiveRecordGroups(state.parts, runtime, layout)) {
+    const resource = ensurePartResource(resources, binding.partId);
+    active.add(binding.partId);
+    const activeBindings = new Set<ResultBindingId>();
+    for (const resolved of binding.groups) {
+      activeBindings.add(resolved.bindingId);
+      const group = ensureGroupResource(resources, resource, resolved.bindingId, resolved.records);
+      syncRecords(resources, group, resolved.records);
+      syncGlyphOrder(resources.device, resources.cost, group, resolved.order);
+    }
+    if (normalMatrices !== undefined) writeNormalMatrices(resources, resource, normalMatrices);
+    for (const [bindingId, stale] of resource.groups) {
+      if (activeBindings.has(bindingId)) continue;
+      destroyGroupResource(stale);
+      resource.groups.delete(bindingId);
+    }
   }
   for (const [partId, resource] of resources.parts) {
     if (active.has(partId)) continue;
@@ -117,17 +98,18 @@ export function syncOrientationGlyphs(
 export function orientationGlyphBindGroup(
   resources: OrientationGlyphDrawResources,
   pipelines: OrientationGlyphPipelines,
-  resource: OrientationGlyphPartResource,
+  part: OrientationGlyphPartResource,
+  group: OrientationGlyphGroupResource,
 ): GPUBindGroup {
   if (resources.paramsBuffer === undefined) {
     throw new Error("Orientation glyph parameters are not initialized");
   }
-  return (resource.bindGroup ??= resources.device.createBindGroup({
+  return (group.bindGroup ??= resources.device.createBindGroup({
     label: "femgx orientation glyph bind group",
     layout: pipelines.layout,
     entries: [
-      { binding: 0, resource: { buffer: resource.recordBuffer } },
-      { binding: 1, resource: { buffer: resource.normalBuffer } },
+      { binding: 0, resource: { buffer: group.recordBuffer } },
+      { binding: 1, resource: { buffer: part.normalBuffer } },
       { binding: 2, resource: { buffer: resources.paramsBuffer } },
     ],
   }));
@@ -136,21 +118,21 @@ export function orientationGlyphBindGroup(
 /** Creates the compact instance bind group used by the glyph vertex shader. */
 export function orientationGlyphInstanceBindGroup(
   device: GPUDevice,
-  resource: OrientationGlyphPartResource,
+  group: OrientationGlyphGroupResource,
   pipelines: OrientationGlyphPipelines,
   storage: InstanceStorage,
 ): GPUBindGroup {
-  const sources = [storage.buffer, storage.orderBuffer, storage.highlight.buffer] as const;
-  const cachedSources = resource.instanceBindGroupSources;
+  const sources = [storage.buffer, group.orderBuffer, storage.highlight.buffer] as const;
+  const cachedSources = group.instanceBindGroupSources;
   if (
-    resource.instanceBindGroup !== undefined &&
+    group.instanceBindGroup !== undefined &&
     cachedSources !== undefined &&
     cachedSources.every((buffer, index) => buffer === sources[index])
   ) {
-    return resource.instanceBindGroup;
+    return group.instanceBindGroup;
   }
-  resource.instanceBindGroupSources = sources;
-  return (resource.instanceBindGroup = device.createBindGroup({
+  group.instanceBindGroupSources = sources;
+  return (group.instanceBindGroup = device.createBindGroup({
     label: "femgx orientation glyph instance bind group",
     layout: pipelines.instanceLayout,
     entries: [
@@ -183,14 +165,36 @@ export function destroyOrientationGlyphPart(
 function ensurePartResource(
   resources: OrientationGlyphDrawResources,
   partId: PartId,
-  records: ElementalOrientationRecords,
 ): OrientationGlyphPartResource {
   const existing = resources.parts.get(partId);
   if (existing !== undefined) return existing;
-  const recordBytes = Math.max(4, records.elementIds.length * ORIENTATION_GLYPH_RECORD_STRIDE);
   const normalBytes = ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS * Float32Array.BYTES_PER_ELEMENT;
   const resource: OrientationGlyphPartResource = {
     partId,
+    normalBuffer: resources.device.createBuffer({
+      label: "femgx orientation glyph normals",
+      size: normalBytes,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    }),
+    normalData: new Float32Array(0),
+    normalCapacity: 0,
+    groups: new Map(),
+  };
+  resources.parts.set(partId, resource);
+  return resource;
+}
+
+function ensureGroupResource(
+  resources: OrientationGlyphDrawResources,
+  part: OrientationGlyphPartResource,
+  bindingId: ResultBindingId,
+  records: ElementalOrientationRecords,
+): OrientationGlyphGroupResource {
+  const existing = part.groups.get(bindingId);
+  if (existing !== undefined) return existing;
+  const recordBytes = Math.max(4, records.elementIds.length * ORIENTATION_GLYPH_RECORD_STRIDE);
+  const group: OrientationGlyphGroupResource = {
+    bindingId,
     recordBuffer: resources.device.createBuffer({
       label: "femgx orientation glyph records",
       size: recordBytes,
@@ -200,29 +204,30 @@ function ensurePartResource(
     recordCapacity: Math.floor(recordBytes / ORIENTATION_GLYPH_RECORD_STRIDE),
     recordCount: 0,
     source: undefined,
-    normalBuffer: resources.device.createBuffer({
-      label: "femgx orientation glyph normals",
-      size: normalBytes,
+    orderBuffer: resources.device.createBuffer({
+      label: "femgx orientation glyph order",
+      size: 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
-    normalData: new Float32Array(0),
-    normalCapacity: 0,
+    orderData: new Uint32Array(1),
+    orderCapacity: 1,
+    orderCount: 0,
     bindGroup: undefined,
     instanceBindGroup: undefined,
     instanceBindGroupSources: undefined,
   };
-  resources.parts.set(partId, resource);
-  return resource;
+  part.groups.set(bindingId, group);
+  return group;
 }
 
 function syncRecords(
   resources: OrientationGlyphDrawResources,
-  resource: OrientationGlyphPartResource,
+  resource: OrientationGlyphGroupResource,
   records: ElementalOrientationRecords,
 ): void {
   if (sameOrientationGlyphRecordSource(resource.source, records)) return;
   const packed = packOrientationRecords(records);
-  if (packed.byteLength > resource.recordBuffer.size) {
+  if (packed.byteLength !== resource.recordBuffer.size) {
     resource.recordBuffer.destroy();
     resource.recordBuffer = resources.device.createBuffer({
       label: "femgx orientation glyph records",
@@ -239,74 +244,6 @@ function syncRecords(
   resources.cost.write("vector-glyph", packed.byteLength);
   resource.recordCount = records.elementIds.length;
   resource.source = orientationGlyphRecordSource(records);
-}
-
-function syncNormalMatrices(
-  state: OrientationGlyphState,
-  runtime: PackedSceneRuntime,
-  layout: OrientationInstanceLayout,
-): ReadonlyMap<PartId, Float32Array> {
-  const matrices = new Map<PartId, Float32Array>();
-  for (const [partId, records] of state.parts) {
-    if (records.elementIds.length === 0) continue;
-    const slots = layout.partLocalSlots.get(partId) ?? new Int32Array();
-    const data = new Float32Array(slots.length * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS);
-    for (let local = 0; local < slots.length; local += 1) {
-      const slot = slots[local];
-      if (slot === undefined || slot < 0) continue;
-      let matrix: Float32Array;
-      try {
-        matrix = normalMatrix3(runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16));
-      } catch (error) {
-        const occurrence = runtime.getInstanceId(slot) ?? String(slot);
-        throw new Error(
-          `Elemental orientation normal transform for occurrence ${occurrence} in part ${partId} is invalid: ${String(error)}`,
-          { cause: error },
-        );
-      }
-      const target = local * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS;
-      for (let component = 0; component < 9; component += 1) {
-        const column = Math.floor(component / 3);
-        const row = component % 3;
-        data[target + column * 4 + row] = matrix[component] ?? 0;
-      }
-    }
-    matrices.set(partId, data);
-  }
-  return matrices;
-}
-
-function writeNormalMatrices(
-  resources: OrientationGlyphDrawResources,
-  resource: OrientationGlyphPartResource,
-  matrices: ReadonlyMap<PartId, Float32Array>,
-  partId: PartId,
-): void {
-  const nextData = matrices.get(partId);
-  if (nextData === undefined) return;
-  const slotCount = nextData.length / ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS;
-  if (slotCount > resource.normalCapacity) {
-    resource.normalBuffer.destroy();
-    resource.normalCapacity = Math.max(slotCount, resource.normalCapacity * 2, 1);
-    resource.normalData = new Float32Array(
-      resource.normalCapacity * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
-    );
-    resource.normalBuffer = resources.device.createBuffer({
-      label: "femgx orientation glyph normals",
-      size: resource.normalData.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    resource.bindGroup = undefined;
-  }
-  let changed = false;
-  for (let index = 0; index < nextData.length; index += 1) {
-    const next = nextData[index] ?? 0;
-    if (resource.normalData[index] !== next) changed = true;
-    resource.normalData[index] = next;
-  }
-  if (!changed) return;
-  resources.device.queue.writeBuffer(resource.normalBuffer, 0, resource.normalData);
-  resources.cost.write("vector-glyph", resource.normalData.byteLength);
 }
 
 function writeParams(resources: OrientationGlyphDrawResources, state: OrientationGlyphState): void {
@@ -341,6 +278,11 @@ function clearOrientationGlyphs(resources: OrientationGlyphDrawResources): void 
 }
 
 function destroyPartResource(resource: OrientationGlyphPartResource): void {
-  resource.recordBuffer.destroy();
+  for (const group of resource.groups.values()) destroyGroupResource(group);
   resource.normalBuffer.destroy();
+}
+
+function destroyGroupResource(resource: OrientationGlyphGroupResource): void {
+  resource.recordBuffer.destroy();
+  resource.orderBuffer.destroy();
 }

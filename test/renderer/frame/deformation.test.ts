@@ -72,8 +72,8 @@ describe("syncDeformations", () => {
       });
       const storage = sync.deformations.get(1);
       expect(storage).toBeDefined();
-      expect(storage?.source).toBe(values);
-      expect(gpu.buffers.at(-1)?.size).toBe(24);
+      expect(storage?.source).toEqual([values]);
+      expect(gpu.buffers.at(-1)?.size).toBe(36);
       expect(gpu.writes.some((write) => write.buffer === storage?.buffer)).toBe(true);
     } finally {
       restore();
@@ -138,7 +138,7 @@ describe("syncDeformations", () => {
         displacements: new Map([[1, next]]),
       });
       expect(gpu.buffers.length).toBe(before);
-      expect(sync.deformations.get(1)?.source).toBe(next);
+      expect(sync.deformations.get(1)?.source).toEqual([next]);
       expect(storages.get(1)?.bindGroup).toBeDefined();
       expect(storages.get(1)?.edgeBindGroup).toBeDefined();
     } finally {
@@ -210,7 +210,7 @@ describe("syncDeformations", () => {
       });
       const current = gpu.buffers.at(-1);
       expect(current).not.toBe(old);
-      expect(current?.size).toBe(36);
+      expect(current?.size).toBe(48);
       expect(old?.destroyed).toBe(true);
       expect(storages.get(1)?.bindGroup).toBeUndefined();
       expect(storages.get(1)?.nodeBindGroup).toBeUndefined();
@@ -251,6 +251,45 @@ describe("syncDeformations", () => {
       expect(storages.get(1)?.transparentBindGroup).toBeUndefined();
       expect(storages.get(1)?.selectionBindGroup).toBeUndefined();
       expect(storages.get(1)?.nodeSelectionBindGroup).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  it("deduplicates shared displacement rows around one occurrence override", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const { sync } = syncWith(gpu);
+      const shared = new Float32Array([1, 2, 3]);
+      const override = new Float32Array([4, 5, 6]);
+      const runtime = {
+        sortedPartIds: new Uint32Array([1]),
+        getInstanceSlot: (id: string) => (id === "1/right" ? 1 : undefined),
+        getPartId: () => 1,
+      } as never;
+      const layout = {
+        slotPartLocal: new Int32Array([0, 1, 2]),
+        partLocalSlots: new Map([[1, new Int32Array([0, 1, 2])]]),
+      };
+      syncDeformations(
+        sync,
+        state({
+          displacements: new Map([
+            [1, shared],
+            ["1/right" as never, override],
+          ]),
+        }),
+        runtime,
+        layout,
+      );
+
+      const storage = sync.deformations.get(1);
+      const write = gpu.writes.find((candidate) => candidate.buffer === storage?.buffer);
+      const words = new Uint32Array(write?.bytes.buffer ?? new ArrayBuffer(0));
+      expect(storage?.source).toEqual([shared, override, shared]);
+      expect(Array.from(words.slice(0, 4))).toEqual([3, 4, 8, 4]);
+      expect(storage?.buffer.size).toBe(48);
     } finally {
       restore();
     }

@@ -118,11 +118,11 @@ export class RendererPicking {
       this.invalidate();
     }
     if (!this.snapshotValid) {
-      syncDeformations(this.owner.lifecycle.bundle.draw, this.owner.deformation());
       const runtime = this.owner.attachment.runtime;
-      if (runtime !== undefined) {
-        this.owner.ensureSectionCaps(runtime);
-      }
+      const layout = this.owner.attachment.layout;
+      if (runtime === undefined || layout === undefined) return false;
+      syncDeformations(this.owner.lifecycle.bundle.draw, this.owner.deformation(), runtime, layout);
+      this.owner.ensureSectionCaps(runtime);
       encodePickSnapshot(camera, this.owner.sectionCaps.parts, this.owner.frameOptions());
       this.snapshotValid = true;
       this.owner.edgePick.snapshotValid = false;

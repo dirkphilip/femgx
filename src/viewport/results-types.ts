@@ -1,4 +1,5 @@
 import type { PartId } from "../geometry/part";
+import type { PartOccurrenceId } from "../scene/types";
 import type { DeformationState } from "../results/deform";
 import type {
   ElementFrameField,
@@ -142,7 +143,61 @@ interface ViewportResultRoles {
   readonly orientation?: ViewportElementVectorConfig | ViewportElementFrameConfig;
   /** Optional authored nodal force and moment role. */
   readonly loads?: ViewportLoadConfig;
+  /** Optional role overrides bound to stable placed-part identities. */
+  readonly occurrences?: readonly ViewportOccurrenceResultsConfig[];
 }
+
+/** A scalar role bound to one placed occurrence of its reusable part. */
+export type ViewportOccurrenceScalarConfig = Omit<ViewportScalarConfig, "partId">;
+
+/** An elemental vector role bound to one placed occurrence of its reusable part. */
+export type ViewportOccurrenceElementVectorConfig = ViewportElementVectorConfig extends infer Config
+  ? Config extends ViewportElementVectorConfig
+    ? Omit<Config, "partId">
+    : never
+  : never;
+
+/** Result roles that may override shared roles for one placed part. */
+/** @inline */
+interface ViewportOccurrenceResultRoles {
+  /** Optional occurrence-local scalar coloring role. */
+  readonly scalar?: ViewportOccurrenceScalarConfig;
+  /** Optional occurrence-local nodal deformation role. */
+  readonly deformation?: ViewportDeformationConfig;
+  /** Optional occurrence-local elemental orientation role. */
+  readonly orientation?: ViewportOccurrenceElementVectorConfig | ViewportElementFrameConfig;
+  /** Optional occurrence-local nodal force and moment role. */
+  readonly loads?: ViewportLoadConfig;
+}
+
+/**
+ * A non-empty result-role override for one stable part occurrence.
+ *
+ * Roles omitted here continue to use the shared role from the containing
+ * snapshot. Geometry and topology remain owned by the reusable part.
+ * @category Results
+ */
+export type ViewportOccurrenceResultsConfig = {
+  /** Stable identity of the placed part receiving these role overrides. */
+  readonly partOccurrenceId: PartOccurrenceId;
+} & (
+  | (ViewportOccurrenceResultRoles & {
+      /** Required scalar role for this non-empty occurrence variant. */
+      readonly scalar: ViewportOccurrenceScalarConfig;
+    })
+  | (ViewportOccurrenceResultRoles & {
+      /** Required deformation role for this non-empty occurrence variant. */
+      readonly deformation: ViewportDeformationConfig;
+    })
+  | (ViewportOccurrenceResultRoles & {
+      /** Required orientation role for this non-empty occurrence variant. */
+      readonly orientation: ViewportOccurrenceElementVectorConfig | ViewportElementFrameConfig;
+    })
+  | (ViewportOccurrenceResultRoles & {
+      /** Required load role for this non-empty occurrence variant. */
+      readonly loads: ViewportLoadConfig;
+    })
+);
 
 /**
  * One atomic result snapshot with at least one authored role.
@@ -167,6 +222,13 @@ export type ViewportResultsConfig =
   | (ViewportResultRoles & {
       /** Required loads role for this non-empty result snapshot variant. */
       readonly loads: ViewportLoadConfig;
+    })
+  | (ViewportResultRoles & {
+      /** At least one occurrence-local role for this non-empty snapshot variant. */
+      readonly occurrences: readonly [
+        ViewportOccurrenceResultsConfig,
+        ...ViewportOccurrenceResultsConfig[],
+      ];
     });
 
 /**

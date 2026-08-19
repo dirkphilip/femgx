@@ -140,17 +140,13 @@ export class GpuRenderer implements WebGpuRenderer {
     if (attachmentChanged || partsChanged) {
       this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
     }
-    syncDeformations(this.lifecycle.bundle.draw, this.deformation);
+    const layout = this.attachment.layout;
+    if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
+    syncDeformations(this.lifecycle.bundle.draw, this.deformation, runtime, layout);
     this.ensureSectionCaps(runtime);
-    syncResultColors(this.lifecycle.bundle.draw, this.sectionCaps.resultColors);
-    if (this.attachment.layout !== undefined) {
-      syncOrientationGlyphs(
-        this.lifecycle.bundle.draw.orientationGlyphs,
-        this.orientationGlyphs,
-        runtime,
-        this.attachment.layout,
-      );
-    }
+    syncResultColors(this.lifecycle.bundle.draw, this.sectionCaps.resultColors, runtime, layout);
+    const glyphs = this.lifecycle.bundle.draw.orientationGlyphs;
+    syncOrientationGlyphs(glyphs, this.orientationGlyphs, runtime, layout);
     if (partsChanged || cameraChanged || attachmentChanged) this.picking.invalidate();
     encodeVisibleFrame(camera, this.sectionCaps.parts, this.frameOptions());
   }
@@ -187,7 +183,10 @@ export class GpuRenderer implements WebGpuRenderer {
     if (this.resultColors === colors) return;
     this.resultColors = colors;
     this.sectionCaps.invalidate();
-    syncResultColors(this.lifecycle.bundle.draw, colors);
+    const runtime = this.attachment.runtime;
+    const layout = this.attachment.layout;
+    if (runtime !== undefined && layout !== undefined)
+      syncResultColors(this.lifecycle.bundle.draw, colors, runtime, layout);
   }
 
   /** Installs renderer-owned elemental orientation records without public API leakage. */

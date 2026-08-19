@@ -61,11 +61,12 @@ export function pipelineAdmission(options: {
   readonly cache: Map<PartId, PipelineAdmissionCacheEntry>;
 }): GpuCostAdmission {
   const { context, storage, call, geometry, intent, cache } = options;
-  const featureState = hasFeatureState(context, storage, call, geometry);
   if (intent.kind === "edge" || (intent.kind === "nodes" && intent.selection === undefined)) {
+    const featureState = hasFeatureState(context, storage, call, geometry);
     return featureState ? "feature" : "topology";
   }
   if (intent.kind === "surface" && geometry?.primitive !== "triangles") {
+    const featureState = hasFeatureState(context, storage, call, geometry);
     return intent.pass === "color" || intent.pass === "transparent"
       ? featureState
         ? "feature"
@@ -89,6 +90,7 @@ export function pipelineAdmission(options: {
   ) {
     return cached.admission;
   }
+  const featureState = hasFeatureState(context, storage, call, geometry);
   const admission: GpuCostAdmission =
     context.minimalFrameBindGroup === undefined ||
     context.minimalInstanceLayout === undefined ||
@@ -117,13 +119,22 @@ function hasFeatureState(
 ): boolean {
   return (
     context.sectionPlane !== undefined ||
-    context.resultColors?.has(call.partId) === true ||
-    context.deformation?.displacements.has(call.partId) === true ||
+    hasPartBinding(context.resultColors, call.partId) ||
+    hasPartBinding(context.deformation?.displacements, call.partId) ||
     call.visibilitySkin !== undefined ||
     !context.usesExteriorFaceSubsets ||
     storage.highlightOwned ||
     (geometry?.primitive === "triangles" && geometry.primitiveColors !== undefined)
   );
+}
+
+function hasPartBinding(
+  bindings: ReadonlyMap<number | string, unknown> | undefined,
+  partId: PartId,
+): boolean {
+  if (bindings?.has(partId) === true) return true;
+  for (const binding of bindings?.keys() ?? []) if (typeof binding === "string") return true;
+  return false;
 }
 
 /** Selects the pipeline matching the admitted primitive and pass. */

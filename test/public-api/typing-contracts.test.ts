@@ -6,6 +6,7 @@ import {
   type SceneReconciliationOutcome,
   type Viewport,
   type ViewportElementVectorConfig,
+  type ViewportOccurrenceResultsConfig,
   type ViewportResultsConfig,
   type AssemblyOccurrenceId,
   type PartOccurrenceId,
@@ -74,6 +75,20 @@ function assertResultAndReconciliationContracts(outcome: SceneReconciliationOutc
   }
 }
 
+function assertOccurrenceResultContracts(partOccurrenceId: PartOccurrenceId): void {
+  const occurrence: ViewportOccurrenceResultsConfig = {
+    partOccurrenceId,
+    scalar: { field: null as never },
+  };
+  const snapshot: ViewportResultsConfig = { occurrences: [occurrence] };
+  const invalid: ViewportOccurrenceResultsConfig = {
+    partOccurrenceId,
+    // @ts-expect-error Occurrence-bound scalar roles infer their reusable part from the placement.
+    scalar: { field: null as never, partId: 1 },
+  };
+  void [snapshot, invalid];
+}
+
 describe("public compiler contracts", () => {
   it("keeps invalid states and mismatched picking results unrepresentable", () => {
     expectTypeOf<PartOccurrenceId>().toExtend<string>();
@@ -82,5 +97,6 @@ describe("public compiler contracts", () => {
     expectTypeOf(assertResultAndReconciliationContracts).toBeFunction();
     expectTypeOf(assertPartOccurrenceOverrideContracts).toBeFunction();
     expectTypeOf(assertOccurrenceIdentityContracts).toBeFunction();
+    expectTypeOf(assertOccurrenceResultContracts).toBeFunction();
   });
 });
