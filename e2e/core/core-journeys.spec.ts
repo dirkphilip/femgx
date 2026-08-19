@@ -71,6 +71,29 @@ test("installs authored scalar results, nodal deformation, and section clipping"
   await expect.poll(() => drawnPixels(canvas)).toBe(true);
 });
 
+test("renders distinct occurrence results while keeping one reusable part batch", async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const { canvas, status } = await openCase(page, "occurrence-results");
+    const result = JSON.parse((await status.getAttribute("data-detail")) ?? "{}") as {
+      parts?: number;
+      batches?: number;
+      shared?: boolean;
+      override?: boolean;
+    };
+    expect(result).toEqual({ parts: 1, batches: 1, shared: true, override: true });
+    await expect.poll(() => drawnPixels(canvas)).toBe(true);
+    const colors = await occurrenceResultPixels(canvas, page);
+    expect(colors.blue).toBeGreaterThan(100);
+    expect(colors.red).toBeGreaterThan(100);
+  }
+});
+
 test("applies a public camera transition and restores a fitted view", async ({ page }) => {
   const { canvas, status } = await openCase(page, "camera");
   const result = JSON.parse((await status.getAttribute("data-detail")) ?? "{}") as {
@@ -210,5 +233,34 @@ async function orangeMetrics(canvas: Locator, page: Page): Promise<OrangeMetrics
     }
     bitmap.close();
     return { pixels, dominantRgb };
+  }, encoded);
+}
+
+async function occurrenceResultPixels(
+  canvas: Locator,
+  page: Page,
+): Promise<{ readonly blue: number; readonly red: number }> {
+  const encoded = (await canvas.screenshot()).toString("base64");
+  return page.evaluate(async (base64) => {
+    const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    const image = document.createElement("canvas");
+    image.width = bitmap.width;
+    image.height = bitmap.height;
+    const context = image.getContext("2d");
+    if (context === null) throw new Error("no 2d context for occurrence result evidence");
+    context.drawImage(bitmap, 0, 0);
+    const data = context.getImageData(0, 0, image.width, image.height).data;
+    let blue = 0;
+    let red = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      const r = data[index] ?? 0;
+      const g = data[index + 1] ?? 0;
+      const b = data[index + 2] ?? 0;
+      if (b > 80 && b > r * 1.5 && b > g * 1.2) blue += 1;
+      if (r > 80 && r > b * 2 && r > g * 1.2) red += 1;
+    }
+    bitmap.close();
+    return { blue, red };
   }, encoded);
 }

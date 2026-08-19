@@ -1,11 +1,13 @@
 import type { PartId } from "../../geometry/part";
 import type { ResultColorMap, ResultColorTable } from "../../results/colors";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { partResultBindings, type ResultBindingLayout } from "./result-binding-layout";
 
 /** One renderer-owned dense scalar table shared by every draw of a reusable part. */
 export interface ResultColorStorage {
   readonly buffer: GPUBuffer;
-  source: ResultColorTable;
+  source: readonly (ResultColorTable | undefined)[];
 }
 
 /** Draw resources needed to synchronize renderer-owned scalar colors. */
@@ -43,12 +45,41 @@ export function createEmptyResultColorBuffer(device: GPUDevice): GPUBuffer {
 export function syncResultColors(
   draw: ResultColorDrawResources,
   colors: ResultColorMap | undefined,
+  runtime?: PackedSceneRuntime,
+  layout?: ResultBindingLayout,
 ): void {
-  for (const [partId, table] of colors ?? []) uploadResultColors(draw, partId, table);
+  if (colors === undefined) {
+    for (const [partId, storage] of draw.resultColors) releaseResultColors(draw, partId, storage);
+    return;
+  }
+  const bindings =
+    runtime === undefined || layout === undefined
+      ? sharedResultBindings(colors, "Result color synchronization")
+      : partResultBindings(colors, runtime, layout);
+  const active = new Set<PartId>();
+  for (const binding of bindings) {
+    if (binding.values.every((value) => value === undefined)) continue;
+    active.add(binding.partId);
+    uploadResultColors(draw, binding.partId, binding.values);
+  }
   for (const [partId, storage] of draw.resultColors) {
-    if (colors?.has(partId) === true) continue;
+    if (active.has(partId)) continue;
     releaseResultColors(draw, partId, storage);
   }
+}
+
+function sharedResultBindings<Value>(
+  source: ReadonlyMap<number | string, Value>,
+  operation: string,
+): readonly { readonly partId: PartId; readonly values: readonly Value[] }[] {
+  const bindings: { partId: PartId; values: readonly Value[] }[] = [];
+  for (const [partId, value] of source) {
+    if (typeof partId !== "number") {
+      throw new Error(`${operation} requires an attached scene runtime for occurrence bindings`);
+    }
+    bindings.push({ partId, values: [value] });
+  }
+  return bindings;
 }
 
 /** Returns the active part table or the shared inactive binding. */
@@ -78,13 +109,13 @@ export function destroyResultColorBuffer(draw: ResultColorDrawResources, partId:
 function uploadResultColors(
   draw: ResultColorDrawResources,
   partId: PartId,
-  table: ResultColorTable,
+  tables: readonly (ResultColorTable | undefined)[],
 ): void {
   const current = draw.resultColors.get(partId);
-  if (current?.source === table) return;
-  const data = resultColorData(table);
+  if (sameTables(current?.source, tables)) return;
+  const data = resultColorData(tables);
   if (current !== undefined && current.buffer.size === data.byteLength) {
-    current.source = table;
+    current.source = tables;
     draw.device.queue.writeBuffer(current.buffer, 0, data);
     draw.cost?.write("result", data.byteLength);
     return;
@@ -95,7 +126,7 @@ function uploadResultColors(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   if (current !== undefined) releaseResultColors(draw, partId, current);
-  draw.resultColors.set(partId, { buffer, source: table });
+  draw.resultColors.set(partId, { buffer, source: tables });
   draw.cost?.allocateBuffer(buffer.size);
   draw.device.queue.writeBuffer(buffer, 0, data);
   draw.cost?.write("result", data.byteLength);
@@ -113,12 +144,41 @@ function releaseResultColors(
   invalidateBindGroups(draw, partId);
 }
 
-function resultColorData(table: ResultColorTable): Float32Array {
-  const data = new Float32Array(table.values.length + 4);
-  data[0] = table.location === "nodal" ? 0 : 1;
-  data[1] = table.values.length / 4;
-  data.set(table.values, 4);
+function resultColorData(tables: readonly (ResultColorTable | undefined)[]): Float32Array {
+  const unique = new Set<ResultColorTable>();
+  for (const table of tables) if (table !== undefined) unique.add(table);
+  const headerLength = 1 + tables.length;
+  const length =
+    headerLength + [...unique].reduce((total, table) => total + 4 + table.values.length, 0);
+  const data = new Float32Array(length);
+  const words = new Uint32Array(data.buffer);
+  words[0] = tables.length;
+  const offsets = new Map<ResultColorTable, number>();
+  let offset = headerLength;
+  for (let local = 0; local < tables.length; local += 1) {
+    const table = tables[local];
+    if (table === undefined) continue;
+    let tableOffset = offsets.get(table);
+    if (tableOffset === undefined) {
+      tableOffset = offset;
+      offsets.set(table, tableOffset);
+      data[offset] = table.location === "nodal" ? 0 : 1;
+      data[offset + 1] = table.values.length / 4;
+      data.set(table.values, offset + 4);
+      offset += 4 + table.values.length;
+    }
+    words[local + 1] = tableOffset;
+  }
   return data;
+}
+
+function sameTables(
+  previous: readonly (ResultColorTable | undefined)[] | undefined,
+  next: readonly (ResultColorTable | undefined)[],
+): boolean {
+  return (
+    previous?.length === next.length && previous.every((value, index) => value === next[index])
+  );
 }
 
 function invalidateBindGroups(draw: ResultColorDrawResources, partId: PartId): void {

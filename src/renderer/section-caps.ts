@@ -19,6 +19,7 @@ import type { SectionPlane } from "../math/section-plane";
 import { identity } from "../math/mat4";
 import { defaultStyle } from "./resources/foundation";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
+import { resultBindingValue } from "../results/bindings";
 import { readInteractionState } from "../interaction/state";
 import {
   destroyInstancePartResources,
@@ -70,7 +71,11 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
       const instanceId = options.runtime.getInstanceId(slot);
       if (instanceId === undefined) continue;
       const instance = instanceAt(options.runtime, slot, sourcePart.id);
-      const displacements = options.deformation?.displacements.get(sourcePart.id);
+      const displacements = occurrenceValue(
+        options.deformation?.displacements,
+        sourcePart.id,
+        instance.partOccurrenceId,
+      );
       for (const element of sectionElements(elements, packed)) {
         if (!capElementVisible(options.interaction, instanceId, element, metadata)) continue;
         const cap = buildElementSectionCap({
@@ -84,13 +89,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         if (cap === undefined) continue;
         const capId = nextCapId(usedIds, ordinal);
         ordinal += 1;
-        const style = resolveElementStyle(
-          instance,
-          element.id,
-          defaultStyle,
-          options.interaction,
-          metadata.bodyByElement.get(element.id),
-        );
+        const style = capStyle(options, instance, element.id, metadata);
         const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
         const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
@@ -99,7 +98,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         else calls.push(call);
         installCapInstance(options.draw, capId, style, slot);
         const colors = capColors(
-          options.resultColors?.get(sourcePart.id),
+          occurrenceValue(options.resultColors, sourcePart.id, instance.partOccurrenceId),
           cap,
           sourcePositions.length / 3,
           metadata.elementOrdinalById.get(element.id),
@@ -110,6 +109,29 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     }
   }
   return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+}
+
+function capStyle(
+  options: CapBuildOptions,
+  instance: ReturnType<typeof instanceAt>,
+  elementId: number,
+  metadata: ReturnType<typeof getPartSemanticIndex>,
+): ReturnType<typeof resolveElementStyle> {
+  return resolveElementStyle(
+    instance,
+    elementId,
+    defaultStyle,
+    options.interaction,
+    metadata.bodyByElement.get(elementId),
+  );
+}
+
+function occurrenceValue<Value>(
+  source: ReadonlyMap<number | string, Value> | undefined,
+  partId: PartId,
+  occurrenceId: string,
+): Value | undefined {
+  return source === undefined ? undefined : resultBindingValue(source, partId, occurrenceId);
 }
 
 function* sectionElements(

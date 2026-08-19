@@ -5,6 +5,7 @@ import { mapScalar, type ScalarColorMap } from "../results/mapping";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
+import type { PartOccurrenceId } from "../scene/types";
 import { renderedPartIds } from "./results-roles";
 import type {
   ViewportResultField,
@@ -14,6 +15,13 @@ import type {
 
 const colorsByState = new WeakMap<ViewportResultsState, ResultColorMap | undefined>();
 const partsByState = new WeakMap<ViewportResultsState, ReadonlyMap<PartId, Part> | undefined>();
+
+/** One resolved scalar override targeted at a stable placed-part identity. */
+export interface OccurrenceScalarBinding {
+  readonly partOccurrenceId: PartOccurrenceId;
+  readonly partId: PartId;
+  readonly scalar: ViewportScalarState;
+}
 
 /** Returns the internal dense GPU color data for a resolved scalar field. */
 export function viewportResultColors(state: ViewportResultsState): ResultColorMap | undefined {
@@ -26,23 +34,38 @@ export function resolveViewportResultColors(
   scalar: ViewportScalarState | undefined,
   scene: Scene,
   runtime: PackedSceneRuntime,
-  previous: ViewportResultsState | undefined,
+  options: {
+    readonly previous: ViewportResultsState | undefined;
+    readonly occurrences: readonly OccurrenceScalarBinding[];
+  },
 ): void {
+  const { previous, occurrences } = options;
   const reusable =
     scalar === undefined ? undefined : reusableResultColors(previous, scalar, scene, runtime);
-  colorsByState.set(
-    state,
+  const colors =
     scalar === undefined
-      ? undefined
-      : (reusable ??
-          buildResultColors(scalar.field, scalar.colorMap, scene, runtime, scalar.config.partId)),
-  );
+      ? new Map<PartId | PartOccurrenceId, ResultColorTable>()
+      : new Map(
+          reusable ??
+            buildResultColors(scalar.field, scalar.colorMap, scene, runtime, scalar.config.partId),
+        );
+  for (const occurrence of occurrences) {
+    const table = buildResultColors(
+      occurrence.scalar.field,
+      occurrence.scalar.colorMap,
+      scene,
+      runtime,
+      occurrence.partId,
+    ).get(occurrence.partId);
+    if (table !== undefined) colors.set(occurrence.partOccurrenceId, table);
+  }
+  colorsByState.set(state, colors.size === 0 ? undefined : colors);
   partsByState.set(
     state,
-    scalar === undefined
+    scalar === undefined && occurrences.length === 0
       ? undefined
       : reusable === undefined
-        ? renderedParts(scene, runtime, scalar.config.partId)
+        ? renderedParts(scene, runtime, scalar?.config.partId)
         : previous === undefined
           ? undefined
           : partsByState.get(previous),
@@ -111,7 +134,14 @@ function reusableResultColors(
   ) {
     return undefined;
   }
-  return viewportResultColors(previous);
+  const previousColors = viewportResultColors(previous);
+  return previousColors === undefined
+    ? undefined
+    : new Map(
+        [...previousColors].filter(
+          (entry): entry is [PartId, ResultColorTable] => typeof entry[0] === "number",
+        ),
+      );
 }
 
 function sameRenderedParts(

@@ -206,6 +206,18 @@ viewport.results.set({
   deformation: { field: displacement, scale: 1.5 },
   orientation: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
 });
+
+// Reuse one part while assigning authored rows to one placement.
+viewport.results.set({
+  scalar: { field: sharedStress, range: comparisonRange },
+  occurrences: [
+    {
+      partOccurrenceId: rightOccurrence,
+      scalar: { field: rightStress, range: comparisonRange },
+      deformation: { field: rightDisplacement },
+    },
+  ],
+});
 ```
 
 All present roles are validated before the previous state is replaced. Anchors,
@@ -215,10 +227,11 @@ Full orientation uses the explicit `ElementFrameField` format: an owning
 reusable `partId` plus nine dense part-local floats per element row in X/Y/Z
 axis order. It is intentionally not
 a vector-field extension because roll cannot be represented by one direction.
-`glyph: "triad"` draws the renderer-owned non-pickable RGB axes and shares the
-part data across all placements. Applied loads, occurrence-specific overrides,
-and user glyph plugins remain deferred; copying a part is the current host
-workaround for distinct instance values.
+`glyph: "triad"` draws the renderer-owned non-pickable RGB axes. Shared roles
+remain the cheap default for every placement. An `occurrences` entry may replace
+scalar, deformation, orientation, or load rows for one stable
+`PartOccurrenceId`; geometry, topology, and public identities remain shared,
+while private result addressing uses packed part-local occurrence slots.
 
 ## Design test for new features
 

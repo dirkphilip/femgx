@@ -54,8 +54,8 @@ fn vertexMain(
     geometryPosition((lineBase + 1u) * 3u + 1u),
     geometryPosition((lineBase + 1u) * 3u + 2u),
   );
-  let clipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase), 1.0);
-  let clipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u), 1.0);
+  let clipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, lineBase, slot), 1.0);
+  let clipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, lineBase + 1u, slot), 1.0);
   var output: EdgePickOutput;
   output.position = lineExpandedPosition(
     clipA,
@@ -67,7 +67,7 @@ fn vertexMain(
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
   output.edgePickId = edgeId(vertexIndex) + 1u;
-  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
+  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex, slot), 1.0)).xyz;
   return output;
 }
 `;

@@ -21,6 +21,7 @@ import {
   selectionScene,
   type SelectionPhase,
 } from "./selection-precedence";
+import { runOccurrenceResults } from "./occurrence-results";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");
 const statusElement = document.querySelector<HTMLOutputElement>("#core-status");
@@ -103,7 +104,11 @@ async function start(): Promise<void> {
         caseName.includes("behind"),
       )
     : coreScene(
-        caseName === "instancing" || caseName === "transparency" ? 2 : 1,
+        caseName === "instancing" ||
+          caseName === "transparency" ||
+          caseName === "occurrence-results"
+          ? 2
+          : 1,
         caseName === "transparency",
       );
   let frames = 0;
@@ -151,6 +156,9 @@ async function runCase(caseName: string, current: Viewport): Promise<void> {
       return;
     case "results":
       runResults(current);
+      return;
+    case "occurrence-results":
+      runOccurrenceResults(current, setStatus);
       return;
     case "camera":
       runCamera(current);

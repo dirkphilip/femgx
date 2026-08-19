@@ -12,12 +12,14 @@ import { runtime, sceneBudgets, sceneScalingCases } from "./scene-budgets";
 import { geometryBudgets, geometryScalingCases } from "./geometry-budgets";
 import { interactionBudgets, interactionScalingCases } from "./interaction-budgets";
 import { pickingBudgets, pickingScalingCases } from "./picking-budgets";
+import { resultBudgets } from "./result-budgets";
 
 const budgets: readonly BudgetCase[] = [
   ...sceneBudgets,
   ...geometryBudgets,
   ...interactionBudgets,
   ...pickingBudgets,
+  ...resultBudgets,
 ];
 
 const scalingCases: readonly ScalingCase[] = [

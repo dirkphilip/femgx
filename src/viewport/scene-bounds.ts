@@ -6,6 +6,7 @@ import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget } from "../interaction/target-types";
 import { transformPoint } from "../math/mat4";
 import type { DeformationState } from "../results/deform";
+import { resultBindingValue } from "../results/bindings";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import {
@@ -102,15 +103,21 @@ export function sceneWorldBoundsList(
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!includeHidden && !runtime.isInstanceVisible(slot)) continue;
     const partId = runtime.instancePartIds[slot];
+    const occurrenceId = runtime.getInstanceId(slot);
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
     let partBounds: Bounds | undefined;
     if (part !== undefined && partId !== undefined) {
-      if (partBoundsById.has(partId)) {
+      const occurrenceOverride =
+        occurrenceId !== undefined && deformation?.displacements.has(occurrenceId) === true;
+      if (!occurrenceOverride && partBoundsById.has(partId)) {
         partBounds = partBoundsById.get(partId);
       } else {
-        partBounds = displayedPartBounds(part, deformation);
-        partBoundsById.set(partId, partBounds);
+        partBounds = displayedPartBounds(
+          part,
+          occurrenceDeformation(deformation, partId, occurrenceId),
+        );
+        if (!occurrenceOverride) partBoundsById.set(partId, partBounds);
       }
     }
     if (partBounds === undefined || transform === undefined || !isFiniteBounds(partBounds))
@@ -156,25 +163,41 @@ export function selectedSceneBounds(
     const transform = runtime.getTransform(slot);
     const part = partId === undefined ? undefined : scene.parts.get(partId);
     if (part === undefined || transform === undefined) continue;
+    const localDeformation =
+      partId === undefined
+        ? deformation
+        : occurrenceDeformation(deformation, partId, partOccurrenceId);
     if (partId !== undefined && selectedParts.has(partId)) {
-      const partBounds = displayedPartBounds(part, deformation);
+      const partBounds = displayedPartBounds(part, localDeformation);
       if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
     }
     const targets =
       partOccurrenceId === undefined ? undefined : selectedInstances.get(partOccurrenceId);
     if (targets === undefined) continue;
     if (targets.some((target) => target.kind === "partOccurrence")) {
-      const partBounds = displayedPartBounds(part, deformation);
+      const partBounds = displayedPartBounds(part, localDeformation);
       if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
       continue;
     }
     for (const target of targets) {
       if (target.kind === "partOccurrence") continue;
-      const targetBounds = selectedGeometryBounds(part, target, deformation);
+      const targetBounds = selectedGeometryBounds(part, target, localDeformation);
       if (targetBounds !== undefined) includeBounds(bounds, targetBounds, transform);
     }
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
+}
+
+function occurrenceDeformation(
+  deformation: DeformationState | undefined,
+  partId: PartId,
+  occurrenceId: string | undefined,
+): DeformationState | undefined {
+  if (deformation === undefined || occurrenceId === undefined) return deformation;
+  const values = resultBindingValue(deformation.displacements, partId, occurrenceId);
+  return values === undefined
+    ? undefined
+    : { scale: deformation.scale, displacements: new Map([[partId, values]]) };
 }
 
 function transformedBounds(

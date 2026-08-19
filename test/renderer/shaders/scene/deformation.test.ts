@@ -57,7 +57,7 @@ describe("GPU deformation shader contract", () => {
       expect(source).toMatch(
         /@group\(1\) @binding\(5\) var<storage, read> topologyData: array<u32>/,
       );
-      expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32\)/);
+      expect(source).toMatch(/fn displaced\(position: vec3<f32>, vertexIndex: u32, slot: u32\)/);
     },
   );
 
@@ -68,22 +68,26 @@ describe("GPU deformation shader contract", () => {
     expect(instanceVertexShader).toContain(
       "let position = geometryPositionVec(sourceVertexIndex);",
     );
-    expect(instanceVertexShader).toMatch(/displaced\(position, sourceVertexIndex\)/);
+    expect(instanceVertexShader).toMatch(
+      /displaced\(position, sourceVertexIndex, drawOrder\[instanceIndex\]\)/,
+    );
     expect(instanceVertexShader).toMatch(/fn primitiveDrawId\(index: u32\)/);
     expect(instanceVertexShader).not.toMatch(/vertexIndex \/ [23]u/);
   });
 
   it("resolves each vertex to its node before reading the displacement buffer", () => {
     expect(instanceVertexShader).toMatch(/vertexNodePickIds\[sourceVertexIndex\]/);
-    expect(instanceVertexShader).toMatch(/displacementCount == 0u/);
-    expect(instanceVertexShader).toMatch(/arrayLength\(&displacements\)/);
+    expect(instanceVertexShader).toMatch(/bitcast<u32>\(displacements\[0\]\)/);
+    expect(instanceVertexShader).toMatch(/bitcast<u32>\(displacements\[slot \+ 1u\]\)/);
     expect(instanceVertexShader).toMatch(/nodePickId == 0u \|\| nodePickId > nodeCount/);
     expect(instanceVertexShader).toMatch(/\(nodePickId - 1u\) \* 3u/);
     expect(instanceVertexShader).toMatch(/delta \* deformation\.scale/);
   });
 
   it("displaces point sprites by the vertex index, which carries the point's node", () => {
-    expect(pointVertexShader).toMatch(/displaced\(position, nodeIndex\)/);
+    expect(pointVertexShader).toMatch(
+      /displaced\(position, nodeIndex, drawOrder\[instanceIndex\]\)/,
+    );
     expect(pointVertexShader).toMatch(/vertexNodePickIds\[nodeIndex\]/);
   });
 
@@ -137,7 +141,7 @@ describe("GPU deformation shader contract", () => {
 
   it("matches visible selected triangle depth to the ordinary surface position", () => {
     expect(selectionVertexShader).toContain(
-      "let displayedPosition = displaced(position, sourceVertexIndex)",
+      "let displayedPosition = displaced(position, sourceVertexIndex, drawOrder[instanceIndex])",
     );
     expect(selectionVertexShader).toContain(
       "let worldPosition = (instance.transform * vec4<f32>(displayedPosition, 1.0)).xyz",

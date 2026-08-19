@@ -8,6 +8,7 @@ import type { Scene } from "../scene/scene";
 import {
   resolveViewportResults,
   viewportOrientationRecords,
+  viewportOrientationWidth,
   viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
@@ -42,18 +43,17 @@ export function applyResolvedViewportResults(
 ): void {
   const orientation = results?.orientation;
   const load = results?.loads;
-  const widthPixels = Math.max(orientation?.widthPixels ?? 1, load?.widthPixels ?? 1);
+  const records = results === undefined ? undefined : viewportOrientationRecords(results);
   setRendererOrientationGlyphs(
     renderer,
-    orientation === undefined && load === undefined
+    records === undefined
       ? undefined
       : {
-          parts:
-            results === undefined ? new Map() : (viewportOrientationRecords(results) ?? new Map()),
+          parts: records,
           mode: orientation === undefined || load !== undefined ? "arrow" : orientation.glyph,
           transform: orientation?.transform ?? "direction",
           lengthScale: 1,
-          widthPixels,
+          widthPixels: results === undefined ? 1 : viewportOrientationWidth(results),
         },
   );
   renderer.setDeformation(results?.deformation);

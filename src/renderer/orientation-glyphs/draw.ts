@@ -32,7 +32,7 @@ export function drawOrientationGlyphs(
   pass: GPURenderPassEncoder,
   frame: OrientationGlyphDrawFrame,
   context: OrientationGlyphDrawContext,
-  calls: readonly OrientationGlyphDrawCall[],
+  _calls: readonly OrientationGlyphDrawCall[],
   variant: "visible" | "hidden",
 ): void {
   const state = frame.draw.orientationGlyphs.state;
@@ -43,29 +43,32 @@ export function drawOrientationGlyphs(
       : frame.resources.orientationGlyphs.hidden,
   );
   pass.setBindGroup(0, context.frameBindGroup);
-  const vertexCount = state.mode === "arrow" ? 9 : 6;
-  for (const call of calls) {
-    const resource = frame.draw.orientationGlyphs.parts.get(call.partId);
-    const storage = frame.draw.storages.get(call.partId);
-    if (resource === undefined || storage === undefined) continue;
-    pass.setBindGroup(
-      1,
-      orientationGlyphInstanceBindGroup(
-        frame.device,
-        resource,
-        frame.resources.orientationGlyphs,
-        storage,
-      ),
-    );
-    pass.setBindGroup(
-      2,
-      orientationGlyphBindGroup(
-        frame.draw.orientationGlyphs,
-        frame.resources.orientationGlyphs,
-        resource,
-      ),
-    );
-    pass.draw(vertexCount, call.instanceCount * resource.recordCount);
-    frame.draw.cost.draw("vector-glyph", vertexCount, call.instanceCount * resource.recordCount);
+  const vertexCount = 9;
+  for (const resource of frame.draw.orientationGlyphs.parts.values()) {
+    const storage = frame.draw.storages.get(resource.partId);
+    if (storage === undefined) continue;
+    for (const group of resource.groups.values()) {
+      pass.setBindGroup(
+        1,
+        orientationGlyphInstanceBindGroup(
+          frame.device,
+          group,
+          frame.resources.orientationGlyphs,
+          storage,
+        ),
+      );
+      pass.setBindGroup(
+        2,
+        orientationGlyphBindGroup(
+          frame.draw.orientationGlyphs,
+          frame.resources.orientationGlyphs,
+          resource,
+          group,
+        ),
+      );
+      const instanceCount = group.orderCount * group.recordCount;
+      pass.draw(vertexCount, instanceCount);
+      frame.draw.cost.draw("vector-glyph", vertexCount, instanceCount);
+    }
   }
 }

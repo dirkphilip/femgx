@@ -1,6 +1,8 @@
 import type { PartId } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { partResultBindings, type ResultBindingLayout } from "../resources/result-binding-layout";
 
 /** Bytes of the deformation uniform (scale plus alignment padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
@@ -12,8 +14,8 @@ export const DEFORMATION_UNIFORM_SIZE = 16;
  */
 export interface DeformationStorage {
   readonly buffer: GPUBuffer;
-  /** Identity of the uploaded array; a new array triggers a re-upload. */
-  source: Float32Array | undefined;
+  /** Identities of the uploaded shared/occurrence arrays. */
+  source: readonly (Float32Array | undefined)[] | undefined;
 }
 
 /** Concrete uniform state used internally when the viewport passes `undefined`. */
@@ -67,18 +69,55 @@ export function validateDeformation(state: DeformationState): void {
  * all cached bind groups (surface, transparency, and edge overlay) cleared so the next draw
  * rebinds the fresh buffer. `undefined` resolves to the disabled identity state.
  */
-export function syncDeformations(sync: DeformationSync, state: DeformationState | undefined): void {
-  const resolved = state ?? disabledDeformation;
-  for (const [partId, values] of resolved.displacements) {
-    uploadDeformation(sync, partId, values);
+export function syncDeformations(
+  sync: DeformationSync,
+  state: DeformationState | undefined,
+  runtime?: PackedSceneRuntime,
+  layout?: ResultBindingLayout,
+): void {
+  if (state === undefined) {
+    for (const [partId, storage] of sync.deformations) {
+      if (storage.source === undefined) continue;
+      sync.cost?.releaseBuffer(storage.buffer.size);
+      storage.buffer.destroy();
+      sync.deformations.delete(partId);
+      invalidateBindGroups(sync, partId);
+    }
+    return;
+  }
+  const resolved = state;
+  const bindings =
+    runtime === undefined || layout === undefined
+      ? sharedDeformationBindings(resolved.displacements)
+      : partResultBindings(resolved.displacements, runtime, layout);
+  const active = new Set<PartId>();
+  for (const binding of bindings) {
+    if (binding.values.every((value) => value === undefined)) continue;
+    active.add(binding.partId);
+    uploadDeformation(sync, binding.partId, binding.values);
   }
   for (const [partId, storage] of sync.deformations) {
-    if (storage.source === undefined || resolved.displacements.has(partId)) continue;
+    if (storage.source === undefined || active.has(partId)) continue;
     sync.cost?.releaseBuffer(storage.buffer.size);
     storage.buffer.destroy();
     sync.deformations.delete(partId);
     invalidateBindGroups(sync, partId);
   }
+}
+
+function sharedDeformationBindings(
+  source: DeformationState["displacements"],
+): readonly { readonly partId: PartId; readonly values: readonly Float32Array[] }[] {
+  const bindings: { partId: PartId; values: readonly Float32Array[] }[] = [];
+  for (const [partId, value] of source) {
+    if (typeof partId !== "number") {
+      throw new Error(
+        "Deformation synchronization requires an attached scene runtime for occurrence bindings",
+      );
+    }
+    bindings.push({ partId, values: [value] });
+  }
+  return bindings;
 }
 
 /**
@@ -151,14 +190,19 @@ export function destroyDeformationBuffer(
   deformations.delete(partId);
 }
 
-function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float32Array): void {
+function uploadDeformation(
+  sync: DeformationSync,
+  partId: PartId,
+  tables: readonly (Float32Array | undefined)[],
+): void {
+  const values = deformationData(tables);
   const size = Math.max(4, values.byteLength);
   const current = sync.deformations.get(partId);
-  if (current !== undefined && current.source === values && current.buffer.size === size) {
+  if (current !== undefined && sameTables(current.source, tables) && current.buffer.size === size) {
     return;
   }
   if (current !== undefined && current.buffer.size === size) {
-    current.source = values;
+    current.source = tables;
     sync.device.queue.writeBuffer(current.buffer, 0, values);
     sync.cost?.write("deformation", values.byteLength);
     return;
@@ -173,10 +217,45 @@ function uploadDeformation(sync: DeformationSync, partId: PartId, values: Float3
     current.buffer.destroy();
     invalidateBindGroups(sync, partId);
   }
-  sync.deformations.set(partId, { buffer, source: values });
+  sync.deformations.set(partId, { buffer, source: tables });
   sync.cost?.allocateBuffer(buffer.size);
   sync.device.queue.writeBuffer(buffer, 0, values);
   sync.cost?.write("deformation", values.byteLength);
+}
+
+function deformationData(tables: readonly (Float32Array | undefined)[]): Float32Array {
+  const unique = new Set<Float32Array>();
+  for (const table of tables) if (table !== undefined) unique.add(table);
+  const headerLength = 1 + tables.length;
+  const length = headerLength + [...unique].reduce((total, table) => total + 1 + table.length, 0);
+  const data = new Float32Array(length);
+  const words = new Uint32Array(data.buffer);
+  words[0] = tables.length;
+  const offsets = new Map<Float32Array, number>();
+  let offset = headerLength;
+  for (let local = 0; local < tables.length; local += 1) {
+    const table = tables[local];
+    if (table === undefined) continue;
+    let tableOffset = offsets.get(table);
+    if (tableOffset === undefined) {
+      tableOffset = offset;
+      offsets.set(table, tableOffset);
+      words[offset] = table.length / 3;
+      data.set(table, offset + 1);
+      offset += 1 + table.length;
+    }
+    words[local + 1] = tableOffset;
+  }
+  return data;
+}
+
+function sameTables(
+  previous: readonly (Float32Array | undefined)[] | undefined,
+  next: readonly (Float32Array | undefined)[],
+): boolean {
+  return (
+    previous?.length === next.length && previous.every((value, index) => value === next[index])
+  );
 }
 
 /** Clears every cached bind group that references a replaced deformation buffer. */
