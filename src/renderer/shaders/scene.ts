@@ -305,6 +305,7 @@ struct VertexOutput {
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
   @location(12) @interpolate(flat) edgeDepthRadius: f32,
+  @location(13) @interpolate(flat) selectionDepthBias: u32,
 };
 `;
 
@@ -407,6 +408,7 @@ fn fragmentMain(
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
   @location(12) @interpolate(flat) edgeDepthRadius: f32,
+  @location(13) @interpolate(flat) selectionDepthBias: u32,
 ) -> TriangleColorOutput {
   let depthSlope = length(vec2<f32>(
     dpdx(fragmentPosition.z),
@@ -428,7 +430,8 @@ fn fragmentMain(
   let resolvedColor = select(litColor, displayedColor.rgb, selected != 0u);
   var output: TriangleColorOutput;
   output.color = vec4<f32>(resolvedColor + vec3<f32>(emissive), displayedColor.a);
-  output.depth = min(fragmentPosition.z + finiteDepthSlope * edgeDepthRadius, 1.0);
+  let depth = min(fragmentPosition.z + finiteDepthSlope * edgeDepthRadius, 1.0);
+  output.depth = max(depth - select(0.0, 1e-6, selectionDepthBias != 0u), 0.0);
   return output;
 }
 `;
