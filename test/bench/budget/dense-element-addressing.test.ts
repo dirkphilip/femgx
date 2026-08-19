@@ -152,7 +152,7 @@ function operationSpecs(): readonly OperationSpec[] {
       },
       run: () => {
         const selected = new Set((part.elements ?? []).map((element) => element.id));
-        if (selected.size !== ELEMENT_COUNT || !selected.has(profiles[2].ids[0])) {
+        if (selected.size !== ELEMENT_COUNT || !selected.has(profiles[2].ids[0] ?? -1)) {
           throw new Error("Stable selection identity reference changed");
         }
       },
