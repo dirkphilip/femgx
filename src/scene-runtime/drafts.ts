@@ -9,6 +9,7 @@ import { invariantValue } from "./invariants";
 export interface NodeDraft {
   readonly nodeId: AssemblyOccurrenceId;
   readonly assemblyId: AssemblyId;
+  readonly world: Mat4;
   readonly parent: number;
   firstChild: number;
   nextSibling: number;
@@ -76,7 +77,12 @@ class DraftWriter {
     });
   }
 
-  private pushNode(assemblyId: AssemblyId, parent: number, nodeId: AssemblyOccurrenceId): number {
+  private pushNode(
+    assemblyId: AssemblyId,
+    parent: number,
+    nodeId: AssemblyOccurrenceId,
+    world: Mat4,
+  ): number {
     const parentEffective: 0 | 1 =
       parent === -1 ? 1 : invariantValue(this.nodes[parent], `parent node at ${parent}`).effective;
     const visible: 0 | 1 = this.visibleAssemblyIds.has(assemblyId) ? 1 : 0;
@@ -85,6 +91,7 @@ class DraftWriter {
     this.nodes.push({
       nodeId,
       assemblyId,
+      world,
       parent,
       firstChild: -1,
       nextSibling: -1,
@@ -102,7 +109,7 @@ class DraftWriter {
 
   /** Compiles every assembly expansion with an explicit depth-first stack. */
   public walk(assemblyId: AssemblyId, world: Mat4, path: AssemblyOccurrenceId): void {
-    const root = this.pushNode(assemblyId, -1, path);
+    const root = this.pushNode(assemblyId, -1, path, world);
     const stack: WalkItem[] = [{ nodeIndex: root, assemblyId, world, path, nextPlacement: 0 }];
     while (stack.length > 0) {
       const item = invariantValue(stack[stack.length - 1], "assembly walk stack entry");
@@ -135,7 +142,12 @@ class DraftWriter {
         this.pushPart(item.nodeIndex, placement, placementWorld, placementPath, node.effective);
         continue;
       }
-      const child = this.pushNode(placement.assemblyId, item.nodeIndex, placementPath);
+      const child = this.pushNode(
+        placement.assemblyId,
+        item.nodeIndex,
+        placementPath,
+        placementWorld,
+      );
       stack.push({
         nodeIndex: child,
         assemblyId: placement.assemblyId,

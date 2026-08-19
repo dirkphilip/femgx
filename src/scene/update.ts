@@ -1,13 +1,21 @@
 import type { Part, PartId } from "../geometry/part";
 import type { AssemblyDefinition, AssemblyPlacement, PartPlacement, Placement } from "./assembly";
-import { validateScene, type Scene } from "./scene";
+import { validatePlacementTransform, validateScene, type Scene } from "./scene";
 import type { AssemblyId } from "./types";
+import { explicitPlacementIndex, retainPlacementIndex } from "./assembly-index";
 import {
   definitionChanges,
+  isTransformOnlyChanges,
   type PlacementChange,
   type PreparedSceneUpdate,
 } from "./update-changes";
 import { equalAssembly, equalTransform, sameSceneStorage } from "./update-equality";
+import {
+  hasOnlyTransformChanges,
+  normalizedMap,
+  normalizedSet,
+  restoresSourcePlacements,
+} from "./update-normalization";
 import type {
   AddAssemblyOccurrenceInput,
   AddPartOccurrenceInput,
@@ -235,27 +243,36 @@ class SceneUpdateDraft implements SceneUpdate {
   }
 
   finish(): PreparedSceneUpdate | undefined {
+    const transformOnly = hasOnlyTransformChanges(
+      this.touchedParts,
+      this.touchedAssemblies,
+      this.placementChanges,
+    );
     const candidate: Scene = {
       rootAssemblyId: this.source.rootAssemblyId,
       parts: normalizedMap(this.source.parts, this.parts, (left, right) => left === right),
-      assemblies: normalizedMap(this.source.assemblies, this.assemblies, equalAssembly),
+      assemblies: transformOnly
+        ? (this.assemblies ?? this.source.assemblies)
+        : normalizedMap(this.source.assemblies, this.assemblies, equalAssembly),
       visiblePartIds: normalizedSet(this.source.visiblePartIds, this.visibleParts),
       visibleAssemblyIds: normalizedSet(this.source.visibleAssemblyIds, this.visibleAssemblies),
     };
-    if (sameSceneStorage(candidate, this.source)) return undefined;
-    validateScene(candidate);
-    return {
-      scene: candidate,
-      changes: {
-        parts: definitionChanges(this.source.parts, candidate.parts, this.touchedParts),
-        assemblies: definitionChanges(
-          this.source.assemblies,
-          candidate.assemblies,
-          this.touchedAssemblies,
-        ),
-        placements: this.placementChanges,
-      },
+    if (
+      sameSceneStorage(candidate, this.source) ||
+      (transformOnly && restoresSourcePlacements(this.source, candidate, this.placementChanges))
+    )
+      return undefined;
+    const changes = {
+      parts: definitionChanges(this.source.parts, candidate.parts, this.touchedParts),
+      assemblies: definitionChanges(
+        this.source.assemblies,
+        candidate.assemblies,
+        this.touchedAssemblies,
+      ),
+      placements: this.placementChanges,
     };
+    if (!isTransformOnlyChanges(changes)) validateScene(candidate);
+    return { scene: candidate, changes };
   }
 
   private editPlacement(assemblyId: AssemblyId, placementId: string, edit: PlacementEdit): void {
@@ -277,10 +294,15 @@ class SceneUpdateDraft implements SceneUpdate {
       replacement = edit.apply(placement);
     }
     if (replacement === placement) return;
+    if (replacement !== undefined) {
+      validatePlacementTransform(replacement.transform, assemblyId, index);
+    }
     const placements = assembly.placements.slice();
     if (replacement === undefined) placements.splice(index, 1);
     else placements[index] = replacement;
-    this.mutableAssemblies().set(assemblyId, { ...assembly, placements });
+    const revision = { ...assembly, placements };
+    if (replacement !== undefined) retainPlacementIndex(assembly, revision);
+    this.mutableAssemblies().set(assemblyId, revision);
     this.placementChanges.push({
       ownerAssemblyId: assemblyId,
       before: placement,
@@ -380,10 +402,6 @@ type PlacementEdit =
       readonly apply: (placement: AssemblyPlacement) => Placement | undefined;
     };
 
-function explicitPlacementIndex(assembly: AssemblyDefinition, placementId: string): number {
-  return assembly.placements.findIndex((placement) => placement.placementId === placementId);
-}
-
 function countReferences(
   assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,
   matches: (placement: Placement) => boolean,
@@ -393,28 +411,6 @@ function countReferences(
     for (const placement of assembly.placements) if (matches(placement)) count++;
   }
   return count;
-}
-
-function normalizedMap<K, V>(
-  source: ReadonlyMap<K, V>,
-  changed: ReadonlyMap<K, V> | undefined,
-  equal: (left: V, right: V) => boolean,
-): ReadonlyMap<K, V> {
-  if (changed === undefined || changed.size !== source.size) return changed ?? source;
-  for (const [key, value] of changed) {
-    const previous = source.get(key);
-    if (previous === undefined || !equal(value, previous)) return changed;
-  }
-  return source;
-}
-
-function normalizedSet<T>(
-  source: ReadonlySet<T>,
-  changed: ReadonlySet<T> | undefined,
-): ReadonlySet<T> {
-  if (changed === undefined || changed.size !== source.size) return changed ?? source;
-  for (const value of changed) if (!source.has(value)) return changed;
-  return source;
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {

@@ -28,6 +28,18 @@ export interface PlacementChange {
   readonly after: Placement | undefined;
 }
 
+/** Whether a revision changes only transforms while preserving every authored identity. */
+export function isTransformOnlyChanges(changes: SceneStructuralChanges): boolean {
+  if (hasDefinitionChanges(changes.parts) || hasDefinitionChanges(changes.assemblies)) return false;
+  return (
+    changes.placements.length > 0 &&
+    changes.placements.every(
+      ({ before, after }) =>
+        before !== undefined && after !== undefined && samePlacementIdentity(before, after),
+    )
+  );
+}
+
 /** Classifies only definition identities touched by the authoring transaction. */
 export function definitionChanges<K, V>(
   source: ReadonlyMap<K, V>,
@@ -45,4 +57,18 @@ export function definitionChanges<K, V>(
     else if (before !== after) replaced.add(id);
   }
   return { added, replaced, removed };
+}
+
+function hasDefinitionChanges(changes: DefinitionChanges<unknown>): boolean {
+  return changes.added.size + changes.replaced.size + changes.removed.size > 0;
+}
+
+function samePlacementIdentity(before: Placement, after: Placement): boolean {
+  if (before.kind !== after.kind || before.placementId !== after.placementId) return false;
+  if (before.kind === "part" && after.kind === "part") return before.partId === after.partId;
+  return (
+    before.kind === "assembly" &&
+    after.kind === "assembly" &&
+    before.assemblyId === after.assemblyId
+  );
 }

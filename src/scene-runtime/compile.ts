@@ -16,6 +16,7 @@ export interface RuntimeState {
   readonly nodeNodeIds: readonly AssemblyOccurrenceId[];
   readonly instanceCount: number;
   readonly nodeAssemblyIds: Uint32Array;
+  readonly nodeWorldTransforms: Float32Array;
   readonly nodeParents: Int32Array;
   readonly nodeFirstChild: Int32Array;
   readonly nodeNextSibling: Int32Array;
@@ -46,6 +47,7 @@ type PackedNodes = Pick<
   | "nodeCount"
   | "nodeNodeIds"
   | "nodeAssemblyIds"
+  | "nodeWorldTransforms"
   | "nodeParents"
   | "nodeFirstChild"
   | "nodeNextSibling"
@@ -71,6 +73,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const count = nodes.length;
   const nodeNodeIds: AssemblyOccurrenceId[] = [];
   const nodeAssemblyIds = new Uint32Array(count);
+  const nodeWorldTransforms = new Float32Array(count * 16);
   const nodeParents = new Int32Array(count);
   const nodeFirstChild = new Int32Array(count);
   const nodeNextSibling = new Int32Array(count);
@@ -81,6 +84,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   for (let i = 0; i < count; i++) {
     const node = invariantValue(nodes[i], `node draft at ${i}`);
     nodeAssemblyIds[i] = node.assemblyId;
+    nodeWorldTransforms.set(node.world, i * 16);
     nodeNodeIds.push(node.nodeId);
     nodeParents[i] = node.parent;
     nodeFirstChild[i] = node.firstChild;
@@ -94,6 +98,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeCount: count,
     nodeNodeIds,
     nodeAssemblyIds,
+    nodeWorldTransforms,
     nodeParents,
     nodeFirstChild,
     nodeNextSibling,

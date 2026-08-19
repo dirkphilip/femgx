@@ -19,7 +19,7 @@ import {
 } from "./dom";
 import { CameraFocusController } from "./camera-focus";
 import { normalizeSectionPlane, type SectionPlane } from "../math/section-plane";
-import { assertOriginTriad } from "./origin-triad";
+import { assertOriginTriad } from "./bounds/origin-triad";
 import type { DeformationState } from "../results/deform";
 import type { ViewportResultsConfig } from "./results";
 import type {
@@ -292,7 +292,7 @@ class ViewportCore implements Viewport {
     const update = this.sceneController.updateScene(operation, cancelCamera);
     if (!update.committed) return update.outcome;
     this.visibilityController.reset();
-    this.appliedInteraction = createInteractionState();
+    if (!update.rendererSynchronized) this.appliedInteraction = createInteractionState();
     this.invalidate();
     return update.outcome;
   }
