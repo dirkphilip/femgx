@@ -9,7 +9,7 @@ part definition → assembly placement → Scene → Viewport
 
 The generated symbol reference begins below this overview. The task-focused
 guides keep the recipes readable and link each important type and function to
-its TypeScript source.
+its generated TypeDoc declaration.
 
 ## Five-minute workflow
 
@@ -71,9 +71,9 @@ Do not import `importGlb` from `femgx`; it is published only from
 
 ## Ownership model
 
-[`Part`](https://github.com/dirkphilip/femgx/blob/main/src/geometry/part.ts#L46) is immutable local geometry. A
-[`Scene`](https://github.com/dirkphilip/femgx/blob/main/src/scene/scene.ts#L16) owns part and assembly definitions. The
-[`Viewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L35) owns the live compiled runtime,
+{@link root.Part | Part} is immutable local geometry. A
+{@link root.Scene | Scene} owns part and assembly definitions. The
+{@link root.Viewport | Viewport} owns the live compiled runtime,
 WebGPU resources, camera, interaction, results, visibility, recovery, and
 teardown. Reusable definitions are never copied for placements; occurrence
 identity is derived by the scene runtime.
@@ -93,17 +93,17 @@ After `replaceScene()` or a committed `updateScene()`, reacquire
 
 ## Public entrypoints
 
-| Package entry       | TypeScript facade                                                                                        |
-| ------------------- | -------------------------------------------------------------------------------------------------------- |
-| `femgx`             | [`src/entries/root.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/root.ts)               |
-| `femgx/model`       | [`src/entries/model.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/model.ts)             |
-| `femgx/io`          | [`src/entries/io.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io.ts)                   |
-| `femgx/io/glb`      | [`src/entries/io/glb.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io/glb.ts)           |
-| `femgx/camera`      | [`src/entries/camera.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/camera.ts)           |
-| `femgx/interaction` | [`src/entries/interaction.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/interaction.ts) |
-| `femgx/results`     | [`src/entries/results.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/results.ts)         |
-| `femgx/runtime`     | [`src/entries/runtime.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/runtime.ts)         |
-| `femgx/platform`    | [`src/entries/platform.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/platform.ts)       |
+| Package entry       | TypeScript facade                          |
+| ------------------- | ------------------------------------------ |
+| `femgx`             | Root scene and viewport API                |
+| `femgx/model`       | FE elements, models, and part construction |
+| `femgx/io`          | FEM validation and result conversion       |
+| `femgx/io/glb`      | GLB display-scene import                   |
+| `femgx/camera`      | Camera construction and controls           |
+| `femgx/interaction` | Interaction state and target mapping       |
+| `femgx/results`     | Authored fields and deformation            |
+| `femgx/runtime`     | CPU runtime inspection                     |
+| `femgx/platform`    | WebGPU adapter and device ownership        |
 
 The generated navigation is the searchable reference for every exported
 symbol. The guides above are organized around host tasks so that the API is

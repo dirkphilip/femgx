@@ -1,21 +1,21 @@
 # Viewport lifecycle and interaction
 
-[`createViewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L92) is the supported rendering
+{@link root.createViewport createViewport} is the supported rendering
 lifecycle. It requests a real WebGPU device, owns the compiled runtime and GPU
 resources, and exposes stable capability facades for view, interaction,
 visibility, results, and presentation.
 
 ## Public symbols
 
-| Symbol                                                                                                                                                                                                      | Role                                   |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [`createViewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L92) / [`Viewport`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L35)                   | WebGPU lifecycle and capability facade |
-| [`SceneUpdate`](https://github.com/dirkphilip/femgx/blob/main/src/scene/update-types.ts)                                                                                                                    | Transaction-local structural editor    |
-| [`PickHit`](https://github.com/dirkphilip/femgx/blob/main/src/picking/types.ts#L115)                                                                                                                        | Physical GPU pick result               |
-| [`interactionTargetFromHit`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L33)                                                                                                  | Host-facing identity mapping           |
-| [`setTargetSelected`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L82) / [`setTargetsSelected`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L111) | Immutable selection transitions        |
-| [`installViewportInteraction`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/viewport-interaction.ts#L52)                                                                                   | Disposable default pointer/box policy  |
-| [`boxSelectionFrustum`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/box-frustum.ts#L46)                                                                                                   | Host-side through-query frustum        |
+| Symbol                                                                                                              | Role                                   |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| {@link root.createViewport createViewport} / {@link root.Viewport Viewport}                                         | WebGPU lifecycle and capability facade |
+| {@link root.SceneUpdate SceneUpdate}                                                                                | Transaction-local structural editor    |
+| {@link root.PickHit PickHit}                                                                                        | Physical GPU pick result               |
+| {@link interaction.interactionTargetFromHit interactionTargetFromHit}                                               | Host-facing identity mapping           |
+| {@link interaction.setTargetSelected setTargetSelected} / {@link interaction.setTargetsSelected setTargetsSelected} | Immutable selection transitions        |
+| {@link interaction.installViewportInteraction installViewportInteraction}                                           | Disposable default pointer/box policy  |
+| {@link interaction.boxSelectionFrustum boxSelectionFrustum}                                                         | Host-side through-query frustum        |
 
 ## Create, use, and destroy a viewport
 
@@ -36,7 +36,7 @@ but calls after `destroy()` fail consistently.
 ## Picking and selection
 
 `viewport.interaction.pick` returns physical information. Convert it to a stable
-host target with [`interactionTargetFromHit`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/targets.ts#L33),
+host target with {@link interaction.interactionTargetFromHit interactionTargetFromHit},
 then publish an immutable state transition:
 
 ```ts
@@ -48,7 +48,7 @@ if (target !== undefined) {
 }
 ```
 
-For a visible-region query, [`pickRegion`](https://github.com/dirkphilip/femgx/blob/main/src/viewport/viewport.ts#L92)
+For a visible-region query, {@link root.ViewportInteraction.pickRegion pickRegion}
 returns nearest-visible raster targets without mutating selection. Apply them in
 one transition:
 
@@ -75,7 +75,7 @@ disposeInteraction();
 viewport.destroy();
 ```
 
-For Core-now through-selection, use [`boxSelectionFrustum`](https://github.com/dirkphilip/femgx/blob/main/src/interaction/box-frustum.ts#L46)
+For Core-now through-selection, use {@link interaction.boxSelectionFrustum boxSelectionFrustum}
 with the host's authoritative placed FE geometry. It ignores raster occlusion
 but respects explicit visibility, section planes, deformation, and occurrence
 transforms. Tessellation diagonals are never authored edge identities.
