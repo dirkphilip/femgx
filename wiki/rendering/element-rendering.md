@@ -129,6 +129,17 @@ presentation pass draws one-device-pixel native edges at their model depth with
 `less-equal`; it does not alter the owning surface depth or pull overlay vertices
 toward the camera. Exact edge picking keeps its separate widened geometry.
 
+This depth contract also reduces steady-state work for ordinary surfaces. The
+surface fragment shader no longer exports depth or evaluates screen-space depth
+derivatives, vector length, and finite-value guards, and the instance record no
+longer carries a depth-offset flag. The backend can therefore use its normal
+fixed-function depth path. The change adds no draw, pass, attachment, buffer,
+readback, or instance-stride cost. Dense selection creates one additional
+pipeline state at device setup, reusing the existing shader module, and selects
+that state only for the affected draw; its one-unit native depth bias and the
+transparent `less-equal` comparison are fixed-function state. Performance-budget
+workloads remain the regression authority for these costs.
+
 Edge visibility is keyed by an explicit expanded-endpoint record. Each line
 endpoint retains its original source-vertex index while upload builds an
 endpoint-aligned node-id buffer for nodal deformation, plus its logical edge

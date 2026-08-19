@@ -160,6 +160,7 @@ function createRoot(): HTMLDivElement {
     "aria-label",
     "View cube. Faces and corners snap the view. Arrow buttons pitch or yaw the view; clockwise and counterclockwise buttons rotate in-plane. All buttons rotate 15 degrees; Shift rotates 90 degrees; Control or Command rotates 5 degrees.",
   );
+  // Own the full control box so SVG hit-test differences cannot leak input to the canvas.
   Object.assign(root.style, {
     position: "absolute",
     zIndex: "4",
@@ -168,7 +169,7 @@ function createRoot(): HTMLDivElement {
     width: "clamp(104px, 11vw, 132px)",
     height: "clamp(104px, 11vw, 132px)",
     background: "transparent",
-    pointerEvents: "none",
+    pointerEvents: "auto",
     userSelect: "none",
   });
   return root;
@@ -183,7 +184,7 @@ function createSvg(): SVGSVGElement {
     display: "block",
     width: "100%",
     height: "100%",
-    pointerEvents: "none",
+    pointerEvents: "auto",
   });
   const style = document.createElementNS(SVG_NAMESPACE, "style");
   style.textContent = `
