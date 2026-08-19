@@ -103,9 +103,10 @@ describe("public scene update scaling", () => {
     const measuredMs = measureMs(
       () => {
         viewport.updateScene((update) => {
-          update.setPartOccurrenceTransform({
-            assemblyId: 1,
+          update.replacePlacement(1, {
+            kind: "part",
             placementId: "99999",
+            partId: 1,
             transform: translation(offset, 0, 0),
           });
         });
@@ -126,10 +127,10 @@ describe("public scene update scaling", () => {
     const measuredMs = measureMs(
       () => {
         viewport.updateScene((update) => {
-          if (present) update.removePartOccurrence({ assemblyId: 1, placementId: "99999" });
+          if (present) update.removePlacement(1, "99999");
           else {
-            update.addPartOccurrence({
-              assemblyId: 1,
+            update.addPlacement(1, {
+              kind: "part",
               placementId: "99999",
               partId: 1,
               transform: identity(),

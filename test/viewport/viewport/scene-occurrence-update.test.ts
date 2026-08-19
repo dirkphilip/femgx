@@ -73,8 +73,8 @@ describe("Viewport incremental part occurrences", () => {
 
     viewport.updateScene((update) => {
       update.addPart(added);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "new-part",
         partId: 2,
         transform: translation(5, 0, 0),
@@ -119,10 +119,15 @@ describe("Viewport incremental part occurrences", () => {
     clear.mockClear();
 
     viewport.updateScene((update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "remove" });
-      update.rebindPartOccurrence({ assemblyId: 1, placementId: "keep", partId: 2 });
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.removePlacement(1, "remove");
+      update.replacePlacement(1, {
+        kind: "part",
+        placementId: "keep",
+        partId: 2,
+        transform: translation(1, 0, 0),
+      });
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 2,
         transform: translation(2, 0, 0),
@@ -159,9 +164,9 @@ describe("Viewport incremental part occurrences", () => {
     updateOccurrences.mockClear();
 
     viewport.updateScene((update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "keep" });
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.removePlacement(1, "keep");
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 1,
         transform: translation(0, 0, 0),
@@ -196,8 +201,8 @@ describe("Viewport incremental part occurrences", () => {
 
     const outcome = viewport.updateScene((update) => {
       update.addPart(added);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "uncolored",
         partId: 2,
         transform: translation(4, 0, 0),
@@ -243,7 +248,7 @@ describe("Viewport incremental part occurrences", () => {
     clear.mockClear();
 
     viewport.updateScene((update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
 
     const attachment = updateOccurrences.mock.instances[0] as RendererAttachment | undefined;
@@ -286,7 +291,7 @@ describe("Viewport incremental part occurrences", () => {
     });
 
     const outcome = viewport.updateScene((update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
 
     expect(outcome.results).toBe("cleared");

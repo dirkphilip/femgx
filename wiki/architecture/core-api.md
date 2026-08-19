@@ -193,13 +193,15 @@ hosts never receive or need to round-trip generated element overrides.
 `updateScene` is the live-edit boundary for part and assembly definitions and
 their direct authoring placements. Its synchronous callback receives a
 transaction-local `SceneUpdate` editor. The editor uses copy-on-write registries,
-requires explicit placement ids for occurrence edits, validates the complete
-candidate once, and publishes one immutable scene revision. A thrown, nested,
-async, or semantically empty operation publishes nothing. Stable placement ids
-retain visibility and surviving placement-scoped interaction state; invalid
-body, element, face, and node references are removed. Active authored results
-are revalidated and `SceneUpdateOutcome` reports whether they remain usable.
-`replaceScene` remains the explicit unrelated-model path and clears results.
+requires explicit placement ids for `addPlacement`, `replacePlacement`, and
+`removePlacement`, validates the changed ownership boundary, and publishes one
+immutable scene revision. Remove plus add of the same placement id in one
+transaction is one final replacement. A thrown, nested, async, or semantically
+empty operation publishes nothing. Stable placement ids retain visibility and
+surviving occurrence-scoped interaction state; invalid body, element, face, and
+node references are removed. Active authored results are revalidated and
+`SceneUpdateOutcome` reports whether they remain usable. `replaceScene` remains
+the explicit unrelated-model path and clears results.
 
 Interaction state is immutable and opaque. It stores at most one hovered target;
 setting a new hover replaces the previous target. Part and instance state establish

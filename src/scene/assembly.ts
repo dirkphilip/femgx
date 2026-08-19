@@ -5,17 +5,17 @@ import type { AssemblyId } from "./types";
 /**
  * A placement of a reusable {@link Part} inside an assembly.
  *
- * The placement owns only occurrence-specific state: a reference to a part
- * definition, a local transform, and optionally a stable `placementId` within
- * its owning assembly. It never copies geometry. The compiled runtime expands
- * each placement into a `PartOccurrenceId`, which is the identity used for
- * occurrence-scoped visibility, interaction, and picking.
+ * The authored placement owns a reference to a part definition, a local
+ * transform, and optionally a stable `placementId` within its owning assembly.
+ * It never copies geometry. The compiled runtime expands each placement into
+ * one or more `PartOccurrenceId` values used for occurrence-scoped visibility,
+ * interaction, and picking.
  * @category Scene and geometry
  */
 export interface PartPlacement {
   /** Discriminator identifying a direct part placement. */
   readonly kind: "part";
-  /** Reusable part definition referenced by this occurrence. */
+  /** Reusable part definition referenced by this authored placement. */
   readonly partId: PartId;
   /** Optional stable identity within the owning assembly. */
   readonly placementId?: string;
@@ -34,7 +34,7 @@ export interface PartPlacement {
 export interface AssemblyPlacement {
   /** Discriminator identifying a nested assembly placement. */
   readonly kind: "assembly";
-  /** Child assembly definition referenced by this occurrence. */
+  /** Child assembly definition referenced by this authored placement. */
   readonly assemblyId: AssemblyId;
   /** Optional stable identity within the owning assembly. */
   readonly placementId?: string;

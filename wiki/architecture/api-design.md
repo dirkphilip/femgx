@@ -23,7 +23,8 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 | Concept             | Current representation | Responsibility                                                                     |
 | ------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
 | Part definition     | `Part` / `createPart`  | Validated immutable reusable geometry, derived bounds, and optional element ranges |
-| Part occurrence     | `PartPlacement`        | A reference to a part definition plus a local transform                            |
+| Part placement      | `PartPlacement`        | An authored reference to a part definition plus a local transform                  |
+| Part occurrence     | `PartOccurrenceId`     | One expanded runtime identity produced from the reusable assembly hierarchy        |
 | Assembly definition | `AssemblyDefinition`   | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
 | Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
@@ -35,9 +36,11 @@ direct part placements. The canonical viewport owns the current live facade at
 `viewport.runtime`; standalone `createSceneRuntime(scene)` is a CPU-only
 immutable compiled snapshot for intentional host inspection.
 
-The public API keeps part definitions distinct from their placed part
-occurrences: a definition owns reusable geometry, while each occurrence owns
-its placement transform and visibility state.
+The public API keeps definitions, authored placements, and expanded occurrences
+distinct. A definition owns reusable geometry, a placement owns the authored
+reference and local transform, and an occurrence owns runtime-scoped visibility
+and interaction state. Editing one placement in a reused assembly definition
+therefore affects every occurrence expanded from that placement.
 
 `Viewport` remains the single lifecycle owner. Its stable non-owning facades
 are `viewport.view` for camera/navigation, `viewport.interaction` for live
@@ -182,9 +185,12 @@ boundary. The synchronous operation edits a copy-on-write draft by definition
 and explicit authoring-placement identity. It validates changed ownership
 boundaries before committing. Transform-only revisions validate the changed
 matrix, patch retained runtime/GPU instance records, and update placed bounds.
-Direct explicit part-occurrence add, remove, and rebind revisions reuse private
-runtime and part-local GPU slots and rebuild only affected part orders. A newly
-registered immutable part and its first direct occurrences use that same path,
+`SceneUpdate.addPlacement`, `replacePlacement`, and `removePlacement` operate on
+complete explicitly identified authored records. Direct part-placement revisions
+reuse private runtime and part-local GPU slots and rebuild only affected part
+orders. Remove plus add of the same placement identity in one transaction is
+coalesced to the same final replacement. A newly registered immutable part and
+its first direct occurrences use that same path,
 admitting only the new definition and uploading its geometry once when first drawn.
 A cascading part-definition removal uses the same release path, then retires only
 that part's resources; part replacement and assembly-topology revisions retain the

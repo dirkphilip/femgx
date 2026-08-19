@@ -88,6 +88,10 @@ also need `@webgpu/types` in `devDependencies` and `compilerOptions.types`.
 | `Scene`              | The authoritative definitions and root assembly           |
 | `Viewport`           | Rendering, camera, interaction, results, and GPU lifetime |
 
+A placement is an authored reference inside a reusable assembly definition. A
+runtime occurrence is one expansion of that placement; editing a placement in
+a reused definition can therefore affect several occurrences.
+
 Use `replaceScene()` for an unrelated model. Use `updateScene()` for structural
 edits that should preserve compatible camera, interaction, visibility, and
 result state. Its synchronous transaction editor builds one validated immutable
@@ -96,8 +100,8 @@ snapshot without requiring the host to rebuild the complete scene:
 ```ts
 viewport.updateScene((update) => {
   update.addPart(newPart);
-  update.addPartOccurrence({
-    assemblyId: rootAssemblyId,
+  update.addPlacement(rootAssemblyId, {
+    kind: "part",
     placementId: "new-part",
     partId: newPart.id,
     transform: identity(),

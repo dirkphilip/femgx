@@ -34,7 +34,7 @@ describe("whole-part removal scaling", () => {
     const started = performance.now();
 
     viewport.updateScene((update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
 
     const measuredMs = performance.now() - started;

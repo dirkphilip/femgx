@@ -24,9 +24,9 @@ describe("incremental part occurrence storage", () => {
     );
     const runtime = createPackedSceneRuntime(scene);
     const prepared = prepareSceneTransition(scene, (update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "remove" });
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.removePlacement(1, "remove");
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 2,
         transform: translation(2, 0, 0),
@@ -48,6 +48,41 @@ describe("incremental part occurrence storage", () => {
     expect(publicRuntime.getPartOccurrenceIds()).toEqual(["1/added", "1/keep"]);
   });
 
+  it("coalesces remove plus add of one placement identity into a retained-slot replacement", () => {
+    const scene = buildScene(
+      1,
+      [
+        {
+          id: 1,
+          placements: [{ kind: "part", placementId: "item", partId: 1, transform: identity() }],
+        },
+      ],
+      [1, 2],
+    );
+    const runtime = createPackedSceneRuntime(scene);
+    const slot = runtime.getInstanceSlot("1/item");
+    if (slot === undefined) throw new Error("expected an instance slot");
+    const prepared = prepareSceneTransition(scene, (update) => {
+      update.removePlacement(1, "item");
+      update.addPlacement(1, {
+        kind: "part",
+        placementId: "item",
+        partId: 2,
+        transform: translation(3, 0, 0),
+      });
+    });
+    if (prepared === undefined) throw new Error("expected a scene transition");
+    const mutations = prepareOccurrenceMutations(runtime, prepared.scene, prepared.changes);
+    if (mutations === undefined) throw new Error("expected occurrence mutations");
+
+    const delta = applyOccurrenceMutations(runtime, mutations);
+
+    expect(runtime.getInstanceSlot("1/item")).toBe(slot);
+    expect(runtime.getPartId(slot)).toBe(2);
+    expect(runtime.getTransform(slot)?.[12]).toBe(3);
+    expect(delta.slots).toEqual([{ slot, beforePartId: 1, afterPartId: 2 }]);
+  });
+
   it("expands one authored placement across every retained owner assembly occurrence", () => {
     const scene = buildScene(
       1,
@@ -66,8 +101,8 @@ describe("incremental part occurrence storage", () => {
     const runtime = createPackedSceneRuntime(scene);
     const prepared = prepareSceneTransition(scene, (update) => {
       update.addPart(part(2));
-      update.addPartOccurrence({
-        assemblyId: 2,
+      update.addPlacement(2, {
+        kind: "part",
         placementId: "shared",
         partId: 2,
         transform: identity(),
@@ -125,7 +160,7 @@ describe("incremental part occurrence storage", () => {
     );
     const runtime = createPackedSceneRuntime(scene);
     const prepared = prepareSceneTransition(scene, (update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
     if (prepared === undefined) throw new Error("expected a scene transition");
     const mutations = prepareOccurrenceMutations(runtime, prepared.scene, prepared.changes);

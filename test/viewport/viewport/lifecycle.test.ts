@@ -144,8 +144,8 @@ describe("Viewport", () => {
     const addedPart = createPart(2, { geometries: sourcePart.geometries });
     viewport.updateScene((update) => {
       update.addPart(addedPart);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "recovered-addition",
         partId: 2,
         transform: translation(20, 0, 0),
