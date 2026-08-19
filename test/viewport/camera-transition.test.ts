@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createCamera } from "../../src/camera/camera";
 import {
   createCameraTransition,
+  interpolateOrientationCamera,
   type CameraTransitionClock,
 } from "../../src/viewport/camera-transition";
 
@@ -86,5 +87,32 @@ describe("camera transitions", () => {
 
     expect(updates).toEqual([{ camera: target, complete: true }]);
     expect(harness.frames).toHaveLength(0);
+  });
+
+  it("keeps opposite orientation snaps on a spherical path", () => {
+    const initial = createCamera({ position: [0, 0, 5], target: [0, 0, 0] });
+    const target = createCamera({ position: [0, 0, -5], target: [0, 0, 0] });
+
+    const halfway = interpolateOrientationCamera(initial, target, 0.5);
+
+    expect(Math.hypot(...halfway.position)).toBeCloseTo(5);
+    expect(halfway.position[0]).toBeCloseTo(5);
+    expect(halfway.position[1]).toBeCloseTo(0);
+    expect(halfway.position[2]).toBeCloseTo(0);
+  });
+
+  it("keeps top-to-bottom snaps orthonormal through the pole", () => {
+    const initial = createCamera({ position: [0, 5, 0], target: [0, 0, 0], up: [0, 0, 1] });
+    const target = createCamera({ position: [0, -5, 0], target: [0, 0, 0], up: [0, 0, -1] });
+
+    const halfway = interpolateOrientationCamera(initial, target, 0.5);
+
+    expect(Math.abs(halfway.up[1])).toBeGreaterThan(0.9);
+    expect(Math.abs(halfway.up[2])).toBeLessThan(0.1);
+    expect(
+      halfway.position[0] * halfway.up[0] +
+        halfway.position[1] * halfway.up[1] +
+        halfway.position[2] * halfway.up[2],
+    ).toBeCloseTo(0);
   });
 });

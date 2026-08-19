@@ -6,7 +6,12 @@ import { type Bounds } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import { selectedTargets } from "../interaction/targets";
 import type { DeformationState } from "../results/deform";
-import { createCameraTransition } from "./camera-transition";
+import {
+  createCameraTransition,
+  interpolateCamera,
+  interpolateOrientationCamera,
+  type CameraTransitionInterpolator,
+} from "./camera-transition";
 import { cssSize } from "./dom";
 import { padDegenerateBounds } from "./geometry-bounds";
 import { protectSceneCamera, sceneWorldBounds, selectedSceneBounds } from "./scene-bounds";
@@ -25,7 +30,7 @@ export interface CameraFocusOptions {
   readonly invalidate: () => void;
 }
 
-const FIT_SELECTION_DURATION_MS = 400;
+const DEFAULT_CAMERA_TRANSITION_DURATION_MS = 400;
 
 /** Owns the viewport's single interruptible camera-focus path. */
 export class CameraFocusController {
@@ -33,11 +38,15 @@ export class CameraFocusController {
 
   constructor(private readonly options: CameraFocusOptions) {}
 
-  setCamera(camera: Camera, transitionOptions: CameraTransitionOptions | undefined): void {
+  setCamera(
+    camera: Camera,
+    transitionOptions: CameraTransitionOptions | undefined,
+    interpolate: CameraTransitionInterpolator = interpolateCamera,
+  ): void {
     assertValidCamera(camera);
     const duration = resolveDuration(transitionOptions, 0);
     this.transition.cancel();
-    this.apply(camera, duration);
+    this.apply(camera, duration, true, interpolate);
   }
 
   fitView(transitionOptions: CameraTransitionOptions | undefined, invalidate: boolean): void {
@@ -53,7 +62,7 @@ export class CameraFocusController {
   }
 
   fitSelection(transitionOptions: CameraTransitionOptions | undefined, invalidate = true): void {
-    const duration = resolveDuration(transitionOptions, FIT_SELECTION_DURATION_MS);
+    const duration = resolveDuration(transitionOptions, DEFAULT_CAMERA_TRANSITION_DURATION_MS);
     this.transition.cancel();
     const scene = this.options.scene();
     const runtime = this.options.runtime();
@@ -100,10 +109,19 @@ export class CameraFocusController {
       sceneWorldBounds(this.options.scene(), this.options.runtime(), this.options.deformation()),
       action,
     );
-    this.setCamera(camera, undefined);
+    this.setCamera(
+      camera,
+      { durationMs: DEFAULT_CAMERA_TRANSITION_DURATION_MS },
+      interpolateOrientationCamera,
+    );
   }
 
-  private apply(camera: Camera, durationMs: number, invalidate = true): void {
+  private apply(
+    camera: Camera,
+    durationMs: number,
+    invalidate = true,
+    interpolate: CameraTransitionInterpolator = interpolateCamera,
+  ): void {
     const scene = this.options.scene();
     const runtime = this.options.runtime();
     const target = protectSceneCamera(camera, scene, runtime, this.options.deformation());
@@ -123,7 +141,7 @@ export class CameraFocusController {
           );
       this.options.invalidate();
     };
-    this.transition.start(this.options.cameraRef.camera, target, durationMs, update);
+    this.transition.start(this.options.cameraRef.camera, target, durationMs, update, interpolate);
   }
 }
 
