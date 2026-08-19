@@ -52,6 +52,7 @@ describe("section-cap part retirement", () => {
           slots: [],
           affectedPartIds: new Set([1]),
           removedOccurrenceSlots: [0],
+          addedPartIds: new Set(),
           removedPartIds: new Set([1]),
         },
         new Map([[2, retainedSourcePart]]),

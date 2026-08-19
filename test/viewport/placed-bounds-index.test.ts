@@ -3,6 +3,10 @@ import { createPart } from "../../src/geometry/part";
 import { translation } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
+  applyOccurrenceMutations,
+  prepareOccurrenceMutations,
+} from "../../src/scene-runtime/occurrence-update";
+import {
   applyTransformPatch,
   prepareTransformPatch,
 } from "../../src/scene-runtime/transform-update";
@@ -33,6 +37,43 @@ describe("PlacedBoundsIndex", () => {
 
     expect(index.bounds).toEqual(scenePlacedBounds(transition.scene, runtime));
     expect(index.bounds.maxX).toBe(6);
+  });
+
+  it("uses a newly admitted definition for added occurrence bounds", () => {
+    const initial = boundsScene();
+    const runtime = createPackedSceneRuntime(initial);
+    const index = new PlacedBoundsIndex(initial, runtime);
+    const added = createPart(2, {
+      geometries: [
+        {
+          positions: new Float32Array([0, 0, 0, 4, 0, 0, 0, 2, 0]),
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+        },
+      ],
+    });
+    const transition = prepareSceneTransition(initial, (update) => {
+      update.addPart(added);
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "added",
+        partId: 2,
+        transform: translation(20, 0, 0),
+      });
+    });
+    if (transition === undefined) throw new Error("expected a scene transition");
+    const prepared = prepareOccurrenceMutations(runtime, transition.scene, transition.changes);
+    if (prepared === undefined) throw new Error("expected occurrence mutations");
+
+    const delta = applyOccurrenceMutations(runtime, prepared);
+    index.updateParts(transition.scene.parts, delta.addedPartIds);
+    index.update(
+      runtime,
+      delta.slots.map(({ slot }) => slot),
+    );
+
+    expect(index.bounds).toEqual(scenePlacedBounds(transition.scene, runtime));
+    expect(index.bounds.maxX).toBe(24);
   });
 });
 

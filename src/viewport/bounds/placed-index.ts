@@ -1,4 +1,4 @@
-import { isFiniteBounds, type Bounds, type PartId } from "../../geometry/part";
+import { isFiniteBounds, type Bounds, type Part, type PartId } from "../../geometry/part";
 import { transformPoint } from "../../math/mat4";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
@@ -23,11 +23,10 @@ export class PlacedBoundsIndex {
   private maxY: Float64Array;
   private maxZ: Float64Array;
   private readonly partBounds = new Map<PartId, Bounds | undefined>();
+  private parts: ReadonlyMap<PartId, Part>;
 
-  constructor(
-    private readonly scene: Scene,
-    runtime: PackedSceneRuntime,
-  ) {
+  constructor(scene: Scene, runtime: PackedSceneRuntime) {
+    this.parts = scene.parts;
     this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
     const size = this.leafCapacity * 2;
     this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
@@ -38,6 +37,12 @@ export class PlacedBoundsIndex {
     this.maxZ = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
     for (let slot = 0; slot < runtime.instanceCount; slot += 1) this.writeLeaf(runtime, slot);
     for (let node = this.leafCapacity - 1; node > 0; node -= 1) this.merge(node);
+  }
+
+  /** Admits changed immutable definitions without rebuilding retained placed bounds. */
+  updateParts(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void {
+    this.parts = parts;
+    for (const partId of partIds) this.partBounds.delete(partId);
   }
 
   /** Updates changed occurrence leaves and their logarithmic ancestor paths. */
@@ -99,7 +104,7 @@ export class PlacedBoundsIndex {
 
   private localBounds(partId: PartId): Bounds | undefined {
     if (!this.partBounds.has(partId)) {
-      const part = this.scene.parts.get(partId);
+      const part = this.parts.get(partId);
       this.partBounds.set(
         partId,
         part === undefined ? undefined : displayedPartBounds(part, undefined),

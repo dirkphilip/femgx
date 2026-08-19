@@ -21,7 +21,7 @@ import { reconcileInteractionState } from "./scene-reconciliation";
 import { ViewportVisibilityState } from "./visibility-state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
-import { updateRendererOccurrences } from "../renderer/gpu-renderer";
+import { prepareRendererPartAdditions, updateRendererOccurrences } from "../renderer/gpu-renderer";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
@@ -183,10 +183,12 @@ export class ViewportSceneController {
     mutations: NonNullable<ReturnType<typeof prepareOccurrenceMutations>>,
     cancelCamera: () => void,
   ): SceneUpdateResult {
+    prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
     cancelCamera();
     const delta = applyOccurrenceMutations(this.currentRuntime, mutations);
     this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
     this.currentVisibility.pruneParts(delta.removedPartIds);
+    this.currentVisibility.admitParts(scene, delta.addedPartIds);
     const nextInteraction = reconcileInteractionState(
       this.baseInteraction,
       this.currentRuntime,
@@ -203,6 +205,7 @@ export class ViewportSceneController {
     this.currentScene = scene;
     this.baseInteraction = nextInteraction;
     this.currentResults = resultUpdate.results;
+    this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
     this.placedBounds.update(
       this.currentRuntime,
       delta.slots.map(({ slot }) => slot),

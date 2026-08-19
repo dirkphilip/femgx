@@ -183,10 +183,12 @@ and explicit authoring-placement identity. It validates changed ownership
 boundaries before committing. Transform-only revisions validate the changed
 matrix, patch retained runtime/GPU instance records, and update placed bounds.
 Direct explicit part-occurrence add, remove, and rebind revisions reuse private
-runtime and part-local GPU slots and rebuild only affected part orders. A cascading
-part-definition removal uses the same release path, then retires only that part's
-resources; other definition and assembly-topology revisions retain the complete
-validation/compile path. The
+runtime and part-local GPU slots and rebuild only affected part orders. A newly
+registered immutable part and its first direct occurrences use that same path,
+admitting only the new definition and uploading its geometry once when first drawn.
+A cascading part-definition removal uses the same release path, then retires only
+that part's resources; part replacement and assembly-topology revisions retain the
+complete validation/compile path. The
 viewport preserves the camera and state tied to surviving placement ids, prunes
 references to removed inner geometry identities, and revalidates active results.
 `SceneUpdateOutcome` makes a result clear actionable without exposing runtime slots or renderer resources;

@@ -214,6 +214,17 @@ describe("prepareSceneUpdate", () => {
     expect(source.assemblies.get(1)?.placements[0]?.transform).toEqual(identity());
   });
 
+  it("rejects an invalid added part id at the changed registry boundary", () => {
+    const source = scene();
+
+    expect(() =>
+      prepareSceneUpdate(source, (update) => {
+        update.addPart({ ...secondPart, id: -1 });
+      }),
+    ).toThrow(/Part id/);
+    expect(source.parts.size).toBe(1);
+  });
+
   it("accumulates many edits and can reuse one part definition", () => {
     const source = scene();
     const next = prepareSceneUpdate(source, (update) => {

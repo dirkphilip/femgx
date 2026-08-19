@@ -33,7 +33,12 @@ import {
 } from "./attachment/interaction";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { applyOccurrenceAttachment } from "./attachment/occurrences";
-import { prepareAttachmentParts, removeAttachmentParts } from "./attachment/part-definitions";
+import {
+  addAttachmentParts,
+  prepareAddedAttachmentParts,
+  prepareAttachmentParts,
+  removeAttachmentParts,
+} from "./attachment/part-definitions";
 
 type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -75,6 +80,21 @@ export class RendererAttachment {
     const result = prepareAttachmentParts(this.partAttachmentOptions(bundle), parts);
     this.attachedParts = result.parts;
     if (result.calls !== undefined) Object.assign(this, result.calls);
+  }
+
+  /** Validates renderer-owned metadata for exact added definitions before commit. */
+  public prepareAddedParts(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void {
+    prepareAddedAttachmentParts(parts, partIds);
+  }
+
+  /** Admits exact added definitions without broad resource reconciliation. */
+  public addParts(
+    parts: ReadonlyMap<PartId, Part>,
+    partIds: ReadonlySet<PartId>,
+    sourceParts?: Map<PartId, Part>,
+  ): void {
+    addAttachmentParts(this.attachedParts, parts, partIds);
+    if (sourceParts !== undefined) addAttachmentParts(sourceParts, parts, partIds);
   }
 
   /** Retires exact removed definitions without scanning the retained part registry. */

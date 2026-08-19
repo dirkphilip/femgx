@@ -4,6 +4,7 @@ import {
   scene,
   resultScene,
   createResultField,
+  createPart,
   setPartOverride,
   createViewport,
   GpuRenderer,
@@ -11,6 +12,7 @@ import {
   fakeCanvas,
   fakeGpuDevice,
   installTestGpuGlobals,
+  translation,
 } from "./support";
 import { UnknownSceneIdentityError } from "../../../src/entries/root";
 
@@ -137,18 +139,27 @@ describe("Viewport", () => {
     viewport.render();
     viewport.resize();
     viewport.replaceScene(scene(10));
-    const replacementPart = scene(20).parts.get(1);
-    if (replacementPart === undefined) throw new Error("test part is missing");
+    const sourcePart = scene(20).parts.get(1);
+    if (sourcePart === undefined) throw new Error("test part is missing");
+    const addedPart = createPart(2, { geometries: sourcePart.geometries });
     viewport.updateScene((update) => {
-      update.replacePart(replacementPart);
+      update.addPart(addedPart);
+      update.addPartOccurrence({
+        assemblyId: 1,
+        placementId: "recovered-addition",
+        partId: 2,
+        transform: translation(20, 0, 0),
+      });
     });
     await viewport.recover();
+    viewport.render();
 
     expect(viewport.view).toBe(capabilities.view);
     expect(viewport.interaction).toBe(capabilities.interaction);
     expect(viewport.visibility).toBe(capabilities.visibility);
     expect(viewport.results).toBe(capabilities.results);
     expect(viewport.presentation).toBe(capabilities.presentation);
+    expect(viewport.runtime.getPartId("1/recovered-addition")).toBe(2);
     viewport.destroy();
   });
 
