@@ -68,10 +68,6 @@ Do not import `importGlb` from `femgx`; it is published only from
   deformation, orientation glyphs, FEM input, and GLB display scenes.
 - [Runtime, camera, and WebGPU](runtime-and-platform.md) — CPU inspection,
   custom camera state, support probing, and device recovery.
-- [0.x entry-point migration](migration-0.x-entry-points.md) — old-to-new
-  package import mapping.
-- [0.x viewport migration](migration-0.x-viewport.md) — old-to-new viewport
-  capability mapping.
 
 ## Ownership model
 

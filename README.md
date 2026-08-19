@@ -105,9 +105,7 @@ The primary entry points are:
 
 Specialized entry points for camera math, runtime inspection, WebGPU device
 ownership, and optional display-only GLB import are documented in the
-[API reference](docs/api-reference.md). For 0.x import changes, see the
-[entry-point migration map](docs/migration-0.x-entry-points.md) and
-[viewport migration map](docs/migration-0.x-viewport.md).
+[API reference](docs/api-reference.md).
 
 ## Scope
 
