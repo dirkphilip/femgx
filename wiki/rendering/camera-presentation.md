@@ -99,18 +99,18 @@ demo uses the studio preset and restrained material colors so geometry edges and
 selection emphasis remain legible. Its lower-left viewport-owned view cube follows the
 camera's screen-space world-axis projection: six named faces and eight signed
 corners snap the camera, while four pitch/yaw arrows and two curved roll arrows
-rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Each face visibly names its
-world-coordinate plane (`XY`, `YZ`, or `XZ`) while retaining the signed side in
-its accessible label and stable face attributes. The same retained SVG contains
+rotate by 15° (90° with Shift, 5° with Ctrl/Meta). Faces retain their plane and
+signed side in accessible labels and stable attributes without duplicating that
+information as visible text. The same retained SVG contains
 a non-interactive projected positive X/Y/Z triad; its arms follow the current
 camera basis, collapse deterministically when viewed end-on, and never change
 navigation hit regions. The gizmo root and SVG own their complete screen-space
 control box for pointer hit testing; hidden targets and the axis triad remain
-non-interactive. This explicit ownership avoids platform-specific embedded-SVG
-hit testing leaking a face click to the model canvas, where it could otherwise
-appear as a selection marker instead of a camera action. The tradeoff is
-intentional: model hover, selection, and navigation do not begin behind the
-gizmo footprint. Pitch and yaw arrow names describe the visible scene
+non-interactive. Primary pointer release activates faces, corners, and arrows
+directly, without depending on platform-specific synthesized SVG click events;
+keyboard activation remains Enter or Space. The tradeoff is intentional: model
+hover, selection, and navigation do not begin behind the gizmo footprint. Pitch
+and yaw arrow names describe the visible scene
 rotation: up/down move projected content toward smaller/larger viewport Y,
 while left/right retain their corresponding horizontal directions. Face,
 corner, and arrow actions use the same interruptible, eased approximately
