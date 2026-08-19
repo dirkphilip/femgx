@@ -256,6 +256,14 @@ describe("camera focus gizmo actions", () => {
     runFrame(1200);
     expect(viewport.view.camera).toEqual(expectedArrow);
     runFrame(1200);
+
+    const publicTarget = { ...viewport.view.camera, position: [12, 8, 10] as const };
+    viewport.view.setCamera(publicTarget, { durationMs: 400 });
+    runFrame(1400);
+    runFrame(1600);
+    viewport.resize();
+    runFrame(1800);
+    expect(viewport.view.camera).not.toEqual(publicTarget);
     viewport.destroy();
   });
 });
