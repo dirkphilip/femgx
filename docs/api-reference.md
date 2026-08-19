@@ -63,7 +63,7 @@ Do not import `importGlb` from `femgx`; it is published only from
 - [Scenes, parts, and finite-element models](scene-and-model.md) — reusable
   geometry, FE topology, assemblies, occurrences, and host model conversion.
 - [Viewport lifecycle and interaction](viewport-interaction.md) — picking,
-  selection, visibility, reconciliation, and teardown.
+  selection, visibility, transactional scene updates, and teardown.
 - [Results and import](results-and-import.md) — authored scalar/vector fields,
   deformation, orientation glyphs, FEM input, and GLB display scenes.
 - [Runtime, camera, and WebGPU](runtime-and-platform.md) — CPU inspection,
@@ -88,8 +88,8 @@ viewport.results.state;
 viewport.presentation.setBackground("dark");
 ```
 
-After `replaceScene()` or `reconcileScene()`, reacquire `viewport.runtime` so
-the host reads the new compiled snapshot.
+After `replaceScene()` or a committed `updateScene()`, reacquire
+`viewport.runtime` so the host reads the new compiled snapshot.
 
 ## Public entrypoints
 

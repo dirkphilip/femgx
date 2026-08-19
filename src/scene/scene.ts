@@ -334,7 +334,7 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>
  * have a registered root; all placement references must resolve to registered
  * definitions and the assembly graph must be acyclic. `build()` returns an
  * isolated immutable snapshot, so it is also the boundary used to prepare a
- * candidate for {@link Viewport.reconcileScene}.
+ * initial snapshot for {@link Viewport}; use `Viewport.updateScene` for live edits.
  * @example Register one reusable part and its root assembly.
  * ```ts
  * import { createPart, createScene, identity } from "femgx";

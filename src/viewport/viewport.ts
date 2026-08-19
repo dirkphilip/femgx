@@ -7,6 +7,7 @@ import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-rende
 import { changedInstanceSlots } from "./interaction-diff";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
+import type { SceneUpdate } from "../scene/update";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import { SceneNavigationBoundsCache } from "./scene-bounds";
 import {
@@ -25,7 +26,7 @@ import type {
   CameraTransitionOptions,
   Viewport,
   ViewportOptions,
-  SceneReconciliationOutcome,
+  SceneUpdateOutcome,
   ViewportBackground,
   ViewportInteraction,
   ViewportPresentation,
@@ -46,7 +47,7 @@ export type {
   ViewportResults,
   ViewportView,
   ViewportVisibility,
-  SceneReconciliationOutcome,
+  SceneUpdateOutcome,
   ViewportBackground,
   ViewportStats,
 } from "./types";
@@ -286,16 +287,15 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  reconcileScene(scene: Scene): SceneReconciliationOutcome {
+  updateScene(operation: (update: SceneUpdate) => void): SceneUpdateOutcome {
     this.ensureAlive();
-    const outcome = this.sceneController.reconcileScene(
-      scene,
-      this.cameraFocus.cancel.bind(this.cameraFocus),
-    );
+    const cancelCamera = this.cameraFocus.cancel.bind(this.cameraFocus);
+    const update = this.sceneController.updateScene(operation, cancelCamera);
+    if (!update.committed) return update.outcome;
     this.visibilityController.reset();
     this.appliedInteraction = createInteractionState();
     this.invalidate();
-    return outcome;
+    return update.outcome;
   }
 
   private setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {

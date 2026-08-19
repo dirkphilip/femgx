@@ -50,7 +50,7 @@ afterAll(() => {
 });
 
 describe("public scene replacement scaling", () => {
-  it("keeps Viewport.setScene approximately linear", () => {
+  it("keeps Viewport.replaceScene approximately linear", () => {
     const nextScene = fixtures.map(() => 1);
     const measurements = measureScaling(
       fixtures.map(({ first, second }, index) => ({
@@ -72,14 +72,45 @@ describe("public scene replacement scaling", () => {
     const spread = Math.max(...normalized) / Math.min(...normalized);
     if (process.env["PERF_REPORT"] !== undefined) {
       console.log(
-        `Viewport.setScene: ${measurements
+        `Viewport.replaceScene: ${measurements
           .map(({ size, measuredMs }) => `${size}=${measuredMs.toFixed(3)} ms`)
           .join(", ")}`,
       );
     }
     expect(
       spread,
-      `Viewport.setScene normalized cost spread was ${spread.toFixed(2)}x`,
+      `Viewport.replaceScene normalized cost spread was ${spread.toFixed(2)}x`,
+    ).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("public scene update scaling", () => {
+  it("keeps one-placement Viewport.updateScene approximately linear", () => {
+    const nextTransform = viewports.map(() => 0);
+    const transforms = [translation(2, 0, 0), translation(3, 0, 0)] as const;
+    const measurements = measureScaling(
+      viewports.map((viewport, index) => ({
+        size: PLACEMENT_COUNTS[index] ?? 0,
+        run: () => {
+          const transformIndex = nextTransform[index] ?? 0;
+          viewport.updateScene((update) => {
+            update.setPartOccurrenceTransform({
+              assemblyId: 1,
+              placementId: "0",
+              transform: transforms[transformIndex] ?? transforms[0],
+            });
+          });
+          nextTransform[index] = transformIndex === 0 ? 1 : 0;
+          expect(viewport.runtime.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
+        },
+      })),
+      { warmup: 1, samples: 3, iterations: 5 },
+    );
+    const normalized = measurements.map(({ millisecondsPerUnit }) => millisecondsPerUnit);
+    const spread = Math.max(...normalized) / Math.min(...normalized);
+    expect(
+      spread,
+      `Viewport.updateScene normalized cost spread was ${spread.toFixed(2)}x`,
     ).toBeLessThanOrEqual(5);
   });
 });

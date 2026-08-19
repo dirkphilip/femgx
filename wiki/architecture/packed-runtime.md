@@ -83,7 +83,7 @@ back to slots.
   valid input but still skips missing assemblies defensively.
 - The packed typed arrays are private implementation state; public queries never
   return those views. `viewport.runtime` is the current live query facade, so hosts
-  should read it again after `replaceScene()` or `reconcileScene()`. Standalone
+  should read it again after `replaceScene()` or a committed `updateScene()`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
   inspection and does not own a renderer or visibility mutations.
 

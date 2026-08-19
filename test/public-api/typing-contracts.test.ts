@@ -3,7 +3,7 @@ import {
   InteractionGranularity,
   type EdgePickHit,
   type PickHit,
-  type SceneReconciliationOutcome,
+  type SceneUpdateOutcome,
   type Viewport,
   type ViewportElementVectorConfig,
   type ViewportOccurrenceResultsConfig,
@@ -52,13 +52,13 @@ function assertOccurrenceIdentityContracts(
   void [wrongPartIdentity, wrongAssemblyIdentity];
 }
 
-function assertResultAndReconciliationContracts(outcome: SceneReconciliationOutcome): void {
+function assertResultAndUpdateContracts(outcome: SceneUpdateOutcome): void {
   // @ts-expect-error Result snapshots require at least one authored role.
   const emptyResults: ViewportResultsConfig = {};
   // @ts-expect-error Cleared results always provide an actionable reason.
-  const missingReason: SceneReconciliationOutcome = { results: "cleared" };
+  const missingReason: SceneUpdateOutcome = { results: "cleared" };
   // @ts-expect-error Preserved results cannot carry a clearing reason.
-  const impossibleReason: SceneReconciliationOutcome = { results: "preserved", reason: "invalid" };
+  const impossibleReason: SceneUpdateOutcome = { results: "preserved", reason: "invalid" };
   // @ts-expect-error Axis glyphs retain direction and cannot represent an unoriented normal.
   const impossibleAxis: ViewportElementVectorConfig = {
     field: null as never,
@@ -94,7 +94,7 @@ describe("public compiler contracts", () => {
     expectTypeOf<PartOccurrenceId>().toExtend<string>();
     expectTypeOf<AssemblyOccurrenceId>().toExtend<string>();
     expectTypeOf(assertPickingContracts).toBeFunction();
-    expectTypeOf(assertResultAndReconciliationContracts).toBeFunction();
+    expectTypeOf(assertResultAndUpdateContracts).toBeFunction();
     expectTypeOf(assertPartOccurrenceOverrideContracts).toBeFunction();
     expectTypeOf(assertOccurrenceIdentityContracts).toBeFunction();
     expectTypeOf(assertOccurrenceResultContracts).toBeFunction();
