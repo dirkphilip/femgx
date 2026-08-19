@@ -103,8 +103,8 @@ explicitly identified authoring placements in one synchronous transaction:
 ```ts
 const outcome = viewport.updateScene((update) => {
   update.addPart(newPart);
-  update.addPartOccurrence({
-    assemblyId: rootAssemblyId,
+  update.addPlacement(rootAssemblyId, {
+    kind: "part",
     placementId: "new-part",
     partId: newPart.id,
     transform: identity(),
@@ -115,6 +115,10 @@ if (outcome.results === "cleared") {
 }
 const currentRuntime = viewport.runtime;
 ```
+
+`addPlacement`, `replacePlacement`, and `removePlacement` edit authored records
+inside reusable assembly definitions. Occurrence ids instead address individual
+expanded runtime instances for visibility, interaction, results, and queries.
 
 The editor uses copy-on-write registries and publishes one immutable scene and
 runtime revision only after complete validation. A thrown, nested, async, or

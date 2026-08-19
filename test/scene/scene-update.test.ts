@@ -48,9 +48,14 @@ describe("prepareSceneUpdate", () => {
     const source = scene();
     const prepared = prepareSceneTransition(source, (update) => {
       update.addPart(secondPart);
-      update.rebindPartOccurrence({ assemblyId: 1, placementId: "first", partId: 2 });
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "part",
+        placementId: "first",
+        partId: 2,
+        transform: identity(),
+      });
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 1,
         transform: translation(2, 0, 0),
@@ -73,15 +78,16 @@ describe("prepareSceneUpdate", () => {
     const source = scene();
     const next = prepareSceneUpdate(source, (update) => {
       update.addPart(secondPart);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "second",
         partId: secondPart.id,
         transform: translation(2, 0, 0),
       });
-      update.setPartOccurrenceTransform({
-        assemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "part",
         placementId: "first",
+        partId: 1,
         transform: translation(1, 0, 0),
       });
     });
@@ -102,23 +108,28 @@ describe("prepareSceneUpdate", () => {
     ).toThrow(/still referenced/);
 
     const next = prepareSceneUpdate(source, (update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
 
     expect(next?.parts.has(1)).toBe(false);
     expect(next?.assemblies.get(1)?.placements).toEqual([]);
   });
 
-  it("rebinds and removes explicitly identified authoring placements", () => {
+  it("replaces and removes explicitly identified authoring placements", () => {
     const source = scene();
     const rebound = prepareSceneUpdate(source, (update) => {
       update.addPart(secondPart);
-      update.rebindPartOccurrence({ assemblyId: 1, placementId: "first", partId: 2 });
+      update.replacePlacement(1, {
+        kind: "part",
+        placementId: "first",
+        partId: 2,
+        transform: identity(),
+      });
     });
     expect(rebound?.assemblies.get(1)?.placements[0]).toMatchObject({ partId: 2 });
 
     const removed = prepareSceneUpdate(rebound ?? source, (update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "first" });
+      update.removePlacement(1, "first");
     });
     expect(removed?.assemblies.get(1)?.placements).toEqual([]);
   });
@@ -128,20 +139,16 @@ describe("prepareSceneUpdate", () => {
       update.addAssembly({ id: 2, name: "first child", placements: [] });
       update.addAssembly({ id: 3, name: "second child", placements: [] });
       update.replaceAssembly({ id: 2, name: "renamed child", placements: [] });
-      update.addAssemblyOccurrence({
-        parentAssemblyId: 1,
+      update.addPlacement(1, {
+        kind: "assembly",
         placementId: "child",
         assemblyId: 2,
         transform: identity(),
       });
-      update.rebindAssemblyOccurrence({
-        parentAssemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "assembly",
         placementId: "child",
         assemblyId: 3,
-      });
-      update.setAssemblyOccurrenceTransform({
-        parentAssemblyId: 1,
-        placementId: "child",
         transform: translation(4, 0, 0),
       });
     });
@@ -154,7 +161,7 @@ describe("prepareSceneUpdate", () => {
     ).toThrow(/still referenced/);
 
     const removed = prepareSceneUpdate(nested, (update) => {
-      update.removeAssembly(3, { occurrences: "remove" });
+      update.removeAssembly(3, { placements: "remove" });
       update.removeAssembly(2);
     });
     expect(removed?.assemblies.has(2)).toBe(false);
@@ -167,30 +174,51 @@ describe("prepareSceneUpdate", () => {
     ).toThrow(/root assembly/);
   });
 
+  it("replaces a complete placement record, including its discriminated kind", () => {
+    const source = scene();
+    const next = prepareSceneUpdate(source, (update) => {
+      update.addAssembly({ id: 2, placements: [] });
+      update.replacePlacement(1, {
+        kind: "assembly",
+        placementId: "first",
+        assemblyId: 2,
+        transform: translation(4, 0, 0),
+      });
+    });
+
+    expect(next?.assemblies.get(1)?.placements[0]).toMatchObject({
+      kind: "assembly",
+      placementId: "first",
+      assemblyId: 2,
+    });
+  });
+
   it("returns no revision for semantic no-ops", () => {
     const source = scene();
     expect(prepareSceneUpdate(source, () => undefined)).toBeUndefined();
     expect(
       prepareSceneUpdate(source, (update) => {
         update.replacePart(firstPart);
-        update.rebindPartOccurrence({ assemblyId: 1, placementId: "first", partId: 1 });
-        update.setPartOccurrenceTransform({
-          assemblyId: 1,
+        update.replacePlacement(1, {
+          kind: "part",
           placementId: "first",
+          partId: 1,
           transform: identity(),
         });
       }),
     ).toBeUndefined();
     expect(
       prepareSceneUpdate(source, (update) => {
-        update.setPartOccurrenceTransform({
-          assemblyId: 1,
+        update.replacePlacement(1, {
+          kind: "part",
           placementId: "first",
+          partId: 1,
           transform: translation(3, 0, 0),
         });
-        update.setPartOccurrenceTransform({
-          assemblyId: 1,
+        update.replacePlacement(1, {
+          kind: "part",
           placementId: "first",
+          partId: 1,
           transform: identity(),
         });
       }),
@@ -204,9 +232,10 @@ describe("prepareSceneUpdate", () => {
 
     expect(() =>
       prepareSceneUpdate(source, (update) => {
-        update.setPartOccurrenceTransform({
-          assemblyId: 1,
+        update.replacePlacement(1, {
+          kind: "part",
           placementId: "first",
+          partId: 1,
           transform: invalid,
         });
       }),
@@ -228,23 +257,23 @@ describe("prepareSceneUpdate", () => {
   it("accumulates many edits and can reuse one part definition", () => {
     const source = scene();
     const next = prepareSceneUpdate(source, (update) => {
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "reused",
         partId: 1,
         transform: identity(),
       });
       for (let id = 2; id < 66; id += 1) {
         update.addPart({ ...secondPart, id });
-        update.addPartOccurrence({
-          assemblyId: 1,
+        update.addPlacement(1, {
+          kind: "part",
           placementId: `part-${id}`,
           partId: id,
           transform: identity(),
         });
       }
       for (let id = 2; id < 66; id += 2) {
-        update.removePart(id, { occurrences: "remove" });
+        update.removePart(id, { placements: "remove" });
       }
     });
 
@@ -257,8 +286,8 @@ describe("prepareSceneUpdate", () => {
     [
       "duplicate placement",
       (update: SceneUpdate) => {
-        update.addPartOccurrence({
-          assemblyId: 1,
+        update.addPlacement(1, {
+          kind: "part",
           placementId: "first",
           partId: 1,
           transform: identity(),
@@ -268,8 +297,8 @@ describe("prepareSceneUpdate", () => {
     [
       "malformed placement",
       (update: SceneUpdate) => {
-        update.addPartOccurrence({
-          assemblyId: 1,
+        update.addPlacement(1, {
+          kind: "part",
           placementId: "bad/id",
           partId: 1,
           transform: identity(),
@@ -279,8 +308,8 @@ describe("prepareSceneUpdate", () => {
     [
       "missing part",
       (update: SceneUpdate) => {
-        update.addPartOccurrence({
-          assemblyId: 1,
+        update.addPlacement(1, {
+          kind: "part",
           placementId: "missing",
           partId: 99,
           transform: identity(),
@@ -290,8 +319,8 @@ describe("prepareSceneUpdate", () => {
     [
       "missing assembly",
       (update: SceneUpdate) => {
-        update.addPartOccurrence({
-          assemblyId: 99,
+        update.addPlacement(99, {
+          kind: "part",
           placementId: "missing",
           partId: 1,
           transform: identity(),
@@ -303,6 +332,25 @@ describe("prepareSceneUpdate", () => {
     expect(() => prepareSceneUpdate(source, operation)).toThrow();
     expect(source.parts.size).toBe(1);
     expect(source.assemblies.get(1)?.placements).toHaveLength(1);
+  });
+
+  it("rejects replacement and removal of a missing placement identity", () => {
+    const source = scene();
+    const remove = (): unknown =>
+      prepareSceneUpdate(source, (update) => {
+        update.removePlacement(1, "missing");
+      });
+    expect(remove).toThrow(/no placement missing/);
+    expect(() =>
+      prepareSceneUpdate(source, (update) => {
+        update.replacePlacement(1, {
+          kind: "part",
+          placementId: "missing",
+          partId: 1,
+          transform: identity(),
+        });
+      }),
+    ).toThrow(/no placement missing/);
   });
 
   it("closes the transaction after a host callback throws", () => {
@@ -342,8 +390,8 @@ describe("prepareSceneUpdate", () => {
             { kind: "assembly", placementId: "cycle", assemblyId: 1, transform: identity() },
           ],
         });
-        update.addAssemblyOccurrence({
-          parentAssemblyId: 1,
+        update.addPlacement(1, {
+          kind: "assembly",
           placementId: "child",
           assemblyId: 2,
           transform: identity(),

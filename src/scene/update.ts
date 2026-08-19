@@ -1,5 +1,5 @@
 import { validatePartId, type Part, type PartId } from "../geometry/part";
-import type { AssemblyDefinition, AssemblyPlacement, PartPlacement, Placement } from "./assembly";
+import type { AssemblyDefinition, Placement } from "./assembly";
 import { validatePlacementTransform, validateScene, type Scene } from "./scene";
 import type { AssemblyId } from "./types";
 import { explicitPlacementIndex } from "./assembly-index";
@@ -9,40 +9,18 @@ import {
   type PlacementChange,
   type PreparedSceneUpdate,
 } from "./update-changes";
-import { equalAssembly, equalTransform, sameSceneStorage } from "./update-equality";
+import { equalAssembly, equalPlacement, sameSceneStorage } from "./update-equality";
 import {
   hasOnlyTransformChanges,
   normalizedMap,
   normalizedSet,
   restoresSourcePlacements,
 } from "./update-normalization";
-import type {
-  AddAssemblyOccurrenceInput,
-  AddPartOccurrenceInput,
-  AssemblyOccurrenceAddress,
-  DefinitionRemovalOptions,
-  PartOccurrenceAddress,
-  RebindAssemblyOccurrenceInput,
-  RebindPartOccurrenceInput,
-  SceneUpdate,
-  TransformAssemblyOccurrenceInput,
-  TransformPartOccurrenceInput,
-} from "./update-types";
+import type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from "./update-types";
 import { hasOnlyDirectPartRuntimeChanges, validateExplicitPlacementId } from "./update-validation";
 import { ScenePlacementDrafts } from "./update-placements";
 
-export type {
-  AddAssemblyOccurrenceInput,
-  AddPartOccurrenceInput,
-  AssemblyOccurrenceAddress,
-  DefinitionRemovalOptions,
-  PartOccurrenceAddress,
-  RebindAssemblyOccurrenceInput,
-  RebindPartOccurrenceInput,
-  SceneUpdate,
-  TransformAssemblyOccurrenceInput,
-  TransformPartOccurrenceInput,
-} from "./update-types";
+export type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from "./update-types";
 
 /** Builds and validates one atomic scene revision, or returns nothing for a semantic no-op. */
 export function prepareSceneUpdate(
@@ -117,7 +95,7 @@ class SceneUpdateDraft implements SceneUpdate {
     this.ensureActive();
     if (!this.currentParts().has(partId)) throw new Error(`Part ${partId} is not registered`);
     const references = this.partReferences(partId);
-    if (references > 0 && options?.occurrences !== "remove") {
+    if (references > 0 && options?.placements !== "remove") {
       throw new Error(`Part ${partId} is still referenced by ${references} placement(s)`);
     }
     if (references > 0)
@@ -160,7 +138,7 @@ class SceneUpdateDraft implements SceneUpdate {
     if (assemblyId === this.source.rootAssemblyId)
       throw new Error("Cannot remove the root assembly");
     const references = this.assemblyReferences(assemblyId);
-    if (references > 0 && options?.occurrences !== "remove") {
+    if (references > 0 && options?.placements !== "remove") {
       throw new Error(
         `AssemblyDefinition ${assemblyId} is still referenced by ${references} placement(s)`,
       );
@@ -175,82 +153,40 @@ class SceneUpdateDraft implements SceneUpdate {
     this.touchedAssemblies.add(assemblyId);
   }
 
-  addPartOccurrence(input: AddPartOccurrenceInput): void {
+  addPlacement(ownerAssemblyId: AssemblyId, placement: ExplicitPlacement): void {
     this.ensureActive();
-    this.requirePart(input.partId);
-    this.appendPlacement(input.assemblyId, input.placementId, {
-      kind: "part",
-      placementId: input.placementId,
-      partId: input.partId,
-      transform: input.transform,
-    });
+    this.requirePlacementTarget(placement);
+    this.appendPlacement(ownerAssemblyId, placement);
   }
 
-  removePartOccurrence(input: PartOccurrenceAddress): void {
-    this.editPlacement(input.assemblyId, input.placementId, {
-      kind: "part",
-      apply: () => undefined,
-    });
-  }
-
-  rebindPartOccurrence(input: RebindPartOccurrenceInput): void {
+  replacePlacement(ownerAssemblyId: AssemblyId, placement: ExplicitPlacement): void {
     this.ensureActive();
-    this.requirePart(input.partId);
-    this.editPlacement(input.assemblyId, input.placementId, {
-      kind: "part",
-      apply: (placement) =>
-        placement.partId === input.partId ? placement : { ...placement, partId: input.partId },
-    });
+    this.requirePlacementTarget(placement);
+    const assembly = this.requireAssembly(ownerAssemblyId);
+    const index = explicitPlacementIndex(assembly, placement.placementId);
+    if (index < 0) {
+      throw new Error(
+        `AssemblyDefinition ${ownerAssemblyId} has no placement ${placement.placementId}`,
+      );
+    }
+    const previous = assembly.placements[index];
+    if (previous === undefined || equalPlacement(previous, placement)) return;
+    validatePlacementTransform(placement.transform, ownerAssemblyId, index);
+    this.placementDrafts.edit(ownerAssemblyId, assembly, index, placement.placementId, placement);
+    this.placementChanges.push({ ownerAssemblyId, before: previous, after: placement });
   }
 
-  setPartOccurrenceTransform(input: TransformPartOccurrenceInput): void {
-    this.editPlacement(input.assemblyId, input.placementId, {
-      kind: "part",
-      apply: (placement) =>
-        equalTransform(placement.transform, input.transform)
-          ? placement
-          : { ...placement, transform: input.transform },
-    });
-  }
-
-  addAssemblyOccurrence(input: AddAssemblyOccurrenceInput): void {
+  removePlacement(ownerAssemblyId: AssemblyId, placementId: string): void {
     this.ensureActive();
-    this.requireAssembly(input.assemblyId);
-    this.appendPlacement(input.parentAssemblyId, input.placementId, {
-      kind: "assembly",
-      placementId: input.placementId,
-      assemblyId: input.assemblyId,
-      transform: input.transform,
-    });
-  }
-
-  removeAssemblyOccurrence(input: AssemblyOccurrenceAddress): void {
-    this.editPlacement(input.parentAssemblyId, input.placementId, {
-      kind: "assembly",
-      apply: () => undefined,
-    });
-  }
-
-  rebindAssemblyOccurrence(input: RebindAssemblyOccurrenceInput): void {
-    this.ensureActive();
-    this.requireAssembly(input.assemblyId);
-    this.editPlacement(input.parentAssemblyId, input.placementId, {
-      kind: "assembly",
-      apply: (placement) =>
-        placement.assemblyId === input.assemblyId
-          ? placement
-          : { ...placement, assemblyId: input.assemblyId },
-    });
-  }
-
-  setAssemblyOccurrenceTransform(input: TransformAssemblyOccurrenceInput): void {
-    this.editPlacement(input.parentAssemblyId, input.placementId, {
-      kind: "assembly",
-      apply: (placement) =>
-        equalTransform(placement.transform, input.transform)
-          ? placement
-          : { ...placement, transform: input.transform },
-    });
+    const assembly = this.requireAssembly(ownerAssemblyId);
+    const index = explicitPlacementIndex(assembly, placementId);
+    if (index < 0) {
+      throw new Error(`AssemblyDefinition ${ownerAssemblyId} has no placement ${placementId}`);
+    }
+    const previous = assembly.placements[index];
+    if (previous === undefined) throw new Error(`Placement ${placementId} is missing`);
+    this.placementDrafts.edit(ownerAssemblyId, assembly, index, placementId, undefined);
+    this.placementChanges.push({ ownerAssemblyId, before: previous, after: undefined });
   }
 
   finish(): PreparedSceneUpdate | undefined {
@@ -288,38 +224,9 @@ class SceneUpdateDraft implements SceneUpdate {
     return { scene: candidate, changes };
   }
 
-  private editPlacement(assemblyId: AssemblyId, placementId: string, edit: PlacementEdit): void {
-    this.ensureActive();
+  private appendPlacement(assemblyId: AssemblyId, placement: ExplicitPlacement): void {
     const assembly = this.requireAssembly(assemblyId);
-    const index = explicitPlacementIndex(assembly, placementId);
-    if (index < 0)
-      throw new Error(`AssemblyDefinition ${assemblyId} has no placement ${placementId}`);
-    const placement = assembly.placements[index];
-    let replacement: Placement | undefined;
-    if (edit.kind === "part") {
-      if (placement?.kind !== "part")
-        throw new Error(`Placement ${placementId} is not a part occurrence`);
-      replacement = edit.apply(placement);
-    } else {
-      if (placement?.kind !== "assembly") {
-        throw new Error(`Placement ${placementId} is not an assembly occurrence`);
-      }
-      replacement = edit.apply(placement);
-    }
-    if (replacement === placement) return;
-    if (replacement !== undefined) {
-      validatePlacementTransform(replacement.transform, assemblyId, index);
-    }
-    this.placementDrafts.edit(assemblyId, assembly, index, placementId, replacement);
-    this.placementChanges.push({
-      ownerAssemblyId: assemblyId,
-      before: placement,
-      after: replacement,
-    });
-  }
-
-  private appendPlacement(assemblyId: AssemblyId, placementId: string, placement: Placement): void {
-    const assembly = this.requireAssembly(assemblyId);
+    const { placementId } = placement;
     validateExplicitPlacementId(placementId, assemblyId, assembly.placements.length);
     validatePlacementTransform(placement.transform, assemblyId, assembly.placements.length);
     if (explicitPlacementIndex(assembly, placementId) >= 0) {
@@ -373,6 +280,11 @@ class SceneUpdateDraft implements SceneUpdate {
     return assembly;
   }
 
+  private requirePlacementTarget(placement: Placement): void {
+    if (placement.kind === "part") this.requirePart(placement.partId);
+    else this.requireAssembly(placement.assemblyId);
+  }
+
   private ensureActive(): void {
     if (!this.active) throw new Error("Scene update is no longer active");
   }
@@ -401,13 +313,6 @@ class SceneUpdateDraft implements SceneUpdate {
     return (this.visibleAssemblies ??= new Set(this.source.visibleAssemblyIds));
   }
 }
-
-type PlacementEdit =
-  | { readonly kind: "part"; readonly apply: (placement: PartPlacement) => Placement | undefined }
-  | {
-      readonly kind: "assembly";
-      readonly apply: (placement: AssemblyPlacement) => Placement | undefined;
-    };
 
 function countReferences(
   assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,

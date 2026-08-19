@@ -30,8 +30,8 @@ describe("Viewport scene-update visibility", () => {
   it("preserves occurrence visibility when a replacement runtime changes its slot", async () => {
     const viewport = await testViewport();
     viewport.updateScene((update) => {
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "retained",
         partId: 1,
         transform: translation(0, 0, 0),
@@ -39,7 +39,7 @@ describe("Viewport scene-update visibility", () => {
     });
     viewport.visibility.setPartOccurrence("1/retained", false);
     viewport.updateScene((update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "keep" });
+      update.removePlacement(1, "keep");
       const replacementPart = identityScene(false).parts.get(1);
       if (replacementPart === undefined) throw new Error("test part is missing");
       update.replacePart(replacementPart);
@@ -53,11 +53,11 @@ describe("Viewport scene-update visibility", () => {
     const viewport = await testViewport();
     viewport.visibility.setPart(1, false);
     viewport.updateScene((update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "keep" });
+      update.removePlacement(1, "keep");
     });
     viewport.updateScene((update) => {
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 1,
         transform: translation(0, 0, 0),
@@ -74,14 +74,14 @@ describe("Viewport scene-update visibility", () => {
     const viewport = await testViewport();
     viewport.visibility.setPartOccurrence("1/keep", false);
     viewport.updateScene((update) => {
-      update.removePartOccurrence({ assemblyId: 1, placementId: "keep" });
+      update.removePlacement(1, "keep");
     });
     expect(() => {
       viewport.visibility.setPartOccurrences(["1/keep"], false);
     }).toThrow(UnknownSceneIdentityError);
     viewport.updateScene((update) => {
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "keep",
         partId: 1,
         transform: translation(0, 0, 0),
@@ -99,12 +99,12 @@ describe("Viewport scene-update visibility", () => {
     if (part === undefined) throw new Error("test part is missing");
     viewport.visibility.setPart(1, false);
     viewport.updateScene((update) => {
-      update.removePart(1, { occurrences: "remove" });
+      update.removePart(1, { placements: "remove" });
     });
     viewport.updateScene((update) => {
       update.addPart(part);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "restored",
         partId: 1,
         transform: translation(0, 0, 0),

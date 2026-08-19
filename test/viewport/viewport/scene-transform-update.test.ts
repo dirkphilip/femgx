@@ -25,9 +25,10 @@ describe("Viewport incremental scene transforms", () => {
     updateInstances.mockClear();
 
     const outcome = viewport.updateScene((update) => {
-      update.setPartOccurrenceTransform({
-        assemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "part",
         placementId: "keep",
+        partId: 1,
         transform: translation(7, 0, 0),
       });
     });

@@ -72,7 +72,7 @@ describe("cold renderer attachment", () => {
         throw new Error("instance storage missing");
       }
       const prepared = prepareSceneTransition(scene, (update) => {
-        update.removePart(1, { occurrences: "remove" });
+        update.removePart(1, { placements: "remove" });
       });
       if (prepared === undefined) throw new Error("transition missing");
       const occurrenceUpdate = prepareOccurrenceMutations(
@@ -132,8 +132,8 @@ describe("cold renderer attachment", () => {
       });
       const prepared = prepareSceneTransition(scene, (update) => {
         update.addPart(addedPart);
-        update.addPartOccurrence({
-          assemblyId: 1,
+        update.addPlacement(1, {
+          kind: "part",
           placementId: "added-part",
           partId: 2,
           transform: translation(4, 0, 0),

@@ -16,9 +16,10 @@ describe("incremental runtime transform updates", () => {
     const leftSlot = requiredSlot(runtime, "1/left/item");
     const rightSlot = requiredSlot(runtime, "1/right/item");
     const transition = prepareSceneTransition(initial, (update) => {
-      update.setAssemblyOccurrenceTransform({
-        parentAssemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "assembly",
         placementId: "left",
+        assemblyId: 2,
         transform: translation(30, 0, 0),
       });
     });
@@ -37,9 +38,10 @@ describe("incremental runtime transform updates", () => {
     const initial = repeatedAssemblyScene();
     const runtime = createPackedSceneRuntime(initial);
     const transition = prepareSceneTransition(initial, (update) => {
-      update.setPartOccurrenceTransform({
-        assemblyId: 2,
+      update.replacePlacement(2, {
+        kind: "part",
         placementId: "item",
+        partId: 1,
         transform: translation(5, 0, 0),
       });
     });

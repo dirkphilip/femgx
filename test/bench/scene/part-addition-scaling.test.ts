@@ -57,8 +57,8 @@ describe("new-part admission scaling", () => {
       viewport.updateScene((update) => {
         update.addPart(part);
         for (let index = 0; index < count; index += 1) {
-          update.addPartOccurrence({
-            assemblyId: 1,
+          update.addPlacement(1, {
+            kind: "part",
             placementId: String(index),
             partId: part.id,
             transform,

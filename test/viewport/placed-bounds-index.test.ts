@@ -22,9 +22,10 @@ describe("PlacedBoundsIndex", () => {
     const index = new PlacedBoundsIndex(initial, runtime);
     expect(index.bounds).toEqual(scenePlacedBounds(initial, runtime));
     const transition = prepareSceneTransition(initial, (update) => {
-      update.setPartOccurrenceTransform({
-        assemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "part",
         placementId: "far",
+        partId: 1,
         transform: translation(2, 0, 0),
       });
     });
@@ -54,8 +55,8 @@ describe("PlacedBoundsIndex", () => {
     });
     const transition = prepareSceneTransition(initial, (update) => {
       update.addPart(added);
-      update.addPartOccurrence({
-        assemblyId: 1,
+      update.addPlacement(1, {
+        kind: "part",
         placementId: "added",
         partId: 2,
         transform: translation(20, 0, 0),
