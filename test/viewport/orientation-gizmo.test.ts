@@ -121,8 +121,10 @@ describe("orientation gizmo", () => {
     expect(root?.attributes.get("role")).toBe("group");
     expect(root?.attributes.get("aria-label")).toContain("View cube");
     expect(root?.style.background).toBe("transparent");
+    expect(root?.style.pointerEvents).toBe("auto");
     expect(root?.style.width).toBe("clamp(104px, 11vw, 132px)");
     const svg = root?.children[0];
+    expect(svg?.style.pointerEvents).toBe("auto");
     const targets = svg?.children.filter((child) => child.attributes.has("data-view-cube-target"));
     expect(targets).toHaveLength(20);
     expect(targets?.every((target) => target.attributes.get("tabindex") === "0")).toBe(true);

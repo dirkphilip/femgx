@@ -31,6 +31,7 @@ export interface DrawPipelines extends SelectionPipelines {
   readonly minimalTrianglesColor: GPURenderPipeline;
   readonly minimalTrianglesTransparent: GPURenderPipeline;
   readonly trianglesColor: GPURenderPipeline;
+  readonly denseSelectionTrianglesColor: GPURenderPipeline;
   readonly trianglesTransparent: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
   readonly linesColor: GPURenderPipeline;

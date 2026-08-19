@@ -104,7 +104,13 @@ world-coordinate plane (`XY`, `YZ`, or `XZ`) while retaining the signed side in
 its accessible label and stable face attributes. The same retained SVG contains
 a non-interactive projected positive X/Y/Z triad; its arms follow the current
 camera basis, collapse deterministically when viewed end-on, and never change
-navigation hit regions. Pitch and yaw arrow names describe the visible scene
+navigation hit regions. The gizmo root and SVG own their complete screen-space
+control box for pointer hit testing; hidden targets and the axis triad remain
+non-interactive. This explicit ownership avoids platform-specific embedded-SVG
+hit testing leaking a face click to the model canvas, where it could otherwise
+appear as a selection marker instead of a camera action. The tradeoff is
+intentional: model hover, selection, and navigation do not begin behind the
+gizmo footprint. Pitch and yaw arrow names describe the visible scene
 rotation: up/down move projected content toward smaller/larger viewport Y,
 while left/right retain their corresponding horizontal directions. Face,
 corner, and arrow actions use the same interruptible, eased approximately

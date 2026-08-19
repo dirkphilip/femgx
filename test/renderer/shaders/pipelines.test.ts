@@ -5,7 +5,20 @@ import {
 } from "../../../src/renderer/frame/pipelines";
 import { SECTION_PLANE_UNIFORM_SIZE } from "../../../src/renderer/frame/section-plane";
 import { COLOR_SAMPLE_COUNT } from "../../../src/renderer/resources/foundation";
+import { pipelineFor } from "../../../src/renderer/frame/draw-admission";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
+import type { DrawPipelines } from "../../../src/renderer/shaders/pipeline-builders";
+
+it("admits the native depth-bias pipeline only for active dense selection", () => {
+  const ordinary = { name: "ordinary" } as unknown as GPURenderPipeline;
+  const denseSelection = { name: "dense-selection" } as unknown as GPURenderPipeline;
+  const pipelines = {
+    trianglesColor: ordinary,
+    denseSelectionTrianglesColor: denseSelection,
+  } as unknown as DrawPipelines;
+  expect(pipelineFor("triangles", "color", pipelines, "feature")).toBe(ordinary);
+  expect(pipelineFor("triangles", "color", pipelines, "feature", true)).toBe(denseSelection);
+});
 
 describe("GPU render resources", () => {
   it("creates the camera buffer, bind group, and color and id pipelines", async () => {
@@ -30,6 +43,7 @@ describe("GPU render resources", () => {
       expect(resources.pipelines.minimalTrianglesColor).toBeDefined();
       expect(resources.pipelines.minimalTrianglesTransparent).toBeDefined();
       expect(resources.pipelines.trianglesColor).toBeDefined();
+      expect(resources.pipelines.denseSelectionTrianglesColor).toBeDefined();
       expect(resources.pipelines.trianglesTransparent).toBeDefined();
       expect(resources.pipelines.trianglesPick).toBeDefined();
       expect(resources.pipelines.linesColor).toBeDefined();
@@ -42,6 +56,14 @@ describe("GPU render resources", () => {
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === label)?.vertex
           .module;
       expect(pipelineVertex("triangle color")).not.toBe(pipelineVertex("line color"));
+      expect(pipelineVertex("dense-selection triangle color")).toBe(
+        pipelineVertex("triangle color"),
+      );
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "dense-selection triangle color",
+        )?.depthStencil?.depthBias,
+      ).toBe(-1);
       expect(pipelineVertex("triangle selection visible")).not.toBe(
         pipelineVertex("line selection visible"),
       );
@@ -69,6 +91,11 @@ describe("GPU render resources", () => {
       expect(
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line color")
           ?.depthStencil?.depthCompare,
+      ).toBe("less-equal");
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "triangle transparency",
+        )?.depthStencil?.depthCompare,
       ).toBe("less-equal");
       const edgeDepthTested = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "edge overlay depth-tested",
@@ -153,6 +180,7 @@ describe("GPU render resources", () => {
       expect(selectionVisible?.depthStencil).toMatchObject({
         depthCompare: "less-equal",
         depthWriteEnabled: false,
+        depthBias: -1,
         stencilFront: { compare: "always", passOp: "replace" },
         stencilReadMask: 2,
         stencilWriteMask: 2,

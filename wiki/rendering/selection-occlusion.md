@@ -21,9 +21,10 @@ selection fragment; alpha-zero style overrides still retain a selection cue.
 The visible selection pass uses `less-equal`, alpha blending, no depth writes,
 and a dedicated stencil bit. Its unlit color is a bounded tint over the authored
 result color when result mapping is active, keeping the selection cue uniform
-across one target's visible faces. Selected triangles reuse the ordinary
-surface position without pick-target expansion, so equal-depth classification
-cannot expose individual tessellation triangles.
+across one target's visible faces. Its pipeline applies a native one-unit depth
+bias so an exact-depth cue wins regardless of opaque submission order. Selected
+triangles reuse the ordinary surface position without pick-target expansion, so
+equal-depth classification cannot expose individual tessellation triangles.
 The visible alpha is `1` when the
 resolved base alpha is `1`; otherwise it remains the resolved fractional base
 alpha. The hidden pass uses `greater`, no depth or stencil writes, and the same
@@ -33,9 +34,12 @@ making a solid selected surface read as a translucent volume. This keeps
 hover/highlight depth-tested and leaves selection identity out of picking.
 
 Dense element selection keeps the complete-selection fast path in the ordinary
-surface draw; it does not restore a full selected-geometry replay. The ordinary
-fragment output applies a small, fixed depth bias to every selected dense
-element, making the selected cue win an exact-depth tie regardless of opaque
-submission order while leaving genuinely behind geometry occluded. A selected
-theme color takes precedence over an authored scalar result; opacity-only and
+surface draw; it does not restore a full selected-geometry replay. Only while a
+part has dense selection does its color draw admit a native one-unit depth-bias
+variant. Both variants retain fixed-function surface depth. The selected cue
+therefore wins an exact-depth tie regardless of opaque submission order while
+genuinely behind geometry remains occluded. Transparent primitives use
+`less-equal` depth comparison so an exact-depth selected cue remains visible
+without moving the opaque surface that established the depth. A selected theme
+color takes precedence over an authored scalar result; opacity-only and
 emissive-only selection themes retain the authored result color.
