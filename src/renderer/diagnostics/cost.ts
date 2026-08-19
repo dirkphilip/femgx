@@ -1,12 +1,5 @@
 /** Passes encoded by one visible frame or a pick snapshot. */
-export const GPU_COST_PASSES = [
-  "opaque",
-  "transparency",
-  "composite",
-  "overlay-depth",
-  "overlay",
-  "pick",
-] as const;
+export const GPU_COST_PASSES = ["opaque", "transparency", "composite", "pick"] as const;
 export type GpuCostPass = (typeof GPU_COST_PASSES)[number];
 
 /** Draw categories used to separate renderer features in a frame cost. */
@@ -18,7 +11,6 @@ export const GPU_COST_DRAWS = [
   "selection-hidden",
   "transparency",
   "composite",
-  "overlay-depth",
   "edges",
   "nodes",
   "vector-glyph",
@@ -224,8 +216,6 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
     opaque: 0,
     transparency: 0,
     composite: 0,
-    "overlay-depth": 0,
-    overlay: 0,
     pick: 0,
   };
 }
@@ -251,7 +241,6 @@ function emptyDrawCounts(): Record<GpuCostDraw, MutableDrawCost> {
     "selection-hidden": drawCost(),
     transparency: drawCost(),
     composite: drawCost(),
-    "overlay-depth": drawCost(),
     edges: drawCost(),
     nodes: drawCost(),
     "vector-glyph": drawCost(),
@@ -290,7 +279,6 @@ function cloneDrawCounts(
     "selection-hidden": { ...counts["selection-hidden"] },
     transparency: { ...counts.transparency },
     composite: { ...counts.composite },
-    "overlay-depth": { ...counts["overlay-depth"] },
     edges: { ...counts.edges },
     nodes: { ...counts.nodes },
     "vector-glyph": { ...counts["vector-glyph"] },

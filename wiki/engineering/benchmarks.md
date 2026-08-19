@@ -760,14 +760,15 @@ composite order and must not be compared with the millisecond columns.
 | `fe-hex8-orientation-visual` |        0.2 |          1.6 | 262,144 / 524,288 / 524,288       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           0.8 / 1.5 |
 | `fe-hex20-solid-visual`      |        0.1 |          1.5 | 262,144 / 393,216 / 458,752       | —                                            | 1 / 0 / 1; 1×1; 7                                                     |           1.0 / 2.0 |
 
-The instancing overlay submatrix used the same scene and deterministic moving
-camera: surface 119.5 FPS (p95 9.8 ms, max 10.5 ms, no interval over 16.7 or
-33.3 ms), nodes 87.6 FPS (p95 12.5 ms, max 13.2 ms, no interval over either
-threshold), native edges 119.6 FPS (p95 10.1 ms, max 10.3 ms, no interval over
-either threshold), and edges plus nodes 65.3 FPS (p95 17.2 ms, max 19.0 ms,
-22 intervals over 16.7 ms, none over 33.3 ms). The combined overlay therefore
-remains the explicitly accepted reference miss against the 16.7 ms p95 target;
-it is not a reason to thin authored topology or add a public quality enum.
+The instancing overlay submatrix used the former single-sample edge path with
+the same scene and deterministic moving camera: surface 119.5 FPS (p95 9.8 ms,
+max 10.5 ms, no interval over 16.7 or 33.3 ms), nodes 87.6 FPS (p95 12.5 ms,
+max 13.2 ms, no interval over either threshold), native edges 119.6 FPS (p95
+10.1 ms, max 10.3 ms, no interval over either threshold), and edges plus nodes
+65.3 FPS (p95 17.2 ms, max 19.0 ms, 22 intervals over 16.7 ms, none over 33.3
+ms). These remain historical optimization data rather than the current
+four-sample quality baseline. They are not a reason to thin authored topology
+or add a public quality enum.
 
 The matrix's 390×844 mobile check uses the same weighted/base render-target
 accounting at DPR 3: 239,957,640 / 94,798,080 bytes. Desktop and mobile
@@ -979,12 +980,10 @@ depth weighting, picking, the origin triad, and the 390×844 mobile viewport.
 The results show an upload-cost envelope worth documenting, but no repeatable
 steady-state interactive miss on the measured device.
 
-The original matrix did not justify a public quality control. The final dense
-overlay evidence changed the implementation priority without changing that API
-decision: native one-device-pixel presentation edges measure 119.6 FPS, while
-the combined edge/node path measures 65.3 FPS with a 17.2 ms p95 and remains
-the accepted dense-overlay miss. The durable targets and
-diagnostic process are defined in
+The original matrix did not justify a public quality control. Its dense-overlay
+figures describe the former single-sample edge path and must not be treated as
+the current four-sample quality baseline. The API decision remains unchanged;
+the durable targets and diagnostic process are defined in
 [[engineering/gpu-performance|GPU rendering performance]].
 
 The decision gate is therefore:

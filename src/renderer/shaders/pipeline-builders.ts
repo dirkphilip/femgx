@@ -20,7 +20,7 @@ import {
 } from "../frame/transparency";
 import { createBasePipelines, type BasePipelineShaders } from "./primitive-pipelines";
 import { createSelectionPipelines, type SelectionPipelines } from "./selection-pipelines";
-import { vertexLayout } from "../resources/foundation";
+import { COLOR_SAMPLE_COUNT, vertexLayout } from "../resources/foundation";
 import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
@@ -181,7 +181,7 @@ async function createEdgePipelines(
         depthWriteEnabled: false,
         depthCompare,
       },
-      multisample: { count: 1 },
+      multisample: { count: COLOR_SAMPLE_COUNT },
     });
   const [edgePipeline, edgeAlwaysPipeline] = await Promise.all([
     create("edge overlay depth-tested", "less-equal"),

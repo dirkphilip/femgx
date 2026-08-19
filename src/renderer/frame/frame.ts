@@ -11,7 +11,6 @@ import { ensureColorTargets, ensureCompositeBindGroup } from "./pipelines";
 import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
-import { drawPresentationOverlayPass, needsResolvedOverlay } from "./presentation-overlay";
 import { drawSectionCaps } from "./section-cap-draw";
 import { writeFrameUniforms } from "./frame-uniforms";
 import type { GpuTimestampFrame } from "../diagnostics/timestamps";
@@ -101,7 +100,6 @@ function prepareVisibleFrame(
     colorFormat: frame.colorFormat,
     depthFormat: frame.depthFormat,
     requiresTransparency: needsTransparency,
-    requiresOverlays: needsResolvedOverlay(frame),
   });
   frame.draw.cost.targets(
     frame.canvas.width,
@@ -153,16 +151,6 @@ export function encodeVisibleFrame(
       frame,
       context,
       targets: weightedTargets,
-      swapChainView,
-      timestampFrame,
-    });
-  }
-  if (needsResolvedOverlay(frame)) {
-    drawPresentationOverlayPass({
-      encoder: colorEncoder,
-      frame,
-      context,
-      targets,
       swapChainView,
       timestampFrame,
     });
@@ -228,9 +216,7 @@ function drawOpaquePass(options: OpaquePassOptions): void {
   drawOrientationGlyphs(opaquePass, frame, context, frame.calls, "visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
-  if (!needsTransparency && !needsResolvedOverlay(frame)) {
-    drawNodeOverlay(opaquePass, frame, context);
-  }
+  if (!needsTransparency) drawPresentationOverlays(opaquePass, frame, context);
   popDebugGroup(opaquePass);
   opaquePass.end();
 }
@@ -306,9 +292,27 @@ function drawCompositePass(options: CompositePassOptions): void {
   pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
   pass.draw(3);
   frame.draw.cost.draw("composite", 3);
-  if (!needsResolvedOverlay(frame)) drawNodeOverlay(pass, frame, context);
+  drawPresentationOverlays(pass, frame, context);
   popDebugGroup(pass);
   pass.end();
+}
+
+function drawPresentationOverlays(
+  pass: GPURenderPassEncoder,
+  frame: FrameOptions,
+  context: DrawCallContext,
+): void {
+  if (frame.edgeCalls.length > 0) {
+    pushDebugGroup(pass, "edges");
+    drawBatches(pass, frame.draw, context, frame.edgeCalls, {
+      kind: "edge",
+      pipeline: frame.edgeDepthTest
+        ? frame.resources.edgePipeline
+        : frame.resources.edgeAlwaysPipeline,
+    });
+    popDebugGroup(pass);
+  }
+  drawNodeOverlay(pass, frame, context);
 }
 
 /** Encodes and submits one current pick snapshot for subsequent readbacks. */
