@@ -40,7 +40,8 @@ describe("createPackedSceneRuntime", () => {
     expect(runtime.nodeCount).toBe(2);
     expect(runtime).not.toHaveProperty("instanceLocalTransforms");
     expect(runtime).not.toHaveProperty("nodeLocalTransforms");
-    expect(runtime).not.toHaveProperty("nodeWorldTransforms");
+    expect(runtime.nodeWorldTransforms[12]).toBe(0);
+    expect(runtime.nodeWorldTransforms[28]).toBe(100);
     expect(Array.from(runtime.instancePartIds)).toEqual([1, 2]);
     expect(runtime.getTransform(0)?.[12]).toBe(10);
     expect(runtime.getTransform(1)?.[12]).toBe(101);

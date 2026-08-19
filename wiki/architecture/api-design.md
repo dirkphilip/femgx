@@ -179,9 +179,12 @@ The main user workflow should be expressible as:
 
 `Viewport.updateScene(operation)` is the transactional structural-update
 boundary. The synchronous operation edits a copy-on-write draft by definition
-and explicit authoring-placement identity. The viewport validates and compiles
-the complete candidate before committing it, preserves the camera and state tied
-to surviving placement ids, prunes references to removed inner geometry
+and explicit authoring-placement identity. It validates changed ownership
+boundaries before committing. Transform-only revisions validate the changed
+matrix, patch retained runtime/GPU instance records, and update placed bounds;
+structural revisions still take the complete validation/compile path until their
+incremental slot owner is available. The viewport preserves the camera and state
+tied to surviving placement ids, prunes references to removed inner geometry
 identities, and revalidates active results. `SceneUpdateOutcome` makes a result
 clear actionable without exposing runtime slots or renderer resources;
 `replaceScene` remains the explicit unrelated-model operation.

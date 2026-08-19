@@ -181,6 +181,37 @@ describe("prepareSceneUpdate", () => {
         });
       }),
     ).toBeUndefined();
+    expect(
+      prepareSceneUpdate(source, (update) => {
+        update.setPartOccurrenceTransform({
+          assemblyId: 1,
+          placementId: "first",
+          transform: translation(3, 0, 0),
+        });
+        update.setPartOccurrenceTransform({
+          assemblyId: 1,
+          placementId: "first",
+          transform: identity(),
+        });
+      }),
+    ).toBeUndefined();
+  });
+
+  it("rejects an invalid transform before the transform-only fast path can commit", () => {
+    const source = scene();
+    const invalid = identity();
+    invalid[7] = Number.NaN;
+
+    expect(() =>
+      prepareSceneUpdate(source, (update) => {
+        update.setPartOccurrenceTransform({
+          assemblyId: 1,
+          placementId: "first",
+          transform: invalid,
+        });
+      }),
+    ).toThrow(/transform component 7 must be finite/);
+    expect(source.assemblies.get(1)?.placements[0]?.transform).toEqual(identity());
   });
 
   it("accumulates many edits and can reuse one part definition", () => {

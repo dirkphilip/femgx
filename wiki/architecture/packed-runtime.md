@@ -42,10 +42,14 @@ used as path segments when present; otherwise the validated sibling index is
 the deterministic fallback. Stable placement paths are resolved through
 runtime-owned reverse maps; callers never need to know the slot layout.
 
-Node placement transforms are composed transiently while the scene draft is
-walked and are not retained in packed or public runtime state. Instance world
-transforms remain because rendering, bounds, picking, and result deformation
-consume the placed-part transform directly.
+Node world transforms are retained only in the private packed runtime so a
+changed assembly-occurrence transform can be composed through its affected
+subtree without walking unrelated occurrences. Instance world transforms remain
+because rendering, bounds, picking, and result deformation consume the
+placed-part transform directly. A private placed-bounds segment tree updates
+changed transform leaves and the renderer-owned origin-triad scale without a
+complete occurrence scan; neither node transforms nor bounds-tree storage leaks
+through `SceneRuntime`.
 
 ## Internal visibility deltas
 

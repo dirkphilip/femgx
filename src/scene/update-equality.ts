@@ -15,7 +15,8 @@ export function equalAssembly(left: AssemblyDefinition, right: AssemblyDefinitio
   );
 }
 
-function equalPlacement(left: Placement, right: Placement | undefined): boolean {
+/** Compares one authored placement including its transform. */
+export function equalPlacement(left: Placement, right: Placement | undefined): boolean {
   if (right === undefined || left.kind !== right.kind || left.placementId !== right.placementId)
     return false;
   const sameTarget =

@@ -2,9 +2,11 @@ import type { InteractionState } from "../interaction/interaction";
 import { createInteractionState } from "../interaction/interaction";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
+import { applyTransformPatch, prepareTransformPatch } from "../scene-runtime/transform-update";
 import type { Scene } from "../scene/scene";
 import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
-import { sceneOriginTriadScale } from "./origin-triad";
+import { originTriadScaleFromBounds } from "./bounds/origin-triad";
+import { PlacedBoundsIndex } from "./bounds/placed-index";
 import {
   resolveViewportResults,
   type ViewportResultsConfig,
@@ -21,6 +23,7 @@ interface PreparedSceneReplacement {
   readonly runtime: PackedSceneRuntime;
   readonly publicRuntime: SceneRuntime;
   readonly originTriadNominalScale: number;
+  readonly placedBounds: PlacedBoundsIndex;
   readonly baseInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   readonly outcome: SceneUpdateOutcome;
@@ -36,6 +39,7 @@ interface SceneControllerOptions {
 interface SceneUpdateResult {
   readonly committed: boolean;
   readonly outcome: SceneUpdateOutcome;
+  readonly rendererSynchronized: boolean;
 }
 
 /** Owns the live scene, runtime, results, and interaction transaction state. */
@@ -46,6 +50,7 @@ export class ViewportSceneController {
   private baseInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
+  private placedBounds: PlacedBoundsIndex;
   private currentVisibility: ViewportVisibilityState;
   private updateActive = false;
 
@@ -53,7 +58,8 @@ export class ViewportSceneController {
     this.currentScene = options.scene;
     this.currentRuntime = createPackedSceneRuntime(options.scene);
     this.currentVisibility = ViewportVisibilityState.create(options.scene);
-    this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
+    this.placedBounds = new PlacedBoundsIndex(options.scene, this.currentRuntime);
+    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
   }
@@ -96,19 +102,28 @@ export class ViewportSceneController {
   ): SceneUpdateResult {
     if (this.updateActive) throw new Error("A scene update is already active");
     this.updateActive = true;
-    let scene: Scene | undefined;
+    let prepared: ReturnType<typeof prepareSceneTransition>;
     try {
-      scene = prepareSceneTransition(this.currentScene, operation)?.scene;
+      prepared = prepareSceneTransition(this.currentScene, operation);
     } finally {
       this.updateActive = false;
     }
-    if (scene === undefined) {
+    if (prepared === undefined) {
       const results = this.currentResults === undefined ? "none" : "preserved";
-      return { committed: false, outcome: { results } };
+      return { committed: false, outcome: { results }, rendererSynchronized: true };
+    }
+    const transformPatch = prepareTransformPatch(
+      this.currentRuntime,
+      prepared.scene,
+      prepared.changes,
+    );
+    if (transformPatch !== undefined) {
+      return this.applyTransformUpdate(prepared.scene, transformPatch, cancelCamera);
     }
     return {
       committed: true,
-      outcome: this.applySceneReplacement(scene, true, false, cancelCamera),
+      outcome: this.applySceneReplacement(prepared.scene, true, false, cancelCamera),
+      rendererSynchronized: false,
     };
   }
 
@@ -131,6 +146,24 @@ export class ViewportSceneController {
     applyResolvedViewportResults(this.options.renderer, undefined);
   }
 
+  private applyTransformUpdate(
+    scene: Scene,
+    patch: NonNullable<ReturnType<typeof prepareTransformPatch>>,
+    cancelCamera: () => void,
+  ): SceneUpdateResult {
+    cancelCamera();
+    const changedSlots = applyTransformPatch(this.currentRuntime, patch);
+    this.options.renderer.updateInstances(this.currentRuntime, this.baseInteraction, changedSlots);
+    this.currentScene = scene;
+    this.placedBounds.update(this.currentRuntime, changedSlots);
+    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
+    return {
+      committed: true,
+      outcome: { results: this.currentResults === undefined ? "none" : "preserved" },
+      rendererSynchronized: true,
+    };
+  }
+
   private applySceneReplacement(
     scene: Scene,
     preserveResults: boolean,
@@ -142,6 +175,7 @@ export class ViewportSceneController {
     cancelCamera();
     this.currentScene = replacement.scene;
     this.currentRuntime = replacement.runtime;
+    this.placedBounds = replacement.placedBounds;
     this.originTriadNominalScale = replacement.originTriadNominalScale;
     this.currentPublicRuntime = replacement.publicRuntime;
     this.currentResults = replacement.results;
@@ -156,8 +190,9 @@ export class ViewportSceneController {
     preserveResults: boolean,
   ): PreparedSceneReplacement {
     const nextRuntime = createPackedSceneRuntime(scene);
+    const nextPlacedBounds = new PlacedBoundsIndex(scene, nextRuntime);
     const nextVisibility = this.currentVisibility.reconcile(scene, nextRuntime);
-    const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
+    const nextOriginTriadNominalScale = originTriadScaleFromBounds(nextPlacedBounds.bounds);
     const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
     const nextInteraction = reconcileInteractionState(
       this.baseInteraction,
@@ -170,6 +205,7 @@ export class ViewportSceneController {
     return {
       scene,
       runtime: nextRuntime,
+      placedBounds: nextPlacedBounds,
       publicRuntime: nextPublicRuntime,
       originTriadNominalScale: nextOriginTriadNominalScale,
       baseInteraction: nextInteraction,

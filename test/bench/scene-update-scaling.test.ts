@@ -16,7 +16,7 @@ import { createPackedSceneRuntime, type PackedSceneRuntime } from "../../src/sce
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setElementVisible } from "../../src/interaction/elements";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
-import { measureScaling } from "./measure";
+import { measureMs, measureScaling } from "./measure";
 
 const PLACEMENT_COUNTS = [1_024, 4_096, 16_384] as const;
 const VISIBILITY_FACE_COUNTS = [16_384, 65_536, 262_144] as const;
@@ -24,6 +24,7 @@ const originalNavigator = globalThis.navigator;
 const fixtures = PLACEMENT_COUNTS.map(createReplacementFixture);
 let restoreGpuGlobals: (() => void) | undefined;
 let viewports: Viewport[] = [];
+let transformViewport: Viewport | undefined;
 let variantFixtures: VariantFixture[] = [];
 let visibilityFixtures: VisibilityFixture[] = [];
 
@@ -38,11 +39,17 @@ beforeAll(async () => {
       createViewport({ canvas: fakeCanvas(), scene: first, device: fakeGpuDevice().device }),
     ),
   );
+  transformViewport = await createViewport({
+    canvas: fakeCanvas(),
+    scene: createReplacementFixture(100_000).first,
+    device: fakeGpuDevice().device,
+  });
   variantFixtures = await Promise.all(PLACEMENT_COUNTS.map(createVariantFixture));
 });
 
 afterAll(() => {
   for (const viewport of viewports) viewport.destroy();
+  transformViewport?.destroy();
   for (const fixture of variantFixtures) destroyGpuBundle(fixture.bundle);
   for (const fixture of visibilityFixtures) destroyGpuBundle(fixture.bundle);
   restoreGpuGlobals?.();
@@ -85,33 +92,27 @@ describe("public scene replacement scaling", () => {
 });
 
 describe("public scene update scaling", () => {
-  it("keeps one-placement Viewport.updateScene approximately linear", () => {
-    const nextTransform = viewports.map(() => 0);
-    const transforms = [translation(2, 0, 0), translation(3, 0, 0)] as const;
-    const measurements = measureScaling(
-      viewports.map((viewport, index) => ({
-        size: PLACEMENT_COUNTS[index] ?? 0,
-        run: () => {
-          const transformIndex = nextTransform[index] ?? 0;
-          viewport.updateScene((update) => {
-            update.setPartOccurrenceTransform({
-              assemblyId: 1,
-              placementId: "0",
-              transform: transforms[transformIndex] ?? transforms[0],
-            });
+  it("keeps one transform in a 100k-occurrence scene within one frame", () => {
+    const viewport = transformViewport;
+    if (viewport === undefined) throw new Error("Transform viewport is missing");
+    let offset = 1;
+    const measuredMs = measureMs(
+      () => {
+        viewport.updateScene((update) => {
+          update.setPartOccurrenceTransform({
+            assemblyId: 1,
+            placementId: "99999",
+            transform: translation(offset, 0, 0),
           });
-          nextTransform[index] = transformIndex === 0 ? 1 : 0;
-          expect(viewport.runtime.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
-        },
-      })),
-      { warmup: 1, samples: 3, iterations: 5 },
+        });
+        offset = offset === 1 ? 2 : 1;
+      },
+      { warmup: 2, samples: 7 },
     );
-    const normalized = measurements.map(({ millisecondsPerUnit }) => millisecondsPerUnit);
-    const spread = Math.max(...normalized) / Math.min(...normalized);
-    expect(
-      spread,
-      `Viewport.updateScene normalized cost spread was ${spread.toFixed(2)}x`,
-    ).toBeLessThanOrEqual(5);
+    if (process.env["PERF_REPORT"] !== undefined) {
+      console.log(`Viewport.updateScene transform (100k): ${measuredMs.toFixed(3)} ms`);
+    }
+    expect(measuredMs).toBeLessThanOrEqual(16.7);
   });
 });
 

@@ -1,6 +1,7 @@
 import type { AssemblyDefinition, Placement } from "./assembly";
 import { MAX_PART_ID, validatePartId, type Part, type PartId } from "../geometry/part";
 import type { AssemblyId } from "./types";
+import { cachePlacementIndex } from "./assembly-index";
 
 /**
  * The authoritative CPU-side scene: part and assembly registries plus
@@ -167,7 +168,7 @@ function validateAssemblyRegistry(
         `AssemblyDefinition registry key ${key} does not match assembly id ${assembly.id}`,
       );
     }
-    const placementIds = new Set<string>();
+    const placementIds = new Map<string, number>();
     for (let index = 0; index < assembly.placements.length; index++) {
       const placement = assembly.placements[index];
       if (placement === undefined) {
@@ -181,9 +182,10 @@ function validateAssemblyRegistry(
           `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placementId}`,
         );
       }
-      placementIds.add(placementId);
+      placementIds.set(placementId, index);
       validatePlacement(placement, parts, assemblies, assembly.id, index);
     }
+    cachePlacementIndex(assembly, placementIds);
   }
 }
 
@@ -219,7 +221,7 @@ function validatePlacement(
           `AssemblyDefinition ${ownerId} placement ${index} references missing part ${placement.partId}`,
         );
       }
-      validateTransform(placement.transform, ownerId, index);
+      validatePlacementTransform(placement.transform, ownerId, index);
       return;
     }
     case "assembly": {
@@ -229,7 +231,7 @@ function validatePlacement(
           `AssemblyDefinition ${ownerId} placement ${index} references missing assembly ${placement.assemblyId}`,
         );
       }
-      validateTransform(placement.transform, ownerId, index);
+      validatePlacementTransform(placement.transform, ownerId, index);
       return;
     }
     default:
@@ -267,7 +269,12 @@ function validateAssemblyId(id: AssemblyId, label: string): void {
   }
 }
 
-function validateTransform(transform: unknown, ownerId: AssemblyId, index: number): void {
+/** Validates one changed placement transform at the scene ownership boundary. */
+export function validatePlacementTransform(
+  transform: unknown,
+  ownerId: AssemblyId,
+  index: number,
+): void {
   if (!(transform instanceof Float32Array)) {
     throw new TypeError(
       `AssemblyDefinition ${ownerId} placement ${index} transform must contain 16 components`,
