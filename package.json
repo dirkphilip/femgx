@@ -102,7 +102,7 @@
     "test": "vitest run",
     "test:core": "vitest run --exclude 'test/demo/**' --exclude 'test/renderer/**' --exclude 'test/viewport/**' --exclude 'test/platform/**' --exclude 'test/scripts/**' --exclude 'test/bench/**'",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --exclude 'test/demo/**'",
     "test:demo:coverage": "npm run test:demo:coverage:core && npm run test:demo:coverage:components",
     "test:demo:coverage:core": "vitest run --config config/vitest.demo.core.config.ts --coverage",
     "test:demo:coverage:components": "vitest run --config config/vitest.demo.components.config.ts --coverage",

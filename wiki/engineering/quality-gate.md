@@ -98,7 +98,9 @@ a prompt to review semantic ownership, not a requirement to split a directory.
 ## Coverage
 
 - v8 provider, thresholds enforced: lines/functions 80%, branches 70%.
-- Reporters `text`/`html`/`lcov` write to `coverage/`; CI uploads it as an
+- The general coverage run excludes `test/demo/**`, which runs once through the
+  dedicated demo coverage commands below. Its reporters `text`/`html`/`lcov`
+  write to `coverage/`; CI uploads the complete coverage directory as an
   artifact.
 - `npm run test:demo:coverage` produces two independent reports and thresholds:
   `coverage/demo-core` covers the unit-tested plain-TypeScript workbench
@@ -138,10 +140,10 @@ a prompt to review semantic ownership, not a requirement to split a directory.
 ## Protected main
 
 The `main` branch requires the two stable CI contexts `check` and `e2e`.
-`check` aggregates parallel static/quality and runtime/package jobs containing
-pre-commit validation, formatting, strict type checking, linting,
-API documentation validation, coverage-enforced unit tests, the performance
-budget, the library build, and package smoke tests. `e2e` is the required no-GPU unsupported
+`check` aggregates parallel static/quality, coverage, and package/performance
+jobs containing pre-commit validation, formatting, strict type checking,
+linting, API documentation validation, coverage-enforced unit tests, the
+performance budget, the library build, and package smoke tests. `e2e` is the required no-GPU unsupported
 contract lane in hosted CI; the real system-Chrome WebGPU lane remains the
 required local validation for rendering, camera, interaction, demo, and
 responsive-layout changes because hosted runners do not provide deterministic
