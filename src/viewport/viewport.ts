@@ -129,7 +129,7 @@ class ViewportCore implements Viewport {
   readonly visibility!: ViewportVisibility;
   readonly results!: ViewportResults;
   readonly presentation!: ViewportPresentation;
-  private autoFitOnResize = false;
+  private resizeCameraPolicy: "interrupt" | "preserve" | "refit" = "interrupt";
   private background: ViewportBackground;
   private pointSizePixels: number;
   private nodeSizePixels: number;
@@ -161,13 +161,13 @@ class ViewportCore implements Viewport {
       resize: this.resize.bind(this),
       onGestureChange: (active) => {
         if (active) {
-          this.autoFitOnResize = false;
+          this.resizeCameraPolicy = "interrupt";
           this.cameraFocus.cancel();
         }
         options.onGestureChange?.(active);
       },
       onOrientationAction: (action) => {
-        this.autoFitOnResize = false;
+        this.resizeCameraPolicy = "preserve";
         this.cameraFocus.applyOrientationAction(action);
       },
     });
@@ -182,7 +182,7 @@ class ViewportCore implements Viewport {
     try {
       if (options.results !== undefined) this.sceneController.setResults(options.results);
       if (options.camera === undefined) {
-        this.autoFitOnResize = true;
+        this.resizeCameraPolicy = "refit";
         this.cameraFocus.fitView(undefined, false);
       }
       this.render();
@@ -300,19 +300,19 @@ class ViewportCore implements Viewport {
 
   private setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
-    this.autoFitOnResize = false;
+    this.resizeCameraPolicy = "interrupt";
     this.cameraFocus.setCamera(camera, transitionOptions);
   }
 
   private fitView(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
-    this.autoFitOnResize = true;
+    this.resizeCameraPolicy = "refit";
     this.cameraFocus.fitView(transitionOptions, true);
   }
 
   private fitSelection(transitionOptions?: CameraTransitionOptions): void {
     this.ensureAlive();
-    this.autoFitOnResize = false;
+    this.resizeCameraPolicy = "interrupt";
     this.cameraFocus.fitSelection(transitionOptions);
   }
 
@@ -404,12 +404,12 @@ class ViewportCore implements Viewport {
   }
   resize(invalidate = true): void {
     this.ensureAlive();
-    const refit = this.autoFitOnResize;
-    if (refit) this.cameraFocus.cancel();
+    const policy = this.resizeCameraPolicy;
+    if (policy !== "preserve") this.cameraFocus.cancel();
     const size = cssSize(this.options.canvas);
     this.renderer.resize(size.width, size.height);
     this.cameraRef.camera = resizeCamera(this.cameraRef.camera, size.width, size.height);
-    if (refit) this.cameraFocus.fitView(undefined, false);
+    if (policy === "refit") this.cameraFocus.fitView(undefined, false);
     if (invalidate) this.invalidate();
   }
   invalidate(): void {
