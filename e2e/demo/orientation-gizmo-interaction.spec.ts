@@ -1,10 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import { waitForRenderer } from "./demo-support";
+import { openCommandPanel, pixelHash, pixelMetrics, waitForRenderer } from "./demo-support";
 
-async function expectGizmoPointerActivation(page: Page): Promise<void> {
+async function expectGizmoPointerActivation(page: Page, perspective = false): Promise<void> {
   await page.goto("/");
   const canvas = page.getByTestId("view-canvas");
   await waitForRenderer(page, canvas);
+  if (perspective) {
+    await openCommandPanel(page, "view");
+    await page.getByTestId("projection-toggle").click();
+    await expect(canvas).toHaveAttribute("data-camera", /"mode":"perspective"/);
+  }
 
   const gizmo = page.locator('[data-femgx-orientation-gizmo="true"]');
   const svg = gizmo.locator("svg");
@@ -29,10 +34,31 @@ async function expectGizmoPointerActivation(page: Page): Promise<void> {
 test("keeps overlapping face clicks out of the canvas and animates the camera", async ({
   page,
 }) => {
-  await expectGizmoPointerActivation(page);
+  await expectGizmoPointerActivation(page, true);
 });
 
 test("keeps the same gizmo interaction contract at the mobile breakpoint", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expectGizmoPointerActivation(page);
+});
+
+test("keeps the perspective gallery stable across continuous frames", async ({ page }) => {
+  await page.goto("/");
+  await waitForRenderer(page);
+  const canvas = page.getByTestId("view-canvas");
+  await openCommandPanel(page, "view");
+  await page.getByTestId("projection-toggle").click();
+  await expect(canvas).toHaveAttribute("data-camera", /"mode":"perspective"/);
+  await openCommandPanel(page, "display");
+  await page.getByTestId("continuous-rendering").click();
+
+  const metrics = await pixelMetrics(canvas);
+  expect(metrics.distinctColors).toBeGreaterThan(32);
+  expect(metrics.saturatedPixels).toBeGreaterThan(1_000);
+  const hashes = [metrics.hash];
+  for (let frame = 0; frame < 3; frame += 1) {
+    await page.waitForTimeout(50);
+    hashes.push(await pixelHash(canvas));
+  }
+  expect(new Set(hashes).size).toBe(1);
 });

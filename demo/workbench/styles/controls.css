@@ -116,21 +116,12 @@
   min-width: 150px;
   align-items: center;
   gap: 5px;
-  border: 1px solid var(--workbench-control-border);
-  border-radius: 6px;
-  padding: 0 6px;
   color: #b9c7d8;
-  background: var(--workbench-control-background);
   font-size: 12px;
 }
 .toolbar-background select {
   min-width: 0;
   flex: 1 1 auto;
-  border: 0;
-  padding-right: 2px;
-  padding-left: 2px;
-  color: #fff;
-  background: transparent;
 }
 .analysis-inspector {
   display: grid;

@@ -27,6 +27,8 @@ test("selects an accessible background preset and preserves it across workbench 
   const background = page.getByLabel("Background");
 
   await expect(background).toHaveValue("studio");
+  await expect(background).toHaveCSS("background-color", "rgb(23, 36, 56)");
+  await expect(background).toHaveCSS("border-top-width", "1px");
   await expect(background.locator("option")).toHaveText(["Studio", "White", "Dark"]);
   await expect(page.locator('label[for="background-select"]')).toContainText("Background");
 
