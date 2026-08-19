@@ -120,5 +120,6 @@ and deferred boundaries.
 ## Documentation
 
 - [API reference and five-minute workflow](docs/api-reference.md)
+- [Complete host FE integration](examples/host-integration/README.md)
 - [Architecture and API design](wiki/architecture/api-design.md)
 - [Contributing and repository development](CONTRIBUTING.md)

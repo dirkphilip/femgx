@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { drawnPixels, pixelHash } from "../browser-support/helpers";
+import { drawnPixels, pixelHash, pixelMetrics } from "../browser-support/helpers";
 
 const HOST = "/e2e/core/core-host.html";
 
@@ -91,6 +91,31 @@ test("renders distinct occurrence results while keeping one reusable part batch"
     const colors = await occurrenceResultPixels(canvas, page);
     expect(colors.blue).toBeGreaterThan(100);
     expect(colors.red).toBeGreaterThan(100);
+  }
+});
+
+test("renders the copyable dense host integration at desktop and mobile", async ({
+  page,
+}, testInfo) => {
+  for (const viewport of [
+    { name: "desktop", width: 1280, height: 720 },
+    { name: "mobile", width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/examples/host-integration/");
+    await expect(page.locator("#diagnostics")).toHaveText("Model validation passed");
+    const canvas = page.locator("#viewport");
+    await expect.poll(async () => (await pixelMetrics(canvas)).distinctColors).toBeGreaterThan(20);
+    expect((await pixelMetrics(canvas)).saturatedPixels).toBeGreaterThan(100);
+    const bounds = await canvas.boundingBox();
+    if (bounds === null) throw new Error("Host integration canvas has no bounds");
+    const modelY = viewport.name === "desktop" ? 0.25 : 0.4;
+    await canvas.click({ position: { x: bounds.width * 0.25, y: bounds.height * modelY } });
+    await expect(page.locator("#inspection")).toContainText(/von Mises|displacement/u);
+    await page.screenshot({
+      path: testInfo.outputPath(`host-integration-${viewport.name}.png`),
+      fullPage: true,
+    });
   }
 });
 

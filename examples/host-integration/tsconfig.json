@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "femgx": ["../../src/entries/root.ts"],
+      "femgx/interaction": ["../../src/entries/interaction.ts"],
+      "femgx/io": ["../../src/entries/io.ts"],
+      "femgx/model": ["../../src/entries/model.ts"],
+      "femgx/results": ["../../src/entries/results.ts"]
+    }
+  },
+  "include": ["*.ts"]
+}

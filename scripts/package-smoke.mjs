@@ -345,6 +345,13 @@ function main() {
       "if (ioField.values[0] !== 1) throw new Error();",
     ].join("\n");
     writeFileSync(join(consumer, "smoke.ts"), smokeTs);
+    const hostExampleFiles = ["host-model.ts", "main.ts"];
+    for (const file of hostExampleFiles) {
+      writeFileSync(
+        join(consumer, file),
+        readFileSync(join(repoRoot, "examples", "host-integration", file), "utf8"),
+      );
+    }
     const tsconfigBundler = {
       compilerOptions: {
         target: "es2022",
@@ -355,7 +362,7 @@ function main() {
         skipLibCheck: false,
         noEmit: true,
       },
-      files: ["smoke.ts"],
+      files: ["smoke.ts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.bundler.json"),
@@ -367,7 +374,7 @@ function main() {
         ...tsconfigBundler.compilerOptions,
         types: ["@webgpu/types"],
       },
-      files: ["smoke.ts"],
+      files: ["smoke.ts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.typescript5.json"),
@@ -385,7 +392,7 @@ function main() {
         skipLibCheck: false,
         noEmit: true,
       },
-      files: ["smoke.mts"],
+      files: ["smoke.mts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.nodenext.json"),

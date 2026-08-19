@@ -1,9 +1,19 @@
 import { createOwnedElement, type Element, type NodeId } from "../../elements/element";
 import { createElementModelFromOwnedElements, type ElementModel } from "../../elements/model";
+import type { Body } from "../../elements/model-types";
 import { topologyFor } from "../../elements/shapes";
 import { IoError, type Issue } from "../diagnostics";
 import type { FemModel } from "../fem-model";
 import { validateModel } from "../model-validation";
+
+/**
+ * Optional semantic ownership retained while converting an interchange model.
+ * @category Import and export
+ */
+export interface ElementModelConversionOptions {
+  /** Validated, non-overlapping bodies that directly own authored element ids. */
+  readonly bodies?: readonly Body[];
+}
 
 /**
  * Converts one host-supplied serializable model into the dense render model
@@ -23,7 +33,10 @@ import { validateModel } from "../model-validation";
  * ```
  * @category Import and export
  */
-export function createElementModelFromFemModel(model: FemModel): ElementModel {
+export function createElementModelFromFemModel(
+  model: FemModel,
+  options: ElementModelConversionOptions = {},
+): ElementModel {
   const issues = [...validateModel(model), ...nonDenseNodeIssues(model)];
   const errors = issues.filter((issue) => issue.severity === "error");
   if (errors.length > 0) {
@@ -41,7 +54,7 @@ export function createElementModelFromFemModel(model: FemModel): ElementModel {
       elements.push(createOwnedElement(block.ids[index] ?? index, block.shape, nodeIds));
     }
   }
-  return createElementModelFromOwnedElements(model.nodes.coordinates, elements);
+  return createElementModelFromOwnedElements(model.nodes.coordinates, elements, options);
 }
 
 function nonDenseNodeIssues(model: FemModel): readonly Issue[] {
