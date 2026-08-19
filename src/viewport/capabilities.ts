@@ -145,6 +145,10 @@ function createViewportVisibilityCapability(
       owner.ensureAlive();
       controller.setPartOccurrence(partOccurrenceId, visible);
     },
+    setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void {
+      owner.ensureAlive();
+      controller.setPartOccurrences(partOccurrenceIds, visible);
+    },
   };
 }
 

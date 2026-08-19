@@ -88,7 +88,8 @@ authored lines resolve exact ties second, and authored points resolve exact ties
 last. The line and point pipelines use `less-equal` for this purpose; a
 genuinely nearer or farther fragment still follows ordinary depth testing.
 This ordering is independent of part ids and scene insertion order. The
-renderer-owned edge and node overlays remain separate post-composite stages.
+renderer-owned edge and node overlays draw at the end of the final four-sample
+visible pass, after opaque or composite content and before its canvas resolve.
 
 - Triangle geometry tessellates the exterior boundary plus both oriented copies
   of a face shared by two differently named bodies. Same-body interior faces
@@ -124,10 +125,11 @@ a highlight pass. Exposed interfaces reuse the same owner/neighbor predicate
 for filled surfaces, GPU picking, deformation, edges, and node annotations.
 Triangle pipelines do not cull back faces by default: 2D FE shells are valid
 geometry and must remain inspectable from either side. Ordinary opaque surfaces
-retain fixed-function raster depth in both camera projections. The resolved
-presentation pass draws one-device-pixel native edges at their model depth with
-`less-equal`; it does not alter the owning surface depth or pull overlay vertices
-toward the camera. Exact edge picking keeps its separate widened geometry.
+retain fixed-function raster depth in both camera projections. The presentation
+path draws one-device-pixel native edges into the four-sample color target at
+their model depth with `less-equal`; it does not alter the owning surface depth
+or pull overlay vertices toward the camera. Exact edge picking keeps its
+separate widened geometry.
 
 This depth contract also reduces steady-state work for ordinary surfaces. The
 surface fragment shader no longer exports depth or evaluates screen-space depth

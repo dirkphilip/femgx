@@ -1,12 +1,5 @@
 /** Passes encoded by one visible frame or a pick snapshot. */
-export const GPU_COST_PASSES = [
-  "opaque",
-  "transparency",
-  "composite",
-  "overlay-depth",
-  "overlay",
-  "pick",
-] as const;
+export const GPU_COST_PASSES = ["opaque", "transparency", "composite", "pick"] as const;
 export type GpuCostPass = (typeof GPU_COST_PASSES)[number];
 
 /** Draw categories used to separate renderer features in a frame cost. */
@@ -18,7 +11,6 @@ export const GPU_COST_DRAWS = [
   "selection-hidden",
   "transparency",
   "composite",
-  "overlay-depth",
   "edges",
   "nodes",
   "vector-glyph",
@@ -43,7 +35,12 @@ export const GPU_COST_WRITES = [
 export type GpuCostWrite = (typeof GPU_COST_WRITES)[number];
 
 /** CPU submission work counted by the internal cost model. */
-export const GPU_COST_CPU = ["instance-scan", "order-rebuild", "call-rebuild"] as const;
+export const GPU_COST_CPU = [
+  "instance-scan",
+  "part-scan",
+  "order-rebuild",
+  "call-rebuild",
+] as const;
 export type GpuCostCpu = (typeof GPU_COST_CPU)[number];
 
 /** Internal draw-path admissions reported by the opt-in cost snapshot. */
@@ -224,14 +221,12 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
     opaque: 0,
     transparency: 0,
     composite: 0,
-    "overlay-depth": 0,
-    overlay: 0,
     pick: 0,
   };
 }
 
 function emptyCpuCounts(): Record<GpuCostCpu, number> {
-  return { "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
+  return { "instance-scan": 0, "part-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
 }
 
 function emptyAdmissionCounts(): Record<GpuCostAdmission, number> {
@@ -251,7 +246,6 @@ function emptyDrawCounts(): Record<GpuCostDraw, MutableDrawCost> {
     "selection-hidden": drawCost(),
     transparency: drawCost(),
     composite: drawCost(),
-    "overlay-depth": drawCost(),
     edges: drawCost(),
     nodes: drawCost(),
     "vector-glyph": drawCost(),
@@ -290,7 +284,6 @@ function cloneDrawCounts(
     "selection-hidden": { ...counts["selection-hidden"] },
     transparency: { ...counts.transparency },
     composite: { ...counts.composite },
-    "overlay-depth": { ...counts["overlay-depth"] },
     edges: { ...counts.edges },
     nodes: { ...counts.nodes },
     "vector-glyph": { ...counts["vector-glyph"] },

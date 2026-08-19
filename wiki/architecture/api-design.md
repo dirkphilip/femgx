@@ -16,8 +16,7 @@ oriented API map, and the root [[../index|wiki index]] is the navigation map.
 The published root import is `femgx`. FE authoring, interchange, optional GLB,
 custom camera, runtime inspection, and raw WebGPU ownership are intentionally
 published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
-`femgx/runtime`, and `femgx/platform`; see the
-[0.x migration map](../../docs/migration-0.x-entry-points.md).
+`femgx/runtime`, and `femgx/platform`.
 
 ## Canonical concepts
 
@@ -162,7 +161,7 @@ product decision must establish any narrower boundary.
   the private packed runtime and GPU buffers are compiled representations. The
   public `SceneRuntime` exposes stable handles and defensive query objects, not
   slots or mutation deltas. `Viewport.runtime` is the current live facade;
-  hosts should reacquire it after `replaceScene` or `reconcileScene`. Standalone
+  hosts should reacquire it after `replaceScene` or a committed `updateScene`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
   intentional host inspection. Live visibility changes and transactional
   structural scene updates go through `Viewport`.
@@ -178,13 +177,17 @@ The main user workflow should be expressible as:
 5. Apply interaction, visibility, structural updates, results, and lifecycle
    operations through it.
 
-`Viewport.reconcileScene(scene)` is the transactional structural-update
-boundary. It recompiles the candidate scene before committing it, preserves the
-camera and state tied to surviving placement ids, prunes references to removed
-inner geometry identities, and revalidates active results. Its
-`SceneReconciliationOutcome` makes a result clear actionable without exposing runtime
-slots or renderer resources; `replaceScene` remains the explicit full-replacement
-operation.
+`Viewport.updateScene(operation)` is the transactional structural-update
+boundary. The synchronous operation edits a copy-on-write draft by definition
+and explicit authoring-placement identity. It validates changed ownership
+boundaries before committing. Transform-only revisions validate the changed
+matrix, patch retained runtime/GPU instance records, and update placed bounds;
+structural revisions still take the complete validation/compile path until their
+incremental slot owner is available. The viewport preserves the camera and state
+tied to surviving placement ids, prunes references to removed inner geometry
+identities, and revalidates active results. `SceneUpdateOutcome` makes a result
+clear actionable without exposing runtime slots or renderer resources;
+`replaceScene` remains the explicit unrelated-model operation.
 
 Low-level flattening, batching, culling, draw-order buffers, GPU record
 layouts, and storage capacities are renderer/runtime implementation details.
@@ -206,6 +209,18 @@ viewport.results.set({
   deformation: { field: displacement, scale: 1.5 },
   orientation: { field: directions, glyph: "arrow", transform: "normal", widthPixels: 2 },
 });
+
+// Reuse one part while assigning authored rows to one placement.
+viewport.results.set({
+  scalar: { field: sharedStress, range: comparisonRange },
+  occurrences: [
+    {
+      partOccurrenceId: rightOccurrence,
+      scalar: { field: rightStress, range: comparisonRange },
+      deformation: { field: rightDisplacement },
+    },
+  ],
+});
 ```
 
 All present roles are validated before the previous state is replaced. Anchors,
@@ -215,10 +230,11 @@ Full orientation uses the explicit `ElementFrameField` format: an owning
 reusable `partId` plus nine dense part-local floats per element row in X/Y/Z
 axis order. It is intentionally not
 a vector-field extension because roll cannot be represented by one direction.
-`glyph: "triad"` draws the renderer-owned non-pickable RGB axes and shares the
-part data across all placements. Applied loads, occurrence-specific overrides,
-and user glyph plugins remain deferred; copying a part is the current host
-workaround for distinct instance values.
+`glyph: "triad"` draws the renderer-owned non-pickable RGB axes. Shared roles
+remain the cheap default for every placement. An `occurrences` entry may replace
+scalar, deformation, orientation, or load rows for one stable
+`PartOccurrenceId`; geometry, topology, and public identities remain shared,
+while private result addressing uses packed part-local occurrence slots.
 
 ## Design test for new features
 

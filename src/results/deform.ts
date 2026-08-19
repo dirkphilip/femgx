@@ -1,5 +1,4 @@
-import type { Geometry } from "../geometry/part";
-import type { PartId } from "../geometry/part";
+import type { Geometry, PartId } from "../geometry/part";
 import type { ResultField, VectorField } from "./fields";
 
 /**
@@ -10,8 +9,8 @@ import type { ResultField, VectorField } from "./fields";
 export interface DeformationState {
   /** Multiplier applied to the authored nodal displacement field. */
   readonly scale: number;
-  /** Per-part nodal displacement arrays used by GPU vertex deformation. */
-  readonly displacements: ReadonlyMap<PartId, Float32Array>;
+  /** Shared per-part arrays plus optional occurrence overrides used by deformation. */
+  readonly displacements: ReadonlyMap<PartId | string, Float32Array>;
 }
 
 /**

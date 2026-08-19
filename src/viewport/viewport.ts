@@ -7,6 +7,7 @@ import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-rende
 import { changedInstanceSlots } from "./interaction-diff";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { Scene } from "../scene/scene";
+import type { SceneUpdate } from "../scene/update";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import { SceneNavigationBoundsCache } from "./scene-bounds";
 import {
@@ -18,14 +19,14 @@ import {
 } from "./dom";
 import { CameraFocusController } from "./camera-focus";
 import { normalizeSectionPlane, type SectionPlane } from "../math/section-plane";
-import { assertOriginTriad } from "./origin-triad";
+import { assertOriginTriad } from "./bounds/origin-triad";
 import type { DeformationState } from "../results/deform";
 import type { ViewportResultsConfig } from "./results";
 import type {
   CameraTransitionOptions,
   Viewport,
   ViewportOptions,
-  SceneReconciliationOutcome,
+  SceneUpdateOutcome,
   ViewportBackground,
   ViewportInteraction,
   ViewportPresentation,
@@ -46,7 +47,7 @@ export type {
   ViewportResults,
   ViewportView,
   ViewportVisibility,
-  SceneReconciliationOutcome,
+  SceneUpdateOutcome,
   ViewportBackground,
   ViewportStats,
 } from "./types";
@@ -200,8 +201,7 @@ class ViewportCore implements Viewport {
     });
     this.cameraRef = { camera: options.camera ?? createCamera() };
     this.visibilityController = new ViewportVisibilityController({
-      scene: () => this.sceneController.scene,
-      runtime: () => this.sceneController.runtime,
+      sceneController: this.sceneController,
       renderer,
       isBatching: () => this.lifecycle.isBatching,
       invalidate: this.invalidate.bind(this),
@@ -286,16 +286,15 @@ class ViewportCore implements Viewport {
     this.invalidate();
   }
 
-  reconcileScene(scene: Scene): SceneReconciliationOutcome {
+  updateScene(operation: (update: SceneUpdate) => void): SceneUpdateOutcome {
     this.ensureAlive();
-    const outcome = this.sceneController.reconcileScene(
-      scene,
-      this.cameraFocus.cancel.bind(this.cameraFocus),
-    );
+    const cancelCamera = this.cameraFocus.cancel.bind(this.cameraFocus);
+    const update = this.sceneController.updateScene(operation, cancelCamera);
+    if (!update.committed) return update.outcome;
     this.visibilityController.reset();
-    this.appliedInteraction = createInteractionState();
+    if (!update.rendererSynchronized) this.appliedInteraction = createInteractionState();
     this.invalidate();
-    return outcome;
+    return update.outcome;
   }
 
   private setCamera(camera: Camera, transitionOptions?: CameraTransitionOptions): void {

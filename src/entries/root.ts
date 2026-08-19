@@ -28,11 +28,23 @@ export {
 } from "../geometry/part";
 export { createPart, type PartInput } from "../geometry/part";
 export { createScene, type Scene, type SceneBuilder } from "../scene/scene";
+export type {
+  AddAssemblyOccurrenceInput,
+  AddPartOccurrenceInput,
+  AssemblyOccurrenceAddress,
+  DefinitionRemovalOptions,
+  PartOccurrenceAddress,
+  RebindAssemblyOccurrenceInput,
+  RebindPartOccurrenceInput,
+  SceneUpdate,
+  TransformAssemblyOccurrenceInput,
+  TransformPartOccurrenceInput,
+} from "../scene/update";
 export {
   createViewport,
   type Viewport,
   type ViewportOptions,
-  type SceneReconciliationOutcome,
+  type SceneUpdateOutcome,
   type ViewportStats,
   type ViewportBackground,
   type ViewportInteraction,
@@ -49,6 +61,9 @@ export type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
+  ViewportOccurrenceElementVectorConfig,
+  ViewportOccurrenceResultsConfig,
+  ViewportOccurrenceScalarConfig,
   ViewportOrientationState,
   ViewportLoadConfig,
   ViewportResultField,

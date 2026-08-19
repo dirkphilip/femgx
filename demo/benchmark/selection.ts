@@ -212,7 +212,7 @@ async function measureSelectedTargets(
   const cameraTransition = await measureCameraTransition(renderer, runtime, camera, parts, device);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
   const selectionLabel = `${benchmarkCase.id} ${id} selection`;
-  if (benchmarkCase.id === "unique-1m" && id === "all-authored") {
+  if (fullSelectionUsesOrdinarySurface(options, id, targets.length, changedSlots)) {
     assertNoElementEmphasisDraw(interactionGpuCost, selectionLabel);
   } else {
     assertElementEmphasisDraw(
@@ -254,6 +254,29 @@ async function measureSelectedTargets(
     denseSelectionBytes: dense.bytes,
     selectedElementRecordBytes: targets.length * ELEMENT_RECORD_STRIDE,
   };
+}
+
+function fullSelectionUsesOrdinarySurface(
+  options: SelectionMeasureOptions,
+  id: SelectionBenchmarkPhase["id"],
+  targetCount: number,
+  changedSlots: readonly number[],
+): boolean {
+  if (
+    id !== "all-authored" ||
+    changedSlots.length !== 1 ||
+    targetCount !== authoredElementCount(options.benchmarkCase, options.runtime)
+  ) {
+    return false;
+  }
+  const slot = changedSlots[0];
+  const partId = slot === undefined ? undefined : options.runtime.getPartId(slot);
+  const part = partId === undefined ? undefined : options.benchmarkCase.scene.parts.get(partId);
+  return (
+    part?.geometries.every(
+      (geometry) => geometry.primitive === "triangles" && geometry.faceSubset === undefined,
+    ) === true
+  );
 }
 
 async function measureCameraTransition(

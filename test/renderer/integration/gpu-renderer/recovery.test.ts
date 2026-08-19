@@ -32,7 +32,7 @@ describe("WebGPU renderer", () => {
     renderer.updateElements(runtime, nodes, [0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
-    renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    renderer.updateVisibility(runtime, hidden.affectedPartIds);
     const hovered = setTargetHovered(nodes, { kind: "partOccurrence", partOccurrenceId: "1/0" });
     renderer.updateElements(runtime, hovered, [0]);
     const callsBefore = gpu.drawCalls.length;
@@ -41,7 +41,7 @@ describe("WebGPU renderer", () => {
     expect(readGpuCostSnapshot(renderer).draws.nodes.instances).toBe(0);
 
     const shown = runtime.setPartVisible(1, true);
-    renderer.updateVisibility(runtime, shown.changedInstanceIds);
+    renderer.updateVisibility(runtime, shown.affectedPartIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls).toContainEqual({ indexCount: 3, instanceCount: 3 });
   });
@@ -109,7 +109,7 @@ describe("WebGPU renderer", () => {
         : Array.from(new Float32Array(recoveredCameraWrite.bytes.buffer).slice(18, 21)),
     ).toEqual([14, 7, 1]);
     const recoveredDisplacement = second.buffers.find(
-      (buffer) => buffer.size === latestDisplacements.byteLength && (buffer.usage & 16) !== 0,
+      (buffer) => buffer.size === 44 && (buffer.usage & 16) !== 0,
     );
     expect(recoveredDisplacement).toBeDefined();
     expect(second.writes.some((write) => write.buffer === recoveredDisplacement?.resource)).toBe(
@@ -228,7 +228,8 @@ function elementalColors() {
 
 function elementalResultWrites(gpu: ReturnType<typeof fakeGpuDevice>) {
   return gpu.writes.filter((write) => {
-    if (!(write.source instanceof Float32Array) || write.source.length !== 12) return false;
-    return write.source[0] === 1 && write.source[1] === 2;
+    if (!(write.source instanceof Float32Array) || write.source.length !== 14) return false;
+    const words = new Uint32Array(write.source.buffer, write.source.byteOffset, 2);
+    return words[0] === 1 && words[1] === 2 && write.source[2] === 1 && write.source[3] === 2;
   });
 }

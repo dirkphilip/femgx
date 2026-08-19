@@ -44,14 +44,17 @@ describe("GPU cost accounting", () => {
       opaque: 0,
       transparency: 0,
       composite: 0,
-      "overlay-depth": 0,
-      overlay: 0,
       pick: 0,
     });
     expect(cleared.draws.opaque).toEqual({ calls: 0, indices: 0, instances: 0 });
     expect(cleared.admissions).toEqual({ minimal: 0, topology: 0, feature: 0 });
     expect(cleared.writes.instance).toEqual({ calls: 0, bytes: 0 });
-    expect(cleared.cpu).toEqual({ "instance-scan": 0, "order-rebuild": 0, "call-rebuild": 0 });
+    expect(cleared.cpu).toEqual({
+      "instance-scan": 0,
+      "part-scan": 0,
+      "order-rebuild": 0,
+      "call-rebuild": 0,
+    });
     expect(cleared.memory).toEqual({
       allocatedBytes: 0,
       releasedBytes: 0,

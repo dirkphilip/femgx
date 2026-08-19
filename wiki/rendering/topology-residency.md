@@ -45,8 +45,8 @@ renderer may transfer and retain content-addressed immutable chunks so variants
 share unchanged bytes, but chunks are private storage: they have no scene,
 selection, visibility, style, result, or picking identity.
 
-The existing `Viewport.reconcileScene(scene)` path applies these revisions
-incrementally after the next packed runtime is available. Stable placement
+`Viewport.updateScene(operation)` applies these revisions incrementally after
+the next packed runtime is available. Stable placement
 identities retain their part-local instance slots; a transform/style-only
 change patches that occurrence, a rebind patches only the source and
 destination part storage/orders, and a new variant uploads only when its part
@@ -113,12 +113,15 @@ paths. Admission changes only when authoritative state changes and must not scan
 the full scene each frame. Pipeline objects are owned and cached per renderer,
 not rebuilt per model or Performance Lab case.
 
-Dense exterior presentation uses the measured overlay path:
+Dense exterior presentation shares the visible color path:
 
-- Surfaces and weighted transparency retain 4× MSAA.
-- Active edge presentation resolves opaque depth once, then draws into the
-  resolved color target at 1×. Nodes join that pass when edges are active;
-  nodes-only presentation retains 4× MSAA.
+- Surfaces, presentation edges, and node annotations retain 4× MSAA. Edges and
+  nodes draw at the end of the opaque pass, or at the end of the composite pass
+  when weighted transparency is active, before that pass resolves to the
+  canvas.
+- Presentation overlays reuse the multisampled color and depth targets. They do
+  not add a single-sample overlay pass, a copied depth attachment, or an extra
+  color resolve.
 - Presentation edges use compact authored endpoints as one-device-pixel native
   lines. Exact edge picking keeps separate lazy screen-space-width quads.
 - Node display and node interaction data remain separable. Node presentation
@@ -132,13 +135,13 @@ Dense exterior presentation uses the measured overlay path:
   copy. This immutable geometry-derived topology may remain cached across
   interaction states.
 
-The final `instanced-2.10m` 800×600 DPR1 system-Chrome case, pinned to merged
-SHA `86f55e5`, measured 119.5 FPS for surface-only presentation, 119.6 FPS for
-native edges, 87.6 FPS for nodes, and 65.3 FPS for the combined edge/node view.
-The combined view's moving-camera p95 was 17.2 ms with 22 intervals over 16.7
-ms and none over 33.3 ms. CPU encoding remained 0.1 ms p50 and 0.2 ms p95.
-This is the accepted dense-overlay miss and remains an evidence target; the
-renderer must preserve authored topology and must not silently thin it.
+The `instanced-2.10m` 800×600 DPR1 system-Chrome case pinned to SHA `86f55e5`
+measured the former single-sample edge path: 119.5 FPS for surface-only
+presentation, 119.6 FPS for native edges, 87.6 FPS for nodes, and 65.3 FPS for
+the combined edge/node view. Those results remain historical optimization
+evidence, not the quality baseline for the current four-sample path. Future
+dense-overlay measurements must preserve authored topology and four-sample
+presentation rather than silently thinning or degrading it.
 
 ## Invariants
 

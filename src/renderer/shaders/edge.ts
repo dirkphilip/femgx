@@ -56,7 +56,7 @@ fn vertexMain(
     geometryPosition(vertexIndex * 3u + 2u),
   );
   var output: EdgeOutput;
-  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(linePosition, vertexIndex), 1.0);
+  output.position = camera.viewProjection * instance.transform * vec4<f32>(displaced(linePosition, vertexIndex, slot), 1.0);
   if (!topologyOwnersVisible(slot, topologyIndex)) {
     output.position = vec4<f32>(2.0, 2.0, 2.0, 1.0);
   }
@@ -83,7 +83,7 @@ fn vertexMain(
   output.color = edgeColor;
   output.emissive = edgeEmissive;
   output.local = vec2<f32>(0.0);
-  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex), 1.0)).xyz;
+  output.worldPosition = (instance.transform * vec4<f32>(displaced(position, vertexIndex, slot), 1.0)).xyz;
   return output;
 }
 `;

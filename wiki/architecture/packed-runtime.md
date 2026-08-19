@@ -42,10 +42,14 @@ used as path segments when present; otherwise the validated sibling index is
 the deterministic fallback. Stable placement paths are resolved through
 runtime-owned reverse maps; callers never need to know the slot layout.
 
-Node placement transforms are composed transiently while the scene draft is
-walked and are not retained in packed or public runtime state. Instance world
-transforms remain because rendering, bounds, picking, and result deformation
-consume the placed-part transform directly.
+Node world transforms are retained only in the private packed runtime so a
+changed assembly-occurrence transform can be composed through its affected
+subtree without walking unrelated occurrences. Instance world transforms remain
+because rendering, bounds, picking, and result deformation consume the
+placed-part transform directly. A private placed-bounds segment tree updates
+changed transform leaves and the renderer-owned origin-triad scale without a
+complete occurrence scan; neither node transforms nor bounds-tree storage leaks
+through `SceneRuntime`.
 
 ## Internal visibility deltas
 
@@ -83,10 +87,15 @@ back to slots.
   valid input but still skips missing assemblies defensively.
 - The packed typed arrays are private implementation state; public queries never
   return those views. `viewport.runtime` is the current live query facade, so hosts
-  should read it again after `replaceScene()` or `reconcileScene()`. Standalone
+  should read it again after `replaceScene()` or a committed `updateScene()`. Standalone
   `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
   inspection and does not own a renderer or visibility mutations.
 
-Visibility deltas are now wired to GPU subrange updates in the
+Visibility is the conjunction of part-definition, assembly-definition,
+assembly-occurrence, and part-occurrence causes. Viewports retain those policies
+by stable identity across a scene revision, including definitions with no current
+placements, while committed removals prune occurrence overrides. Runtime deltas
+carry affected part identities rather than one expanded slot list and are wired
+to compact draw-order updates in the
 [[rendering/renderer-subrange-updates|renderer]].
 [rendering/renderer-subrange-updates|renderer]: ../rendering/renderer-subrange-updates.md

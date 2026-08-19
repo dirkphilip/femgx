@@ -77,8 +77,9 @@ principal values, nodal/face/integration-point glyphs, tensors, smoothing,
 averaging, extrapolation, interpolation, streamlines, particles, playback,
 automatic sampling/decimation, glyph picking, glyph bounds, export, solver
 specific UI, a second scene graph, a result manager, a generalized styling
-system, applied forces/loads, occurrence-specific field overrides, or custom
-glyph plugins.
+system, derived loads, or custom glyph plugins. Authored loads and
+occurrence-specific authored rows reuse this renderer-owned glyph path without
+adding new glyph kinds.
 
 The implementation sequence was documented in #665 and was intentionally
 dependency ordered: #666 recorded this contract, #667 owns CPU records and

@@ -162,7 +162,7 @@ export class RendererAttachment {
     }
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
-      this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
+      this.applyChangedInstanceVisibility(runtime, layout, changedInstanceIds, bundle);
     } else if (edgeChanged.size > 0 || transparentChanged.size > 0) {
       this.rebuildCalls(bundle.draw.cost);
     }
@@ -233,15 +233,15 @@ export class RendererAttachment {
 
   public updateVisibility(
     runtime: PackedSceneRuntime,
-    changedInstanceIds: readonly number[],
+    affectedPartIds: readonly PartId[],
     bundle: GpuBundle,
   ): boolean {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    bundle.draw.cost.cpu("instance-scan", changedInstanceIds.length);
-    this.rebuildVisibleOrders(runtime, layout, changedInstanceIds, bundle);
-    return attached || changedInstanceIds.length > 0;
+    bundle.draw.cost.cpu("part-scan", affectedPartIds.length);
+    this.applyAttachmentOrders(runtime, layout, new Set(affectedPartIds), bundle);
+    return attached || affectedPartIds.length > 0;
   }
 
   public clear(bundle?: GpuBundle): void {
@@ -329,20 +329,13 @@ export class RendererAttachment {
     );
   }
 
-  private rebuildVisibleOrders(
+  private applyChangedInstanceVisibility(
     runtime: PackedSceneRuntime,
     layout: InstanceLayout,
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): void {
-    const affected = new Set<PartId>();
-    for (const slot of changedInstanceIds) {
-      if (slot < 0 || slot >= runtime.instanceCount) continue;
-      const partId = runtime.instancePartIds[slot];
-      if (partId !== undefined) affected.add(partId);
-    }
-    const rebuild = affected.size > 0 ? affected : new Set(layout.partOrder);
-    this.applyAttachmentOrders(runtime, layout, rebuild, bundle);
+    this.applyAttachmentOrders(runtime, layout, affectedParts(runtime, changedInstanceIds), bundle);
   }
 
   private styleFlags(): AttachmentFlagState {
@@ -378,4 +371,17 @@ export class RendererAttachment {
     }
     this.rebuildCalls(bundle.draw.cost);
   }
+}
+
+function affectedParts(
+  runtime: PackedSceneRuntime,
+  changedInstanceIds: readonly number[],
+): Set<PartId> {
+  const affected = new Set<PartId>();
+  for (const slot of changedInstanceIds) {
+    if (slot < 0 || slot >= runtime.instanceCount) continue;
+    const partId = runtime.instancePartIds[slot];
+    if (partId !== undefined) affected.add(partId);
+  }
+  return affected;
 }

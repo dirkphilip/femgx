@@ -101,18 +101,27 @@ export const instanceBindings = /* wgsl */ `
 export const resultColorFunctions = /* wgsl */ `
 @group(1) @binding(8) var<storage, read> resultColors: array<f32>;
 
-fn resultColorKey(nodePickId: u32, elementOrdinal: u32) -> u32 {
-  return select(nodePickId, elementOrdinal, resultColors[0] == 1.0);
+fn resultColorTable(slot: u32) -> u32 {
+  let slotCount = bitcast<u32>(resultColors[0]);
+  if (slot >= slotCount) { return 0u; }
+  return bitcast<u32>(resultColors[slot + 1u]);
 }
 
-fn resultColorActive(nodePickId: u32, elementOrdinal: u32) -> bool {
-  let key = resultColorKey(nodePickId, elementOrdinal);
-  return resultColors[0] >= 0.0 && key != 0u && key < u32(resultColors[1]);
+fn resultColorKey(table: u32, nodePickId: u32, elementOrdinal: u32) -> u32 {
+  return select(nodePickId, elementOrdinal, resultColors[table] == 1.0);
 }
 
-fn resultColorFor(nodePickId: u32, elementOrdinal: u32, fallback: vec4<f32>) -> vec4<f32> {
-  if (!resultColorActive(nodePickId, elementOrdinal)) { return fallback; }
-  let base = 4u + resultColorKey(nodePickId, elementOrdinal) * 4u;
+fn resultColorActive(slot: u32, nodePickId: u32, elementOrdinal: u32) -> bool {
+  let table = resultColorTable(slot);
+  if (table == 0u) { return false; }
+  let key = resultColorKey(table, nodePickId, elementOrdinal);
+  return key != 0u && key < u32(resultColors[table + 1u]);
+}
+
+fn resultColorFor(slot: u32, nodePickId: u32, elementOrdinal: u32, fallback: vec4<f32>) -> vec4<f32> {
+  if (!resultColorActive(slot, nodePickId, elementOrdinal)) { return fallback; }
+  let table = resultColorTable(slot);
+  let base = table + 4u + resultColorKey(table, nodePickId, elementOrdinal) * 4u;
   return vec4<f32>(
     resultColors[base],
     resultColors[base + 1u],
@@ -266,20 +275,17 @@ fn trianglePickPosition(
  * outside the buffer, or under a disabled deformation uniform stay in place.
  */
 export const displacementFn = /* wgsl */ `
-fn displaced(position: vec3<f32>, vertexIndex: u32) -> vec3<f32> {
-  let displacementCount = arrayLength(&displacements);
-  if (displacementCount == 0u) {
-    return position;
-  }
-  let nodeCount = displacementCount / 3u;
-  if (nodeCount == 0u) {
-    return position;
-  }
+fn displaced(position: vec3<f32>, vertexIndex: u32, slot: u32) -> vec3<f32> {
+  let slotCount = bitcast<u32>(displacements[0]);
+  if (slot >= slotCount) { return position; }
+  let table = bitcast<u32>(displacements[slot + 1u]);
+  if (table == 0u) { return position; }
+  let nodeCount = bitcast<u32>(displacements[table]);
   let nodePickId = vertexNodePickIds[vertexIndex];
   if (nodePickId == 0u || nodePickId > nodeCount) {
     return position;
   }
-  let base = (nodePickId - 1u) * 3u;
+  let base = table + 1u + (nodePickId - 1u) * 3u;
   let delta = vec3<f32>(displacements[base], displacements[base + 1u], displacements[base + 2u]);
   return position + delta * deformation.scale;
 }

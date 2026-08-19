@@ -56,7 +56,7 @@ describe("WebGPU renderer", () => {
     expect(gpu.drawCalls).toHaveLength(7);
 
     const hidden = runtime.setInstanceVisible(1, false);
-    renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    renderer.updateVisibility(runtime, hidden.affectedPartIds);
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(300, 300);
     expect(gpu.drawCalls).toHaveLength(9);

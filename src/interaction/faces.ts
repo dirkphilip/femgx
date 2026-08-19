@@ -50,7 +50,8 @@ export function setFaceHighlighted(
 /**
  * Resolves the style of one face occurrence. Face-level state is more specific
  * than part/instance state, so face highlight, hover, and selection win over
- * `resolveInstanceStyle`; selection beats hover, and hover beats highlight.
+ * `resolveInstanceStyle`; selection is applied after highlight and hover, while
+ * emphasis properties that it does not replace remain composed.
  * @category Interaction and picking
  */
 export function resolveFaceStyle(
@@ -66,9 +67,6 @@ export function resolveFaceStyle(
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
   return applyStyleLayers(style, [
-    data.selectedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
-      ? applySelectionStyle(style, data.theme.selected)
-      : undefined,
     data.highlightedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) ===
     true
       ? applySelectionStyle(style, data.theme.highlighted)
@@ -80,6 +78,9 @@ export function resolveFaceStyle(
       faceIndex: ref.faceIndex,
     })
       ? applySelectionStyle(style, data.theme.highlighted)
+      : undefined,
+    data.selectedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) === true
+      ? applySelectionStyle(style, data.theme.selected)
       : undefined,
   ]);
 }

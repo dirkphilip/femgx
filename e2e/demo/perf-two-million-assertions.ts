@@ -15,7 +15,11 @@ export function expectTwoMillionInteractions(entry: WebGpuBenchmarkCaseResult): 
     const full = entry.uniqueTriangles * 3;
     const indices = ranged * 2 < full ? ranged : full;
     for (const pass of ["selection-visible", "selection-hidden"] as const) {
-      expect(phase.interactionGpuCost.draws[pass]).toEqual({ calls: 1, indices, instances: 1 });
+      expect(phase.interactionGpuCost.draws[pass]).toEqual(
+        phase.id === "all-authored"
+          ? { calls: 0, indices: 0, instances: 0 }
+          : { calls: 1, indices, instances: 1 },
+      );
     }
   }
   expect(entry.visibility?.phases).toHaveLength(entry.instanceCount === 1 ? 1 : 3);
@@ -64,12 +68,16 @@ function expectCombinedOverlay(entry: WebGpuBenchmarkCaseResult): void {
   expect(overlay.largeSelection.interactionHighlightWriteBytes).toBeGreaterThan(0);
   expect(overlay.largeSelection.gpuCost.draws["nodes"]?.instances).toBe(entry.instanceCount);
   expect(overlay.largeSelection.gpuCost.draws["edges"]?.instances).toBe(entry.instanceCount);
-  const selectedIndices = entry.uniqueElementCount * (entry.elementFamily === "quad" ? 6 : 3);
+  expect(overlay.largeSelection.gpuCost.draws["opaque"]).toEqual({
+    calls: 1,
+    indices: entry.uniqueTriangles * 3,
+    instances: entry.instanceCount,
+  });
   for (const pass of ["selection-visible", "selection-hidden"] as const) {
     expect(overlay.largeSelection.gpuCost.draws[pass]).toEqual({
-      calls: 1,
-      indices: selectedIndices,
-      instances: 1,
+      calls: 0,
+      indices: 0,
+      instances: 0,
     });
   }
 }

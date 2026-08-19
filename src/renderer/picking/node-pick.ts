@@ -116,8 +116,8 @@ function createNodePickVertexMain(options: NodePickVertexMainOptions): string {
     geometryPosition(base3 + 4u),
     geometryPosition(base3 + 5u),
   );
-  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, base), 1.0);
-  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, base + 1u), 1.0);
+  let lineClipA = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineA, base, slot), 1.0);
+  let lineClipB = camera.viewProjection * instance.transform * vec4<f32>(displaced(lineB, base + 1u, slot), 1.0);
   output.position = lineExpandedPosition(
     lineClipA,
     lineClipB,
@@ -132,7 +132,8 @@ ${positionInput}  @builtin(instance_index) instanceIndex: u32,
   @builtin(vertex_index) vertexIndex: u32,
 ) -> NodeVertexOutput {
 ${positionPrelude}
-  let instance = instances[drawOrder[instanceIndex]];
+  let slot = drawOrder[instanceIndex];
+  let instance = instances[slot];
   let base = ${options.primitiveBase};
   let base3 = base * 3u;
   let faceBodyPickIds = primitiveFaceBodyPickIds(${options.primitiveIndex});
@@ -147,9 +148,9 @@ function trianglePickPositionCode(): string {
   let triangleSourceA = geometrySourceIndex(base);
   let triangleSourceB = geometrySourceIndex(base + 1u);
   let triangleSourceC = geometrySourceIndex(base + 2u);
-  let triangleA = displaced(geometryPositionVec(triangleSourceA), triangleSourceA);
-  let triangleB = displaced(geometryPositionVec(triangleSourceB), triangleSourceB);
-  let triangleC = displaced(geometryPositionVec(triangleSourceC), triangleSourceC);
+  let triangleA = displaced(geometryPositionVec(triangleSourceA), triangleSourceA, slot);
+  let triangleB = displaced(geometryPositionVec(triangleSourceB), triangleSourceB, slot);
+  let triangleC = displaced(geometryPositionVec(triangleSourceC), triangleSourceC, slot);
   let triangleCenterClip = camera.viewProjection * instance.transform * vec4<f32>((triangleA + triangleB + triangleC) / 3.0, 1.0);
   output.position = trianglePickPosition(
     camera.viewProjection * instance.transform * vec4<f32>(triangleA, 1.0),
@@ -169,18 +170,18 @@ function createNodePickVertexOutput(
     geometryPosition(base3),
     geometryPosition(base3 + 1u),
     geometryPosition(base3 + 2u),
-  ), base)`
-    : "displaced(geometryPositionVec(geometrySourceIndex(base)), geometrySourceIndex(base))";
+  ), base, slot)`
+    : "displaced(geometryPositionVec(geometrySourceIndex(base)), geometrySourceIndex(base), slot)";
   const cornerB = options.line
     ? `displaced(vec3<f32>(
     geometryPosition(base3 + 3u),
     geometryPosition(base3 + 4u),
     geometryPosition(base3 + 5u),
-  ), base + 1u)`
-    : "displaced(geometryPositionVec(geometrySourceIndex(base + 1u)), geometrySourceIndex(base + 1u))";
+  ), base + 1u, slot)`
+    : "displaced(geometryPositionVec(geometrySourceIndex(base + 1u)), geometrySourceIndex(base + 1u), slot)";
   const localPosition = options.line
-    ? "displaced(position, vertexIndex)"
-    : "displaced(position, geometrySourceIndex(vertexIndex))";
+    ? "displaced(position, vertexIndex, slot)"
+    : "displaced(position, geometrySourceIndex(vertexIndex), slot)";
   const nodeA = options.line
     ? "vertexNodePickIds[base]"
     : "vertexNodePickIds[geometrySourceIndex(base)]";
@@ -188,8 +189,8 @@ function createNodePickVertexOutput(
     ? "vertexNodePickIds[base + 1u]"
     : "vertexNodePickIds[geometrySourceIndex(base + 1u)]";
   const worldPosition = options.line
-    ? "displaced(position, vertexIndex)"
-    : "displaced(position, geometrySourceIndex(vertexIndex))";
+    ? "displaced(position, vertexIndex, slot)"
+    : "displaced(position, geometrySourceIndex(vertexIndex), slot)";
   return /* wgsl */ `
   var output: NodeVertexOutput;
 ${linePosition}
@@ -206,6 +207,7 @@ ${linePosition}
   output.cornerB = ${cornerB};
   output.cornerC = displaced(
     ${options.cornerC},
+    slot,
   );
   output.nodePickIds = vec3<u32>(
     ${nodeA},
@@ -272,8 +274,9 @@ fn pointVertexMain(
   @builtin(instance_index) instanceIndex: u32,
   @builtin(vertex_index) vertexIndex: u32,
 ) -> NodeVertexOutput {
-  let instance = instances[drawOrder[instanceIndex]];
-  let center = displaced(position, vertexIndex);
+  let slot = drawOrder[instanceIndex];
+  let instance = instances[slot];
+  let center = displaced(position, vertexIndex, slot);
   let clip = camera.viewProjection * instance.transform * vec4<f32>(center, 1.0);
   let corner = spriteCorner(vertexIndex % 4u);
   let diameter = max(camera.pointSize, 8.0 * camera.devicePixelRatio);

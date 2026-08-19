@@ -142,7 +142,7 @@ while renderer-owned edge helpers retain their separate line-list path.
   are named `getVisiblePartOccurrenceIds()` and use deterministic runtime order.
 - `Viewport` is the public owner of the current live `SceneRuntime` facade
   and the internal WebGPU renderer; hosts should reacquire `viewport.runtime`
-  after `replaceScene` or `reconcileScene` and never manually synchronize packed
+  after `replaceScene` or a committed `updateScene` and never manually synchronize packed
   runtime state.
 
 For host-supplied data, `createElementModelFromFemModel` is the validated
@@ -158,22 +158,26 @@ results path through `createResultFieldFromModelResult` before
 
 ### Lifecycle and scene
 
-| Method                                  | Purpose                                                                                                                                                                                      |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `reconcileScene(scene)`                 | Apply a structural scene update atomically, preserve the camera and surviving placement state, prune invalid nested references, and report whether active results were preserved or cleared. |
-| `replaceScene(scene)`                   | Replace the authoritative scene and rebuild the derived runtime, clearing active results.                                                                                                    |
-| `view.setCamera(camera)` / `view.fit()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle.                                                                                |
-| `resize()`                              | Match WebGPU render size to the canvas and device pixel ratio.                                                                                                                               |
-| `invalidate()` / `render()`             | Schedule or perform a render of the current state.                                                                                                                                           |
-| `batch(operation)`                      | Coalesce synchronous mutations into one invalidation and render.                                                                                                                             |
-| `recover()`                             | Recreate supported WebGPU resources after device loss.                                                                                                                                       |
-| `destroy()`                             | Release renderer, resize, and camera-control resources.                                                                                                                                      |
+| Method                                  | Purpose                                                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `updateScene(operation)`                | Build and apply one atomic structural revision, preserve the camera and surviving placement state, prune invalid nested references, and report whether active results were preserved or cleared. |
+| `replaceScene(scene)`                   | Replace the authoritative scene and rebuild the derived runtime, clearing active results.                                                                                                        |
+| `view.setCamera(camera)` / `view.fit()` | Set or fit the immutable camera value; `fitContentInset` can keep host overlays outside the fitted rectangle.                                                                                    |
+| `resize()`                              | Match WebGPU render size to the canvas and device pixel ratio.                                                                                                                                   |
+| `invalidate()` / `render()`             | Schedule or perform a render of the current state.                                                                                                                                               |
+| `batch(operation)`                      | Coalesce synchronous mutations into one invalidation and render.                                                                                                                                 |
+| `recover()`                             | Recreate supported WebGPU resources after device loss.                                                                                                                                           |
+| `destroy()`                             | Release renderer, resize, and camera-control resources.                                                                                                                                          |
 
 ### Visibility and interaction
 
-`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`, and
-`setPartOccurrence` update the viewport-owned derived runtime using stable part,
-assembly, and placement handles, then synchronize only affected instance records.
+`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`,
+`setPartOccurrence`, and `setPartOccurrences` update four independent
+viewport-owned visibility causes using stable part, assembly, and placement
+handles. The bulk occurrence method validates its complete iterable before one
+atomic update. Renderer synchronization receives affected part identities, so a
+definition-wide change does not allocate an expanded slot delta or rewrite
+instance records.
 Style,
 selection, highlight, and hover changes are expressed as a new opaque
 `InteractionState` and installed with `interaction.set`. Use target-level
@@ -186,13 +190,16 @@ host-owned value passed to `viewport.interaction.set`. The viewport derives dens
 per-part scalar tables for the renderer, independently of interaction state;
 hosts never receive or need to round-trip generated element overrides.
 
-`reconcileScene` is the live-edit boundary for a scene whose part definitions or
-placements changed. Stable placement ids retain visibility and surviving
-placement-scoped interaction state; body, element, face, and node references
-that no longer exist are removed. The active authored result
-configuration is revalidated against the replacement scene and the returned
-`SceneReconciliationOutcome` reports whether it remained usable. `replaceScene` remains the
-explicit full-replacement path and clears results.
+`updateScene` is the live-edit boundary for part and assembly definitions and
+their direct authoring placements. Its synchronous callback receives a
+transaction-local `SceneUpdate` editor. The editor uses copy-on-write registries,
+requires explicit placement ids for occurrence edits, validates the complete
+candidate once, and publishes one immutable scene revision. A thrown, nested,
+async, or semantically empty operation publishes nothing. Stable placement ids
+retain visibility and surviving placement-scoped interaction state; invalid
+body, element, face, and node references are removed. Active authored results
+are revalidated and `SceneUpdateOutcome` reports whether they remain usable.
+`replaceScene` remains the explicit unrelated-model path and clears results.
 
 Interaction state is immutable and opaque. It stores at most one hovered target;
 setting a new hover replaces the previous target. Part and instance state establish

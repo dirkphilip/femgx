@@ -281,8 +281,8 @@ function main() {
       "    id: 1,",
       '    name: "root",',
       "    placements: [",
-      '      { kind: "part", partId: part.id, transform: identity() },',
-      '      { kind: "part", partId: part.id, transform: translation(2, 0, 0) },',
+      '      { kind: "part", placementId: "first", partId: part.id, transform: identity() },',
+      '      { kind: "part", placementId: "second", partId: part.id, transform: translation(2, 0, 0) },',
       "    ],",
       "  })",
       "  .withRoot(1)",
@@ -311,6 +311,15 @@ function main() {
       "  const frustum = boxSelectionFrustum(viewport.view.camera, { left: 0, top: 0, right: viewport.view.camera.width, bottom: viewport.view.camera.height, width: viewport.view.camera.width, height: viewport.view.camera.height });",
       "  frustum.far.distance;",
       "  viewport.visibility.setPart(part.id, true);",
+      "  viewport.updateScene((update) => {",
+      "    update.addPart(typedPart);",
+      "    update.addPartOccurrence({ assemblyId: 1, placementId: 'added', partId: typedPart.id, transform: identity() });",
+      "    update.setPartOccurrenceTransform({ assemblyId: 1, placementId: 'first', transform: translation(1, 0, 0) });",
+      "  });",
+      "  viewport.updateScene((update) => {",
+      "    update.removePartOccurrence({ assemblyId: 1, placementId: 'added' });",
+      "    update.removePart(typedPart.id);",
+      "  });",
       "  const runtime = viewport.runtime;",
       "  runtime.getPartOccurrenceIds();",
       "  runtime.getOccurrences();",
@@ -326,6 +335,7 @@ function main() {
       "  viewport.invalidate();",
       "  viewport.stats();",
       "  await viewport.recover();",
+      "  viewport.replaceScene(mixedScene);",
       "  viewport.destroy();",
       "}",
       "void UnknownSceneIdentityError;",
@@ -345,6 +355,13 @@ function main() {
       "if (ioField.values[0] !== 1) throw new Error();",
     ].join("\n");
     writeFileSync(join(consumer, "smoke.ts"), smokeTs);
+    const hostExampleFiles = ["host-model.ts", "main.ts"];
+    for (const file of hostExampleFiles) {
+      writeFileSync(
+        join(consumer, file),
+        readFileSync(join(repoRoot, "examples", "host-integration", file), "utf8"),
+      );
+    }
     const tsconfigBundler = {
       compilerOptions: {
         target: "es2022",
@@ -355,7 +372,7 @@ function main() {
         skipLibCheck: false,
         noEmit: true,
       },
-      files: ["smoke.ts"],
+      files: ["smoke.ts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.bundler.json"),
@@ -367,7 +384,7 @@ function main() {
         ...tsconfigBundler.compilerOptions,
         types: ["@webgpu/types"],
       },
-      files: ["smoke.ts"],
+      files: ["smoke.ts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.typescript5.json"),
@@ -385,7 +402,7 @@ function main() {
         skipLibCheck: false,
         noEmit: true,
       },
-      files: ["smoke.mts"],
+      files: ["smoke.mts", ...hostExampleFiles],
     };
     writeFileSync(
       join(consumer, "tsconfig.nodenext.json"),

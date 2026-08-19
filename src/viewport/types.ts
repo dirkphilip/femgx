@@ -8,6 +8,7 @@ import type { PartId } from "../geometry/part";
 import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { Scene } from "../scene/scene";
+import type { SceneUpdate } from "../scene/update";
 import type { SceneRuntime } from "../scene-runtime/public-runtime";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
@@ -29,14 +30,14 @@ export type { SectionPlane } from "../math/section-plane";
 /**
  * Outcome of reapplying the active authored results to an updated scene.
  *
- * `reconcileScene` preserves a result snapshot only when its fields still cover
+ * `updateScene` preserves a result snapshot only when its fields still cover
  * the candidate scene. A cleared result is reported instead of leaving a
  * partially applied scalar, deformation, orientation, or loads state installed.
  * @category Viewport lifecycle
  */
-export type SceneReconciliationOutcome =
+export type SceneUpdateOutcome =
   | {
-      /** No authored result snapshot was active during reconciliation. */
+      /** No authored result snapshot was active during the update. */
       readonly results: "none";
     }
   | {
@@ -169,7 +170,8 @@ export interface ViewportInteraction {
 /** Visibility mutations against the active scene and expanded runtime. */
 export interface ViewportVisibility {
   /**
-   * Changes live visibility for every occurrence of one part definition.
+   * Applies a viewport-local convenience policy to every current and future
+   * occurrence of one reusable part without mutating the part or scene.
    * @throws {UnknownSceneIdentityError} when `partId` is not registered.
    */
   setPart(partId: PartId, visible: boolean): void;
@@ -188,6 +190,11 @@ export interface ViewportVisibility {
    * @throws {UnknownSceneIdentityError} when `partOccurrenceId` is absent.
    */
   setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void;
+  /**
+   * Changes live visibility for many placed-part occurrences in one atomic update.
+   * @throws {UnknownSceneIdentityError} when any supplied id is absent.
+   */
+  setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void;
 }
 
 /** Authored result state and atomic result replacement operations. */
@@ -237,7 +244,7 @@ export interface Viewport {
   readonly scene: Scene;
   /**
    * The current live query facade. Read it again after `replaceScene` or
-   * `reconcileScene`; structural replacement installs a new runtime snapshot.
+   * `updateScene`; structural replacement installs a new runtime snapshot.
    * The facade exposes stable handles and defensive query objects, not packed
    * slots or renderer draw order.
    */
@@ -253,14 +260,15 @@ export interface Viewport {
   /** Stable renderer presentation capability view. */
   readonly presentation: ViewportPresentation;
   /**
-   * Applies a structural scene update while preserving the camera and valid
-   * placement-scoped state; invalid interaction references are pruned.
+   * Builds and applies one atomic structural scene update while preserving the
+   * camera and valid placement-scoped state; invalid references are pruned.
    *
-   * The candidate is compiled before it is committed. Unlike {@link replaceScene},
-   * this revalidates the active results configuration and reports whether it
-   * was preserved or cleared. Re-read {@link runtime} after this call.
+   * The callback must be synchronous and its editor must not escape. The
+   * viewport publishes one immutable scene snapshot after the complete
+   * candidate validates. A semantic no-op retains the existing scene and
+   * runtime. Re-read {@link runtime} after a committed update.
    */
-  reconcileScene(scene: Scene): SceneReconciliationOutcome;
+  updateScene(operation: (update: SceneUpdate) => void): SceneUpdateOutcome;
   /** Replaces the scene and resets placement-scoped state; re-read {@link runtime}. */
   replaceScene(scene: Scene): void;
   /**

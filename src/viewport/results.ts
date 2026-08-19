@@ -1,9 +1,9 @@
 import { nodalDisplacements, type DeformationState } from "../results/deform";
-import type { ElementalOrientationRecords } from "../results/orientation-records";
 import { createScalarColorMap, type ScalarColorMap } from "../results/mapping";
 import { scalarRange, type ValueRange } from "../results/range";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
+import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   renderedPartIds,
@@ -17,7 +17,9 @@ import {
   resolveViewportResultColors,
   sameFieldSource,
   validateResultCoverage,
+  type OccurrenceScalarBinding,
 } from "./result-colors";
+import { mergeResultRecords } from "./result-records";
 import type {
   ViewportDeformationConfig,
   ViewportResultField,
@@ -25,6 +27,7 @@ import type {
   ViewportResultsState,
   ViewportScalarConfig,
   ViewportScalarState,
+  ViewportOccurrenceResultsConfig,
 } from "./results-types";
 
 export type {
@@ -32,6 +35,9 @@ export type {
   ViewportElementFrameConfig,
   ViewportElementVectorConfig,
   ViewportOrientationState,
+  ViewportOccurrenceElementVectorConfig,
+  ViewportOccurrenceResultsConfig,
+  ViewportOccurrenceScalarConfig,
   ViewportLoadConfig,
   ViewportResultField,
   ViewportResultsConfig,
@@ -41,6 +47,8 @@ export type {
 } from "./results-types";
 
 const orientationRecords = new WeakMap<ViewportResultsState, OrientationRecordMap | undefined>();
+const orientationWidths = new WeakMap<ViewportResultsState, number>();
+const sharedDeformations = new WeakMap<ViewportResultsState, DeformationState | undefined>();
 
 export { viewportResultColors } from "./result-colors";
 
@@ -49,6 +57,11 @@ export function viewportOrientationRecords(
   state: ViewportResultsState,
 ): OrientationRecordMap | undefined {
   return orientationRecords.get(state);
+}
+
+/** Returns the widest active authored glyph role for the renderer handoff. */
+export function viewportOrientationWidth(state: ViewportResultsState): number {
+  return orientationWidths.get(state) ?? 1;
 }
 
 /** Resolves a viewport result configuration against one scene/runtime pair. */
@@ -60,7 +73,11 @@ export function resolveViewportResults(
 ): ViewportResultsState {
   validateResultsConfig(config);
   const scalar = resolveScalar(config.scalar, scene, runtime, previous);
-  const deformation = resolveDeformation(config.deformation, scene, runtime, previous);
+  const occurrenceTargets = resolveOccurrenceTargets(config.occurrences ?? [], runtime);
+  const occurrenceScalars = resolveOccurrenceScalars(occurrenceTargets, scene, runtime);
+  const sharedDeformation = resolveDeformation(config.deformation, scene, runtime, previous);
+  const occurrenceDeformations = resolveOccurrenceDeformations(occurrenceTargets, scene, runtime);
+  const deformation = mergeOccurrenceDeformations(sharedDeformation, occurrenceDeformations);
   const resolvedOrientation = resolveOrientation(config.orientation, scene, runtime, deformation);
   const resolvedLoads = resolveLoads(config.loads, scene, runtime, deformation);
   const orientation = resolvedOrientation?.state;
@@ -71,79 +88,166 @@ export function resolveViewportResults(
     orientation,
     loads: resolvedLoads?.config,
   };
-  resolveViewportResultColors(state, scalar, scene, runtime, previous);
-  orientationRecords.set(state, mergeRecords(resolvedOrientation?.records, resolvedLoads?.records));
+  sharedDeformations.set(state, sharedDeformation);
+  resolveViewportResultColors(state, scalar, scene, runtime, {
+    previous,
+    occurrences: occurrenceScalars,
+  });
+  const sharedRecords = mergeResultRecords(resolvedOrientation?.records, resolvedLoads?.records);
+  const occurrenceRecords = resolveOccurrenceRecords(
+    occurrenceTargets,
+    config,
+    scene,
+    runtime,
+    deformation,
+  );
+  orientationRecords.set(state, mergeResultRecords(sharedRecords, occurrenceRecords.records));
+  orientationWidths.set(
+    state,
+    Math.max(
+      orientation?.widthPixels ?? 1,
+      resolvedLoads?.config.widthPixels ?? 1,
+      occurrenceRecords.widthPixels,
+    ),
+  );
   return state;
 }
 
-function mergeRecords(
-  orientation: OrientationRecordMap | undefined,
-  loads: OrientationRecordMap | undefined,
-): OrientationRecordMap | undefined {
-  if (orientation === undefined && loads === undefined) return undefined;
-  const merged = new Map(orientation);
-  for (const [partId, loadRecords] of loads ?? []) {
-    const vectorRecords = merged.get(partId);
-    merged.set(
-      partId,
-      vectorRecords === undefined ? loadRecords : appendRecords(vectorRecords, loadRecords),
+interface OccurrenceTarget {
+  readonly config: ViewportOccurrenceResultsConfig;
+  readonly partOccurrenceId: PartOccurrenceId;
+  readonly partId: PartId;
+}
+
+interface OccurrenceDeformation {
+  readonly target: OccurrenceTarget;
+  readonly state: DeformationState;
+}
+
+function resolveOccurrenceTargets(
+  configs: readonly ViewportOccurrenceResultsConfig[],
+  runtime: PackedSceneRuntime,
+): readonly OccurrenceTarget[] {
+  return configs.map((config) => {
+    const slot = runtime.getInstanceSlot(config.partOccurrenceId);
+    const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+    if (slot === undefined || partId === undefined) {
+      throw new Error(
+        `Viewport result occurrence ${config.partOccurrenceId} is not rendered by the current runtime`,
+      );
+    }
+    validateOccurrencePartOwnership(config, partId);
+    return { config, partOccurrenceId: config.partOccurrenceId, partId };
+  });
+}
+
+function validateOccurrencePartOwnership(
+  config: ViewportOccurrenceResultsConfig,
+  partId: PartId,
+): void {
+  if (config.orientation?.glyph === "triad" && config.orientation.field.partId !== partId) {
+    throw new Error(
+      `Viewport occurrence ${config.partOccurrenceId} uses frame data for part ${config.orientation.field.partId}, expected part ${partId}`,
     );
   }
-  return merged;
+  if (config.loads !== undefined && config.loads.field.partId !== partId) {
+    throw new Error(
+      `Viewport occurrence ${config.partOccurrenceId} uses load data for part ${config.loads.field.partId}, expected part ${partId}`,
+    );
+  }
 }
 
-function appendRecords(
-  first: ElementalOrientationRecords,
-  second: ElementalOrientationRecords,
-): ElementalOrientationRecords {
-  const count = first.elementIds.length + second.elementIds.length;
-  const records = {
-    elementIds: new Uint32Array(count),
-    bodyIds: new Uint32Array(count),
-    anchors: new Float32Array(count * 3),
-    referenceLengths: new Float32Array(count),
-    directions: new Float32Array(count * 3),
-    glyphModes: new Uint32Array(count),
-    transformModes: new Uint32Array(count),
-    lengthScales: new Float32Array(count),
-    axisIndices: new Uint32Array(count),
-    anchorDeltas:
-      first.anchorDeltas === undefined && second.anchorDeltas === undefined
-        ? undefined
-        : new Float32Array(count * 3),
-  };
-  copyRecords(records, first, 0);
-  copyRecords(records, second, first.elementIds.length);
-  return records;
+function resolveOccurrenceScalars(
+  targets: readonly OccurrenceTarget[],
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+): readonly OccurrenceScalarBinding[] {
+  return targets.flatMap((target) => {
+    const config = target.config.scalar;
+    if (config === undefined) return [];
+    const scalar = resolveScalar({ ...config, partId: target.partId }, scene, runtime, undefined);
+    return scalar === undefined ? [] : [{ ...target, scalar }];
+  });
 }
 
-function copyRecords(
-  target: ElementalOrientationRecords,
-  source: ElementalOrientationRecords,
-  offset: number,
-): void {
-  target.elementIds.set(source.elementIds, offset);
-  target.bodyIds.set(source.bodyIds, offset);
-  target.anchors.set(source.anchors, offset * 3);
-  target.referenceLengths.set(source.referenceLengths, offset);
-  target.directions.set(source.directions, offset * 3);
-  target.glyphModes?.set(
-    source.glyphModes ?? new Uint32Array(source.elementIds.length).fill(0),
-    offset,
-  );
-  target.transformModes?.set(
-    source.transformModes ?? new Uint32Array(source.elementIds.length),
-    offset,
-  );
-  target.lengthScales?.set(
-    source.lengthScales ?? new Float32Array(source.elementIds.length).fill(1),
-    offset,
-  );
-  target.axisIndices?.set(source.axisIndices ?? new Uint32Array(source.elementIds.length), offset);
-  target.anchorDeltas?.set(
-    source.anchorDeltas ?? new Float32Array(source.elementIds.length * 3),
-    offset * 3,
-  );
+function resolveOccurrenceDeformations(
+  targets: readonly OccurrenceTarget[],
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+): readonly OccurrenceDeformation[] {
+  return targets.flatMap((target) => {
+    const config = target.config.deformation;
+    if (config === undefined) return [];
+    const state = resolveDeformation(config, scene, runtime, undefined, target.partId);
+    return state === undefined ? [] : [{ target, state }];
+  });
+}
+
+function mergeOccurrenceDeformations(
+  shared: DeformationState | undefined,
+  occurrences: readonly OccurrenceDeformation[],
+): DeformationState | undefined {
+  if (occurrences.length === 0) return shared;
+  const displacements = new Map(shared?.displacements);
+  for (const [partId, values] of shared?.displacements ?? []) {
+    displacements.set(partId, scaledValues(values, shared?.scale ?? 1));
+  }
+  for (const occurrence of occurrences) {
+    const values = occurrence.state.displacements.get(occurrence.target.partId);
+    if (values !== undefined) {
+      displacements.set(
+        occurrence.target.partOccurrenceId,
+        scaledValues(values, occurrence.state.scale),
+      );
+    }
+  }
+  return { scale: 1, displacements };
+}
+
+function resolveOccurrenceRecords(
+  targets: readonly OccurrenceTarget[],
+  config: ViewportResultsConfig,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  deformation: DeformationState | undefined,
+): { readonly records: OrientationRecordMap | undefined; readonly widthPixels: number } {
+  let records: OrientationRecordMap | undefined;
+  let widthPixels = 1;
+  for (const target of targets) {
+    const requiresOccurrenceRecords =
+      target.config.orientation !== undefined ||
+      target.config.loads !== undefined ||
+      (target.config.deformation !== undefined &&
+        (config.orientation !== undefined || config.loads !== undefined));
+    if (!requiresOccurrenceRecords) continue;
+    const binding = { partId: target.partId, bindingId: target.partOccurrenceId };
+    const orientation = resolveOrientation(
+      target.config.orientation ?? config.orientation,
+      scene,
+      runtime,
+      deformation,
+      binding,
+    );
+    const loads = resolveLoads(
+      target.config.loads ?? config.loads,
+      scene,
+      runtime,
+      deformation,
+      binding,
+    );
+    records = mergeResultRecords(records, mergeResultRecords(orientation?.records, loads?.records));
+    widthPixels = Math.max(
+      widthPixels,
+      orientation?.state.widthPixels ?? 1,
+      loads?.config.widthPixels ?? 1,
+    );
+  }
+  return { records, widthPixels };
+}
+
+function scaledValues(values: Float32Array, scale: number): Float32Array {
+  if (scale === 1) return values;
+  return Float32Array.from(values, (value) => value * scale);
 }
 
 function resolveScalar(
@@ -220,16 +324,17 @@ function resolveDeformation(
   scene: Scene,
   runtime: PackedSceneRuntime,
   previous: ViewportResultsState | undefined,
+  targetPartId?: PartId,
 ): DeformationState | undefined {
   if (config === undefined) return undefined;
   const scale = config.scale ?? 1;
   if (!Number.isFinite(scale)) {
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
-  const reusable = reusableDeformation(previous, config);
+  const reusable = targetPartId === undefined ? reusableDeformation(previous, config) : undefined;
   if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
-  for (const partId of renderedPartIds(runtime)) {
+  for (const partId of targetPartId === undefined ? renderedPartIds(runtime) : [targetPartId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     const nodePickIds = mergedNodePickIds(part);
@@ -259,7 +364,7 @@ function reusableDeformation(
   config: ViewportDeformationConfig,
 ): ReadonlyMap<PartId, Float32Array> | undefined {
   const previousConfig = previous?.config.deformation;
-  const previousState = previous?.deformation;
+  const previousState = previous === undefined ? undefined : sharedDeformations.get(previous);
   if (
     previousConfig === undefined ||
     previousState === undefined ||
@@ -268,5 +373,9 @@ function reusableDeformation(
   ) {
     return undefined;
   }
-  return previousState.displacements;
+  return new Map(
+    [...previousState.displacements].filter(
+      (entry): entry is [PartId, Float32Array] => typeof entry[0] === "number",
+    ),
+  );
 }

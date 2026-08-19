@@ -44,7 +44,7 @@ describe("WebGPU renderer deformation", () => {
     expect(floats[0]).toBe(2);
     expect(ids[1]).toBe(0);
     expect(ids[2]).toBe(0);
-    const storage = gpu.buffers.find((buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0);
+    const storage = gpu.buffers.find((buffer) => buffer.size === 56 && (buffer.usage & 16) !== 0);
     expect(storage).toBeDefined();
     expect(gpu.writes.some((entry) => entry.buffer === storage?.resource)).toBe(true);
     renderer.destroy();
@@ -63,7 +63,7 @@ describe("WebGPU renderer deformation", () => {
     });
     renderer.render(runtime, camera, scene.parts);
     const deformationBuffer = gpu.buffers.find(
-      (buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0,
+      (buffer) => buffer.size === 56 && (buffer.usage & 16) !== 0,
     );
     expect(deformationBuffer).toBeDefined();
 
@@ -94,7 +94,7 @@ describe("WebGPU renderer deformation", () => {
     };
     renderer.setDeformation(deformation);
     renderer.render(runtime, camera, scene.parts);
-    const storage = gpu.buffers.find((buffer) => buffer.size === 36 && (buffer.usage & 16) !== 0);
+    const storage = gpu.buffers.find((buffer) => buffer.size === 56 && (buffer.usage & 16) !== 0);
     const uploads = () => gpu.writes.filter((write) => write.buffer === storage?.resource).length;
     expect(uploads()).toBe(1);
     renderer.render(runtime, camera, scene.parts);

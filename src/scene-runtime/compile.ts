@@ -16,12 +16,14 @@ export interface RuntimeState {
   readonly nodeNodeIds: readonly AssemblyOccurrenceId[];
   readonly instanceCount: number;
   readonly nodeAssemblyIds: Uint32Array;
+  readonly nodeWorldTransforms: Float32Array;
   readonly nodeParents: Int32Array;
   readonly nodeFirstChild: Int32Array;
   readonly nodeNextSibling: Int32Array;
   readonly nodeInstanceStart: Uint32Array;
   readonly nodeInstanceEnd: Uint32Array;
-  readonly nodeVisible: Uint8Array;
+  readonly nodeAssemblyVisible: Uint8Array;
+  readonly nodeOverrideVisible: Uint8Array;
   readonly nodeEffectiveVisible: Uint8Array;
   readonly instancePartIds: Uint32Array;
   readonly instanceOwningNode: Uint32Array;
@@ -45,12 +47,14 @@ type PackedNodes = Pick<
   | "nodeCount"
   | "nodeNodeIds"
   | "nodeAssemblyIds"
+  | "nodeWorldTransforms"
   | "nodeParents"
   | "nodeFirstChild"
   | "nodeNextSibling"
   | "nodeInstanceStart"
   | "nodeInstanceEnd"
-  | "nodeVisible"
+  | "nodeAssemblyVisible"
+  | "nodeOverrideVisible"
   | "nodeEffectiveVisible"
 >;
 type PackedInstances = Pick<
@@ -69,35 +73,39 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const count = nodes.length;
   const nodeNodeIds: AssemblyOccurrenceId[] = [];
   const nodeAssemblyIds = new Uint32Array(count);
+  const nodeWorldTransforms = new Float32Array(count * 16);
   const nodeParents = new Int32Array(count);
   const nodeFirstChild = new Int32Array(count);
   const nodeNextSibling = new Int32Array(count);
   const nodeInstanceStart = new Uint32Array(count);
   const nodeInstanceEnd = new Uint32Array(count);
-  const nodeVisible = new Uint8Array(count);
+  const nodeAssemblyVisible = new Uint8Array(count);
   const nodeEffectiveVisible = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
     const node = invariantValue(nodes[i], `node draft at ${i}`);
     nodeAssemblyIds[i] = node.assemblyId;
+    nodeWorldTransforms.set(node.world, i * 16);
     nodeNodeIds.push(node.nodeId);
     nodeParents[i] = node.parent;
     nodeFirstChild[i] = node.firstChild;
     nodeNextSibling[i] = node.nextSibling;
     nodeInstanceStart[i] = node.instanceStart;
     nodeInstanceEnd[i] = node.instanceEnd;
-    nodeVisible[i] = node.visible;
+    nodeAssemblyVisible[i] = node.visible;
     nodeEffectiveVisible[i] = node.effective;
   }
   return {
     nodeCount: count,
     nodeNodeIds,
     nodeAssemblyIds,
+    nodeWorldTransforms,
     nodeParents,
     nodeFirstChild,
     nodeNextSibling,
     nodeInstanceStart,
     nodeInstanceEnd,
-    nodeVisible,
+    nodeAssemblyVisible,
+    nodeOverrideVisible: new Uint8Array(count).fill(1),
     nodeEffectiveVisible,
   };
 }

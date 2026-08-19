@@ -31,7 +31,8 @@ element orientation uses the separate `createElementFrameField` constructor:
   X/Y/Z axis order. `frameAt` reads one row. A row containing any non-finite
   component is missing and emits no triad; finite rows must have three
   non-zero axes. Frames are authored data, not derived normals or engineering
-  quantities, and are shared by every occurrence of the part.
+  quantities. They are shared by default and may be replaced for one stable
+  part occurrence in an atomic viewport result snapshot.
 
 Host-supplied `FemModel` results enter this same authored-field path through
 `createResultFieldFromModelResult`. It maps model node identities to dense
@@ -59,7 +60,7 @@ Mapped colors are plain `Color` values. Elemental and nodal results resolve into
 one dense renderer-owned color table per reusable part: elemental values use
 private element ordinals, while nodal values use exact one-based node pick ids
 and the existing tessellation interpolates them on the GPU. Both paths preserve
-host interaction state and share the table across placements. A scalar config
+host interaction state and share the table across placements by default. A scalar config
 may name one reusable `partId` when the dense field is part-local; omitting it
 retains the scene-wide stable-id mapping contract.
 
@@ -88,9 +89,13 @@ scalar colors, deformation, and glyphs and leaves the
 authoritative scene geometry untouched. `Viewport.interaction` always returns the exact
 host-supplied value. Result colors are dense renderer-owned tables keyed by
 node pick id or private element ordinal; they never appear in interaction state
-or in `ViewportResultsState`. One table belongs to each reusable part and is
-shared by all placements. Replacing results reuses the same scene/runtime and
-updates only renderer-owned color, deformation, and glyph state.
+or in `ViewportResultsState`. One table belongs to each reusable part by
+default. `occurrences` may bind a replacement scalar, deformation, orientation,
+or load role to a stable `PartOccurrenceId`. The renderer packs shared rows
+once, adds only override rows, and indexes them with private dense part-local
+slots; it does not copy geometry or expose GPU addressing. Replacing results
+reuses the same scene/runtime and updates only renderer-owned color,
+deformation, and glyph state.
 
 An independent `loads` role accepts a part-owned `NodalLoadField` with force
 `Fx/Fy/Fz` and moment `Mx/My/Mz` triplets. Its `forceUnit` and `momentUnit`
@@ -100,8 +105,8 @@ An `ElementFrameField` may instead be supplied with `glyph: "triad"`; each
 complete dense row renders one positive RGB X/Y/Z line set through the same
 anchor, transform, deformation, visibility, section, depth-visible/weighted
 ghost, instancing, and recovery path. Triads are renderer-owned presentation
-and never pickable. Forces/loads and occurrence-specific result overrides stay
-deferred; copying a part is the current workaround for distinct authored rows.
+and never pickable. Loads and all other authored roles use the same
+shared-default, occurrence-override contract.
 Repeated `setResults()` calls are the host-owned snapshot-sequencing boundary:
 the host may step or play an ordered collection of exact authored states while
 reusing the same scene/runtime. Scalar, deformation, and vector roles change

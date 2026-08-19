@@ -89,7 +89,6 @@ describe("GPU draw path", () => {
       expect(gpu.textures[5]?.descriptor.sampleCount).toBe(4);
       expect(gpu.textures[6]?.descriptor.sampleCount).toBeUndefined();
       draw.targets.compositeBindGroup = {} as GPUBindGroup;
-      draw.targets.overlayDepthBindGroup = {} as GPUBindGroup;
       const resized = ensureColorTargets(draw, {
         width: 400,
         height: 300,
@@ -101,7 +100,6 @@ describe("GPU draw path", () => {
       expect(gpu.textures[0]?.destroyed).toBe(true);
       expect(gpu.textures[1]?.destroyed).toBe(true);
       expect(draw.targets.compositeBindGroup).toBeUndefined();
-      expect(draw.targets.overlayDepthBindGroup).toBeUndefined();
       destroyDrawResources(draw);
       destroyDrawResources(draw);
       expect(gpu.textures.slice(7).every((texture) => texture.destroyed)).toBe(true);
@@ -148,47 +146,6 @@ describe("GPU draw path", () => {
       expect(released.color).toBe(opaque.color);
       expect(released.opaqueColor).toBeUndefined();
       expect(gpu.textures.slice(2).every((texture) => texture.destroyed)).toBe(true);
-      destroyDrawResources(draw);
-    } finally {
-      restore();
-    }
-  });
-
-  it("allocates resolved overlay depth only while presentation overlays are active", () => {
-    const restore = installGpuGlobals();
-    try {
-      const gpu = fakeGpuDevice();
-      const draw = createDrawResources(gpu.device);
-      const base = ensureColorTargets(draw, {
-        width: 800,
-        height: 600,
-        colorFormat: "bgra8unorm",
-        depthFormat: "depth24plus-stencil8",
-        requiresTransparency: false,
-      });
-      expect(base.overlayDepth).toBeUndefined();
-
-      const active = ensureColorTargets(draw, {
-        width: 800,
-        height: 600,
-        colorFormat: "bgra8unorm",
-        depthFormat: "depth24plus-stencil8",
-        requiresTransparency: false,
-        requiresOverlays: true,
-      });
-      expect(active.overlayDepth).toBeDefined();
-      expect(gpu.textures[2]?.descriptor.sampleCount).toBeUndefined();
-      expect(gpu.textures[2]?.descriptor.usage).toBe(GPUTextureUsage.RENDER_ATTACHMENT);
-
-      const released = ensureColorTargets(draw, {
-        width: 800,
-        height: 600,
-        colorFormat: "bgra8unorm",
-        depthFormat: "depth24plus-stencil8",
-        requiresTransparency: false,
-      });
-      expect(released.overlayDepth).toBeUndefined();
-      expect(gpu.textures[2]?.destroyed).toBe(true);
       destroyDrawResources(draw);
     } finally {
       restore();

@@ -88,10 +88,35 @@ also need `@webgpu/types` in `devDependencies` and `compilerOptions.types`.
 | `Scene`              | The authoritative definitions and root assembly           |
 | `Viewport`           | Rendering, camera, interaction, results, and GPU lifetime |
 
-Use `replaceScene()` for a new model. Use `reconcileScene()` for structural
+Use `replaceScene()` for an unrelated model. Use `updateScene()` for structural
 edits that should preserve compatible camera, interaction, visibility, and
-result state. Re-read `viewport.runtime` after either operation because the
+result state. Its synchronous transaction editor builds one validated immutable
+snapshot without requiring the host to rebuild the complete scene:
+
+```ts
+viewport.updateScene((update) => {
+  update.addPart(newPart);
+  update.addPartOccurrence({
+    assemblyId: rootAssemblyId,
+    placementId: "new-part",
+    partId: newPart.id,
+    transform: identity(),
+  });
+});
+```
+
+Re-read `viewport.runtime` after a committed update or replacement because the
 viewport installs a new compiled snapshot.
+
+Visibility changes stay viewport-local and do not rebuild the scene. The
+part-wide setter is a convenience policy keyed by reusable part id; it affects
+every current and future occurrence without mutating the part or authored scene.
+The bulk occurrence setter validates all ids before one atomic renderer sync:
+
+```ts
+viewport.visibility.setPart(partId, false);
+viewport.visibility.setPartOccurrences(selectedPartOccurrenceIds, false);
+```
 
 The primary entry points are:
 
@@ -105,9 +130,7 @@ The primary entry points are:
 
 Specialized entry points for camera math, runtime inspection, WebGPU device
 ownership, and optional display-only GLB import are documented in the
-[API reference](docs/api-reference.md). For 0.x import changes, see the
-[entry-point migration map](docs/migration-0.x-entry-points.md) and
-[viewport migration map](docs/migration-0.x-viewport.md).
+[API reference](docs/api-reference.md).
 
 ## Scope
 
@@ -120,5 +143,6 @@ and deferred boundaries.
 ## Documentation
 
 - [API reference and five-minute workflow](docs/api-reference.md)
+- [Complete host FE integration](examples/host-integration/README.md)
 - [Architecture and API design](wiki/architecture/api-design.md)
 - [Contributing and repository development](CONTRIBUTING.md)

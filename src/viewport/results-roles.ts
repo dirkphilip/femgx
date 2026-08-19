@@ -1,5 +1,6 @@
 import type { PartId } from "../geometry/part";
 import type { DeformationState } from "../results/deform";
+import type { ResultBindingId } from "../results/bindings";
 import {
   resolveElementalFrameRecords,
   resolveElementalOrientationRecords,
@@ -8,6 +9,7 @@ import {
 import { resolveNodalLoadRecords } from "../results/load-records";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
+import type { PartOccurrenceId } from "../scene/types";
 import type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
@@ -22,7 +24,7 @@ const DEFAULT_VECTOR_WIDTH_PIXELS = 2;
 const MIN_VECTOR_WIDTH_PIXELS = 1;
 const MAX_VECTOR_WIDTH_PIXELS = 8;
 
-export type OrientationRecordMap = ReadonlyMap<PartId, ElementalOrientationRecords>;
+export type OrientationRecordMap = ReadonlyMap<ResultBindingId, ElementalOrientationRecords>;
 
 export interface ResolvedOrientation {
   readonly state: ViewportOrientationState;
@@ -43,15 +45,54 @@ export function validateResultsConfig(config: ViewportResultsConfig): void {
     roles["deformation"] !== undefined ||
     roles["orientation"] !== undefined ||
     roles["loads"] !== undefined;
-  if (!hasRole) {
+  const occurrences = roles["occurrences"];
+  if (!hasRole && (!Array.isArray(occurrences) || occurrences.length === 0)) {
     throw new Error(
-      "Viewport results config must include scalar, deformation, orientation, or loads",
+      "Viewport results config must include a shared or occurrence-bound scalar, deformation, orientation, or loads role",
     );
   }
-  if (roles["scalar"] !== undefined) validateScalarConfig(roles["scalar"]);
-  if (roles["deformation"] !== undefined) validateDeformationConfig(roles["deformation"]);
-  if (roles["orientation"] !== undefined) validateVectorConfig(roles["orientation"]);
-  if (roles["loads"] !== undefined) validateLoadConfig(roles["loads"]);
+  validateRoleSet(roles, "shared snapshot");
+  if (occurrences !== undefined) validateOccurrences(occurrences);
+}
+
+function validateOccurrences(value: unknown): void {
+  if (!Array.isArray(value)) throw new Error("Viewport result occurrences must be an array");
+  const ids = new Set<string>();
+  for (const entry of value) {
+    if (!isRecord(entry) || typeof entry["partOccurrenceId"] !== "string") {
+      throw new Error("Viewport occurrence results require a partOccurrenceId");
+    }
+    const id = entry["partOccurrenceId"];
+    if (id.length === 0) throw new Error("Viewport occurrence partOccurrenceId must not be empty");
+    if (ids.has(id)) throw new Error(`Viewport occurrence ${id} is bound more than once`);
+    ids.add(id);
+    if (
+      entry["scalar"] === undefined &&
+      entry["deformation"] === undefined &&
+      entry["orientation"] === undefined &&
+      entry["loads"] === undefined
+    ) {
+      throw new Error(`Viewport occurrence ${id} must include at least one result role`);
+    }
+    validateRoleSet(entry, `occurrence ${id}`);
+    if (isRecord(entry["scalar"]) && entry["scalar"]["partId"] !== undefined) {
+      throw new Error(`Viewport occurrence ${id} scalar role must not specify partId`);
+    }
+    if (isRecord(entry["orientation"]) && entry["orientation"]["partId"] !== undefined) {
+      throw new Error(`Viewport occurrence ${id} orientation role must not specify partId`);
+    }
+  }
+}
+
+function validateRoleSet(roles: Record<string, unknown>, context: string): void {
+  try {
+    if (roles["scalar"] !== undefined) validateScalarConfig(roles["scalar"]);
+    if (roles["deformation"] !== undefined) validateDeformationConfig(roles["deformation"]);
+    if (roles["orientation"] !== undefined) validateVectorConfig(roles["orientation"]);
+    if (roles["loads"] !== undefined) validateLoadConfig(roles["loads"]);
+  } catch (error) {
+    throw new Error(`Invalid viewport results ${context}: ${String(error)}`, { cause: error });
+  }
 }
 
 /** Resolves elemental orientation and their renderer-owned per-part records. */
@@ -60,19 +101,24 @@ export function resolveOrientation(
   scene: Scene,
   runtime: PackedSceneRuntime,
   deformation: DeformationState | undefined,
+  target?: { readonly partId: PartId; readonly bindingId: PartOccurrenceId },
 ): ResolvedOrientation | undefined {
   if (config === undefined) return undefined;
-  const records = new Map<PartId, ElementalOrientationRecords>();
+  const records = new Map<ResultBindingId, ElementalOrientationRecords>();
   const lengthScale = config.lengthScale ?? 1;
-  for (const partId of renderedPartIds(runtime)) {
+  for (const partId of target === undefined ? renderedPartIds(runtime) : [target.partId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     if (config.glyph !== "triad" && config.partId !== undefined && partId !== config.partId)
       continue;
     if (config.glyph === "triad" && partId !== config.field.partId) continue;
-    const displacements = deformation?.displacements.get(partId);
+    const displacements =
+      target === undefined
+        ? deformation?.displacements.get(partId)
+        : (deformation?.displacements.get(target.bindingId) ??
+          deformation?.displacements.get(partId));
     records.set(
-      partId,
+      target?.bindingId ?? partId,
       decorateRecords(
         config.glyph === "triad"
           ? resolveElementalFrameRecords(part, config.field, displacements, true)
@@ -89,30 +135,31 @@ export function resolveOrientation(
     );
   }
   const widthPixels = config.widthPixels ?? DEFAULT_VECTOR_WIDTH_PIXELS;
-  if (config.glyph === "triad") {
-    return {
-      state: {
+  return { state: orientationState(config, lengthScale, widthPixels), records };
+}
+
+function orientationState(
+  config: ViewportElementVectorConfig | ViewportElementFrameConfig,
+  lengthScale: number,
+  widthPixels: number,
+): ViewportOrientationState {
+  return config.glyph === "triad"
+    ? {
         config,
         field: config.field,
         glyph: "triad",
         transform: "direction",
         lengthScale,
         widthPixels,
-      },
-      records,
-    };
-  }
-  return {
-    state: {
-      config,
-      field: config.field,
-      glyph: config.glyph,
-      transform: config.transform,
-      lengthScale,
-      widthPixels,
-    },
-    records,
-  };
+      }
+    : {
+        config,
+        field: config.field,
+        glyph: config.glyph,
+        transform: config.transform,
+        lengthScale,
+        widthPixels,
+      };
 }
 
 /** Resolves the independent authored nodal-load presentation role. */
@@ -121,19 +168,23 @@ export function resolveLoads(
   scene: Scene,
   runtime: PackedSceneRuntime,
   deformation: DeformationState | undefined,
+  target?: { readonly partId: PartId; readonly bindingId: PartOccurrenceId },
 ): ResolvedLoads | undefined {
   if (config === undefined) return undefined;
-  const records = new Map<PartId, ElementalOrientationRecords>();
-  for (const partId of renderedPartIds(runtime)) {
+  const records = new Map<ResultBindingId, ElementalOrientationRecords>();
+  for (const partId of target === undefined ? renderedPartIds(runtime) : [target.partId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     if (partId !== config.field.partId) continue;
     records.set(
-      partId,
+      target?.bindingId ?? partId,
       resolveNodalLoadRecords(
         part,
         config.field,
-        deformation?.displacements.get(partId),
+        target === undefined
+          ? deformation?.displacements.get(partId)
+          : (deformation?.displacements.get(target.bindingId) ??
+              deformation?.displacements.get(partId)),
         config.forceLengthScale ?? 1,
         config.momentLengthScale ?? 1,
       ),

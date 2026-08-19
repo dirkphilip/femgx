@@ -3,6 +3,7 @@ import {
   createGpuTimestampRecorder,
   type GpuTimestampRecorder,
 } from "../../../src/renderer/diagnostics/timestamps";
+import { GPU_COST_PASSES } from "../../../src/renderer/diagnostics/cost";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 let restoreGlobals: (() => void) | undefined;
@@ -16,7 +17,7 @@ function timestampValues(
   update?: (index: number, start: bigint, end: bigint) => readonly [bigint, bigint],
 ): bigint[] {
   const values: bigint[] = [];
-  for (let index = 0; index < 6; index += 1) {
+  for (const [index] of GPU_COST_PASSES.entries()) {
     const start = BigInt(index + 1) * 100n;
     const end = start + 5n;
     const pair = update?.(index, start, end) ?? [start, end];

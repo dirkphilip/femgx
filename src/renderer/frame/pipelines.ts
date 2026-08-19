@@ -30,11 +30,6 @@ import {
 } from "./transparency";
 import type { ColorTargetOwner } from "../resources/color-targets";
 import type { GpuValidationOptions } from "../diagnostics/validation";
-import {
-  createOverlayDepthBindGroup,
-  createOverlayDepthResources,
-  type OverlayDepthResources,
-} from "./overlay-depth";
 
 export type { DrawPipelines } from "../shaders/pipeline-builders";
 export { ensureColorTargets } from "../resources/color-targets";
@@ -51,7 +46,7 @@ export interface RenderResources {
   readonly composite: CompositeResources;
   readonly edgePipeline: GPURenderPipeline;
   readonly edgeAlwaysPipeline: GPURenderPipeline;
-  /** Final FE-node visibility probe and annotation passes. */
+  /** Final FE-node annotation pipeline. */
   readonly nodeOverlayPipelines: NodeOverlayPipelines;
   /** Library-owned world-space camera-pivot indicator. */
   readonly orbitPivot: OrbitPivotResources;
@@ -61,7 +56,6 @@ export interface RenderResources {
   /** Instance binding containing only records and the selected draw order. */
   readonly minimalInstanceLayout: GPUBindGroupLayout;
   readonly pipelineLayout: GPUPipelineLayout;
-  readonly overlayDepth: OverlayDepthResources;
   readonly background: BackgroundResources;
 }
 
@@ -128,7 +122,6 @@ export async function createRenderResources(
     depthFormat,
     validation,
   );
-  const overlayDepth = await createOverlayDepthResources(device, depthFormat, validation);
   const orientationGlyphs = await createOrientationGlyphPipelines({
     device,
     cameraLayout,
@@ -226,7 +219,6 @@ export async function createRenderResources(
       instanceLayout,
       minimalInstanceLayout,
       pipelineLayout: layout,
-      overlayDepth,
       pipelines: pipelineResources.pipelines,
       orientationGlyphs,
       composite,
@@ -255,25 +247,6 @@ export function destroyRenderResources(resources: RenderResources): void {
   resources.orbitPivot.buffer.destroy();
   resources.originTriad?.buffer.destroy();
   destroyBackgroundResources(resources.background);
-}
-
-/** Ensures resolved overlays sample the current multisampled depth target. */
-export function ensureOverlayDepthBindGroup(
-  draw: ColorTargetOwner,
-  resources: RenderResources,
-): GPUBindGroup {
-  if (draw.targets.overlayDepthBindGroup !== undefined) {
-    return draw.targets.overlayDepthBindGroup;
-  }
-  if (draw.targets.depthTexture === undefined) {
-    throw new Error("Visible depth target is not initialized");
-  }
-  draw.targets.overlayDepthBindGroup = createOverlayDepthBindGroup(
-    draw.device,
-    resources.overlayDepth.layout,
-    draw.targets.depthTexture,
-  );
-  return draw.targets.overlayDepthBindGroup;
 }
 
 /** Ensures the composite bind group addresses the current-size resolved targets. */

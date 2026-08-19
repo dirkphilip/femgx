@@ -44,6 +44,13 @@ WebGPU test surface.
    mobile, and smoke journeys. No retries are used, so runtime and flake
    signals stay visible. It is exploratory evidence, not a merge gate or a
    substitute for the supported hardware lane.
+6. **Manual cross-vendor hardware conformance** —
+   `.github/workflows/hardware-webgpu-conformance.yml` runs one deterministic
+   direct-core journey on explicitly labelled Apple and Windows/NVIDIA
+   self-hosted runners. Requested missing hardware is an unavailable failure,
+   not a skip. Its retained desktop/mobile screenshots and JSON identity record
+   support correctness comparison only; they do not establish performance
+   parity or replace the complete local hardware suite.
 
 ## Why the Chrome lane must assert, not skip
 

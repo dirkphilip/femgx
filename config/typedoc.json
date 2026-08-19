@@ -40,6 +40,12 @@
   "customCss": "../docs/assets/api-reference.css",
   "out": "../dist-demo/api",
   "readme": "../docs/api-reference.md",
+  "projectDocuments": [
+    "../docs/scene-and-model.md",
+    "../docs/viewport-interaction.md",
+    "../docs/results-and-import.md",
+    "../docs/runtime-and-platform.md"
+  ],
   "requiredToBeDocumented": [
     "Enum",
     "EnumMember",

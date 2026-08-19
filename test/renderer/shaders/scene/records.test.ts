@@ -107,6 +107,13 @@ describe("GPU record struct layout vs CPU record encoders", () => {
     expect(triangleColorFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
   });
 
+  it("keeps selected instance color above active scalar results", () => {
+    for (const source of [instanceVertexShader, pointVertexShader]) {
+      expect(source).toContain("color = instance.color;");
+      expect(source).toContain("resultColorEnabled = false;");
+    }
+  });
+
   it("tests dense node membership for point and node-overlay vertices", () => {
     expect(pointVertexShader).toContain("denseNodeSelected(drawOrder[instanceIndex], nodePickId)");
     expect(pointVertexShader).toContain("nodeOverlayVertexMain");
@@ -152,7 +159,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
   it("does not globally re-enable results after an element override disables them", () => {
     expect(instanceVertexShader).not.toContain("selectionKeepsResult");
     expect(instanceVertexShader).toContain(
-      "resultColorEnabled = select(\n          false,\n          resultColorActive(nodePickId, elementOrdinal),\n          highlight.keepsResultColor,\n        );",
+      "resultColorEnabled = select(\n          false,\n          resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal),\n          highlight.keepsResultColor,\n        );",
     );
   });
 

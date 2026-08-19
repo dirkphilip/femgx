@@ -10,6 +10,7 @@ import {
   setAssemblyNodeVisible,
   setAssemblyVisible,
   setInstanceVisible,
+  setInstancesVisible,
   setPartVisible,
   type VisibilityDelta,
 } from "./visibility";
@@ -39,9 +40,12 @@ interface RuntimeMethods {
   isInstanceVisible(instanceId: number): boolean;
   /** Returns the precomputed instance slots belonging to a part. */
   getPartInstanceSlots(partId: PartId): Uint32Array;
+  /** Returns the expanded node slots belonging to an assembly definition. */
+  getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array;
   /** Returns visible instance ids in deterministic depth-first order. */
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
+  setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta;
   setPartVisible(partId: PartId, visible: boolean): VisibilityDelta;
   /** Sets visibility for one expanded assembly occurrence. */
   setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
@@ -100,7 +104,11 @@ function createRuntimeQueries(
   maps: RuntimeMaps,
 ): Omit<
   RuntimeMethods,
-  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
+  | "setInstanceVisible"
+  | "setInstancesVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
 > {
   return {
     getPartId(instanceId: number): PartId | undefined {
@@ -119,15 +127,20 @@ function createRuntimeQueries(
       return maps.nodeSlots.get(nodeId);
     },
     getPartInstanceSlots(partId: PartId): Uint32Array {
-      const range = findGroupRange(
+      return groupSlots(
         state.sortedPartIds,
         state.partInstanceOffset,
-        state.partInstanceList.length,
+        state.partInstanceList,
         partId,
       );
-      return range === undefined
-        ? new Uint32Array()
-        : state.partInstanceList.subarray(range[0], range[1]);
+    },
+    getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array {
+      return groupSlots(
+        state.sortedAssemblyIds,
+        state.assemblyNodeOffset,
+        state.assemblyNodeList,
+        assemblyId,
+      );
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return matrixView(state.instanceWorldTransforms, state.instanceCount, instanceId);
@@ -145,15 +158,32 @@ function createRuntimeQueries(
   };
 }
 
+function groupSlots(
+  sortedIds: Uint32Array,
+  offsets: Uint32Array,
+  slots: Uint32Array,
+  id: number,
+): Uint32Array {
+  const range = findGroupRange(sortedIds, offsets, slots.length, id);
+  return range === undefined ? new Uint32Array() : slots.subarray(range[0], range[1]);
+}
+
 function createRuntimeMutations(
   state: RuntimeState,
 ): Pick<
   RuntimeMethods,
-  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
+  | "setInstanceVisible"
+  | "setInstancesVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
       return setInstanceVisible(state, instanceId, visible);
+    },
+    setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta {
+      return setInstancesVisible(state, instanceIds, visible);
     },
     setPartVisible(partId: PartId, visible: boolean): VisibilityDelta {
       return setPartVisible(state, partId, visible);

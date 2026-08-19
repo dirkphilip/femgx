@@ -62,8 +62,16 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - Steady-state `render(runtime, camera, parts)` reuses cached buffers and issues
   zero instance writes.
 
-`render(runtime, camera, parts)` also accepts a new packed runtime from
-`Viewport.reconcileScene(scene)`. The attachment matches stable `PartOccurrenceId`
+Visibility uses a separate semantic path:
+`updateVisibility(runtime, affectedPartIds)` rebuilds only those parts' compact
+draw orders. Definition-wide and bulk occurrence changes therefore submit one
+renderer synchronization without materializing a slot-sized delta, creating a
+GPU pass, or writing any 96-byte instance record. Existing per-part order
+storage is retained and updated in place; a separate visibility buffer pool is
+not involved.
+
+`render(runtime, camera, parts)` also accepts a new packed runtime committed by
+`Viewport.updateScene(operation)`. The attachment matches stable `PartOccurrenceId`
 values, retains local slots for surviving placements, patches only changed
 transforms/styles or source/destination part records, and rebuilds orders/calls
 only for parts whose membership or draw order changed. Rebinding one placement
