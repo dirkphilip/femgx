@@ -11,7 +11,8 @@ import {
   type ViewportResultsState,
 } from "./results";
 import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
-import { preserveRuntimeVisibility, reconcileInteractionState } from "./scene-reconciliation";
+import { reconcileInteractionState } from "./scene-reconciliation";
+import { ViewportVisibilityState } from "./visibility-state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
 
@@ -23,6 +24,7 @@ interface PreparedSceneReplacement {
   readonly baseInteraction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   readonly outcome: SceneUpdateOutcome;
+  readonly visibility: ViewportVisibilityState;
 }
 
 interface SceneControllerOptions {
@@ -44,11 +46,13 @@ export class ViewportSceneController {
   private baseInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
+  private currentVisibility: ViewportVisibilityState;
   private updateActive = false;
 
   constructor(private readonly options: SceneControllerOptions) {
     this.currentScene = options.scene;
     this.currentRuntime = createPackedSceneRuntime(options.scene);
+    this.currentVisibility = ViewportVisibilityState.create(options.scene);
     this.originTriadNominalScale = sceneOriginTriadScale(options.scene, this.currentRuntime);
     this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
@@ -76,6 +80,10 @@ export class ViewportSceneController {
 
   get originTriadScale(): number {
     return this.originTriadNominalScale;
+  }
+
+  get visibility(): ViewportVisibilityState {
+    return this.currentVisibility;
   }
 
   replaceScene(scene: Scene, cancelCamera: () => void): void {
@@ -138,6 +146,7 @@ export class ViewportSceneController {
     this.currentPublicRuntime = replacement.publicRuntime;
     this.currentResults = replacement.results;
     this.baseInteraction = replacement.baseInteraction;
+    this.currentVisibility = replacement.visibility;
     applyResolvedViewportResults(this.options.renderer, replacement.results);
     return replacement.outcome;
   }
@@ -147,7 +156,7 @@ export class ViewportSceneController {
     preserveResults: boolean,
   ): PreparedSceneReplacement {
     const nextRuntime = createPackedSceneRuntime(scene);
-    preserveRuntimeVisibility(this.currentRuntime, nextRuntime);
+    const nextVisibility = this.currentVisibility.reconcile(scene, nextRuntime);
     const nextOriginTriadNominalScale = sceneOriginTriadScale(scene, nextRuntime);
     const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
     const nextInteraction = reconcileInteractionState(
@@ -166,6 +175,7 @@ export class ViewportSceneController {
       baseInteraction: nextInteraction,
       results: resultUpdate.results,
       outcome: resultUpdate.outcome,
+      visibility: nextVisibility,
     };
   }
 

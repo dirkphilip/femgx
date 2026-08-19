@@ -130,6 +130,8 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `setPartVisible` toggle           | part with 1 000 instances              | hide then show                                                    |
 | `setAssemblyVisible` toggle       | subcase with 2 000 instances           | hide then show                                                    |
 | `setInstanceVisible` toggle       | single instance                        | override, hide then show                                          |
+| viewport definition visibility    | 100 000 shared-part occurrences        | p95 ≤ 16.7 ms; one affected-part sync, zero instance-record bytes |
+| viewport bulk visibility          | 100 000 explicit occurrence ids        | atomic validation and mutation, p95 ≤ 50 ms, one sync             |
 | host surface variant update       | 1 024 / 4 096 / 16 384 placements      | renderer reconciliation with one stable occurrence rebound        |
 | resident visibility skin update   | 1 / 2 / 4 / 8 elements and occurrences | one hidden element, shared signature, and exterior-subset restore |
 | `getDrawList`                     | 200 000 visible                        | rebuild draw list                                                 |

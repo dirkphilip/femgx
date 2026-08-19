@@ -84,6 +84,7 @@ Capability objects are stable non-owning views into the live viewport state:
 viewport.view.camera;
 viewport.interaction.state;
 viewport.visibility.setPart(part.id, false);
+viewport.visibility.setPartOccurrences(partOccurrenceIds, false);
 viewport.results.state;
 viewport.presentation.setBackground("dark");
 ```

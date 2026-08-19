@@ -179,27 +179,6 @@ describe("Viewport", () => {
     viewport.destroy();
   });
 
-  it("preserves definition visibility without flattening it into occurrence overrides", async () => {
-    installTestGpuGlobals();
-    installNavigator();
-    const viewport = await createViewport({
-      canvas: fakeCanvas(),
-      scene: identityScene(false),
-      device: fakeGpuDevice().device,
-    });
-    viewport.visibility.setPart(1, false);
-    const replacementPart = identityScene(false).parts.get(1);
-    if (replacementPart === undefined) throw new Error("test part is missing");
-
-    viewport.updateScene((update) => {
-      update.replacePart(replacementPart);
-    });
-    viewport.visibility.setPart(1, true);
-
-    expect(viewport.runtime.isPartOccurrenceVisible("1/keep")).toBe(true);
-    viewport.destroy();
-  });
-
   it("prunes nested interaction identities that the replacement geometry removed", async () => {
     installTestGpuGlobals();
     installNavigator();

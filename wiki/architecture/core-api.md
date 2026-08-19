@@ -171,9 +171,13 @@ results path through `createResultFieldFromModelResult` before
 
 ### Visibility and interaction
 
-`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`, and
-`setPartOccurrence` update the viewport-owned derived runtime using stable part,
-assembly, and placement handles, then synchronize only affected instance records.
+`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`,
+`setPartOccurrence`, and `setPartOccurrences` update four independent
+viewport-owned visibility causes using stable part, assembly, and placement
+handles. The bulk occurrence method validates its complete iterable before one
+atomic update. Renderer synchronization receives affected part identities, so a
+definition-wide change does not allocate an expanded slot delta or rewrite
+instance records.
 Style,
 selection, highlight, and hover changes are expressed as a new opaque
 `InteractionState` and installed with `interaction.set`. Use target-level

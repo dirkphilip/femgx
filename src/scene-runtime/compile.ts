@@ -21,7 +21,8 @@ export interface RuntimeState {
   readonly nodeNextSibling: Int32Array;
   readonly nodeInstanceStart: Uint32Array;
   readonly nodeInstanceEnd: Uint32Array;
-  readonly nodeVisible: Uint8Array;
+  readonly nodeAssemblyVisible: Uint8Array;
+  readonly nodeOverrideVisible: Uint8Array;
   readonly nodeEffectiveVisible: Uint8Array;
   readonly instancePartIds: Uint32Array;
   readonly instanceOwningNode: Uint32Array;
@@ -50,7 +51,8 @@ type PackedNodes = Pick<
   | "nodeNextSibling"
   | "nodeInstanceStart"
   | "nodeInstanceEnd"
-  | "nodeVisible"
+  | "nodeAssemblyVisible"
+  | "nodeOverrideVisible"
   | "nodeEffectiveVisible"
 >;
 type PackedInstances = Pick<
@@ -74,7 +76,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const nodeNextSibling = new Int32Array(count);
   const nodeInstanceStart = new Uint32Array(count);
   const nodeInstanceEnd = new Uint32Array(count);
-  const nodeVisible = new Uint8Array(count);
+  const nodeAssemblyVisible = new Uint8Array(count);
   const nodeEffectiveVisible = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
     const node = invariantValue(nodes[i], `node draft at ${i}`);
@@ -85,7 +87,7 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeNextSibling[i] = node.nextSibling;
     nodeInstanceStart[i] = node.instanceStart;
     nodeInstanceEnd[i] = node.instanceEnd;
-    nodeVisible[i] = node.visible;
+    nodeAssemblyVisible[i] = node.visible;
     nodeEffectiveVisible[i] = node.effective;
   }
   return {
@@ -97,7 +99,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeNextSibling,
     nodeInstanceStart,
     nodeInstanceEnd,
-    nodeVisible,
+    nodeAssemblyVisible,
+    nodeOverrideVisible: new Uint8Array(count).fill(1),
     nodeEffectiveVisible,
   };
 }

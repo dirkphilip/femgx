@@ -10,6 +10,7 @@ import {
   setAssemblyNodeVisible,
   setAssemblyVisible,
   setInstanceVisible,
+  setInstancesVisible,
   setPartVisible,
   type VisibilityDelta,
 } from "./visibility";
@@ -42,6 +43,7 @@ interface RuntimeMethods {
   /** Returns visible instance ids in deterministic depth-first order. */
   getDrawList(): Uint32Array;
   setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta;
+  setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta;
   setPartVisible(partId: PartId, visible: boolean): VisibilityDelta;
   /** Sets visibility for one expanded assembly occurrence. */
   setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
@@ -100,7 +102,11 @@ function createRuntimeQueries(
   maps: RuntimeMaps,
 ): Omit<
   RuntimeMethods,
-  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
+  | "setInstanceVisible"
+  | "setInstancesVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
 > {
   return {
     getPartId(instanceId: number): PartId | undefined {
@@ -149,11 +155,18 @@ function createRuntimeMutations(
   state: RuntimeState,
 ): Pick<
   RuntimeMethods,
-  "setInstanceVisible" | "setPartVisible" | "setAssemblyNodeVisible" | "setAssemblyVisible"
+  | "setInstanceVisible"
+  | "setInstancesVisible"
+  | "setPartVisible"
+  | "setAssemblyNodeVisible"
+  | "setAssemblyVisible"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
       return setInstanceVisible(state, instanceId, visible);
+    },
+    setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta {
+      return setInstancesVisible(state, instanceIds, visible);
     },
     setPartVisible(partId: PartId, visible: boolean): VisibilityDelta {
       return setPartVisible(state, partId, visible);

@@ -77,8 +77,8 @@ describe("WebGPU renderer", () => {
     const edge = setPartOverride(createInteractionState(), 1, { edge: true });
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
 
-    const hidden = runtime.setInstanceVisible(1, false);
-    renderer.updateInstances(runtime, edge, hidden.changedInstanceIds);
+    runtime.setInstanceVisible(1, false);
+    renderer.updateInstances(runtime, edge, [1]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-20",

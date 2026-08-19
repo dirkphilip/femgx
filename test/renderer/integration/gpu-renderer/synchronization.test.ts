@@ -70,9 +70,9 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, override, [0]);
     expect(instanceWrites().length).toBe(beforeNoop);
 
-    const hidden = runtime.setInstanceVisible(1, false);
+    runtime.setInstanceVisible(1, false);
     const beforeVisibility = instanceWrites().length;
-    renderer.updateInstances(runtime, override, hidden.changedInstanceIds);
+    renderer.updateInstances(runtime, override, [1]);
     expect(writeRanges(beforeVisibility)).toEqual([
       [96, 96],
       [4, 8],

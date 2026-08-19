@@ -208,7 +208,7 @@ class PublicSceneRuntime implements SceneRuntime {
           : invariantValue(this.packed.getNodeId(parent), `node id at ${parent}`),
       childIds,
       partOccurrenceIds,
-      visible: this.packed.nodeVisible[node] === 1,
+      visible: this.packed.nodeAssemblyVisible[node] === 1,
       effectiveVisible: this.packed.nodeEffectiveVisible[node] === 1,
     };
   }

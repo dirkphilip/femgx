@@ -32,7 +32,7 @@ describe("WebGPU renderer", () => {
     renderer.updateElements(runtime, nodes, [0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
-    renderer.updateVisibility(runtime, hidden.changedInstanceIds);
+    renderer.updateVisibility(runtime, hidden.affectedPartIds);
     const hovered = setTargetHovered(nodes, { kind: "partOccurrence", partOccurrenceId: "1/0" });
     renderer.updateElements(runtime, hovered, [0]);
     const callsBefore = gpu.drawCalls.length;
@@ -41,7 +41,7 @@ describe("WebGPU renderer", () => {
     expect(readGpuCostSnapshot(renderer).draws.nodes.instances).toBe(0);
 
     const shown = runtime.setPartVisible(1, true);
-    renderer.updateVisibility(runtime, shown.changedInstanceIds);
+    renderer.updateVisibility(runtime, shown.affectedPartIds);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls).toContainEqual({ indexCount: 3, instanceCount: 3 });
   });

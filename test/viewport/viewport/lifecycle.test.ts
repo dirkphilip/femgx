@@ -6,6 +6,7 @@ import {
   createResultField,
   setPartOverride,
   createViewport,
+  GpuRenderer,
   type Viewport,
   fakeCanvas,
   fakeGpuDevice,
@@ -213,6 +214,41 @@ describe("Viewport", () => {
     },
   );
 
+  it("validates a bulk occurrence update atomically and synchronizes once", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const updateVisibility = vi.spyOn(GpuRenderer.prototype, "updateVisibility");
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+    updateVisibility.mockClear();
+
+    expect(() => {
+      viewport.visibility.setPartOccurrences(["1/0", "missing"], false);
+    }).toThrow(UnknownSceneIdentityError);
+    expect(viewport.runtime.isPartOccurrenceVisible("1/0")).toBe(true);
+    expect(updateVisibility).not.toHaveBeenCalled();
+
+    let iterations = 0;
+    const duplicateIds = {
+      *[Symbol.iterator]() {
+        iterations += 1;
+        yield "1/0";
+        yield "1/0";
+      },
+    };
+    viewport.visibility.setPartOccurrences(duplicateIds, false);
+    expect(iterations).toBe(1);
+    expect(viewport.runtime.isPartOccurrenceVisible("1/0")).toBe(false);
+    expect(updateVisibility).toHaveBeenCalledOnce();
+    viewport.visibility.setPartOccurrences(["1/0"], false);
+    viewport.visibility.setPartOccurrences([], true);
+    expect(updateVisibility).toHaveBeenCalledOnce();
+    viewport.destroy();
+  });
+
   it("rejects every visibility mutation after destruction without changing state", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -252,6 +288,9 @@ describe("Viewport", () => {
       },
       (current) => {
         current.visibility.setPartOccurrence("1/0", false);
+      },
+      (current) => {
+        current.visibility.setPartOccurrences(["1/0"], false);
       },
     ];
     const before = {

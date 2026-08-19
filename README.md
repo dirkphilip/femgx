@@ -108,6 +108,16 @@ viewport.updateScene((update) => {
 Re-read `viewport.runtime` after a committed update or replacement because the
 viewport installs a new compiled snapshot.
 
+Visibility changes stay viewport-local and do not rebuild the scene. The
+part-wide setter is a convenience policy keyed by reusable part id; it affects
+every current and future occurrence without mutating the part or authored scene.
+The bulk occurrence setter validates all ids before one atomic renderer sync:
+
+```ts
+viewport.visibility.setPart(partId, false);
+viewport.visibility.setPartOccurrences(selectedPartOccurrenceIds, false);
+```
+
 The primary entry points are:
 
 | Import              | Use it for                                                  |
