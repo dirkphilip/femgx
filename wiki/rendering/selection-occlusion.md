@@ -11,6 +11,13 @@ interior. Selected fragments behind opaque/visible selection depth join the
 existing weighted OIT targets at a fixed restrained alpha, so partial
 occlusion naturally produces both strong and ghosted regions.
 
+Selection and highlight remain independent interaction states with one
+composed presentation. When a target is both selected and highlighted,
+the selection layer is applied last, so its specified color and opacity win
+while the highlight's emissive emphasis is retained when selection does not
+replace it. This precedence is identical in ordinary, result-colored, and
+transparent draws; no combined public state or theme is required.
+
 Part and instance selection uses the selected bit in the existing instance
 record. Body, element, face, and node selection uses the existing emphasis
 record's trailing padding word. Per-part selection and selected-node orders are
