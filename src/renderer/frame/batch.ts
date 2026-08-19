@@ -235,7 +235,7 @@ function prepareBatchDraw(
       ? context.minimalFrameBindGroup
       : context.frameBindGroup,
   );
-  const pipeline = pipelineForIntent(intent, geometry, context.pipelines, admission);
+  const pipeline = pipelineForIntent(intent, geometry, context.pipelines, admission, storage);
   if (current !== pipeline) pass.setPipeline(pipeline);
   pass.setBindGroup(
     1,

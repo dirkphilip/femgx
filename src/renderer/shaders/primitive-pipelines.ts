@@ -23,6 +23,7 @@ export interface BasePipelineShaders {
 
 export interface BasePipelines {
   readonly trianglesColor: GPURenderPipeline;
+  readonly denseSelectionTrianglesColor: GPURenderPipeline;
   readonly trianglesTransparent: GPURenderPipeline;
   readonly trianglesPick: GPURenderPipeline;
   readonly linesColor: GPURenderPipeline;
@@ -45,6 +46,7 @@ interface PipelineSpec {
   readonly sampleCount: number;
   readonly depthCompare?: GPUCompareFunction;
   readonly depthWriteEnabled?: boolean;
+  readonly depthBias?: number;
   readonly vertexBuffers?: GPUVertexBufferLayout[];
 }
 
@@ -83,7 +85,7 @@ export async function createBasePipelines(
   shaders: BasePipelineShaders,
 ): Promise<BasePipelines> {
   const variants = primitiveVariants(shaders);
-  const [triangles, lines, points] = await Promise.all([
+  return Promise.all([
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "triangle",
       variant: variants.triangles,
@@ -93,6 +95,14 @@ export async function createBasePipelines(
         pickVertex: shaders.nodePickVertex,
         pickFragment: shaders.nodePickFragment,
       },
+    }),
+    createPipeline(device, layout, "dense-selection triangle color", {
+      ...variants.triangles,
+      fragmentModule: shaders.triangleColorFragment,
+      passFormats: [format],
+      depthFormat,
+      sampleCount: COLOR_SAMPLE_COUNT,
+      depthBias: -1,
     }),
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "line",
@@ -114,9 +124,9 @@ export async function createBasePipelines(
         pickFragment: shaders.nodePickFragment,
       },
     }),
-  ]);
-  return {
+  ]).then(([triangles, denseSelectionTrianglesColor, lines, points]) => ({
     trianglesColor: triangles.color,
+    denseSelectionTrianglesColor,
     trianglesTransparent: triangles.transparent,
     trianglesPick: triangles.pick,
     linesColor: lines.color,
@@ -125,7 +135,7 @@ export async function createBasePipelines(
     pointsColor: points.color,
     pointsTransparent: points.transparent,
     pointsPick: points.pick,
-  };
+  }));
 }
 
 function primitiveVariants(
@@ -191,6 +201,7 @@ function createPrimitivePipelines(
       depthFormat,
       sampleCount: COLOR_SAMPLE_COUNT,
       depthWriteEnabled: false,
+      depthCompare: "less-equal",
     }),
     createPipeline(device, layout, `${label} picking`, {
       ...variant,
@@ -229,6 +240,7 @@ function createPipeline(
       format: spec.depthFormat,
       depthWriteEnabled: spec.depthWriteEnabled ?? true,
       depthCompare: spec.depthCompare ?? "less",
+      ...(spec.depthBias === undefined ? {} : { depthBias: spec.depthBias }),
     },
     multisample: { count: spec.sampleCount },
   });

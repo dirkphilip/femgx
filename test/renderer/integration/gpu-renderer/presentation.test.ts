@@ -36,21 +36,21 @@ describe("WebGPU renderer", () => {
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws).toEqual([
-      { pipeline: "pipeline-9", indexCount: 3, instanceCount: 3 },
+      { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
     ]);
 
     const edge = setPartOverride(createInteractionState(), 1, { edge: true });
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
-      { pipeline: "pipeline-9", indexCount: 3, instanceCount: 3 },
-      { pipeline: "pipeline-19", indexCount: 6, instanceCount: 3 },
+      { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
+      { pipeline: "pipeline-20", indexCount: 6, instanceCount: 3 },
     ]);
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-20",
+      pipeline: "pipeline-21",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -58,7 +58,7 @@ describe("WebGPU renderer", () => {
     renderer.setEdgeDepthTest(true);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-19",
+      pipeline: "pipeline-20",
       indexCount: 6,
       instanceCount: 3,
     });
@@ -80,8 +80,8 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
-      { pipeline: "pipeline-9", indexCount: 3, instanceCount: 3 },
       { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
+      { pipeline: "pipeline-11", indexCount: 3, instanceCount: 3 },
     ]);
     renderer.destroy();
   });

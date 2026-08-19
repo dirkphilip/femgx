@@ -123,16 +123,11 @@ remains a color change on the selected element/node's existing triangles—never
 a highlight pass. Exposed interfaces reuse the same owner/neighbor predicate
 for filled surfaces, GPU picking, deformation, edges, and node annotations.
 Triangle pipelines do not cull back faces by default: 2D FE shells are valid
-geometry and must remain inspectable from either side. The edge shader applies
-the same transform as the surface shader, and the depth-tested edge pipeline
-uses `less-equal`. For an occurrence with edges enabled, the opaque surface
-depth is moved away by the screen-space depth gradient across the expanded
-edge's half-diagonal. That bounded reserve covers both the side and square-cap
-pixels of a sloped edge quad; occurrences without edges keep their exact depth.
-The edge pipeline additionally applies a format-native `depthBias: -1` for the
-remaining rasterization quantization. Do not pull overlay vertices toward the
-camera in clip space: that unbounded pre-rasterization offset can move a
-genuinely occluded edge in front of a nearby surface.
+geometry and must remain inspectable from either side. Ordinary opaque surfaces
+retain fixed-function raster depth in both camera projections. The resolved
+presentation pass draws one-device-pixel native edges at their model depth with
+`less-equal`; it does not alter the owning surface depth or pull overlay vertices
+toward the camera. Exact edge picking keeps its separate widened geometry.
 
 Edge visibility is keyed by an explicit expanded-endpoint record. Each line
 endpoint retains its original source-vertex index while upload builds an

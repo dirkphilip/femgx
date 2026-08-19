@@ -101,8 +101,7 @@ describe("GPU record struct layout vs CPU record encoders", () => {
 
   it("keeps dense selection color above active scalar results", () => {
     expect(instanceVertexShader).toContain("(elementHighlights.selectionFlags & 1u) != 0u");
-    expect(instanceVertexShader).toContain("output.selectionDepthBias = selectionDepthBias;");
-    expect(triangleColorFragmentShader).toContain("selectionDepthBias != 0u");
+    expect(triangleColorFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
   });
 
   it("tests dense node membership for point and node-overlay vertices", () => {

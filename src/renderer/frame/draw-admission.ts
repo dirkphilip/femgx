@@ -132,12 +132,15 @@ export function pipelineFor(
   pass: PipelinePass,
   pipelines: DrawPipelines,
   admission: GpuCostAdmission = "feature",
+  denseSelection = false,
 ): GPURenderPipeline {
   if (primitive === "triangles") {
     if (admission === "minimal" && pass === "color") return pipelines.minimalTrianglesColor;
     if (admission === "minimal" && pass === "transparent")
       return pipelines.minimalTrianglesTransparent;
-    if (pass === "color") return pipelines.trianglesColor;
+    if (pass === "color") {
+      return denseSelection ? pipelines.denseSelectionTrianglesColor : pipelines.trianglesColor;
+    }
     if (pass === "transparent") return pipelines.trianglesTransparent;
     if (pass === "selection-visible") return pipelines.trianglesSelectionVisible;
     if (pass === "selection-hidden") return pipelines.trianglesSelectionHidden;
@@ -163,9 +166,16 @@ export function pipelineForIntent(
   geometry: Geometry | undefined,
   pipelines: DrawPipelines,
   admission: GpuCostAdmission,
+  storage?: Pick<InstanceStorage, "highlight">,
 ): GPURenderPipeline {
   return intent.kind === "surface"
-    ? pipelineFor(geometry?.primitive ?? "triangles", intent.pass, pipelines, admission)
+    ? pipelineFor(
+        geometry?.primitive ?? "triangles",
+        intent.pass,
+        pipelines,
+        admission,
+        storage?.highlight.denseSelection !== undefined,
+      )
     : intent.pipeline;
 }
 

@@ -144,6 +144,7 @@ async function createPrimitiveSelectionPipelines(
         ...common.depthStencil,
         depthWriteEnabled: false,
         depthCompare: "less-equal",
+        depthBias: -1,
       },
     },
   );

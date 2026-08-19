@@ -16,6 +16,7 @@ import {
   nodeOverlayFragmentShader,
   edgePickFragmentShader,
   edgePickVertexShader,
+  minimalTriangleColorFragmentShader,
   structInfo,
   memberOffsets,
   vertexShaders,
@@ -202,16 +203,11 @@ describe("GPU deformation shader contract", () => {
     );
   });
 
-  it("reserves the widened edge footprint in sloped surface depth", () => {
-    expect(instanceVertexShader).toContain("instanceHasEdgeOverlay(instance.selected)");
-    expect(instanceVertexShader).toContain("camera.devicePixelRatio");
-    expect(instanceVertexShader).toMatch(/output\.edgeDepthRadius\s*=/);
-    expect(triangleColorFragmentShader).toMatch(/@builtin\(position\) fragmentPosition/);
-    expect(triangleColorFragmentShader).toMatch(/@location\(12\).*edgeDepthRadius/);
-    expect(triangleColorFragmentShader).toMatch(/dpdx\(fragmentPosition\.z\)/);
-    expect(triangleColorFragmentShader).toMatch(/dpdy\(fragmentPosition\.z\)/);
-    expect(triangleColorFragmentShader).toContain("depthSlope == depthSlope");
-    expect(triangleColorFragmentShader).toMatch(/@builtin\(frag_depth\) depth/);
+  it("leaves ordinary surface depth to fixed-function rasterization", () => {
+    expect(instanceVertexShader).not.toContain("edgeDepthRadius");
+    expect(triangleColorFragmentShader).not.toContain("dpdx(fragmentPosition.z)");
+    expect(triangleColorFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
+    expect(minimalTriangleColorFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
   });
 
   it("leaves coplanar line depth bias to the edge pipeline", () => {

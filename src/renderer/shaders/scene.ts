@@ -1,5 +1,4 @@
 import {
-  INSTANCE_EDGE_OVERLAY_FLAG,
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_SELECTED_FLAG,
@@ -80,9 +79,6 @@ fn instanceHasEdgeEmphasis(flags: u32) -> bool {
   return (flags & ${INSTANCE_EDGE_EMPHASIS_FLAG}u) != 0u;
 }
 
-fn instanceHasEdgeOverlay(flags: u32) -> bool {
-  return (flags & ${INSTANCE_EDGE_OVERLAY_FLAG}u) != 0u;
-}
 `;
 
 /** Emphasis records read by the visible triangle and point vertex stages. */
@@ -304,8 +300,6 @@ struct VertexOutput {
   @location(9) @interpolate(flat) selected: u32,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
-  @location(12) @interpolate(flat) edgeDepthRadius: f32,
-  @location(13) @interpolate(flat) selectionDepthBias: u32,
 };
 `;
 
@@ -383,7 +377,7 @@ fn packPickId(pickId: u32) -> vec4<f32> {
 }
 `;
 
-/** Lit triangle fragment stage; overlays, lines, and points remain unlit. */
+/** Lit triangle fragment stage using exact fixed-function surface depth. */
 export const triangleColorFragmentShader = /* wgsl */ `
 ${cameraStruct}
 ${deformationStruct}
@@ -392,14 +386,8 @@ ${sectionPlaneBindings}
 ${sectionPlaneFunction}
 ${surfaceLightingFunction}
 
-struct TriangleColorOutput {
-  @location(0) color: vec4<f32>,
-  @builtin(frag_depth) depth: f32,
-};
-
 @fragment
 fn fragmentMain(
-  @builtin(position) fragmentPosition: vec4<f32>,
   @location(0) @interpolate(flat) color: vec4<f32>,
   @location(2) @interpolate(flat) emissive: f32,
   @location(5) local: vec2<f32>,
@@ -407,18 +395,7 @@ fn fragmentMain(
   @location(9) @interpolate(flat) selected: u32,
   @location(10) resultColor: vec4<f32>,
   @location(11) @interpolate(flat) resultColorEnabled: u32,
-  @location(12) @interpolate(flat) edgeDepthRadius: f32,
-  @location(13) @interpolate(flat) selectionDepthBias: u32,
-) -> TriangleColorOutput {
-  let depthSlope = length(vec2<f32>(
-    dpdx(fragmentPosition.z),
-    dpdy(fragmentPosition.z),
-  ));
-  let finiteDepthSlope = select(
-    0.0,
-    depthSlope,
-    depthSlope == depthSlope && depthSlope < 3.402823466e38,
-  );
+) -> @location(0) vec4<f32> {
   let displayedColor = select(color, resultColor, resultColorEnabled != 0u);
   if (dot(local, local) > 1.0 || displayedColor.a < 1.0 || !sectionPlaneVisible(worldPosition)) { discard; }
   let litColor = surfaceLighting(
@@ -428,10 +405,6 @@ fn fragmentMain(
     camera.viewDirection.xyz,
   );
   let resolvedColor = select(litColor, displayedColor.rgb, selected != 0u);
-  var output: TriangleColorOutput;
-  output.color = vec4<f32>(resolvedColor + vec3<f32>(emissive), displayedColor.a);
-  let depth = min(fragmentPosition.z + finiteDepthSlope * edgeDepthRadius, 1.0);
-  output.depth = max(depth - select(0.0, 1e-6, selectionDepthBias != 0u), 0.0);
-  return output;
+  return vec4<f32>(resolvedColor + vec3<f32>(emissive), displayedColor.a);
 }
 `;

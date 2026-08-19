@@ -3,11 +3,10 @@ import type { ResolvedStyle } from "../../interaction/interaction";
 /** Byte size of one instance record in the per-part storage buffer. */
 export const INSTANCE_STRIDE = 96;
 
-/** Selection and overlay-membership flags packed into one instance word. */
+/** Selection and emphasis flags packed into one instance word. */
 export const INSTANCE_SELECTED_FLAG = 1;
 export const INSTANCE_EMPHASIS_FLAG = 2;
 export const INSTANCE_EDGE_EMPHASIS_FLAG = 4;
-export const INSTANCE_EDGE_OVERLAY_FLAG = 8;
 
 /** Byte offset of the `emissive` scalar within an instance record. */
 export const EMISSIVE_BYTE_OFFSET = 84;
@@ -51,8 +50,7 @@ export function writeInstanceRecord(
   target.floats[offset + 19] = style.color.a * style.opacity;
   target.words[offset + 20] = values.pickId;
   target.floats[offset + 21] = style.emissive;
-  target.words[offset + 22] =
-    (values.selected ? INSTANCE_SELECTED_FLAG : 0) | (style.edge ? INSTANCE_EDGE_OVERLAY_FLAG : 0);
+  target.words[offset + 22] = values.selected ? INSTANCE_SELECTED_FLAG : 0;
   target.floats[offset + 23] = style.lineWidthPixels;
 }
 
