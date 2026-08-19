@@ -34,6 +34,9 @@ documentation validation;
 performance budgets and package smoke tests. Demo coverage remains in
 `check-runtime` through its dedicated core and component suites, so those tests
 run once and retain their independent coverage thresholds and reports.
+`check-static` restores and saves ESLint's content-addressed cache. It still
+checks every changed source file and invalidates on dependency or lint-config
+changes; the cache only avoids rechecking unchanged files from an earlier run.
 The aggregator runs even when a dependency is skipped, cancelled, or fails, and
 returns failure unless all three shards succeed. `e2e` remains an independent
 required context.
