@@ -1,4 +1,5 @@
 import type { ResolvedStyle } from "../../interaction/interaction";
+import type { GpuCostAccumulator } from "../diagnostics/cost";
 
 interface PartEdgeResource {
   readonly edgeNodePickIdsBuffer: GPUBuffer;
@@ -88,4 +89,55 @@ export function createBuffer(
   // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
   device.queue.writeBuffer(buffer, 0, data);
   return buffer;
+}
+
+/** Mutable bind-group slots shared by every per-part renderer resource. */
+export interface BindGroupState {
+  bindGroup: GPUBindGroup | undefined;
+  minimalBindGroup?: GPUBindGroup | undefined;
+  minimalTransparentBindGroup?: GPUBindGroup | undefined;
+  nodeBindGroup?: GPUBindGroup | undefined;
+  edgeBindGroup?: GPUBindGroup | undefined;
+  transparentBindGroup?: GPUBindGroup | undefined;
+  selectionBindGroup?: GPUBindGroup | undefined;
+  subsetSelectionBindGroup?: GPUBindGroup | undefined;
+  nodeSelectionBindGroup?: GPUBindGroup | undefined;
+  subsetBindGroup?: GPUBindGroup | undefined;
+  subsetTransparentBindGroup?: GPUBindGroup | undefined;
+}
+
+const BIND_GROUP_KEYS = [
+  "bindGroup",
+  "minimalBindGroup",
+  "minimalTransparentBindGroup",
+  "nodeBindGroup",
+  "edgeBindGroup",
+  "transparentBindGroup",
+  "selectionBindGroup",
+  "subsetSelectionBindGroup",
+  "nodeSelectionBindGroup",
+  "subsetBindGroup",
+  "subsetTransparentBindGroup",
+] as const satisfies readonly (keyof BindGroupState)[];
+
+/** Clears all cached groups after a bound storage buffer changes. */
+export function invalidateBindGroups(
+  storage: BindGroupState | undefined,
+  cost?: GpuCostAccumulator,
+): void {
+  if (storage === undefined) return;
+  cost?.invalidateBindGroups();
+  for (const key of BIND_GROUP_KEYS) {
+    if (key in storage) storage[key] = undefined;
+  }
+}
+
+/** Compares table identity without inspecting or allocating table contents. */
+export function sameTables<T>(
+  previous: readonly (T | undefined)[] | undefined,
+  next: readonly (T | undefined)[],
+): boolean {
+  return (
+    previous?.length === next.length && previous.every((value, index) => value === next[index])
+  );
 }

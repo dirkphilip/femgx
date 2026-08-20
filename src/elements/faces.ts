@@ -16,6 +16,7 @@ import { elementModelIdAt, elementModelNodeIdAt, elementModelTopologyAt } from "
 import { topologyFor, type ElementFamily, type ElementTopology } from "./shapes";
 import { at } from "./indices";
 import { canonicalKey } from "./keys";
+import { edgeIndexOf, sortUint32Range } from "./topology-helpers";
 
 /**
  * Deterministic canonical identity of a face, independent of orientation.
@@ -334,38 +335,13 @@ function writeCanonicalModelFace(
     if (corner === undefined || next === undefined) throw new Error("Element face has no corner");
     target[offset + index * stride] = elementModelNodeIdAt(model, ordinal, corner);
     if (stride === 2) {
-      const middle = topology.edgeNodes[modelFaceEdgeIndex(topology, corner, next)];
+      const middle = topology.edgeNodes[edgeIndexOf(topology, corner, next)];
       if (middle === undefined) throw new Error("Quadratic face has no mid-edge node");
       target[offset + index * stride + 1] = elementModelNodeIdAt(model, ordinal, middle);
     }
   }
-  sortModelFaceRange(target, offset, loop.length * stride);
+  sortUint32Range(target, offset, loop.length * stride);
   return offset + loop.length * stride;
-}
-
-function modelFaceEdgeIndex(topology: ElementTopology, first: number, last: number): number {
-  for (let index = 0; index < topology.edges.length; index += 1) {
-    const edge = topology.edges[index];
-    if (
-      edge !== undefined &&
-      ((edge[0] === first && edge[1] === last) || (edge[0] === last && edge[1] === first))
-    ) {
-      return index;
-    }
-  }
-  throw new Error(`Face edge ${first}-${last} is not a topology edge`);
-}
-
-function sortModelFaceRange(values: Uint32Array, start: number, count: number): void {
-  for (let index = start + 1; index < start + count; index += 1) {
-    const value = values[index] ?? 0;
-    let cursor = index;
-    while (cursor > start && (values[cursor - 1] ?? 0) > value) {
-      values[cursor] = values[cursor - 1] ?? 0;
-      cursor -= 1;
-    }
-    values[cursor] = value;
-  }
 }
 
 function sortModelFaceRows(offsets: Uint32Array, nodes: Uint32Array): Uint32Array {

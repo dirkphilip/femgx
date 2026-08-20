@@ -7,16 +7,8 @@ import { createPart, MAX_PART_ID, type Part } from "../../../src/geometry/part";
 import { createSceneBuilder, type Scene } from "../../../src/scene/scene";
 
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-
-/** Shared core test helper. */
-export function part(id: number): Part {
-  const geometry = {
-    positions: new Float32Array([0, 0, 0]),
-    indices: new Uint32Array(),
-    primitive: "triangles" as const,
-  };
-  return createPart(id, { geometries: [geometry] });
-}
+import { emptyPart } from "../../support/scene-fixtures";
+export { emptyPart as part };
 
 /** Shared core test helper. */
 export function buildScene(
@@ -28,7 +20,7 @@ export function buildScene(
 ): Scene {
   let builder = createSceneBuilder();
   for (const id of parts) {
-    builder = builder.addPart(part(id));
+    builder = builder.addPart(emptyPart(id));
   }
   for (const assembly of assemblies) {
     builder = builder.addAssembly({
@@ -50,7 +42,7 @@ export function buildScene(
 export function structuralScene(overrides: Partial<Scene> = {}): Scene {
   return {
     rootAssemblyId: 1,
-    parts: new Map([[1, part(1)]]),
+    parts: new Map([[1, emptyPart(1)]]),
     assemblies: new Map([
       [1, { id: 1, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] }],
     ]),

@@ -1,4 +1,5 @@
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { invalidateBindGroups as clearBindGroups } from "../resources/foundation";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
@@ -109,16 +110,7 @@ export function invalidateHighlightBindGroups(
   storage: HighlightAllocationTarget,
   cost?: GpuCostAccumulator,
 ): void {
-  cost?.invalidateBindGroups();
-  storage.bindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
+  clearBindGroups(storage, cost);
 }
 
 function nextCapacity(

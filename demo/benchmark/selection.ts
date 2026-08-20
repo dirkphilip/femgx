@@ -1,4 +1,5 @@
 import { orbitCamera, projectPoint, type Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import { transformPoint } from "../../src/math/mat4";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setTargetsSelected } from "../../src/interaction/targets";
@@ -14,7 +15,6 @@ import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { PartOccurrenceId } from "../../src/scene/types";
 import type { WebGpuBenchmarkCase } from "./model";
 import type {
-  BenchmarkPercentiles,
   SelectionBenchmarkPhase,
   SelectionBenchmarkReport,
   SelectionCameraTransition,
@@ -420,10 +420,4 @@ function centeredRect(
 
 function fullRect(): BoxSelectionRect {
   return { left: 0, top: 0, right: WIDTH, bottom: HEIGHT, width: WIDTH, height: HEIGHT };
-}
-
-function percentiles(values: readonly number[]): BenchmarkPercentiles {
-  const sorted = [...values].sort((left, right) => left - right);
-  const at = (fraction: number): number => sorted[Math.ceil(fraction * sorted.length) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }

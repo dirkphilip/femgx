@@ -1,4 +1,5 @@
 import { createCamera, projectPoint, type Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
 import type { Geometry } from "../../src/geometry/part";
@@ -625,10 +626,4 @@ function summarize(
     pickSnapshotAndReadbackMs: percentiles(samples.pickCombined),
     pickReadbackMs: percentiles(samples.pickReadback),
   };
-}
-
-function percentiles(values: readonly number[]): { readonly p50: number; readonly p95: number } {
-  const sorted = [...values].sort((a, b) => a - b);
-  const at = (fraction: number): number => sorted[Math.ceil(fraction * sorted.length) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }

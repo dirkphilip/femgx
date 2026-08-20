@@ -1,14 +1,11 @@
 import type { Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { INSTANCE_STRIDE } from "../../src/renderer/resources/instance-storage";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createSceneBuilder, type Scene } from "../../src/scene/scene";
 import type { WebGpuBenchmarkCase } from "./model";
-import type {
-  BenchmarkGpuCostSnapshot,
-  BenchmarkPercentiles,
-  ManyPieceReplacementPhase,
-} from "./types";
+import type { BenchmarkGpuCostSnapshot, ManyPieceReplacementPhase } from "./types";
 
 const STEADY_SAMPLES = 7;
 
@@ -168,10 +165,4 @@ async function render(
   options.renderer.render(runtime, options.camera, scene.parts);
   await options.device.queue.onSubmittedWorkDone();
   return performance.now() - start;
-}
-
-function percentiles(values: readonly number[]): BenchmarkPercentiles {
-  const sorted = [...values].sort((left, right) => left - right);
-  const at = (fraction: number): number => sorted[Math.ceil(sorted.length * fraction) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }
