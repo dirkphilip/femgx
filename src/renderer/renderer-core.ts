@@ -39,8 +39,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
   public readonly lifecycle: GpuDeviceLifecycle;
-  private pointSize: number;
-  private nodeSize: number;
+  private glyphSizes: [number, number];
   private readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
   public readonly attachment = new RendererAttachment();
@@ -79,7 +78,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.depthFormat = construction.depthFormat;
     this.timestampQueriesRequested = construction.timestampQueriesRequested ?? false;
     this.timestampRecorder = construction.timestampRecorder;
-    [this.pointSize, this.nodeSize] = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
+    this.glyphSizes = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
     this.originTriadEnabled = options.originTriad ?? true;
     this.edgePick = createEdgePickState(construction.validation);
     this.background = options.background ?? "studio";
@@ -194,7 +193,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
       syncResultColors(this.lifecycle.bundle.draw, colors, runtime, layout);
   }
 
-  /** Installs renderer-owned elemental orientation records without public API leakage. */
   public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
     this.ensureAlive();
     syncRendererOrientationGlyphs(
@@ -206,7 +204,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.orientationGlyphs = state;
   }
 
-  /** Synchronizes a compatible definition revision without invalidating retained section caps. */
   public setPartRevisionResults(options: PartRevisionResultState): void {
     this.ensureAlive();
     syncPartRevisionResults(
@@ -270,12 +267,12 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     if (changed) this.picking.invalidate();
   }
 
-  /** Replaces exact definition resources while preserving the attached runtime and slots. */
   public updatePartRevisions(
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     parts: ReadonlyMap<PartId, Part>,
     partIds: ReadonlySet<PartId>,
+    results?: PartRevisionResultState,
   ): void {
     this.ensureAlive();
     this.sourceParts = applyRendererPartRevision(
@@ -289,8 +286,14 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
         interaction,
         parts,
         partIds,
+        results,
       },
     );
+    if (results !== undefined) {
+      this.deformation = results.deformation;
+      this.resultColors = results.colors;
+      this.setOrientationGlyphs(results.glyphs);
+    }
     this.interaction = interaction;
     this.picking.invalidate();
   }
@@ -323,11 +326,11 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   }
 
   public setPointSizePixels(size: number): void {
-    this.setGlyphSize("pointSize", size);
+    this.setGlyphSize(0, size);
   }
 
   public setNodeSizePixels(size: number): void {
-    this.setGlyphSize("nodeSize", size);
+    this.setGlyphSize(1, size);
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -412,10 +415,10 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.lifecycle.ensureUsable();
   }
 
-  private setGlyphSize(kind: "pointSize" | "nodeSize", size: number): void {
+  private setGlyphSize(kind: 0 | 1, size: number): void {
     this.ensureAlive();
-    if (this[kind] === size) return;
-    this[kind] = size;
+    if (this.glyphSizes[kind] === size) return;
+    this.glyphSizes[kind] = size;
     this.picking.invalidate();
   }
 
@@ -428,8 +431,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
       colorFormat: this.format,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
-      pointSize: this.pointSize,
-      nodeSize: this.nodeSize,
+      pointSize: this.glyphSizes[0],
+      nodeSize: this.glyphSizes[1],
       deformation: this.deformation,
       sectionPlane: this.sectionPlane,
       resultColors: this.sectionCaps.resultColors,

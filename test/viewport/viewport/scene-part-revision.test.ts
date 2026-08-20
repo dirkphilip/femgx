@@ -18,6 +18,7 @@ describe("Viewport incremental part revisions", () => {
   it("replaces one reusable definition without broad renderer reconciliation", async () => {
     installTestGpuGlobals();
     installNavigator();
+    const gpu = fakeGpuDevice();
     const original = trianglePart(1, 1);
     const retained = trianglePart(2, 2);
     const scene = explicitScene(
@@ -31,9 +32,14 @@ describe("Viewport incremental part revisions", () => {
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene,
-      device: fakeGpuDevice().device,
+      device: gpu.device,
     });
     viewport.render();
+    const draw = rendererDraw(viewport);
+    const retainedStorage = draw.storages.get(1);
+    if (retainedStorage === undefined) throw new Error("revised storage is missing");
+    const storageBuffers = [retainedStorage.buffer, retainedStorage.orderBuffer];
+    const writesStart = gpu.writes.length;
     const occurrences = viewport.occurrences;
     const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
 
@@ -44,6 +50,12 @@ describe("Viewport incremental part revisions", () => {
     viewport.render();
 
     expect(prepareParts).not.toHaveBeenCalled();
+    expect(draw.storages.get(1)).toBe(retainedStorage);
+    expect(draw.storages.get(1)?.buffer).toBe(storageBuffers[0]);
+    expect(draw.storages.get(1)?.orderBuffer).toBe(storageBuffers[1]);
+    expect(
+      gpu.writes.slice(writesStart).some((write) => storageBuffers.includes(write.buffer)),
+    ).toBe(false);
     expect(viewport.occurrences).toBe(occurrences);
     expect(Array.from(viewport.occurrences.partOccurrences())).toMatchObject([
       { partOccurrenceId: "1/first", partId: 1 },
@@ -92,11 +104,11 @@ describe("Viewport incremental part revisions", () => {
       onCreateBuffer: () => {
         if (!failStaging) return;
         stagingAllocations += 1;
-        if (stagingAllocations === 3) throw new Error("staged replacement allocation failed");
+        if (stagingAllocations === 9) throw new Error("staged replacement allocation failed");
       },
     });
-    const original = trianglePart(1, 1);
-    const retained = trianglePart(2, 2);
+    const original = resultTrianglePart(1, 1);
+    const retained = resultTrianglePart(2, 2);
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: explicitScene(
@@ -112,6 +124,7 @@ describe("Viewport incremental part revisions", () => {
         ],
       ),
       device: gpu.device,
+      results: revisionResultRoles(),
     });
     viewport.render();
     const draw = rendererDraw(viewport);
@@ -119,11 +132,17 @@ describe("Viewport incremental part revisions", () => {
     const retainedStorage = draw.storages.get(2);
     const originalGeometry = draw.primitiveParts.get(1)?.get("triangles");
     const retainedGeometry = draw.primitiveParts.get(2)?.get("triangles");
+    const originalColor = draw.resultColors.get(1)?.buffer;
+    const originalDeformation = draw.deformations.get(1)?.buffer;
+    const originalGlyph = draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer;
+    expect(originalColor).toBeDefined();
+    expect(originalDeformation).toBeDefined();
+    expect(originalGlyph).toBeDefined();
     failStaging = true;
 
     expect(() => {
       viewport.updateScene((update) => {
-        update.replacePart(trianglePart(1, 2));
+        update.replacePart(resultTrianglePart(1, 2));
       });
     }).toThrow("staged replacement allocation failed");
     expect(viewport.scene.parts.get(1)).toBe(original);
@@ -131,6 +150,12 @@ describe("Viewport incremental part revisions", () => {
     expect(draw.storages.get(2)).toBe(retainedStorage);
     expect(draw.primitiveParts.get(1)?.get("triangles")).toBe(originalGeometry);
     expect(draw.primitiveParts.get(2)?.get("triangles")).toBe(retainedGeometry);
+    expect(draw.resultColors.get(1)?.buffer).toBe(originalColor);
+    expect(draw.deformations.get(1)?.buffer).toBe(originalDeformation);
+    expect(draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer).toBe(originalGlyph);
+    for (const buffer of [originalColor, originalDeformation, originalGlyph]) {
+      expect(gpu.buffers.find((entry) => entry.resource === buffer)?.destroyCount).toBe(0);
+    }
     expect(() => {
       viewport.render();
     }).not.toThrow();
@@ -200,6 +225,8 @@ describe("Viewport incremental part revisions", () => {
     const draw = rendererDraw(viewport);
     const retainedColorBuffer = draw.resultColors.get(2)?.buffer;
     const retainedDeformationBuffer = draw.deformations.get(2)?.buffer;
+    const retainedGlyphBuffer = draw.orientationGlyphs.parts.get(2)?.groups.get(2)?.recordBuffer;
+    expect(retainedGlyphBuffer).toBeDefined();
     const writeStart = gpu.writes.length;
 
     const outcome = viewport.updateScene((update) => {
@@ -214,12 +241,17 @@ describe("Viewport incremental part revisions", () => {
     expect(viewportOrientationRecords(after)?.get(2)).toBe(beforeRecords);
     expect(draw.resultColors.get(2)?.buffer).toBe(retainedColorBuffer);
     expect(draw.deformations.get(2)?.buffer).toBe(retainedDeformationBuffer);
+    expect(draw.orientationGlyphs.parts.get(2)?.groups.get(2)?.recordBuffer).toBe(
+      retainedGlyphBuffer,
+    );
     expect(
       gpu.writes
         .slice(writeStart)
         .some(
           (write) =>
-            write.buffer === retainedColorBuffer || write.buffer === retainedDeformationBuffer,
+            write.buffer === retainedColorBuffer ||
+            write.buffer === retainedDeformationBuffer ||
+            write.buffer === retainedGlyphBuffer,
         ),
     ).toBe(false);
     viewport.destroy();
@@ -306,14 +338,63 @@ function resultTrianglePart(id: number, extent: number, nodeCount = 3): Part {
   });
 }
 
+function revisionResultRoles() {
+  return {
+    scalar: {
+      field: createResultField({
+        id: "staging-scalar",
+        name: "staging scalar",
+        location: "nodal",
+        shape: "scalar",
+        count: 3,
+        unit: "source",
+        values: new Float32Array([1, 2, 3]),
+      }),
+    },
+    deformation: {
+      field: createResultField({
+        id: "staging-deformation",
+        name: "staging deformation",
+        location: "nodal",
+        shape: "vector",
+        count: 3,
+        unit: "source",
+        values: new Float32Array(9),
+      }),
+    },
+    orientation: {
+      field: createResultField({
+        id: "staging-orientation",
+        name: "staging orientation",
+        location: "elemental",
+        shape: "vector",
+        count: 1,
+        unit: "source",
+        values: new Float32Array([1, 0, 0]),
+      }),
+      glyph: "arrow" as const,
+      transform: "direction" as const,
+    },
+  };
+}
+
 function rendererDraw(viewport: Awaited<ReturnType<typeof createViewport>>) {
   const owner = viewport as unknown as {
     readonly renderer: { readonly lifecycle: { readonly bundle: { readonly draw: unknown } } };
   };
   return owner.renderer.lifecycle.bundle.draw as {
-    readonly storages: ReadonlyMap<number, unknown>;
+    readonly storages: ReadonlyMap<
+      number,
+      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer }
+    >;
     readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
     readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
     readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
+    readonly orientationGlyphs: {
+      readonly parts: ReadonlyMap<
+        number,
+        { readonly groups: ReadonlyMap<number, { readonly recordBuffer: GPUBuffer }> }
+      >;
+    };
   };
 }

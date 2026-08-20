@@ -13,6 +13,9 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import type { InteractionState } from "../interaction/interaction";
 import type { Part } from "../geometry/part";
+import type { PartRevisionResultState } from "./attachment/part-revision-results";
+
+export type { PartRevisionResultState } from "./attachment/part-revision-results";
 import { prepareAddedAttachmentParts } from "./attachment/part-definitions";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
@@ -119,15 +122,24 @@ export function prepareRendererPartAdditions(
 /** Applies exact immutable part revisions without widening the public renderer contract. */
 export function updateRendererPartRevisions(
   renderer: WebGpuRenderer,
-  runtime: PackedSceneRuntime,
-  interaction: InteractionState,
-  parts: ReadonlyMap<PartId, Part>,
-  partIds: ReadonlySet<PartId>,
+  revision: {
+    readonly runtime: PackedSceneRuntime;
+    readonly interaction: InteractionState;
+    readonly parts: ReadonlyMap<PartId, Part>;
+    readonly partIds: ReadonlySet<PartId>;
+    readonly results: PartRevisionResultState;
+  },
 ): void {
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("Incremental scene updates require the built-in WebGPU renderer");
   }
-  renderer.updatePartRevisions(runtime, interaction, parts, partIds);
+  renderer.updatePartRevisions(
+    revision.runtime,
+    revision.interaction,
+    revision.parts,
+    revision.partIds,
+    revision.results,
+  );
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

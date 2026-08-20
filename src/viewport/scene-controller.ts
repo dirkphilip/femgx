@@ -19,9 +19,9 @@ import {
   type ViewportResultsState,
 } from "./results";
 import {
-  applyResolvedPartRevisionResults,
   applyResolvedViewportResults,
   applyViewportResults,
+  partRevisionResultState,
 } from "./results/application";
 import { reconcileInteractionState } from "./scene-reconciliation";
 import { ViewportVisibilityState } from "./visibility/state";
@@ -238,13 +238,13 @@ export class ViewportSceneController {
       scene.parts,
     );
     const resultUpdate = this.preparePartRevisionResults(scene, this.currentRuntime, partIds);
-    updateRendererPartRevisions(
-      this.options.renderer,
-      this.currentRuntime,
-      nextInteraction,
-      scene.parts,
+    updateRendererPartRevisions(this.options.renderer, {
+      runtime: this.currentRuntime,
+      interaction: nextInteraction,
+      parts: scene.parts,
       partIds,
-    );
+      results: partRevisionResultState(resultUpdate.results),
+    });
     cancelCamera();
     this.currentScene = scene;
     this.baseInteraction = nextInteraction;
@@ -256,7 +256,6 @@ export class ViewportSceneController {
     }
     this.placedBounds.update(this.currentRuntime, changedSlots);
     this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
-    applyResolvedPartRevisionResults(this.options.renderer, resultUpdate.results);
     return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
   }
 

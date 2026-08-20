@@ -6,13 +6,11 @@ import type { GpuBundle } from "../recovery";
 import type { DrawCallLists, InstanceLayout } from "../runtime-state";
 import { cloneAttachmentFlags, copyAttachmentFlags } from "./reconciliation";
 import { changedPartDefinitions, reconcilePartResources } from "../resources/part-resources";
-import {
-  destroyDetachedInstanceStorage,
-  destroyPartResources,
-  type DrawResources,
-} from "../resources/draw-resources";
-import { destroyDetachedVisibilitySkinCache, rebuildVisibilitySurface } from "../visibility/skins";
-import { rebuildAttachmentCalls } from "./calls";
+import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
+import { rebuildVisibilitySurface } from "../visibility/skins";
+import { rebuildAttachmentCalls, reviseAttachmentCalls } from "./calls";
+import { syncAttachmentInteraction } from "./interaction";
+import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
   clonePartRevisionLayout,
@@ -59,20 +57,28 @@ export function replaceAttachedPartDefinitions(
   attachment: PartRevisionAttachmentHost,
   parts: ReadonlyMap<PartId, Part>,
   partIds: ReadonlySet<PartId>,
-  interaction: InteractionState,
-  bundle: GpuBundle,
+  revision: {
+    readonly interaction: InteractionState;
+    readonly bundle: GpuBundle;
+    readonly results: PartRevisionResultState | undefined;
+  },
 ): void {
   prepareAddedAttachmentParts(parts, partIds);
   const runtime = attachment.runtime;
   const layout = attachment.layout;
   if (runtime === undefined || layout === undefined) {
     replaceAttachedParts(attachment.attachedParts, parts, partIds);
-    attachment.interactionState = interaction;
+    attachment.interactionState = revision.interaction;
     attachment.interactionBeforeLastInstanceUpdate = undefined;
     return;
   }
-  const prepared = preparePartRevision({ attachment, parts, partIds, interaction, bundle });
-  commitPartRevision(attachment, prepared, partIds, bundle.draw);
+  const prepared = preparePartRevision({
+    attachment,
+    parts,
+    partIds,
+    ...revision,
+  });
+  commitPartRevision(attachment, prepared, partIds, revision.bundle);
 }
 
 function preparePartRevision(options: {
@@ -81,6 +87,7 @@ function preparePartRevision(options: {
   readonly partIds: ReadonlySet<PartId>;
   readonly interaction: InteractionState;
   readonly bundle: GpuBundle;
+  readonly results: PartRevisionResultState | undefined;
 }): PreparedPartRevision {
   const { attachment, partIds } = options;
   const runtime = attachment.runtime;
@@ -101,6 +108,7 @@ function preparePartRevision(options: {
     runtime,
     layout,
     flags,
+    results: options.results,
   });
 }
 
@@ -108,17 +116,93 @@ function commitPartRevision(
   attachment: PartRevisionAttachmentHost,
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
-  draw: DrawResources,
+  bundle: GpuBundle,
 ): void {
-  for (const partId of partIds) commitPartResources(draw, prepared, partId);
+  const runtime = attachment.runtime;
+  if (runtime === undefined) throw new Error("Part revision runtime is unavailable");
+  for (const partId of partIds) commitPartResources(bundle.draw, prepared, partId);
+  commitPartResults(bundle.draw, prepared, partIds);
   replaceAttachedParts(attachment.attachedParts, prepared.parts, partIds);
   copyAttachmentFlags(attachment.styleFlags(), prepared.flags);
   attachment.layout = prepared.layout;
-  attachment.interactionState = prepared.interaction;
-  attachment.interactionBeforeLastInstanceUpdate = undefined;
-  attachment.appliedHiddenIds = prepared.appliedHiddenIds;
-  attachment.usesExteriorFaceSubsets = prepared.usesExteriorFaceSubsets;
-  Object.assign(attachment, prepared.calls);
+  const state = {
+    interaction: attachment.interactionState,
+    beforeLastInstanceUpdate: attachment.interactionBeforeLastInstanceUpdate,
+    appliedHiddenIds: attachment.appliedHiddenIds,
+    usesExteriorFaceSubsets: attachment.usesExteriorFaceSubsets,
+    transparentFlags: prepared.flags.transparentFlags,
+    edgeFlags: prepared.flags.edgeFlags,
+    edgeEmphasisFlags: prepared.flags.edgeEmphasisFlags,
+    slotByInstanceId: attachment.slotByInstanceId,
+    selection: {
+      selectedNodeFlags: prepared.flags.selectedNodeFlags,
+      nodeFlags: prepared.flags.nodeFlags,
+    },
+  };
+  const changedSlots: number[] = [];
+  for (const partId of partIds) changedSlots.push(...runtime.getPartInstanceSlots(partId));
+  const result = syncAttachmentInteraction({
+    state,
+    runtime,
+    layout: prepared.layout,
+    interaction: prepared.interaction,
+    parts: prepared.parts,
+    bundle,
+    attached: false,
+    fullSync: false,
+    changedSlots,
+    forceParts: partIds,
+  });
+  for (const partId of result.visibilityParts ?? []) {
+    const part = prepared.parts.get(partId);
+    if (part !== undefined)
+      rebuildVisibilitySurface({
+        runtime,
+        layout: prepared.layout,
+        part,
+        interaction: prepared.interaction,
+        draw: bundle.draw,
+      });
+  }
+  applyInteractionState(attachment, state);
+  Object.assign(
+    attachment,
+    result.calls ?? reviseAttachmentCalls(prepared.layout, attachment, partIds, bundle.draw.cost),
+  );
+}
+
+function applyInteractionState(
+  attachment: PartRevisionAttachmentHost,
+  state: Parameters<typeof syncAttachmentInteraction>[0]["state"],
+): void {
+  attachment.interactionState = state.interaction;
+  attachment.interactionBeforeLastInstanceUpdate = state.beforeLastInstanceUpdate;
+  attachment.appliedHiddenIds = state.appliedHiddenIds;
+  attachment.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
+}
+
+function commitPartResults(
+  draw: DrawResources,
+  prepared: PreparedPartRevision,
+  partIds: ReadonlySet<PartId>,
+): void {
+  for (const partId of partIds) {
+    transferPartResource(draw.deformations, prepared.draw.deformations, partId);
+    transferPartResource(draw.resultColors, prepared.draw.resultColors, partId);
+    transferPartResource(
+      draw.orientationGlyphs.parts,
+      prepared.draw.orientationGlyphs.parts,
+      partId,
+    );
+  }
+  if (draw.orientationGlyphs.paramsBuffer !== prepared.draw.orientationGlyphs.paramsBuffer) {
+    draw.orientationGlyphs.paramsBuffer?.destroy();
+    draw.orientationGlyphs.paramsBuffer = prepared.draw.orientationGlyphs.paramsBuffer;
+  }
+  new Uint8Array(draw.orientationGlyphs.paramsData).set(
+    new Uint8Array(prepared.draw.orientationGlyphs.paramsData),
+  );
+  draw.orientationGlyphs.state = prepared.draw.orientationGlyphs.state;
 }
 
 function commitPartResources(
@@ -126,19 +210,8 @@ function commitPartResources(
   prepared: PreparedPartRevision,
   partId: PartId,
 ): void {
-  const previousStorage = prepared.previousStorages.get(partId);
-  const previousSkin = prepared.previousSkins.get(partId);
-  draw.visibilitySkins.delete(partId);
   destroyPartResources(draw, partId);
   transferStagedPartResources(draw, prepared.draw, partId);
-  const nextStorage = prepared.draw.storages.get(partId);
-  if (nextStorage === undefined) draw.storages.delete(partId);
-  else draw.storages.set(partId, nextStorage);
-  const nextSkin = prepared.draw.visibilitySkins.get(partId);
-  if (nextSkin === undefined) draw.visibilitySkins.delete(partId);
-  else draw.visibilitySkins.set(partId, nextSkin);
-  if (previousStorage !== undefined) destroyDetachedInstanceStorage(draw, previousStorage);
-  if (previousSkin !== undefined) destroyDetachedVisibilitySkinCache(draw, previousSkin);
 }
 
 function transferStagedPartResources(

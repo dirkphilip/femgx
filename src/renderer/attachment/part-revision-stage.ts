@@ -2,20 +2,22 @@ import type { Part, PartId } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuBundle } from "../recovery";
-import type { DrawCallLists, InstanceLayout } from "../runtime-state";
+import type { InstanceLayout } from "../runtime-state";
 import {
-  cloneInstanceStorage,
-  destroyDetachedInstanceStorage,
-  destroyPartResources,
+  destroyPartResource,
   type DrawResources,
-  type InstanceStorage,
   uploadGeometryPart,
 } from "../resources/draw-resources";
-import { destroyDetachedVisibilitySkinCache, rebuildVisibilitySurface } from "../visibility/skins";
-import type { VisibilitySkinCache } from "../visibility/types";
-import { reviseAttachmentCalls, type AttachmentCallLists } from "./calls";
+import { syncDeformations } from "../frame/deformation";
+import {
+  destroyOrientationGlyphPart,
+  syncOrientationGlyphs,
+} from "../orientation-glyphs/orientation-glyph";
+import { destroyResultColorBuffer, syncResultColors } from "../resources/result-colors";
+import { destroyDeformationBuffer } from "../frame/deformation";
+import type { PartRevisionResultState } from "./part-revision-results";
+import type { AttachmentCallLists } from "./calls";
 import type { HiddenInteractionTuple } from "./interaction";
-import { syncAttachmentInteraction } from "./interaction";
 import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
 
@@ -40,11 +42,7 @@ export interface PreparedPartRevision {
   readonly parts: Map<PartId, Part>;
   readonly flags: AttachmentFlagState;
   readonly interaction: InteractionState;
-  readonly appliedHiddenIds: HiddenInteractionTuple;
-  readonly usesExteriorFaceSubsets: boolean;
-  readonly calls: DrawCallLists;
-  readonly previousStorages: ReadonlyMap<PartId, InstanceStorage | undefined>;
-  readonly previousSkins: ReadonlyMap<PartId, VisibilitySkinCache | undefined>;
+  readonly results: PartRevisionResultState | undefined;
 }
 
 /** Clones all fallible revised resources and interaction state before a live swap. */
@@ -57,14 +55,13 @@ export function prepareStagedPartRevision(options: {
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly flags: AttachmentFlagState;
+  readonly results: PartRevisionResultState | undefined;
 }): PreparedPartRevision {
   const draw = stageDrawResources(options.bundle.draw, options.partIds);
-  const previousStorages = rememberedStorages(options.bundle.draw, options.partIds);
-  const previousSkins = rememberedSkins(options.bundle.draw, options.partIds);
   try {
-    return stagePartRevision({ ...options, draw, previousStorages, previousSkins });
+    return stagePartRevision({ ...options, draw });
   } catch (error) {
-    discardStagedPartResources(draw, previousStorages, previousSkins, options.partIds);
+    discardStagedPartResources(draw, options.bundle.draw, options.partIds);
     throw error;
   }
 }
@@ -93,43 +90,38 @@ function stagePartRevision(options: {
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
   readonly flags: AttachmentFlagState;
+  readonly results: PartRevisionResultState | undefined;
   readonly draw: DrawResources;
-  readonly previousStorages: ReadonlyMap<PartId, InstanceStorage | undefined>;
-  readonly previousSkins: ReadonlyMap<PartId, VisibilitySkinCache | undefined>;
 }): PreparedPartRevision {
-  cloneRevisionStorages(options.bundle.draw, options.draw, options.partIds);
   stagePartGeometry(
     options.draw,
     options.parts,
     options.partIds,
     options.attachment.usesExteriorFaceSubsets,
   );
-  const state = stagedInteractionState(options);
-  const result = syncAttachmentInteraction({
-    state,
-    runtime: options.runtime,
-    layout: options.layout,
-    interaction: options.interaction,
-    parts: options.parts,
-    bundle: { ...options.bundle, draw: options.draw },
-    attached: false,
-    fullSync: false,
-    changedSlots: partRevisionSlots(options.runtime, options.partIds),
-    forceParts: options.partIds,
-  });
-  rebuildStagedVisibility(options, result.visibilityParts);
-  return {
-    ...options,
-    interaction: state.interaction,
-    appliedHiddenIds: state.appliedHiddenIds,
-    usesExteriorFaceSubsets: state.usesExteriorFaceSubsets,
-    calls: reviseAttachmentCalls(
+  stagePartResults(options);
+  return options;
+}
+
+function stagePartResults(options: {
+  readonly draw: DrawResources;
+  readonly results: PartRevisionResultState | undefined;
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+}): void {
+  const results = options.results;
+  if (results === undefined) return;
+  if (results.glyphs !== undefined)
+    syncOrientationGlyphs(
+      options.draw.orientationGlyphs,
+      results.glyphs,
+      options.runtime,
       options.layout,
-      options.attachment,
-      options.partIds,
-      options.draw.cost,
-    ),
-  };
+    );
+  if (results.deformation !== undefined)
+    syncDeformations(options.draw, results.deformation, options.runtime, options.layout);
+  if (results.colors !== undefined)
+    syncResultColors(options.draw, results.colors, options.runtime, options.layout);
 }
 
 function stagePartGeometry(
@@ -145,54 +137,6 @@ function stagePartGeometry(
   }
 }
 
-function cloneRevisionStorages(
-  draw: DrawResources,
-  staged: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): void {
-  for (const partId of partIds) {
-    const storage = draw.storages.get(partId);
-    if (storage !== undefined) staged.storages.set(partId, cloneInstanceStorage(staged, storage));
-  }
-}
-
-function stagedInteractionState(options: {
-  readonly attachment: PartRevisionAttachmentHost;
-  readonly interaction: InteractionState;
-  readonly flags: AttachmentFlagState;
-}) {
-  return {
-    interaction: options.interaction,
-    beforeLastInstanceUpdate: undefined,
-    appliedHiddenIds: options.attachment.appliedHiddenIds,
-    usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
-    transparentFlags: options.flags.transparentFlags,
-    edgeFlags: options.flags.edgeFlags,
-    edgeEmphasisFlags: options.flags.edgeEmphasisFlags,
-    slotByInstanceId: options.attachment.slotByInstanceId,
-    selection: {
-      selectedNodeFlags: options.flags.selectedNodeFlags,
-      nodeFlags: options.flags.nodeFlags,
-    },
-  };
-}
-
-function rebuildStagedVisibility(
-  options: {
-    readonly runtime: PackedSceneRuntime;
-    readonly layout: InstanceLayout;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly interaction: InteractionState;
-    readonly draw: DrawResources;
-  },
-  partIds: Iterable<PartId> | undefined,
-): void {
-  for (const partId of partIds ?? []) {
-    const part = options.parts.get(partId);
-    if (part !== undefined) rebuildVisibilitySurface({ ...options, part });
-  }
-}
-
 function stageDrawResources(draw: DrawResources, partIds: ReadonlySet<PartId>): DrawResources {
   const staged = {
     ...draw,
@@ -202,6 +146,13 @@ function stageDrawResources(draw: DrawResources, partIds: ReadonlySet<PartId>): 
     storages: new Map(draw.storages),
     visibilitySkins: new Map(draw.visibilitySkins),
     admissionCache: new Map(draw.admissionCache),
+    deformations: new Map(draw.deformations),
+    resultColors: new Map(draw.resultColors),
+    orientationGlyphs: {
+      ...draw.orientationGlyphs,
+      paramsData: draw.orientationGlyphs.paramsData.slice(0),
+      parts: new Map(draw.orientationGlyphs.parts),
+    },
   };
   for (const partId of partIds) {
     staged.parts.delete(partId);
@@ -209,57 +160,42 @@ function stageDrawResources(draw: DrawResources, partIds: ReadonlySet<PartId>): 
     staged.nodeParts.delete(partId);
     staged.visibilitySkins.delete(partId);
     staged.admissionCache.delete(partId);
+    staged.deformations.delete(partId);
+    staged.resultColors.delete(partId);
+    staged.orientationGlyphs.parts.delete(partId);
   }
   return staged;
 }
 
 function discardStagedPartResources(
   draw: DrawResources,
-  previousStorages: ReadonlyMap<PartId, InstanceStorage | undefined>,
-  previousSkins: ReadonlyMap<PartId, VisibilitySkinCache | undefined>,
+  live: DrawResources,
   partIds: ReadonlySet<PartId>,
 ): void {
   for (const partId of partIds) {
-    destroyPartResources(draw, partId);
-    const storage = draw.storages.get(partId);
-    if (storage !== undefined && storage !== previousStorages.get(partId)) {
-      destroyDetachedInstanceStorage(draw, storage);
-    }
-    const skin = draw.visibilitySkins.get(partId);
-    if (skin !== undefined && skin !== previousSkins.get(partId)) {
-      destroyDetachedVisibilitySkinCache(draw, skin);
-    }
+    destroyStagedGeometry(draw, partId);
+    destroyPartResults(draw, partId);
+  }
+  if (draw.orientationGlyphs.paramsBuffer !== live.orientationGlyphs.paramsBuffer) {
+    draw.orientationGlyphs.paramsBuffer?.destroy();
   }
 }
 
-function rememberedStorages(
-  draw: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): ReadonlyMap<PartId, InstanceStorage | undefined> {
-  return rememberedResources(draw.storages, partIds);
+/** Releases only geometry allocated by this stage; result-role maps remain live aliases. */
+function destroyStagedGeometry(draw: DrawResources, partId: PartId): void {
+  const primitives = draw.primitiveParts.get(partId);
+  if (primitives !== undefined) {
+    for (const resource of primitives.values()) destroyPartResource(resource);
+    return;
+  }
+  const resource = draw.parts.get(partId);
+  if (resource !== undefined) destroyPartResource(resource);
+  const nodes = draw.nodeParts.get(partId);
+  if (nodes !== undefined) destroyPartResource(nodes);
 }
 
-function rememberedSkins(
-  draw: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): ReadonlyMap<PartId, VisibilitySkinCache | undefined> {
-  return rememberedResources(draw.visibilitySkins, partIds);
-}
-
-function rememberedResources<T>(
-  resources: ReadonlyMap<PartId, T>,
-  partIds: ReadonlySet<PartId>,
-): ReadonlyMap<PartId, T | undefined> {
-  const remembered = new Map<PartId, T | undefined>();
-  for (const partId of partIds) remembered.set(partId, resources.get(partId));
-  return remembered;
-}
-
-function partRevisionSlots(
-  runtime: PackedSceneRuntime,
-  partIds: ReadonlySet<PartId>,
-): readonly number[] {
-  const slots: number[] = [];
-  for (const partId of partIds) slots.push(...runtime.getPartInstanceSlots(partId));
-  return slots;
+function destroyPartResults(draw: DrawResources, partId: PartId): void {
+  destroyDeformationBuffer(draw.deformations, partId, draw.cost);
+  destroyResultColorBuffer(draw, partId);
+  destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }

@@ -4,6 +4,7 @@ import {
   setRendererResultColors,
   type WebGpuRenderer,
 } from "../../renderer/gpu-renderer";
+import type { PartRevisionResultState } from "../../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
 import {
@@ -55,11 +56,18 @@ export function applyResolvedPartRevisionResults(
   renderer: WebGpuRenderer,
   results: ViewportResultsState | undefined,
 ): void {
-  setRendererPartRevisionResults(renderer, {
+  setRendererPartRevisionResults(renderer, partRevisionResultState(results));
+}
+
+/** Converts resolved viewport results to the renderer-private revision transaction input. */
+export function partRevisionResultState(
+  results: ViewportResultsState | undefined,
+): PartRevisionResultState {
+  return {
     deformation: results?.deformation,
     colors: results === undefined ? undefined : viewportResultColors(results),
     glyphs: glyphState(results),
-  });
+  };
 }
 
 function glyphState(results: ViewportResultsState | undefined) {

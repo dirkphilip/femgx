@@ -1,7 +1,6 @@
-import type { Part } from "../geometry/part";
+import type { Part, PartId } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { PartId } from "../geometry/part";
 import type { PartOccurrence, PartOccurrenceId } from "../scene/types";
 import { patchInstances, type DrawCall } from "./resources/draw-resources";
 import type { GpuBundle } from "./recovery";
@@ -43,6 +42,7 @@ import {
   removeAttachmentParts,
   replaceAttachedPartDefinitions,
 } from "./attachment/part-definitions";
+import type { PartRevisionResultState } from "./attachment/part-revision-results";
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -104,8 +104,9 @@ export class RendererAttachment {
     partIds: ReadonlySet<PartId>,
     interaction: InteractionState,
     bundle: GpuBundle,
+    results?: PartRevisionResultState,
   ): void {
-    replaceAttachedPartDefinitions(this, parts, partIds, interaction, bundle);
+    replaceAttachedPartDefinitions(this, parts, partIds, { interaction, bundle, results });
   }
 
   /**

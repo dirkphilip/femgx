@@ -4,6 +4,7 @@ import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { RendererAttachment } from "../attachment";
 import type { GpuBundle } from "../recovery";
 import type { SectionCapController } from "../section-cap-controller";
+import type { PartRevisionResultState } from "./part-revision-results";
 
 interface RendererPartRevisionOptions {
   readonly bundle: GpuBundle;
@@ -11,6 +12,7 @@ interface RendererPartRevisionOptions {
   readonly interaction: InteractionState;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly partIds: ReadonlySet<PartId>;
+  readonly results: PartRevisionResultState | undefined;
 }
 
 /** Replaces one definition through retained attachment, cap, and interaction ownership. */
@@ -22,7 +24,13 @@ export function applyRendererPartRevision(
   options: RendererPartRevisionOptions,
 ): ReadonlyMap<PartId, Part> | undefined {
   attachment.prepareAddedParts(options.parts, options.partIds);
-  attachment.replaceParts(options.parts, options.partIds, options.interaction, options.bundle);
+  attachment.replaceParts(
+    options.parts,
+    options.partIds,
+    options.interaction,
+    options.bundle,
+    options.results,
+  );
   for (const partId of options.partIds) {
     const part = options.parts.get(partId);
     if (part === undefined) throw new Error(`Replaced part ${partId} is not registered`);

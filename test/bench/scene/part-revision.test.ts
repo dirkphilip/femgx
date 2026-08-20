@@ -28,6 +28,8 @@ interface RevisionRow {
   readonly p50Ms: number;
   readonly p95Ms: number;
   readonly retainedResultWrites: number;
+  readonly retainedStorageWrites: number;
+  readonly maximumRevisionBuffers: number;
 }
 
 interface RevisionFixture {
@@ -37,6 +39,11 @@ interface RevisionFixture {
   readonly revisions: readonly Part[];
   readonly retainedColorBuffer: GPUBuffer | undefined;
   readonly retainedDeformationBuffer: GPUBuffer | undefined;
+  readonly revisedStorage:
+    { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer } | undefined;
+  readonly retainedStorage:
+    { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer } | undefined;
+  readonly retainedGeometry: unknown;
   revisionIndex: number;
 }
 
@@ -87,6 +94,9 @@ async function createFixture(occurrences: number): Promise<RevisionFixture> {
     revisions: [tetraPart(1, 2), tetraPart(1, 3)],
     retainedColorBuffer: draw.resultColors.get(2)?.buffer,
     retainedDeformationBuffer: draw.deformations.get(2)?.buffer,
+    revisedStorage: draw.storages.get(1),
+    retainedStorage: draw.storages.get(2),
+    retainedGeometry: draw.primitiveParts.get(2)?.get("triangles"),
     revisionIndex: 0,
   };
 }
@@ -95,13 +105,26 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
   revise(fixture);
   const samples: number[] = [];
   let retainedResultWrites = 0;
+  let retainedStorageWrites = 0;
+  let maximumRevisionBuffers = 0;
   for (let sample = 0; sample < 7; sample += 1) {
     const writeStart = fixture.gpu.writes.length;
+    const buffersBefore = fixture.gpu.buffers.length;
     const started = performance.now();
     revise(fixture);
     fixture.viewport.render();
     samples.push(performance.now() - started);
     retainedResultWrites += writesToRetainedResults(fixture, writeStart);
+    retainedStorageWrites += writesToRetainedStorage(fixture, writeStart);
+    maximumRevisionBuffers = Math.max(
+      maximumRevisionBuffers,
+      fixture.gpu.buffers.length - buffersBefore,
+    );
+    expect(rendererDraw(fixture.viewport).storages.get(1)).toBe(fixture.revisedStorage);
+    expect(rendererDraw(fixture.viewport).storages.get(2)).toBe(fixture.retainedStorage);
+    expect(rendererDraw(fixture.viewport).primitiveParts.get(2)?.get("triangles")).toBe(
+      fixture.retainedGeometry,
+    );
     expect(fixture.viewport.occurrences.partOccurrenceCount).toBe(
       fixture.occurrences + LIVE_UNRELATED_PARTS,
     );
@@ -114,6 +137,8 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     p50Ms: percentile(samples, 0.5),
     p95Ms: percentile(samples, 0.95),
     retainedResultWrites,
+    retainedStorageWrites,
+    maximumRevisionBuffers,
   };
 }
 
@@ -153,6 +178,15 @@ function writesToRetainedResults(fixture: RevisionFixture, start: number): numbe
         write.buffer === fixture.retainedColorBuffer ||
         write.buffer === fixture.retainedDeformationBuffer,
     ).length;
+  expect(count).toBe(0);
+  return count;
+}
+
+function writesToRetainedStorage(fixture: RevisionFixture, start: number): number {
+  const buffers = [fixture.revisedStorage?.buffer, fixture.revisedStorage?.orderBuffer];
+  const count = fixture.gpu.writes
+    .slice(start)
+    .filter((write) => buffers.includes(write.buffer)).length;
   expect(count).toBe(0);
   return count;
 }
@@ -221,6 +255,11 @@ function rendererDraw(viewport: Viewport) {
   return owner.renderer.lifecycle.bundle.draw as {
     readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
     readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
+    readonly storages: ReadonlyMap<
+      number,
+      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer }
+    >;
+    readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
   };
 }
 
