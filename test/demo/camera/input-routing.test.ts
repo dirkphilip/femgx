@@ -7,7 +7,7 @@ import {
   projectPoint,
   resizeCamera,
   zoomCamera,
-} from "../../../src/entries/camera";
+} from "@/entries/camera";
 
 import type { Vec3 } from "./support";
 

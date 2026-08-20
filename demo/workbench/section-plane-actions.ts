@@ -1,4 +1,4 @@
-import type { Viewport } from "../../src/entries/root";
+import type { Viewport } from "@/entries/root";
 import type { WorkbenchModel } from "./models/model";
 import {
   clampSectionOffset,

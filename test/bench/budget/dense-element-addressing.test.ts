@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createElement, type Element } from "../../../src/elements/element";
-import { createElementModel } from "../../../src/elements/model";
-import { ElementShape } from "../../../src/elements/shapes";
-import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
-import { identityMatrix } from "../../../src/math/mat4";
-import { createFemModelBuilder } from "../../../src/io/model-builder";
-import { createResultFieldFromModelResult } from "../../../src/io/conversions/result-field";
-import type { FemModel } from "../../../src/io/fem-model";
-import { resolveElementalOrientationRecords } from "../../../src/results/orientation-records";
-import { createResultField, type ScalarField, type VectorField } from "../../../src/results/fields";
-import { createScalarColorMap } from "../../../src/results/mapping";
-import { scalarRange } from "../../../src/results/range";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import { resolveViewportResults, viewportResultColors } from "../../../src/viewport/results";
+import { createElement, type Element } from "@/elements/element";
+import { createElementModel } from "@/elements/model";
+import { ElementShape } from "@/elements/shapes";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
+import { identityMatrix } from "@/math/mat4";
+import { createFemModelBuilder } from "@/io/model-builder";
+import { createResultFieldFromModelResult } from "@/io/conversions/result-field";
+import type { FemModel } from "@/io/fem-model";
+import { resolveElementalOrientationRecords } from "@/results/orientation-records";
+import { createResultField, type ScalarField, type VectorField } from "@/results/fields";
+import { createScalarColorMap } from "@/results/mapping";
+import { scalarRange } from "@/results/range";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
+import { resolveViewportResults, viewportResultColors } from "@/viewport/results";
 import {
   buildOperationsReport,
   emitOperationsReport,

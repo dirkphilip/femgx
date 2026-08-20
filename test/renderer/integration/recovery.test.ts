@@ -4,9 +4,9 @@ import {
   EXTERNAL_DEVICE_RECOVERY_MESSAGE,
   GpuDeviceLifecycle,
   rebuildGpuBundle,
-} from "../../../src/renderer/recovery";
-import { ensureColorTargets } from "../../../src/renderer/frame/pipelines";
-import type { GpuValidationOptions } from "../../../src/renderer/diagnostics/validation";
+} from "@/renderer/recovery";
+import { ensureColorTargets } from "@/renderer/frame/pipelines";
+import type { GpuValidationOptions } from "@/renderer/diagnostics/validation";
 import {
   fakeGpuDevice,
   installFreshDeviceNavigator,

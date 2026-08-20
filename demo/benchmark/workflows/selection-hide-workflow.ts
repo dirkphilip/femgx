@@ -1,30 +1,27 @@
-import { orbitCamera, type Camera } from "../../../src/camera/camera";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "../../../src/interaction/interaction";
+import { orbitCamera, type Camera } from "@/camera/camera";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { createInteractionState, setPartOverride } from "@/interaction/interaction";
 import {
   readInteractionState,
   updateInteractionState,
   type InteractionState,
-} from "../../../src/interaction/state";
-import { hideSelectedElements } from "../../../src/interaction/selection-queries";
-import { setTargetsSelected } from "../../../src/interaction/targets";
-import type { InteractionTarget } from "../../../src/interaction/target-types";
+} from "@/interaction/state";
+import { hideSelectedElements } from "@/interaction/selection-queries";
+import { setTargetsSelected } from "@/interaction/targets";
+import type { InteractionTarget } from "@/interaction/target-types";
 import {
   readGpuCostSnapshot,
   readMaterializedEdgePartIds,
   type WebGpuRenderer,
-} from "../../../src/renderer/gpu-renderer";
+} from "@/renderer/gpu-renderer";
 import {
   collectDenseElementSelections,
   collectDenseHiddenElements,
   type DenseElementSelections,
-} from "../../../src/renderer/selection/element-selection";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
-import {
-  ELEMENT_RECORD_STRIDE,
-  HIGHLIGHT_HEADER,
-} from "../../../src/renderer/resources/element-resources";
-import type { PackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+} from "@/renderer/selection/element-selection";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "@/renderer/resources/element-resources";
+import type { PackedSceneRuntime } from "@/scene-runtime/runtime";
 import { estimateBenchmarkMemory } from "../memory";
 import type { WebGpuBenchmarkCase } from "../model";
 import { authoredElementTargets } from "./selection";

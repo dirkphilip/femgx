@@ -1,20 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createPart } from "../../../src/geometry/part";
+import { createPart } from "@/geometry/part";
 import {
   createInteractionState,
   setPartOccurrenceOverride,
   setPartOverride,
-} from "../../../src/interaction/interaction";
-import { translationMatrix } from "../../../src/math/mat4";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import {
-  interactionDirtyParts,
-  refreshTransparencyFlags,
-} from "../../../src/renderer/interaction-sync";
-import type { EmphasisUpdate } from "../../../src/renderer/resources/element-resources";
-import { defaultStyle } from "../../../src/renderer/resources/foundation";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
+} from "@/interaction/interaction";
+import { translationMatrix } from "@/math/mat4";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
+import { interactionDirtyParts, refreshTransparencyFlags } from "@/renderer/interaction-sync";
+import type { EmphasisUpdate } from "@/renderer/resources/element-resources";
+import { defaultStyle } from "@/renderer/resources/foundation";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
 
 function sceneRuntime() {
   const geometry = {

@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { createPart } from "../../../src/geometry/part";
-import { translationMatrix } from "../../../src/math/mat4";
-import { RendererAttachment } from "../../../src/renderer/attachment";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
+import { createPart } from "@/geometry/part";
+import { translationMatrix } from "@/math/mat4";
+import { RendererAttachment } from "@/renderer/attachment";
+import { createInteractionState } from "@/interaction/interaction";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 import {
   encodeInstanceRecord,
   INSTANCE_STRIDE,
   type InstanceStorage,
-} from "../../../src/renderer/resources/instance-storage";
-import { uploadPart } from "../../../src/renderer/resources/draw-resources";
-import { defaultStyle } from "../../../src/renderer/resources/foundation";
+} from "@/renderer/resources/instance-storage";
+import { uploadPart } from "@/renderer/resources/draw-resources";
+import { defaultStyle } from "@/renderer/resources/foundation";
 import {
   applyOccurrenceMutations,
   prepareOccurrenceMutations,
-} from "../../../src/scene-runtime/occurrence-update";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import { prepareSceneTransition } from "../../../src/scene/update";
+} from "@/scene-runtime/occurrence-update";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
+import { prepareSceneTransition } from "@/scene/update";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 describe("cold renderer attachment", () => {

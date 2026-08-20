@@ -1,16 +1,16 @@
-import { createPart, translationMatrix, type Part } from "../../../src/entries/root";
+import { createPart, translationMatrix, type Part } from "@/entries/root";
 import {
   createInteractionState,
   setTargetsSelected,
   type InteractionTarget,
-} from "../../../src/entries/interaction";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { collectDenseElementSelections } from "../../../src/renderer/selection/element-selection";
-import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
-import { defaultStyle } from "../../../src/renderer/resources/foundation";
-import { encodeEmphasisRecord } from "../../../src/renderer/resources/element-resources";
-import type { HighlightTableEntry } from "../../../src/renderer/selection/highlight-table";
+} from "@/entries/interaction";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { collectDenseElementSelections } from "@/renderer/selection/element-selection";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
+import { defaultStyle } from "@/renderer/resources/foundation";
+import { encodeEmphasisRecord } from "@/renderer/resources/element-resources";
+import type { HighlightTableEntry } from "@/renderer/selection/highlight-table";
 import { BENCH_BODY_ELEMENT_COUNT } from "../fixtures";
 import { bodyGeometry } from "./geometry-fixtures";
 

@@ -4,37 +4,33 @@ import {
   type GeometryInput,
   type GeometryBody,
   type Part,
-} from "../../../../src/geometry/part";
+} from "@/geometry/part";
 
 import {
   createInteractionState,
   setElementHighlighted,
   setElementOverride,
   setElementSelected,
-} from "../../../../src/interaction/interaction";
+} from "@/interaction/interaction";
 
-import {
-  setBodyOverride,
-  setBodySelected,
-  setBodyVisible,
-} from "../../../../src/interaction/bodies";
+import { setBodyOverride, setBodySelected, setBodyVisible } from "@/interaction/bodies";
 
-import { setFaceSelected } from "../../../../src/interaction/faces";
+import { setFaceSelected } from "@/interaction/faces";
 
-import { setEdgeSelected } from "../../../../src/interaction/edges";
+import { setEdgeSelected } from "@/interaction/edges";
 
-import { setNodeSelected } from "../../../../src/interaction/nodes";
+import { setNodeSelected } from "@/interaction/nodes";
 
-import { setTargetHovered } from "../../../../src/interaction/targets";
+import { setTargetHovered } from "@/interaction/targets";
 
-import { translationMatrix } from "../../../../src/math/mat4";
+import { translationMatrix } from "@/math/mat4";
 
 import {
   createPackedSceneRuntime,
   type PackedSceneRuntime as SceneRuntime,
-} from "../../../../src/scene-runtime/runtime";
+} from "@/scene-runtime/runtime";
 
-import { createSceneBuilder, type Scene } from "../../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "@/scene/scene";
 
 import {
   collectEmphasisUpdates,
@@ -43,17 +39,17 @@ import {
   HIGHLIGHT_HEADER,
   INITIAL_ELEMENT_HIGHLIGHTS,
   type EmphasisUpdate,
-} from "../../../../src/renderer/resources/element-resources";
+} from "@/renderer/resources/element-resources";
 
-import { getPartSemanticIndex } from "../../../../src/geometry/part-semantic-index";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
 
 import {
   createHighlightStorage,
   syncElementHighlights,
   writeElementHighlights,
-} from "../../../../src/renderer/selection/highlight-storage";
+} from "@/renderer/selection/highlight-storage";
 
-import { collectDenseElementSelections } from "../../../../src/renderer/selection/element-selection";
+import { collectDenseElementSelections } from "@/renderer/selection/element-selection";
 
 import {
   buildBodyPrimitivePickIds,
@@ -61,25 +57,25 @@ import {
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
   buildPrimitiveFaceBodyPickData,
-} from "../../../../src/renderer/picking/ids";
+} from "@/renderer/picking/ids";
 import {
   buildNodeSpritePickIds,
   buildPackedNodeTopologyData,
-} from "../../../../src/renderer/picking/node-topology";
+} from "@/renderer/picking/node-topology";
 
-import { HIGHLIGHT_BUCKET_SIZE } from "../../../../src/renderer/selection/highlight-table";
+import { HIGHLIGHT_BUCKET_SIZE } from "@/renderer/selection/highlight-table";
 
 import {
   createDrawResources,
   encodeInstanceRecord,
   patchInstances,
-} from "../../../../src/renderer/resources/draw-resources";
+} from "@/renderer/resources/draw-resources";
 
-import { defaultStyle } from "../../../../src/renderer/resources/foundation";
+import { defaultStyle } from "@/renderer/resources/foundation";
 
-import type { InstanceStorage } from "../../../../src/renderer/resources/draw-resources";
+import type { InstanceStorage } from "@/renderer/resources/draw-resources";
 
-import { buildInstanceLayout } from "../../../../src/renderer/runtime-state";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
 
 import { fakeGpuDevice, installGpuGlobals } from "../../fake-gpu";
 

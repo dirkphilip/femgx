@@ -1,28 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Part } from "../../../src/geometry/part";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { setNodeHighlighted } from "../../../src/interaction/nodes";
-import { setTargetsSelected, setTargetHovered } from "../../../src/interaction/targets";
-import { identityMatrix } from "../../../src/math/mat4";
+import { createPart, type Part } from "@/geometry/part";
+import { createInteractionState } from "@/interaction/interaction";
+import { setNodeHighlighted } from "@/interaction/nodes";
+import { setTargetsSelected, setTargetHovered } from "@/interaction/targets";
+import { identityMatrix } from "@/math/mat4";
 import {
   collectEmphasisUpdates,
   type EmphasisUpdates,
-} from "../../../src/renderer/resources/element-resources";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
-import { buildSelectionOrder } from "../../../src/renderer/runtime-state";
-import { refreshTransparencyFlags } from "../../../src/renderer/interaction-sync";
+} from "@/renderer/resources/element-resources";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { buildSelectionOrder } from "@/renderer/runtime-state";
+import { refreshTransparencyFlags } from "@/renderer/interaction-sync";
 import {
   createHighlightStorage,
   writeElementHighlights,
-} from "../../../src/renderer/selection/highlight-storage";
-import { HIGHLIGHT_HEADER } from "../../../src/renderer/selection/highlight-layout";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
+} from "@/renderer/selection/highlight-storage";
+import { HIGHLIGHT_HEADER } from "@/renderer/selection/highlight-layout";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
 import {
   denseNodeSelectionContains,
   collectDenseNodeSelections,
   sparseNodeEmphasisRefs,
-} from "../../../src/renderer/selection/node-selection";
+} from "@/renderer/selection/node-selection";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 describe("dense node selections", () => {

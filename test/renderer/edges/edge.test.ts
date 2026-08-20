@@ -3,16 +3,9 @@ import {
   buildMeshEdgeData,
   buildUnownedMeshEdgePresentation,
   type MeshEdgeData,
-} from "../../../src/renderer/edges/mesh-edge";
-import {
-  expandMeshEdgeData,
-  meshEdgeEndpointData,
-} from "../../../src/renderer/edges/edge-expansion";
-import {
-  createPart,
-  type ElementTessellation,
-  type GeometryInput,
-} from "../../../src/geometry/part";
+} from "@/renderer/edges/mesh-edge";
+import { expandMeshEdgeData, meshEdgeEndpointData } from "@/renderer/edges/edge-expansion";
+import { createPart, type ElementTessellation, type GeometryInput } from "@/geometry/part";
 
 type SemanticGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];

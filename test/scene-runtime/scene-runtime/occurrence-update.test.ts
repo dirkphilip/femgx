@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createSceneOccurrences } from "../../../src/scene-runtime/occurrences";
+import { createSceneOccurrences } from "@/scene-runtime/occurrences";
 import {
   applyOccurrenceMutations,
   prepareOccurrenceMutations,
-} from "../../../src/scene-runtime/occurrence-update";
-import { prepareSceneTransition } from "../../../src/scene/update";
+} from "@/scene-runtime/occurrence-update";
+import { prepareSceneTransition } from "@/scene/update";
 import {
   buildScene,
   createPackedSceneRuntime,

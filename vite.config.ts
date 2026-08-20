@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { sourceAlias } from "./config/source-alias.ts";
 
 function esmSpecifiers(content: string): string {
   return content.replace(
@@ -14,6 +15,7 @@ function esmSpecifiers(content: string): string {
 }
 
 export default defineConfig({
+  resolve: { alias: sourceAlias },
   build: {
     lib: {
       entry: {

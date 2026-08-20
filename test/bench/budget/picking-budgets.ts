@@ -1,4 +1,4 @@
-import { resolvePick } from "../../../src/picking/pick";
+import { resolvePick } from "@/picking/pick";
 import { BENCH_INSTANCE_COUNT } from "../fixtures";
 import type { BudgetCase, ScalingCase } from "./types";
 import { runtimeInstances } from "./scene-budgets";

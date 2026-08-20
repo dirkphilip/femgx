@@ -1,9 +1,4 @@
-import {
-  type Viewport,
-  type PartOccurrenceId,
-  type PartId,
-  type Scene,
-} from "../../../src/entries/root";
+import { type Viewport, type PartOccurrenceId, type PartId, type Scene } from "@/entries/root";
 import {
   isBodyVisible,
   isElementVisible,
@@ -12,13 +7,13 @@ import {
   setTargetHighlighted,
   setBodyVisible,
   type InteractionState,
-} from "../../../src/entries/interaction";
+} from "@/entries/interaction";
 import {
   hideSelectedElements,
   selectedElementVisibilitySummary,
-} from "../../../src/interaction/selection-queries";
-import type { BodyId } from "../../../src/entries/model";
-import type { SceneOccurrences } from "../../../src/entries/root";
+} from "@/interaction/selection-queries";
+import type { BodyId } from "@/entries/model";
+import type { SceneOccurrences } from "@/entries/root";
 import type { SelectTarget } from "../selection/pick";
 import { elementTarget } from "../selection/pick";
 

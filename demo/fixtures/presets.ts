@@ -1,18 +1,13 @@
-import {
-  type Bounds,
-  type PartId,
-  type Scene,
-  type ViewportResultsConfig,
-} from "../../src/entries/root";
-import type { Color } from "../../src/entries/interaction";
+import { type Bounds, type PartId, type Scene, type ViewportResultsConfig } from "@/entries/root";
+import type { Color } from "@/entries/interaction";
 import {
   createResultField,
   type ElementFrameField,
   type ScalarField,
   type ValueRange,
   type VectorField,
-} from "../../src/entries/results";
-import type { ElementModel } from "../../src/entries/model";
+} from "@/entries/results";
+import type { ElementModel } from "@/entries/model";
 import { createBoltedPlateFixture } from "./bolted-plate";
 import { createElementFixture, createHex20CylinderFixture } from "./element-fixture";
 import { sceneBounds } from "../scene-bounds";

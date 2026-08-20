@@ -1,20 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createPart } from "../../../src/geometry/part";
-import { identityMatrix, scalingMatrix, translationMatrix } from "../../../src/math/mat4";
-import { createResultField } from "../../../src/results/fields";
-import { resolveElementalOrientationRecords } from "../../../src/results/orientation-records";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import {
-  normalMatrix3,
-  packOrientationRecords,
-} from "../../../src/renderer/orientation-glyphs/data";
-import { orientationGlyphVertexShader } from "../../../src/renderer/orientation-glyphs/shader";
+import { createPart } from "@/geometry/part";
+import { identityMatrix, scalingMatrix, translationMatrix } from "@/math/mat4";
+import { createResultField } from "@/results/fields";
+import { resolveElementalOrientationRecords } from "@/results/orientation-records";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
+import { normalMatrix3, packOrientationRecords } from "@/renderer/orientation-glyphs/data";
+import { orientationGlyphVertexShader } from "@/renderer/orientation-glyphs/shader";
 import {
   createWebGpuRenderer,
   readGpuCostSnapshot,
   setRendererOrientationGlyphs,
-} from "../../../src/renderer/gpu-renderer";
+} from "@/renderer/gpu-renderer";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 const originalNavigator = globalThis.navigator;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { hideSelectedElements } from "../../../src/interaction/selection-queries";
-import { setTargetsSelected } from "../../../src/interaction/targets";
-import { readInteractionState } from "../../../src/interaction/state";
+import { createInteractionState } from "@/interaction/interaction";
+import { hideSelectedElements } from "@/interaction/selection-queries";
+import { setTargetsSelected } from "@/interaction/targets";
+import { readInteractionState } from "@/interaction/state";
 import { buildOperationsReport, emitOperationsReport } from "../operation-report";
 
 const ELEMENT_COUNT = 131_712;

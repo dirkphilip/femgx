@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createElement } from "../../../src/elements/element";
-import { createElementModel } from "../../../src/elements/model";
-import { ElementShape } from "../../../src/elements/shapes";
+import { createElement } from "@/elements/element";
+import { createElementModel } from "@/elements/model";
+import { ElementShape } from "@/elements/shapes";
 import {
   tet10Model,
   sharedTetPairModel,

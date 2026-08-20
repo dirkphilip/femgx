@@ -1,10 +1,6 @@
-import type { ElementTessellation, Part, PartOccurrenceId } from "../../../src/entries/root";
-import {
-  isBodyVisible,
-  isElementVisible,
-  type InteractionState,
-} from "../../../src/entries/interaction";
-import type { BodyId } from "../../../src/entries/model";
+import type { ElementTessellation, Part, PartOccurrenceId } from "@/entries/root";
+import { isBodyVisible, isElementVisible, type InteractionState } from "@/entries/interaction";
+import type { BodyId } from "@/entries/model";
 
 const bodyIdsByPart = new WeakMap<Part, ReadonlyMap<number, BodyId>>();
 

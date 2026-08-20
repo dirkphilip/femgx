@@ -9,14 +9,14 @@ import {
   type Part,
   type PartId,
   type Scene,
-} from "../../src/entries/root";
+} from "@/entries/root";
 import {
   createElementModel,
   createPartFromElementModel,
   createPartFromExplicitTopology,
   topologyFor,
   type ElementModel,
-} from "../../src/entries/model";
+} from "@/entries/model";
 import {
   buildHex20CylinderModel,
   buildHexModel,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createPart } from "../../../../src/geometry/part";
-import { buildPackedNodeTopologyData } from "../../../../src/renderer/picking/node-topology";
-import { packTopologyData } from "../../../../src/renderer/resources/geometry-buffers";
+import { createPart } from "@/geometry/part";
+import { buildPackedNodeTopologyData } from "@/renderer/picking/node-topology";
+import { packTopologyData } from "@/renderer/resources/geometry-buffers";
 
 describe("packed node topology", () => {
   it("matches generic packing for mixed, repeated, and noncanonical owners", () => {

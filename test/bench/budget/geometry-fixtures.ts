@@ -1,14 +1,14 @@
 import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
-import { createElement, type Element } from "../../../src/elements/element";
-import { createElementModel } from "../../../src/elements/model";
-import { FEMGX_FORMAT_VERSION, type FemModel } from "../../../src/io/fem-model";
-import { ElementShape } from "../../../src/elements/shapes";
+import { createElement, type Element } from "@/elements/element";
+import { createElementModel } from "@/elements/model";
+import { FEMGX_FORMAT_VERSION, type FemModel } from "@/io/fem-model";
+import { ElementShape } from "@/elements/shapes";
 import {
   createPart,
   type Part,
   type TriangleGeometry,
   type TriangleGeometryInput,
-} from "../../../src/entries/root";
+} from "@/entries/root";
 import { BENCH_BODY_COUNT, BENCH_BODY_GRID_CELLS, makeBodies, makeBodyGeometry } from "../fixtures";
 
 const CONVERSION_BENCH_ELEMENT_COUNT = 250_000;

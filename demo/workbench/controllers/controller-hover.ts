@@ -1,10 +1,10 @@
-import { type PartOccurrenceId, type Viewport } from "../../../src/entries/root";
+import { type PartOccurrenceId, type Viewport } from "@/entries/root";
 import {
   setTargetHovered,
   setTargetsHighlighted,
   type InteractionState,
-} from "../../../src/entries/interaction";
-import type { ElementId } from "../../../src/entries/model";
+} from "@/entries/interaction";
+import type { ElementId } from "@/entries/model";
 import {
   interactionTargetsForRow,
   visibilityRowTargetsEqual,

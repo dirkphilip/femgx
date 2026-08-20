@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Viewport, type Scene } from "../../../src/entries/root";
+import { type Viewport, type Scene } from "@/entries/root";
 import {
   createInteractionState,
   isBodyVisible,
@@ -10,14 +10,11 @@ import {
   setBodyVisible,
   setTargetSelected,
   type InteractionState,
-} from "../../../src/entries/interaction";
-import {
-  createSceneOccurrenceSnapshot,
-  type SceneOccurrences,
-} from "../../../src/scene-runtime/occurrences";
+} from "@/entries/interaction";
+import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { WorkbenchVisibilityActions } from "../../../demo/workbench/state/visibility-actions";
-import { selectedElementVisibilitySummary } from "../../../src/interaction/selection-queries";
+import { selectedElementVisibilitySummary } from "@/interaction/selection-queries";
 
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {

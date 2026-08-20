@@ -1,5 +1,5 @@
-import { type PartId, type PickHit, type ViewportResultsState } from "../../../src/entries/root";
-import { scalarAt, vectorAt } from "../../../src/entries/results";
+import { type PartId, type PickHit, type ViewportResultsState } from "@/entries/root";
+import { scalarAt, vectorAt } from "@/entries/results";
 
 /**
  * Optional resolver for a part's display name, so the inspection panel can

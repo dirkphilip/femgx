@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { translationMatrix } from "../../../src/math/mat4";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createNodalLoadField, createResultField } from "../../../src/results/fields";
+import { translationMatrix } from "@/math/mat4";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createNodalLoadField, createResultField } from "@/results/fields";
 import {
   resolveViewportResults,
   viewportOrientationRecords,
   viewportResultColors,
-} from "../../../src/viewport/results";
+} from "@/viewport/results";
 import {
   createSceneBuilder,
   createTestScene,

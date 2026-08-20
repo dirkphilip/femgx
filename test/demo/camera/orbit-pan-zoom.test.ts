@@ -6,7 +6,7 @@ import {
   orbitCamera,
   projectPoint,
   resizeCamera,
-} from "../../../src/entries/camera";
+} from "@/entries/camera";
 
 import type { Vec3, PointerInput } from "./support";
 

@@ -10,9 +10,9 @@ import {
   releasePickReadback,
   resetPickTargets,
   WebGpuPickReadbackError,
-} from "../../../src/renderer/picking/pick";
-import { beginPickPass } from "../../../src/renderer/picking/pass";
-import { createPickDepthReadback } from "../../../src/renderer/picking/depth";
+} from "@/renderer/picking/pick";
+import { beginPickPass } from "@/renderer/picking/pass";
+import { createPickDepthReadback } from "@/renderer/picking/depth";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;

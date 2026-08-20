@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { readInteractionState, updateInteractionState } from "../../../src/interaction/state";
-import { setTargetsSelected } from "../../../src/interaction/targets";
+import { createInteractionState } from "@/interaction/interaction";
+import { readInteractionState, updateInteractionState } from "@/interaction/state";
+import { setTargetsSelected } from "@/interaction/targets";
 import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
-import { boundaryFaceRefsForModel } from "../../../src/elements/faces";
-import { createPartFromElementModel } from "../../../src/entries/model";
-import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
-import { buildElementSectionCap } from "../../../src/geometry/section-cap";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
-import { identityMatrix } from "../../../src/math/mat4";
-import type { Part } from "../../../src/geometry/part";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
-import { SectionCapController } from "../../../src/renderer/section-cap-controller";
-import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
+import { boundaryFaceRefsForModel } from "@/elements/faces";
+import { createPartFromElementModel } from "@/entries/model";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
+import { buildElementSectionCap } from "@/geometry/section-cap";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { identityMatrix } from "@/math/mat4";
+import type { Part } from "@/geometry/part";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { SectionCapController } from "@/renderer/section-cap-controller";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 import {
   collectDenseElementSelections,
   denseSelectionContains,
-} from "../../../src/renderer/selection/element-selection";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+} from "@/renderer/selection/element-selection";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
 import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "../measure";
 import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";

@@ -1,4 +1,4 @@
-import type { SceneOccurrences } from "../../../src/entries/root";
+import type { SceneOccurrences } from "@/entries/root";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "../results/snapshot";
 import { meshTet4ForOwner, type CatalogModeOwner } from "../controllers/controller-catalog";
 import type { WorkbenchElementDetailActions } from "../controllers/controller-element-detail";

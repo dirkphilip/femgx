@@ -1,6 +1,6 @@
-import { type InteractionGranularity, type PickHit } from "../../../src/entries/root";
-import { interactionTargetFromHit, type InteractionTarget } from "../../../src/entries/interaction";
-import type { BodyId, ElementId } from "../../../src/entries/model";
+import { type InteractionGranularity, type PickHit } from "@/entries/root";
+import { interactionTargetFromHit, type InteractionTarget } from "@/entries/interaction";
+import type { BodyId, ElementId } from "@/entries/model";
 
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<

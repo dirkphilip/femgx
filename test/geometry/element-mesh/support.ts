@@ -1,15 +1,15 @@
-import { createElement } from "../../../src/elements/element";
+import { createElement } from "@/elements/element";
 
-import { createElementModel, type Body, type ElementModel } from "../../../src/elements/model";
+import { createElementModel, type Body, type ElementModel } from "@/elements/model";
 
-import { boundaryFaceRefs, FaceSelectionError } from "../../../src/elements/faces";
+import { boundaryFaceRefs, FaceSelectionError } from "@/elements/faces";
 
-import { ElementShape, topologyFor, type ElementFamily } from "../../../src/elements/shapes";
+import { ElementShape, topologyFor, type ElementFamily } from "@/elements/shapes";
 
 import {
   type CreatePartFromElementModelOptions,
   createPartFromElementModel,
-} from "../../../src/geometry/element-model-part";
+} from "@/geometry/element-model-part";
 
 import {
   validateElements,
@@ -18,11 +18,11 @@ import {
   type Part,
   type PointGeometry,
   type TriangleGeometry,
-} from "../../../src/geometry/part";
+} from "@/geometry/part";
 
-import { deformGeometry } from "../../../src/results/deform";
+import { deformGeometry } from "@/results/deform";
 
-import { createResultField } from "../../../src/results/fields";
+import { createResultField } from "@/results/fields";
 
 export type Vec3 = readonly [number, number, number];
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { identityMatrix, scalingMatrix, translationMatrix } from "../../../src/entries/root";
-import type { BoxSelectionFrustum } from "../../../src/entries/interaction";
+import { identityMatrix, scalingMatrix, translationMatrix } from "@/entries/root";
+import type { BoxSelectionFrustum } from "@/entries/interaction";
 import {
   classifyLocalBounds,
   localBoundsPlanes,

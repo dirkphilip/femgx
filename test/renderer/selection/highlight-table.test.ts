@@ -4,7 +4,7 @@ import {
   HIGHLIGHT_BUCKET_SIZE,
   highlightHash,
   type HighlightTableEntry,
-} from "../../../src/renderer/selection/highlight-table";
+} from "@/renderer/selection/highlight-table";
 
 function entry(slot: number, elementPickId: number): HighlightTableEntry {
   return {

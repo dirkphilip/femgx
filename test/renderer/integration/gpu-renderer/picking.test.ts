@@ -18,7 +18,7 @@ import {
   camera,
   installGpuTestGlobals,
 } from "./support";
-import { setRendererResultColors } from "../../../../src/renderer/gpu-renderer";
+import { setRendererResultColors } from "@/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("reuses pick snapshots until pick-relevant state changes", async () => {

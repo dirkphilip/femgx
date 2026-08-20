@@ -20,8 +20,8 @@ import {
   type ElementTessellation,
   type SemanticTestGeometry,
 } from "./support";
-import { denseSelectionContains } from "../../../../src/renderer/selection/element-selection";
-import { setTargetsSelected } from "../../../../src/interaction/targets";
+import { denseSelectionContains } from "@/renderer/selection/element-selection";
+import { setTargetsSelected } from "@/interaction/targets";
 
 describe("collectEmphasisUpdates", () => {
   it("chooses dense membership only when it beats sparse selected records", () => {

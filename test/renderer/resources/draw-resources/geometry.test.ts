@@ -19,12 +19,9 @@ import {
   type DrawCallContext,
   type DrawPipelines,
 } from "./support";
-import { bindDrawGeometry } from "../../../../src/renderer/frame/geometry-binding";
-import { uploadNodePart } from "../../../../src/renderer/resources/draw-resources";
-import {
-  triangleSubsetUploadData,
-  triangleUploadData,
-} from "../../../../src/renderer/resources/triangle-upload";
+import { bindDrawGeometry } from "@/renderer/frame/geometry-binding";
+import { uploadNodePart } from "@/renderer/resources/draw-resources";
+import { triangleSubsetUploadData, triangleUploadData } from "@/renderer/resources/triangle-upload";
 
 describe("GPU draw path", () => {
   it("retains shared triangle sources and explicit corner connectivity", () => {

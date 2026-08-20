@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   packTopologyData,
   packUnownedEdgeTopologyData,
-} from "../../../src/renderer/resources/geometry-buffers";
+} from "@/renderer/resources/geometry-buffers";
 
 describe("packed topology data", () => {
   it("stores element ordinals before primitive and edge metadata", () => {

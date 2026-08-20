@@ -6,18 +6,14 @@ import {
   scalingMatrix,
   translationMatrix,
   type PartId,
-} from "../../src/entries/root";
-import {
-  createResultField,
-  createElementFrameField,
-  type VectorField,
-} from "../../src/entries/results";
+} from "@/entries/root";
+import { createResultField, createElementFrameField, type VectorField } from "@/entries/results";
 import {
   createElement,
   createElementModel,
   createPartFromElementModel,
   ElementShape,
-} from "../../src/entries/model";
+} from "@/entries/model";
 import type { AuthoredResultSequence, ModelPreset } from "./presets";
 import { sceneBounds } from "../scene-bounds";
 

@@ -4,16 +4,13 @@ import {
   EMISSIVE_BYTE_OFFSET,
   INSTANCE_STRIDE,
   LINE_WIDTH_BYTE_OFFSET,
-} from "../../../../src/renderer/resources/draw-resources";
+} from "@/renderer/resources/draw-resources";
 
-import {
-  ELEMENT_RECORD_STRIDE,
-  HIGHLIGHT_HEADER,
-} from "../../../../src/renderer/resources/element-resources";
+import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "@/renderer/resources/element-resources";
 
-import { CAMERA_UNIFORM_SIZE } from "../../../../src/renderer/frame/pipelines";
+import { CAMERA_UNIFORM_SIZE } from "@/renderer/frame/pipelines";
 
-import { DEFORMATION_UNIFORM_SIZE } from "../../../../src/renderer/frame/deformation";
+import { DEFORMATION_UNIFORM_SIZE } from "@/renderer/frame/deformation";
 
 import {
   colorFragmentShader,
@@ -21,9 +18,9 @@ import {
   surfaceLightingFunction,
   triangleColorFragmentShader,
   vertexOutput,
-} from "../../../../src/renderer/shaders/scene";
+} from "@/renderer/shaders/scene";
 
-import { edgeVertexShader } from "../../../../src/renderer/shaders/edge";
+import { edgeVertexShader } from "@/renderer/shaders/edge";
 
 import {
   instanceVertexShader,
@@ -31,37 +28,34 @@ import {
   lineVertexShader,
   pointVertexShader,
   selectionVertexShader,
-} from "../../../../src/renderer/shaders/instanced";
+} from "@/renderer/shaders/instanced";
 
 import {
   lineNodePickVertexShader,
   nodePickFragmentShader,
   nodePickVertexShader,
   pointNodePickVertexShader,
-} from "../../../../src/renderer/picking/node-pick";
+} from "@/renderer/picking/node-pick";
 
-import { nodeOverlayFragmentShader } from "../../../../src/renderer/shaders/node-overlay";
+import { nodeOverlayFragmentShader } from "@/renderer/shaders/node-overlay";
 
-import {
-  edgePickFragmentShader,
-  edgePickVertexShader,
-} from "../../../../src/renderer/edges/edge-pick";
+import { edgePickFragmentShader, edgePickVertexShader } from "@/renderer/edges/edge-pick";
 
 import {
   transparencyFragmentShader,
   triangleTransparencyFragmentShader,
-} from "../../../../src/renderer/frame/transparency";
+} from "@/renderer/frame/transparency";
 
 import {
   minimalTriangleColorFragmentShader,
   minimalTriangleTransparencyFragmentShader,
   minimalTriangleVertexShader,
-} from "../../../../src/renderer/shaders/minimal";
+} from "@/renderer/shaders/minimal";
 
 import {
   selectionFragmentShader,
   selectionTransparencyFragmentShader,
-} from "../../../../src/renderer/selection/selection";
+} from "@/renderer/selection/selection";
 
 /** Shared renderer test helper. */
 export function normalizedDerivativeNormal(

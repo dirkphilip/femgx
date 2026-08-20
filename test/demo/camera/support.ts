@@ -1,10 +1,5 @@
 import { vi } from "vitest";
-import {
-  createCamera,
-  installCameraControls,
-  resizeCamera,
-  type Vec3,
-} from "../../../src/entries/camera";
+import { createCamera, installCameraControls, resizeCamera, type Vec3 } from "@/entries/camera";
 
 interface PointerInput {
   readonly pointerId: number;

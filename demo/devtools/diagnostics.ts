@@ -1,4 +1,4 @@
-import type { PartId } from "../../src/entries/root";
+import type { PartId } from "@/entries/root";
 import type {
   DisplayToggles,
   RenderLoopStats,

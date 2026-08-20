@@ -1,4 +1,4 @@
-import type { AssemblyOccurrenceId, SceneOccurrences } from "../../../src/entries/root";
+import type { AssemblyOccurrenceId, SceneOccurrences } from "@/entries/root";
 
 /** Dense, renderer-independent hierarchy adjacency for one rebuilt visibility tree. */
 export class VisibilityHierarchy {

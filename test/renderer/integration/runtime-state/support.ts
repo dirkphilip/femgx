@@ -1,10 +1,10 @@
-import { createPart, MAX_PART_ID, type Part } from "../../../../src/geometry/part";
+import { createPart, MAX_PART_ID, type Part } from "@/geometry/part";
 
-import { identityMatrix, translationMatrix } from "../../../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "@/math/mat4";
 
-import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 
-import { createSceneBuilder } from "../../../../src/scene/scene";
+import { createSceneBuilder } from "@/scene/scene";
 import { emptyPart } from "../../../support/scene-fixtures";
 export { emptyPart as part };
 
@@ -15,26 +15,26 @@ import {
   buildSelectionOrder,
   buildInstanceLayout,
   buildTransparentOrder,
-} from "../../../../src/renderer/runtime-state";
+} from "@/renderer/runtime-state";
 
 import {
   createInteractionState,
   setElementSelected,
   setPartOccurrenceSelected,
   setPartSelected,
-} from "../../../../src/interaction/interaction";
+} from "@/interaction/interaction";
 
-import { setFaceSelected } from "../../../../src/interaction/faces";
+import { setFaceSelected } from "@/interaction/faces";
 
-import { setNodeSelected } from "../../../../src/interaction/nodes";
+import { setNodeSelected } from "@/interaction/nodes";
 
-import { setTargetsSelected } from "../../../../src/interaction/targets";
+import { setTargetsSelected } from "@/interaction/targets";
 
-import { buildSelectionDrawCalls as buildSelectionDrawCallsInternal } from "../../../../src/renderer/selection/draw-ranges";
+import { buildSelectionDrawCalls as buildSelectionDrawCallsInternal } from "@/renderer/selection/draw-ranges";
 import {
   collectDenseElementSelections,
   type DenseElementSelections,
-} from "../../../../src/renderer/selection/element-selection";
+} from "@/renderer/selection/element-selection";
 
 export const rangedSelectionPart = createPart(3, {
   geometries: [

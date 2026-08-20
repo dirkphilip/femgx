@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import { UnknownSceneIdentityError } from "../../../src/viewport/visibility-error";
+import { createSceneBuilder } from "@/scene/scene";
+import { UnknownSceneIdentityError } from "@/viewport/visibility-error";
 import {
   createViewport,
   fakeCanvas,

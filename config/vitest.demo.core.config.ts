@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { sourceAlias } from "./source-alias.ts";
 
 export default defineConfig({
+  resolve: { alias: sourceAlias },
   test: {
     include: ["test/demo/**/*.test.ts"],
     exclude: ["test/demo/ui*.test.ts", "test/demo/ui/**/*.test.ts"],

@@ -1,7 +1,7 @@
 import {
   selectedElementVisibilitySummary,
   selectedTargetSummary,
-} from "../../../src/interaction/selection-queries";
+} from "@/interaction/selection-queries";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,

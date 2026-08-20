@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { FakeCanvas, pointer } from "./support";
-import { createCamera, installCameraControls, resizeCamera } from "../../../src/entries/camera";
+import { createCamera, installCameraControls, resizeCamera } from "@/entries/camera";
 
 import type { Vec3 } from "./support";
 

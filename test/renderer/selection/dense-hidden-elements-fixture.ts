@@ -1,14 +1,14 @@
-import { createElement } from "../../../src/elements/element";
-import { createElementModel } from "../../../src/elements/model";
-import { ElementShape } from "../../../src/elements/shapes";
-import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
-import type { Part } from "../../../src/geometry/part";
-import { identityMatrix } from "../../../src/math/mat4";
-import { createDrawResources, uploadPart } from "../../../src/renderer/resources/draw-resources";
-import type { DenseElementSelection } from "../../../src/renderer/selection/element-selection";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
+import { createElement } from "@/elements/element";
+import { createElementModel } from "@/elements/model";
+import { ElementShape } from "@/elements/shapes";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
+import type { Part } from "@/geometry/part";
+import { identityMatrix } from "@/math/mat4";
+import { createDrawResources, uploadPart } from "@/renderer/resources/draw-resources";
+import type { DenseElementSelection } from "@/renderer/selection/element-selection";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 /** Creates disjoint Tet4 and Hex8 elements with non-contiguous authored ids. */

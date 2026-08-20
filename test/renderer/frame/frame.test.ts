@@ -6,11 +6,8 @@ import {
   needsWeightedTransparency,
   nodeSizeDevicePixels,
   pointSizeDevicePixels,
-} from "../../../src/renderer/frame/frame";
-import {
-  orbitPivotAxisProjection,
-  orbitPivotMetrics,
-} from "../../../src/renderer/overlays/orbit-pivot";
+} from "@/renderer/frame/frame";
+import { orbitPivotAxisProjection, orbitPivotMetrics } from "@/renderer/overlays/orbit-pivot";
 import {
   createCamera,
   orbitCamera,
@@ -20,9 +17,9 @@ import {
   type Camera,
   zoomCamera,
   zoomCameraAtPoint,
-} from "../../../src/camera/camera";
-import { cross, dot, normalize, scale, subtract, type Vec3 } from "../../../src/math/vec3";
-import { beginColorPass } from "../../../src/renderer/frame/passes";
+} from "@/camera/camera";
+import { cross, dot, normalize, scale, subtract, type Vec3 } from "@/math/vec3";
+import { beginColorPass } from "@/renderer/frame/passes";
 
 const originalDevicePixelRatio = globalThis.devicePixelRatio;
 

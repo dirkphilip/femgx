@@ -7,17 +7,14 @@ import {
   translationMatrix,
   type Viewport,
   type Scene,
-} from "../../../src/entries/root";
-import { RendererAttachment } from "../../../src/renderer/attachment";
-import { remapAttachmentFlags } from "../../../src/renderer/attachment/reconciliation";
-import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
-import { destroyVisibilitySkinCache } from "../../../src/renderer/visibility/skins";
-import {
-  createPackedSceneRuntime,
-  type PackedSceneRuntime,
-} from "../../../src/scene-runtime/runtime";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { setElementVisible } from "../../../src/interaction/elements";
+} from "@/entries/root";
+import { RendererAttachment } from "@/renderer/attachment";
+import { remapAttachmentFlags } from "@/renderer/attachment/reconciliation";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
+import { destroyVisibilitySkinCache } from "@/renderer/visibility/skins";
+import { createPackedSceneRuntime, type PackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createInteractionState } from "@/interaction/interaction";
+import { setElementVisible } from "@/interaction/elements";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import { measureMs, measureScaling } from "../measure";
 

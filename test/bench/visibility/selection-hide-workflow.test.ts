@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "../../../src/interaction/interaction";
-import { hideSelectedElements } from "../../../src/interaction/selection-queries";
-import { readInteractionState } from "../../../src/interaction/state";
-import { setTargetsSelected } from "../../../src/interaction/targets";
-import type { InteractionTarget } from "../../../src/interaction/target-types";
-import { identityMatrix } from "../../../src/math/mat4";
-import { RendererAttachment } from "../../../src/renderer/attachment";
-import { createGpuBundle, destroyGpuBundle, type GpuBundle } from "../../../src/renderer/recovery";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder, type Scene } from "../../../src/scene/scene";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { hideSelectedElements } from "@/interaction/selection-queries";
+import { readInteractionState } from "@/interaction/state";
+import { setTargetsSelected } from "@/interaction/targets";
+import type { InteractionTarget } from "@/interaction/target-types";
+import { identityMatrix } from "@/math/mat4";
+import { RendererAttachment } from "@/renderer/attachment";
+import { createGpuBundle, destroyGpuBundle, type GpuBundle } from "@/renderer/recovery";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder, type Scene } from "@/scene/scene";
 import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import {
   buildOperationsReport,

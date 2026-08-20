@@ -6,9 +6,9 @@ import type {
   Primitive,
   SectionPlane,
   Vec3,
-} from "../../../src/entries/root";
-import type { BoxSelectionFrustum } from "../../../src/entries/interaction";
-import type { DeformationState } from "../../../src/entries/results";
+} from "@/entries/root";
+import type { BoxSelectionFrustum } from "@/entries/interaction";
+import type { DeformationState } from "@/entries/results";
 import { classifyLocalBounds, type LocalBoundsPlane } from "./through-box-bounds";
 
 const PRIMITIVE_ARITY: Record<Primitive, number> = {

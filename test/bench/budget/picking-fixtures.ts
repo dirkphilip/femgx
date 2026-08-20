@@ -1,6 +1,6 @@
-import { createPart, type GeometryInput } from "../../../src/entries/root";
-import { createPickRegionTargetResolver } from "../../../src/renderer/picking/region-resolver";
-import type { PickContext, ResolvedPickIds } from "../../../src/picking/pick";
+import { createPart, type GeometryInput } from "@/entries/root";
+import { createPickRegionTargetResolver } from "@/renderer/picking/region-resolver";
+import type { PickContext, ResolvedPickIds } from "@/picking/pick";
 
 function makeRegionCase(elementCount: number) {
   const geometry: GeometryInput = {

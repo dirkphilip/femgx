@@ -1,7 +1,7 @@
-import type { AssemblyOccurrenceId, PartOccurrenceId } from "../../../src/entries/root";
-import type { InteractionTarget } from "../../../src/entries/interaction";
-import type { BodyId } from "../../../src/entries/model";
-import type { SceneOccurrences } from "../../../src/entries/root";
+import type { AssemblyOccurrenceId, PartOccurrenceId } from "@/entries/root";
+import type { InteractionTarget } from "@/entries/interaction";
+import type { BodyId } from "@/entries/model";
+import type { SceneOccurrences } from "@/entries/root";
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { setElementVisible } from "../../../src/interaction/elements";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { buildPackedNodeTopologyData } from "../../../src/renderer/picking/node-topology";
-import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
+import { setElementVisible } from "@/interaction/elements";
+import { createInteractionState } from "@/interaction/interaction";
+import { buildPackedNodeTopologyData } from "@/renderer/picking/node-topology";
+import { buildMeshEdgeData } from "@/renderer/edges/mesh-edge";
 import {
   collectDenseHiddenElements,
   denseSelectionContains,
   type DenseElementSelection,
-} from "../../../src/renderer/selection/element-selection";
-import { collectEmphasisUpdates } from "../../../src/renderer/resources/element-resources";
-import type { MeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
+} from "@/renderer/selection/element-selection";
+import { collectEmphasisUpdates } from "@/renderer/resources/element-resources";
+import type { MeshEdgeData } from "@/renderer/edges/mesh-edge";
 import {
   denseHidden,
   hexPairsPart,

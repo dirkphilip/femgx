@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Part } from "../../../src/geometry/part";
-import { identityMatrix } from "../../../src/math/mat4";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { setTargetsSelected } from "../../../src/interaction/targets";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
-import { buildInstanceLayout, buildSelectionOrder } from "../../../src/renderer/runtime-state";
-import { buildSelectionDrawCalls } from "../../../src/renderer/selection/draw-ranges";
+import { createPart, type Part } from "@/geometry/part";
+import { identityMatrix } from "@/math/mat4";
+import { createInteractionState } from "@/interaction/interaction";
+import { setTargetsSelected } from "@/interaction/targets";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
+import { buildInstanceLayout, buildSelectionOrder } from "@/renderer/runtime-state";
+import { buildSelectionDrawCalls } from "@/renderer/selection/draw-ranges";
 import {
   collectDenseElementSelections,
   type DenseElementSelections,
-} from "../../../src/renderer/selection/element-selection";
+} from "@/renderer/selection/element-selection";
 import { denseSelectionPart, interiorSubsetPart } from "../integration/runtime-state/support";
 
 interface SelectionFixture {

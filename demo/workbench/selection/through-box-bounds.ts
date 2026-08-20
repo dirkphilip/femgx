@@ -1,5 +1,5 @@
-import type { Mat4, SectionPlane, Vec3 } from "../../../src/entries/root";
-import type { BoxSelectionFrustum } from "../../../src/entries/interaction";
+import type { Mat4, SectionPlane, Vec3 } from "@/entries/root";
+import type { BoxSelectionFrustum } from "@/entries/interaction";
 
 const FRUSTUM_PLANES: readonly (keyof BoxSelectionFrustum)[] = [
   "left",

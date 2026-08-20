@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createBoltedPlateFixture } from "../../../demo/fixtures/bolted-plate";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { sceneBounds } from "../../../demo/scene-bounds";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import type { AssemblyDefinition, AssemblyPlacement } from "../../../src/scene/assembly";
-import type { Scene } from "../../../src/scene/scene";
-import type { PartOccurrence } from "../../../src/scene/types";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import type { AssemblyDefinition, AssemblyPlacement } from "@/scene/assembly";
+import type { Scene } from "@/scene/scene";
+import type { PartOccurrence } from "@/scene/types";
 
 function runtimeInstances(scene: Scene): readonly PartOccurrence[] {
   const runtime = createPackedSceneRuntime(scene);

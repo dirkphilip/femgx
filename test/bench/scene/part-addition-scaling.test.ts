@@ -5,7 +5,7 @@ import {
   createViewport,
   identityMatrix,
   type Viewport,
-} from "../../../src/entries/root";
+} from "@/entries/root";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 
 const COUNTS = [0, 1, 1_000, 100_000] as const;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { measureIteration } from "../../../demo/benchmark/measurement";
 import { createBenchmarkCase } from "../../../demo/benchmark/model";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 import {
   camera,
   createWebGpuRenderer,

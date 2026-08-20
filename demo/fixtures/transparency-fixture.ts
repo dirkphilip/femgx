@@ -6,8 +6,8 @@ import {
   type Part,
   type PartId,
   type Scene,
-} from "../../src/entries/root";
-import { createPartFromElementModel, type ElementModel } from "../../src/entries/model";
+} from "@/entries/root";
+import { createPartFromElementModel, type ElementModel } from "@/entries/model";
 import { buildHexModel } from "./element-models";
 
 /** Stable geometry identities for the order-independent transparency fixture. */

@@ -1,6 +1,6 @@
-import type { Viewport, ViewportBackground } from "../../../src/entries/root";
-import type { InteractionState } from "../../../src/entries/interaction";
-import { setProjection } from "../../../src/entries/camera";
+import type { Viewport, ViewportBackground } from "@/entries/root";
+import type { InteractionState } from "@/entries/interaction";
+import { setProjection } from "@/entries/camera";
 import type { WorkbenchModel } from "../models/model";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchPresentation } from "../viewport/presentation";

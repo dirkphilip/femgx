@@ -1,7 +1,7 @@
-import { type Viewport, type ViewportResultsState } from "../../../src/entries/root";
-import { type InteractionState } from "../../../src/entries/interaction";
-import type { Camera } from "../../../src/entries/camera";
-import type { SceneOccurrences } from "../../../src/entries/root";
+import { type Viewport, type ViewportResultsState } from "@/entries/root";
+import { type InteractionState } from "@/entries/interaction";
+import type { Camera } from "@/entries/camera";
+import type { SceneOccurrences } from "@/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import { selectedCount, selectionDatasetValue } from "../selection/selection";
 import { statsText } from "../../devtools/diagnostics";

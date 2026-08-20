@@ -6,8 +6,8 @@ import type {
   Part,
   AssemblyOccurrence,
   SceneOccurrences,
-} from "../../../src/entries/root";
-import type { BodyId } from "../../../src/entries/model";
+} from "@/entries/root";
+import type { BodyId } from "@/entries/model";
 import type { WorkbenchModel } from "../models/model";
 import { assemblyName } from "./visibility-tree";
 import { VisibilityHierarchy } from "./visibility-hierarchy";

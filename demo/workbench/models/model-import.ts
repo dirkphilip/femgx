@@ -1,4 +1,4 @@
-import type { GlbSceneImport, importGlb } from "../../../src/entries/io/glb";
+import type { GlbSceneImport, importGlb } from "@/entries/io/glb";
 import type { ImportedModelData } from "./model";
 
 /** Imports one supported local workbench file without mutating active state. */

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildNodeSpriteBuffers,
-  expandPointGeometry,
-} from "../../../../src/renderer/resources/point-sprites";
+import { buildNodeSpriteBuffers, expandPointGeometry } from "@/renderer/resources/point-sprites";
 
 describe("point sprite expansion", () => {
   it("expands sparse authored node ids into exact node overlay buffers", () => {
