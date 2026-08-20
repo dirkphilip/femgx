@@ -196,7 +196,8 @@ function sameRenderedParts(
   return true;
 }
 
-function bindingUsesRevisedPart(
+/** Tests whether one shared or occurrence-bound result entry targets a revised definition. */
+export function bindingUsesRevisedPart(
   bindingId: PartId | PartOccurrenceId,
   runtime: PackedSceneRuntime,
   revisedPartIds: ReadonlySet<PartId>,

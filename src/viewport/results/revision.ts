@@ -1,7 +1,7 @@
 import type { PartId } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
-import type { PartOccurrenceId } from "../../scene/types";
+import { bindingUsesRevisedPart } from "../result-colors";
 import type { OrientationRecordMap } from "../results-roles";
 import type {
   ViewportDeformationConfig,
@@ -100,17 +100,6 @@ export function reconcilePartRevisionRecords(
     records.set(bindingId, values);
   }
   return records;
-}
-
-function bindingUsesRevisedPart(
-  bindingId: PartId | PartOccurrenceId,
-  runtime: PackedSceneRuntime,
-  revisedPartIds: ReadonlySet<PartId>,
-): boolean {
-  if (typeof bindingId === "number") return revisedPartIds.has(bindingId);
-  const slot = runtime.getInstanceSlot(bindingId);
-  const partId = slot === undefined ? undefined : runtime.getPartId(slot);
-  return partId === undefined || revisedPartIds.has(partId);
 }
 
 function scaledValues(values: Float32Array, scale: number): Float32Array {
