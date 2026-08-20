@@ -1,5 +1,6 @@
 import type { Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
+import { renderBenchmarkFrame } from "./measurement";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { interactionTargetFromHit, setTargetHovered } from "../../src/interaction/targets";
 import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
@@ -61,7 +62,7 @@ export async function measureHoverBenchmark(
     readGpuCostSnapshot(renderer),
     `${benchmarkCase.id} hover`,
   );
-  const firstHoveredFrameMs = await renderFrame(options);
+  const firstHoveredFrameMs = await renderBenchmarkFrame(options);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
   assertOpaqueSurfaceDraw(
     interactionGpuCost,
@@ -70,10 +71,11 @@ export async function measureHoverBenchmark(
     runtime.instanceCount,
   );
   const steady: number[] = [];
-  for (let index = 0; index < STEADY_SAMPLES; index += 1) steady.push(await renderFrame(options));
+  for (let index = 0; index < STEADY_SAMPLES; index += 1)
+    steady.push(await renderBenchmarkFrame(options));
   const clearStart = performance.now();
   renderer.updateElements(runtime, createInteractionState(), [slot]);
-  await renderFrame(options);
+  await renderBenchmarkFrame(options);
   assertNoElementEmphasisDraw(readGpuCostSnapshot(renderer), `${benchmarkCase.id} hover clear`);
   return {
     targetKind: "element",
@@ -101,11 +103,4 @@ function uniqueSurfaceIndices(benchmarkCase: WebGpuBenchmarkCase): number {
     }
   }
   return count;
-}
-
-async function renderFrame(options: HoverMeasureOptions): Promise<number> {
-  const start = performance.now();
-  options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
-  await options.device.queue.onSubmittedWorkDone();
-  return performance.now() - start;
 }
