@@ -105,7 +105,10 @@ describe("Part semantic graph", () => {
         },
       ],
     });
-    expect(partSemanticGraph(part)?.faceSubsetOrdinals).toEqual(new Uint32Array([1, 0]));
+    const graph = partSemanticGraph(part);
+    expect(graph?.faceSubsetOrdinals).toEqual(new Uint32Array([1, 0]));
+    expect(graph?.faceElementOffsets).toEqual(new Uint32Array([0, 1, 2]));
+    expect(graph?.faceElementOffsets.byteLength).toBe(3 * Uint32Array.BYTES_PER_ELEMENT);
   });
 
   it("resolves typed body, face, and edge identities without retaining query records", () => {

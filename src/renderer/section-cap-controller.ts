@@ -3,10 +3,17 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
 import type { SectionPlane } from "../math/section-plane";
 import type { DeformationState } from "../results/deform";
-import { buildSectionCapFrame, destroySectionCapFrame, type SectionCapFrame } from "./section-caps";
+import {
+  buildSectionCapFrame,
+  destroySectionCapFrame,
+  syncSectionCapStyles,
+  type SectionCapFrame,
+} from "./section-caps";
+import { sectionCapVisibilityChanged } from "./section-cap-interaction";
 import {
   destroyInstancePartResources,
   destroyPartResources,
+  type DrawCall,
   type DrawResources,
 } from "./resources/draw-resources";
 import type { ResultColorMap } from "../results/colors";
@@ -44,6 +51,35 @@ export class SectionCapController {
 
   public invalidate(): void {
     this.dirty = true;
+  }
+
+  /** Applies interaction presentation changes to retained caps without rebuilding geometry. */
+  public syncStyles(
+    runtime: PackedSceneRuntime,
+    parts: ReadonlyMap<PartId, Part>,
+    interaction: InteractionState,
+    draw: DrawResources,
+  ): void {
+    if (this.frame === undefined || this.runtime !== runtime || this.dirty) return;
+    const calls = syncSectionCapStyles({ frame: this.frame, runtime, parts, interaction, draw });
+    if (
+      !sameCalls(this.frame.calls, calls.calls) ||
+      !sameCalls(this.frame.transparentCalls, calls.transparentCalls)
+    ) {
+      this.frame = { ...this.frame, ...calls };
+    }
+  }
+
+  /** Keeps cap geometry only when interaction changes do not alter visibility admission. */
+  public syncInteraction(
+    previous: InteractionState,
+    interaction: InteractionState,
+    runtime: PackedSceneRuntime,
+    parts: ReadonlyMap<PartId, Part>,
+    draw: DrawResources,
+  ): void {
+    if (sectionCapVisibilityChanged(previous, interaction)) this.invalidate();
+    else this.syncStyles(runtime, parts, interaction, draw);
   }
 
   /** Applies occurrence changes while retiring exact removed-part cap fragments. */
@@ -140,6 +176,7 @@ export class SectionCapController {
     this.frame = {
       parts: capParts,
       sourcePartIds: retainedEntries(frame.sourcePartIds, capIds),
+      sourceSlots: retainedEntries(frame.sourceSlots, capIds),
       calls: retainedCalls(frame.calls, capIds),
       transparentCalls: retainedCalls(frame.transparentCalls, capIds),
       allCalls: retainedCalls(frame.allCalls, capIds),
@@ -148,6 +185,14 @@ export class SectionCapController {
     this.renderedParts = new Map([...parts, ...capParts]);
     this.renderedColors = retainedEntries(this.renderedColors, new Set([...partIds, ...capIds]));
   }
+}
+
+function sameCalls(left: readonly DrawCall[], right: readonly DrawCall[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index]?.partId !== right[index]?.partId) return false;
+  }
+  return true;
 }
 
 function retainedEntries<K, V>(values: ReadonlyMap<K, V>, removed: ReadonlySet<K>): Map<K, V>;
