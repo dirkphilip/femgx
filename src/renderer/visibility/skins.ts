@@ -1,7 +1,7 @@
 import type { Part, TriangleGeometry } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
-import { packedSemanticStorage } from "../../geometry/packed/packed-semantic";
-import { buildPackedVisibilitySkinIndices } from "./packed-skin";
+import { geometrySemanticGraph } from "../../geometry/semantic/part-semantic-graph";
+import { buildGraphVisibilitySkinIndices } from "./graph-skin";
 import {
   visibilityPartMetadata,
   visibilitySignature,
@@ -28,7 +28,7 @@ import type {
 const MIN_SKIN_BUDGET = 64 * 1024;
 const MAX_SKIN_BUDGET = 16 * 1024 * 1024;
 
-/** Creates an empty bounded skin cache. */
+/** Creates an empty cache whose complete retained skin ownership is bounded. */
 export function createVisibilitySkinCache(): VisibilitySkinCache {
   return { entries: new Map(), budgetBytes: MIN_SKIN_BUDGET, residentBytes: 0, clock: 0 };
 }
@@ -178,6 +178,9 @@ function ensureVisibilitySkin(options: {
     return existing.skin;
   }
   const indices = buildSkinIndices(part, geometry, signature);
+  // The feature topology path already filters this signature against the shared
+  // complete surface. Refuse a new compact order when it would break the
+  // per-Part ownership bound instead of retaining an unbounded active entry.
   return retainVisibilitySkin({ cache, draw, signature, indices, active });
 }
 
@@ -187,12 +190,12 @@ function retainVisibilitySkin(options: {
   readonly signature: VisibilitySignature;
   readonly indices: Uint32Array;
   readonly active: Set<VisibilitySkinEntry>;
-}): VisibilitySkin {
+}): VisibilitySkin | undefined {
   const { cache, draw, signature, indices, active } = options;
   if (indices.length === 0)
     return { signature, indexBuffer: emptyBuffer(draw), indexCount: 0, byteLength: 0 };
   const byteLength = indices.byteLength;
-  releaseLeastRecentlyUsed(cache, draw, byteLength, active);
+  if (!releaseLeastRecentlyUsed(cache, draw, byteLength, active)) return undefined;
   const indexBuffer = createBuffer(
     draw.device,
     indices,
@@ -217,11 +220,11 @@ function buildSkinIndices(
   geometry: TriangleGeometry,
   signature: VisibilitySignature,
 ): Uint32Array {
-  const metadata = getPartSemanticIndex(part);
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    return buildPackedVisibilitySkinIndices(packed, signature, geometry.indices.length);
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    return buildGraphVisibilitySkinIndices(semantic, signature, geometry.indices.length);
   }
+  const metadata = getPartSemanticIndex(part);
   return buildVisibilityTriangleIndices(geometry.indices.length, (target) =>
     writeGenericSkin(geometry, metadata, signature, target),
   );
@@ -229,25 +232,27 @@ function buildSkinIndices(
 
 function writeGenericSkin(
   geometry: TriangleGeometry,
-  metadata: Pick<ReturnType<typeof getPartSemanticIndex>, "bodyByElement" | "elementOrdinalById">,
+  metadata: Pick<ReturnType<typeof getPartSemanticIndex>, "bodyForElement" | "elementOrdinal">,
   signature: VisibilitySignature,
   target: Uint32Array | number[] | undefined,
 ): number {
   let offset = 0;
-  for (const face of geometry.faces ?? []) {
-    const ownerBody = face.bodyId ?? metadata.bodyByElement.get(face.elementId);
+  const faces = geometry.faces;
+  if (faces === undefined) return 0;
+  for (const face of faces) {
+    const ownerBody = face.bodyId ?? metadata.bodyForElement(face.elementId);
     const ownerVisible =
       !contains(signature.bodyIds, ownerBody) &&
-      !genericElementHidden(signature, face.elementId, metadata.elementOrdinalById);
+      !genericElementHidden(signature, face.elementId, metadata.elementOrdinal);
     if (!ownerVisible) continue;
     const neighborBody =
       face.neighborElementId === undefined
         ? undefined
-        : metadata.bodyByElement.get(face.neighborElementId);
+        : metadata.bodyForElement(face.neighborElementId);
     const neighborVisible =
       face.neighborElementId !== undefined &&
       !contains(signature.bodyIds, neighborBody) &&
-      !genericElementHidden(signature, face.neighborElementId, metadata.elementOrdinalById);
+      !genericElementHidden(signature, face.neighborElementId, metadata.elementOrdinal);
     if (neighborVisible) continue;
     offset = writeTriangleRange(target, offset, face.primitiveStart, face.primitiveCount);
   }
@@ -257,11 +262,11 @@ function writeGenericSkin(
 function genericElementHidden(
   signature: VisibilitySignature,
   elementId: number,
-  ordinals: { get(id: number): number | undefined },
+  ordinalForElement: (id: number) => number | undefined,
 ): boolean {
   const words = signature.elementWords;
   if (words === undefined) return contains(signature.elementIds, elementId);
-  const ordinal = ordinals.get(elementId);
+  const ordinal = ordinalForElement(elementId);
   if (ordinal === undefined) return false;
   const bit = ordinal - 1;
   return ((words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
@@ -294,7 +299,7 @@ function releaseLeastRecentlyUsed(
   draw: VisibilityDrawOwner,
   requiredBytes: number,
   active: ReadonlySet<VisibilitySkinEntry>,
-): void {
+): boolean {
   while (cache.residentBytes + requiredBytes > cache.budgetBytes) {
     let candidate: VisibilitySkinEntry | undefined;
     for (const entries of cache.entries.values()) {
@@ -307,9 +312,10 @@ function releaseLeastRecentlyUsed(
         }
       }
     }
-    if (candidate === undefined) return;
+    if (candidate === undefined) return false;
     removeEntry(cache, draw, candidate);
   }
+  return true;
 }
 
 function releaseInactiveSkins(

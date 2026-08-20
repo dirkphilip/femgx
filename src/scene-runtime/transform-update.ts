@@ -1,4 +1,4 @@
-import { multiply, type Mat4 } from "../math/mat4";
+import { multiplyMatrices, type Mat4 } from "../math/mat4";
 import type { AssemblyPlacement, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { SceneStructuralChanges } from "../scene/update-changes";
@@ -36,13 +36,13 @@ export function prepareTransformPatch(
       if (after.kind === "part") {
         const slot = runtime.getInstanceSlot(placementPath(ownerId, after));
         if (slot === undefined) return undefined;
-        patches.instanceTransforms.set(slot, multiply(ownerWorld, after.transform));
+        patches.instanceTransforms.set(slot, multiplyMatrices(ownerWorld, after.transform));
       } else if (
         !collectSubtreePatch(
           runtime,
           scene,
           placementPath(ownerId, after),
-          multiply(ownerWorld, after.transform),
+          multiplyMatrices(ownerWorld, after.transform),
           patches,
         )
       ) {
@@ -86,7 +86,7 @@ function collectSubtreePatch(
     for (let index = 0; index < assembly.placements.length; index += 1) {
       const placement = invariantValue(assembly.placements[index], `placement at ${index}`);
       const id = placementPath(entry.id, placement, index);
-      const world = multiply(entry.world, placement.transform);
+      const world = multiplyMatrices(entry.world, placement.transform);
       if (placement.kind === "assembly") stack.push({ id, world });
       else {
         const slot = runtime.getInstanceSlot(id);

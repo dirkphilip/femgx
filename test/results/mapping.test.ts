@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createScalarColorMap, mapScalar } from "../../src/results/mapping";
+import { createScalarColorMap, mapScalarToColor } from "../../src/results/mapping";
 
 describe("createScalarColorMap", () => {
   it("uses the default ramp, range, and missing color", () => {
@@ -121,20 +121,22 @@ describe("createScalarColorMap", () => {
   });
 });
 
-describe("mapScalar", () => {
+describe("mapScalarToColor", () => {
   const map = createScalarColorMap({ min: 0, max: 100 });
 
   it("clips below-range values to the first stop color", () => {
-    expect(mapScalar(map, -20)).toEqual(map.stops[0]?.color);
+    expect(mapScalarToColor(map, -20)).toEqual(map.stops[0]?.color);
   });
 
   it("clips above-range values to the last stop color", () => {
-    expect(mapScalar(map, 250)).toEqual(map.stops[4]?.color);
+    expect(mapScalarToColor(map, 250)).toEqual(map.stops[4]?.color);
   });
 
   it("maps missing values to the missing color", () => {
-    expect(mapScalar(map, NaN)).toEqual(map.missingColor);
-    expect(mapScalar(createScalarColorMap({ min: 0, max: 1 }), NaN)).toEqual(map.missingColor);
+    expect(mapScalarToColor(map, NaN)).toEqual(map.missingColor);
+    expect(mapScalarToColor(createScalarColorMap({ min: 0, max: 1 }), NaN)).toEqual(
+      map.missingColor,
+    );
   });
 
   it("interpolates linearly between two stops", () => {
@@ -146,7 +148,7 @@ describe("mapScalar", () => {
         { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
       ],
     });
-    expect(mapScalar(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
+    expect(mapScalarToColor(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
   });
 
   it("treats empty thresholds as a continuous map", () => {
@@ -160,7 +162,7 @@ describe("mapScalar", () => {
       ],
     });
     expect(gradient.thresholds).toBeUndefined();
-    expect(mapScalar(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
+    expect(mapScalarToColor(gradient, 50)).toEqual({ r: 0.5, g: 0.5, b: 0.5, a: 1 });
   });
 
   it("interpolates between interior stops", () => {
@@ -173,8 +175,8 @@ describe("mapScalar", () => {
         { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
       ],
     });
-    expect(mapScalar(gradient, 0.5)).toEqual({ r: 0.5, g: 0, b: 0, a: 1 });
-    expect(mapScalar(gradient, 1.5)).toEqual({ r: 1, g: 0.5, b: 0.5, a: 1 });
+    expect(mapScalarToColor(gradient, 0.5)).toEqual({ r: 0.5, g: 0, b: 0, a: 1 });
+    expect(mapScalarToColor(gradient, 1.5)).toEqual({ r: 1, g: 0.5, b: 0.5, a: 1 });
   });
 
   it("returns the single color of a one-stop map", () => {
@@ -183,7 +185,7 @@ describe("mapScalar", () => {
       max: 1,
       stops: [{ offset: 0, color: { r: 0.2, g: 0.4, b: 0.6, a: 1 } }],
     });
-    expect(mapScalar(solid, 0.9)).toEqual({ r: 0.2, g: 0.4, b: 0.6, a: 1 });
+    expect(mapScalarToColor(solid, 0.9)).toEqual({ r: 0.2, g: 0.4, b: 0.6, a: 1 });
   });
 
   it("maps into discrete bands when thresholds are set", () => {
@@ -196,11 +198,11 @@ describe("mapScalar", () => {
         { offset: 1, color: { r: 1, g: 1, b: 1, a: 1 } },
       ],
     });
-    expect(mapScalar(banded, -5)).toEqual({ r: 0, g: 0, b: 0, a: 1 });
-    expect(mapScalar(banded, 10)).toEqual({ r: 0, g: 0, b: 0, a: 1 });
-    expect(mapScalar(banded, 50)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
-    expect(mapScalar(banded, 75)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
-    expect(mapScalar(banded, 200)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
-    expect(mapScalar(banded, NaN)).toEqual(banded.missingColor);
+    expect(mapScalarToColor(banded, -5)).toEqual({ r: 0, g: 0, b: 0, a: 1 });
+    expect(mapScalarToColor(banded, 10)).toEqual({ r: 0, g: 0, b: 0, a: 1 });
+    expect(mapScalarToColor(banded, 50)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
+    expect(mapScalarToColor(banded, 75)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
+    expect(mapScalarToColor(banded, 200)).toEqual({ r: 1, g: 1, b: 1, a: 1 });
+    expect(mapScalarToColor(banded, NaN)).toEqual(banded.missingColor);
   });
 });

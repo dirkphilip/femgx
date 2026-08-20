@@ -14,8 +14,8 @@ describe("createPerformancePreset", () => {
     expect(geometry.indices.length).toBe(128 * 128 * 6);
     expect(part.nodePositions).toBe(geometry.positions);
     expect(geometry.nodePickIds).toHaveLength(129 * 129);
-    expect(part.elements).toHaveLength(128 * 128);
-    expect(geometry.faces).toHaveLength(128 * 128);
+    expect(part.elements?.count).toBe(128 * 128);
+    expect(geometry.faces?.count).toBe(128 * 128);
     expect(preset.scene.assemblies.get(preset.scene.rootAssemblyId)?.placements).toHaveLength(64);
     expect((geometry.indices.length / 3) * 64).toBe(2_097_152);
   });

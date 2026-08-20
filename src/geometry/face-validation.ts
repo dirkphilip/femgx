@@ -1,7 +1,15 @@
 import { validateOneBasedId } from "./id-validation";
+import { ordinalForId } from "../elements/model-storage";
 import { faceIdentity } from "./element-face-selection";
-import { packedSemanticStorageForGeometry } from "./packed/packed-semantic";
-import type { ElementTessellation, FaceTessellation, Geometry, TriangleGeometry } from "./types";
+import { geometrySemanticGraph } from "./semantic/part-semantic-graph";
+import { addTypedPair, createTypedPairIndex, findTypedPair } from "./semantic/typed-pair-index";
+import { elementOrdinalColumns, facePairIndex, findFace } from "./validation-helpers";
+import type {
+  ElementTessellation,
+  FaceTessellation,
+  GeometryInput,
+  TriangleGeometry,
+} from "./types";
 
 const faceSubsetMasks = new WeakMap<TriangleGeometry, Uint8Array>();
 
@@ -11,12 +19,17 @@ export function faceSubsetPrimitiveMask(geometry: TriangleGeometry): Uint8Array 
   if (subset === undefined) return undefined;
   const cached = faceSubsetMasks.get(geometry);
   if (cached !== undefined) return cached;
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed !== undefined && packed.faceSubsetOrdinals !== undefined) {
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    const { graph, geometryOrdinal } = semantic;
+    if ((graph.faceSubsetDefined[geometryOrdinal] ?? 0) !== 1) return undefined;
     const displayedByPrimitive = new Uint8Array(Math.floor(geometry.indices.length / 3));
-    for (const faceOrdinal of packed.faceSubsetOrdinals) {
-      const start = packed.facePrimitiveStarts[faceOrdinal] ?? 0;
-      const end = start + (packed.facePrimitiveCounts[faceOrdinal] ?? 0);
+    const first = graph.faceSubsetOffsets[geometryOrdinal] ?? 0;
+    const last = graph.faceSubsetOffsets[geometryOrdinal + 1] ?? first;
+    for (let row = first; row < last; row += 1) {
+      const faceOrdinal = graph.faceSubsetOrdinals[row] ?? 0;
+      const start = graph.facePrimitiveStarts[faceOrdinal] ?? 0;
+      const end = start + (graph.facePrimitiveCounts[faceOrdinal] ?? 0);
       for (let primitive = start; primitive < end; primitive += 1) {
         displayedByPrimitive[primitive] = 1;
       }
@@ -24,18 +37,12 @@ export function faceSubsetPrimitiveMask(geometry: TriangleGeometry): Uint8Array 
     faceSubsetMasks.set(geometry, displayedByPrimitive);
     return displayedByPrimitive;
   }
-  const identities = new Set<string>();
-  for (const ref of subset.faceIds) {
-    const identity = faceIdentity(ref.elementId, ref.faceIndex);
-    if (identities.has(identity)) {
-      throw new Error(`faceSubset repeats element ${ref.elementId} face ${ref.faceIndex}`);
-    }
-    identities.add(identity);
-  }
   const displayedByPrimitive = new Uint8Array(Math.floor(geometry.indices.length / 3));
-  for (const face of geometry.faces ?? []) {
-    const identity = faceIdentity(face.elementId, face.faceIndex);
-    if (!identities.has(identity)) continue;
+  const faces = geometry.faces;
+  if (faces === undefined) return displayedByPrimitive;
+  for (const ref of subset) {
+    const face = faces.get(ref.elementId, ref.faceIndex);
+    if (face === undefined) continue;
     const end = face.primitiveStart + face.primitiveCount;
     for (let primitive = face.primitiveStart; primitive < end; primitive += 1) {
       displayedByPrimitive[primitive] = 1;
@@ -46,24 +53,22 @@ export function faceSubsetPrimitiveMask(geometry: TriangleGeometry): Uint8Array 
 }
 
 /** Validates that a render-time face subset resolves to declared face ranges. */
-export function validateFaceSubset(geometry: Geometry): void {
+export function validateFaceSubset(geometry: GeometryInput): void {
   if (geometry.primitive !== "triangles") return;
   const subset = geometry.faceSubset;
   if (subset === undefined || subset.faceIds.length === 0) return;
   const faces = geometry.faces;
   if (faces === undefined) throw new Error("faceSubset requires declared faces");
-  const facesByIdentity = new Map(
-    faces.map((face) => [faceIdentity(face.elementId, face.faceIndex), face] as const),
-  );
-  // Primitive lookup is render-time state; do not materialize it during validation.
-  const identities = new Set<string>();
-  for (const ref of subset.faceIds) {
-    const identity = faceIdentity(ref.elementId, ref.faceIndex);
-    if (identities.has(identity)) {
+  const faceIndex = facePairIndex(faces);
+  const selected = createTypedPairIndex(subset.faceIds.length);
+  for (let row = 0; row < subset.faceIds.length; row += 1) {
+    const ref = subset.faceIds[row];
+    if (ref === undefined) continue;
+    if (findTypedPair(selected, subset.faceIds, ref.elementId, ref.faceIndex) !== undefined) {
       throw new Error(`faceSubset repeats element ${ref.elementId} face ${ref.faceIndex}`);
     }
-    identities.add(identity);
-    const face = facesByIdentity.get(identity);
+    addTypedPair(selected, row, ref.elementId, ref.faceIndex);
+    const face = findFace(faces, faceIndex, ref.elementId, ref.faceIndex);
     if (face === undefined || face.primitiveCount <= 0) {
       throw new Error(
         `faceSubset references undeclared element ${ref.elementId} face ${ref.faceIndex}`,
@@ -74,27 +79,34 @@ export function validateFaceSubset(geometry: Geometry): void {
 
 /** Validates oriented face ranges, metadata, and their triangle coverage. */
 export function validateFaceMetadata(
-  geometry: Geometry,
+  geometry: GeometryInput,
   elements: readonly ElementTessellation[] | undefined,
   nodePositions: Float32Array | undefined,
 ): void {
   if (geometry.primitive !== "triangles" || geometry.faces === undefined) return;
-  const elementIds =
-    elements === undefined ? undefined : new Set(elements.map((element) => element.id));
-  const elementMap = new Map((elements ?? []).map((element) => [element.id, element]));
+  const elementLookup = elements === undefined ? undefined : elementOrdinalColumns(elements);
   const coverage = new Uint8Array(geometry.indices.length / 3);
-  const identities = new Set<string>();
+  const faceIndex = createTypedPairIndex(geometry.faces.length);
   const nodeCount = nodePositions === undefined ? undefined : nodePositions.length / 3;
-  for (const face of geometry.faces) {
+  for (let row = 0; row < geometry.faces.length; row += 1) {
+    const face = geometry.faces[row];
+    if (face === undefined) throw new Error(`Part has no face ${row}`);
     validateOneBasedId(face.elementId, "Face element owner");
     if (face.bodyId !== undefined) validateOneBasedId(face.bodyId, "Body");
-    const element = elementMap.get(face.elementId);
-    if (elementIds !== undefined && element === undefined) {
+    const elementOrdinal =
+      elementLookup === undefined
+        ? undefined
+        : ordinalForId(elementLookup.ids, elementLookup.ordinals, face.elementId);
+    if (elementLookup !== undefined && elementOrdinal === undefined) {
       throw new Error(`Face references undeclared element ${face.elementId}`);
     }
     const identity = faceIdentity(face.elementId, face.faceIndex);
-    if (identities.has(identity)) throw new Error(`Duplicate oriented face ${identity}`);
-    identities.add(identity);
+    if (findTypedPair(faceIndex, geometry.faces, face.elementId, face.faceIndex) !== undefined) {
+      throw new Error(`Duplicate oriented face ${identity}`);
+    }
+    addTypedPair(faceIndex, row, face.elementId, face.faceIndex);
+    const element =
+      elementOrdinal === undefined || elements === undefined ? undefined : elements[elementOrdinal];
     validateFaceRange(face, geometry.indices.length / 3, element);
     const end = face.primitiveStart + face.primitiveCount;
     for (let primitive = face.primitiveStart; primitive < end; primitive += 1) {
@@ -144,12 +156,17 @@ function validateFaceRange(
     throw new Error(`Face ${face.elementId}/${face.faceIndex} is outside the triangle buffer`);
   }
   if (element !== undefined) {
-    const ownsFace = element.primitiveRanges.some(
-      (range) =>
+    let ownsFace = false;
+    for (const range of element.primitiveRanges) {
+      if (
         range.primitive === "triangles" &&
         face.primitiveStart >= range.primitiveStart &&
-        end <= range.primitiveStart + range.primitiveCount,
-    );
+        end <= range.primitiveStart + range.primitiveCount
+      ) {
+        ownsFace = true;
+        break;
+      }
+    }
     if (!ownsFace) {
       throw new Error(`Face ${face.elementId}/${face.faceIndex} is outside its element range`);
     }
@@ -176,8 +193,12 @@ export function faceForPrimitive(
   geometry: TriangleGeometry,
   primitive: number,
 ): FaceTessellation | undefined {
-  return geometry.faces?.find(
-    (face) =>
-      primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount,
-  );
+  const faces = geometry.faces;
+  if (faces === undefined) return undefined;
+  for (const face of faces) {
+    if (primitive >= face.primitiveStart && primitive < face.primitiveStart + face.primitiveCount) {
+      return face;
+    }
+  }
+  return undefined;
 }

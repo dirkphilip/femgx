@@ -1,6 +1,6 @@
 import type { Part } from "../geometry/part";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { packedSemanticStorage } from "../geometry/packed/packed-semantic";
+import { partSemanticGraph } from "../geometry/semantic/part-semantic-graph";
 import { elementalResultIndex, type ElementFrameField, type VectorField } from "./fields";
 import { getOrientationTopology, resolveOrientationAnchor } from "./orientation-topology";
 import type { OrientationTopologyElement } from "./orientation-topology";
@@ -17,6 +17,7 @@ const VECTOR_ZERO_TOLERANCE = 1e-12;
  */
 export interface ElementalOrientationRecords {
   readonly elementIds: Uint32Array;
+  readonly elementOrdinals?: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly anchors: Float32Array;
   readonly referenceLengths: Float32Array;
@@ -90,14 +91,10 @@ function buildFrameRecords(
   displacements: Float32Array | undefined,
   densePartLocal: boolean,
 ): ElementalOrientationRecords {
-  const nodePositions = part.nodePositions;
-  if (active.length > 0 && nodePositions === undefined) {
-    throw new Error(
-      `Element frame field ${field.id} cannot anchor part ${part.id}: geometry has no nodePositions`,
-    );
-  }
+  const nodePositions = frameNodePositions(part, field, active.length);
   if (nodePositions === undefined) return emptyRecords();
   const elementIds = new Uint32Array(active.length * 3);
+  const elementOrdinals = new Uint32Array(active.length * 3);
   const bodyIds = new Uint32Array(active.length * 3);
   const anchors = new Float32Array(active.length * 9);
   const referenceLengths = new Float32Array(active.length * 3);
@@ -107,12 +104,12 @@ function buildFrameRecords(
     const anchor = resolveOrientationAnchor(part, field, element, nodePositions);
     const fieldIndex = elementFieldIndex(part, field, element.id, undefined, densePartLocal);
     if (fieldIndex === undefined) return;
-    const fieldBase = fieldIndex * 9;
     for (let axis = 0; axis < 3; axis += 1) {
       const recordIndex = elementIndex * 3 + axis;
       const recordBase = recordIndex * 3;
-      const axisBase = fieldBase + axis * 3;
+      const axisBase = fieldIndex * 9 + axis * 3;
       elementIds[recordIndex] = element.id;
+      elementOrdinals[recordIndex] = getPartSemanticIndex(part).elementOrdinal(element.id) ?? 0;
       bodyIds[recordIndex] = element.bodyId === undefined ? 0 : element.bodyId + 1;
       axisIndices[recordIndex] = axis;
       anchors[recordBase] = anchor.x;
@@ -131,6 +128,7 @@ function buildFrameRecords(
   });
   const records = {
     elementIds,
+    elementOrdinals,
     bodyIds,
     anchors,
     referenceLengths,
@@ -143,24 +141,37 @@ function buildFrameRecords(
     : { ...records, anchorDeltas: anchorDeltasFor(part, records, displacements) };
 }
 
+function frameNodePositions(
+  part: Part,
+  field: ElementFrameField,
+  activeCount: number,
+): Float32Array | undefined {
+  if (activeCount > 0 && part.nodePositions === undefined) {
+    throw new Error(
+      `Element frame field ${field.id} cannot anchor part ${part.id}: geometry has no nodePositions`,
+    );
+  }
+  return part.nodePositions;
+}
+
 function validateElementCoverage(
   part: Part,
   field: VectorField<"elemental">,
   densePartLocal: boolean,
 ): void {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    validatePackedElementIds({
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined && graph.elementIds.length > 0) {
+    validateGraphElementIds({
       part,
       fieldLabel: "Elemental orientation field",
       field,
-      elementIds: packed.elementIds,
+      elementIds: graph.elementIds,
       densePartLocal,
     });
     return;
   }
   const elements = part.elements;
-  if (elements === undefined || elements.length === 0) {
+  if (elements === undefined || elements.count === 0) {
     if (hasActiveVector(field)) {
       throw new Error(
         `Elemental orientation field ${field.id} cannot resolve part ${part.id}: geometry has no element metadata`,
@@ -182,19 +193,19 @@ function validateFrameCoverage(
   field: ElementFrameField,
   densePartLocal: boolean,
 ): void {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    validatePackedElementIds({
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined && graph.elementIds.length > 0) {
+    validateGraphElementIds({
       part,
       fieldLabel: "Element frame field",
       field,
-      elementIds: packed.elementIds,
+      elementIds: graph.elementIds,
       densePartLocal,
     });
     return;
   }
   const elements = part.elements;
-  if (elements === undefined || elements.length === 0) {
+  if (elements === undefined || elements.count === 0) {
     if (hasActiveFrame(field)) {
       throw new Error(
         `Element frame field ${field.id} cannot resolve part ${part.id}: geometry has no element metadata`,
@@ -211,7 +222,7 @@ function validateFrameCoverage(
   }
 }
 
-interface PackedElementValidation {
+interface GraphElementValidation {
   readonly part: Part;
   readonly fieldLabel: string;
   readonly field: { readonly count: number; readonly id: string };
@@ -219,13 +230,13 @@ interface PackedElementValidation {
   readonly densePartLocal: boolean;
 }
 
-function validatePackedElementIds({
+function validateGraphElementIds({
   part,
   fieldLabel,
   field,
   elementIds,
   densePartLocal,
-}: PackedElementValidation): void {
+}: GraphElementValidation): void {
   for (const [ordinal, elementId] of elementIds.entries()) {
     if (elementFieldIndex(part, field, elementId, ordinal, densePartLocal) === undefined) {
       throw new Error(
@@ -243,13 +254,13 @@ function elementFieldIndex(
   densePartLocal = true,
 ): number | undefined {
   const metadata = getPartSemanticIndex(part);
-  const privateOrdinal = metadata.elementOrdinalById.get(elementId);
+  const privateOrdinal = metadata.elementOrdinal(elementId);
   if (privateOrdinal === undefined && fallbackOrdinal === undefined) return undefined;
   return elementalResultIndex(
     field,
     elementId,
     privateOrdinal === undefined ? (fallbackOrdinal ?? 0) : privateOrdinal - 1,
-    metadata.elements.size,
+    metadata.elementCount,
     densePartLocal,
   );
 }
@@ -304,6 +315,7 @@ function buildVectorRecords(
   if (nodePositions === undefined) return emptyRecords();
 
   const elementIds = new Uint32Array(active.length);
+  const elementOrdinals = new Uint32Array(active.length);
   const bodyIds = new Uint32Array(active.length);
   const anchors = new Float32Array(active.length * 3);
   const referenceLengths = new Float32Array(active.length);
@@ -320,6 +332,7 @@ function buildVectorRecords(
     const z = field.values[vectorBase + 2] ?? NaN;
     const length = Math.hypot(x, y, z);
     elementIds[index] = element.id;
+    elementOrdinals[index] = getPartSemanticIndex(part).elementOrdinal(element.id) ?? 0;
     bodyIds[index] = element.bodyId === undefined ? 0 : element.bodyId + 1;
     anchors[base] = anchor.x;
     anchors[base + 1] = anchor.y;
@@ -332,6 +345,7 @@ function buildVectorRecords(
 
   return {
     elementIds,
+    elementOrdinals,
     bodyIds,
     anchors,
     referenceLengths,
@@ -343,6 +357,7 @@ function buildVectorRecords(
 function emptyRecords(): ElementalOrientationRecords {
   return {
     elementIds: new Uint32Array(),
+    elementOrdinals: new Uint32Array(),
     bodyIds: new Uint32Array(),
     anchors: new Float32Array(),
     referenceLengths: new Float32Array(),

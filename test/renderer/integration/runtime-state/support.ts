@@ -1,10 +1,12 @@
 import { createPart, MAX_PART_ID, type Part } from "../../../../src/geometry/part";
 
-import { identity, translation } from "../../../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../../../src/math/mat4";
 
 import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
 
-import { createScene } from "../../../../src/scene/scene";
+import { createSceneBuilder } from "../../../../src/scene/scene";
+import { emptyPart } from "../../../support/scene-fixtures";
+export { emptyPart as part };
 
 import {
   buildDrawOrder,
@@ -33,16 +35,6 @@ import {
   collectDenseElementSelections,
   type DenseElementSelections,
 } from "../../../../src/renderer/selection/element-selection";
-
-/** Shared renderer test helper. */
-export function part(id: number): Part {
-  const geometry = {
-    positions: new Float32Array([0, 0, 0]),
-    indices: new Uint32Array(),
-    primitive: "triangles" as const,
-  };
-  return createPart(id, { geometries: [geometry] });
-}
 
 export const rangedSelectionPart = createPart(3, {
   geometries: [
@@ -203,10 +195,10 @@ export {
   createPart,
   MAX_PART_ID,
   type Part,
-  identity,
-  translation,
+  identityMatrix,
+  translationMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   buildDrawOrder,
   buildNodeOrder,
   buildNodeSelectionOrder,

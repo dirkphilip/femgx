@@ -12,7 +12,9 @@ import {
 } from "../edges/edge-expansion";
 import { buildFaceSubsetIndices } from "../selection/face-subset";
 import {
+  conditionElementOrdinals,
   emptyMeshEdgeData,
+  neighborElementOrdinals,
   packTopologyData,
   packUnownedEdgeTopologyData,
 } from "./geometry-buffers";
@@ -45,6 +47,10 @@ export interface PartGeometryData {
   readonly subsetIndices: Uint32Array | undefined;
 }
 
+function elementsForPart(part: Part) {
+  return part.elements;
+}
+
 export interface PartSubsetGeometryData {
   readonly subsetBuffers: ReturnType<typeof createSubsetBuffers>;
   readonly subsetIndices: Uint32Array;
@@ -56,6 +62,33 @@ interface FullGeometryBuffers {
   readonly cornerIndexOffset?: number;
 }
 
+function partTopologyData(
+  part: Part,
+  geometry: Geometry,
+  includeNeighborOrdinals = false,
+): {
+  readonly elementOrdinals: Uint32Array;
+  readonly neighborElementOrdinals?: Uint32Array;
+  readonly faceBodyPickIds: Uint32Array;
+} {
+  const elements = elementsForPart(part) ?? [];
+  const metadata = getPartSemanticIndex(part);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elements);
+  return {
+    elementOrdinals: buildElementPrimitiveOrdinals(geometry, elements, (elementId) =>
+      metadata.elementOrdinal(elementId),
+    ),
+    ...(includeNeighborOrdinals
+      ? {
+          neighborElementOrdinals: neighborElementOrdinals(faceBodyPickIds, (elementId) =>
+            metadata.elementOrdinal(elementId),
+          ),
+        }
+      : {}),
+    faceBodyPickIds,
+  };
+}
+
 /** Builds all non-position buffers and appended result-color bindings for a part. */
 export function buildPartGeometryData(
   device: GPUDevice,
@@ -65,17 +98,17 @@ export function buildPartGeometryData(
 ): PartGeometryData {
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
-  const elementOrdinals = buildElementPrimitiveOrdinals(
+  const { elementOrdinals, neighborElementOrdinals, faceBodyPickIds } = partTopologyData(
+    part,
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    true,
   );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
     faceBodyPickIds,
     elementOrdinals,
+    neighborElementOrdinals ?? new Uint32Array(),
   );
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
@@ -117,12 +150,7 @@ export function buildPartSubsetGeometryData(
 ): PartSubsetGeometryData | undefined {
   const subsetIndices = getSubsetIndices(geometry);
   if (subsetIndices === undefined || subsetIndices.length === 0) return undefined;
-  const elementOrdinals = buildElementPrimitiveOrdinals(
-    geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
-  );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
   const subsetVertexData = triangleSubsetUploadData(geometry, subsetIndices);
   return {
     subsetBuffers: createSubsetBuffers(device, subsetVertexData, faceBodyPickIds, elementOrdinals),
@@ -142,17 +170,17 @@ export function materializeFullGeometry(
     geometry.primitive === "triangles"
       ? triangleUploadData(geometry)
       : expandSurfaceGeometry(geometry);
-  const elementOrdinals = buildElementPrimitiveOrdinals(
+  const { elementOrdinals, neighborElementOrdinals, faceBodyPickIds } = partTopologyData(
+    part,
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    true,
   );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
     faceBodyPickIds,
     elementOrdinals,
+    neighborElementOrdinals ?? new Uint32Array(),
   );
   resource.fullVertexBuffer = createBuffer(
     device,
@@ -174,11 +202,13 @@ function buildFullGeometryBuffers(
   vertexData: UploadVertexData,
   faceBodyPickIds: Uint32Array,
   elementOrdinals: Uint32Array,
+  neighborElementOrdinals: Uint32Array,
 ): FullGeometryBuffers {
   const emptyEdgeData = emptyMeshEdgeData();
   const nodePickIdsBuffer = createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE);
   const topology = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     elementOrdinals,
+    neighborElementOrdinals,
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
     ...(vertexData.cornerIndices === undefined ? {} : { cornerIndices: vertexData.cornerIndices }),
@@ -237,8 +267,8 @@ function buildPartMeshEdgeData(
   presentationOnly: boolean,
 ): MeshEdgePresentationBuild {
   const indices = getSubsetIndices(geometry) ?? geometry.indices;
-  const elements = part.elements ?? [];
-  if (presentationOnly && (part.bodies?.length ?? 0) === 0) {
+  const elements = elementsForPart(part) ?? [];
+  if (presentationOnly && (part.bodies?.count ?? 0) === 0) {
     return buildUnownedMeshEdgePresentation(geometry, indices, elements);
   }
   return { edgeData: buildMeshEdgeData(geometry, indices, elements) };
@@ -264,8 +294,12 @@ function uploadEdgeResourceData(
   );
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    elementsForPart(part) ?? [],
+    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
+  );
+  const metadata = getPartSemanticIndex(part);
+  const edgeConditionElementOrdinals = conditionElementOrdinals(edgeData.elementIds, (elementId) =>
+    metadata.elementOrdinal(elementId - 1),
   );
   return {
     edgeVertexBuffer: vertexBuffer,
@@ -275,17 +309,23 @@ function uploadEdgeResourceData(
       device,
       options.primitiveElementPickIds === undefined
         ? packTopologyData(
-            buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
+            buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []),
             edgeData.bodyRanges,
             edgeData.bodyIds,
             edgeData.elementIds,
-            { elementOrdinals, primitiveIds: [], edgeIds: drawData.edgeIds },
+            {
+              elementOrdinals,
+              conditionElementOrdinals: edgeConditionElementOrdinals,
+              primitiveIds: [],
+              edgeIds: drawData.edgeIds,
+            },
           )
         : packUnownedEdgeTopologyData(
             edgeData,
             elementOrdinals,
             options.primitiveElementPickIds,
             drawData.edgeIds,
+            (elementPickId) => metadata.elementOrdinal(elementPickId - 1) ?? 0,
           ),
       GPUBufferUsage.STORAGE,
     ),
@@ -307,6 +347,8 @@ function createTopologyBuffer(
   edgeData: MeshEdgeData,
   metadata: {
     readonly elementOrdinals: ArrayLike<number>;
+    readonly neighborElementOrdinals?: ArrayLike<number>;
+    readonly conditionElementOrdinals?: ArrayLike<number>;
     readonly primitiveIds: ArrayLike<number>;
     readonly edgeIds: ArrayLike<number>;
     readonly cornerIndices?: ArrayLike<number>;

@@ -88,7 +88,7 @@ export function createGalleryResults(
 function createGalleryFrame(scene: Scene, partId: PartId): ElementFrameField {
   const part = scene.parts.get(partId);
   if (part === undefined) throw new Error(`Gallery frame part ${partId} is missing`);
-  const count = Math.max(-1, ...(part.elements ?? []).map((element) => element.id)) + 1;
+  const count = Math.max(-1, ...[...(part.elements ?? [])].map((element) => element.id)) + 1;
   const values = new Float32Array(count * 9);
   values.fill(Number.NaN);
   for (const element of part.elements ?? []) {

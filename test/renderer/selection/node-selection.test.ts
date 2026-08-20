@@ -3,7 +3,7 @@ import { createPart, type Part } from "../../../src/geometry/part";
 import { createInteractionState } from "../../../src/interaction/interaction";
 import { setNodeHighlighted } from "../../../src/interaction/nodes";
 import { setTargetsSelected, setTargetHovered } from "../../../src/interaction/targets";
-import { identity } from "../../../src/math/mat4";
+import { identityMatrix } from "../../../src/math/mat4";
 import {
   collectEmphasisUpdates,
   type EmphasisUpdates,
@@ -17,7 +17,7 @@ import {
 } from "../../../src/renderer/selection/highlight-storage";
 import { HIGHLIGHT_HEADER } from "../../../src/renderer/selection/highlight-layout";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import {
   denseNodeSelectionContains,
   collectDenseNodeSelections,
@@ -213,7 +213,7 @@ describe("dense node selections", () => {
       const nodeBits = table[17] ?? 0;
       expect(table[3]).toBe(2);
       expect(table[15]).toBe(3);
-      expect(nodeOffset).toBe(elementBits + 2);
+      expect(nodeOffset).toBe(elementBits + 3);
       expect(table[payload + (table[4] ?? 0)]).toBe(0);
       expect(table[payload + (table[5] ?? 0)]).toBe(1);
       expect(table[payload + nodeOffset]).toBe(0);
@@ -345,7 +345,7 @@ function nodeFixture(placementCount: number, nodeCount = 1024): NodeFixture {
     ],
     nodePositions,
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -353,10 +353,10 @@ function nodeFixture(placementCount: number, nodeCount = 1024): NodeFixture {
       placements: Array.from({ length: placementCount }, () => ({
         kind: "part" as const,
         partId: 1,
-        transform: identity(),
+        transform: identityMatrix(),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   return { part, parts: scene.parts, runtime, layout: buildInstanceLayout(runtime) };

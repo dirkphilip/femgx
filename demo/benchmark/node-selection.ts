@@ -1,4 +1,5 @@
 import type { Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import type { PartId } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { readInteractionState, type InteractionState } from "../../src/interaction/state";
@@ -14,11 +15,7 @@ import {
 } from "../../src/renderer/selection/node-selection";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";
-import type {
-  BenchmarkPercentiles,
-  NodeSelectionBenchmarkPhase,
-  NodeSelectionBenchmarkReport,
-} from "./types";
+import type { NodeSelectionBenchmarkPhase, NodeSelectionBenchmarkReport } from "./types";
 
 const SUPPORTED_CASE = "fe-tet4-solid-132k";
 const STEADY_SAMPLES = 7;
@@ -254,10 +251,4 @@ function assertAggregateSelectedWork(
       throw new Error(`${pass} aggregate omitted submitted selected-node work`);
     }
   }
-}
-
-function percentiles(values: readonly number[]): BenchmarkPercentiles {
-  const sorted = [...values].sort((left, right) => left - right);
-  const at = (fraction: number): number => sorted[Math.ceil(fraction * sorted.length) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }

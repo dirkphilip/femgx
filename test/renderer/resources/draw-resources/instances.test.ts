@@ -1,7 +1,7 @@
 import { expect, it, describe } from "vitest";
 import {
   MAX_PART_ID,
-  translation,
+  translationMatrix,
   createDrawResources,
   EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
@@ -17,7 +17,7 @@ import {
 describe("GPU draw path", () => {
   it("encodes transform, style, emissive, and stable pick id into a record", () => {
     const data = encodeInstanceRecord(
-      translation(1, 2, 3),
+      translationMatrix(1, 2, 3),
       {
         color: { r: 1, g: 0.5, b: 0.25, a: 1 },
         emissive: 0.4,
@@ -40,9 +40,9 @@ describe("GPU draw path", () => {
     expect(floats[23]).toBeCloseTo(7);
   });
 
-  it("preserves the maximum direct-u32 part identity in instance storage", () => {
+  it("preserves the maximum direct-u32 part identityMatrix in instance storage", () => {
     const ids = new Uint32Array(
-      encodeInstanceRecord(translation(0, 0, 0), defaultStyle, MAX_PART_ID),
+      encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, MAX_PART_ID),
     );
     expect(ids[20]).toBe(MAX_PART_ID);
   });

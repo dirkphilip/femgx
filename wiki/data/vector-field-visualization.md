@@ -11,8 +11,8 @@ fiber/material directions in the same instanced scene used for scalar coloring,
 nodal deformation, selection, and visibility. The existing
 `VectorField<"elemental">` and explicit `ElementFrameField` are the data
 sources. `Viewport` owns the
-presentation role and its atomic result transition; `Part`, `Scene`, and
-`SceneRuntime` continue to own geometry, authoring, and compiled scene data,
+presentation role and its atomic result transition; `Part` and `Scene` own
+geometry and authoring while the viewport privately compiles placed scene data,
 not glyph state.
 
 The role is orthogonal to scalar and deformation roles. Scalar-only,

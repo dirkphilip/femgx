@@ -79,7 +79,7 @@ export class WebGpuUnsupportedError extends Error {
  * Stable, actionable guidance text for each unsupported reason.
  * @category Advanced runtime and WebGPU platform
  */
-export function unsupportedMessage(reason: WebGpuUnsupportedReason): string {
+export function webGpuUnsupportedMessage(reason: WebGpuUnsupportedReason): string {
   switch (reason) {
     case "no-webgpu":
       return "WebGPU is unavailable in this browser (navigator.gpu is not exposed). Use a WebGPU-capable browser; WebGPU is required for rendering.";
@@ -111,7 +111,7 @@ export async function requestWebGpuAdapter(
 ): Promise<GPUAdapter | null> {
   const navigatorGpu = gpu();
   if (navigatorGpu === undefined) {
-    throw new WebGpuUnsupportedError("no-webgpu", unsupportedMessage("no-webgpu"));
+    throw new WebGpuUnsupportedError("no-webgpu", webGpuUnsupportedMessage("no-webgpu"));
   }
   const adapterOptions =
     options?.powerPreference === undefined
@@ -122,7 +122,7 @@ export async function requestWebGpuAdapter(
   } catch {
     throw new WebGpuUnsupportedError(
       "adapter-unavailable",
-      unsupportedMessage("adapter-unavailable"),
+      webGpuUnsupportedMessage("adapter-unavailable"),
     );
   }
 }
@@ -178,7 +178,7 @@ export async function queryWebGpuSupport(
       return {
         status: "unsupported",
         reason: "adapter-unavailable",
-        message: unsupportedMessage("adapter-unavailable"),
+        message: webGpuUnsupportedMessage("adapter-unavailable"),
       };
     }
     return {
@@ -193,7 +193,7 @@ export async function queryWebGpuSupport(
     return {
       status: "unsupported",
       reason: "adapter-unavailable",
-      message: unsupportedMessage("adapter-unavailable"),
+      message: webGpuUnsupportedMessage("adapter-unavailable"),
     };
   }
 }

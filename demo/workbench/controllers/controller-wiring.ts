@@ -1,6 +1,6 @@
 import type { Viewport } from "../../../src/entries/root";
 import type { InteractionState } from "../../../src/entries/interaction";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import { installWorkbenchPaneLifecycle } from "../lifecycle";
 import type { WorkbenchFeatures } from "../state/features";
 import type { WorkbenchInteraction } from "../interaction/interaction";
@@ -50,7 +50,7 @@ export interface WorkbenchControllerWiringContext {
   readonly activeViewport: () => Viewport;
   readonly viewports: () => readonly Viewport[];
   readonly activeSlot: () => WorkbenchViewportSlot;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   readonly setInteraction: (value: InteractionState) => void;
   readonly interactionForSlot: (slotId: ViewportSlotId) => InteractionState;
   readonly setInteractionForSlot: (slotId: ViewportSlotId, value: InteractionState) => void;

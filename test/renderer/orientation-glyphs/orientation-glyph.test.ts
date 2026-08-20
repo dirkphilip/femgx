@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createPart } from "../../../src/geometry/part";
-import { identity, scale, translation } from "../../../src/math/mat4";
+import { identityMatrix, scalingMatrix, translationMatrix } from "../../../src/math/mat4";
 import { createResultField } from "../../../src/results/fields";
 import { resolveElementalOrientationRecords } from "../../../src/results/orientation-records";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import {
   normalMatrix3,
   packOrientationRecords,
@@ -129,11 +129,11 @@ describe("orientation glyph data", () => {
   });
 
   it("computes inverse-transpose matrices and rejects singular transforms", () => {
-    expect(normalMatrix3(identity())).toEqual(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
-    expect(normalMatrix3(scale(2, 4, 8))).toEqual(
+    expect(normalMatrix3(identityMatrix())).toEqual(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
+    expect(normalMatrix3(scalingMatrix(2, 4, 8))).toEqual(
       new Float32Array([0.5, 0, 0, 0, 0.25, 0, 0, 0, 0.125]),
     );
-    expect(() => normalMatrix3(scale(1, 0, 1))).toThrow("singular");
+    expect(() => normalMatrix3(scalingMatrix(1, 0, 1))).toThrow("singular");
   });
 
   it("rejects singular normal transforms before uploading glyph state", async () => {
@@ -142,14 +142,14 @@ describe("orientation glyph data", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const { part, records } = orientationRecords();
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "singular-root",
-        placements: [{ kind: "part", partId: 1, transform: scale(1, 0, 1) }],
+        placements: [{ kind: "part", partId: 1, transform: scalingMatrix(1, 0, 1) }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     setRendererOrientationGlyphs(renderer, {
@@ -173,14 +173,14 @@ describe("orientation glyph data", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const { part, records } = orientationRecords();
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "normal-root",
-        placements: [{ kind: "part", partId: 1, transform: identity() }],
+        placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     setRendererOrientationGlyphs(renderer, {
@@ -204,7 +204,7 @@ describe("orientation glyph data", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const { part, records } = orientationRecords();
     const scene = (ids: readonly string[], transformed = false) =>
-      createScene()
+      createSceneBuilder()
         .addPart(part)
         .addAssembly({
           id: 1,
@@ -213,10 +213,10 @@ describe("orientation glyph data", () => {
             kind: "part" as const,
             placementId,
             partId: 1,
-            transform: transformed && index === 0 ? scale(2, 4, 8) : identity(),
+            transform: transformed && index === 0 ? scalingMatrix(2, 4, 8) : identityMatrix(),
           })),
         })
-        .withRoot(1)
+        .setRootAssembly(1)
         .build();
     setRendererOrientationGlyphs(renderer, {
       parts: new Map([[1, records]]),
@@ -251,17 +251,17 @@ describe("orientation glyph data", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const { part, records } = orientationRecords();
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     setRendererOrientationGlyphs(renderer, {
@@ -321,17 +321,17 @@ describe("orientation glyph data", () => {
       ...records,
       directions: new Float32Array([0, 1, 0]),
     };
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     setRendererOrientationGlyphs(renderer, {

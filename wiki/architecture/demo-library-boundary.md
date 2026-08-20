@@ -9,8 +9,8 @@ presentation and interaction policy only.
 
 **Library behavior (lives in `src/`):**
 
-- Scene/assembly model, stable-handle runtime (`createSceneRuntime`), private
-  packed runtime, and internal
+- Scene/assembly model, viewport-owned stable occurrence inspection, private
+  packed scene state, and internal
   flatten/cull helpers ([[architecture/packed-runtime|Packed scene runtime]]).
 - Interaction state, style resolution, and emphasis refs
   (`resolveInstanceStyle`, `resolveElementStyle`, `resolveFaceStyle`,
@@ -48,7 +48,7 @@ presentation and interaction policy only.
 The workbench presentation shell is the only Svelte-owned surface. Svelte
 components may render immutable workbench snapshots and dispatch typed
 demo-private commands, but they must not import `src/`, own model or viewport
-state, schedule WebGPU frames, or recreate `Viewport` or `SceneRuntime` on
+state, schedule WebGPU frames, or recreate `Viewport` on
 ordinary component updates. The plain TypeScript controller and session core
 remain the lifecycle and state owners; Svelte is a replaceable presentation
 layer.
@@ -92,7 +92,7 @@ model normal host usage:
 
 - `demo/benchmark/interactive.ts`
 - `demo/benchmark/measurement.ts`
-- `demo/benchmark/selection.ts`
+- `demo/benchmark/workflows/selection.ts`
 - `demo/benchmark/structured-fe.ts`
 - `demo/benchmark/tet4-transfer.ts`
 - `demo/benchmark/memory.ts`

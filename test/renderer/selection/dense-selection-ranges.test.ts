@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type Part } from "../../../src/geometry/part";
-import { identity } from "../../../src/math/mat4";
+import { identityMatrix } from "../../../src/math/mat4";
 import { createInteractionState } from "../../../src/interaction/interaction";
 import { setTargetsSelected } from "../../../src/interaction/targets";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import { buildInstanceLayout, buildSelectionOrder } from "../../../src/renderer/runtime-state";
 import { buildSelectionDrawCalls } from "../../../src/renderer/selection/draw-ranges";
 import {
@@ -152,7 +152,7 @@ describe("dense selection skin ranges", () => {
   });
 
   it("uses the ordinary surface pass when dense selection covers complete geometry", () => {
-    const part = completeSurfacePart();
+    const part = completeExplicitTopologyPart();
     const fixture = selectionFixture(part, [101, 102, 103]);
     expect(buildCalls(part, fixture)).toEqual([]);
   });
@@ -173,12 +173,12 @@ function selectionFixture(
   const placements = Array.from({ length: placementCount }, () => ({
     kind: "part" as const,
     partId: part.id,
-    transform: identity(),
+    transform: identityMatrix(),
   }));
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({ id: 1, name: "root", placements })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const layout = buildInstanceLayout(runtime);
@@ -223,7 +223,7 @@ function buildCalls(part: Part, fixture: SelectionFixture) {
 }
 
 function placedScene(part: Part, placementIds: readonly string[]) {
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -232,10 +232,10 @@ function placedScene(part: Part, placementIds: readonly string[]) {
         kind: "part" as const,
         placementId,
         partId: part.id,
-        transform: identity(),
+        transform: identityMatrix(),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -244,16 +244,17 @@ function mixedPrimitivePart(): Part {
     (geometry) => geometry.primitive === "triangles",
   );
   if (triangles?.primitive !== "triangles") throw new Error("Dense triangle fixture missing");
+  const { edges: _edges, faces: _faces, faceSubset: _faceSubset, ...triangleInput } = triangles;
   return createPart(7, {
     geometries: [
-      triangles,
+      triangleInput,
       {
         primitive: "lines",
         positions: new Float32Array([0, 0, 0, 1, 0, 0]),
         indices: new Uint32Array([0, 1]),
       },
     ],
-    elements: (denseSelectionPart.elements ?? []).map((element) =>
+    elements: [...(denseSelectionPart.elements ?? [])].map((element) =>
       element.id === 103
         ? {
             ...element,
@@ -267,15 +268,15 @@ function mixedPrimitivePart(): Part {
   });
 }
 
-function completeSurfacePart(): Part {
+function completeExplicitTopologyPart(): Part {
   const geometry = denseSelectionPart.geometries.find(
     (candidate) => candidate.primitive === "triangles",
   );
   if (geometry?.primitive !== "triangles") throw new Error("Dense triangle fixture missing");
-  const { faces: _faces, faceSubset: _faceSubset, ...completeGeometry } = geometry;
+  const { edges: _edges, faces: _faces, faceSubset: _faceSubset, ...completeGeometry } = geometry;
   return createPart(8, {
     geometries: [completeGeometry],
-    elements: denseSelectionPart.elements ?? [],
+    elements: [...(denseSelectionPart.elements ?? [])],
   });
 }
 
@@ -286,14 +287,15 @@ function externalNeighborPart(): Part {
   if (triangles?.primitive !== "triangles" || triangles.faces === undefined) {
     throw new Error("Dense triangle fixture missing");
   }
+  const { edges: _edges, faces: _faces, faceSubset: _faceSubset, ...triangleInput } = triangles;
   const geometry = {
-    ...triangles,
-    faces: triangles.faces.map((face) =>
+    ...triangleInput,
+    faces: Array.from(triangles.faces, (face) =>
       face.elementId === 101 && face.faceIndex === 1 ? { ...face, neighborElementId: 999 } : face,
     ),
   };
   const elements = denseSelectionPart.elements;
   return elements === undefined
     ? createPart(8, { geometries: [geometry] })
-    : createPart(8, { geometries: [geometry], elements });
+    : createPart(8, { geometries: [geometry], elements: [...elements] });
 }

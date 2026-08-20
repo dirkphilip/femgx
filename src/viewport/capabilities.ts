@@ -129,21 +129,21 @@ function createViewportVisibilityCapability(
   controller: ViewportVisibilityController,
 ): ViewportVisibility {
   return {
-    setPart(partId: PartId, visible: boolean): void {
+    setPartVisible(partId: PartId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setPart(partId, visible);
+      controller.setPartVisible(partId, visible);
     },
-    setAssemblyOccurrence(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
+    setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setAssemblyOccurrence(occurrenceId, visible);
+      controller.setAssemblyOccurrenceVisible(occurrenceId, visible);
     },
-    setAssembly(assemblyId: AssemblyId, visible: boolean): void {
+    setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setAssembly(assemblyId, visible);
+      controller.setAssemblyVisible(assemblyId, visible);
     },
-    setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
+    setPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
       owner.ensureAlive();
-      controller.setPartOccurrence(partOccurrenceId, visible);
+      controller.setPartOccurrenceVisible(partOccurrenceId, visible);
     },
     setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void {
       owner.ensureAlive();

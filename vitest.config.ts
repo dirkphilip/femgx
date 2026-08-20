@@ -10,7 +10,7 @@ export default defineConfig({
       "test/bench/large-model/*.test.ts",
       "test/bench/operations.test.ts",
       "test/bench/selection-sync.test.ts",
-      "test/bench/scene-update-scaling.test.ts",
+      "test/bench/scene/*.test.ts",
       "test/bench/node-selection-sync.test.ts",
       "test/bench/visibility/tet4-visibility-sync.test.ts",
       "test/bench/affected-part-sync.test.ts",

@@ -1,7 +1,7 @@
 import {
   createPart,
   type ElementTessellation,
-  type Geometry,
+  type GeometryInput,
   type GeometryBody,
   type Part,
 } from "../../../../src/geometry/part";
@@ -27,14 +27,14 @@ import { setNodeSelected } from "../../../../src/interaction/nodes";
 
 import { setTargetHovered } from "../../../../src/interaction/targets";
 
-import { translation } from "../../../../src/math/mat4";
+import { translationMatrix } from "../../../../src/math/mat4";
 
 import {
   createPackedSceneRuntime,
   type PackedSceneRuntime as SceneRuntime,
 } from "../../../../src/scene-runtime/runtime";
 
-import { createScene, type Scene } from "../../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../../../src/scene/scene";
 
 import {
   collectEmphasisUpdates,
@@ -85,7 +85,7 @@ import { fakeGpuDevice, installGpuGlobals } from "../../fake-gpu";
 
 import { createBoltedPlateFixture } from "../../../../demo/fixtures/bolted-plate";
 
-export type SemanticTestGeometry = Geometry & {
+export type SemanticTestGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];
   readonly bodies?: readonly GeometryBody[];
   readonly nodePositions?: Float32Array;
@@ -175,17 +175,17 @@ export function elementScene(): { readonly scene: Scene; readonly runtime: Scene
     ],
   };
   const part: Part = partFor(geometry);
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", partId: 1, transform: translation(2, 0, 0) },
+        { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -209,7 +209,7 @@ export function makeStorage(gpu: ReturnType<typeof fakeGpuDevice>): InstanceStor
 export {
   createPart,
   type ElementTessellation,
-  type Geometry,
+  type GeometryInput,
   type GeometryBody,
   type Part,
   createInteractionState,
@@ -223,10 +223,10 @@ export {
   setEdgeSelected,
   setNodeSelected,
   setTargetHovered,
-  translation,
+  translationMatrix,
   createPackedSceneRuntime,
   type SceneRuntime,
-  createScene,
+  createSceneBuilder,
   type Scene,
   collectEmphasisUpdates,
   ELEMENT_RECORD_STRIDE,

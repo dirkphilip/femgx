@@ -7,7 +7,7 @@ import {
   installNavigator,
   installTestGpuGlobals,
   RendererAttachment,
-  translation,
+  translationMatrix,
 } from "./support";
 
 describe("Viewport incremental scene transforms", () => {
@@ -25,15 +25,16 @@ describe("Viewport incremental scene transforms", () => {
     updateInstances.mockClear();
 
     const outcome = viewport.updateScene((update) => {
-      update.setPartOccurrenceTransform({
-        assemblyId: 1,
+      update.replacePlacement(1, {
+        kind: "part",
         placementId: "keep",
-        transform: translation(7, 0, 0),
+        partId: 1,
+        transform: translationMatrix(7, 0, 0),
       });
     });
 
     expect(outcome).toEqual({ results: "none" });
-    expect(viewport.runtime.getTransform("1/keep")?.[12]).toBe(7);
+    expect(viewport.occurrences.getTransform("1/keep")?.[12]).toBe(7);
     expect(updateInstances).toHaveBeenCalledTimes(1);
     expect(updateInstances.mock.calls[0]?.[2]).toEqual([0]);
     expect(clear).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import type { Viewport } from "../../../src/entries/root";
 import type { InteractionState } from "../../../src/entries/interaction";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import { applyMenuAction } from "../interaction/menu-actions";
@@ -56,7 +56,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly activeViewport: () => Viewport;
   readonly viewports: () => readonly Viewport[];
-  readonly runtime: () => SceneRuntime;
+  readonly runtime: () => SceneOccurrences;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
-import { deformGeometry, deformPositions, nodalDisplacements } from "../../src/results/deform";
+import {
+  deformGeometry,
+  deformPositions,
+  createNodalDisplacementBuffer,
+} from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
 import type { VectorField } from "../../src/results/fields";
 
@@ -117,7 +121,7 @@ describe("deformGeometry", () => {
     const sourceGeometry = part.geometries[0];
     if (sourceGeometry === undefined) throw new Error("deformation part geometry is missing");
     const deformed = deformGeometry(sourceGeometry, field, 1);
-    expect(part.elements).toHaveLength(2);
+    expect(part.elements?.count).toBe(2);
     expect(deformed.indices).toBe(geometry.indices);
   });
 
@@ -132,20 +136,20 @@ describe("deformGeometry", () => {
   });
 });
 
-describe("nodalDisplacements", () => {
+describe("createNodalDisplacementBuffer", () => {
   it("packs one vec3 per node from the authored field", () => {
     const field = displacements([1, 2, 3, 4, 5, 6]);
-    const buffer = nodalDisplacements(2, field);
+    const buffer = createNodalDisplacementBuffer(2, field);
     expect(Array.from(buffer)).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it("writes zero deltas for missing or out-of-range nodes", () => {
     const field = displacements([1, 1, 1, NaN, NaN, NaN]);
-    const buffer = nodalDisplacements(3, field);
+    const buffer = createNodalDisplacementBuffer(3, field);
     expect(Array.from(buffer)).toEqual([1, 1, 1, 0, 0, 0, 0, 0, 0]);
   });
 
   it("handles an absent field with a zero-filled buffer", () => {
-    expect(Array.from(nodalDisplacements(2, undefined))).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(Array.from(createNodalDisplacementBuffer(2, undefined))).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });

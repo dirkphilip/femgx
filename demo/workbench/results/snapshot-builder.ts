@@ -1,4 +1,7 @@
-import { selectedTargetSummary } from "../../../src/interaction/selection-queries";
+import {
+  selectedElementVisibilitySummary,
+  selectedTargetSummary,
+} from "../../../src/interaction/selection-queries";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,
@@ -8,7 +11,6 @@ import {
 } from "./result-controls";
 import { sectionRange } from "../section-controls";
 import { hasVisibleSelection } from "../selection/selection";
-import { visibleSelectedElementTargets } from "../state/visibility-actions";
 import { emptyResultLegend } from "./result-legend";
 import type {
   WorkbenchResultField,
@@ -20,7 +22,14 @@ import type {
 /** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
   const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
-  const visibility = input.visibility ?? { context: "", rows: [] };
+  const visibility = input.visibility ?? {
+    context: "",
+    rows: [],
+    page: 0,
+    pageCount: 0,
+    rowCount: 0,
+    materializedRowCount: 0,
+  };
   const active = Object.freeze({
     id: input.model.id,
     name: input.model.name,
@@ -45,10 +54,10 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
     toolbar: createToolbarSnapshot(input),
     analysis: createAnalysisSnapshot(input),
     hierarchy: Object.freeze({
-      occurrenceCount: input.runtime.occurrenceCount,
+      occurrenceCount: input.runtime.assemblyOccurrenceCount,
       visiblePartOccurrences: input.runtime.visibleCount,
       selectedCount: selectedTargetSummary(input.interaction).count,
-      hideSelectedElementCount: visibleSelectedElementTargets(input.interaction).length,
+      hideSelectedElementCount: selectedElementVisibilitySummary(input.interaction).visibleCount,
       elementDetail:
         input.elementDetail === undefined ? undefined : Object.freeze({ ...input.elementDetail }),
       visibility,

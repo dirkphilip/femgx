@@ -1,6 +1,7 @@
 import type { HighlightStorage } from "../selection/highlight-storage";
 import { writeChangedRecordRanges, writeOrderBuffer } from "./buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { invalidateBindGroups as clearBindGroups } from "./foundation";
 import {
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_EMPHASIS_FLAG,
@@ -20,6 +21,7 @@ export {
   type InstanceRecordTarget,
   type InstanceRecordValues,
 } from "./instance-record";
+export { invalidateBindGroups } from "./foundation";
 
 /** One pre-encoded instance record written into a per-part buffer. */
 export interface InstanceUpdate {
@@ -424,7 +426,7 @@ function ensureOrderSidecar(
   }
   draw.cost.allocateBuffer(next.buffer.size);
   storage.sidecars[kind] = next;
-  invalidateBindGroups(storage, draw.cost);
+  clearBindGroups(storage, draw.cost);
   return next;
 }
 
@@ -438,23 +440,7 @@ function releaseOrderSidecar(
   draw.cost.releaseBuffer(sidecar.buffer.size);
   sidecar.buffer.destroy();
   storage.sidecars[kind] = undefined;
-  invalidateBindGroups(storage, draw.cost);
-}
-
-/** Invalidates every cached group when a storage binding changes. */
-export function invalidateBindGroups(storage: InstanceStorage, cost?: GpuCostAccumulator): void {
-  cost?.invalidateBindGroups();
-  storage.bindGroup = undefined;
-  storage.minimalBindGroup = undefined;
-  storage.minimalTransparentBindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
+  clearBindGroups(storage, draw.cost);
 }
 
 /** Creates a u32 storage buffer sized to the part's slot capacity. */

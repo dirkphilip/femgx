@@ -1,273 +1,387 @@
-import type { FaceIdRef } from "../elements/faces";
-import { edgesOf, type ElementEdge } from "../elements/edges";
-import type { Element, ElementId } from "../elements/element";
+import { faceCornerLoops, type FaceIdRef } from "../elements/faces";
 import type { ElementModel } from "../elements/model";
 import {
-  type BodyId,
-  type ElementTessellation,
-  type FaceSubset,
-  type FaceTessellation,
-  type GeometryBody,
-  type GeometryEdge,
-  type LineGeometry,
-  type PointGeometry,
-  type TriangleGeometry,
-} from "./part";
-import { tessellateFace } from "./face-tessellation";
+  elementModelIdAt,
+  elementModelNodeIdAt,
+  elementModelTopologyAt,
+} from "../elements/model-topology";
+import type { DirectEdgeSources } from "./semantic/direct-edge-columns";
+import type { DirectFaceSources } from "./semantic/direct-face-columns";
+import { resolveDirectFaceSubset } from "./semantic/face-subset-columns";
+import type { ElementSemanticFragment } from "./semantic/part-semantic-graph-builder";
+import type { LineGeometryInput, PointGeometryInput, TriangleGeometryInput } from "./types";
+import { appendModelFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import { elementNodePosition } from "./node-position";
-import { authoredEdgesForElements } from "./authored-edges";
-import {
-  analyzeElementFaces,
-  faceIdentity,
-  validateFaceSelectionForElements,
-  type ElementRenderFace,
-} from "./element-face-selection";
+import { authoredEdgeSourcesForOrdinals } from "./authored-edges";
+import { edgeIndexOf, sortUint32Range } from "../elements/topology-helpers";
 
 /** Inputs for one validated triangle-group geometry build. */
 interface VolumeGeometryInput {
   readonly model: ElementModel;
-  readonly elements: readonly Element[];
+  readonly ordinals: Uint32Array;
   readonly faceSubset: readonly FaceIdRef[] | undefined;
-  readonly assignedBodies: ReadonlyMap<ElementId, BodyId>;
 }
 
 /** Builds triangle geometry for one or more compatible element shapes. */
-export function volumeGeometry(input: VolumeGeometryInput): GeometryBuild<TriangleGeometry> {
-  const { model, elements, faceSubset, assignedBodies } = input;
-  const selected =
-    faceSubset === undefined
-      ? undefined
-      : validateFaceSelectionForElements(elements, faceSubset, "heterogeneous");
-  const { faces, neighbors } = analyzeElementFaces(elements);
-  const tessellation = tessellateVolumeFaces({
-    model,
-    faces,
-    neighbors,
-    bodyIds: assignedBodies,
-    selected,
-  });
-  const subset = selected === undefined ? undefined : { faceIds: tessellation.selectedFaceIds };
+export function volumeGeometry(input: VolumeGeometryInput): GeometryBuild<TriangleGeometryInput> {
+  const { model, ordinals, faceSubset } = input;
+  const tessellation = tessellateVolumeFaces(model, ordinals, faceSubset);
   return buildVolumeGeometry({
     ...tessellation,
-    edges: authoredEdgesForElements(elements),
-    faceSubset: subset,
+    edgeSources: authoredEdgeSourcesForOrdinals(model, ordinals),
   });
 }
 
 interface VolumeGeometryOptions {
   readonly mesh: TriangleMeshAssembler;
-  readonly elements: readonly ElementTessellation[];
-  readonly faces: readonly FaceTessellation[];
-  readonly edges: readonly GeometryEdge[];
-  readonly faceSubset: FaceSubset | undefined;
+  readonly fragment: ElementSemanticFragment;
+  readonly faceSources: DirectFaceSources;
+  readonly edgeSources: DirectEdgeSources;
+  readonly faceSubsetOrdinals: Uint32Array | undefined;
 }
 
-interface GeometryBuild<T extends TriangleGeometry | LineGeometry | PointGeometry> {
+interface GeometryBuild<T extends TriangleGeometryInput | LineGeometryInput | PointGeometryInput> {
   readonly geometry: T;
-  readonly elements: readonly ElementTessellation[];
+  readonly fragment: ElementSemanticFragment;
+  readonly edgeSources?: DirectEdgeSources;
+  readonly faceSources?: DirectFaceSources;
+  readonly faceSubsetOrdinals?: Uint32Array;
 }
 
 interface VolumeTessellation {
   readonly mesh: TriangleMeshAssembler;
-  readonly elements: readonly ElementTessellation[];
-  readonly faces: readonly FaceTessellation[];
-  readonly selectedFaceIds: readonly FaceIdRef[];
+  readonly fragment: ElementSemanticFragment;
+  readonly faceSources: DirectFaceSources;
+  readonly faceSubsetOrdinals: Uint32Array | undefined;
 }
 
-/** Inputs for one volume-face tessellation pass. */
-interface VolumeFaceInput {
-  readonly model: ElementModel;
-  readonly faces: readonly ElementRenderFace[];
-  readonly neighbors: ReadonlyMap<string, readonly ElementId[]>;
-  readonly bodyIds: ReadonlyMap<ElementId, BodyId>;
-  readonly selected: ReadonlySet<string> | undefined;
-}
-
-function tessellateVolumeFaces(input: VolumeFaceInput): VolumeTessellation {
-  const { model, faces, neighbors, bodyIds, selected } = input;
+function tessellateVolumeFaces(
+  model: ElementModel,
+  ordinals: Uint32Array,
+  faceSubset: readonly FaceIdRef[] | undefined,
+): VolumeTessellation {
+  const layout = faceLayout(model, ordinals);
+  resolveFaceNeighbors(layout);
+  const faceSubsetOrdinals =
+    faceSubset === undefined ? undefined : resolveDirectFaceSubset(layout.source, faceSubset);
   const mesh = new TriangleMeshAssembler();
-  const elements: ElementTessellation[] = [];
-  const faceTessellations: FaceTessellation[] = [];
-  const selectedFaceIds: FaceIdRef[] = [];
-  let current: { readonly element: Element; readonly start: number } | undefined;
-  const flush = (): void => {
-    if (current === undefined) return;
-    const tessellation: ElementTessellation = {
-      id: current.element.id,
-      primitiveRanges: [
-        {
-          primitive: "triangles",
-          primitiveStart: current.start,
-          primitiveCount: mesh.triangleCount - current.start,
-        },
-      ],
-      shape: current.element.shape,
-    };
-    const bodyId = bodyIds.get(current.element.id);
-    elements.push(withBody(tessellation, bodyId));
-  };
-  for (const { element, face, faceIndex } of faces) {
-    if (current === undefined || current.element.id !== element.id) {
-      flush();
-      current = { element, start: mesh.triangleCount };
-    }
+  const elementIds = new Uint32Array(ordinals.length);
+  const primitiveStarts = new Uint32Array(ordinals.length);
+  const primitiveCounts = new Uint32Array(ordinals.length);
+  let faceOrdinal = 0;
+  let elementCount = 0;
+  for (let index = 0; index < ordinals.length; index += 1) {
+    const ordinal = ordinals[index] ?? 0;
+    const topology = elementModelTopologyAt(model, ordinal);
     const primitiveStart = mesh.triangleCount;
-    for (const triangle of tessellateFace(model, element, face)) mesh.append(triangle);
-    const neighborElementId = otherIncidentElement(neighbors.get(face.key), element.id);
-    const tessellation: FaceTessellation = {
-      elementId: element.id,
-      faceIndex,
-      primitiveStart,
-      primitiveCount: mesh.triangleCount - primitiveStart,
-      key: face.key,
-      nodeIds: face.nodeIds,
-      ...(neighborElementId === undefined ? {} : { neighborElementId }),
-    };
-    const bodyId = bodyIds.get(element.id);
-    faceTessellations.push(withBody(tessellation, bodyId));
-    if (selected?.has(faceIdentity(element.id, faceIndex))) {
-      selectedFaceIds.push({ elementId: element.id, faceIndex });
+    const loops = faceCornerLoops(topology.family);
+    for (let faceIndex = 0; faceIndex < loops.length; faceIndex += 1) {
+      const face = loops[faceIndex];
+      if (face === undefined) throw new Error("Element topology has no face");
+      const start = mesh.triangleCount;
+      appendModelFace(mesh, model, ordinal, face);
+      layout.source.primitiveStarts[faceOrdinal] = start;
+      layout.source.primitiveCounts[faceOrdinal] = mesh.triangleCount - start;
+      faceOrdinal += 1;
     }
+    elementIds[elementCount] = elementModelIdAt(model, ordinal);
+    primitiveStarts[elementCount] = primitiveStart;
+    primitiveCounts[elementCount] = mesh.triangleCount - primitiveStart;
+    elementCount += 1;
   }
-  flush();
-  return { mesh, elements, faces: faceTessellations, selectedFaceIds };
+  return {
+    mesh,
+    fragment: {
+      primitive: "triangles",
+      elementIds: elementIds.slice(0, elementCount),
+      primitiveStarts: primitiveStarts.slice(0, elementCount),
+      primitiveCounts: primitiveCounts.slice(0, elementCount),
+    },
+    faceSources: layout.source,
+    faceSubsetOrdinals,
+  };
 }
 
-function otherIncidentElement(
-  incident: readonly ElementId[] | undefined,
-  elementId: ElementId,
-): ElementId | undefined {
-  const first = incident?.[0];
-  return first === elementId ? incident?.[1] : first;
-}
-
-function buildVolumeGeometry(options: VolumeGeometryOptions): GeometryBuild<TriangleGeometry> {
-  const { mesh, elements, edges, faces, faceSubset } = options;
-  const base = mesh.build("triangles", {
-    edges,
-    faces,
-  });
-  const geometry = faceSubset === undefined ? base : { ...base, faceSubset };
-  return { geometry, elements };
+function buildVolumeGeometry(options: VolumeGeometryOptions): GeometryBuild<TriangleGeometryInput> {
+  const { mesh, fragment, edgeSources, faceSources, faceSubsetOrdinals } = options;
+  const base = mesh.build("triangles");
+  return {
+    geometry: base,
+    fragment,
+    edgeSources,
+    faceSources,
+    ...(faceSubsetOrdinals === undefined ? {} : { faceSubsetOrdinals }),
+  };
 }
 
 /** Builds element-pickable line geometry for authored line elements. */
 export function lineGeometry(
   model: ElementModel,
-  elements: readonly Element[],
-  bodyIds: ReadonlyMap<ElementId, BodyId>,
-): GeometryBuild<LineGeometry> {
+  ordinals: Uint32Array,
+): GeometryBuild<LineGeometryInput> {
   const mesh = new LineMeshBuilder();
-  const descriptors: ElementTessellation[] = [];
-  for (const element of elements) {
+  const elementIds = new Uint32Array(ordinals.length);
+  const primitiveStarts = new Uint32Array(ordinals.length);
+  const primitiveCounts = new Uint32Array(ordinals.length);
+  for (let index = 0; index < ordinals.length; index += 1) {
+    const ordinal = ordinals[index] ?? 0;
+    const topology = elementModelTopologyAt(model, ordinal);
     const primitiveStart = mesh.indices.length / 2;
-    for (const edge of edgesOf(element)) mesh.append(edgePoints(model, edge));
-    const descriptor: ElementTessellation = {
-      id: element.id,
-      primitiveRanges: [
-        {
-          primitive: "lines",
-          primitiveStart,
-          primitiveCount: mesh.indices.length / 2 - primitiveStart,
-        },
-      ],
-      shape: element.shape,
-    };
-    const bodyId = bodyIds.get(element.id);
-    descriptors.push(withBody(descriptor, bodyId));
+    for (let edge = 0; edge < topology.edges.length; edge += 1) {
+      mesh.append(edgePoints(model, ordinal, edge));
+    }
+    elementIds[index] = elementModelIdAt(model, ordinal);
+    primitiveStarts[index] = primitiveStart;
+    primitiveCounts[index] = mesh.indices.length / 2 - primitiveStart;
   }
-  const geometry: LineGeometry = {
+  const geometry: LineGeometryInput = {
     ...mesh.build("lines"),
-    edges: authoredEdgesForElements(elements),
   };
-  return { geometry, elements: descriptors };
+  return {
+    geometry,
+    fragment: { primitive: "lines", elementIds, primitiveStarts, primitiveCounts },
+    edgeSources: authoredEdgeSourcesForOrdinals(model, ordinals),
+  };
 }
 
 /** Builds element-pickable point sprites for authored point elements. */
 export function pointGeometry(
   model: ElementModel,
-  elements: readonly Element[],
-  bodyIds: ReadonlyMap<ElementId, BodyId>,
-): GeometryBuild<PointGeometry> {
+  ordinals: Uint32Array,
+): GeometryBuild<PointGeometryInput> {
   const positions: number[] = [];
   const indices: number[] = [];
   const nodePickIds: number[] = [];
-  const descriptors: ElementTessellation[] = [];
-  for (const element of elements) {
-    const nodeId = element.nodeIds[0];
-    if (nodeId === undefined) throw new Error("Point element must reference exactly one node");
+  const elementIds = new Uint32Array(ordinals.length);
+  const primitiveStarts = new Uint32Array(ordinals.length);
+  const primitiveCounts = new Uint32Array(ordinals.length).fill(1);
+  for (let index = 0; index < ordinals.length; index += 1) {
+    const ordinal = ordinals[index] ?? 0;
+    const nodeId = elementModelNodeIdAt(model, ordinal, 0);
     const point = elementNodePosition(model, nodeId);
     const primitiveStart = positions.length / 3;
     const base = positions.length / 3;
     positions.push(point[0], point[1], point[2]);
     nodePickIds.push(nodeId + 1);
     indices.push(base);
-    const descriptor: ElementTessellation = {
-      id: element.id,
-      primitiveRanges: [{ primitive: "points", primitiveStart, primitiveCount: 1 }],
-      shape: element.shape,
-    };
-    const bodyId = bodyIds.get(element.id);
-    descriptors.push(withBody(descriptor, bodyId));
+    elementIds[index] = elementModelIdAt(model, ordinal);
+    primitiveStarts[index] = primitiveStart;
   }
-  const geometry: PointGeometry = {
+  const geometry: PointGeometryInput = {
     positions: new Float32Array(positions),
     indices: new Uint32Array(indices),
     primitive: "points",
     nodePickIds: new Uint32Array(nodePickIds),
   };
-  return { geometry, elements: descriptors };
+  return {
+    geometry,
+    fragment: { primitive: "points", elementIds, primitiveStarts, primitiveCounts },
+  };
 }
 
-function withBody<T extends { readonly bodyId?: BodyId }>(value: T, bodyId: BodyId | undefined): T {
-  return bodyId === undefined
-    ? value
-    : {
-        ...value,
-        bodyId,
-      };
+interface FaceLayout {
+  readonly source: DirectFaceSources;
+  readonly canonicalOffsets: Uint32Array;
+  readonly canonicalNodeIds: Uint32Array;
 }
 
-/** Projects authoritative body assignments onto one rendered element group. */
-export function bodiesForElements(
-  model: ElementModel,
-  elements: readonly Element[],
-  bodyIds: ReadonlyMap<ElementId, BodyId>,
-): readonly GeometryBody[] | undefined {
-  const bodies = model.bodies;
-  if (bodies === undefined) return undefined;
-  const elementsByBody = new Map<BodyId, ElementId[]>();
-  for (const element of elements) {
-    const bodyId = bodyIds.get(element.id);
-    if (bodyId === undefined) continue;
-    const assigned = elementsByBody.get(bodyId);
-    if (assigned === undefined) elementsByBody.set(bodyId, [element.id]);
-    else assigned.push(element.id);
+function faceLayout(model: ElementModel, ordinals: Uint32Array): FaceLayout {
+  const sizes = faceSizes(model, ordinals);
+  const source = createFaceSourceColumns(sizes.faces, sizes.nodes);
+  const canonicalOffsets = new Uint32Array(sizes.faces + 1);
+  const canonicalNodeIds = new Uint32Array(sizes.nodes);
+  let face = 0;
+  let node = 0;
+  for (let index = 0; index < ordinals.length; index += 1) {
+    const ordinal = ordinals[index] ?? 0;
+    const topology = elementModelTopologyAt(model, ordinal);
+    const id = elementModelIdAt(model, ordinal);
+    const bodyId = model.elementBodyIds?.[ordinal] ?? 0;
+    const loops = faceCornerLoops(topology.family);
+    for (let faceIndex = 0; faceIndex < loops.length; faceIndex += 1) {
+      const loop = loops[faceIndex];
+      if (loop === undefined) throw new Error(`Element ${id} face ${faceIndex} is missing`);
+      const count = loop.length * (topology.order >= 2 ? 2 : 1);
+      source.elementIds[face] = id;
+      source.faceIndices[face] = faceIndex;
+      source.bodyIds[face] = bodyId;
+      source.nodeOffsets[face] = node;
+      canonicalOffsets[face] = node;
+      const input = { model, ordinal, topology, corners: loop };
+      writeFaceNodeIds(source.nodeIds, node, input);
+      writeFaceNodeIds(canonicalNodeIds, node, input);
+      sortUint32Range(canonicalNodeIds, node, count);
+      node += count;
+      face += 1;
+    }
   }
-  return bodies.flatMap((body) => {
-    const elementIds = elementsByBody.get(body.id)?.sort((left, right) => left - right) ?? [];
-    return elementIds.length === 0
-      ? []
-      : [{ id: body.id, ...(body.name === undefined ? {} : { name: body.name }), elementIds }];
-  });
+  source.nodeOffsets[face] = node;
+  canonicalOffsets[face] = node;
+  return { source, canonicalOffsets, canonicalNodeIds };
 }
 
-function edgePoints(model: ElementModel, edge: ElementEdge): readonly MeshVertex[] {
-  const first = edge.nodeIds[0];
-  const last = edge.nodeIds[edge.nodeIds.length - 1];
-  if (first === undefined || last === undefined)
-    throw new Error("Edge must have at least two nodes");
+function faceSizes(
+  model: ElementModel,
+  ordinals: Uint32Array,
+): {
+  readonly faces: number;
+  readonly nodes: number;
+} {
+  let faces = 0;
+  let nodes = 0;
+  for (let index = 0; index < ordinals.length; index += 1) {
+    const topology = elementModelTopologyAt(model, ordinals[index] ?? 0);
+    const loops = faceCornerLoops(topology.family);
+    faces += loops.length;
+    for (let face = 0; face < loops.length; face += 1) {
+      nodes += (loops[face]?.length ?? 0) * (topology.order >= 2 ? 2 : 1);
+    }
+  }
+  return { faces, nodes };
+}
+
+function writeFaceNodeIds(
+  target: Uint32Array,
+  offset: number,
+  input: {
+    readonly model: ElementModel;
+    readonly ordinal: number;
+    readonly topology: ReturnType<typeof elementModelTopologyAt>;
+    readonly corners: readonly number[];
+  },
+): void {
+  const { model, ordinal, topology, corners } = input;
+  const stride = topology.order >= 2 ? 2 : 1;
+  for (let index = 0; index < corners.length; index += 1) {
+    const corner = corners[index];
+    const next = corners[(index + 1) % corners.length];
+    if (corner === undefined || next === undefined) throw new Error("Element face has no corner");
+    target[offset + index * stride] = elementModelNodeIdAt(model, ordinal, corner);
+    if (stride === 2) {
+      const mid = topology.edgeNodes[edgeIndexOf(topology, corner, next)];
+      if (mid === undefined) throw new Error("Quadratic face has no mid-edge node");
+      target[offset + index * stride + 1] = elementModelNodeIdAt(model, ordinal, mid);
+    }
+  }
+}
+
+function createFaceSourceColumns(faces: number, nodes: number): DirectFaceSources {
+  return {
+    geometryOrdinals: new Uint8Array(faces),
+    elementIds: new Uint32Array(faces),
+    faceIndices: new Uint32Array(faces),
+    primitiveStarts: new Uint32Array(faces),
+    primitiveCounts: new Uint32Array(faces),
+    neighborElementIds: new Uint32Array(faces),
+    bodyIds: new Uint32Array(faces),
+    nodeOffsets: new Uint32Array(faces + 1),
+    nodeIds: new Uint32Array(nodes),
+  };
+}
+
+function resolveFaceNeighbors(layout: FaceLayout): void {
+  const order = sortedFaceRows(layout);
+  for (let start = 0; start < order.length;) {
+    let end = start + 1;
+    while (end < order.length && sameCanonicalFace(layout, order[start] ?? 0, order[end] ?? 0)) {
+      end += 1;
+    }
+    const count = end - start;
+    if (count > 2) throw nonManifoldFaceError(layout, order[start] ?? 0, count);
+    if (count === 2) {
+      const first = order[start] ?? 0;
+      const second = order[start + 1] ?? 0;
+      layout.source.neighborElementIds[first] = layout.source.elementIds[second] ?? 0;
+      layout.source.neighborElementIds[second] = layout.source.elementIds[first] ?? 0;
+    }
+    start = end;
+  }
+}
+
+function sortedFaceRows(layout: FaceLayout): Uint32Array {
+  const count = layout.source.elementIds.length;
+  const result = new Uint32Array(count);
+  const scratch = new Uint32Array(count);
+  for (let index = 0; index < count; index += 1) result[index] = index;
+  for (let width = 1; width < count; width *= 2) {
+    for (let start = 0; start < count; start += width * 2) {
+      mergeFaceRows(layout, result, scratch, {
+        start,
+        middle: Math.min(start + width, count),
+        end: Math.min(start + width * 2, count),
+      });
+    }
+    result.set(scratch);
+  }
+  return result;
+}
+
+function mergeFaceRows(
+  layout: FaceLayout,
+  source: Uint32Array,
+  target: Uint32Array,
+  range: { readonly start: number; readonly middle: number; readonly end: number },
+): void {
+  const { start, middle, end } = range;
+  let left = start;
+  let right = middle;
+  for (let output = start; output < end; output += 1) {
+    const leftRow = source[left] ?? 0;
+    const rightRow = source[right] ?? 0;
+    if (left < middle && (right >= end || compareCanonicalFaces(layout, leftRow, rightRow) <= 0)) {
+      target[output] = leftRow;
+      left += 1;
+    } else {
+      target[output] = rightRow;
+      right += 1;
+    }
+  }
+}
+
+function compareCanonicalFaces(layout: FaceLayout, left: number, right: number): number {
+  const leftStart = layout.canonicalOffsets[left] ?? 0;
+  const leftEnd = layout.canonicalOffsets[left + 1] ?? leftStart;
+  const rightStart = layout.canonicalOffsets[right] ?? 0;
+  const rightEnd = layout.canonicalOffsets[right + 1] ?? rightStart;
+  const shared = Math.min(leftEnd - leftStart, rightEnd - rightStart);
+  for (let offset = 0; offset < shared; offset += 1) {
+    const difference =
+      (layout.canonicalNodeIds[leftStart + offset] ?? 0) -
+      (layout.canonicalNodeIds[rightStart + offset] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return leftEnd - leftStart - (rightEnd - rightStart);
+}
+
+function sameCanonicalFace(layout: FaceLayout, left: number, right: number): boolean {
+  return compareCanonicalFaces(layout, left, right) === 0;
+}
+
+function nonManifoldFaceError(layout: FaceLayout, row: number, count: number): Error {
+  const start = layout.canonicalOffsets[row] ?? 0;
+  const end = layout.canonicalOffsets[row + 1] ?? start;
+  const key = Array.from(layout.canonicalNodeIds.subarray(start, end)).join(",");
+  return new Error(`Non-manifold face ${key} has ${count} incident elements`);
+}
+
+function edgePoints(model: ElementModel, ordinal: number, edge: number): readonly MeshVertex[] {
+  const topology = elementModelTopologyAt(model, ordinal);
+  const pair = topology.edges[edge];
+  if (pair === undefined) throw new Error("Element topology has no edge");
+  const first = elementModelNodeIdAt(model, ordinal, pair[0]);
+  const last = elementModelNodeIdAt(model, ordinal, pair[1]);
   const a = elementNodePosition(model, first);
   const b = elementNodePosition(model, last);
-  if (edge.nodeIds.length === 2) {
+  if (topology.order < 2) {
     return [
       { point: a, nodeId: first },
       { point: b, nodeId: last },
     ];
   }
-  const midNodeId = edge.nodeIds[1];
-  if (midNodeId === undefined) throw new Error("Quadratic edge must carry its mid-edge node");
+  const midIndex = topology.edgeNodes[edge];
+  if (midIndex === undefined) throw new Error("Quadratic edge must carry its mid-edge node");
+  const midNodeId = elementModelNodeIdAt(model, ordinal, midIndex);
   const mid = elementNodePosition(model, midNodeId);
   return [
     { point: a, nodeId: first },

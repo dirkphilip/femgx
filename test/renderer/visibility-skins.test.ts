@@ -6,8 +6,8 @@ import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
 import { RendererAttachment } from "../../src/renderer/attachment";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createPart } from "../../src/geometry/part";
-import { createScene } from "../../src/scene/scene";
-import { identity } from "../../src/math/mat4";
+import { createSceneBuilder } from "../../src/scene/scene";
+import { identityMatrix } from "../../src/math/mat4";
 import { fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 function buildPart() {
@@ -57,17 +57,27 @@ function buildPart() {
 
 function buildScene() {
   const part = buildPart();
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, placementId: "left", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "right", partId: part.id, transform: identity() },
+        {
+          kind: "part" as const,
+          placementId: "left",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
+        {
+          kind: "part" as const,
+          placementId: "right",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -98,18 +108,18 @@ function buildBudgetScene() {
       ],
     })),
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "budget",
       placements: [
-        { kind: "part" as const, placementId: "a", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "b", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "c", partId: part.id, transform: identity() },
+        { kind: "part" as const, placementId: "a", partId: part.id, transform: identityMatrix() },
+        { kind: "part" as const, placementId: "b", partId: part.id, transform: identityMatrix() },
+        { kind: "part" as const, placementId: "c", partId: part.id, transform: identityMatrix() },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -157,14 +167,16 @@ function buildOversizeScene() {
       },
     ],
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "oversize",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -212,14 +224,16 @@ function buildMixedPrimitiveScene() {
       { id: 2, elementIds: [2] },
     ],
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "mixed",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -284,7 +298,7 @@ describe("bounded visibility skins", () => {
     }
   });
 
-  it("retains every required active skin when their total exceeds the part budget", async () => {
+  it("uses the full topology path when active signatures exceed the retained skin budget", async () => {
     const restore = installGpuGlobals();
     try {
       const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -304,16 +318,23 @@ describe("bounded visibility skins", () => {
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
 
       const cache = bundle.draw.visibilitySkins.get(part.id);
+      const skins = attachment.calls.flatMap((call) =>
+        call.visibilitySkin === undefined ? [] : [call.visibilitySkin],
+      );
       expect(cache).toBeDefined();
-      expect(cache?.residentBytes).toBeGreaterThan(cache?.budgetBytes ?? Infinity);
-      expect(attachment.calls.filter((call) => call.visibilitySkin !== undefined)).toHaveLength(3);
+      expect(cache?.residentBytes).toBeLessThanOrEqual(cache?.budgetBytes ?? -1);
+      expect(cache?.residentBytes).toBe(skins.reduce((total, skin) => total + skin.byteLength, 0));
+      expect(skins).toHaveLength(2);
+      expect(attachment.calls.filter((call) => call.visibilitySkin === undefined)).toMatchObject([
+        { partId: part.id, instanceCount: 1 },
+      ]);
       destroyGpuBundle(bundle);
     } finally {
       restore();
     }
   });
 
-  it("admits one required hidden skin larger than the normal 16 MiB cache budget", async () => {
+  it("does not retain an oversized skin", async () => {
     const restore = installGpuGlobals();
     try {
       const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -328,7 +349,10 @@ describe("bounded visibility skins", () => {
       );
       attachment.updateElements(runtime, hidden, bundle, scene.parts);
 
-      expect(attachment.calls[0]?.visibilitySkin?.byteLength).toBeGreaterThan(16 * 1024 * 1024);
+      const cache = bundle.draw.visibilitySkins.get(88);
+      expect(cache?.budgetBytes).toBe(16 * 1024 * 1024);
+      expect(cache?.residentBytes).toBe(0);
+      expect(attachment.calls).toMatchObject([{ partId: 88, instanceCount: 1 }]);
       destroyGpuBundle(bundle);
     } finally {
       restore();

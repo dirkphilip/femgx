@@ -8,7 +8,7 @@ import {
   type InteractionState,
 } from "../../src/entries/interaction";
 import { createCamera } from "../../src/camera/camera";
-import type { SceneRuntime } from "../../src/entries/runtime";
+import type { SceneOccurrences } from "../../src/scene-runtime/occurrences";
 import type { WorkbenchModel } from "../../demo/workbench/models/model";
 import {
   createWorkbenchInfrastructure,
@@ -185,7 +185,7 @@ function infrastructureOptions(
       }) as never,
     activeViewport: () => (activeSlot === "primary" ? primaryViewport : secondaryViewport),
     viewports: () => [primaryViewport, secondaryViewport],
-    runtime: () => ({}) as SceneRuntime,
+    runtime: () => ({}) as SceneOccurrences,
     applyDisplayedInteraction: vi.fn(),
     render: vi.fn(),
     publishSnapshot: vi.fn(),
@@ -233,7 +233,7 @@ function viewport(
 ): Viewport {
   return {
     view: { camera: createCamera({ width: 300, height: 200 }) },
-    runtime: { getVisiblePartOccurrenceIds: () => [] },
+    occurrences: { visiblePartOccurrenceIds: () => [] },
     interaction: {
       pick,
       pickRegion,

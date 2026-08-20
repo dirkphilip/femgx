@@ -16,7 +16,7 @@ import { syncDeformations, validateDeformation } from "./frame/deformation";
 import { syncResultColors } from "./resources/result-colors";
 import { encodeVisibleFrame } from "./frame/frame";
 import { GpuDeviceLifecycle } from "./recovery";
-import { writeBackgroundColors } from "./frame/background";
+import { writeBundleBackgroundColors } from "./frame/background";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { SectionPlane } from "../math/section-plane";
 import {
@@ -74,8 +74,7 @@ export class GpuRenderer implements WebGpuRenderer {
     this.depthFormat = construction.depthFormat;
     this.timestampQueriesRequested = construction.timestampQueriesRequested ?? false;
     this.timestampRecorder = construction.timestampRecorder;
-    this.pointSize = options.pointSizePixels ?? 8;
-    this.nodeSize = options.nodeSizePixels ?? 6;
+    [this.pointSize, this.nodeSize] = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
     this.originTriadEnabled = options.originTriad ?? true;
     this.edgePick = createEdgePickState(construction.validation);
     this.background = options.background ?? "studio";
@@ -104,16 +103,10 @@ export class GpuRenderer implements WebGpuRenderer {
         this.lastCamera = camera;
       },
       deformation: () => this.deformation,
-      ensureSectionCaps: (runtime) => {
-        this.ensureSectionCaps(runtime);
-      },
+      ensureSectionCaps: this.ensureSectionCaps.bind(this),
       frameOptions: () => this.frameOptions(),
     });
-    writeBackgroundColors(
-      this.lifecycle.bundle.device,
-      this.lifecycle.bundle.resources.background,
-      this.background,
-    );
+    writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     this.resize();
   }
 
@@ -217,7 +210,6 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    const interactionChanged = this.interaction !== interaction;
     this.interaction = interaction;
     const changed = this.attachment.updateInstances(
       runtime,
@@ -225,10 +217,27 @@ export class GpuRenderer implements WebGpuRenderer {
       changedInstanceIds,
       this.lifecycle.bundle,
     );
-    if (interactionChanged || changed) this.sectionCaps.invalidate();
-    if (changed) {
-      this.picking.invalidate();
+    if (changed) this.sectionCaps.invalidate();
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
+    if (changed) this.picking.invalidate();
+  }
+
+  public updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: Parameters<RendererAttachment["updateOccurrences"]>[2],
+    parts: ReadonlyMap<PartId, Part>,
+  ): void {
+    this.ensureAlive();
+    this.interaction = interaction;
+    this.attachment.addParts(parts, delta.addedPartIds, this.parts);
+    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) {
+      this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
     }
+    if (this.sourceParts !== undefined) this.sourceParts = parts;
+    this.attachment.removeParts(delta.removedPartIds, this.parts, this.lifecycle.bundle);
+    this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
+    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) this.picking.invalidate();
   }
 
   public updateElements(
@@ -237,7 +246,6 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds?: readonly number[],
   ): void {
     this.ensureAlive();
-    const interactionChanged = this.interaction !== interaction;
     this.interaction = interaction;
     const changed = this.attachment.updateElements(
       runtime,
@@ -246,10 +254,8 @@ export class GpuRenderer implements WebGpuRenderer {
       this.parts,
       changedInstanceIds,
     );
-    if (interactionChanged || changed) this.sectionCaps.invalidate();
-    if (changed) {
-      this.picking.invalidate();
-    }
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
+    if (changed) this.picking.invalidate();
   }
 
   public setEdgeDepthTest(enabled: boolean): void {
@@ -260,8 +266,7 @@ export class GpuRenderer implements WebGpuRenderer {
   public setBackground(background: ViewportBackground): void {
     this.ensureAlive();
     if (this.background === background) return;
-    const { device, resources } = this.lifecycle.bundle;
-    writeBackgroundColors(device, resources.background, background);
+    writeBundleBackgroundColors(this.lifecycle.bundle, background);
     this.background = background;
   }
 
@@ -286,15 +291,9 @@ export class GpuRenderer implements WebGpuRenderer {
 
   public updateVisibility(runtime: PackedSceneRuntime, affectedPartIds: readonly PartId[]): void {
     this.ensureAlive();
-    const changed = this.attachment.updateVisibility(
-      runtime,
-      affectedPartIds,
-      this.lifecycle.bundle,
-    );
-    if (changed) {
-      this.sectionCaps.invalidate();
-      this.picking.invalidate();
-    }
+    if (!this.attachment.updateVisibility(runtime, affectedPartIds, this.lifecycle.bundle)) return;
+    this.sectionCaps.invalidate();
+    this.picking.invalidate();
   }
 
   public async pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
@@ -378,11 +377,7 @@ export class GpuRenderer implements WebGpuRenderer {
       this.attachment.clear(this.lifecycle.bundle);
       this.sectionCaps.recover(this.parts, this.resultColors);
       this.picking.resetAfterRecovery();
-      writeBackgroundColors(
-        this.lifecycle.bundle.device,
-        this.lifecycle.bundle.resources.background,
-        this.background,
-      );
+      writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     }
   }
 

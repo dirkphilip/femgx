@@ -175,7 +175,7 @@ describe("WebGPU renderer", () => {
         partId: 1,
         partOccurrenceId: "1/0",
         elementId: 0,
-        key: "0:1:2",
+        key: "0,1,2",
         worldPosition: unprojectPoint(faceCamera, [400.5, 300.5, depth]),
       });
 

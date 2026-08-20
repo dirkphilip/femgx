@@ -1,4 +1,4 @@
-import { nodalDisplacements, type DeformationState } from "../results/deform";
+import { createNodalDisplacementBuffer, type DeformationState } from "../results/deform";
 import { createScalarColorMap, type ScalarColorMap } from "../results/mapping";
 import { scalarRange, type ValueRange } from "../results/range";
 import type { Scene } from "../scene/scene";
@@ -354,7 +354,7 @@ function resolveDeformation(
       }
       maxNodeId = Math.max(maxNodeId, nodeId);
     }
-    displacements.set(part.id, nodalDisplacements(maxNodeId + 1, config.field));
+    displacements.set(part.id, createNodalDisplacementBuffer(maxNodeId + 1, config.field));
   }
   return { scale, displacements };
 }

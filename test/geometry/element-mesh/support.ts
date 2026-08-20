@@ -6,7 +6,10 @@ import { boundaryFaceRefs, FaceSelectionError } from "../../../src/elements/face
 
 import { ElementShape, topologyFor, type ElementFamily } from "../../../src/elements/shapes";
 
-import { type TessellationOptions, elementPart } from "../../../src/geometry/element-part";
+import {
+  type CreatePartFromElementModelOptions,
+  createPartFromElementModel,
+} from "../../../src/geometry/element-model-part";
 
 import {
   validateElements,
@@ -145,7 +148,7 @@ export function skewedHex20Model(): ElementModel {
     const z = model.nodes[offset + 2] ?? 0;
     nodes.push(x + 0.2 * y, y + 0.15 * z, z + 0.1 * x);
   }
-  return createElementModel(nodes, model.elements);
+  return createElementModel(nodes, [...model.elements]);
 }
 
 /** Shared core test helper. */
@@ -305,8 +308,8 @@ export function geometryFor(
   const authoredModel =
     options.bodies === undefined
       ? model
-      : createElementModel([...model.nodes], model.elements, { bodies: options.bodies });
-  const part = elementPart(
+      : createElementModel([...model.nodes], [...model.elements], { bodies: options.bodies });
+  const part = createPartFromElementModel(
     20,
     authoredModel,
     options.faceSubset === undefined ? {} : { faceSubset: options.faceSubset },
@@ -320,7 +323,7 @@ export function geometryFor(
   return Object.assign(geometry, { part });
 }
 
-export interface GeometryOptions extends TessellationOptions {
+export interface GeometryOptions extends CreatePartFromElementModelOptions {
   readonly bodies?: readonly Body[];
 }
 
@@ -332,7 +335,7 @@ export type TestGeometry<T extends TriangleGeometry | LineGeometry | PointGeomet
 export function familyModel(model: ElementModel, family: ElementFamily): ElementModel {
   return createElementModel(
     [...model.nodes],
-    model.elements.filter((element) => topologyFor(element.shape).family === family),
+    [...model.elements].filter((element) => topologyFor(element.shape).family === family),
   );
 }
 
@@ -352,8 +355,8 @@ export {
   ElementShape,
   topologyFor,
   type ElementFamily,
-  type TessellationOptions,
-  elementPart,
+  type CreatePartFromElementModelOptions,
+  createPartFromElementModel,
   validateElements,
   validatePickIds,
   type LineGeometry,

@@ -13,7 +13,7 @@ import {
   selectedTargetSummary,
 } from "../../../src/interaction/selection-queries";
 import type { PartId } from "../../../src/entries/root";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
 
 const MAX_EXACT_SELECTION_DATASET_TARGETS = 256;
@@ -92,7 +92,10 @@ export function selectionDatasetValue(interaction: InteractionState): string {
 }
 
 /** Returns whether the current selection contains geometry in a visible occurrence. */
-export function hasVisibleSelection(interaction: InteractionState, runtime: SceneRuntime): boolean {
+export function hasVisibleSelection(
+  interaction: InteractionState,
+  runtime: SceneOccurrences,
+): boolean {
   const visiblePartIds = visiblePartIdsFor(runtime);
   const selection = selectedTargetSummary(interaction);
   for (const partId of selection.partIds) if (visiblePartIds.has(partId)) return true;
@@ -102,9 +105,9 @@ export function hasVisibleSelection(interaction: InteractionState, runtime: Scen
   return false;
 }
 
-function visiblePartIdsFor(runtime: SceneRuntime): Set<PartId> {
+function visiblePartIdsFor(runtime: SceneOccurrences): Set<PartId> {
   const visiblePartIds = new Set<PartId>();
-  for (const partOccurrenceId of runtime.getVisiblePartOccurrenceIds()) {
+  for (const partOccurrenceId of runtime.visiblePartOccurrenceIds()) {
     const partId = runtime.getPartId(partOccurrenceId);
     if (partId !== undefined) visiblePartIds.add(partId);
   }

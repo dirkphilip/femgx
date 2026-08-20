@@ -22,10 +22,10 @@ describe("large viewport visibility transitions", () => {
       const fixture = visibilityFixture();
       const partP95 = measureTransition(
         () => {
-          fixture.controller.setPart(1, false);
+          fixture.controller.setPartVisible(1, false);
         },
         () => {
-          fixture.controller.setPart(1, true);
+          fixture.controller.setPartVisible(1, true);
         },
       );
       const occurrenceP95 = measureTransition(
@@ -37,12 +37,16 @@ describe("large viewport visibility transitions", () => {
         },
       );
 
+      if (process.env["PERF_REPORT"] === "1") {
+        console.log({ partP95, occurrenceP95 });
+      }
+
       expect(partP95).toBeLessThanOrEqual(16.7);
       expect(occurrenceP95).toBeLessThanOrEqual(50);
       fixture.resetCounts();
-      fixture.controller.setPart(1, false);
+      fixture.controller.setPartVisible(1, false);
       expect(fixture.counts()).toEqual({ syncs: 1, invalidations: 1 });
-      fixture.controller.setPart(1, true);
+      fixture.controller.setPartVisible(1, true);
       fixture.resetCounts();
       fixture.controller.setPartOccurrences(fixture.occurrenceIds, false);
       expect(fixture.counts()).toEqual({ syncs: 1, invalidations: 1 });

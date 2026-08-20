@@ -1,4 +1,5 @@
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import { invalidateBindGroups as clearBindGroups } from "../resources/foundation";
 import {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
@@ -16,6 +17,8 @@ export interface HighlightCapacityOptions {
   readonly selectionSlotCapacity: number;
   readonly selectionRecordCapacity: number;
   readonly selectionWordCapacity: number;
+  readonly visibilityRecordCapacity: number;
+  readonly visibilityWordCapacity: number;
   readonly nodeSelectionSlotCapacity: number;
   readonly nodeSelectionRecordCapacity: number;
   readonly nodeSelectionWordCapacity: number;
@@ -47,6 +50,8 @@ export function createHighlightStorage(
     selectionSlotCapacity: 0,
     selectionRecordCapacity: 0,
     selectionWordCapacity: 0,
+    visibilityRecordCapacity: 0,
+    visibilityWordCapacity: 0,
     nodeSelectionSlotCapacity: 0,
     nodeSelectionRecordCapacity: 0,
     nodeSelectionWordCapacity: 0,
@@ -63,6 +68,7 @@ export function createHighlightStorage(
     sparseCapacity,
     ...capacity,
     denseSelection: undefined,
+    denseVisibility: undefined,
     denseNodeSelection: undefined,
   };
 }
@@ -87,6 +93,8 @@ export function ensureHighlightStorage(
     next.selectionSlotCapacity === current.selectionSlotCapacity &&
     next.selectionRecordCapacity === current.selectionRecordCapacity &&
     next.selectionWordCapacity === current.selectionWordCapacity &&
+    next.visibilityRecordCapacity === current.visibilityRecordCapacity &&
+    next.visibilityWordCapacity === current.visibilityWordCapacity &&
     next.nodeSelectionSlotCapacity === current.nodeSelectionSlotCapacity &&
     next.nodeSelectionRecordCapacity === current.nodeSelectionRecordCapacity &&
     next.nodeSelectionWordCapacity === current.nodeSelectionWordCapacity
@@ -109,16 +117,7 @@ export function invalidateHighlightBindGroups(
   storage: HighlightAllocationTarget,
   cost?: GpuCostAccumulator,
 ): void {
-  cost?.invalidateBindGroups();
-  storage.bindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
+  clearBindGroups(storage, cost);
 }
 
 function nextCapacity(
@@ -129,6 +128,8 @@ function nextCapacity(
     options.selectionSlotCapacity === 0 &&
     options.selectionRecordCapacity === 0 &&
     options.selectionWordCapacity === 0 &&
+    options.visibilityRecordCapacity === 0 &&
+    options.visibilityWordCapacity === 0 &&
     options.nodeSelectionSlotCapacity === 0 &&
     options.nodeSelectionRecordCapacity === 0 &&
     options.nodeSelectionWordCapacity === 0;
@@ -146,6 +147,12 @@ function nextCapacity(
     selectionWordCapacity: releasesSelection
       ? 0
       : Math.max(current.selectionWordCapacity, options.selectionWordCapacity),
+    visibilityRecordCapacity: releasesSelection
+      ? 0
+      : Math.max(current.visibilityRecordCapacity, options.visibilityRecordCapacity),
+    visibilityWordCapacity: releasesSelection
+      ? 0
+      : Math.max(current.visibilityWordCapacity, options.visibilityWordCapacity),
     nodeSelectionSlotCapacity: releasesSelection
       ? 0
       : Math.max(current.nodeSelectionSlotCapacity, options.nodeSelectionSlotCapacity),
@@ -164,6 +171,8 @@ function preserveDenseSelection(current: HighlightStorage, next: HighlightStorag
     current.selectionSlotCapacity !== next.selectionSlotCapacity ||
     current.selectionRecordCapacity !== next.selectionRecordCapacity ||
     current.selectionWordCapacity !== next.selectionWordCapacity ||
+    current.visibilityRecordCapacity !== next.visibilityRecordCapacity ||
+    current.visibilityWordCapacity !== next.visibilityWordCapacity ||
     current.nodeSelectionSlotCapacity !== next.nodeSelectionSlotCapacity ||
     current.nodeSelectionRecordCapacity !== next.nodeSelectionRecordCapacity ||
     current.nodeSelectionWordCapacity !== next.nodeSelectionWordCapacity
@@ -171,24 +180,34 @@ function preserveDenseSelection(current: HighlightStorage, next: HighlightStorag
     return;
   }
   copyDenseSelectionSection(current, next, "element");
+  copyDenseSelectionSection(current, next, "visibility");
   copyDenseSelectionSection(current, next, "node");
   next.denseSelection = current.denseSelection;
+  next.denseVisibility = current.denseVisibility;
   next.denseNodeSelection = current.denseNodeSelection;
 }
 
 function copyDenseSelectionSection(
   current: HighlightStorage,
   next: HighlightStorage,
-  kind: "element" | "node",
+  kind: "element" | "visibility" | "node",
 ): void {
   const currentOffsets = denseSectionOffsets(current, kind);
   const nextOffsets = denseSectionOffsets(next, kind);
   const slotCapacity =
-    kind === "element" ? current.selectionSlotCapacity : current.nodeSelectionSlotCapacity;
+    kind === "node" ? current.nodeSelectionSlotCapacity : current.selectionSlotCapacity;
   const recordCapacity =
-    kind === "element" ? current.selectionRecordCapacity : current.nodeSelectionRecordCapacity;
+    kind === "element"
+      ? current.selectionRecordCapacity
+      : kind === "visibility"
+        ? current.visibilityRecordCapacity
+        : current.nodeSelectionRecordCapacity;
   const wordCapacity =
-    kind === "element" ? current.selectionWordCapacity : current.nodeSelectionWordCapacity;
+    kind === "element"
+      ? current.selectionWordCapacity
+      : kind === "visibility"
+        ? current.visibilityWordCapacity
+        : current.nodeSelectionWordCapacity;
   const slotBytes = slotCapacity * Uint32Array.BYTES_PER_ELEMENT;
   const bitBytes = recordCapacity * wordCapacity * Uint32Array.BYTES_PER_ELEMENT;
   next.data.set(
@@ -203,16 +222,23 @@ function copyDenseSelectionSection(
 
 function denseSectionOffsets(
   storage: HighlightStorage,
-  kind: "element" | "node",
+  kind: "element" | "visibility" | "node",
 ): { readonly offset: number; readonly bits: number } {
   const sparseBytes = storage.sparseCapacity * ELEMENT_RECORD_STRIDE;
   const elementOffset = HIGHLIGHT_HEADER + sparseBytes;
   const elementBits = elementOffset + storage.selectionSlotCapacity * Uint32Array.BYTES_PER_ELEMENT;
-  const nodeOffset =
+  const visibilityOffset =
     elementBits +
     storage.selectionRecordCapacity * storage.selectionWordCapacity * Uint32Array.BYTES_PER_ELEMENT;
+  const visibilityBits =
+    visibilityOffset + storage.selectionSlotCapacity * Uint32Array.BYTES_PER_ELEMENT;
+  const nodeOffset =
+    visibilityBits +
+    storage.visibilityRecordCapacity *
+      storage.visibilityWordCapacity *
+      Uint32Array.BYTES_PER_ELEMENT;
   const nodeBits = nodeOffset + storage.nodeSelectionSlotCapacity * Uint32Array.BYTES_PER_ELEMENT;
-  return kind === "element"
-    ? { offset: elementOffset, bits: elementBits }
-    : { offset: nodeOffset, bits: nodeBits };
+  if (kind === "element") return { offset: elementOffset, bits: elementBits };
+  if (kind === "visibility") return { offset: visibilityOffset, bits: visibilityBits };
+  return { offset: nodeOffset, bits: nodeBits };
 }

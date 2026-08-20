@@ -1,7 +1,7 @@
 import { type Viewport, type ViewportResultsState } from "../../../src/entries/root";
 import { type InteractionState } from "../../../src/entries/interaction";
 import type { Camera } from "../../../src/entries/camera";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import { selectedCount, selectionDatasetValue } from "../selection/selection";
 import { statsText } from "../../devtools/diagnostics";
@@ -31,7 +31,7 @@ export interface WorkbenchPresentationOptions {
   readonly getInteraction: () => InteractionState;
   readonly getInspection: () => { readonly visible: boolean; readonly text: string };
   readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
-  readonly getRuntime: () => SceneRuntime;
+  readonly getRuntime: () => SceneOccurrences;
   readonly getSectionAxis: () => SectionAxis;
   readonly getSectionOffset: () => number;
   readonly menu: WorkbenchMenu;

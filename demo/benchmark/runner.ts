@@ -77,6 +77,13 @@ export async function runWebGpuBenchmark(
                       holdBenchmarkCapture(canvas, "element-selection", phase),
                   }
                 : {}),
+              ...(options.capture === "hidden-interior" &&
+              (spec.id === "fe-tet4-solid-132k" || spec.id === "fe-hex8-solid-visual")
+                ? {
+                    holdHiddenInteriorForCapture: () =>
+                      holdBenchmarkCapture(canvas, "hidden-interior"),
+                  }
+                : {}),
             },
           ),
         );

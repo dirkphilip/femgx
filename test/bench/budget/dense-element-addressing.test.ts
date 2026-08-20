@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createElement, type Element } from "../../../src/elements/element";
 import { createElementModel } from "../../../src/elements/model";
 import { ElementShape } from "../../../src/elements/shapes";
-import { elementPart } from "../../../src/geometry/element-part";
-import { identity } from "../../../src/math/mat4";
-import { createModelBuilder } from "../../../src/io/model-builder";
+import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
+import { identityMatrix } from "../../../src/math/mat4";
+import { createFemModelBuilder } from "../../../src/io/model-builder";
 import { createResultFieldFromModelResult } from "../../../src/io/conversions/result-field";
 import type { FemModel } from "../../../src/io/fem-model";
 import { resolveElementalOrientationRecords } from "../../../src/results/orientation-records";
@@ -12,7 +12,7 @@ import { createResultField, type ScalarField, type VectorField } from "../../../
 import { createScalarColorMap } from "../../../src/results/mapping";
 import { scalarRange } from "../../../src/results/range";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import { resolveViewportResults, viewportResultColors } from "../../../src/viewport/results";
 import {
   buildOperationsReport,
@@ -28,15 +28,15 @@ const profiles = [
 ] as const;
 const models = profiles.map(({ ids }) => ({ ids, model: modelFrom(ids) }));
 const partModel = modelFrom(profiles[2].ids);
-const part = elementPart(1, partModelToElements(partModel));
-const scene = createScene()
+const part = createPartFromElementModel(1, partModelToElements(partModel));
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 1,
     name: "dense-addressing",
-    placements: [{ kind: "part", partId: 1, transform: identity() }],
+    placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
   })
-  .withRoot(1)
+  .setRootAssembly(1)
   .build();
 const runtime = createPackedSceneRuntime(scene);
 const scalarValues = Float32Array.from({ length: ELEMENT_COUNT }, (_, index) => index % 101);
@@ -151,9 +151,9 @@ function operationSpecs(): readonly OperationSpec[] {
         retainedDenseValueBytes: scalarValues.byteLength,
       },
       run: () => {
-        const selected = new Set((part.elements ?? []).map((element) => element.id));
+        const selected = new Set([...(part.elements ?? [])].map((element) => element.id));
         if (selected.size !== ELEMENT_COUNT || !selected.has(profiles[2].ids[0] ?? -1)) {
-          throw new Error("Stable selection identity reference changed");
+          throw new Error("Stable selection identityMatrix reference changed");
         }
       },
     },
@@ -165,7 +165,7 @@ function idsFrom(makeId: (index: number) => number): readonly number[] {
 }
 
 function modelFrom(ids: readonly number[]): FemModel {
-  const builder = createModelBuilder();
+  const builder = createFemModelBuilder();
   builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
   builder.openElementShapeBlock(ElementShape.Line);
   builder.appendElements(ids, Array.from({ length: ids.length }, () => [0, 1]).flat());

@@ -1,16 +1,16 @@
 import {
   IoError,
   createElementModelFromFemModel,
-  createModelBuilder,
+  createFemModelBuilder,
   createResultFieldFromModelResult,
-  validateModel,
+  validateFemModel,
   type FemModel,
   type Issue,
   type ModelResultField,
 } from "femgx/io";
 import {
   ElementShape,
-  elementPart,
+  createPartFromElementModel,
   topologyFor,
   type Body,
   type ElementModel,
@@ -52,7 +52,7 @@ interface HostModel {
 export interface IngestedHostModel {
   readonly model: FemModel;
   readonly elementModel: ElementModel;
-  readonly part: ReturnType<typeof elementPart>;
+  readonly part: ReturnType<typeof createPartFromElementModel>;
   readonly nodeHostIdsByOrdinal: readonly string[];
   readonly baselineStress: ScalarField<"elemental">;
   readonly baselineDisplacement: VectorField<"nodal">;
@@ -135,7 +135,7 @@ const HOST_MODEL: HostModel = {
 /** Converts host identities once, then hands dense typed tables to FemGx. */
 export function ingestHostModel(onDiagnostic: (issue: Issue) => void): IngestedHostModel {
   const nodes = denseNodes(HOST_MODEL.nodes);
-  const builder = createModelBuilder();
+  const builder = createFemModelBuilder();
   builder.appendNodes(nodes.ids, nodes.coordinates);
   appendElementBlocks(builder, HOST_MODEL, nodes.ordinalByHostId);
   const bodies = modelBodies(HOST_MODEL);
@@ -145,7 +145,7 @@ export function ingestHostModel(onDiagnostic: (issue: Issue) => void): IngestedH
   builder.addResult(baselineSources.stress);
   builder.addResult(baselineSources.displacement);
   const model = builder.build();
-  const issues = validateModel(model);
+  const issues = validateFemModel(model);
   for (const issue of issues) onDiagnostic(issue);
   const errors = issues.filter((issue) => issue.severity === "error");
   if (errors.length > 0) throw new IoError("Host model validation failed", errors);
@@ -154,7 +154,7 @@ export function ingestHostModel(onDiagnostic: (issue: Issue) => void): IngestedH
   return {
     model,
     elementModel,
-    part: elementPart(100, elementModel),
+    part: createPartFromElementModel(100, elementModel),
     nodeHostIdsByOrdinal: nodes.hostIdsByOrdinal,
     baselineStress: scalarField(model, baselineSources.stress, "stress-baseline"),
     baselineDisplacement: vectorField(model, baselineSources.displacement, "disp-baseline"),
@@ -183,7 +183,7 @@ function denseNodes(nodes: readonly HostNode[]): DenseNodes {
 }
 
 function appendElementBlocks(
-  builder: ReturnType<typeof createModelBuilder>,
+  builder: ReturnType<typeof createFemModelBuilder>,
   host: HostModel,
   ordinalByHostId: ReadonlyMap<string, number>,
 ): void {

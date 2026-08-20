@@ -232,6 +232,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
       }
       expectTwoMillionInteractions(entry);
       expectManyPieceReport(entry);
+      selectionAssertions.expectSelectionHideWorkflow(entry);
       if (entry.kind === "structured-fe") {
         expect(entry.structuredFamily).toBeDefined();
         expect(entry.nodeCount).toBeGreaterThan(0);

@@ -5,7 +5,7 @@ validation, and editing—lives in [[data/elements-topology|Element topology]].
 This note records the scene/geometry ownership consequences.
 
 A body is an optional stable semantic group whose members are authored elements.
-`elementPart` derives filtered body descriptors for each triangle, line, and
+`createPartFromElementModel` derives filtered body descriptors for each triangle, line, and
 point geometry group. Derived descriptors never become a second authoring owner.
 
 ```ts

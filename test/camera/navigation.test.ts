@@ -87,7 +87,7 @@ describe("bounds-aware camera navigation", () => {
     expect(afterPivot?.[1]).toBeCloseTo(beforePivot?.[1] ?? NaN, 4);
   });
 
-  it("preserves identity for a no-op and never blocks an unsafe orbit", () => {
+  it("preserves identityMatrix for a no-op and never blocks an unsafe orbit", () => {
     const noOp = fitCamera(createCamera({ mode: "perspective" }), bounds, 1152, 900);
     expect(orbitCameraWithinBounds(noOp, 0, 0, undefined, bounds)).toBe(noOp);
 
@@ -354,7 +354,7 @@ describe("bounds-aware camera navigation", () => {
     expect(safelyFramesBounds(zoomed, modelBounds)).toBe(true);
   });
 
-  it("preserves identity for no-op and keeps an already-clamped eye fixed", () => {
+  it("preserves identityMatrix for no-op and keeps an already-clamped eye fixed", () => {
     const fitted = fitCamera(createCamera({ mode: "perspective" }), bounds, 1152, 900);
     expect(zoomCameraWithinBounds(fitted, 0, bounds)).toBe(fitted);
     let closest = fitted;

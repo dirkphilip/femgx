@@ -2,32 +2,32 @@ import type { ElementTessellation, Part } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { InteractionStateData } from "../../interaction/state";
 import type { PartOccurrenceId } from "../../scene/types";
-import { packedSemanticStorage } from "../../geometry/packed/packed-semantic";
 import type { VisibilitySignature } from "./types";
 
 /** Cached semantic fields needed to classify one occurrence's visibility. */
 export interface VisibilityPartMetadata {
-  readonly elements: {
-    readonly size: number;
-    get(id: number): ElementTessellation | undefined;
-    has(id: number): boolean;
-  };
+  readonly element: (id: number) => ElementTessellation | undefined;
+  readonly hasElement: (id: number) => boolean;
   readonly elementOrdinalCount: number;
-  readonly elementOrdinalById: { get(id: number): number | undefined };
-  readonly knownBodies: ReadonlySet<number>;
+  readonly elementOrdinal: (id: number) => number | undefined;
+  readonly nonTriangleElementOrdinals?: Uint32Array;
+  readonly hasKnownBody: (id: number) => boolean;
   readonly supportsOrdinalWords: boolean;
 }
 
 /** Returns immutable part metadata already owned by the semantic index. */
 export function visibilityPartMetadata(part: Part): VisibilityPartMetadata {
   const metadata = getPartSemanticIndex(part);
-  const packed = packedSemanticStorage(part);
   return {
-    elements: metadata.elements,
-    elementOrdinalCount: metadata.elements.size,
-    elementOrdinalById: metadata.elementOrdinalById,
-    knownBodies: metadata.visibilityBodyIds,
-    supportsOrdinalWords: packed?.primitive === "triangles",
+    element: (id) => metadata.element(id),
+    hasElement: (id) => metadata.hasElement(id),
+    elementOrdinalCount: metadata.elementCount,
+    elementOrdinal: (id) => metadata.elementOrdinal(id),
+    nonTriangleElementOrdinals: metadata.nonTriangleElementOrdinals,
+    hasKnownBody: (id) => metadata.hasVisibilityBody(id),
+    supportsOrdinalWords:
+      metadata.nonTriangleElementOrdinals.length === 0 &&
+      part.geometries.some((geometry) => geometry.primitive === "triangles"),
   };
 }
 
@@ -37,7 +37,7 @@ export function visibilitySignature(
   data: InteractionStateData,
   metadata: VisibilityPartMetadata,
 ): VisibilitySignature {
-  const bodyIds = relevantIds(data.hiddenBodyIds.get(instanceId), metadata.knownBodies);
+  const bodyIds = relevantIds(data.hiddenBodyIds.get(instanceId), metadata.hasKnownBody);
   const { ids: elementIds, words: elementWords } = relevantElements(
     data.hiddenElementIds.get(instanceId),
     metadata,
@@ -86,10 +86,9 @@ function relevantElements(
 }
 
 function isSurfaceElement(id: number, metadata: VisibilityPartMetadata): boolean {
-  if (metadata.supportsOrdinalWords) return metadata.elements.has(id);
+  if (metadata.supportsOrdinalWords) return metadata.hasElement(id);
   return (
-    metadata.elements.get(id)?.primitiveRanges.some((range) => range.primitive === "triangles") ===
-    true
+    metadata.element(id)?.primitiveRanges.some((range) => range.primitive === "triangles") === true
   );
 }
 
@@ -115,7 +114,7 @@ function elementWords(
 ): Uint32Array {
   const words = new Uint32Array(wordCount);
   for (const id of elementIds) {
-    const ordinal = metadata.elementOrdinalById.get(id);
+    const ordinal = metadata.elementOrdinal(id);
     if (ordinal === undefined) continue;
     const bit = ordinal - 1;
     words[bit >> 5] = (words[bit >> 5] ?? 0) | (1 << (bit & 31));
@@ -125,10 +124,10 @@ function elementWords(
 
 function relevantIds(
   ids: ReadonlySet<number> | undefined,
-  known: { has(id: number): boolean },
+  known: (id: number) => boolean,
 ): readonly number[] {
   if (ids === undefined || ids.size === 0) return [];
-  const result = [...ids].filter((id) => known.has(id));
+  const result = [...ids].filter((id) => known(id));
   return result.sort((left, right) => left - right);
 }
 

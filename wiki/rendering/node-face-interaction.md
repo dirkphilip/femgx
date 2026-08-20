@@ -16,7 +16,7 @@ oriented element faces are the finest-grained pickable units under
   emits authored nodes only. Standalone FE nodes use explicit authored `Point`
   elements; generic point geometry may instead be node-only. `0` remains
   reserved for node-less custom geometry.
-- **Faces**: `facesOfElement` pairs every `facesOf(element)` result with a
+- **Faces**: `faceRefsOf` pairs every `facesOf(element)` result with a
   stable `faceIndex` (canonical order). Each `FaceTessellation` carries the
   authored `(elementId, faceIndex)` identity, canonical `key`, node loop,
   `neighborElementIds`, and an exact `primitiveStart`/`primitiveCount` range.

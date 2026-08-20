@@ -3,6 +3,7 @@ import type { DeformationState } from "../../results/deform";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { partResultBindings, type ResultBindingLayout } from "../resources/result-binding-layout";
+import { invalidateBindGroups, sameTables } from "../resources/foundation";
 
 /** Bytes of the deformation uniform (scale plus alignment padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
@@ -81,7 +82,7 @@ export function syncDeformations(
       sync.cost?.releaseBuffer(storage.buffer.size);
       storage.buffer.destroy();
       sync.deformations.delete(partId);
-      invalidateBindGroups(sync, partId);
+      invalidateBindGroups(sync.storages.get(partId));
     }
     return;
   }
@@ -101,7 +102,7 @@ export function syncDeformations(
     sync.cost?.releaseBuffer(storage.buffer.size);
     storage.buffer.destroy();
     sync.deformations.delete(partId);
-    invalidateBindGroups(sync, partId);
+    invalidateBindGroups(sync.storages.get(partId));
   }
 }
 
@@ -215,7 +216,7 @@ function uploadDeformation(
   if (current !== undefined) {
     sync.cost?.releaseBuffer(current.buffer.size);
     current.buffer.destroy();
-    invalidateBindGroups(sync, partId);
+    invalidateBindGroups(sync.storages.get(partId));
   }
   sync.deformations.set(partId, { buffer, source: tables });
   sync.cost?.allocateBuffer(buffer.size);
@@ -249,26 +250,4 @@ function deformationData(tables: readonly (Float32Array | undefined)[]): Float32
   return data;
 }
 
-function sameTables(
-  previous: readonly (Float32Array | undefined)[] | undefined,
-  next: readonly (Float32Array | undefined)[],
-): boolean {
-  return (
-    previous?.length === next.length && previous.every((value, index) => value === next[index])
-  );
-}
-
 /** Clears every cached bind group that references a replaced deformation buffer. */
-function invalidateBindGroups(sync: DeformationSync, partId: PartId): void {
-  const storage = sync.storages.get(partId);
-  if (storage === undefined) return;
-  storage.bindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
-}

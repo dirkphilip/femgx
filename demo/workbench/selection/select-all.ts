@@ -30,8 +30,8 @@ export function selectAllTargets(
 ): readonly SelectTarget[] {
   const targets: SelectTarget[] = [];
   const selectedPartIds = new Set<number>();
-  for (const partOccurrenceId of viewport.runtime.getVisiblePartOccurrenceIds()) {
-    const instance = viewport.runtime.getPartOccurrence(partOccurrenceId);
+  for (const partOccurrenceId of viewport.occurrences.visiblePartOccurrenceIds()) {
+    const instance = viewport.occurrences.getPartOccurrence(partOccurrenceId);
     const part = instance === undefined ? undefined : viewport.scene.parts.get(instance.partId);
     if (part === undefined) continue;
     if (granularity === "part") {
@@ -81,7 +81,7 @@ function visibleElements(
   part: Part,
   partOccurrenceId: string,
 ): readonly ElementTessellation[] {
-  return (part.elements ?? []).filter((element) => {
+  return [...(part.elements ?? [])].filter((element) => {
     return isElementOccurrenceVisible(viewport.interaction.state, part, partOccurrenceId, element);
   });
 }
@@ -97,8 +97,10 @@ function appendFaces(
   const included =
     geometry.faceSubset === undefined
       ? undefined
-      : new Set(geometry.faceSubset.faceIds.map((face) => `${face.elementId}:${face.faceIndex}`));
-  for (const face of geometry.faces ?? []) {
+      : new Set(Array.from(geometry.faceSubset, (face) => `${face.elementId}:${face.faceIndex}`));
+  const faces = geometry.faces;
+  if (faces === undefined) return;
+  for (const face of faces) {
     if (!elementIds.has(face.elementId)) continue;
     if (included !== undefined && !included.has(`${face.elementId}:${face.faceIndex}`)) continue;
     targets.push({
@@ -117,7 +119,7 @@ function appendNodes(
   elementIds: ReadonlySet<number>,
 ): void {
   const nodeIds = new Set<number>();
-  const elements = part.elements ?? [];
+  const elements = [...(part.elements ?? [])];
   for (const geometry of part.geometries) {
     const ranges =
       elements.length === 0
@@ -151,17 +153,19 @@ function appendEdges(
   elementIds: ReadonlySet<number>,
 ): void {
   const seen = new Set<string>();
-  const hasElements = (part.elements?.length ?? 0) > 0;
-  for (const edge of part.geometries.flatMap((geometry) => geometry.edges ?? [])) {
-    if (seen.has(edge.key)) continue;
-    if (
-      hasElements &&
-      edge.incidentElementIds.length > 0 &&
-      !edge.incidentElementIds.some((elementId) => elementIds.has(elementId))
-    ) {
-      continue;
+  const hasElements = (part.elements?.count ?? 0) > 0;
+  for (const geometry of part.geometries) {
+    for (const edge of geometry.edges ?? []) {
+      if (seen.has(edge.key)) continue;
+      if (
+        hasElements &&
+        edge.incidentElementIds.length > 0 &&
+        !edge.incidentElementIds.some((elementId) => elementIds.has(elementId))
+      ) {
+        continue;
+      }
+      seen.add(edge.key);
+      targets.push({ kind: "edge", partOccurrenceId, key: edge.key });
     }
-    seen.add(edge.key);
-    targets.push({ kind: "edge", partOccurrenceId, key: edge.key });
   }
 }

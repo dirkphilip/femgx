@@ -1,4 +1,4 @@
-import { isFiniteBounds, type Bounds, type PartId } from "../../geometry/part";
+import { isFiniteBounds, type Bounds, type Part, type PartId } from "../../geometry/part";
 import { transformPoint } from "../../math/mat4";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
@@ -15,19 +15,18 @@ const MINIMUM_BOUNDS: Bounds = {
 
 /** Private segment tree for complete placed-scene bounds under incremental transforms. */
 export class PlacedBoundsIndex {
-  private readonly leafCapacity: number;
-  private readonly minX: Float64Array;
-  private readonly minY: Float64Array;
-  private readonly minZ: Float64Array;
-  private readonly maxX: Float64Array;
-  private readonly maxY: Float64Array;
-  private readonly maxZ: Float64Array;
+  private leafCapacity: number;
+  private minX: Float64Array;
+  private minY: Float64Array;
+  private minZ: Float64Array;
+  private maxX: Float64Array;
+  private maxY: Float64Array;
+  private maxZ: Float64Array;
   private readonly partBounds = new Map<PartId, Bounds | undefined>();
+  private parts: ReadonlyMap<PartId, Part>;
 
-  constructor(
-    private readonly scene: Scene,
-    runtime: PackedSceneRuntime,
-  ) {
+  constructor(scene: Scene, runtime: PackedSceneRuntime) {
+    this.parts = scene.parts;
     this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
     const size = this.leafCapacity * 2;
     this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
@@ -40,8 +39,18 @@ export class PlacedBoundsIndex {
     for (let node = this.leafCapacity - 1; node > 0; node -= 1) this.merge(node);
   }
 
+  /** Admits changed immutable definitions without rebuilding retained placed bounds. */
+  updateParts(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void {
+    this.parts = parts;
+    for (const partId of partIds) this.partBounds.delete(partId);
+  }
+
   /** Updates changed occurrence leaves and their logarithmic ancestor paths. */
   update(runtime: PackedSceneRuntime, changedSlots: readonly number[]): void {
+    if (runtime.instanceCount > this.leafCapacity) {
+      this.rebuild(runtime);
+      return;
+    }
     for (const slot of changedSlots) {
       if (slot < 0 || slot >= runtime.instanceCount) continue;
       this.writeLeaf(runtime, slot);
@@ -65,6 +74,8 @@ export class PlacedBoundsIndex {
 
   private writeLeaf(runtime: PackedSceneRuntime, slot: number): void {
     const node = this.leafCapacity + slot;
+    this.minX[node] = this.minY[node] = this.minZ[node] = Number.POSITIVE_INFINITY;
+    this.maxX[node] = this.maxY[node] = this.maxZ[node] = Number.NEGATIVE_INFINITY;
     const partId = runtime.instancePartIds[slot];
     const transform = runtime.getTransform(slot);
     const local = partId === undefined ? undefined : this.localBounds(partId);
@@ -78,9 +89,22 @@ export class PlacedBoundsIndex {
     this.maxZ[node] = world.maxZ;
   }
 
+  private rebuild(runtime: PackedSceneRuntime): void {
+    this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
+    const size = this.leafCapacity * 2;
+    this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.minY = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.minZ = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
+    this.maxX = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    this.maxY = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    this.maxZ = new Float64Array(size).fill(Number.NEGATIVE_INFINITY);
+    for (let slot = 0; slot < runtime.instanceCount; slot += 1) this.writeLeaf(runtime, slot);
+    for (let node = this.leafCapacity - 1; node > 0; node -= 1) this.merge(node);
+  }
+
   private localBounds(partId: PartId): Bounds | undefined {
     if (!this.partBounds.has(partId)) {
-      const part = this.scene.parts.get(partId);
+      const part = this.parts.get(partId);
       this.partBounds.set(
         partId,
         part === undefined ? undefined : displayedPartBounds(part, undefined),

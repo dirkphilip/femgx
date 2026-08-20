@@ -1,6 +1,6 @@
 import { expect, it, describe } from "vitest";
 import {
-  translation,
+  translationMatrix,
   createDrawResources,
   encodeInstanceRecord,
   INSTANCE_EMPHASIS_FLAG,
@@ -69,7 +69,7 @@ describe("GPU draw path", () => {
       patchInstances(draw, part.id, [
         {
           slot: 0,
-          data: encodeInstanceRecord(translation(2, 0, 0), defaultStyle, 1, true),
+          data: encodeInstanceRecord(translationMatrix(2, 0, 0), defaultStyle, 1, true),
         },
       ]);
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
@@ -94,7 +94,9 @@ describe("GPU draw path", () => {
           },
         ],
       ]);
-      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), denseSelections);
+      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), {
+        elements: denseSelections,
+      });
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
       expect(flags[22]).toBe(INSTANCE_EMPHASIS_FLAG);
     } finally {
@@ -140,7 +142,7 @@ describe("GPU draw path", () => {
       const draw = createDrawResources(gpu.device);
       const styled = (emissive: number) =>
         encodeInstanceRecord(
-          translation(1, 0, 0),
+          translationMatrix(1, 0, 0),
           {
             color: { r: 0.23, g: 0.51, b: 0.96, a: 1 },
             emissive,

@@ -1,5 +1,6 @@
 import type { Geometry } from "../../geometry/part";
 import { primitiveIdsForSourceIndices } from "./surface-geometry";
+import { sequentialIndices } from "./sequential-indices";
 
 /** Vertex and topology data uploaded for one renderer draw path. */
 export interface UploadVertexData {
@@ -59,8 +60,4 @@ export function triangleSubsetUploadData(
     primitiveIds: primitiveIdsForSourceIndices(geometry, sourceIndices),
     cornerIndices: compactIndices,
   };
-}
-
-function sequentialIndices(count: number): Uint32Array {
-  return Uint32Array.from({ length: count }, (_, index) => index);
 }

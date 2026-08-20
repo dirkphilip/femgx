@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  createScene,
-  identity,
+  createSceneBuilder,
+  identityMatrix,
   type PartOccurrenceId,
   type Viewport,
 } from "../../../src/entries/root";
@@ -10,7 +10,10 @@ import {
   isBodyVisible,
   isTargetHighlighted,
 } from "../../../src/entries/interaction";
-import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
+import {
+  createSceneOccurrenceSnapshot,
+  type SceneOccurrences,
+} from "../../../src/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";
 import { VisibilityPanelController } from "../../../demo/workbench/state/visibility-panel";
@@ -33,7 +36,8 @@ describe("visibility panel benchmark", () => {
 
     const instanceRows = panel.snapshot().rows.filter((row) => row.kind === "partOccurrence");
     expect(partVisibleCalls).toBe(1);
-    expect(instanceRows.length).toBe(CHILD_COUNT * INSTANCES_PER_CHILD);
+    expect(instanceRows.length).toBeLessThanOrEqual(1_000);
+    expect(instanceRows.length).toBeGreaterThan(0);
     expect(instanceRows.every((row) => row.disabled)).toBe(true);
   });
 
@@ -43,7 +47,7 @@ describe("visibility panel benchmark", () => {
     const panel = createPanel(model, tracked.runtime);
     panel.rebuild();
     for (let warmup = 0; warmup < 2; warmup += 1) panel.sync();
-    tracked.calls.getPartOccurrences = 0;
+    tracked.calls.partOccurrences = 0;
     tracked.calls.getPartOccurrence = 0;
 
     const samples = [0, 1, 2].map(() => {
@@ -52,9 +56,10 @@ describe("visibility panel benchmark", () => {
       return performance.now() - start;
     });
     const median = [...samples].sort((left, right) => left - right)[1] ?? 0;
-    const rowCount = panel.snapshot().rows.length;
-    expect(rowCount).toBe(1 + CHILD_COUNT * (1 + INSTANCES_PER_CHILD * 3));
-    expect(tracked.calls.getPartOccurrences).toBe(0);
+    const rowCount = panel.snapshot().rowCount;
+    expect(panel.snapshot().rows).toHaveLength(1_000);
+    expect(panel.snapshot().materializedRowCount).toBe(1_000);
+    expect(tracked.calls.partOccurrences).toBe(0);
     expect(tracked.calls.getPartOccurrence).toBeLessThanOrEqual(samples.length);
     console.log(
       `visibility panel ${CHILD_COUNT} assemblies × ${INSTANCES_PER_CHILD} instances: ${median.toFixed(2)} ms median, ${rowCount} rows`,
@@ -62,11 +67,11 @@ describe("visibility panel benchmark", () => {
   }, 30_000);
 });
 
-function createFixture(): { readonly model: WorkbenchModel; readonly runtime: SceneRuntime } {
+function createFixture(): { readonly model: WorkbenchModel; readonly runtime: SceneOccurrences } {
   const preset = createBoltedPlatePreset();
   const part = preset.scene.parts.get(1);
   if (part === undefined) throw new Error("Bolted fixture plate is missing");
-  let builder = createScene().addPart(part);
+  let builder = createSceneBuilder().addPart(part);
   const childPlacements = Array.from({ length: CHILD_COUNT }, (_, childIndex) => {
     const childId = childIndex + 1;
     builder = builder.addAssembly({
@@ -75,30 +80,33 @@ function createFixture(): { readonly model: WorkbenchModel; readonly runtime: Sc
       placements: Array.from({ length: INSTANCES_PER_CHILD }, (_, instanceIndex) => ({
         kind: "part" as const,
         partId: part.id,
-        transform: identity(),
+        transform: identityMatrix(),
         placementId: `p${childId}-${instanceIndex}`,
       })),
     });
-    return { kind: "assembly" as const, assemblyId: childId, transform: identity() };
+    return { kind: "assembly" as const, assemblyId: childId, transform: identityMatrix() };
   });
   const scene = builder
     .addAssembly({ id: ROOT_ID, name: "Benchmark root", placements: childPlacements })
-    .withRoot(ROOT_ID)
+    .setRootAssembly(ROOT_ID)
     .build();
-  return { model: createExampleModel({ ...preset, scene }), runtime: createSceneRuntime(scene) };
+  return {
+    model: createExampleModel({ ...preset, scene }),
+    runtime: createSceneOccurrenceSnapshot(scene),
+  };
 }
 
-function trackRuntime(runtime: SceneRuntime): {
-  readonly runtime: SceneRuntime;
-  readonly calls: { getPartOccurrences: number; getPartOccurrence: number };
+function trackRuntime(runtime: SceneOccurrences): {
+  readonly runtime: SceneOccurrences;
+  readonly calls: { partOccurrences: number; getPartOccurrence: number };
 } {
-  const calls = { getPartOccurrences: 0, getPartOccurrence: 0 };
-  const tracked: SceneRuntime = {
+  const calls = { partOccurrences: 0, getPartOccurrence: 0 };
+  const tracked: SceneOccurrences = {
     get rootAssemblyId() {
       return runtime.rootAssemblyId;
     },
-    get occurrenceCount() {
-      return runtime.occurrenceCount;
+    get assemblyOccurrenceCount() {
+      return runtime.assemblyOccurrenceCount;
     },
     get partOccurrenceCount() {
       return runtime.partOccurrenceCount;
@@ -106,30 +114,30 @@ function trackRuntime(runtime: SceneRuntime): {
     get visibleCount() {
       return runtime.visibleCount;
     },
-    getPartOccurrenceIds: () => runtime.getPartOccurrenceIds(),
-    getOccurrenceIds: () => runtime.getOccurrenceIds(),
-    getPartOccurrences: () => {
-      calls.getPartOccurrences += 1;
-      return runtime.getPartOccurrences();
+    getPartOccurrenceId: (ordinal) => runtime.getPartOccurrenceId(ordinal),
+    getAssemblyOccurrenceId: (ordinal) => runtime.getAssemblyOccurrenceId(ordinal),
+    *partOccurrences() {
+      calls.partOccurrences += 1;
+      yield* runtime.partOccurrences();
     },
-    getOccurrences: () => runtime.getOccurrences(),
+    assemblyOccurrences: () => runtime.assemblyOccurrences(),
     getPartOccurrence: (partOccurrenceId: PartOccurrenceId) => {
       calls.getPartOccurrence += 1;
       return runtime.getPartOccurrence(partOccurrenceId);
     },
-    getOccurrence: (occurrenceId) => runtime.getOccurrence(occurrenceId),
+    getAssemblyOccurrence: (occurrenceId) => runtime.getAssemblyOccurrence(occurrenceId),
     getPartId: (partOccurrenceId) => runtime.getPartId(partOccurrenceId),
     getTransform: (partOccurrenceId) => runtime.getTransform(partOccurrenceId),
     isPartOccurrenceVisible: (partOccurrenceId) =>
       runtime.isPartOccurrenceVisible(partOccurrenceId),
-    getVisiblePartOccurrenceIds: () => runtime.getVisiblePartOccurrenceIds(),
+    visiblePartOccurrenceIds: () => runtime.visiblePartOccurrenceIds(),
   };
   return { runtime: tracked, calls };
 }
 
 function createPanel(
   model: WorkbenchModel,
-  runtime: SceneRuntime,
+  runtime: SceneOccurrences,
   partVisible?: (partId: number) => boolean,
 ): VisibilityPanelController {
   let interaction = createInteractionState();

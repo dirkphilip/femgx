@@ -1,8 +1,12 @@
 import type { InteractionState } from "../interaction/interaction";
 import { createInteractionState } from "../interaction/interaction";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
-import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
+import { createSceneOccurrences, type SceneOccurrences } from "../scene-runtime/occurrences";
 import { applyTransformPatch, prepareTransformPatch } from "../scene-runtime/transform-update";
+import {
+  applyOccurrenceMutations,
+  prepareOccurrenceMutations,
+} from "../scene-runtime/occurrence-update";
 import type { Scene } from "../scene/scene";
 import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
 import { originTriadScaleFromBounds } from "./bounds/origin-triad";
@@ -17,11 +21,11 @@ import { reconcileInteractionState } from "./scene-reconciliation";
 import { ViewportVisibilityState } from "./visibility-state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
+import { prepareRendererPartAdditions, updateRendererOccurrences } from "../renderer/gpu-renderer";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
   readonly runtime: PackedSceneRuntime;
-  readonly publicRuntime: SceneRuntime;
   readonly originTriadNominalScale: number;
   readonly placedBounds: PlacedBoundsIndex;
   readonly baseInteraction: InteractionState;
@@ -46,7 +50,7 @@ interface SceneUpdateResult {
 export class ViewportSceneController {
   private currentScene: Scene;
   private currentRuntime: PackedSceneRuntime;
-  private currentPublicRuntime: SceneRuntime;
+  private currentPublicRuntime: SceneOccurrences;
   private baseInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
@@ -57,10 +61,10 @@ export class ViewportSceneController {
   constructor(private readonly options: SceneControllerOptions) {
     this.currentScene = options.scene;
     this.currentRuntime = createPackedSceneRuntime(options.scene);
-    this.currentVisibility = ViewportVisibilityState.create(options.scene);
+    this.currentVisibility = ViewportVisibilityState.create(options.scene, this.currentRuntime);
     this.placedBounds = new PlacedBoundsIndex(options.scene, this.currentRuntime);
     this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
-    this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
+    this.currentPublicRuntime = createSceneOccurrences(() => this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
   }
 
@@ -72,7 +76,7 @@ export class ViewportSceneController {
     return this.currentRuntime;
   }
 
-  get publicRuntime(): SceneRuntime {
+  get publicRuntime(): SceneOccurrences {
     return this.currentPublicRuntime;
   }
 
@@ -120,6 +124,15 @@ export class ViewportSceneController {
     if (transformPatch !== undefined) {
       return this.applyTransformUpdate(prepared.scene, transformPatch, cancelCamera);
     }
+    const occurrenceMutations = prepareOccurrenceMutations(
+      this.currentRuntime,
+      prepared.scene,
+      prepared.changes,
+      (partId, authoredVisible) => this.currentVisibility.isPartVisible(partId, authoredVisible),
+    );
+    if (occurrenceMutations !== undefined) {
+      return this.applyOccurrenceUpdate(prepared.scene, occurrenceMutations, cancelCamera);
+    }
     return {
       committed: true,
       outcome: this.applySceneReplacement(prepared.scene, true, false, cancelCamera),
@@ -164,6 +177,43 @@ export class ViewportSceneController {
     };
   }
 
+  private applyOccurrenceUpdate(
+    scene: Scene,
+    mutations: NonNullable<ReturnType<typeof prepareOccurrenceMutations>>,
+    cancelCamera: () => void,
+  ): SceneUpdateResult {
+    prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
+    cancelCamera();
+    const delta = applyOccurrenceMutations(this.currentRuntime, mutations);
+    this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
+    this.currentVisibility.pruneParts(delta.removedPartIds);
+    this.currentVisibility.admitParts(scene, delta.addedPartIds);
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      this.currentRuntime,
+      scene.parts,
+    );
+    const resultUpdate = this.prepareSceneResults(scene, this.currentRuntime);
+    updateRendererOccurrences(
+      this.options.renderer,
+      this.currentRuntime,
+      nextInteraction,
+      delta,
+      scene.parts,
+    );
+    this.currentScene = scene;
+    this.baseInteraction = nextInteraction;
+    this.currentResults = resultUpdate.results;
+    this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
+    this.placedBounds.update(
+      this.currentRuntime,
+      delta.slots.map(({ slot }) => slot),
+    );
+    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
+    applyResolvedViewportResults(this.options.renderer, resultUpdate.results);
+    return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
+  }
+
   private applySceneReplacement(
     scene: Scene,
     preserveResults: boolean,
@@ -177,7 +227,6 @@ export class ViewportSceneController {
     this.currentRuntime = replacement.runtime;
     this.placedBounds = replacement.placedBounds;
     this.originTriadNominalScale = replacement.originTriadNominalScale;
-    this.currentPublicRuntime = replacement.publicRuntime;
     this.currentResults = replacement.results;
     this.baseInteraction = replacement.baseInteraction;
     this.currentVisibility = replacement.visibility;
@@ -193,7 +242,6 @@ export class ViewportSceneController {
     const nextPlacedBounds = new PlacedBoundsIndex(scene, nextRuntime);
     const nextVisibility = this.currentVisibility.reconcile(scene, nextRuntime);
     const nextOriginTriadNominalScale = originTriadScaleFromBounds(nextPlacedBounds.bounds);
-    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
     const nextInteraction = reconcileInteractionState(
       this.baseInteraction,
       nextRuntime,
@@ -206,7 +254,6 @@ export class ViewportSceneController {
       scene,
       runtime: nextRuntime,
       placedBounds: nextPlacedBounds,
-      publicRuntime: nextPublicRuntime,
       originTriadNominalScale: nextOriginTriadNominalScale,
       baseInteraction: nextInteraction,
       results: resultUpdate.results,

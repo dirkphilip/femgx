@@ -1,8 +1,8 @@
 import { createPart, type Part } from "../../src/geometry/part";
 import type { GeometryBody } from "../../src/geometry/part";
-import { identity, translation } from "../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../src/math/mat4";
 import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
-import { createScene, type Scene } from "../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import type { AssemblyId } from "../../src/scene/types";
 import { createPlanarGridGeometry } from "../../demo/fixtures/planar-grid";
@@ -32,9 +32,9 @@ export type SceneShape = "distinct-parts" | "shared-part";
 
 /** Builds equal tiny-triangle placement counts with shared or distinct part ownership. */
 export function buildTinyManyPieceScene(shape: SceneShape, occurrenceCount: number): Scene {
-  const builder = createScene();
+  const builder = createSceneBuilder();
   if (shape === "shared-part") builder.addPart(tinyElementPart(1));
-  const transform = identity();
+  const transform = identityMatrix();
   const placements = Array.from({ length: occurrenceCount }, (_, index) => {
     const partId = shape === "shared-part" ? 1 : index + 1;
     if (shape === "distinct-parts") builder.addPart(tinyElementPart(partId));
@@ -42,7 +42,7 @@ export function buildTinyManyPieceScene(shape: SceneShape, occurrenceCount: numb
   });
   return builder
     .addAssembly({ id: 1, name: `${shape}-${occurrenceCount}`, placements })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -90,7 +90,7 @@ function partPlacements(count: number, partCount: number, row: number): Placemen
     placements.push({
       kind: "part",
       partId: (i % partCount) + 1,
-      transform: translation(i * 0.001, row, 0),
+      transform: translationMatrix(i * 0.001, row, 0),
     });
   }
   return placements;
@@ -116,7 +116,7 @@ export function makeScene(options: {
     rootPlacements.push({
       kind: "assembly",
       assemblyId: subcaseId,
-      transform: identity(),
+      transform: identityMatrix(),
     });
   }
   assemblies.set(1, { id: 1, placements: rootPlacements });
@@ -151,14 +151,18 @@ export function makeHierarchyScene(options: {
         placements.push({
           kind: "part",
           partId: (i % partCount) + 1,
-          transform: translation(i * 0.01, 0, 0),
+          transform: translationMatrix(i * 0.01, 0, 0),
         });
       }
     } else {
       for (let i = 0; i < fanout; i++) {
         const childId = nextId;
         nextId += 1;
-        placements.push({ kind: "assembly", assemblyId: childId, transform: translation(i, 0, 0) });
+        placements.push({
+          kind: "assembly",
+          assemblyId: childId,
+          transform: translationMatrix(i, 0, 0),
+        });
         buildNode(currentDepth - 1, childId);
       }
     }

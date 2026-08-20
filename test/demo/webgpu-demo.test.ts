@@ -137,10 +137,10 @@ function fakeViewport(): FakeViewport {
     setEdgeDepthTest: vi.fn(),
   } as Viewport["presentation"];
   const visibility = {
-    setPart: vi.fn(),
-    setAssembly: vi.fn(),
-    setAssemblyOccurrence: vi.fn(),
-    setPartOccurrence: vi.fn(),
+    setPartVisible: vi.fn(),
+    setAssemblyVisible: vi.fn(),
+    setAssemblyOccurrenceVisible: vi.fn(),
+    setPartOccurrenceVisible: vi.fn(),
     setPartOccurrences: vi.fn(),
   } as Viewport["visibility"];
   return {
@@ -149,7 +149,7 @@ function fakeViewport(): FakeViewport {
     destroy,
     viewport: {
       scene: {} as unknown as Viewport["scene"],
-      runtime: { visibleCount: 0 } as Viewport["runtime"],
+      occurrences: { visibleCount: 0 } as Viewport["occurrences"],
       view: {
         camera: {} as Viewport["view"]["camera"],
         setCamera: vi.fn(),

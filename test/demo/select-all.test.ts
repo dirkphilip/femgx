@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Viewport, type Part } from "../../src/entries/root";
+import { createPart, type Viewport, type Part } from "../../src/entries/root";
 import {
   createInteractionState,
   setBodyVisible,
@@ -17,7 +17,7 @@ describe("workbench select all", () => {
     ["element", ["element:1"]],
     ["face", ["face:1:0"]],
     ["node", ["node:0", "node:1", "node:2"]],
-    ["edge", ["edge:0:1", "edge:1:2"]],
+    ["edge", ["edge:0,1", "edge:1,2"]],
   ] as const)("collects explicitly visible %s targets", (granularity, expected) => {
     const interaction = setElementVisible(
       createInteractionState(),
@@ -34,8 +34,8 @@ describe("workbench select all", () => {
     const viewport = {
       interaction: { state: createInteractionState() },
       scene: { parts: new Map([[part.id, part]]) },
-      runtime: {
-        getVisiblePartOccurrenceIds: () => ["root/first", "root/second"],
+      occurrences: {
+        visiblePartOccurrenceIds: () => ["root/first", "root/second"],
         getPartOccurrence: (partOccurrenceId: string) => ({ partOccurrenceId, partId: part.id }),
       },
     } as unknown as Viewport;
@@ -65,23 +65,24 @@ function fakeViewport(interaction: Viewport["interaction"]["state"]): Viewport {
   return {
     interaction: { state: interaction } as Viewport["interaction"],
     scene: { parts: new Map([[part.id, part]]) },
-    runtime: {
-      getVisiblePartOccurrenceIds: () => [partOccurrenceId],
+    occurrences: {
+      visiblePartOccurrenceIds: () => [partOccurrenceId],
       getPartOccurrence: () => ({ partOccurrenceId, partId: part.id }),
     },
   } as unknown as Viewport;
 }
 
 function mixedPart(): Part {
-  return {
-    id: 1,
+  return createPart(1, {
     elements: [
       {
         id: 1,
+        bodyId: 10,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
       },
       {
         id: 2,
+        bodyId: 20,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
       },
     ],
@@ -91,20 +92,27 @@ function mixedPart(): Part {
         positions: new Float32Array(12),
         indices: new Uint32Array([0, 1, 2, 1, 2, 3]),
         nodePickIds: new Uint32Array([1, 2, 3, 4]),
-        faces: [face(1, 0, 0, [0, 1, 2]), face(2, 0, 1, [1, 2, 3])],
-        edges: [edge("0:1", [0, 1], [1]), edge("1:2", [1, 2], [1, 2]), edge("2:3", [2, 3], [2])],
+        faces: [face(1, 10, 0, 0, [0, 1, 2]), face(2, 20, 0, 1, [1, 2, 3])],
+        edges: [edge("0,1", [0, 1], [1]), edge("1,2", [1, 2], [1, 2]), edge("2,3", [2, 3], [2])],
       },
     ],
     bodies: [
       { id: 10, elementIds: [1] },
       { id: 20, elementIds: [2] },
     ],
-  } as unknown as Part;
+  });
 }
 
-function face(elementId: number, faceIndex: number, primitiveStart: number, nodeIds: number[]) {
+function face(
+  elementId: number,
+  bodyId: number,
+  faceIndex: number,
+  primitiveStart: number,
+  nodeIds: number[],
+) {
   return {
     elementId,
+    bodyId,
     faceIndex,
     primitiveStart,
     primitiveCount: 1,

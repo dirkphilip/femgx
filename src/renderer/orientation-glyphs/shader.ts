@@ -142,7 +142,8 @@ fn glyphMode(record: GlyphRecord) -> u32 {
 }
 
 fn glyphVisible(slot: u32, record: GlyphRecord) -> bool {
-  return bodyOwnerVisible(slot, record.ids.y) && elementOwnerVisible(slot, record.ids.x + 1u);
+  return bodyOwnerVisible(slot, record.ids.y) &&
+    elementOwnerVisible(slot, record.ids.x + 1u, bitcast<u32>(record.anchorDelta.w));
 }
 
 fn glyphVertex(

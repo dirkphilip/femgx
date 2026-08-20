@@ -1,8 +1,11 @@
 import { createPackedTet4Part } from "./packed-tet4";
 import type { Part } from "../../src/geometry/part";
-import { packedSemanticStorage } from "../../src/geometry/packed/packed-semantic";
-import { createScene, type Scene } from "../../src/scene/scene";
-import { translation } from "../../src/math/mat4";
+import {
+  partSemanticGraph,
+  type PartSemanticGraph,
+} from "../../src/geometry/semantic/part-semantic-graph";
+import { createSceneBuilder, type Scene } from "../../src/scene/scene";
+import { translationMatrix } from "../../src/math/mat4";
 import type { DenseTet4Payload } from "./tet4-transfer";
 import type { DenseSemanticAllocationCounts } from "./types";
 
@@ -35,14 +38,14 @@ export function reconstructBenchmarkScene(
   readonly semanticAllocationCounts: DenseSemanticAllocationCounts;
 } {
   const part = createPackedTet4Part(1, payload);
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: assemblyName,
-      placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
+      placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return {
     scene,
@@ -62,29 +65,11 @@ function retainedTypedBytes(part: Part): number {
     add(geometry.nodePickIds);
   }
   add(part.nodePositions);
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    add(packed.elementIds);
-    add(packed.elementPrimitiveStarts);
-    add(packed.elementPrimitiveCounts);
-    add(packed.elementFaceOffsets);
-    add(packed.elementIdOrdinalsSorted);
-    add(packed.elementBodyIds);
-    add(packed.faceOwnerElementOrdinals);
-    add(packed.faceIndices);
-    add(packed.facePrimitiveStarts);
-    add(packed.facePrimitiveCounts);
-    add(packed.faceNeighborElementOrdinals);
-    add(packed.faceNodeOffsets);
-    add(packed.faceNodeIds);
-    add(packed.edgeNodeOffsets);
-    add(packed.edgeNodeIds);
-    add(packed.edgeIncidentOffsets);
-    add(packed.edgeIncidentElementOrdinals);
-    add(packed.edgeFaceOffsets);
-    add(packed.edgeFaceOwnerElementOrdinals);
-    add(packed.edgeFaceIndices);
-    add(packed.faceSubsetOrdinals);
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined) {
+    for (const column of Object.values(graph)) {
+      if (ArrayBuffer.isView(column)) add(column);
+    }
   }
   return (
     [...buffers].reduce((total, buffer) => total + buffer.byteLength, 0) +
@@ -93,17 +78,15 @@ function retainedTypedBytes(part: Part): number {
 }
 
 function countDenseSemanticAllocations(part: Part): DenseSemanticAllocationCounts {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) return countPackedSemanticAllocations(packed);
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined) return countGraphSemanticAllocations(graph);
   return countEmptySemanticAllocations();
 }
 
-function countPackedSemanticAllocations(
-  packed: NonNullable<ReturnType<typeof packedSemanticStorage>>,
-): DenseSemanticAllocationCounts {
-  const hasFaces = packed.faceOwnerElementOrdinals.length > 0;
+function countGraphSemanticAllocations(graph: PartSemanticGraph): DenseSemanticAllocationCounts {
+  const hasFaces = graph.faceOwnerElementOrdinals.length > 0;
   let neighborFaceCount = 0;
-  for (const neighbor of packed.faceNeighborElementOrdinals) {
+  for (const neighbor of graph.faceNeighborElementOrdinals) {
     if (neighbor !== 0) neighborFaceCount += 1;
   }
   return {
@@ -112,29 +95,29 @@ function countPackedSemanticAllocations(
     primitiveRangeDescriptors: 0,
     faceDescriptors: 0,
     faceNodeArrays: 0,
-    faceNodeReferences: packed.faceNodeIds.length,
+    faceNodeReferences: graph.faceNodeIds.length,
     faceKeyReferences: 0,
-    faceSubsetReferences: packed.faceSubsetOrdinals?.length ?? 0,
+    faceSubsetReferences: graph.faceSubsetOrdinals.length,
     edgeDescriptors: 0,
     edgeNodeArrays: 0,
-    edgeNodeReferences: packed.edgeNodeIds?.length ?? 0,
-    edgeIncidentElementReferences: packed.edgeIncidentElementOrdinals?.length ?? 0,
+    edgeNodeReferences: graph.edgeNodeIds.length,
+    edgeIncidentElementReferences: graph.edgeIncidentElementOrdinals.length,
     edgeFaceReferenceArrays: 0,
-    edgeFaceReferences: packed.edgeFaceOwnerElementOrdinals?.length ?? 0,
-    bodyDescriptors: packed.bodies?.length ?? 0,
+    edgeFaceReferences: graph.edgeFaceOwnerElementOrdinals.length,
+    bodyDescriptors: 0,
     bodyElementReferences: 0,
     semanticIndex: {
       elementEntries: 0,
       elementOrdinalEntries: 0,
-      bodyEntries: packed.bodies?.length ?? 0,
+      bodyEntries: 0,
       bodyByElementEntries: 0,
       faceEntries: 0,
       edgeEntries: 0,
       nodeTriangleFaceOffsetsBytes:
-        (hasFaces ? packed.nodeCount + 1 : 0) * Uint32Array.BYTES_PER_ELEMENT,
-      nodeTriangleFaceIdsBytes: packed.faceNodeIds.length * Uint32Array.BYTES_PER_ELEMENT,
+        (hasFaces ? graph.faceNodeIds.length + 1 : 0) * Uint32Array.BYTES_PER_ELEMENT,
+      nodeTriangleFaceIdsBytes: graph.faceNodeIds.length * Uint32Array.BYTES_PER_ELEMENT,
       neighborTriangleFaceOffsetsBytes:
-        (packed.elementIds.length + 1) * Uint32Array.BYTES_PER_ELEMENT,
+        (graph.elementIds.length + 1) * Uint32Array.BYTES_PER_ELEMENT,
       neighborTriangleFaceIdsBytes: neighborFaceCount * Uint32Array.BYTES_PER_ELEMENT,
     },
   };

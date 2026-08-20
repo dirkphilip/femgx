@@ -1,10 +1,10 @@
 import {
-  createScene,
-  identity,
-  multiply,
-  rotationZ,
-  scale,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  multiplyMatrices,
+  rotationZMatrix,
+  scalingMatrix,
+  translationMatrix,
   type PartId,
 } from "../../src/entries/root";
 import {
@@ -15,7 +15,7 @@ import {
 import {
   createElement,
   createElementModel,
-  elementPart,
+  createPartFromElementModel,
   ElementShape,
 } from "../../src/entries/model";
 import type { AuthoredResultSequence, ModelPreset } from "./presets";
@@ -26,34 +26,34 @@ const RESULTS_PART_ID: PartId = 20;
 /** Builds the demo's deterministic scalar, deformation, and orientation workflow. */
 export function createResultsPreset(): ModelPreset {
   const model = createResultsModel();
-  const part = elementPart(RESULTS_PART_ID, model);
-  const scene = createScene()
+  const part = createPartFromElementModel(RESULTS_PART_ID, model);
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 20,
       name: "results-block",
       placements: [
-        { kind: "part", partId: RESULTS_PART_ID, transform: identity() },
+        { kind: "part", partId: RESULTS_PART_ID, transform: identityMatrix() },
         {
           kind: "part",
           partId: RESULTS_PART_ID,
-          transform: multiply(
-            translation(9.5, 5, 0.2),
-            multiply(rotationZ(0.32), scale(-1.15, 0.8, 1.2)),
+          transform: multiplyMatrices(
+            translationMatrix(9.5, 5, 0.2),
+            multiplyMatrices(rotationZMatrix(0.32), scalingMatrix(-1.15, 0.8, 1.2)),
           ),
         },
       ],
     })
-    .withRoot(20)
+    .setRootAssembly(20)
     .build();
   const stress = createResultField({
     id: "demo-stress",
     name: "Demo stress",
     location: "elemental",
     shape: "scalar",
-    count: model.elements.length,
+    count: model.elements.count,
     unit: "MPa",
-    values: createStressValues(model.elements.length),
+    values: createStressValues(model.elements.count),
   });
   const displacement = createResultField({
     id: "demo-displacement",
@@ -74,7 +74,7 @@ export function createResultsPreset(): ModelPreset {
     values: createTemperatureValues(model.nodes),
   });
   const normals = createNormalsField(model);
-  const fibers = createFibersField(model.elements.length);
+  const fibers = createFibersField(model.elements.count);
   const frames = createElementFramesField(model);
   const vectorFields = [normals, fibers, frames] as const;
   const resultSequence = createResultSequence(model);
@@ -214,7 +214,7 @@ function createDisplacementValues(nodes: Float32Array): Float32Array {
 function createNormalsField(
   model: ReturnType<typeof createResultsModel>,
 ): VectorField<"elemental"> {
-  const values = new Float32Array(model.elements.length * 3);
+  const values = new Float32Array(model.elements.count * 3);
   for (const [index, element] of model.elements.entries()) {
     const first = pointAt(model.nodes, element.nodeIds[0]);
     const second = pointAt(model.nodes, element.nodeIds[1]);
@@ -227,7 +227,7 @@ function createNormalsField(
     name: "Demo shell normals · authored outward",
     location: "elemental",
     shape: "vector",
-    count: model.elements.length,
+    count: model.elements.count,
     unit: "unitless",
     values,
   });
@@ -275,7 +275,7 @@ function createFibersField(elementCount: number): VectorField<"elemental"> {
 }
 
 function createElementFramesField(model: ReturnType<typeof createResultsModel>) {
-  const values = new Float32Array(model.elements.length * 9);
+  const values = new Float32Array(model.elements.count * 9);
   for (const [index, element] of model.elements.entries()) {
     const first = pointAt(model.nodes, element.nodeIds[0]);
     const second = pointAt(model.nodes, element.nodeIds[1]);
@@ -289,7 +289,7 @@ function createElementFramesField(model: ReturnType<typeof createResultsModel>) 
     partId: RESULTS_PART_ID,
     id: "demo-element-frames",
     name: "Demo element frames · RGB X/Y/Z axes",
-    count: model.elements.length,
+    count: model.elements.count,
     unit: "unitless",
     values,
   });

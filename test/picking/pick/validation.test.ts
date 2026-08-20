@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { validatePickIds, type Geometry } from "./support";
+import { validatePickIds, type GeometryInput } from "./support";
 
 describe("validatePickIds", () => {
   it("accepts aligned node and face pick ids", () => {
-    const geometry: Geometry = {
+    const geometry: GeometryInput = {
       positions: new Float32Array(9),
       indices: new Uint32Array(9),
       primitive: "triangles" as const,

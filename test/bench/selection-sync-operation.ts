@@ -66,7 +66,7 @@ export function createSelectionFixture(): SelectionFixture {
   const layout = buildInstanceLayout(runtime);
   const partOccurrenceId = runtime.getInstanceId(0);
   if (partOccurrenceId === undefined) throw new Error("Tet4 benchmark instance is missing");
-  const targets = (part.elements ?? []).map((element) => ({
+  const targets = [...(part.elements ?? [])].map((element) => ({
     kind: "element" as const,
     partOccurrenceId,
     elementId: element.id,
@@ -152,7 +152,11 @@ function buildDensePayloadOperation(
       );
       const selection = dense.get(PART_ID);
       assertDenseSelection(selection, selected.selectedCount);
-      writeDenseSelectionData(storage.data, storage, selection);
+      writeDenseSelectionData(storage.data, storage, {
+        selection,
+        visibility: undefined,
+        nodeSelection: undefined,
+      });
       assertDensePayload(storage.data, selected.selectedCount);
     },
   };
@@ -232,9 +236,18 @@ function createSelectionStorage(selected: SelectionCase) {
   });
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const dense = selected.denseSelections.get(PART_ID);
-  writeSelectionHeader(new Uint32Array(header.buffer), storage, dense, undefined);
+  writeSelectionHeader(
+    new Uint32Array(header.buffer),
+    storage,
+    { selection: dense, visibility: undefined, nodeSelection: undefined },
+    undefined,
+  );
   storage.data.set(header);
-  writeDenseSelectionData(storage.data, storage, dense);
+  writeDenseSelectionData(storage.data, storage, {
+    selection: dense,
+    visibility: undefined,
+    nodeSelection: undefined,
+  });
   return storage;
 }
 
@@ -296,9 +309,9 @@ function details(
 ): Readonly<Record<string, number>> {
   const triangles = fixture.part.geometries.find((geometry) => geometry.primitive === "triangles");
   const authoredFaceCount =
-    triangles?.primitive === "triangles" ? (triangles.faces?.length ?? 0) : 0;
+    triangles?.primitive === "triangles" ? (triangles.faces?.count ?? 0) : 0;
   const boundaryFaceCount =
-    triangles?.primitive === "triangles" ? (triangles.faceSubset?.faceIds.length ?? 0) : 0;
+    triangles?.primitive === "triangles" ? (triangles.faceSubset?.count ?? 0) : 0;
   const semantic = getPartSemanticIndex(fixture.part);
   return {
     selectedElements: selected.selectedCount,

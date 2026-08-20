@@ -1,7 +1,7 @@
 import type { ModelPreset } from "./presets";
 import { createPart, type Part } from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
-import { createScene } from "../../src/scene/scene";
+import { translationMatrix } from "../../src/math/mat4";
+import { createSceneBuilder } from "../../src/scene/scene";
 import type { PartId } from "../../src/geometry/part";
 import { createPlanarGridGeometry } from "./planar-grid";
 
@@ -26,17 +26,17 @@ export function createPerformancePreset(): ModelPreset {
     elements: build.elements,
     nodePositions: build.nodePositions,
   });
-  let builder = createScene().addPart(part);
+  let builder = createSceneBuilder().addPart(part);
   builder = builder.addAssembly({
     id: ROOT_ASSEMBLY_ID,
     name: "two-million-triangle shell",
     placements: Array.from({ length: COLUMNS * ROWS }, (_, index) => ({
       kind: "part" as const,
       partId: PART_ID,
-      transform: translation((index % COLUMNS) * 1.15, Math.floor(index / COLUMNS) * 1.15, 0),
+      transform: translationMatrix((index % COLUMNS) * 1.15, Math.floor(index / COLUMNS) * 1.15, 0),
     })),
   });
-  const scene = builder.withRoot(ROOT_ASSEMBLY_ID).build();
+  const scene = builder.setRootAssembly(ROOT_ASSEMBLY_ID).build();
   return {
     id: "performance",
     name: "Performance · 2.10M triangles",

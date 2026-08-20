@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Part } from "../../src/geometry/part";
-import { identity, translation } from "../../src/math/mat4";
+import type { Part } from "../../src/geometry/part";
+import { emptyPart } from "../support/scene-fixtures";
+import { identityMatrix, translationMatrix } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
@@ -20,19 +21,10 @@ const STRESS_PLACEMENTS_PER_SUBCASE = 2_000;
 const STRESS_PART_COUNT = 40;
 const STRESS_INSTANCE_COUNT = STRESS_SUBCASES * STRESS_PLACEMENTS_PER_SUBCASE;
 
-function part(id: PartId): Part {
-  const geometry = {
-    positions: new Float32Array([0, 0, 0]),
-    indices: new Uint32Array(),
-    primitive: "triangles" as const,
-  };
-  return createPart(id, { geometries: [geometry] });
-}
-
 function stressScene(): Scene {
   const parts = new Map<PartId, Part>();
   for (let id = 1; id <= STRESS_PART_COUNT; id += 1) {
-    parts.set(id, part(id));
+    parts.set(id, emptyPart(id));
   }
   const assemblies = new Map<AssemblyId, AssemblyDefinition>();
   const rootPlacements: Placement[] = [];
@@ -43,11 +35,11 @@ function stressScene(): Scene {
       placements.push({
         kind: "part",
         partId: (i % STRESS_PART_COUNT) + 1,
-        transform: translation(i * 0.001, subcase, 0),
+        transform: translationMatrix(i * 0.001, subcase, 0),
       });
     }
     assemblies.set(subcaseId, { id: subcaseId, placements });
-    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });
+    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identityMatrix() });
   }
   assemblies.set(1, { id: 1, placements: rootPlacements });
   return {

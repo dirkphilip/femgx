@@ -1,7 +1,7 @@
 import { createPart, type Part } from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { createResultField, type VectorField } from "../../src/results/fields";
-import { createScene, type Scene } from "../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../src/scene/scene";
 import { parseTet4Cells, TET4_DENSE_MAX_CELLS, tet4ElementCount } from "./dense-tet4";
 import { createStructuredFePart, type StructuredFeFamily } from "./structured-fe";
 import {
@@ -297,11 +297,11 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
       ? [createStructuredFePart(1, structuredFamily(spec), spec.gridCells)]
       : createBenchmarkParts(spec);
   const placements = createPlacements(spec, parts);
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of parts) builder = builder.addPart(part);
   const scene = builder
     .addAssembly({ id: ROOT_ASSEMBLY_ID, name: spec.id, placements })
-    .withRoot(ROOT_ASSEMBLY_ID)
+    .setRootAssembly(ROOT_ASSEMBLY_ID)
     .build();
   return {
     ...spec,
@@ -312,7 +312,10 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
 
 function createOrientationField(parts: readonly Part[]): VectorField<"elemental"> {
   const count =
-    Math.max(0, ...parts.flatMap((part) => part.elements?.map((element) => element.id) ?? [])) + 1;
+    Math.max(
+      0,
+      ...parts.flatMap((part) => [...(part.elements ?? [])].map((element) => element.id)),
+    ) + 1;
   const values = new Float32Array(count * 3);
   for (let element = 0; element < count; element += 1) {
     values[element * 3] = element % 2 === 0 ? 1 : -1;
@@ -371,12 +374,12 @@ function createPlacements(
     return Array.from({ length: spec.instanceCount }, (_, index) => ({
       kind: "part" as const,
       partId: parts[0]?.id ?? 1,
-      transform: translation((index % 100) * 1.2, Math.floor(index / 100) * 1.2, 0),
+      transform: translationMatrix((index % 100) * 1.2, Math.floor(index / 100) * 1.2, 0),
     }));
   }
   return parts.map((part, index) => ({
     kind: "part" as const,
     partId: part.id,
-    transform: translation((index % 32) * 1.2, Math.floor(index / 32) * 1.2, 0),
+    transform: translationMatrix((index % 32) * 1.2, Math.floor(index / 32) * 1.2, 0),
   }));
 }

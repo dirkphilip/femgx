@@ -71,6 +71,10 @@
     }
   }
 
+  function setPage(page: number): void {
+    controller?.commands.setVisibilityPage(page);
+  }
+
   function setHierarchyHover(row: WorkbenchVisibilityRowSnapshot): void {
     controller?.commands.setHierarchyHover(row.target);
   }
@@ -102,6 +106,25 @@
 >
   {#if visibility !== undefined}
     <div class="visibility-context" data-testid="visibility-context">{visibility.context}</div>
+    {#if visibility.pageCount > 1}
+      <div class="visibility-pages" aria-label="Visibility hierarchy pages">
+        <button
+          type="button"
+          data-testid="visibility-page-previous"
+          disabled={visibility.page === 0}
+          onclick={() => setPage(visibility.page - 1)}>Previous</button
+        >
+        <span data-testid="visibility-page-status"
+          >Page {visibility.page + 1} of {visibility.pageCount}</span
+        >
+        <button
+          type="button"
+          data-testid="visibility-page-next"
+          disabled={visibility.page + 1 >= visibility.pageCount}
+          onclick={() => setPage(visibility.page + 1)}>Next</button
+        >
+      </div>
+    {/if}
     <div
       class="visibility-virtual-spacer"
       style={`height: ${rowWindow.top}px`}

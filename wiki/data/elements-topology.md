@@ -18,7 +18,7 @@ the renderer or WebGPU**.
   `nodeIds` so each element owns its connectivity.
 
 An `ElementModel` may contain any supported families in one ordered element
-list. `elementPart` is the render boundary that groups supported
+list. `createPartFromElementModel` is the render boundary that groups supported
 surface and volume geometry into one triangle part and emits explicit
 line/point parts without dropping source ids (see
 [[rendering/element-rendering|Element rendering]]). A
@@ -43,7 +43,7 @@ second coordinate path are out of scope for now.
 model boundary. `options.bodies` contains optional stable bodies with direct,
 non-overlapping element membership. The constructor rejects duplicate or
 unsorted ids, empty groups, unknown references, and overlapping membership, and
-copies the authored arrays. `elementPart` derives filtered body descriptors per
+copies the authored arrays. `createPartFromElementModel` derives filtered body descriptors per
 emitted primitive family while the source model remains the only authoring
 owner.
 
@@ -184,7 +184,7 @@ validated at its owning IO boundary. Nothing here couples topology to WebGPU.
 
 `ElementShape.Triangle`, `.Tri6`, `.Quad`, and `.Quad8` are the typed surface
 finite elements. They preserve element ids, node ids, face ownership, deformation,
-results, and GPU picking through `elementPart`. Polygon loops
+results, and GPU picking through `createPartFromElementModel`. Polygon loops
 that are not already typed elements belong to the separate geometry-owned
 authoring path in
 [[requirements/surface-derived-part-authoring|surface-derived part authoring]].

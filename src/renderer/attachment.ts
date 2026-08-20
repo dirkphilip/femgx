@@ -18,23 +18,28 @@ import {
   rebuildAttachmentOrders,
   type AttachmentState,
   type AttachmentFlagState,
+  type AttachmentOrderParts,
 } from "./attachment/reconciliation";
+import type { HiddenInteractionTuple } from "./attachment/interaction";
 import { writeNodeOrders, type SelectionState } from "./selection-state";
 import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
   rebuildTransparentOrders as rebuildTransparentOrdersForParts,
 } from "./attachment/orders";
-import { changedPartDefinitions, reconcilePartResources } from "./resources/part-resources";
-import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { rebuildAttachmentCalls } from "./attachment/calls";
 import { destroyVisibilitySkinCaches, rebuildVisibilitySurface } from "./visibility/skins";
 import {
   syncAttachmentInteraction,
   type AttachmentInteractionState,
 } from "./attachment/interaction";
-
-type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
-type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
+import { applyOccurrenceAttachment } from "./attachment/occurrences";
+import {
+  addAttachmentParts,
+  prepareAddedAttachmentParts,
+  prepareAttachmentParts,
+  removeAttachmentParts,
+} from "./attachment/part-definitions";
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance
@@ -54,7 +59,7 @@ export class RendererAttachment {
   public nodeCalls: readonly DrawCall[] = [];
   public selectionCalls: readonly DrawCall[] = [];
   public selectedNodeCalls: readonly DrawCall[] = [];
-  public instances: PartOccurrence[] = [];
+  public instances: Array<PartOccurrence | undefined> = [];
   public slotByInstanceId = new Map<PartOccurrenceId, number>();
   private edgeFlags: boolean[] = [];
   private edgeEmphasisFlags: boolean[] = [];
@@ -64,34 +69,40 @@ export class RendererAttachment {
   private interactionState = createInteractionState();
   private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
-  private attachedParts: ReadonlyMap<PartId, Part> = new Map();
+  private attachedParts = new Map<PartId, Part>();
 
   public usesExteriorFaceSubsets = true;
 
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
-    const changedPartIds = changedPartDefinitions(this.attachedParts, parts);
-    changedPartIds?.forEach((partId) => {
-      this.layout?.partSelectionDrawCalls.delete(partId);
-      this.layout?.partSurfaceDrawCalls.delete(partId);
-    });
-    this.attachedParts = reconcilePartResources(this.attachedParts, parts, bundle.draw);
-    if (changedPartIds !== undefined && this.runtime !== undefined && this.layout !== undefined) {
-      for (const partId of changedPartIds) {
-        const part = parts.get(partId);
-        if (part === undefined) continue;
-        rebuildVisibilitySurface({
-          runtime: this.runtime,
-          layout: this.layout,
-          part,
-          interaction: this.interactionState,
-          draw: bundle.draw,
-        });
-      }
-      this.rebuildCalls(bundle.draw.cost);
-    }
-    // Region queries reuse this immutable index; prepare it outside their timed readback path.
-    for (const part of parts.values()) getPartSemanticIndex(part);
+    const result = prepareAttachmentParts(this.partAttachmentOptions(bundle), parts);
+    this.attachedParts = result.parts;
+    if (result.calls !== undefined) Object.assign(this, result.calls);
+  }
+
+  /** Validates renderer-owned metadata for exact added definitions before commit. */
+  public prepareAddedParts(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void {
+    prepareAddedAttachmentParts(parts, partIds);
+  }
+
+  /** Admits exact added definitions without broad resource reconciliation. */
+  public addParts(
+    parts: ReadonlyMap<PartId, Part>,
+    partIds: ReadonlySet<PartId>,
+    sourceParts?: Map<PartId, Part>,
+  ): void {
+    addAttachmentParts(this.attachedParts, parts, partIds);
+    if (sourceParts !== undefined) addAttachmentParts(sourceParts, parts, partIds);
+  }
+
+  /** Retires exact removed definitions without scanning the retained part registry. */
+  public removeParts(
+    partIds: ReadonlySet<PartId>,
+    sourceParts: Map<PartId, Part>,
+    bundle: GpuBundle,
+  ): void {
+    const calls = removeAttachmentParts(this.partAttachmentOptions(bundle), sourceParts, partIds);
+    if (calls !== undefined) Object.assign(this, calls);
   }
 
   /**
@@ -173,6 +184,35 @@ export class RendererAttachment {
       edgeChanged.size > 0 ||
       transparentChanged.size > 0
     );
+  }
+
+  /** Applies exact direct-placement membership changes to an attached runtime. */
+  public updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: RuntimeOccurrenceDelta,
+    bundle: GpuBundle,
+  ): boolean {
+    const layout = this.layout;
+    if (this.runtime !== runtime || layout === undefined) return false;
+    this.interactionBeforeLastInstanceUpdate = this.interactionState;
+    this.interactionState = interaction;
+    const state = this.attachmentState();
+    const optionalParts = applyOccurrenceAttachment({
+      runtime,
+      layout,
+      delta,
+      interaction,
+      state,
+      draw: bundle.draw,
+    });
+    this.instances = state.instances;
+    this.slotByInstanceId = state.slotByInstanceId;
+    const retainedParts = new Set(
+      [...delta.affectedPartIds].filter((partId) => !delta.removedPartIds.has(partId)),
+    );
+    this.applyAttachmentOrders(runtime, layout, retainedParts, bundle, optionalParts);
+    return true;
   }
 
   public updateNodeOrders(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
@@ -313,6 +353,7 @@ export class RendererAttachment {
     layout: InstanceLayout,
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
+    optionalParts?: AttachmentOrderParts,
   ): void {
     Object.assign(
       this,
@@ -325,6 +366,7 @@ export class RendererAttachment {
         partDefinitions: this.attachedParts,
         selection: this.selection,
         bundle,
+        ...(optionalParts === undefined ? {} : { optionalParts }),
       }),
     );
   }
@@ -350,6 +392,16 @@ export class RendererAttachment {
 
   private rebuildCalls(cost: GpuCostAccumulator): void {
     Object.assign(this, rebuildAttachmentCalls(this.layout, cost));
+  }
+
+  private partAttachmentOptions(bundle: GpuBundle) {
+    return {
+      attachedParts: this.attachedParts,
+      runtime: this.runtime,
+      layout: this.layout,
+      interaction: this.interactionState,
+      bundle,
+    };
   }
 
   private rebuildVisibilitySurface(

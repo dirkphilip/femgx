@@ -1,7 +1,7 @@
 import {
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   type AssemblyId,
   type Mat4,
   type AssemblyDefinition,
@@ -12,7 +12,7 @@ import {
 } from "../../src/entries/root";
 import {
   createElementModel,
-  elementPart,
+  createPartFromElementModel,
   type Body,
   type ElementModel,
 } from "../../src/entries/model";
@@ -209,7 +209,7 @@ function componentParts(
     bodyNames: readonly string[],
   ): readonly Part[] => {
     const authoredModel = authoredComponentModel(model, bodyNames);
-    return [elementPart(component.partId, authoredModel)];
+    return [createPartFromElementModel(component.partId, authoredModel)];
   };
   return [
     ...build(parts.plate, models.plate, COMPONENT_BODY_NAMES.plate),
@@ -220,16 +220,19 @@ function componentParts(
 }
 
 function bodyGroups(model: ElementModel, names: readonly string[]): readonly Body[] {
-  if (names.length === 0 || names.length > model.elements.length) {
+  if (names.length === 0 || names.length > model.elements.count) {
     throw new Error("A bolted fixture body group must contain at least one element per name");
   }
   return names.map((name, index) => {
-    const start = Math.floor((index * model.elements.length) / names.length);
-    const end = Math.floor(((index + 1) * model.elements.length) / names.length);
+    const start = Math.floor((index * model.elements.count) / names.length);
+    const end = Math.floor(((index + 1) * model.elements.count) / names.length);
     return {
       id: index + 1,
       name,
-      elementIds: model.elements.slice(start, end).map((element) => element.id),
+      elementIds: Array.from(
+        { length: end - start },
+        (_, ordinal) => model.elements.at(start + ordinal)?.id,
+      ).filter((id): id is number => id !== undefined),
     };
   });
 }
@@ -247,7 +250,7 @@ function componentModels(
 }
 
 function authoredComponentModel(model: ElementModel, bodyNames: readonly string[]): ElementModel {
-  return createElementModel([...model.nodes], model.elements, {
+  return createElementModel([...model.nodes], [...model.elements], {
     bodies: bodyGroups(model, bodyNames),
   });
 }
@@ -265,8 +268,8 @@ function plateStackAssembly(plateThickness: number, overlapOffset: number) {
     id: PLATE_STACK,
     name: "Plate stack",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.plate, identity()),
-      ...modePlacements(COMPONENT_PARTS.plate, translation(overlapOffset, plateThickness, 0)),
+      ...modePlacements(COMPONENT_PARTS.plate, identityMatrix()),
+      ...modePlacements(COMPONENT_PARTS.plate, translationMatrix(overlapOffset, plateThickness, 0)),
     ],
   };
 }
@@ -276,9 +279,9 @@ function fastenerAssembly(nutY: number) {
     id: FASTENER,
     name: "Fastener",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.bolt, identity()),
-      { kind: "assembly" as const, assemblyId: WASHERS, transform: identity() },
-      ...modePlacements(COMPONENT_PARTS.nut, translation(0, nutY, 0)),
+      ...modePlacements(COMPONENT_PARTS.bolt, identityMatrix()),
+      { kind: "assembly" as const, assemblyId: WASHERS, transform: identityMatrix() },
+      ...modePlacements(COMPONENT_PARTS.nut, translationMatrix(0, nutY, 0)),
     ],
   };
 }
@@ -288,8 +291,8 @@ function washersAssembly(heights: FastenerHeights) {
     id: WASHERS,
     name: "Washers",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.washer, translation(0, heights.topWasher, 0)),
-      ...modePlacements(COMPONENT_PARTS.washer, translation(0, heights.bottomWasher, 0)),
+      ...modePlacements(COMPONENT_PARTS.washer, translationMatrix(0, heights.topWasher, 0)),
+      ...modePlacements(COMPONENT_PARTS.washer, translationMatrix(0, heights.bottomWasher, 0)),
     ],
   };
 }
@@ -319,7 +322,7 @@ function fastenersGroup(positions: ReadonlyArray<{ readonly x: number; readonly 
     placements: positions.map((position) => ({
       kind: "assembly" as const,
       assemblyId: FASTENER,
-      transform: translation(position.x, 0, position.z),
+      transform: translationMatrix(position.x, 0, position.z),
     })),
   };
 }
@@ -329,21 +332,21 @@ function rootAssembly(plateStackId: AssemblyId, fastenersId: AssemblyId) {
     id: ROOT,
     name: "Bolted joint",
     placements: [
-      { kind: "assembly" as const, assemblyId: plateStackId, transform: identity() },
-      { kind: "assembly" as const, assemblyId: fastenersId, transform: identity() },
+      { kind: "assembly" as const, assemblyId: plateStackId, transform: identityMatrix() },
+      { kind: "assembly" as const, assemblyId: fastenersId, transform: identityMatrix() },
     ],
   };
 }
 
 function buildScene(parts: readonly Part[], assemblies: readonly AssemblyDefinition[]): Scene {
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of parts) {
     builder = builder.addPart(part);
   }
   for (const assembly of assemblies) {
     builder = builder.addAssembly(assembly);
   }
-  return builder.withRoot(ROOT).build();
+  return builder.setRootAssembly(ROOT).build();
 }
 
 function fastenerPositions(): ReadonlyArray<{ readonly x: number; readonly z: number }> {

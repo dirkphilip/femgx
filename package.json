@@ -57,10 +57,6 @@
       "types": "./dist/entries/results.d.ts",
       "default": "./dist/results.js"
     },
-    "./runtime": {
-      "types": "./dist/entries/runtime.d.ts",
-      "default": "./dist/runtime.js"
-    },
     "./platform": {
       "types": "./dist/entries/platform.d.ts",
       "default": "./dist/platform.js"
@@ -86,6 +82,10 @@
     "lint:fix": "npm run lint:actions && npm run lint:demo-boundary && npm run lint:demo-size && npm run lint:folder-structure && eslint . --fix && npm run lint:dependencies && npm run lint:dead-code",
     "lint:actions": "node scripts/check-github-actions.mjs",
     "lint:actionlint": "node scripts/actionlint.mjs",
+    "audit:duplicate-names": "node scripts/duplicates/check-names.mjs src && node scripts/duplicates/check-names.mjs test && node scripts/duplicates/check-names.mjs demo",
+    "audit:duplicate-bodies": "node scripts/duplicates/check-bodies.mjs src && node scripts/duplicates/check-bodies.mjs test && node scripts/duplicates/check-bodies.mjs demo",
+    "audit:duplicate-fragments": "node scripts/duplicates/check-fragments.mjs src && node scripts/duplicates/check-fragments.mjs test && node scripts/duplicates/check-fragments.mjs demo",
+    "audit:duplicates": "npm run audit:duplicate-names && npm run audit:duplicate-bodies && npm run audit:duplicate-fragments",
     "lint:demo-boundary": "node scripts/check-demo-import-boundary.mjs",
     "lint:demo-size": "node scripts/check-demo-size.mjs",
     "lint:folder-structure": "node scripts/check-folder-structure.mjs",
@@ -111,6 +111,7 @@
     "bench:operations": "vitest run --config config/vitest.operations.config.ts",
     "bench:scaling:large": "vitest run --config config/vitest.large-scaling.config.ts",
     "bench:selection-sync": "vitest run --config config/vitest.selection-sync.config.ts",
+    "bench:selection-hide-workflow": "vitest run --config config/vitest.selection-hide-workflow.config.ts",
     "bench:node-selection-sync": "vitest run --config config/vitest.node-selection-sync.config.ts",
     "bench:tet4-visibility-sync": "vitest run --config config/vitest.tet4-visibility-sync.config.ts",
     "bench:affected-part-sync": "vitest run --config config/vitest.affected-part-sync.config.ts",

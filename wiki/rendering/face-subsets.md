@@ -5,7 +5,7 @@ while drawing only a validated set of element faces:
 
 ```ts
 const exterior = boundaryFaceRefs(model.elements);
-const part = elementPart(1, model, {
+const part = createPartFromElementModel(1, model, {
   faceSubset: exterior,
 });
 ```
@@ -25,7 +25,7 @@ vertices, so private GPU ids resolve the authored face and element identities.
 There is no second vertex mesh and no alternate renderer path.
 
 Consequently, `faceSubset` is a submission optimization, not a client-transfer
-or GPU-residency boundary. Use `surfacePart()` when omitted solid topology must
+or GPU-residency boundary. Use `createPartFromExplicitTopology()` when omitted solid topology must
 remain outside the client. Keeping complete topology on the client while only
 the current skin resides on the GPU is a separate deferred residency contract
 defined by the product scope.
@@ -33,7 +33,7 @@ defined by the product scope.
 Face subsets apply only to solid/surface triangle modes. They do not add face
 labels, overlays, boolean surface editing, or multi-hit picking.
 
-The triangle output of mixed `elementPart` builds uses the same validated subset
+The triangle output of mixed `createPartFromElementModel` builds uses the same validated subset
 contract; line and point variants have no faces and therefore do not accept
 `faceSubset`.
 

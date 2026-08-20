@@ -1,26 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createScene } from "../../src/scene/scene";
-import { createPart, type Part } from "../../src/geometry/part";
+import { createSceneBuilder } from "../../src/scene/scene";
+import { emptyPart } from "../support/scene-fixtures";
 
-function part(id: number): Part {
-  const geometry = {
-    positions: new Float32Array([0, 0, 0]),
-    indices: new Uint32Array(),
-    primitive: "triangles" as const,
-  };
-  return createPart(id, { geometries: [geometry] });
-}
-
-describe("createScene", () => {
+describe("createSceneBuilder", () => {
   it("builds a scene with parts, assemblies, and visibility state", () => {
-    const scene = createScene()
-      .addPart(part(1))
+    const scene = createSceneBuilder()
+      .addPart(emptyPart(1))
       .addAssembly({
         id: 1,
         name: "root",
         placements: [{ kind: "part", partId: 1, transform: new Float32Array(16) }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     expect(scene.parts.size).toBe(1);
     expect(scene.assemblies.size).toBe(1);
@@ -30,12 +21,12 @@ describe("createScene", () => {
   });
 
   it("keeps built scene snapshots isolated from later builder updates", () => {
-    const builder = createScene()
-      .addPart(part(1))
+    const builder = createSceneBuilder()
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
-      .withRoot(1);
+      .setRootAssembly(1);
     const first = builder.build();
-    builder.addPart(part(2)).hidePart(1);
+    builder.addPart(emptyPart(2)).setPartVisible(1, false);
     const second = builder.build();
 
     expect(first.parts.has(2)).toBe(false);
@@ -45,17 +36,17 @@ describe("createScene", () => {
   });
 
   it("records part and assembly visibility in built scenes", () => {
-    const scene = createScene()
-      .addPart(part(1))
+    const scene = createSceneBuilder()
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
-    const hidden = createScene()
-      .addPart(part(1))
+    const hidden = createSceneBuilder()
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
-      .withRoot(1)
-      .hidePart(1)
-      .hideAssembly(1)
+      .setRootAssembly(1)
+      .setPartVisible(1, false)
+      .setAssemblyVisible(1, false)
       .build();
     expect(scene.visiblePartIds.has(1)).toBe(true);
     expect(hidden.visiblePartIds.has(1)).toBe(false);
@@ -63,31 +54,35 @@ describe("createScene", () => {
   });
 
   it("throws when building without a root", () => {
-    expect(() => createScene().build()).toThrow("root assembly is not set");
+    expect(() => createSceneBuilder().build()).toThrow("root assembly is not set");
   });
 
   it("rejects an unregistered root", () => {
-    expect(() => createScene().withRoot(99).build()).toThrow("root assembly 99 is not registered");
+    expect(() => createSceneBuilder().setRootAssembly(99).build()).toThrow(
+      "root assembly 99 is not registered",
+    );
   });
 
   it("rejects duplicate registrations and missing references", () => {
-    const firstPart = part(1);
-    expect(() => createScene().addPart(firstPart).addPart(firstPart)).toThrow("already registered");
+    const firstPart = emptyPart(1);
+    expect(() => createSceneBuilder().addPart(firstPart).addPart(firstPart)).toThrow(
+      "already registered",
+    );
     expect(() =>
-      createScene()
+      createSceneBuilder()
         .addAssembly({
           id: 1,
           name: "root",
           placements: [{ kind: "part", partId: 2, transform: new Float32Array(16) }],
         })
-        .withRoot(1)
+        .setRootAssembly(1)
         .build(),
     ).toThrow("references missing part 2");
   });
 
   it("rejects cyclic assembly hierarchies", () => {
     expect(() =>
-      createScene()
+      createSceneBuilder()
         .addAssembly({
           id: 1,
           name: "one",
@@ -98,7 +93,7 @@ describe("createScene", () => {
           name: "two",
           placements: [{ kind: "assembly", assemblyId: 1, transform: new Float32Array(16) }],
         })
-        .withRoot(1)
+        .setRootAssembly(1)
         .build(),
     ).toThrow("contains a cycle");
   });

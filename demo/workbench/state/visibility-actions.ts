@@ -8,15 +8,17 @@ import {
   isBodyVisible,
   isElementVisible,
   isTargetHighlighted,
-  selectedTargets,
   setElementVisible,
   setTargetHighlighted,
   setBodyVisible,
-  type InteractionTarget,
   type InteractionState,
 } from "../../../src/entries/interaction";
+import {
+  hideSelectedElements,
+  selectedElementVisibilitySummary,
+} from "../../../src/interaction/selection-queries";
 import type { BodyId } from "../../../src/entries/model";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { SelectTarget } from "../selection/pick";
 import { elementTarget } from "../selection/pick";
 
@@ -24,40 +26,13 @@ import { elementTarget } from "../selection/pick";
 export interface VisibilityActionOptions {
   readonly viewport: () => Viewport;
   readonly scene: () => Scene;
-  readonly runtime: () => SceneRuntime;
+  readonly runtime: () => SceneOccurrences;
   readonly interaction: () => InteractionState;
   readonly setInteraction: (interaction: InteractionState) => void;
   readonly applyInteraction: (interaction: InteractionState) => void;
   readonly syncPanel: () => void;
   readonly render: () => void;
   readonly feedback?: (message: string) => void;
-}
-
-type SelectedElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
-
-/** Returns selected element occurrences without promoting other target kinds. */
-export function selectedElementTargets(
-  interaction: InteractionState,
-): readonly SelectedElementTarget[] {
-  const seen = new Set<string>();
-  const elements: SelectedElementTarget[] = [];
-  for (const target of selectedTargets(interaction)) {
-    if (target.kind !== "element") continue;
-    const key = `${target.partOccurrenceId}:${target.elementId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    elements.push(target);
-  }
-  return elements;
-}
-
-/** Returns selected, currently visible element occurrences without promoting other target kinds. */
-export function visibleSelectedElementTargets(
-  interaction: InteractionState,
-): readonly SelectedElementTarget[] {
-  return selectedElementTargets(interaction).filter((target) =>
-    isElementVisible(interaction, target),
-  );
 }
 
 /** Keeps all demo visibility mutations on the viewport/runtime path. */
@@ -68,18 +43,18 @@ export class WorkbenchVisibilityActions {
     this.options = options;
   }
 
-  setPart(partId: PartId, visible: boolean): void {
-    this.options.viewport().visibility.setPart(partId, visible);
+  setPartVisible(partId: PartId, visible: boolean): void {
+    this.options.viewport().visibility.setPartVisible(partId, visible);
     this.finish();
   }
 
-  setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
-    this.options.viewport().visibility.setPartOccurrence(partOccurrenceId, visible);
+  setPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
+    this.options.viewport().visibility.setPartOccurrenceVisible(partOccurrenceId, visible);
     this.finish();
   }
 
-  setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
-    this.options.viewport().visibility.setAssemblyOccurrence(occurrenceId, visible);
+  setAssemblyOccurrenceVisible(occurrenceId: string, visible: boolean): void {
+    this.options.viewport().visibility.setAssemblyOccurrenceVisible(occurrenceId, visible);
     this.finish();
   }
 
@@ -108,27 +83,22 @@ export class WorkbenchVisibilityActions {
   /** Hides selected element occurrences in one active-slot interaction update. */
   hideSelected(): void {
     const interaction = this.options.interaction();
-    const selected = selectedElementTargets(interaction);
-    const visible = visibleSelectedElementTargets(interaction);
-    if (visible.length === 0) {
+    const { selectedCount, visibleCount } = selectedElementVisibilitySummary(interaction);
+    if (visibleCount === 0) {
       this.options.feedback?.(
-        selected.length === 0
+        selectedCount === 0
           ? "No selected elements to hide."
           : "Selected elements are already hidden.",
       );
       return;
     }
 
-    let next = interaction;
-    for (const target of visible) {
-      next = setElementVisible(next, target, false);
-    }
-    this.options.applyInteraction(next);
+    this.options.applyInteraction(hideSelectedElements(interaction));
     this.finish();
     this.options.feedback?.(
-      visible.length === selected.length
-        ? `Hidden ${visible.length} selected element${visible.length === 1 ? "" : "s"}.`
-        : `Hidden ${visible.length} of ${selected.length} selected elements.`,
+      visibleCount === selectedCount
+        ? `Hidden ${visibleCount} selected element${visibleCount === 1 ? "" : "s"}.`
+        : `Hidden ${visibleCount} of ${selectedCount} selected elements.`,
     );
   }
 
@@ -146,7 +116,7 @@ export class WorkbenchVisibilityActions {
     if (target.kind === "part") return;
     const runtime = this.options.runtime();
     if (runtime.getPartOccurrence(target.partOccurrenceId) === undefined) return;
-    this.setPartOccurrence(
+    this.setPartOccurrenceVisible(
       target.partOccurrenceId,
       !runtime.isPartOccurrenceVisible(target.partOccurrenceId),
     );
@@ -155,7 +125,7 @@ export class WorkbenchVisibilityActions {
   togglePart(target: SelectTarget): void {
     const partId = target.kind === "part" ? target.partId : this.partForTarget(target);
     if (partId === undefined) return;
-    this.setPart(partId, !this.partVisible(partId));
+    this.setPartVisible(partId, !this.partVisible(partId));
   }
 
   /** Restores every current model-visibility bit without changing interaction emphasis. */
@@ -163,7 +133,7 @@ export class WorkbenchVisibilityActions {
     const scene = this.options.scene();
     const runtime = this.options.runtime();
     let interaction = this.options.interaction();
-    for (const instance of runtime.getPartOccurrences()) {
+    for (const instance of runtime.partOccurrences()) {
       const part = scene.parts.get(instance.partId);
       for (const body of part?.bodies ?? []) {
         interaction = setBodyVisible(
@@ -184,16 +154,18 @@ export class WorkbenchVisibilityActions {
     const viewport = this.options.viewport();
     viewport.batch(() => {
       for (const assemblyId of scene.assemblies.keys()) {
-        viewport.visibility.setAssembly(assemblyId, true);
+        viewport.visibility.setAssemblyVisible(assemblyId, true);
       }
-      for (const occurrenceId of runtime.getOccurrenceIds()) {
-        viewport.visibility.setAssemblyOccurrence(occurrenceId, true);
+      for (const occurrence of runtime.assemblyOccurrences()) {
+        const occurrenceId = occurrence.assemblyOccurrenceId;
+        viewport.visibility.setAssemblyOccurrenceVisible(occurrenceId, true);
       }
       for (const partId of scene.parts.keys()) {
-        viewport.visibility.setPart(partId, true);
+        viewport.visibility.setPartVisible(partId, true);
       }
-      for (const partOccurrenceId of runtime.getPartOccurrenceIds()) {
-        viewport.visibility.setPartOccurrence(partOccurrenceId, true);
+      for (const instance of runtime.partOccurrences()) {
+        const partOccurrenceId = instance.partOccurrenceId;
+        viewport.visibility.setPartOccurrenceVisible(partOccurrenceId, true);
       }
     });
     this.finish();
@@ -201,7 +173,7 @@ export class WorkbenchVisibilityActions {
 
   partVisible(partId: PartId): boolean {
     const runtime = this.options.runtime();
-    for (const partOccurrenceId of runtime.getPartOccurrenceIds()) {
+    for (const partOccurrenceId of runtime.visiblePartOccurrenceIds()) {
       if (runtime.getPartId(partOccurrenceId) !== partId) continue;
       return runtime.getPartOccurrence(partOccurrenceId)?.partVisible ?? false;
     }

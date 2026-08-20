@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createPart } from "../../../src/geometry/part";
 import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
 
 describe("GPU face subsets", () => {
@@ -28,6 +29,21 @@ describe("GPU face subsets", () => {
       faceSubset: { faceIds: [{ elementId: 20, faceIndex: 0 }] },
     };
 
-    expect(Array.from(buildFaceSubsetIndices(geometry))).toEqual([3, 4, 5]);
+    const part = createPart(1, {
+      geometries: [geometry],
+      elements: [
+        {
+          id: 10,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 20,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
+      ],
+    });
+    const retained = part.geometries[0];
+    if (retained?.primitive !== "triangles") throw new Error("Expected triangle geometry");
+    expect(Array.from(buildFaceSubsetIndices(retained))).toEqual([3, 4, 5]);
   });
 });

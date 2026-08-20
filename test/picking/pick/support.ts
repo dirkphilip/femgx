@@ -4,17 +4,19 @@ import { createElementModel, type ElementModel } from "../../../src/elements/mod
 
 import { ElementShape } from "../../../src/elements/shapes";
 
-import { elementPart } from "../../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
 
 import {
   createPart,
   validatePickIds,
   type Geometry,
+  type GeometryInput,
+  type TriangleGeometryInput,
   type Part,
   type TriangleGeometry,
 } from "../../../src/geometry/part";
 
-import { identity, type Mat4 } from "../../../src/math/mat4";
+import { identityMatrix, type Mat4 } from "../../../src/math/mat4";
 
 import {
   geometryAdjacency,
@@ -39,7 +41,7 @@ export function tetModel(): ElementModel {
 }
 
 /** Shared core test helper. */
-export function partWithGeometry(geometry: Geometry): Part {
+export function partWithGeometry(geometry: GeometryInput): Part {
   const elementId =
     (geometry.primitive === "triangles" ? geometry.faces?.[0]?.elementId : undefined) ??
     geometry.edges?.[0]?.incidentElementIds[0];
@@ -74,7 +76,7 @@ export function partWithGeometry(geometry: Geometry): Part {
 export function instanceAt(
   index: number,
   partId = 1,
-  transform: Mat4 = identity(),
+  transform: Mat4 = identityMatrix(),
 ): PartOccurrence {
   return { partOccurrenceId: `1/${index}`, partId, worldTransform: transform };
 }
@@ -86,14 +88,14 @@ export function ids(partial: Partial<ResolvedPickIds>): ResolvedPickIds {
 
 /** Shared core test helper. */
 export function triangleGeometry(model: ElementModel): TriangleGeometry {
-  const part = elementPart(1, model);
+  const part = createPartFromElementModel(1, model);
   if (part.geometries[0]?.primitive !== "triangles") throw new Error("expected triangle geometry");
   return part.geometries[0];
 }
 
 export const geometry = triangleGeometry(tetModel());
 
-export const part = partWithGeometry(geometry);
+export const part = createPartFromElementModel(1, tetModel());
 
 export const context: PickContext = { instances: [instanceAt(0)], parts: new Map([[1, part]]) };
 
@@ -125,13 +127,15 @@ export {
   createElementModel,
   type ElementModel,
   ElementShape,
-  elementPart,
+  createPartFromElementModel,
   createPart,
   validatePickIds,
   type Geometry,
+  type GeometryInput,
+  type TriangleGeometryInput,
   type Part,
   type TriangleGeometry,
-  identity,
+  identityMatrix,
   type Mat4,
   geometryAdjacency,
   resolveEdgePickHit,

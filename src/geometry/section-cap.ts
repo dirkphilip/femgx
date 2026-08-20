@@ -5,10 +5,10 @@ import type { SectionPlane } from "../math/section-plane";
 import { cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import { ElementShape } from "../elements/shapes";
 import {
-  packedElementOrdinal,
-  packedSemanticStorageForGeometry,
-  type PackedSemanticStorage,
-} from "./packed/packed-semantic";
+  geometrySemanticGraph,
+  graphElementOrdinal,
+  type PartSemanticGraph,
+} from "./semantic/part-semantic-graph";
 
 /** A generated cap vertex and its two authored nodal result endpoints. */
 export interface SectionCapVertex {
@@ -69,11 +69,8 @@ export function buildElementSectionCap(input: SectionCapBuildInput): SectionCap 
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
   const positions = part.nodePositions;
   if (triangles?.primitive !== "triangles" || positions === undefined) return undefined;
-  const packed = packedSemanticStorageForGeometry(triangles);
-  const edges =
-    packed === undefined
-      ? authoredEdges(triangles.faces, element.id)
-      : authoredEdgesPacked(packed, element.id);
+  const semantic = geometrySemanticGraph(triangles);
+  const edges = graphEdges(input, semantic?.graph, triangles.faces, positions);
   if (edges.length === 0) return undefined;
   const world = (nodeId: number): Vec3 | undefined =>
     worldNode(positions, nodeId, transform, input.displacements, input.deformationScale ?? 1);
@@ -143,11 +140,12 @@ function collectCandidates(
 }
 
 function authoredEdges(
-  faces: readonly { readonly elementId: number; readonly nodeIds: readonly number[] }[] | undefined,
+  faces: Iterable<{ readonly elementId: number; readonly nodeIds: readonly number[] }> | undefined,
   elementId: number,
 ): readonly Edge[] {
   const unique = new Map<string, Edge>();
-  for (const face of faces ?? []) {
+  if (faces === undefined) return [];
+  for (const face of faces) {
     if (face.elementId !== elementId || face.nodeIds.length < 3) continue;
     for (let index = 0; index < face.nodeIds.length; index += 1) {
       const a = face.nodeIds[index];
@@ -162,18 +160,73 @@ function authoredEdges(
   );
 }
 
-function authoredEdgesPacked(storage: PackedSemanticStorage, elementId: number): readonly Edge[] {
-  const ordinal = packedElementOrdinal(storage, elementId);
-  if (ordinal === undefined) return [];
-  const first = storage.elementFaceOffsets?.[ordinal] ?? 0;
-  const last = storage.elementFaceOffsets?.[ordinal + 1] ?? storage.faceOwnerElementOrdinals.length;
-  const unique = new Map<string, Edge>();
-  for (let faceOrdinal = first; faceOrdinal < last; faceOrdinal += 1) {
-    const nodeStart = storage.faceNodeOffsets[faceOrdinal] ?? 0;
-    const nodeEnd = storage.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
+interface GraphFaceRange {
+  readonly first: number;
+  readonly last: number;
+}
+
+function graphEdges(
+  input: SectionCapBuildInput,
+  graph: PartSemanticGraph | undefined,
+  faces: Iterable<{ readonly elementId: number; readonly nodeIds: readonly number[] }> | undefined,
+  positions: Float32Array,
+): readonly Edge[] {
+  if (graph === undefined) return authoredEdges(faces, input.element.id);
+  const range = intersectingGraphFaces(graph, input, positions);
+  return range === undefined ? [] : authoredGraphEdges(graph, range);
+}
+
+function intersectingGraphFaces(
+  graph: PartSemanticGraph,
+  input: SectionCapBuildInput,
+  positions: Float32Array,
+): GraphFaceRange | undefined {
+  const ordinal = graphElementOrdinal(graph, input.element.id);
+  if (ordinal === undefined) return undefined;
+  const first = graph.faceElementOffsets[ordinal] ?? 0;
+  const last = graph.faceElementOffsets[ordinal + 1] ?? first;
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  let minimumDistance = Number.POSITIVE_INFINITY;
+  let maximumDistance = Number.NEGATIVE_INFINITY;
+  for (let lookupOrdinal = first; lookupOrdinal < last; lookupOrdinal += 1) {
+    const faceOrdinal = graph.faceLookupOrdinals[lookupOrdinal] ?? 0;
+    const nodeStart = graph.faceNodeOffsets[faceOrdinal] ?? 0;
+    const nodeEnd = graph.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
     for (let index = nodeStart; index < nodeEnd; index += 1) {
-      const a = storage.faceNodeIds[index];
-      const b = storage.faceNodeIds[index + 1 < nodeEnd ? index + 1 : nodeStart];
+      const node = graph.faceNodeIds[index];
+      if (node === undefined) return undefined;
+      const point = worldNode(
+        positions,
+        node,
+        input.transform,
+        input.displacements,
+        input.deformationScale ?? 1,
+      );
+      if (point === undefined) return undefined;
+      for (const value of point) {
+        minimum = Math.min(minimum, value);
+        maximum = Math.max(maximum, value);
+      }
+      const distance = signedDistance(input.plane, point);
+      minimumDistance = Math.min(minimumDistance, distance);
+      maximumDistance = Math.max(maximumDistance, distance);
+    }
+  }
+  const epsilon = Math.max(1, maximum - minimum) * 1e-6;
+  if (maximumDistance <= epsilon || minimumDistance >= -epsilon) return undefined;
+  return { first, last };
+}
+
+function authoredGraphEdges(graph: PartSemanticGraph, faces: GraphFaceRange): readonly Edge[] {
+  const unique = new Map<string, Edge>();
+  for (let lookupOrdinal = faces.first; lookupOrdinal < faces.last; lookupOrdinal += 1) {
+    const faceOrdinal = graph.faceLookupOrdinals[lookupOrdinal] ?? 0;
+    const nodeStart = graph.faceNodeOffsets[faceOrdinal] ?? 0;
+    const nodeEnd = graph.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
+    for (let index = nodeStart; index < nodeEnd; index += 1) {
+      const a = graph.faceNodeIds[index];
+      const b = graph.faceNodeIds[index + 1 < nodeEnd ? index + 1 : nodeStart];
       if (a === undefined || b === undefined || a === b) continue;
       const key = edgeKey(a, b);
       if (!unique.has(key)) unique.set(key, { a: Math.min(a, b), b: Math.max(a, b) });

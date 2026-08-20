@@ -1,9 +1,9 @@
-import { createPart, type Geometry } from "../../../src/entries/root";
+import { createPart, type GeometryInput } from "../../../src/entries/root";
 import { createPickRegionTargetResolver } from "../../../src/renderer/picking/region-resolver";
 import type { PickContext, ResolvedPickIds } from "../../../src/picking/pick";
 
 function makeRegionCase(elementCount: number) {
-  const geometry: Geometry = {
+  const geometry: GeometryInput = {
     positions: new Float32Array(elementCount * 3),
     indices: Uint32Array.from({ length: elementCount }, (_, index) => index),
     primitive: "points",

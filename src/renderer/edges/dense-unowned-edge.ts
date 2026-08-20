@@ -1,5 +1,5 @@
-import type { ElementTessellation, Geometry } from "../../geometry/part";
-import { buildElementPrimitivePickIds } from "../picking/ids";
+import type { Geometry } from "../../geometry/part";
+import { buildElementPrimitivePickIds, type ElementTessellations } from "../picking/ids";
 import type { MeshEdgeData } from "./mesh-edge-types";
 
 interface DenseEdgeState {
@@ -40,7 +40,7 @@ export interface DenseUnownedEdgeBuild {
 /** Builds presentation-only unowned triangle edges without JS identity objects. */
 export function buildDenseUnownedEdgeData(
   geometry: Extract<Geometry, { primitive: "triangles" }>,
-  elements: readonly ElementTessellation[],
+  elements: ElementTessellations,
 ): MeshEdgeData {
   return buildDenseUnownedEdges(geometry, elements).edgeData;
 }
@@ -48,7 +48,7 @@ export function buildDenseUnownedEdgeData(
 /** Retains primitive element ids for direct edge-topology packing by the upload owner. */
 export function buildDenseUnownedEdges(
   geometry: Extract<Geometry, { primitive: "triangles" }>,
-  elements: readonly ElementTessellation[],
+  elements: ElementTessellations,
 ): DenseUnownedEdgeBuild {
   const occurrenceCount = geometry.indices.length;
   if (occurrenceCount === 0) {

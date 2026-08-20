@@ -32,12 +32,16 @@ export interface DenseElementSelection {
 export type DenseElementSelections = ReadonlyMap<PartId, DenseElementSelection>;
 
 interface DenseElementCacheEntry {
-  readonly selectedIds: InteractionStateData["selectedElementIds"];
+  readonly elementIds: InteractionStateData["selectedElementIds"];
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly selections: DenseElementSelections;
 }
 
 const selectionCache = new WeakMap<
+  PackedSceneRuntime,
+  WeakMap<DenseElementLayout, DenseElementCacheEntry>
+>();
+const visibilityCache = new WeakMap<
   PackedSceneRuntime,
   WeakMap<DenseElementLayout, DenseElementCacheEntry>
 >();
@@ -53,13 +57,46 @@ export function collectDenseElementSelections(
   interaction: InteractionState,
 ): DenseElementSelections {
   const data = readInteractionState(interaction);
-  const runtimeCache = selectionCache.get(runtime);
+  return collectDenseElementMemberships(
+    runtime,
+    layout,
+    parts,
+    data.selectedElementIds,
+    selectionCache,
+  );
+}
+
+/** Resolves broad hidden-element state to the same compact ordinal membership layout. */
+export function collectDenseHiddenElements(
+  runtime: PackedSceneRuntime,
+  layout: DenseElementLayout,
+  parts: ReadonlyMap<PartId, Part>,
+  interaction: InteractionState,
+): DenseElementSelections {
+  const data = readInteractionState(interaction);
+  return collectDenseElementMemberships(
+    runtime,
+    layout,
+    parts,
+    data.hiddenElementIds,
+    visibilityCache,
+  );
+}
+
+function collectDenseElementMemberships(
+  runtime: PackedSceneRuntime,
+  layout: DenseElementLayout,
+  parts: ReadonlyMap<PartId, Part>,
+  elementIdsByInstance: InteractionStateData["selectedElementIds"],
+  cacheByRuntime: typeof selectionCache,
+): DenseElementSelections {
+  const runtimeCache = cacheByRuntime.get(runtime);
   const cached = runtimeCache?.get(layout);
-  if (cached?.selectedIds === data.selectedElementIds && cached.parts === parts) {
+  if (cached?.elementIds === elementIdsByInstance && cached.parts === parts) {
     return cached.selections;
   }
   const byPart = new Map<PartId, DenseSelectionBuilder>();
-  for (const [instanceId, elementIds] of data.selectedElementIds) {
+  for (const [instanceId, elementIds] of elementIdsByInstance) {
     addInstanceSelections({ runtime, layout, parts, byPart, instanceId, elementIds });
   }
   const selections = new Map<PartId, DenseElementSelection>();
@@ -73,8 +110,8 @@ export function collectDenseElementSelections(
     });
   }
   const cache = runtimeCache ?? new WeakMap<DenseElementLayout, DenseElementCacheEntry>();
-  if (runtimeCache === undefined) selectionCache.set(runtime, cache);
-  cache.set(layout, { selectedIds: data.selectedElementIds, parts, selections });
+  if (runtimeCache === undefined) cacheByRuntime.set(runtime, cache);
+  cache.set(layout, { elementIds: elementIdsByInstance, parts, selections });
   return selections;
 }
 
@@ -116,6 +153,7 @@ export function sparseElementEmphasisRefs(
   layout: Pick<DenseElementLayout, "slotPartLocal">,
   interaction: InteractionState,
   denseSelections: DenseElementSelections,
+  denseHidden: DenseElementSelections = new Map(),
 ): readonly ElementRef[] {
   const data = readInteractionState(interaction);
   return collectUniqueRefs(
@@ -134,7 +172,11 @@ export function sparseElementEmphasisRefs(
           push({ partOccurrenceId: instanceId, elementId });
       }
       appendElementRefs(data.elementOverrides, push);
-      appendElementRefs(data.hiddenElementIds, push);
+      for (const [instanceId, ids] of sortedInstances(data.hiddenElementIds)) {
+        if (instanceUsesDenseSelection(runtime, layout, denseHidden, instanceId)) continue;
+        for (const elementId of sortedNumbers(ids))
+          push({ partOccurrenceId: instanceId, elementId });
+      }
     },
   );
 }
@@ -180,15 +222,14 @@ interface DenseSelectionContext {
 
 interface DenseSelectionBuilder {
   readonly elementCount: number;
-  readonly elementOrdinalById: { readonly get: (elementId: number) => number | undefined };
   readonly slotCount: number;
   readonly candidates: DenseSelectionCandidate[];
 }
 
 interface DenseSelectionCandidate {
   readonly slot: number;
-  readonly elementIds: ReadonlySet<number>;
   readonly selectedCount: number;
+  readonly words: Uint32Array;
 }
 
 function addInstanceSelections(context: DenseSelectionContext): void {
@@ -202,24 +243,28 @@ function addInstanceSelections(context: DenseSelectionContext): void {
     return;
   }
   const metadata = getPartSemanticIndex(part);
+  const wordBytes = Math.ceil(metadata.elementCount / 32) * Uint32Array.BYTES_PER_ELEMENT;
+  if (elementIds.size * ELEMENT_RECORD_STRIDE <= wordBytes + 4) return;
+  const words = new Uint32Array(wordBytes / Uint32Array.BYTES_PER_ELEMENT);
   let selectedCount = 0;
   for (const elementId of elementIds) {
-    if (metadata.elementOrdinalById.has(elementId)) selectedCount += 1;
+    const ordinal = metadata.elementOrdinal(elementId);
+    if (ordinal === undefined) continue;
+    selectedCount += 1;
+    const bit = ordinal - 1;
+    words[bit >> 5] = (words[bit >> 5] ?? 0) | (1 << (bit & 31));
   }
-  const wordBytes =
-    Math.ceil(metadata.elementOrdinalById.size / 32) * Uint32Array.BYTES_PER_ELEMENT;
   if (selectedCount === 0 || selectedCount * ELEMENT_RECORD_STRIDE <= wordBytes + 4) return;
   let builder = byPart.get(partId);
   if (builder === undefined) {
     builder = {
-      elementCount: metadata.elementOrdinalById.size,
-      elementOrdinalById: metadata.elementOrdinalById,
+      elementCount: metadata.elementCount,
       slotCount: layout.partLocalSlots.get(partId)?.length ?? 0,
       candidates: [],
     };
     byPart.set(partId, builder);
   }
-  builder.candidates.push({ slot: localSlot, elementIds, selectedCount });
+  builder.candidates.push({ slot: localSlot, selectedCount, words });
 }
 
 function denseOccurrences(builder: DenseSelectionBuilder): DenseElementOccurrence[] {
@@ -235,21 +280,6 @@ function denseOccurrences(builder: DenseSelectionBuilder): DenseElementOccurrenc
   return builder.candidates.map((candidate) => ({
     slot: candidate.slot,
     selectedCount: candidate.selectedCount,
-    words: selectionWords(builder, candidate.elementIds),
+    words: candidate.words,
   }));
-}
-
-function selectionWords(
-  builder: DenseSelectionBuilder,
-  elementIds: ReadonlySet<number>,
-): Uint32Array {
-  const words = new Uint32Array(Math.ceil(builder.elementCount / 32));
-  for (const elementId of elementIds) {
-    const ordinal = builder.elementOrdinalById.get(elementId);
-    if (ordinal === undefined) continue;
-    const bit = ordinal - 1;
-    const word = bit >> 5;
-    words[word] = (words[word] ?? 0) | (1 << (bit & 31));
-  }
-  return words;
 }

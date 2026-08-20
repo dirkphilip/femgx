@@ -1,6 +1,6 @@
 import { createPart } from "../../../src/entries/root";
 import { createElementModelFromFemModel } from "../../../src/io/conversions/element-model";
-import { elementPart } from "../../../src/entries/model";
+import { createPartFromElementModel } from "../../../src/entries/model";
 import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
 import { buildPrimitiveFaceBodyPickData } from "../../../src/renderer/picking/ids";
 import { expandSurfaceGeometry } from "../../../src/renderer/resources/surface-geometry";
@@ -16,6 +16,7 @@ import {
   faceSubsetBenchmarkPart,
   heterogeneousModel,
   bodyGeometry,
+  bodyRetainedGeometry,
   bodyModelWithBodies,
   lineHeavyGeometry,
   solidScalingModels,
@@ -57,11 +58,11 @@ export const geometryBudgets: readonly BudgetCase[] = [
     },
   },
   {
-    name: "elementPart",
+    name: "createPartFromElementModel",
     description: "600 mixed linear elements compiled into one semantic part",
     budgetMs: 500,
     run: () => {
-      elementPart(901, heterogeneousModel);
+      createPartFromElementModel(901, heterogeneousModel);
     },
   },
   {
@@ -98,7 +99,7 @@ export const geometryBudgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 25,
     run: () => {
-      buildPrimitiveFaceBodyPickData(bodyGeometry.geometry, bodyGeometry.elements);
+      buildPrimitiveFaceBodyPickData(bodyRetainedGeometry, bodyGeometry.elements);
     },
   },
   {
@@ -106,27 +107,23 @@ export const geometryBudgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      buildMeshEdgeData(
-        bodyGeometry.geometry,
-        bodyGeometry.geometry.indices,
-        bodyGeometry.elements,
-      );
+      buildMeshEdgeData(bodyRetainedGeometry, bodyRetainedGeometry.indices, bodyGeometry.elements);
     },
   },
   {
-    name: "elementPart (body-heavy)",
+    name: "createPartFromElementModel (body-heavy)",
     description: `${BENCH_BODY_ELEMENT_COUNT} FE quads across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      elementPart(905, bodyModelWithBodies);
+      createPartFromElementModel(905, bodyModelWithBodies);
     },
   },
   {
-    name: "elementPart (large node pool)",
+    name: "createPartFromElementModel (large node pool)",
     description: "500,000 nodes with one Tet4 element",
     budgetMs: 20,
     run: () => {
-      elementPart(906, nodeCopyBenchmarkModel);
+      createPartFromElementModel(906, nodeCopyBenchmarkModel);
     },
   },
 ];
@@ -136,9 +133,9 @@ export const geometryScalingCases: readonly ScalingCase[] = [
     name: "structured Hex8 part compilation",
     description: "tessellate 512–4,096 authored solid elements",
     points: solidScalingModels.map((model, index) => ({
-      size: model.elements.length,
+      size: model.elements.count,
       run: () => {
-        elementPart(10_000 + index, model);
+        createPartFromElementModel(10_000 + index, model);
       },
     })),
     maxNormalizedSpread: 3,

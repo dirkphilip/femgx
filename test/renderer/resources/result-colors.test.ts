@@ -13,7 +13,7 @@ type TestInstanceStorage = {
 };
 
 describe("dense result color storage", () => {
-  it("uploads one location-tagged table and skips its unchanged identity", () => {
+  it("uploads one location-tagged table and skips its unchanged identityMatrix", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();

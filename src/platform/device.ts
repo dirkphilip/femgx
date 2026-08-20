@@ -1,4 +1,8 @@
-import { requestWebGpuAdapter, WebGpuUnsupportedError, unsupportedMessage } from "./capabilities";
+import {
+  requestWebGpuAdapter,
+  WebGpuUnsupportedError,
+  webGpuUnsupportedMessage,
+} from "./capabilities";
 import type { WebGpuQueryOptions } from "./capabilities";
 
 /**
@@ -29,7 +33,7 @@ export async function requestWebGpuDevice(
   if (adapter === null) {
     throw new WebGpuUnsupportedError(
       "adapter-unavailable",
-      unsupportedMessage("adapter-unavailable"),
+      webGpuUnsupportedMessage("adapter-unavailable"),
     );
   }
   try {
@@ -38,7 +42,7 @@ export async function requestWebGpuDevice(
   } catch {
     throw new WebGpuUnsupportedError(
       "device-unavailable",
-      unsupportedMessage("device-unavailable"),
+      webGpuUnsupportedMessage("device-unavailable"),
     );
   }
 }

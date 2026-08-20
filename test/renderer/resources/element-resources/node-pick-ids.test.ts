@@ -289,13 +289,13 @@ function unpackNodeTopology(
   readonly elementIds: Uint32Array;
 } {
   const data = buildPackedNodeTopologyData(part, sprites);
-  const faceEnd = 4 + (data[0] ?? 0) * 5;
+  const faceEnd = 5 + (data[0] ?? 0) * 5;
   const rangeEnd = faceEnd + (data[1] ?? 0) * 2;
   const bodyEnd = rangeEnd + (data[2] ?? 0) * 2;
   const elementEnd = bodyEnd + (data[2] ?? 0) * 2;
   const sentinel = new Uint32Array([0, 0]);
   return {
-    faceBodyPickIds: data.subarray(4, faceEnd),
+    faceBodyPickIds: data.subarray(5, faceEnd),
     bodyRanges: data.subarray(faceEnd, rangeEnd),
     bodyIds: bodyEnd === rangeEnd ? sentinel : data.subarray(rangeEnd, bodyEnd),
     elementIds: elementEnd === bodyEnd ? sentinel : data.subarray(bodyEnd, elementEnd),

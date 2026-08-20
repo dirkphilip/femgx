@@ -1,4 +1,4 @@
-import { identity, multiply, type Mat4 } from "../math/mat4";
+import { identityMatrix, multiplyMatrices, type Mat4 } from "../math/mat4";
 import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
@@ -14,8 +14,6 @@ export interface NodeDraft {
   firstChild: number;
   nextSibling: number;
   lastChild: number;
-  readonly instanceStart: number;
-  instanceEnd: number;
   readonly visible: 0 | 1;
   readonly effective: 0 | 1;
 }
@@ -96,8 +94,6 @@ class DraftWriter {
       firstChild: -1,
       nextSibling: -1,
       lastChild: -1,
-      instanceStart: this.instances.length,
-      instanceEnd: -1,
       visible,
       effective,
     });
@@ -118,11 +114,6 @@ class DraftWriter {
         `assembly ${item.assemblyId}`,
       );
       if (item.nextPlacement >= assembly.placements.length) {
-        const node = invariantValue(
-          this.nodes[item.nodeIndex],
-          `assembly node at ${item.nodeIndex}`,
-        );
-        node.instanceEnd = this.instances.length;
         stack.pop();
         continue;
       }
@@ -132,7 +123,7 @@ class DraftWriter {
         assembly.placements[placementIndex],
         `placement ${placementIndex} in assembly ${item.assemblyId}`,
       );
-      const placementWorld = multiply(item.world, placement.transform);
+      const placementWorld = multiplyMatrices(item.world, placement.transform);
       const placementPath = `${item.path}/${placement.placementId ?? placementIndex}`;
       if (placement.kind === "part") {
         const node = invariantValue(
@@ -176,6 +167,6 @@ export function buildSceneDrafts(scene: Scene): {
   instances: InstanceDraft[];
 } {
   const writer = new DraftWriter(scene);
-  writer.walk(scene.rootAssemblyId, identity(), String(scene.rootAssemblyId));
+  writer.walk(scene.rootAssemblyId, identityMatrix(), String(scene.rootAssemblyId));
   return { nodes: writer.nodes, instances: writer.instances };
 }

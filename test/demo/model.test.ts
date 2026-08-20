@@ -63,7 +63,7 @@ describe("demo workbench model boundary", () => {
     ).toContain("with 2 warnings: First");
   });
 
-  it("keeps imported identity and applies topology-aware display overrides", () => {
+  it("keeps imported identityMatrix and applies topology-aware display overrides", () => {
     const preset = createBoltedPlatePreset();
     const imported = createImportedModel("opened.glb", {
       scene: preset.scene,
@@ -91,16 +91,21 @@ describe("demo workbench model boundary", () => {
     const pointPart = [...gallery.scene.parts.values()].find(
       (part) => part.geometries[0]?.primitive === "points",
     );
-    const surfacePart = [...gallery.scene.parts.values()].find(
+    const createPartFromExplicitTopology = [...gallery.scene.parts.values()].find(
       (part) => part.geometries[0]?.primitive !== "points",
     );
-    if (pointPart === undefined || surfacePart === undefined) throw new Error("gallery incomplete");
+    if (pointPart === undefined || createPartFromExplicitTopology === undefined)
+      throw new Error("gallery incomplete");
     expect(partStyleOverride(gallery, pointPart.id, true, true)).not.toHaveProperty("nodes");
-    expect(partStyleOverride(gallery, surfacePart.id, true, true)).toMatchObject({
-      edge: true,
-      nodes: true,
-    });
-    expect(partStyleOverride(gallery, surfacePart.id, false, false)).not.toHaveProperty("edge");
+    expect(partStyleOverride(gallery, createPartFromExplicitTopology.id, true, true)).toMatchObject(
+      {
+        edge: true,
+        nodes: true,
+      },
+    );
+    expect(
+      partStyleOverride(gallery, createPartFromExplicitTopology.id, false, false),
+    ).not.toHaveProperty("edge");
   });
 
   it("preserves actionable error text for Error and non-Error failures", () => {

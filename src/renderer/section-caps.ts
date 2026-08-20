@@ -14,9 +14,8 @@ import {
 } from "../geometry/part";
 import { buildElementSectionCap, type SectionCap } from "../geometry/section-cap";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { packedElementTransient, packedSemanticStorage } from "../geometry/packed/packed-semantic";
 import type { SectionPlane } from "../math/section-plane";
-import { identity } from "../math/mat4";
+import { identityMatrix } from "../math/mat4";
 import { defaultStyle } from "./resources/foundation";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
 import { resultBindingValue } from "../results/bindings";
@@ -39,32 +38,44 @@ interface CapBuildOptions {
   readonly deformation: DeformationState | undefined;
   readonly resultColors: ResultColorMap | undefined;
   readonly draw: DrawResources;
+  readonly reusable?: SectionCapFrame;
 }
 
 export interface SectionCapFrame {
   readonly parts: ReadonlyMap<PartId, Part>;
+  readonly sourcePartIds: ReadonlyMap<PartId, PartId>;
+  readonly sourceSlots: ReadonlyMap<PartId, number>;
   readonly calls: readonly DrawCall[];
   readonly transparentCalls: readonly DrawCall[];
   readonly allCalls: readonly DrawCall[];
   readonly resultColors: ResultColorMap;
 }
 
-const CAP_TRANSFORM = identity();
+interface CapCallLists {
+  readonly opaque: DrawCall[];
+  readonly transparent: DrawCall[];
+  readonly all: DrawCall[];
+}
+
+const CAP_TRANSFORM = identityMatrix();
 
 /** Builds active occurrence caps into renderer-private reusable draw records. */
+// eslint-disable-next-line max-lines-per-function -- Measured cap kernel; splitting adds hot-path allocation.
 export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame {
   const capParts = new Map<PartId, Part>();
+  const sourcePartIds = new Map<PartId, PartId>();
+  const sourceSlots = new Map<PartId, number>();
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
   const resultColors = new Map<PartId, ResultColorTable>();
-  const usedIds = new Set(options.parts.keys());
+  const reusable = reusableCapParts(options.reusable);
+  const usedIds = new Set([...options.parts.keys(), ...reusable.ids]);
   let ordinal = 0;
   for (const sourcePart of options.parts.values()) {
     const elements = sourcePart.elements;
     const sourcePositions = sourcePart.nodePositions;
     if (elements === undefined || sourcePositions === undefined) continue;
-    const packed = packedSemanticStorage(sourcePart);
     const metadata = getPartSemanticIndex(sourcePart);
     for (const slot of options.runtime.getPartInstanceSlots(sourcePart.id)) {
       if (!options.runtime.isInstanceVisible(slot)) continue;
@@ -76,7 +87,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         sourcePart.id,
         instance.partOccurrenceId,
       );
-      for (const element of sectionElements(elements, packed)) {
+      for (const element of elements) {
         if (!capElementVisible(options.interaction, instanceId, element, metadata)) continue;
         const cap = buildElementSectionCap({
           part: sourcePart,
@@ -87,11 +98,13 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
           deformationScale: options.deformation?.scale ?? 1,
         });
         if (cap === undefined) continue;
-        const capId = nextCapId(usedIds, ordinal);
-        ordinal += 1;
-        const style = capStyle(options, instance, element.id, metadata);
-        const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
+        const prior = reusable.parts.get(capKey(sourcePart.id, slot, element.id));
+        const capId = prior?.id ?? nextCapId(usedIds, ordinal++);
+        const style = capStyle(options.interaction, instance, element.id, metadata);
+        const capPart = prior ?? makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
+        sourcePartIds.set(capId, sourcePart.id);
+        sourceSlots.set(capId, slot);
         const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
         allCalls.push(call);
         if (style.color.a * style.opacity < 1) transparentCalls.push(call);
@@ -101,18 +114,42 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
           occurrenceValue(options.resultColors, sourcePart.id, instance.partOccurrenceId),
           cap,
           sourcePositions.length / 3,
-          metadata.elementOrdinalById.get(element.id),
+          metadata.elementOrdinal(element.id),
           elementColorOverridden(options.interaction, instanceId, element.id),
         );
         if (colors !== undefined) resultColors.set(capId, colors);
       }
     }
   }
-  return { parts: capParts, calls, transparentCalls, allCalls, resultColors };
+  return {
+    parts: capParts,
+    sourcePartIds,
+    sourceSlots,
+    calls,
+    transparentCalls,
+    allCalls,
+    resultColors,
+  };
+}
+
+function reusableCapParts(frame: SectionCapFrame | undefined): {
+  readonly parts: ReadonlyMap<string, Part>;
+  readonly ids: ReadonlySet<PartId>;
+} {
+  const parts = new Map<string, Part>();
+  if (frame === undefined) return { parts, ids: new Set() };
+  for (const [capId, part] of frame.parts) {
+    const sourcePartId = frame.sourcePartIds.get(capId);
+    const slot = frame.sourceSlots.get(capId);
+    const elementId = part.elements?.at(0)?.id;
+    if (sourcePartId === undefined || slot === undefined || elementId === undefined) continue;
+    parts.set(capKey(sourcePartId, slot, elementId), part);
+  }
+  return { parts, ids: new Set(frame.parts.keys()) };
 }
 
 function capStyle(
-  options: CapBuildOptions,
+  interaction: InteractionState,
   instance: ReturnType<typeof instanceAt>,
   elementId: number,
   metadata: ReturnType<typeof getPartSemanticIndex>,
@@ -121,9 +158,124 @@ function capStyle(
     instance,
     elementId,
     defaultStyle,
-    options.interaction,
-    metadata.bodyByElement.get(elementId),
+    interaction,
+    metadata.bodyForElement(elementId),
   );
+}
+
+/** Updates retained cap presentation records without rebuilding cap geometry. */
+export function syncSectionCapStyles(options: {
+  readonly frame: SectionCapFrame;
+  readonly runtime: PackedSceneRuntime;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly draw: DrawResources;
+}): Pick<SectionCapFrame, "calls" | "transparentCalls"> {
+  const calls: DrawCall[] = [];
+  const transparentCalls: DrawCall[] = [];
+  for (const [capId, capPart] of options.frame.parts) {
+    const sourcePartId = options.frame.sourcePartIds.get(capId);
+    const sourceSlot = options.frame.sourceSlots.get(capId);
+    const sourcePart = sourcePartId === undefined ? undefined : options.parts.get(sourcePartId);
+    const element = capPart.elements?.at(0);
+    if (
+      sourcePartId === undefined ||
+      sourcePart === undefined ||
+      sourceSlot === undefined ||
+      element === undefined
+    )
+      continue;
+    const instance = instanceAt(options.runtime, sourceSlot, sourcePart.id);
+    const style = capStyle(
+      options.interaction,
+      instance,
+      element.id,
+      getPartSemanticIndex(sourcePart),
+    );
+    patchInstances(options.draw, capId, [
+      { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, sourceSlot + 1) },
+    ]);
+    const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
+    if (style.color.a * style.opacity < 1) transparentCalls.push(call);
+    else calls.push(call);
+  }
+  return { calls, transparentCalls };
+}
+
+/** Filters retained cap records when visibility can only remove elements. */
+export function filterSectionCapFrame(options: {
+  readonly frame: SectionCapFrame;
+  readonly runtime: PackedSceneRuntime;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly draw: DrawResources;
+}): SectionCapFrame {
+  const parts = new Map<PartId, Part>();
+  const sourcePartIds = new Map<PartId, PartId>();
+  const sourceSlots = new Map<PartId, number>();
+  const calls: CapCallLists = { opaque: [], transparent: [], all: [] };
+  const resultColors = new Map<PartId, ResultColorTable>();
+  for (const [capId, capPart] of options.frame.parts) {
+    const sourcePartId = options.frame.sourcePartIds.get(capId);
+    const sourceSlot = options.frame.sourceSlots.get(capId);
+    const sourcePart = sourcePartId === undefined ? undefined : options.parts.get(sourcePartId);
+    const element = capPart.elements?.at(0);
+    if (
+      sourcePartId === undefined ||
+      sourcePart === undefined ||
+      sourceSlot === undefined ||
+      element === undefined
+    )
+      continue;
+    const instance = instanceAt(options.runtime, sourceSlot, sourcePart.id);
+    if (
+      !capElementVisible(
+        options.interaction,
+        instance.partOccurrenceId,
+        element,
+        getPartSemanticIndex(sourcePart),
+      )
+    )
+      continue;
+    parts.set(capId, capPart);
+    sourcePartIds.set(capId, sourcePartId);
+    sourceSlots.set(capId, sourceSlot);
+    const style = capStyle(
+      options.interaction,
+      instance,
+      element.id,
+      getPartSemanticIndex(sourcePart),
+    );
+    appendCapCall(options.draw, capId, style, sourceSlot, calls);
+    const colors = options.frame.resultColors.get(capId);
+    if (colors !== undefined) resultColors.set(capId, colors);
+  }
+  const frame: SectionCapFrame = {
+    parts,
+    sourcePartIds,
+    sourceSlots,
+    calls: calls.opaque,
+    transparentCalls: calls.transparent,
+    allCalls: calls.all,
+    resultColors,
+  };
+  return frame;
+}
+
+function appendCapCall(
+  draw: DrawResources,
+  capId: PartId,
+  style: ReturnType<typeof resolveElementStyle>,
+  sourceSlot: number,
+  calls: CapCallLists,
+): void {
+  patchInstances(draw, capId, [
+    { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, sourceSlot + 1) },
+  ]);
+  const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
+  calls.all.push(call);
+  if (style.color.a * style.opacity < 1) calls.transparent.push(call);
+  else calls.opaque.push(call);
 }
 
 function occurrenceValue<Value>(
@@ -132,19 +284,6 @@ function occurrenceValue<Value>(
   occurrenceId: string,
 ): Value | undefined {
   return source === undefined ? undefined : resultBindingValue(source, partId, occurrenceId);
-}
-
-function* sectionElements(
-  elements: readonly ElementTessellation[],
-  packed: ReturnType<typeof packedSemanticStorage>,
-): IterableIterator<ElementTessellation> {
-  if (packed === undefined) {
-    yield* elements;
-    return;
-  }
-  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
-    yield packedElementTransient(packed, ordinal);
-  }
 }
 
 function installCapInstance(
@@ -175,7 +314,7 @@ function capElementVisible(
 ): boolean {
   if (!isElementVisible(interaction, { partOccurrenceId: instanceId, elementId: element.id }))
     return false;
-  const bodyId = metadata.bodyByElement.get(element.id);
+  const bodyId = metadata.bodyForElement(element.id);
   if (bodyId !== undefined && !isBodyVisible(interaction, { partOccurrenceId: instanceId, bodyId }))
     return false;
   return true;
@@ -257,8 +396,12 @@ function nextCapId(used: Set<PartId>, ordinal: number): PartId {
   let id = MAX_PART_ID - ordinal;
   while (used.has(id)) {
     id -= 1;
-    if (id < 0) throw new Error("Section-cap part identity capacity exhausted");
+    if (id < 0) throw new Error("Section-cap part identityMatrix capacity exhausted");
   }
   used.add(id);
   return id;
+}
+
+function capKey(sourcePartId: PartId, slot: number, elementId: number): string {
+  return `${sourcePartId}/${slot}/${elementId}`;
 }

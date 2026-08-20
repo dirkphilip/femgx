@@ -5,17 +5,22 @@ export {
   type Body,
   type BodyId,
   type ElementModel,
+  type ElementModelBodies,
+  type ElementModelElements,
   type ElementModelOptions,
   ElementModelValidationError,
   type ElementModelValidationCode,
 } from "../elements/model";
-export { elementPart, type TessellationOptions } from "../geometry/element-part";
 export {
-  surfacePart,
-  SurfacePartError,
-  type SurfacePartInput,
-  type SurfacePartValidationCode,
-} from "../geometry/surface-part";
+  createPartFromElementModel,
+  type CreatePartFromElementModelOptions,
+} from "../geometry/element-model-part";
+export {
+  createPartFromExplicitTopology,
+  ExplicitTopologyError,
+  type ExplicitTopologyInput,
+  type ExplicitTopologyValidationCode,
+} from "../geometry/explicit-topology/part";
 export {
   ElementShape,
   topologyFor,
@@ -28,7 +33,7 @@ export {
   boundaryFaceRefs,
   FaceSelectionError,
   facesOf,
-  facesOfElement,
+  faceRefsOf,
   type ClassifiedFace,
   type ElementFace,
   type ElementFaceRef,

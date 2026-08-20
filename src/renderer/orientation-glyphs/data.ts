@@ -9,6 +9,7 @@ export const ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS = 12;
 /** Array identities that determine whether a packed record upload is reusable. */
 export interface OrientationGlyphRecordSource {
   readonly elementIds: Uint32Array;
+  readonly elementOrdinals?: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly anchors: Float32Array;
   readonly referenceLengths: Float32Array;
@@ -42,6 +43,7 @@ export function packOrientationRecords(
     floats[target + 8] = delta?.[source] ?? 0;
     floats[target + 9] = delta?.[source + 1] ?? 0;
     floats[target + 10] = delta?.[source + 2] ?? 0;
+    ids[target + 11] = records.elementOrdinals?.[index] ?? index + 1;
     ids[target + 12] = records.elementIds[index] ?? 0;
     ids[target + 13] = records.bodyIds[index] ?? 0;
     ids[target + 14] = records.axisIndices?.[index] ?? 0;
@@ -61,6 +63,7 @@ export function orientationGlyphRecordSource(
 ): OrientationGlyphRecordSource {
   return {
     elementIds: records.elementIds,
+    ...(records.elementOrdinals === undefined ? {} : { elementOrdinals: records.elementOrdinals }),
     bodyIds: records.bodyIds,
     anchors: records.anchors,
     referenceLengths: records.referenceLengths,
@@ -80,6 +83,7 @@ export function sameOrientationGlyphRecordSource(
 ): boolean {
   return (
     source?.elementIds === records.elementIds &&
+    source.elementOrdinals === records.elementOrdinals &&
     source.bodyIds === records.bodyIds &&
     source.anchors === records.anchors &&
     source.referenceLengths === records.referenceLengths &&

@@ -22,7 +22,7 @@ describe("batched part-occurrence overrides", () => {
     ]);
   });
 
-  it("clears overrides in one transition and preserves identity for net no-ops", () => {
+  it("clears overrides in one transition and preserves identityMatrix for net no-ops", () => {
     const override = { color: { r: 0.2, g: 0.7, b: 0.4, a: 1 } } as const;
     const initial = createInteractionState();
     const populated = setPartOccurrenceOverrides(initial, [

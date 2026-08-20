@@ -1,36 +1,28 @@
 import type { ElementTessellation, FaceTessellation, GeometryBody, GeometryEdge } from "./types";
+import type { ElementId } from "../elements/element";
 import type { BodyId } from "../elements/model";
-
-type ElementId = ElementTessellation["id"];
 
 export interface FaceMetadata {
   readonly face: FaceTessellation;
   readonly faceId: number;
 }
 
-/** Minimal map contract used by packed lookups without a native Map entry heap. */
-export interface SemanticMap<K, V> {
-  readonly size: number;
-  get(key: K): V | undefined;
-  has(key: K): boolean;
-  entries(): IterableIterator<[K, V]>;
-  keys(): IterableIterator<K>;
-  values(): IterableIterator<V>;
-  forEach(callbackfn: (value: V, key: K, map: SemanticMap<K, V>) => void): void;
-  [Symbol.iterator](): IterableIterator<[K, V]>;
-}
-
-/** Internal semantic lookups shared by renderer interaction and reconciliation. */
+/** Internal semantic queries shared by renderer interaction and reconciliation. */
 export interface PartSemanticIndex {
-  readonly elements: SemanticMap<ElementId, ElementTessellation>;
-  /** Stable private ordinal (`1..n`) for each authored element id. */
-  readonly elementOrdinalById: SemanticMap<ElementId, number>;
-  readonly bodies: ReadonlyMap<BodyId, GeometryBody>;
-  readonly bodyByElement: SemanticMap<ElementId, BodyId>;
-  /** Body ids that can affect authored surface visibility for this part. */
-  readonly visibilityBodyIds: ReadonlySet<BodyId>;
-  readonly faces: SemanticMap<string, FaceMetadata>;
-  readonly edges: SemanticMap<string, GeometryEdge>;
+  readonly elementCount: number;
+  element(id: ElementId): ElementTessellation | undefined;
+  hasElement(id: ElementId): boolean;
+  /** Stable private ordinal (`1..n`) for one authored element id. */
+  elementOrdinal(id: ElementId): number | undefined;
+  body(id: BodyId): GeometryBody | undefined;
+  hasBody(id: BodyId): boolean;
+  bodyForElement(id: ElementId): BodyId | undefined;
+  face(elementId: ElementId, faceIndex: number): FaceMetadata | undefined;
+  hasFace(elementId: ElementId, faceIndex: number): boolean;
+  edge(key: string): GeometryEdge | undefined;
+  hasEdge(key: string): boolean;
+  /** Whether a body id can affect authored surface visibility for this part. */
+  hasVisibilityBody(id: BodyId): boolean;
   readonly nodeCount: number;
   /** CSR offsets for authored triangle-face incidence by part-local node id. */
   readonly nodeTriangleFaceOffsets: Uint32Array;

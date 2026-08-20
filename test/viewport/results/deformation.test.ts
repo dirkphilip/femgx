@@ -84,7 +84,7 @@ describe("viewport results workflow", () => {
       device: gpu.device,
       results: { scalar: { field: scalarA }, deformation: { field: displacementA } },
     });
-    const runtime = viewport.runtime;
+    const occurrences = viewport.occurrences;
     const displacementBuffer = gpu.buffers.find(
       (buffer) => buffer.size === displacementA.values.byteLength && (buffer.usage & 16) !== 0,
     );
@@ -124,7 +124,7 @@ describe("viewport results workflow", () => {
     expect(gpu.buffers.filter((buffer) => !buffer.destroyed)).toHaveLength(liveBufferCount);
     expect(displacementBuffer?.destroyed).toBe(false);
     expect(viewport.scene).toBe(scene);
-    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.occurrences).toBe(occurrences);
     viewport.destroy();
   });
 

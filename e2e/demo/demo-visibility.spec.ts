@@ -59,7 +59,7 @@ test("collapses and expands assembly rows in the visibility tree", async ({ page
   await fasteners.click();
   await expect(fasteners).toHaveAttribute("aria-expanded", "true");
 });
-test("exposes assembly occurrence and direct-part identity in the tree", async ({ page }) => {
+test("exposes assembly occurrence and direct-part identityMatrix in the tree", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("model-select").selectOption("bolted");
   await expect(page.getByTestId("visibility-context")).toContainText("Bolted joint");

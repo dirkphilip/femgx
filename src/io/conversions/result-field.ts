@@ -6,7 +6,7 @@ import {
 } from "../../results/fields";
 import { IoError, type Issue } from "../diagnostics";
 import type { FemModel, ModelResultField } from "../fem-model";
-import { validateModel } from "../model-validation";
+import { validateFemModel } from "../model-validation";
 
 /**
  * Options selecting the authored field shape for an interchange result.
@@ -178,7 +178,7 @@ function validateConversion(
   result: ModelResultField,
   shape: "scalar" | "vector",
 ): void {
-  const modelErrors = validateModel(model).filter((issue) => issue.severity === "error");
+  const modelErrors = validateFemModel(model).filter((issue) => issue.severity === "error");
   if (modelErrors.length > 0) throw new IoError("Cannot convert ModelResultField", modelErrors);
   if (!Number.isInteger(result.components) || result.components < 1) {
     throw conversionError(

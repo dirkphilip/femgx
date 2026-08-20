@@ -5,7 +5,7 @@ import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
-import type { SceneRuntime } from "../scene-runtime/public-runtime";
+import type { SceneOccurrences } from "../scene-runtime/occurrences";
 import type { Scene } from "../scene/scene";
 import type { SceneUpdate } from "../scene/update";
 import type { InteractionGranularity, PickHit } from "../picking/types";
@@ -64,7 +64,7 @@ export type {
  * with {@link root.Viewport.recover}.
  * @example Create and destroy a viewport.
  * ```ts
- * import { createViewport, createPart, createScene, identity } from "femgx";
+ * import { createViewport, createPart, createSceneBuilder, identityMatrix } from "femgx";
  *
  * const canvas = document.querySelector<HTMLCanvasElement>("#viewport");
  * if (canvas === null) throw new Error("Missing #viewport canvas");
@@ -75,14 +75,14 @@ export type {
  *     indices: new Uint32Array([0]),
  *   }],
  * });
- * const scene = createScene()
+ * const scene = createSceneBuilder()
  *   .addPart(part)
  *   .addAssembly({
  *     id: 2,
  *     name: "root",
- *     placements: [{ kind: "part", partId: 1, transform: identity() }],
+ *     placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
  *   })
- *   .withRoot(2)
+ *   .setRootAssembly(2)
  *   .build();
  * const viewport = await createViewport({ canvas, scene });
  * // The host removes its own event listeners before destroying the viewport.
@@ -275,7 +275,7 @@ class ViewportCore implements Viewport {
   get scene(): Scene {
     return this.sceneController.scene;
   }
-  get runtime(): SceneRuntime {
+  get occurrences(): SceneOccurrences {
     return this.sceneController.publicRuntime;
   }
   replaceScene(scene: Scene): void {

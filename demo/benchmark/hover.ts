@@ -1,11 +1,12 @@
 import type { Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { interactionTargetFromHit, setTargetHovered } from "../../src/interaction/targets";
 import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";
-import type { BenchmarkPercentiles, HoverBenchmarkReport } from "./types";
+import type { HoverBenchmarkReport } from "./types";
 import {
   assertNoElementEmphasisDraw,
   assertOpaqueSurfaceDraw,
@@ -107,10 +108,4 @@ async function renderFrame(options: HoverMeasureOptions): Promise<number> {
   options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
   await options.device.queue.onSubmittedWorkDone();
   return performance.now() - start;
-}
-
-function percentiles(values: readonly number[]): BenchmarkPercentiles {
-  const sorted = [...values].sort((left, right) => left - right);
-  const at = (fraction: number): number => sorted[Math.ceil(sorted.length * fraction) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }

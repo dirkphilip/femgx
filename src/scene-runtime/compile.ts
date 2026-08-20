@@ -3,6 +3,7 @@ import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scen
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 import { invariantValue } from "./invariants";
 import type { KeyedGroupIndex } from "./group-index";
+import { SlotGroups } from "./slot-groups";
 
 /**
  * Packed CPU-side state backing a scene runtime. Every part placement is a
@@ -14,28 +15,31 @@ export interface RuntimeState {
   readonly rootAssemblyId: AssemblyId;
   readonly nodeCount: number;
   readonly nodeNodeIds: readonly AssemblyOccurrenceId[];
-  readonly instanceCount: number;
+  /** Allocated slot extent. Removed slots remain private holes until reused. */
+  instanceCount: number;
+  activeInstanceCount: number;
+  instanceCapacity: number;
   readonly nodeAssemblyIds: Uint32Array;
   readonly nodeWorldTransforms: Float32Array;
   readonly nodeParents: Int32Array;
   readonly nodeFirstChild: Int32Array;
   readonly nodeNextSibling: Int32Array;
-  readonly nodeInstanceStart: Uint32Array;
-  readonly nodeInstanceEnd: Uint32Array;
   readonly nodeAssemblyVisible: Uint8Array;
   readonly nodeOverrideVisible: Uint8Array;
   readonly nodeEffectiveVisible: Uint8Array;
-  readonly instancePartIds: Uint32Array;
-  readonly instanceOwningNode: Uint32Array;
-  readonly instancePartVisible: Uint8Array;
-  readonly instanceOverrideVisible: Uint8Array;
-  readonly instanceVisible: Uint8Array;
-  readonly instanceWorldTransforms: Float32Array;
+  instancePartIds: Uint32Array;
+  instanceOwningNode: Uint32Array;
+  instancePartVisible: Uint8Array;
+  instanceOverrideVisible: Uint8Array;
+  instanceVisible: Uint8Array;
+  instanceActive: Uint8Array;
+  instanceWorldTransforms: Float32Array;
   /** Authoring placement handle per instance, mirroring flatten paths. */
-  readonly instanceInstanceIds: readonly PartOccurrenceId[];
-  readonly sortedPartIds: Uint32Array;
-  readonly partInstanceOffset: Uint32Array;
-  readonly partInstanceList: Uint32Array;
+  instanceInstanceIds: PartOccurrenceId[];
+  readonly instanceFreeSlots: number[];
+  readonly partInstanceGroups: SlotGroups;
+  readonly nodeInstanceGroups: SlotGroups;
+  sortedPartIds: Uint32Array;
   readonly sortedAssemblyIds: Uint32Array;
   readonly assemblyNodeOffset: Uint32Array;
   readonly assemblyNodeList: Uint32Array;
@@ -51,8 +55,6 @@ type PackedNodes = Pick<
   | "nodeParents"
   | "nodeFirstChild"
   | "nodeNextSibling"
-  | "nodeInstanceStart"
-  | "nodeInstanceEnd"
   | "nodeAssemblyVisible"
   | "nodeOverrideVisible"
   | "nodeEffectiveVisible"
@@ -60,13 +62,19 @@ type PackedNodes = Pick<
 type PackedInstances = Pick<
   RuntimeState,
   | "instanceCount"
+  | "activeInstanceCount"
+  | "instanceCapacity"
   | "instancePartIds"
   | "instanceOwningNode"
   | "instancePartVisible"
   | "instanceOverrideVisible"
   | "instanceVisible"
+  | "instanceActive"
   | "instanceWorldTransforms"
   | "instanceInstanceIds"
+  | "instanceFreeSlots"
+  | "partInstanceGroups"
+  | "nodeInstanceGroups"
 > & { readonly visibleCount: number };
 
 function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
@@ -77,8 +85,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   const nodeParents = new Int32Array(count);
   const nodeFirstChild = new Int32Array(count);
   const nodeNextSibling = new Int32Array(count);
-  const nodeInstanceStart = new Uint32Array(count);
-  const nodeInstanceEnd = new Uint32Array(count);
   const nodeAssemblyVisible = new Uint8Array(count);
   const nodeEffectiveVisible = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
@@ -89,8 +95,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeParents[i] = node.parent;
     nodeFirstChild[i] = node.firstChild;
     nodeNextSibling[i] = node.nextSibling;
-    nodeInstanceStart[i] = node.instanceStart;
-    nodeInstanceEnd[i] = node.instanceEnd;
     nodeAssemblyVisible[i] = node.visible;
     nodeEffectiveVisible[i] = node.effective;
   }
@@ -102,8 +106,6 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeParents,
     nodeFirstChild,
     nodeNextSibling,
-    nodeInstanceStart,
-    nodeInstanceEnd,
     nodeAssemblyVisible,
     nodeOverrideVisible: new Uint8Array(count).fill(1),
     nodeEffectiveVisible,
@@ -133,14 +135,20 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   }
   return {
     instanceCount: count,
+    activeInstanceCount: count,
+    instanceCapacity: count,
     visibleCount,
     instancePartIds,
     instanceOwningNode,
     instancePartVisible,
     instanceOverrideVisible: new Uint8Array(count).fill(1),
     instanceVisible,
+    instanceActive: new Uint8Array(count).fill(1),
     instanceWorldTransforms,
     instanceInstanceIds,
+    instanceFreeSlots: [],
+    partInstanceGroups: new SlotGroups(instancePartIds),
+    nodeInstanceGroups: new SlotGroups(instanceOwningNode),
   };
 }
 
@@ -188,8 +196,6 @@ export function compileSceneState(scene: Scene): RuntimeState {
     ...nodeData,
     ...instanceData,
     sortedPartIds: partGroups.sortedKeys,
-    partInstanceOffset: partGroups.offsets,
-    partInstanceList: partGroups.list,
     sortedAssemblyIds: assemblyGroups.sortedKeys,
     assemblyNodeOffset: assemblyGroups.offsets,
     assemblyNodeList: assemblyGroups.list,

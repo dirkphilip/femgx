@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { percentile } from "./measure";
 import { writeFileSync } from "node:fs";
 import { cpus } from "node:os";
 
@@ -98,11 +99,6 @@ function measureOperation(operation: OperationSpec): OperationResult {
     },
     timingsMs: { p50: percentile(samples, 0.5), p95: percentile(samples, 0.95) },
   };
-}
-
-function percentile(samples: readonly number[], fraction: number): number {
-  const sorted = [...samples].sort((left, right) => left - right);
-  return sorted[Math.max(0, Math.ceil(sorted.length * fraction) - 1)] ?? 0;
 }
 
 function gitSha(): string {

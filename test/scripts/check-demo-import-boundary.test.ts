@@ -38,7 +38,7 @@ function runCheck(root: string): { readonly status: number; readonly stderr: str
 describe("check-demo-import-boundary", () => {
   it("accepts explicit package entry imports", () => {
     const root = makeDemo({
-      "ordinary.ts": 'import { createScene } from "../src/entries/root";\n',
+      "ordinary.ts": 'import { createSceneBuilder } from "../src/entries/root";\n',
       "glb.ts": 'import { importGlb } from "../src/entries/io/glb";\n',
       "results.ts": 'import { createResultField } from "../src/entries/results";\n',
     });
@@ -63,7 +63,9 @@ describe("check-demo-import-boundary", () => {
   });
 
   it("rejects deep imports from ordinary demo code", () => {
-    const root = makeDemo({ "ordinary.ts": 'import { createScene } from "../src/scene/scene";\n' });
+    const root = makeDemo({
+      "ordinary.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n',
+    });
     const result = runCheck(root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("unauthorized deep demo import ../src/scene/scene");
@@ -72,7 +74,7 @@ describe("check-demo-import-boundary", () => {
   it("rejects deep imports from ordinary Svelte components", () => {
     const root = makeDemo({
       "workbench/WorkbenchShell.svelte":
-        '<script lang="ts">\nimport { createScene } from "../../src/scene/scene";\n</script>\n',
+        '<script lang="ts">\nimport { createSceneBuilder } from "../../src/scene/scene";\n</script>\n',
     });
     const result = runCheck(root);
     expect(result.status).toBe(1);
@@ -88,7 +90,8 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/many-piece-replacement.ts",
       "demo/benchmark/many-piece.ts",
       "demo/benchmark/node-selection.ts",
-      "demo/benchmark/selection.ts",
+      "demo/benchmark/workflows/selection.ts",
+      "demo/benchmark/workflows/selection-hide-workflow.ts",
       "demo/benchmark/structured-fe.ts",
       "demo/benchmark/tet4-transfer.ts",
       "demo/benchmark/packed-tet4.ts",
@@ -117,7 +120,10 @@ describe("check-demo-import-boundary", () => {
       "benchmark/many-piece.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/node-selection.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
-      "benchmark/selection.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/selection.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/selection-hide-workflow.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',
       "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
@@ -128,7 +134,7 @@ describe("check-demo-import-boundary", () => {
     expect(result.status).toBe(0);
 
     const runnerRoot = makeDemo({
-      "benchmark/runner.ts": 'import { createScene } from "../src/scene/scene";\n',
+      "benchmark/runner.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n',
     });
     expect(runCheck(runnerRoot).status).toBe(1);
   });
