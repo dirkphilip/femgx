@@ -13,7 +13,10 @@ import { syncResultColors } from "../resources/result-colors";
 import { syncDeformations } from "./deformation";
 import { encodeVisibleFrame, type FrameOptions } from "./frame";
 
-/** Private renderer state consumed by the extracted frame synchronization path. */
+/**
+ * Private renderer state consumed by the extracted frame path. This structural
+ * type keeps the frame module below the renderer facade, avoiding a cycle.
+ */
 export interface RendererFrameHost {
   readonly attachment: RendererAttachment;
   readonly sectionCaps: SectionCapController;

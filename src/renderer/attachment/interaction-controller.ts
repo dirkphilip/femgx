@@ -6,6 +6,10 @@ import type { RendererAttachment } from "../attachment";
 import type { GpuBundle } from "../recovery";
 import type { SectionCapController } from "../section-cap-controller";
 
+/**
+ * Narrow renderer-owned collaboration boundary. Keeping it structural avoids
+ * importing the facade back into attachment code and creating a dependency cycle.
+ */
 interface RendererInteractionHost {
   readonly attachment: RendererAttachment;
   readonly sectionCaps: SectionCapController;

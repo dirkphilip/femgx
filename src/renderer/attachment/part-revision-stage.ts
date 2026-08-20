@@ -21,7 +21,10 @@ import type { HiddenInteractionTuple } from "./interaction";
 import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
 
-/** Mutable attachment state shared with a transaction-local part-revision stage. */
+/**
+ * Mutable attachment state shared with a transaction-local revision stage.
+ * This structural boundary prevents attachment definitions from importing their owner.
+ */
 export interface PartRevisionAttachmentHost extends AttachmentCallLists {
   interactionState: InteractionState;
   interactionBeforeLastInstanceUpdate: InteractionState | undefined;
