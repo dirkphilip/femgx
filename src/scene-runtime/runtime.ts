@@ -14,6 +14,12 @@ import {
   setPartVisible,
   type VisibilityDelta,
 } from "./visibility";
+import {
+  insertSortedPartId,
+  mergeSortedPartIds,
+  removeSortedPartId,
+  removeSortedPartIds,
+} from "./sorted-part-ids";
 
 /**
  * A packed CPU-side view of a scene for rendering: placement transforms,
@@ -53,10 +59,10 @@ interface RuntimeMethods {
   /** Sets visibility for one expanded assembly occurrence. */
   setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta;
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta;
-  /** Adds one already-validated expanded placement to reusable private storage. */
-  addInstance(input: RuntimeInstanceInput): number;
-  /** Removes one active expanded placement while retaining its reusable slot. */
-  removeInstance(instanceId: number): void;
+  /** Adds one transaction's validated placements while publishing sorted membership once. */
+  addInstances(inputs: readonly RuntimeInstanceInput[]): readonly number[];
+  /** Removes one transaction's active placements while publishing sorted membership once. */
+  removeInstances(instanceIds: readonly number[]): void;
   /** Replaces one active expanded placement in its existing stable slot. */
   updateInstance(instanceId: number, input: RuntimeInstanceInput): void;
 }
@@ -117,20 +123,19 @@ function createRuntimeMethods(state: RuntimeState, maps: RuntimeMaps): RuntimeMe
   };
 }
 
-function createRuntimeQueries(
-  state: RuntimeState,
-  maps: RuntimeMaps,
-): Omit<
+type RuntimeQueries = Omit<
   RuntimeMethods,
   | "setInstanceVisible"
   | "setInstancesVisible"
   | "setPartVisible"
   | "setAssemblyNodeVisible"
   | "setAssemblyVisible"
-  | "addInstance"
-  | "removeInstance"
+  | "addInstances"
+  | "removeInstances"
   | "updateInstance"
-> {
+>;
+
+function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQueries {
   return {
     getPartId(instanceId: number): PartId | undefined {
       return isActive(state, instanceId) ? state.instancePartIds[instanceId] : undefined;
@@ -198,8 +203,8 @@ function createRuntimeMutations(
   | "setPartVisible"
   | "setAssemblyNodeVisible"
   | "setAssemblyVisible"
-  | "addInstance"
-  | "removeInstance"
+  | "addInstances"
+  | "removeInstances"
   | "updateInstance"
 > {
   return {
@@ -218,11 +223,11 @@ function createRuntimeMutations(
     setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
       return setAssemblyVisible(state, assemblyId, visible);
     },
-    addInstance(input: RuntimeInstanceInput): number {
-      return addRuntimeInstance(state, maps, input);
+    addInstances(inputs: readonly RuntimeInstanceInput[]): readonly number[] {
+      return addRuntimeInstances(state, maps, inputs);
     },
-    removeInstance(instanceId: number): void {
-      removeRuntimeInstance(state, maps, instanceId);
+    removeInstances(instanceIds: readonly number[]): void {
+      removeRuntimeInstances(state, maps, instanceIds);
     },
     updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
       updateRuntimeInstance(state, instanceId, input);
@@ -242,13 +247,29 @@ function addRuntimeInstance(
   reserveInstances(state, state.instanceCount);
   writeInstance(state, slot, input);
   maps.instanceSlots.set(input.instanceId, slot);
-  const newPart = state.partInstanceGroups.slots(input.partId).length === 0;
   state.partInstanceGroups.add(input.partId, slot);
-  if (newPart) state.sortedPartIds = insertSortedId(state.sortedPartIds, input.partId);
   state.nodeInstanceGroups.add(input.owningNode, slot);
   state.activeInstanceCount += 1;
   if (state.instanceVisible[slot] === 1) state.visibleCount += 1;
   return slot;
+}
+
+function addRuntimeInstances(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+  inputs: readonly RuntimeInstanceInput[],
+): readonly number[] {
+  const slots = new Array<number>(inputs.length);
+  const addedPartIds = new Set<PartId>();
+  for (let index = 0; index < inputs.length; index += 1) {
+    const input = invariantValue(inputs[index], `added instance at ${index}`);
+    if (state.partInstanceGroups.slots(input.partId).length === 0) addedPartIds.add(input.partId);
+    slots[index] = addRuntimeInstance(state, maps, input);
+  }
+  if (addedPartIds.size > 0) {
+    state.sortedPartIds = mergeSortedPartIds(state.sortedPartIds, addedPartIds);
+  }
+  return slots;
 }
 
 function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceId: number): void {
@@ -258,9 +279,6 @@ function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceI
   const node = invariantValue(state.instanceOwningNode[instanceId], `node at ${instanceId}`);
   if (state.instanceVisible[instanceId] === 1) state.visibleCount -= 1;
   state.partInstanceGroups.remove(partId, instanceId);
-  if (state.partInstanceGroups.slots(partId).length === 0) {
-    state.sortedPartIds = removeSortedId(state.sortedPartIds, partId);
-  }
   state.nodeInstanceGroups.remove(node, instanceId);
   maps.instanceSlots.delete(id);
   state.instanceActive[instanceId] = 0;
@@ -268,6 +286,27 @@ function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceI
   state.instanceInstanceIds[instanceId] = "";
   state.instanceFreeSlots.push(instanceId);
   state.activeInstanceCount -= 1;
+}
+
+function removeRuntimeInstances(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+  instanceIds: readonly number[],
+): void {
+  const removedPartIds = new Set<PartId>();
+  for (const instanceId of instanceIds) {
+    if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
+    const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
+    removedPartIds.add(partId);
+    removeRuntimeInstance(state, maps, instanceId);
+  }
+  const emptiedPartIds = new Set<PartId>();
+  for (const partId of removedPartIds) {
+    if (state.partInstanceGroups.slots(partId).length === 0) emptiedPartIds.add(partId);
+  }
+  if (emptiedPartIds.size > 0) {
+    state.sortedPartIds = removeSortedPartIds(state.sortedPartIds, emptiedPartIds);
+  }
 }
 
 function updateRuntimeInstance(
@@ -285,11 +324,11 @@ function updateRuntimeInstance(
   if (previousPart !== input.partId) {
     state.partInstanceGroups.remove(previousPart, instanceId);
     if (state.partInstanceGroups.slots(previousPart).length === 0) {
-      state.sortedPartIds = removeSortedId(state.sortedPartIds, previousPart);
+      state.sortedPartIds = removeSortedPartId(state.sortedPartIds, previousPart);
     }
     const newPart = state.partInstanceGroups.slots(input.partId).length === 0;
     state.partInstanceGroups.add(input.partId, instanceId);
-    if (newPart) state.sortedPartIds = insertSortedId(state.sortedPartIds, input.partId);
+    if (newPart) state.sortedPartIds = insertSortedPartId(state.sortedPartIds, input.partId);
   }
   if (previousNode !== input.owningNode) {
     state.nodeInstanceGroups.remove(previousNode, instanceId);
@@ -350,24 +389,5 @@ function growUint32(values: Uint32Array, length: number): Uint32Array {
 function growFloat32(values: Float32Array, length: number): Float32Array {
   const next = new Float32Array(length);
   next.set(values);
-  return next;
-}
-
-function insertSortedId(values: Uint32Array, id: number): Uint32Array {
-  const next = new Uint32Array(values.length + 1);
-  let index = 0;
-  while (index < values.length && (values[index] ?? 0) < id) index += 1;
-  next.set(values.subarray(0, index));
-  next[index] = id;
-  next.set(values.subarray(index), index + 1);
-  return next;
-}
-
-function removeSortedId(values: Uint32Array, id: number): Uint32Array {
-  const index = values.indexOf(id);
-  if (index < 0) return values;
-  const next = new Uint32Array(values.length - 1);
-  next.set(values.subarray(0, index));
-  next.set(values.subarray(index + 1), index);
   return next;
 }

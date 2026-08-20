@@ -15,7 +15,7 @@ import {
 } from "../resources/draw-resources";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { syncVisibleSelectionOrders, writeNodeOrders } from "../selection-state";
-import { rebuildAttachmentCalls } from "./calls";
+import { rebuildAttachmentCalls, reviseAttachmentCalls, type AttachmentCallLists } from "./calls";
 import { rebuildVisibilitySurface } from "../visibility/skins";
 import {
   createInstanceRecordTarget,
@@ -218,6 +218,7 @@ export function rebuildAttachmentOrders(options: {
   readonly selection: SelectionState;
   readonly bundle: GpuBundle;
   readonly optionalParts?: AttachmentOrderParts;
+  readonly previousCalls: AttachmentCallLists;
 }): DrawCallLists {
   const activeParts = new Set(
     [...options.parts].filter((partId) => options.layout.partSlots.has(partId)),
@@ -253,7 +254,12 @@ export function rebuildAttachmentOrders(options: {
     partDefinitions: options.partDefinitions,
   });
   options.layout.visibleCount = options.runtime.visibleCount;
-  return rebuildAttachmentCalls(options.layout, options.bundle.draw.cost);
+  return reviseAttachmentCalls(
+    options.layout,
+    options.previousCalls,
+    options.parts,
+    options.bundle.draw.cost,
+  );
 }
 
 function activeOptionalParts(

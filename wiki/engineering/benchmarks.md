@@ -340,6 +340,30 @@ opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs this same report
 on GitHub-hosted infrastructure. The report does not claim real-WebGPU
 measurements and is separate from the required default-CI budget gate.
 
+### Distinct-part scene churn
+
+`npm run bench:distinct-part-churn` measures public `Viewport.updateScene`
+transactions against an already attached scene containing 100,000 distinct
+two-element parts with one explicit root occurrence each. Initial scene
+construction, attachment, and the first render are setup. A benchmark-local
+deferred animation-frame scheduler prevents `updateScene` from implicitly
+rendering in Node. Each row reports the structural update, an immediately
+following explicit first render, and their total separately. Part definitions,
+placements, and transforms are prebuilt outside the timed operations. Single
+churn reports p50/p95 after two warmups and seven samples; half-scene churn uses
+one warmup and three samples.
+
+The original combined benchmark measured 228.8 ms to add one, 242.3 ms to
+remove one, 48,642.2 ms to remove half, and 12,978.2 ms to add half. CPU profiles
+showed that the single rows included a synchronous full render while the bulk
+rows also repeated whole-collection placement, runtime-membership, and renderer
+ordering work per part. After phase isolation and profiler-guided batching, a
+clean run measured update/render/total p50 at 13.0/201.6/214.6 ms to add one,
+13.7/191.1/206.6 ms to remove one, 316.7/243.1/758.5 ms to remove half, and
+1,243.9/568.3/1,812.2 ms to add half. Renderer synchronization and the explicit
+frame use the fake GPU; the report makes no real GPU or queue-completion claim
+and remains outside the default CI gate.
+
 `npm run bench` remains a local opt-in Vitest benchmark for the distinct body
 visibility batching comparison in `test/bench/body-batch.bench.ts`. It reports
 the relative cost of individual versus `Viewport.batch` updates and is not

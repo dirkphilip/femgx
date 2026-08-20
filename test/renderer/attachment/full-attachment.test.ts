@@ -84,15 +84,21 @@ describe("cold renderer attachment", () => {
       const writesBefore = gpu.writes.length;
 
       const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
-      attachment.updateOccurrences(runtime, createInteractionState(), delta, bundle);
       const partDefinitions = new Map(scene.parts);
-      attachment.removeParts(delta.removedPartIds, partDefinitions, bundle);
+      attachment.updateOccurrences(
+        runtime,
+        createInteractionState(),
+        delta,
+        partDefinitions,
+        bundle,
+      );
 
       expect(bundle.draw.parts.has(1)).toBe(false);
       expect(partDefinitions.has(1)).toBe(false);
       expect(bundle.draw.parts.get(2)).toBe(retainedGeometry);
       expect(bundle.draw.storages.has(1)).toBe(false);
       expect(bundle.draw.storages.get(2)).toBe(retainedStorage);
+      expect(attachment.calls.map(({ partId }) => partId)).toEqual([2]);
       expect(bufferDestroyed(gpu, removedGeometry.vertexBuffer)).toBe(true);
       expect(bufferDestroyed(gpu, retainedGeometry.vertexBuffer)).toBe(false);
       expect(bufferDestroyed(gpu, removedStorage.buffer)).toBe(true);
@@ -151,13 +157,20 @@ describe("cold renderer attachment", () => {
 
       const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
       attachment.addParts(prepared.scene.parts, delta.addedPartIds);
-      attachment.updateOccurrences(runtime, createInteractionState(), delta, bundle);
+      attachment.updateOccurrences(
+        runtime,
+        createInteractionState(),
+        delta,
+        new Map(prepared.scene.parts),
+        bundle,
+      );
       const addedGeometry = uploadPart(bundle.draw, addedPart);
 
       expect(uploadPart(bundle.draw, addedPart)).toBe(addedGeometry);
       expect(bundle.draw.parts.get(1)).toBe(retainedGeometry);
       expect(bundle.draw.storages.get(1)).toBe(retainedStorage);
       expect(bundle.draw.storages.get(2)).toBeDefined();
+      expect(attachment.calls.map(({ partId }) => partId)).toEqual([1, 2]);
       expect(
         gpu.writes.slice(writesBefore).some(({ buffer }) => buffer === retainedStorage.buffer),
       ).toBe(false);

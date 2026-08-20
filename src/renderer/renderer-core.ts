@@ -232,10 +232,15 @@ export class GpuRenderer implements WebGpuRenderer {
     this.interaction = interaction;
     this.attachment.addParts(parts, delta.addedPartIds, this.parts);
     if (delta.slots.length > 0 || delta.removedPartIds.size > 0) {
-      this.attachment.updateOccurrences(runtime, interaction, delta, this.lifecycle.bundle);
+      this.attachment.updateOccurrences(
+        runtime,
+        interaction,
+        delta,
+        this.parts,
+        this.lifecycle.bundle,
+      );
     }
     if (this.sourceParts !== undefined) this.sourceParts = parts;
-    this.attachment.removeParts(delta.removedPartIds, this.parts, this.lifecycle.bundle);
     this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
     if (delta.slots.length > 0 || delta.removedPartIds.size > 0) this.picking.invalidate();
   }
