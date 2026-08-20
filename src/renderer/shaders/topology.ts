@@ -15,8 +15,12 @@ fn bodyOwnerVisible(slot: u32, bodyPickId: u32) -> bool {
   return true;
 }
 
-fn elementOwnerVisible(slot: u32, elementPickId: u32) -> bool {
-  if (elementPickId == 0u || elementHighlights.bucketCount == 0u || !instanceHasPrimitiveEmphasis(instances[slot].selected)) { return true; }
+fn elementOwnerVisible(slot: u32, elementPickId: u32, elementOrdinal: u32) -> bool {
+  if (elementPickId == 0u || !instanceHasPrimitiveEmphasis(instances[slot].selected)) {
+    return true;
+  }
+  if (denseElementHidden(slot, elementOrdinal)) { return false; }
+  if (elementHighlights.bucketCount == 0u) { return true; }
   let bucket = highlightHash(slot, elementPickId, 0u, 0u, elementHighlights.seed) & (elementHighlights.bucketCount - 1u);
   let base = bucket * 4u;
   for (var offset = 0u; offset < 4u; offset++) {
@@ -28,8 +32,9 @@ fn elementOwnerVisible(slot: u32, elementPickId: u32) -> bool {
   return true;
 }
 
-fn ownerVisible(slot: u32, bodyPickId: u32, elementPickId: u32) -> bool {
-  return bodyOwnerVisible(slot, bodyPickId) && elementOwnerVisible(slot, elementPickId);
+fn ownerVisible(slot: u32, bodyPickId: u32, elementPickId: u32, elementOrdinal: u32) -> bool {
+  return bodyOwnerVisible(slot, bodyPickId) &&
+    elementOwnerVisible(slot, elementPickId, elementOrdinal);
 }
 `;
 
@@ -64,7 +69,7 @@ fn primitiveElementId(index: u32) -> u32 {
 }
 
 fn primitiveElementOrdinal(index: u32) -> u32 {
-  return topologyData[topologyConditionBase() + topologyConditionCount() * 4u + index];
+  return topologyData[topologyConditionBase() + topologyConditionCount() * 6u + index];
 }
 
 fn topologyBodyRange(index: u32) -> vec2<u32> {
@@ -93,31 +98,49 @@ fn topologyElementNeighborId(index: u32) -> u32 {
   return topologyData[topologyConditionBase() + topologyConditionCount() * 2u + index * 2u + 1u];
 }
 
+fn topologyElementOrdinal(index: u32) -> u32 {
+  return topologyData[topologyConditionBase() + topologyConditionCount() * 4u + index * 2u];
+}
+
+fn topologyElementNeighborOrdinal(index: u32) -> u32 {
+  return topologyData[topologyConditionBase() + topologyConditionCount() * 4u + index * 2u + 1u];
+}
+
 fn topologyPrimitiveId(index: u32) -> u32 {
-  let base = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
+  let base = topologyConditionBase() + topologyConditionCount() * 6u + topologyData[3];
   return topologyData[base + 1u + index];
 }
 
 fn topologyEdgeId(index: u32) -> u32 {
-  let base = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
+  let base = topologyConditionBase() + topologyConditionCount() * 6u + topologyData[3];
   return topologyData[base + 1u + topologyData[base] + index];
 }
 
 fn primitiveVisible(slot: u32, primitiveIndex: u32) -> bool {
   let bodyIds = primitiveFaceBodyPickIds(primitiveIndex);
   let elementIds = primitiveFaceElementPickIds(primitiveIndex);
-  return ownerVisible(slot, bodyIds.y, elementIds.x) &&
-    ((bodyIds.z == 0u && elementIds.y == 0u) ||
-      !ownerVisible(slot, bodyIds.z, elementIds.y));
+  let ownerIsVisible = ownerVisible(
+    slot,
+    bodyIds.y,
+    elementIds.x,
+    primitiveElementOrdinal(primitiveIndex),
+  );
+  if (!ownerIsVisible) { return false; }
+  if (denseVisibilityActive(slot)) { return true; }
+  return (bodyIds.z == 0u && elementIds.y == 0u) ||
+    !ownerVisible(slot, bodyIds.z, elementIds.y, 0u);
 }
 
 fn primitiveSelectionVisible(slot: u32, primitiveIndex: u32, exactSelection: bool) -> bool {
   let bodyIds = primitiveFaceBodyPickIds(primitiveIndex);
   let elementIds = primitiveFaceElementPickIds(primitiveIndex);
-  if (!ownerVisible(slot, bodyIds.y, elementIds.x)) { return false; }
+  if (!ownerVisible(slot, bodyIds.y, elementIds.x, primitiveElementOrdinal(primitiveIndex))) {
+    return false;
+  }
+  if (denseVisibilityActive(slot)) { return true; }
   return exactSelection ||
     ((bodyIds.z == 0u && elementIds.y == 0u) ||
-      !ownerVisible(slot, bodyIds.z, elementIds.y));
+      !ownerVisible(slot, bodyIds.z, elementIds.y, 0u));
 }
 
 fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
@@ -129,8 +152,13 @@ fn topologyOwnersVisible(slot: u32, topologyIndex: u32) -> bool {
     let neighbor = topologyBodyNeighborId(index);
     let element = topologyElementId(index);
     let neighborElement = topologyElementNeighborId(index);
-    let ownerIsVisible = ownerVisible(slot, owner, element);
-    var neighborIsVisible = ownerVisible(slot, neighbor, neighborElement);
+    let ownerIsVisible = ownerVisible(slot, owner, element, topologyElementOrdinal(index));
+    var neighborIsVisible = ownerVisible(
+      slot,
+      neighbor,
+      neighborElement,
+      topologyElementNeighborOrdinal(index),
+    );
     if (neighbor == 0u && neighborElement == 0u) {
       neighborIsVisible = false;
     }
@@ -148,11 +176,21 @@ fn topologyAnyOwnerVisible(slot: u32, topologyIndex: u32) -> bool {
   if (range.y == 0u) { return true; }
   for (var condition = 0u; condition < range.y; condition++) {
     let index = range.x + condition;
-    if (ownerVisible(slot, topologyBodyId(index), topologyElementId(index))) {
+    if (ownerVisible(
+      slot,
+      topologyBodyId(index),
+      topologyElementId(index),
+      topologyElementOrdinal(index),
+    )) {
       return true;
     }
     let neighbor = topologyElementNeighborId(index);
-    if (neighbor != 0u && ownerVisible(slot, topologyBodyNeighborId(index), neighbor)) {
+    if (neighbor != 0u && ownerVisible(
+      slot,
+      topologyBodyNeighborId(index),
+      neighbor,
+      topologyElementNeighborOrdinal(index),
+    )) {
       return true;
     }
   }

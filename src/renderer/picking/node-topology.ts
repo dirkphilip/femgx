@@ -6,6 +6,8 @@ interface NodeTopologyData {
   readonly bodyRanges: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly elementIds: Uint32Array;
+  readonly elementOrdinals: Uint32Array;
+  readonly primitiveElementOrdinals: Uint32Array;
 }
 
 /** Builds the node topology directly in its immutable GPU binding layout. */
@@ -21,7 +23,7 @@ export function buildPackedNodeTopologyData(
   const rangeLength = rangeCount * 2;
   const ownerLength = ownerCount * 2;
   const metadataLength = build.sprites.length;
-  const data = new Uint32Array(4 + faceLength + rangeLength + ownerLength * 2 + metadataLength + 1);
+  const data = new Uint32Array(4 + faceLength + rangeLength + ownerLength * 3 + metadataLength + 1);
   data[0] = faceCount;
   data[1] = rangeCount;
   data[2] = ownerCount;
@@ -29,11 +31,15 @@ export function buildPackedNodeTopologyData(
   const bodyRangeOffset = 4 + faceLength;
   const bodyIdOffset = bodyRangeOffset + rangeLength;
   const elementIdOffset = bodyIdOffset + ownerLength;
+  const elementOrdinalOffset = elementIdOffset + ownerLength;
+  const metadataOffset = elementOrdinalOffset + ownerLength;
   const output = {
     faceBodyPickIds: data.subarray(4, bodyRangeOffset),
     bodyRanges: data.subarray(bodyRangeOffset, bodyIdOffset),
     bodyIds: data.subarray(bodyIdOffset, elementIdOffset),
     elementIds: data.subarray(elementIdOffset, elementIdOffset + ownerLength),
+    elementOrdinals: data.subarray(elementOrdinalOffset, metadataOffset),
+    primitiveElementOrdinals: data.subarray(metadataOffset, metadataOffset + metadataLength),
   };
   writeNodeBodyRanges(output.bodyRanges, build);
   fillNodeTopology(build, output);
@@ -156,7 +162,7 @@ function accumulateElementNodeOwners(
           counts[nodeId] = (counts[nodeId] ?? 0) + 1;
           continue;
         }
-        writeNodeOwner(input, cursors, output, nodeId, element);
+        writeNodeOwner(input, nodeId, element, token);
       }
     }
   }
@@ -164,11 +170,12 @@ function accumulateElementNodeOwners(
 
 function writeNodeOwner(
   input: NodeOwnerPass,
-  cursors: Uint32Array,
-  output: NodeTopologyData,
   nodeId: number,
   element: ElementTessellation,
+  elementOrdinal: number,
 ): void {
+  const { cursors, output } = input;
+  if (cursors === undefined || output === undefined) return;
   const bodyPickId = element.bodyId === undefined ? 0 : element.bodyId + 1;
   for (
     let sprite = input.spriteByNode[nodeId] ?? -1;
@@ -179,6 +186,7 @@ function writeNodeOwner(
     cursors[sprite] = owner + 1;
     output.bodyIds[owner * 2] = bodyPickId;
     output.elementIds[owner * 2] = element.id + 1;
+    output.elementOrdinals[owner * 2] = elementOrdinal;
   }
 }
 
@@ -211,7 +219,10 @@ function writeNodeFaceOwners(output: NodeTopologyData): void {
     }
     const base = sprite * 5;
     if (oneBody) output.faceBodyPickIds[base + 1] = bodyPickId;
-    if (count === 1) output.faceBodyPickIds[base + 3] = output.elementIds[start * 2] ?? 0;
+    if (count === 1) {
+      output.faceBodyPickIds[base + 3] = output.elementIds[start * 2] ?? 0;
+      output.primitiveElementOrdinals[sprite] = output.elementOrdinals[start * 2] ?? 0;
+    }
   }
 }
 

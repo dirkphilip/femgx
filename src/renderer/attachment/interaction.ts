@@ -15,7 +15,10 @@ import {
 } from "../interaction-sync";
 import { syncEdgeEmphasisFlags } from "../edges/emphasis-sync";
 import { syncSelectionState, type SelectionState } from "../selection-state";
-import { collectDenseElementSelections } from "../selection/element-selection";
+import {
+  collectDenseElementSelections,
+  collectDenseHiddenElements,
+} from "../selection/element-selection";
 import { collectDenseNodeSelections } from "../selection/node-selection";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { rebuildAttachmentCalls } from "./calls";
@@ -194,18 +197,7 @@ function syncBuffers(options: {
   selectionChanged: boolean;
   edgeChanged: ReadonlySet<PartId>;
 } {
-  const denseSelections = collectDenseElementSelections(
-    options.runtime,
-    options.layout,
-    options.parts,
-    options.interaction,
-  );
-  const denseNodeSelections = collectDenseNodeSelections(
-    options.runtime,
-    options.layout,
-    options.parts,
-    options.interaction,
-  );
+  const { denseSelections, denseNodeSelections, denseVisibility } = denseMemberships(options);
   const transparentChanged = syncInteractionEmphasis({
     runtime: options.runtime,
     layout: options.layout,
@@ -217,6 +209,7 @@ function syncBuffers(options: {
     changedSlots: options.changedSlots,
     affectedParts: options.affectedParts,
     denseSelections,
+    denseVisibility,
     denseNodeSelections,
   });
   const selectionChanged = syncSelectionState({
@@ -234,6 +227,17 @@ function syncBuffers(options: {
   });
   const edgeChanged = syncEdgeBuffers(options);
   return { transparentChanged, selectionChanged, edgeChanged };
+}
+
+function denseMemberships(
+  options: Pick<Parameters<typeof syncBuffers>[0], "runtime" | "layout" | "parts" | "interaction">,
+) {
+  const args = [options.runtime, options.layout, options.parts, options.interaction] as const;
+  return {
+    denseSelections: collectDenseElementSelections(...args),
+    denseNodeSelections: collectDenseNodeSelections(...args),
+    denseVisibility: collectDenseHiddenElements(...args),
+  };
 }
 
 function syncEdgeBuffers(options: {

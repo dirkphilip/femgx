@@ -10,15 +10,43 @@ import {
 } from "./support";
 
 describe("dense highlight GPU replay", () => {
-  it("reconstructs both dense kinds through growth, partial clear, release, and regrowth", () => {
+  it("stores broad hidden membership as one ordinal bitset", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const storage = makeStorage(gpu);
+      const elementCount = 131_712;
+      writeElementHighlights(gpu.device, storage, [], {
+        visibility: denseSelection(
+          0,
+          new Uint32Array(Math.ceil(elementCount / 32)).fill(0xffffffff),
+        ),
+        slotCapacity: 1,
+      });
+
+      expect(storage.highlight.sparseCapacity).toBe(1);
+      expect(storage.highlight.buffer.size).toBe(
+        HIGHLIGHT_HEADER +
+          ELEMENT_RECORD_STRIDE +
+          2 * Uint32Array.BYTES_PER_ELEMENT +
+          elementCount / 8,
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("reconstructs selection, visibility, and node membership through storage changes", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
       const storage = makeStorage(gpu);
       const selection = denseSelection(2, [1, 1]);
+      const visibility = denseSelection(1, [2, 8]);
       const nodeSelection = denseSelection(3, [1, 4]);
       writeElementHighlights(gpu.device, storage, [], {
         selection,
+        visibility,
         nodeSelection,
         slotCapacity: 4,
       });
@@ -27,11 +55,13 @@ describe("dense highlight GPU replay", () => {
       const firstBuffer = storage.highlight.buffer;
       writeElementHighlights(gpu.device, storage, [elementUpdate(2, 9)], {
         selection,
+        visibility,
         nodeSelection,
         slotCapacity: 4,
       });
       expect(storage.highlight.buffer).not.toBe(firstBuffer);
       expect(storage.highlight.denseSelection).toBe(selection);
+      expect(storage.highlight.denseVisibility).toBe(visibility);
       expect(storage.highlight.denseNodeSelection).toBe(nodeSelection);
       const payloadOffset =
         HIGHLIGHT_HEADER + storage.highlight.sparseCapacity * ELEMENT_RECORD_STRIDE;
@@ -40,13 +70,18 @@ describe("dense highlight GPU replay", () => {
           (write) => write.buffer === storage.highlight.buffer && write.offset === payloadOffset,
         ),
       ).toHaveLength(1);
-      expectDenseMirror(storage.highlight.data, selection, nodeSelection);
+      expectDenseMirror(storage.highlight.data, selection, visibility, nodeSelection);
       expectGpuMirror(gpu, storage.highlight);
 
-      writeElementHighlights(gpu.device, storage, [], { nodeSelection, slotCapacity: 4 });
+      writeElementHighlights(gpu.device, storage, [], {
+        visibility,
+        nodeSelection,
+        slotCapacity: 4,
+      });
       expect(storage.highlight.denseSelection).toBeUndefined();
       expect(storage.highlight.denseNodeSelection).toBe(nodeSelection);
-      expectDenseMirror(storage.highlight.data, undefined, nodeSelection);
+      expect(storage.highlight.denseVisibility).toBe(visibility);
+      expectDenseMirror(storage.highlight.data, undefined, visibility, nodeSelection);
       expectGpuMirror(gpu, storage.highlight);
 
       const releasedBuffer = storage.highlight.buffer;
@@ -59,11 +94,12 @@ describe("dense highlight GPU replay", () => {
 
       writeElementHighlights(gpu.device, storage, [], {
         selection,
+        visibility,
         nodeSelection,
         slotCapacity: 4,
       });
       expect(storage.highlightOwned).toBe(true);
-      expectDenseMirror(storage.highlight.data, selection, nodeSelection);
+      expectDenseMirror(storage.highlight.data, selection, visibility, nodeSelection);
       expectGpuMirror(gpu, storage.highlight);
     } finally {
       restore();
@@ -71,7 +107,7 @@ describe("dense highlight GPU replay", () => {
   });
 });
 
-function denseSelection(slot: number, words: readonly number[]) {
+function denseSelection(slot: number, words: ArrayLike<number>) {
   return {
     elementCount: words.length * 32,
     nodeCount: words.length * 32,
@@ -84,6 +120,9 @@ function expectDenseMirror(
   selection:
     | { readonly occurrences: readonly { readonly slot: number; readonly words: Uint32Array }[] }
     | undefined,
+  visibility:
+    | { readonly occurrences: readonly { readonly slot: number; readonly words: Uint32Array }[] }
+    | undefined,
   nodeSelection:
     | { readonly occurrences: readonly { readonly slot: number; readonly words: Uint32Array }[] }
     | undefined,
@@ -94,11 +133,19 @@ function expectDenseMirror(
   const elementBits = values[5] ?? 0;
   const nodeOffset = values[16] ?? 0;
   const nodeBits = values[17] ?? 0;
+  const visibilityOffset = values[21] ?? 0;
+  const visibilityBits = values[22] ?? 0;
   expect(values[payload + elementOffset + (selection?.occurrences[0]?.slot ?? 0)]).toBe(
     selection === undefined ? 0xffffffff : 0,
   );
   if (selection !== undefined) {
     expect(values[payload + elementBits]).toBe(selection.occurrences[0]?.words[0]);
+  }
+  expect(values[payload + visibilityOffset + (visibility?.occurrences[0]?.slot ?? 0)]).toBe(
+    visibility === undefined ? 0xffffffff : 0,
+  );
+  if (visibility !== undefined) {
+    expect(values[payload + visibilityBits]).toBe(visibility.occurrences[0]?.words[0]);
   }
   expect(values[payload + nodeOffset + (nodeSelection?.occurrences[0]?.slot ?? 0)]).toBe(
     nodeSelection === undefined ? 0xffffffff : 0,
