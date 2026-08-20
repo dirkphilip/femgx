@@ -6,8 +6,8 @@ import {
   nodalScalar,
   createResultField,
   createPart,
-  createScene,
-  identity,
+  createSceneBuilder,
+  identityMatrix,
   resolveViewportResults,
   viewportResultColors,
 } from "./support";
@@ -106,14 +106,14 @@ describe("viewport results workflow", () => {
         },
       ],
     });
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "sparse",
-        placements: [{ kind: "part", partId: 1, transform: identity() }],
+        placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const field = createResultField({
       id: "dense-sparse-elements",

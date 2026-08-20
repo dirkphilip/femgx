@@ -20,7 +20,14 @@ import type {
 /** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
   const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
-  const visibility = input.visibility ?? { context: "", rows: [] };
+  const visibility = input.visibility ?? {
+    context: "",
+    rows: [],
+    page: 0,
+    pageCount: 0,
+    rowCount: 0,
+    materializedRowCount: 0,
+  };
   const active = Object.freeze({
     id: input.model.id,
     name: input.model.name,
@@ -45,7 +52,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
     toolbar: createToolbarSnapshot(input),
     analysis: createAnalysisSnapshot(input),
     hierarchy: Object.freeze({
-      occurrenceCount: input.runtime.occurrenceCount,
+      occurrenceCount: input.runtime.assemblyOccurrenceCount,
       visiblePartOccurrences: input.runtime.visibleCount,
       selectedCount: selectedTargetSummary(input.interaction).count,
       hideSelectedElementCount: visibleSelectedElementTargets(input.interaction).length,

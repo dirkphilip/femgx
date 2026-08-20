@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { ElementShape } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../src/geometry/element-model-part";
 import { computeBounds } from "../../src/geometry/part";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import { createResultField } from "../../src/results/fields";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { resolveViewportResults, viewportResultColors } from "../../src/viewport/results";
 
 function mixedModel() {
@@ -24,8 +24,8 @@ function mixedModel() {
 
 function heterogeneousScene() {
   const model = mixedModel();
-  const sourceParts = [elementPart(30, model)];
-  let builder = createScene();
+  const sourceParts = [createPartFromElementModel(30, model)];
+  let builder = createSceneBuilder();
   for (const part of sourceParts) builder = builder.addPart(part);
   const scene = builder
     .addAssembly({
@@ -34,10 +34,10 @@ function heterogeneousScene() {
       placements: sourceParts.map((part) => ({
         kind: "part" as const,
         partId: part.id,
-        transform: identity(),
+        transform: identityMatrix(),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { scene, partIds: sourceParts.map((part) => part.id) };
 }

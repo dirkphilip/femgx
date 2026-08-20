@@ -16,18 +16,27 @@ export {
   type FaceTessellation,
   type FaceSubset,
   type Geometry,
+  type GeometryInput,
   type GeometryValidationCode,
   type GeometryBody,
   type GeometryEdge,
+  type GeometryEdges,
+  type GeometryFaces,
+  type GeometryFaceSubset,
   type LineGeometry,
+  type LineGeometryInput,
   type Part,
+  type PartBodies,
+  type PartElements,
   type PartId,
   type PointGeometry,
+  type PointGeometryInput,
   type Primitive,
   type TriangleGeometry,
+  type TriangleGeometryInput,
 } from "../geometry/part";
 export { createPart, type PartInput } from "../geometry/part";
-export { createScene, type Scene, type SceneBuilder } from "../scene/scene";
+export { createSceneBuilder, type Scene, type SceneBuilder } from "../scene/scene";
 export type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from "../scene/update";
 export {
   createViewport,
@@ -43,6 +52,11 @@ export {
   type ViewportVisibility,
 } from "../viewport/viewport";
 export type { CameraTransitionOptions } from "../viewport/types";
+export type {
+  AssemblyOccurrence,
+  PartOccurrence,
+  SceneOccurrences,
+} from "../scene-runtime/occurrences";
 export { UnknownSceneIdentityError } from "../viewport/visibility-error";
 export type { OrientationGizmoOptions } from "../viewport/orientation-gizmo";
 export type { SectionPlane } from "../math/section-plane";
@@ -70,18 +84,18 @@ export type {
 export { InteractionGranularity } from "../picking/types";
 export type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "../picking/types";
 export {
-  identity,
-  multiply,
-  rotationZ,
-  scale,
+  identityMatrix,
+  multiplyMatrices,
+  rotationZMatrix,
+  scalingMatrix,
   transformPoint,
-  translation,
+  translationMatrix,
   type Mat4,
 } from "../math/mat4";
 export type { Vec3 } from "../math/vec3";
 export {
   queryWebGpuSupport,
-  unsupportedMessage,
+  webGpuUnsupportedMessage,
   WebGpuUnsupportedError,
   type WebGpuAdapterProfile,
   type WebGpuQueryOptions,

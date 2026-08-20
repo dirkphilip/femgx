@@ -2,7 +2,7 @@ import type { PartOccurrenceId, ViewportBackground } from "../../../src/entries/
 import type { InteractionState } from "../../../src/entries/interaction";
 import type { BodyId, ElementId } from "../../../src/entries/model";
 import type { Camera } from "../../../src/entries/camera";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
@@ -177,7 +177,7 @@ export interface WorkbenchSnapshotInput {
   readonly models: readonly WorkbenchModel[];
   readonly catalogMode: WorkbenchCatalogMode;
   readonly catalogSelectionId: string;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   readonly interaction: InteractionState;
   readonly rendererName: string;
   readonly rendererState: string;
@@ -208,7 +208,7 @@ export interface WorkbenchSnapshotOwner {
   readonly models: readonly WorkbenchModel[];
   readonly catalogMode: WorkbenchCatalogMode;
   readonly catalogSelectionId: string;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   readonly interaction: InteractionState;
   readonly rendererName: string;
   readonly rendererState: string;
@@ -268,6 +268,7 @@ export interface WorkbenchCommands {
   setSectionOffset(value: string): void;
   toggleVisibility(target: VisibilityRowTarget): void;
   toggleVisibilityTree(occurrenceId: string): void;
+  setVisibilityPage(page: number): void;
   toggleBodyHighlight(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
   openElementDetail(target: Extract<VisibilityRowTarget, { kind: "body" }>): void;
   closeElementDetail(): void;

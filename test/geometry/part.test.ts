@@ -6,14 +6,15 @@ import {
   isFiniteBounds,
   MAX_PART_ID,
   type ElementTessellation,
-  type Geometry,
+  type GeometryInput,
+  type TriangleGeometryInput,
   validateBodies,
   validateElements,
   validatePickIds,
 } from "../../src/geometry/part";
 import { faceSubsetPrimitiveMask } from "../../src/geometry/face-validation";
 
-function triangle(): Extract<Geometry, { primitive: "triangles" }> {
+function triangle(): TriangleGeometryInput {
   return {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
@@ -21,7 +22,7 @@ function triangle(): Extract<Geometry, { primitive: "triangles" }> {
   };
 }
 
-function line(): Geometry {
+function line(): Extract<GeometryInput, { primitive: "lines" }> {
   return {
     positions: new Float32Array([0, 0, 0, 0, 0, 1]),
     indices: new Uint32Array([0, 1]),
@@ -29,7 +30,7 @@ function line(): Geometry {
   };
 }
 
-function point(): Geometry {
+function point(): Extract<GeometryInput, { primitive: "points" }> {
   return {
     positions: new Float32Array([0, 0, 1]),
     indices: new Uint32Array([0]),
@@ -48,7 +49,7 @@ function range(
 
 describe("part geometry", () => {
   it("reuses one face-subset primitive mask for validated consumers", () => {
-    const geometry: Extract<Geometry, { primitive: "triangles" }> = {
+    const geometry: TriangleGeometryInput = {
       ...triangle(),
       faces: [
         {
@@ -62,16 +63,18 @@ describe("part geometry", () => {
       ],
       faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
     };
-    const part = createPart(1, { geometries: [geometry] });
-    const mask = faceSubsetPrimitiveMask(geometry);
+    const part = createPart(1, { geometries: [geometry], elements: [range(1, "triangles")] });
+    const retained = part.geometries[0];
+    if (retained?.primitive !== "triangles") throw new Error("Expected triangle geometry");
+    const mask = faceSubsetPrimitiveMask(retained);
 
     expect(mask).toBeDefined();
-    expect(faceSubsetPrimitiveMask(part.geometries[0] as typeof geometry)).toBe(mask);
+    expect(faceSubsetPrimitiveMask(retained)).toEqual(mask);
     expect(mask).toEqual(new Uint8Array([1]));
   });
 
   it("rejects duplicate face-subset identities during part validation", () => {
-    const geometry: Extract<Geometry, { primitive: "triangles" }> = {
+    const geometry: TriangleGeometryInput = {
       ...triangle(),
       faces: [
         {
@@ -99,6 +102,8 @@ describe("part geometry", () => {
   it("requires and retains a non-empty plural geometry collection", () => {
     const geometry = triangle();
     const part = createPart(1, { geometries: [geometry] });
+    const retained = part.geometries[0];
+    if (retained === undefined) throw new Error("Expected retained geometry");
     expect(part.geometries).toEqual([geometry]);
     expect(part.geometries).not.toHaveProperty("geometry");
     expect(part.bounds.maxX).toBe(1);
@@ -123,8 +128,8 @@ describe("part geometry", () => {
       nodePositions: new Float32Array(9),
       bodies: [{ id: 2, elementIds: [7] }],
     });
-    expect(part.elements).toEqual(elements);
-    expect(part.bodies?.[0]?.elementIds).toEqual([7]);
+    expect([...(part.elements ?? [])]).toEqual(elements);
+    expect(part.bodies?.at(0)?.elementIds).toEqual([7]);
   });
 
   it("does not make semantic ownership depend on geometry order", () => {
@@ -146,8 +151,8 @@ describe("part geometry", () => {
     } as const;
     const first = createPart(1, { ...input, geometries: [triangle(), line(), point()] });
     const reordered = createPart(1, { ...input, geometries: [point(), triangle(), line()] });
-    expect(reordered.elements).toEqual(first.elements);
-    expect(reordered.bodies).toEqual(first.bodies);
+    expect([...(reordered.elements ?? [])]).toEqual([...(first.elements ?? [])]);
+    expect([...(reordered.bodies ?? [])]).toEqual([...(first.bodies ?? [])]);
     expect(reordered.bounds).toEqual(first.bounds);
   });
 
@@ -161,7 +166,7 @@ describe("part geometry", () => {
         geometries: [triangle(), line()],
         elements: [range(7, "triangles"), range(7, "lines")],
       }),
-    ).toThrow(/Duplicate element id 7/);
+    ).toThrow(/Duplicate element id/);
   });
 
   it("validates optional triangle colors and presentation edges", () => {
@@ -212,9 +217,11 @@ describe("part geometry", () => {
   it("retains typed arrays and computes finite bounds", () => {
     const geometry = triangle();
     const part = createPart(1, { geometries: [geometry] });
+    const retained = part.geometries[0];
+    if (retained === undefined) throw new Error("Expected retained geometry");
     expect(part.geometries[0]?.positions).toBe(geometry.positions);
     expect(part.geometries[0]?.indices).toBe(geometry.indices);
-    expect(computeBounds(geometry)).toEqual({
+    expect(computeBounds(retained)).toEqual({
       minX: 0,
       minY: 0,
       minZ: 0,
@@ -222,7 +229,7 @@ describe("part geometry", () => {
       maxY: 1,
       maxZ: 0,
     });
-    expect(boundsCorners(computeBounds(geometry))).toHaveLength(8);
+    expect(boundsCorners(computeBounds(retained))).toHaveLength(8);
     expect(isFiniteBounds(part.bounds)).toBe(true);
     expect(createPart(MAX_PART_ID, { geometries: [geometry] }).id).toBe(MAX_PART_ID);
     expect(() => createPart(MAX_PART_ID + 1, { geometries: [geometry] })).toThrow(
@@ -244,5 +251,36 @@ describe("part validators", () => {
     expect(() => {
       validateBodies({ elements, bodies: [{ id: 2, elementIds: [1] }] });
     }).toThrow(/body membership does not match/);
+  });
+
+  it("preserves typed body validation errors in input order", () => {
+    const elements = [range(1, "triangles")];
+    expect(() => {
+      validateBodies({
+        elements,
+        bodies: [
+          { id: 2, elementIds: [] },
+          { id: 2, elementIds: [] },
+        ],
+      });
+    }).toThrow("Duplicate body id 2");
+    expect(() => {
+      validateBodies({
+        elements,
+        bodies: [
+          { id: 3, elementIds: [] },
+          { id: 2, elementIds: [] },
+        ],
+      });
+    }).toThrow("Body ids must be strictly ascending; 2 follows 3");
+    expect(() => {
+      validateBodies({
+        elements,
+        bodies: [
+          { id: 2, elementIds: [1] },
+          { id: 3, elementIds: [1] },
+        ],
+      });
+    }).toThrow("Element 1 belongs to more than one body");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { translation } from "../../../src/math/mat4";
+import { translationMatrix } from "../../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
 import { createNodalLoadField, createResultField } from "../../../src/results/fields";
 import {
@@ -8,7 +8,7 @@ import {
   viewportResultColors,
 } from "../../../src/viewport/results";
 import {
-  createScene,
+  createSceneBuilder,
   createTestScene,
   elementalScalar,
   elementalVector,
@@ -154,17 +154,17 @@ function repeatedPartScene() {
   const base = createTestScene();
   const part = base.parts.get(1);
   if (part === undefined) throw new Error("Test part is missing");
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "repeated",
       placements: [
-        { kind: "part", placementId: "left", partId: 1, transform: translation(-2, 0, 0) },
-        { kind: "part", placementId: "right", partId: 1, transform: translation(2, 0, 0) },
+        { kind: "part", placementId: "left", partId: 1, transform: translationMatrix(-2, 0, 0) },
+        { kind: "part", placementId: "right", partId: 1, transform: translationMatrix(2, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const right = runtime.getInstanceId(runtime.getInstanceSlot("1/right") ?? -1);

@@ -4,7 +4,7 @@ import { edgesOf } from "../../src/elements/edges";
 import { facesOf } from "../../src/elements/faces";
 import { topologyFor } from "../../src/elements/shapes";
 import { computeBounds, type Geometry } from "../../src/geometry/part";
-import { transformPoint, translation } from "../../src/math/mat4";
+import { transformPoint, translationMatrix } from "../../src/math/mat4";
 import { GOLDEN_ELEMENT_CONVENTIONS, type GoldenElementConvention } from "./golden";
 
 function sequentialElement(convention: GoldenElementConvention) {
@@ -145,7 +145,10 @@ describe("golden element transforms", () => {
       const offset = [10, -3, 4] as const;
       const translated = new Float32Array(convention.reference.length * 3);
       convention.reference.forEach((point, index) => {
-        const [x, y, z] = transformPoint(translation(offset[0], offset[1], offset[2]), ...point);
+        const [x, y, z] = transformPoint(
+          translationMatrix(offset[0], offset[1], offset[2]),
+          ...point,
+        );
         translated[index * 3] = x;
         translated[index * 3 + 1] = y;
         translated[index * 3 + 2] = z;

@@ -8,16 +8,40 @@ public entrypoints are `femgx`, `femgx/model`, and `femgx/io`.
 | Symbol                                                                                        | Role                                            |
 | --------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | {@link root.Part Part} / {@link root.createPart createPart}                                   | Immutable reusable display geometry             |
-| {@link root.Scene Scene} / {@link root.createScene createScene}                               | Authored definitions and root assembly          |
+| {@link root.Scene Scene} / {@link root.createSceneBuilder createSceneBuilder}                 | Authored definitions and root assembly          |
 | {@link model.ElementModel ElementModel} / {@link model.createElementModel createElementModel} | Dense FE nodes, elements, and optional bodies   |
 | {@link model.createElement createElement} / {@link model.ElementShape ElementShape}           | Validated element connectivity and topology     |
-| {@link model.elementPart elementPart}                                                         | FE model to reusable renderable part            |
-| {@link model.surfacePart surfacePart}                                                         | Host-authored surface, line, and point geometry |
+| {@link model.createPartFromElementModel createPartFromElementModel}                           | FE model to reusable renderable part            |
+| {@link model.createPartFromExplicitTopology createPartFromExplicitTopology}                   | Host-authored surface, line, and point geometry |
+
+Both constructors return a reusable `Part`, not a `Mesh`. A `Part` includes
+renderable geometry together with the authored element/node/body identities and
+scene-facing mappings needed by results, picking, and assembly instancing.
+
+### Migration from 0.1 previews
+
+The experimental API has no compatibility aliases; update imports directly:
+
+| Previous name               | New name                            |
+| --------------------------- | ----------------------------------- |
+| `elementPart`               | `createPartFromElementModel`        |
+| `surfacePart`               | `createPartFromExplicitTopology`    |
+| `TessellationOptions`       | `CreatePartFromElementModelOptions` |
+| `SurfacePartInput`          | `ExplicitTopologyInput`             |
+| `SurfacePartError`          | `ExplicitTopologyError`             |
+| `SurfacePartValidationCode` | `ExplicitTopologyValidationCode`    |
+
+`createPartFromElementModel` tessellates authored finite-element topology while
+retaining its semantic mappings. `createPartFromExplicitTopology` retains the
+facets, lines, and points supplied by the host. Its facet input may be open,
+disconnected, overlapping, or non-manifold: “explicit topology” describes the
+representation, not a promise that the facets form a closed mathematical
+surface.
 
 ## The canonical flow
 
 ```text
-Part definitions + assembly placements → Scene → SceneRuntime → Viewport
+Part definitions + assembly placements → Scene → Viewport → occurrences
 ```
 
 A `Part` is local immutable geometry. An assembly placement references that
@@ -32,7 +56,7 @@ display geometry rather than FE connectivity. Each geometry group has a
 `primitive` (`"triangles"`, `"lines"`, or `"points"`), positions, and indices.
 
 ```ts
-import { createPart, createScene, createViewport, identity } from "femgx";
+import { createPart, createSceneBuilder, createViewport, identityMatrix } from "femgx";
 
 const part = createPart(10, {
   geometries: [
@@ -44,14 +68,14 @@ const part = createPart(10, {
   ],
 });
 
-const scene = createScene()
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 20,
     name: "root",
-    placements: [{ kind: "part", partId: part.id, transform: identity() }],
+    placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
   })
-  .withRoot(20)
+  .setRootAssembly(20)
   .build();
 
 const viewport = await createViewport({ canvas, scene });
@@ -60,7 +84,7 @@ viewport.view.fit();
 
 `createPart` validates finite coordinates, array lengths, index bounds, and
 the part id. The returned part owns its typed arrays. Raw geometry has no
-implicit element or node semantics; use `elementPart` when those identities
+implicit element or node semantics; use `createPartFromElementModel` when those identities
 matter.
 
 ## Typed FE geometry
@@ -72,7 +96,12 @@ authored identities, so tessellation does not replace the ids used by picking,
 selection, or elemental results.
 
 ```ts
-import { ElementShape, createElement, createElementModel, elementPart } from "femgx/model";
+import {
+  ElementShape,
+  createElement,
+  createElementModel,
+  createPartFromElementModel,
+} from "femgx/model";
 
 const model = createElementModel(
   new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),
@@ -82,11 +111,11 @@ const model = createElementModel(
   ],
   { bodies: [{ id: 7, name: "plate", elementIds: [100, 101] }] },
 );
-const part = elementPart(30, model);
+const part = createPartFromElementModel(30, model);
 ```
 
 Bodies are optional direct element ownership. There is no public semantic block
-layer. {@link model.elementPart elementPart} creates homogeneous
+layer. {@link model.createPartFromElementModel createPartFromElementModel} creates homogeneous
 primitive groups for rendering while retaining the model's semantic element,
 face, edge, body, and node mappings.
 
@@ -102,9 +131,9 @@ Keep these identities distinct:
 | `assemblyOccurrenceId` | One expanded assembly-node identity       |
 
 ```ts
-import { identity, translation } from "femgx";
+import { identityMatrix, translationMatrix } from "femgx";
 
-const scene = createScene()
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 40,
@@ -114,31 +143,31 @@ const scene = createScene()
         kind: "part",
         placementId: "left",
         partId: part.id,
-        transform: identity(),
+        transform: identityMatrix(),
       },
       {
         kind: "part",
         placementId: "right",
         partId: part.id,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       },
     ],
   })
-  .withRoot(40)
+  .setRootAssembly(40)
   .build();
 ```
 
 The two placements share the part geometry but have independent transforms,
-visibility, selection, and pick identities. Use the stable runtime handles from
-`viewport.runtime`; renderer slots and GPU buffers are intentionally private.
+visibility, selection, and pick identities. Use the stable occurrence handles
+from `viewport.occurrences`; renderer slots and GPU buffers are intentionally private.
 
 ## Host model conversion
 
-For serializable host data, use {@link io.createModelBuilder createModelBuilder},
-{@link io.validateModel validateModel}, and
+For serializable host data, use {@link io.createFemModelBuilder createFemModelBuilder},
+{@link io.validateFemModel validateFemModel}, and
 {@link io.createElementModelFromFemModel createElementModelFromFemModel}.
 Validate once at the IO boundary, convert once to the typed FE model, and then
-follow the ordinary `elementPart → Scene → Viewport` path. Result payloads use
+follow the ordinary `createPartFromElementModel → Scene → Viewport` path. Result payloads use
 {@link io.createResultFieldFromModelResult createResultFieldFromModelResult}.
 
 The conversion requires dense node ordinals for rendering but preserves

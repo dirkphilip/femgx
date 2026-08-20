@@ -1,10 +1,9 @@
-import { createOwnedElement, type Element, type NodeId } from "../../elements/element";
-import { createElementModelFromOwnedElements, type ElementModel } from "../../elements/model";
+import { createElementModelFromColumns, type ElementModel } from "../../elements/model";
 import type { Body } from "../../elements/model-types";
-import { topologyFor } from "../../elements/shapes";
-import { IoError, type Issue } from "../diagnostics";
+import { topologyFor, type ElementShape } from "../../elements/shapes";
+import { IoError } from "../diagnostics";
 import type { FemModel } from "../fem-model";
-import { validateModel } from "../model-validation";
+import { validateFemModel } from "../model-validation";
 
 /**
  * Optional semantic ownership retained while converting an interchange model.
@@ -17,7 +16,7 @@ export interface ElementModelConversionOptions {
 
 /**
  * Converts one host-supplied serializable model into the dense render model
- * used by {@link model.elementPart} tessellation.
+ * used by {@link model.createPartFromElementModel} tessellation.
  *
  * The interchange node table must already use ids in coordinate order
  * (`0..count - 1`). Validation is performed at the model boundary; errors are
@@ -27,9 +26,9 @@ export interface ElementModelConversionOptions {
  * @example Complete host-model-to-part handoff.
  * ```ts
  * import { createElementModelFromFemModel } from "femgx/io";
- * import { elementPart } from "femgx/model";
+ * import { createPartFromElementModel } from "femgx/model";
  *
- * const part = elementPart(10, createElementModelFromFemModel(model));
+ * const part = createPartFromElementModel(10, createElementModelFromFemModel(model));
  * ```
  * @category Import and export
  */
@@ -37,39 +36,50 @@ export function createElementModelFromFemModel(
   model: FemModel,
   options: ElementModelConversionOptions = {},
 ): ElementModel {
-  const issues = [...validateModel(model), ...nonDenseNodeIssues(model)];
+  const issues = validateFemModel(model);
   const errors = issues.filter((issue) => issue.severity === "error");
   if (errors.length > 0) {
     throw new IoError("Cannot convert FemModel to ElementModel", errors);
   }
-  const elements: Element[] = [];
-  for (const block of model.elementShapeBlocks) {
-    const nodeCount = topologyFor(block.shape).nodeCount;
-    for (let index = 0; index < block.count; index += 1) {
-      const start = index * nodeCount;
-      const nodeIds = new Array<NodeId>(nodeCount);
-      for (let node = 0; node < nodeCount; node += 1) {
-        nodeIds[node] = block.connectivity[start + node] ?? 0;
-      }
-      elements.push(createOwnedElement(block.ids[index] ?? index, block.shape, nodeIds));
-    }
-  }
-  return createElementModelFromOwnedElements(model.nodes.coordinates, elements, options);
+  const columns = copyElementColumns(model);
+  return createElementModelFromColumns({
+    nodes: model.nodes.coordinates,
+    nodeIds: model.nodes.ids,
+    ...columns,
+    ...(options.bodies === undefined ? {} : { bodies: options.bodies }),
+  });
 }
 
-function nonDenseNodeIssues(model: FemModel): readonly Issue[] {
-  const issues: Issue[] = [];
-  for (let index = 0; index < model.nodes.ids.length; index += 1) {
-    if (model.nodes.ids[index] !== index) {
-      issues.push({
-        code: "non-dense-node-ids",
-        severity: "error",
-        message:
-          `ElementModel conversion requires node ids 0..${String(model.nodes.count - 1)} ` +
-          `in coordinate order; node row ${String(index)} has id ${String(model.nodes.ids[index])}`,
-      });
-      break;
+function copyElementColumns(model: FemModel): {
+  readonly elementIds: Uint32Array;
+  readonly elementShapes: readonly ElementShape[];
+  readonly elementNodeOffsets: Uint32Array;
+  readonly elementNodeIds: Uint32Array;
+} {
+  let count = 0;
+  let connectivityCount = 0;
+  for (const block of model.elementShapeBlocks) {
+    count += block.count;
+    connectivityCount += block.connectivity.length;
+  }
+  const elementIds = new Uint32Array(count);
+  const elementShapes = new Array<ElementShape>(count);
+  const elementNodeOffsets = new Uint32Array(count + 1);
+  const elementNodeIds = new Uint32Array(connectivityCount);
+  let element = 0;
+  let connectivity = 0;
+  for (const block of model.elementShapeBlocks) {
+    const width = topologyFor(block.shape).nodeCount;
+    for (let row = 0; row < block.count; row += 1) {
+      elementIds[element] = block.ids[row] ?? 0;
+      elementShapes[element] = block.shape;
+      elementNodeOffsets[element] = connectivity;
+      const start = row * width;
+      elementNodeIds.set(block.connectivity.subarray(start, start + width), connectivity);
+      connectivity += width;
+      element += 1;
     }
   }
-  return issues;
+  elementNodeOffsets[element] = connectivity;
+  return { elementIds, elementShapes, elementNodeOffsets, elementNodeIds };
 }

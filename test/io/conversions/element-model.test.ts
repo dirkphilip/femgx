@@ -1,21 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createElementModelFromFemModel,
-  createModelBuilder,
+  createFemModelBuilder,
   IoError,
 } from "../../../src/entries/io";
 import { ElementShape } from "../../../src/entries/model";
 
 describe("createElementModelFromFemModel", () => {
   it("converts an empty interchange model", () => {
-    const result = createElementModelFromFemModel(createModelBuilder().build());
+    const result = createElementModelFromFemModel(createFemModelBuilder().build());
 
-    expect(result.elements).toEqual([]);
+    expect(result.elements.count).toBe(0);
     expect(result.nodes).toHaveLength(0);
   });
 
   it("converts mixed interchange blocks without partitioning the source", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2, 3, 4], [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([11], [0, 1, 2]);
@@ -26,7 +26,7 @@ describe("createElementModelFromFemModel", () => {
 
     const result = createElementModelFromFemModel(builder.build());
 
-    expect(result.elements.map((element) => [element.id, element.shape])).toEqual([
+    expect([...result.elements].map((element) => [element.id, element.shape])).toEqual([
       [11, ElementShape.Triangle],
       [12, ElementShape.Tet4],
       [13, ElementShape.Line],
@@ -35,7 +35,7 @@ describe("createElementModelFromFemModel", () => {
   });
 
   it("attaches validated body ownership during the single dense conversion", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2, 3], [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([11, 12], [0, 1, 2, 0, 2, 3]);
@@ -44,22 +44,22 @@ describe("createElementModelFromFemModel", () => {
       bodies: [{ id: 7, name: "plate", elementIds: [11, 12] }],
     });
 
-    expect(result.bodies).toEqual([{ id: 7, name: "plate", elementIds: [11, 12] }]);
+    expect([...(result.bodies ?? [])]).toEqual([{ id: 7, name: "plate", elementIds: [11, 12] }]);
   });
 
   it("preserves the largest element id supported by the render model", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([0xffff_fffe], [0, 1, 2]);
 
     const result = createElementModelFromFemModel(builder.build());
 
-    expect(result.elements[0]?.id).toBe(0xffff_fffe);
+    expect(result.elements.at(0)?.id).toBe(0xffff_fffe);
   });
 
   it("reports out-of-range connectivity as an interchange diagnostic", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [0, 1, 3]);
@@ -73,7 +73,7 @@ describe("createElementModelFromFemModel", () => {
   });
 
   it("converts interchange coordinates to the render model's single precision", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1], [1_000_000_000, 0, 0, 1_000_000_001, 0, 0]);
 
     const result = createElementModelFromFemModel(builder.build());
@@ -83,7 +83,7 @@ describe("createElementModelFromFemModel", () => {
   });
 
   it("does not slice typed connectivity while converting elements", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 2], [0, 1, 2, 2, 1, 0]);
@@ -94,7 +94,7 @@ describe("createElementModelFromFemModel", () => {
 
     try {
       const result = createElementModelFromFemModel(model);
-      expect(result.elements.map((element) => element.nodeIds)).toEqual([
+      expect([...result.elements].map((element) => element.nodeIds)).toEqual([
         [0, 1, 2],
         [2, 1, 0],
       ]);
@@ -104,14 +104,14 @@ describe("createElementModelFromFemModel", () => {
   });
 
   it("keeps each converted connectivity collection owned and isolated", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 2], [0, 1, 2, 2, 1, 0]);
     const model = builder.build();
     const result = createElementModelFromFemModel(model);
-    const first = result.elements[0];
-    const second = result.elements[1];
+    const first = result.elements.at(0);
+    const second = result.elements.at(1);
     const sourceConnectivity = model.elementShapeBlocks[0]?.connectivity;
     if (first === undefined || second === undefined || sourceConnectivity === undefined) {
       throw new Error("expected two converted elements and one source block");
@@ -124,7 +124,7 @@ describe("createElementModelFromFemModel", () => {
   });
 
   it("preserves duplicate connectivity rejection at the conversion boundary", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [0, 1, 1]);
@@ -134,22 +134,19 @@ describe("createElementModelFromFemModel", () => {
     );
   });
 
-  it("reports non-dense interchange node ids as conversion diagnostics", () => {
-    const builder = createModelBuilder();
+  it("preserves sparse interchange node ids in compact authored order", () => {
+    const builder = createFemModelBuilder();
     builder.appendNodes([10, 20, 30], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1], [10, 20, 30]);
 
-    expect(() => createElementModelFromFemModel(builder.build())).toThrow(
-      expect.objectContaining({
-        name: "IoError",
-        issues: [expect.objectContaining({ code: "non-dense-node-ids" })],
-      }),
-    );
+    const converted = createElementModelFromFemModel(builder.build());
+    expect(Array.from(converted.nodeIds)).toEqual([10, 20, 30]);
+    expect(Array.from(converted.elementNodeIds)).toEqual([10, 20, 30]);
   });
 
   it("preserves all model validation issues in the typed error", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
     builder.openElementShapeBlock(ElementShape.Triangle);
     builder.appendElements([1, 1], [0, 1, 2, 0, 1, 2]);

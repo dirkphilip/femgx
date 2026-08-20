@@ -66,7 +66,7 @@ export function throughIntersectionBoxSelectionResolver(
       targets,
     };
 
-    for (const partOccurrenceId of view.runtime.getVisiblePartOccurrenceIds()) {
+    for (const partOccurrenceId of view.occurrences.visiblePartOccurrenceIds()) {
       appendVisibleOccurrenceTargets(context, partOccurrenceId);
     }
     return Promise.resolve(targets);
@@ -78,9 +78,9 @@ function appendVisibleOccurrenceTargets(
   partOccurrenceId: string,
 ): void {
   const { view } = context;
-  const instance = view.runtime.getPartOccurrence(partOccurrenceId);
+  const instance = view.occurrences.getPartOccurrence(partOccurrenceId);
   if (instance === undefined || !instance.visible || !instance.partVisible) return;
-  const occurrence = view.runtime.getOccurrence(instance.occurrenceId);
+  const occurrence = view.occurrences.getAssemblyOccurrence(instance.assemblyOccurrenceId);
   if (occurrence === undefined || !occurrence.effectiveVisible) return;
   const part = view.scene.parts.get(instance.partId);
   if (part === undefined) return;

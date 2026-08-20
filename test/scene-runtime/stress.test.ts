@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPart, type Part } from "../../src/geometry/part";
-import { identity, translation } from "../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../src/math/mat4";
 import { resolvePick } from "../../src/picking/pick";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { AssemblyDefinition, Placement } from "../../src/scene/assembly";
@@ -43,11 +43,11 @@ function stressScene(): Scene {
       placements.push({
         kind: "part",
         partId: (i % STRESS_PART_COUNT) + 1,
-        transform: translation(i * 0.001, subcase, 0),
+        transform: translationMatrix(i * 0.001, subcase, 0),
       });
     }
     assemblies.set(subcaseId, { id: subcaseId, placements });
-    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identity() });
+    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identityMatrix() });
   }
   assemblies.set(1, { id: 1, placements: rootPlacements });
   return {

@@ -6,12 +6,12 @@ scene is authoritative; the renderer syncs deltas from it.
 ## Layers
 
 - `src/scene/scene.ts` — authoritative CPU model: parts, assemblies, and
-  visibility. `createScene` returns one private mutable authoring transaction;
+  visibility. `createSceneBuilder` returns one private mutable authoring transaction;
   fluent updates accumulate in place and `build()` validates and copies them
   once into an isolated immutable scene snapshot.
-- `src/scene-runtime/` — the single scene compiler and runtime boundary:
-  `createSceneRuntime(scene)` exposes stable handles while the internal packed
-  compiler performs the iterative, deterministic depth-first compile into
+- `src/scene-runtime/` — the single private scene compiler. `Viewport.occurrences`
+  exposes stable handles while the packed compiler performs the iterative,
+  deterministic depth-first compile into
   typed arrays with delta-oriented visibility updates (see
   [[architecture/packed-runtime|Packed scene runtime]]).
 - `src/interaction/interaction.ts` and `src/interaction/state.ts` — opaque

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Accessor } from "@gltf-transform/core";
 import { describe, expect, it, vi } from "vitest";
-import { createSceneRuntime } from "../../../src/scene-runtime/public-runtime";
+import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
 import type { IoError } from "../../../src/io/diagnostics";
 import { importGlb } from "../../../src/io/glb/importer";
 import { makeManyPartGlb, makeMechanicalAssemblyGlb } from "../../../demo/benchmark/glb-fixture";
@@ -101,11 +101,11 @@ describe("importGlb", () => {
 
   it("reuses imported parts through the canonical runtime", async () => {
     const result = await importGlb(ONShapeCylinder);
-    const runtime = createSceneRuntime(result.scene);
+    const runtime = createSceneOccurrenceSnapshot(result.scene);
 
     expect(runtime.partOccurrenceCount).toBe(1);
     expect(runtime.visibleCount).toBe(1);
-    expect(runtime.getPartOccurrences().map((instance) => instance.partId)).toEqual([0]);
+    expect(Array.from(runtime.partOccurrences(), (instance) => instance.partId)).toEqual([0]);
   });
 
   it("allocates deterministic ids and rejects strict ignored-feature diagnostics", async () => {
@@ -168,7 +168,7 @@ describe("importGlb", () => {
     expect(result.scene.assemblies.get(1)?.placements).toHaveLength(2);
     expect(result.scene.assemblies.get(2)?.placements).toHaveLength(1);
     expect(result.scene.assemblies.get(3)?.placements).toHaveLength(1);
-    expect(createSceneRuntime(result.scene).partOccurrenceCount).toBe(3);
+    expect(createSceneOccurrenceSnapshot(result.scene).partOccurrenceCount).toBe(3);
     expect([...(result.scene.assemblies.get(0)?.placements[0]?.transform ?? [])]).toEqual([
       1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1,
     ]);

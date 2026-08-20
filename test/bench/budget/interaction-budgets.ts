@@ -1,4 +1,4 @@
-import { createScene, translation } from "../../../src/entries/root";
+import { createSceneBuilder, translationMatrix } from "../../../src/entries/root";
 import {
   createInteractionState,
   selectedTargets,
@@ -6,7 +6,7 @@ import {
   setTargetsHighlighted,
   setTargetsSelected,
 } from "../../../src/entries/interaction";
-import { createSceneRuntime } from "../../../src/entries/runtime";
+import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
 import { buildHighlightTable } from "../../../src/renderer/selection/highlight-table";
 import {
   collectEmphasisUpdates,
@@ -114,7 +114,7 @@ export const interactionBudgets: readonly BudgetCase[] = [
     budgetMs: 100,
     run: () => {
       const metadata = getPartSemanticIndex(emphasisPart);
-      for (const elementId of emphasisElementIds) metadata.bodyByElement.get(elementId);
+      for (const elementId of emphasisElementIds) metadata.bodyForElement(elementId);
     },
   },
   {
@@ -150,7 +150,7 @@ export const interactionScalingCases: readonly ScalingCase[] = [
       size,
       run: () => {
         const parts = sceneBuilderParts.slice(0, size);
-        let builder = createScene();
+        let builder = createSceneBuilder();
         for (const part of parts) builder = builder.addPart(part);
         const scene = builder
           .addAssembly({
@@ -159,12 +159,12 @@ export const interactionScalingCases: readonly ScalingCase[] = [
             placements: parts.map((part) => ({
               kind: "part" as const,
               partId: part.id,
-              transform: translation(part.id, 0, 0),
+              transform: translationMatrix(part.id, 0, 0),
             })),
           })
-          .withRoot(1)
+          .setRootAssembly(1)
           .build();
-        createSceneRuntime(scene);
+        createSceneOccurrenceSnapshot(scene);
       },
     })),
     maxNormalizedSpread: 5,

@@ -6,9 +6,9 @@ import {
   elementalVector,
   nodalDisplacement,
   createPart,
-  identity,
-  scale,
-  createScene,
+  identityMatrix,
+  scalingMatrix,
+  createSceneBuilder,
   createViewport,
   type ViewportResultsConfig,
   resolveViewportResults,
@@ -229,7 +229,7 @@ describe("viewport results workflow", () => {
     installTestGpuGlobals();
     installNavigator();
     const gpu = fakeGpuDevice();
-    const scene = createTestScene(scale(1, 0, 1));
+    const scene = createTestScene(scalingMatrix(1, 0, 1));
     const vector = elementalVector();
     const viewport = await createViewport({
       canvas: fakeCanvas(),
@@ -261,7 +261,7 @@ describe("viewport results workflow", () => {
   });
 
   it("validates deformation only for parts placed in the compiled runtime", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(
         createPart(1, {
           geometries: [
@@ -296,9 +296,9 @@ describe("viewport results workflow", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: 1, transform: identity() }],
+        placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = {
       instanceCount: 1,

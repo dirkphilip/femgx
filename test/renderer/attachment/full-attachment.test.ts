@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPart } from "../../../src/geometry/part";
-import { translation } from "../../../src/math/mat4";
+import { translationMatrix } from "../../../src/math/mat4";
 import { RendererAttachment } from "../../../src/renderer/attachment";
 import { createInteractionState } from "../../../src/interaction/interaction";
 import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
@@ -16,7 +16,7 @@ import {
   prepareOccurrenceMutations,
 } from "../../../src/scene-runtime/occurrence-update";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import { prepareSceneTransition } from "../../../src/scene/update";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
@@ -136,7 +136,7 @@ describe("cold renderer attachment", () => {
           kind: "part",
           placementId: "added-part",
           partId: 2,
-          transform: translation(4, 0, 0),
+          transform: translationMatrix(4, 0, 0),
         });
       });
       if (prepared === undefined) throw new Error("transition missing");
@@ -202,7 +202,7 @@ function buildScene() {
       },
     ],
   });
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -211,10 +211,10 @@ function buildScene() {
         kind: "part" as const,
         placementId: String(slot),
         partId: 1,
-        transform: translation(slot, slot * 2, slot * 3),
+        transform: translationMatrix(slot, slot * 2, slot * 3),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -224,16 +224,16 @@ function buildTwoPartScene() {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
   };
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry] }))
     .addPart(createPart(2, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       placements: [
-        { kind: "part", placementId: "removed", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", placementId: "retained", partId: 2, transform: translation(1, 0, 0) },
+        { kind: "part", placementId: "removed", partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", placementId: "retained", partId: 2, transform: translationMatrix(1, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }

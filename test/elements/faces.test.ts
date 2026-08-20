@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
-import { classifyFaces, facesOf, facesOfElement } from "../../src/elements/faces";
+import { createElementModel } from "../../src/elements/model";
+import {
+  boundaryFaceRefs,
+  boundaryFaceRefsForModel,
+  classifyFaces,
+  facesOf,
+  faceRefsOf,
+} from "../../src/elements/faces";
 import { ElementShape, topologyFor, type ElementFamily } from "../../src/elements/shapes";
 
 const sequentialElement = (id: number, shape: ElementShape) =>
@@ -143,7 +150,7 @@ function assertOutwardFaces(element: ReturnType<typeof sequentialElement>): void
 }
 
 describe("facesOf", () => {
-  it("preserves the element's node identity, not connectivity positions", () => {
+  it("preserves the element's node identityMatrix, not connectivity positions", () => {
     const element = createElement(1, ElementShape.Tet4, [10, 20, 30, 40]);
     expect(facesOf(element).map((face) => face.nodeIds)).toEqual([
       [10, 20, 40],
@@ -172,10 +179,10 @@ describe("facesOf", () => {
   });
 });
 
-describe("facesOfElement", () => {
+describe("faceRefsOf", () => {
   it("pairs every face with a stable element-scoped index", () => {
     const element = sequentialElement(7, ElementShape.Tet4);
-    const refs = facesOfElement(element);
+    const refs = faceRefsOf(element);
     expect(refs).toHaveLength(4);
     refs.forEach((ref, index) => {
       expect(ref.elementId).toBe(7);
@@ -284,5 +291,16 @@ describe("classifyFaces", () => {
 
   it("returns an empty classification for no elements", () => {
     expect(classifyFaces([])).toEqual([]);
+  });
+});
+
+describe("boundaryFaceRefsForModel", () => {
+  it("matches descriptor boundary identities in authored row and face order", () => {
+    const elements = [
+      createElement(9, ElementShape.Tet4, [0, 1, 2, 3]),
+      createElement(4, ElementShape.Tet4, [0, 1, 2, 4]),
+    ];
+    const model = createElementModel(new Float32Array(5 * 3), elements);
+    expect(boundaryFaceRefsForModel(model)).toEqual(boundaryFaceRefs(elements));
   });
 });

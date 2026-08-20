@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createPart,
-  createScene,
+  createSceneBuilder,
   createViewport,
-  identity,
+  identityMatrix,
   type Viewport,
 } from "../../../src/entries/root";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
@@ -20,7 +20,10 @@ beforeAll(async () => {
     configurable: true,
     value: { gpu: { getPreferredCanvasFormat: () => "bgra8unorm" } },
   });
-  const scene = createScene().addAssembly({ id: 1, placements: [] }).withRoot(1).build();
+  const scene = createSceneBuilder()
+    .addAssembly({ id: 1, placements: [] })
+    .setRootAssembly(1)
+    .build();
   viewports = await Promise.all(
     COUNTS.map(() =>
       createViewport({ canvas: fakeCanvas(), scene, device: fakeGpuDevice().device }),
@@ -46,13 +49,13 @@ describe("new-part admission scaling", () => {
         },
       ],
     });
-    const transform = identity();
+    const transform = identityMatrix();
     const measurements: number[] = [];
     for (let fixture = 0; fixture < COUNTS.length; fixture += 1) {
       const viewport = viewports[fixture];
       const count = COUNTS[fixture];
       if (viewport === undefined || count === undefined) throw new Error("Fixture is missing");
-      const runtime = viewport.runtime;
+      const occurrences = viewport.occurrences;
       const started = performance.now();
       viewport.updateScene((update) => {
         update.addPart(part);
@@ -67,8 +70,8 @@ describe("new-part admission scaling", () => {
       });
       viewport.render();
       measurements.push(performance.now() - started);
-      expect(viewport.runtime).toBe(runtime);
-      expect(viewport.runtime.partOccurrenceCount).toBe(count);
+      expect(viewport.occurrences).toBe(occurrences);
+      expect(viewport.occurrences.partOccurrenceCount).toBe(count);
     }
     if (process.env["PERF_REPORT"] !== undefined) {
       console.log(

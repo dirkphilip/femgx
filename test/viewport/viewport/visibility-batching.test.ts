@@ -145,14 +145,14 @@ describe("Viewport", () => {
         { emissive: 0.5 },
       );
       viewport.interaction.set(interaction);
-      viewport.visibility.setPart(1, false);
-      viewport.visibility.setPart(1, true);
+      viewport.visibility.setPartVisible(1, false);
+      viewport.visibility.setPartVisible(1, true);
       expect(onRender).toHaveBeenCalledOnce();
       return interaction;
     });
 
     expect(finalInteraction).toBe(viewport.interaction.state);
-    expect(viewport.runtime.visibleCount).toBe(1);
+    expect(viewport.occurrences.visibleCount).toBe(1);
     expect(onRender).toHaveBeenCalledTimes(2);
     viewport.destroy();
   });
@@ -171,10 +171,10 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    first.visibility.setPart(1, false);
-    expect(first.runtime.visibleCount).toBe(0);
-    expect(second.runtime.visibleCount).toBe(1);
-    expect(second.runtime.isPartOccurrenceVisible("1/0")).toBe(true);
+    first.visibility.setPartVisible(1, false);
+    expect(first.occurrences.visibleCount).toBe(0);
+    expect(second.occurrences.visibleCount).toBe(1);
+    expect(second.occurrences.isPartOccurrenceVisible("1/0")).toBe(true);
 
     first.destroy();
     second.destroy();

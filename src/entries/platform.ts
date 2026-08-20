@@ -2,7 +2,7 @@
 export {
   queryWebGpuSupport,
   requestWebGpuAdapter,
-  unsupportedMessage,
+  webGpuUnsupportedMessage,
   WebGpuUnsupportedError,
   type WebGpuAdapterProfile,
   type WebGpuQueryOptions,

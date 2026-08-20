@@ -26,7 +26,7 @@ single-precision render model directly; see
 
 ## Model builder (`src/io/model-builder.ts`)
 
-`createModelBuilder()` accumulates typed-array chunks through
+`createFemModelBuilder()` accumulates typed-array chunks through
 `appendNodes`, `openElementShapeBlock`, `appendElements`, `addSet`,
 `setMetadata`, and `addResult`. `build()` returns one immutable `FemModel`.
 The builder is useful for hosts and adapters that already own their ingestion
@@ -34,11 +34,11 @@ boundary; it does not perform file discovery, transport, or background loading.
 
 ## Validation and conversion
 
-`validateModel(model)` returns typed `Issue` records for malformed node tables,
+`validateFemModel(model)` returns typed `Issue` records for malformed node tables,
 duplicate identities, invalid connectivity, unknown set/result references, and
 unsupported result shapes. `createElementModelFromFemModel(model)` validates
 the payload and then creates the dense `ElementModel` consumed by
-`elementPart`; node ids must already be dense and in coordinate order.
+`createPartFromElementModel`; node ids must already be dense and in coordinate order.
 Hosts retain direct body ownership in that same conversion by passing
 validated `bodies`, avoiding a second full model build and copy. The copyable
 [`examples/host-integration`](../../examples/host-integration/README.md) shows
@@ -56,7 +56,7 @@ narrow bridge from one host-authored result to the viewport:
   unsupported identities fail with `IoError` diagnostics.
 
 The complete FE handoff is:
-`FemModel -> validateModel -> createElementModelFromFemModel -> elementPart ->
+`FemModel -> validateFemModel -> createElementModelFromFemModel -> createPartFromElementModel ->
 Scene -> Viewport`, with authored results converted through
 `createResultFieldFromModelResult` before `setResults()`.
 

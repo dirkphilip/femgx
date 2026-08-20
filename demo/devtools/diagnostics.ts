@@ -107,7 +107,7 @@ function renderLoopLines(stats: RenderLoopStats): string {
 function partLines(context: WorkbenchSceneContext): string[] {
   const lines: string[] = [];
   const partVisibility = new Map<PartId, boolean>();
-  for (const instance of context.runtime.getPartOccurrences()) {
+  for (const instance of context.runtime.partOccurrences()) {
     partVisibility.set(
       instance.partId,
       (partVisibility.get(instance.partId) ?? false) || instance.visible,
@@ -143,7 +143,7 @@ function uniqueTriangleCount(context: WorkbenchSceneContext): number {
 /** Triangle count after runtime visibility, including every visible instance draw. */
 function submittedTriangleCount(context: WorkbenchSceneContext): number {
   let triangles = 0;
-  for (const instance of context.runtime.getPartOccurrences()) {
+  for (const instance of context.runtime.partOccurrences()) {
     if (!instance.visible) continue;
     triangles += triangleCount(context.model, instance.partId);
   }
@@ -153,16 +153,16 @@ function submittedTriangleCount(context: WorkbenchSceneContext): number {
 function uniqueElementCount(context: WorkbenchSceneContext): number {
   let elements = 0;
   for (const part of context.model.scene.parts.values()) {
-    elements += part.elements?.length ?? 0;
+    elements += part.elements?.count ?? 0;
   }
   return elements;
 }
 
 function submittedElementOccurrences(context: WorkbenchSceneContext): number {
   let elements = 0;
-  for (const instance of context.runtime.getPartOccurrences()) {
+  for (const instance of context.runtime.partOccurrences()) {
     if (!instance.visible) continue;
-    elements += context.model.scene.parts.get(instance.partId)?.elements?.length ?? 0;
+    elements += context.model.scene.parts.get(instance.partId)?.elements?.count ?? 0;
   }
   return elements;
 }

@@ -4,8 +4,8 @@ import {
   buildScene,
   structuralScene,
   sceneWithPlacement,
-  identity,
-  translation,
+  identityMatrix,
+  translationMatrix,
   type Scene,
   createPackedSceneRuntime,
 } from "./support";
@@ -18,11 +18,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
       ],
       [1, 2],
       [2],
@@ -44,8 +44,13 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", placementId: "left", partId: 1, transform: translation(1, 0, 0) },
-            { kind: "part", placementId: "right", partId: 2, transform: translation(2, 0, 0) },
+            { kind: "part", placementId: "left", partId: 1, transform: translationMatrix(1, 0, 0) },
+            {
+              kind: "part",
+              placementId: "right",
+              partId: 2,
+              transform: translationMatrix(2, 0, 0),
+            },
           ],
         },
       ],
@@ -57,8 +62,18 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", placementId: "right", partId: 2, transform: translation(20, 0, 0) },
-            { kind: "part", placementId: "left", partId: 1, transform: translation(10, 0, 0) },
+            {
+              kind: "part",
+              placementId: "right",
+              partId: 2,
+              transform: translationMatrix(20, 0, 0),
+            },
+            {
+              kind: "part",
+              placementId: "left",
+              partId: 1,
+              transform: translationMatrix(10, 0, 0),
+            },
           ],
         },
       ],
@@ -76,7 +91,7 @@ describe("createPackedSceneRuntime", () => {
   });
 
   it("rejects malformed structural scenes before packing", () => {
-    const nonFiniteTransform = identity();
+    const nonFiniteTransform = identityMatrix();
     nonFiniteTransform[3] = Number.NaN;
     const cases: readonly [string, () => Scene, RegExp][] = [
       [
@@ -91,7 +106,7 @@ describe("createPackedSceneRuntime", () => {
             kind: "part",
             partId: 1,
             placementId: "invalid/id",
-            transform: identity(),
+            transform: identityMatrix(),
           }),
         /placement 0 id must be a non-empty string without '\/'/,
       ],
@@ -115,17 +130,17 @@ describe("createPackedSceneRuntime", () => {
       ],
       [
         "unsupported placement kind",
-        () => sceneWithPlacement({ kind: "mesh", transform: identity() } as never),
+        () => sceneWithPlacement({ kind: "mesh", transform: identityMatrix() } as never),
         /unsupported kind mesh/,
       ],
       [
         "missing part reference",
-        () => sceneWithPlacement({ kind: "part", partId: 99, transform: identity() }),
+        () => sceneWithPlacement({ kind: "part", partId: 99, transform: identityMatrix() }),
         /references missing part 99/,
       ],
       [
         "missing assembly reference",
-        () => sceneWithPlacement({ kind: "assembly", assemblyId: 99, transform: identity() }),
+        () => sceneWithPlacement({ kind: "assembly", assemblyId: 99, transform: identityMatrix() }),
         /references missing assembly 99/,
       ],
       [
@@ -155,11 +170,17 @@ describe("createPackedSceneRuntime", () => {
             assemblies: new Map([
               [
                 1,
-                { id: 1, placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }] },
+                {
+                  id: 1,
+                  placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
+                },
               ],
               [
                 2,
-                { id: 2, placements: [{ kind: "assembly", assemblyId: 1, transform: identity() }] },
+                {
+                  id: 2,
+                  placements: [{ kind: "assembly", assemblyId: 1, transform: identityMatrix() }],
+                },
               ],
             ]),
           }),
@@ -179,11 +200,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "assembly", assemblyId: 2, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 1, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] },
       ],
       [1],
     );
@@ -201,11 +222,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
       ],
       [1, 2],
     );
@@ -223,9 +244,9 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(2, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
           ],
         },
       ],

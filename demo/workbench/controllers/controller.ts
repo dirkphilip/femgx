@@ -1,7 +1,7 @@
 import { type Viewport, type ViewportBackground } from "../../../src/entries/root";
 import { type InteractionState } from "../../../src/entries/interaction";
 import { importGlb } from "../../../src/entries/io/glb";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { DemoView } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog, WorkbenchCatalogMode } from "../models/model-catalog";
@@ -232,8 +232,8 @@ export class WorkbenchController {
     this.visibilityPanel.rebuild();
   }
 
-  get runtime(): SceneRuntime {
-    return this.activeViewport().runtime;
+  get runtime(): SceneOccurrences {
+    return this.activeViewport().occurrences;
   }
 
   showState = showStateForSlot.bind(null, this.showStates);

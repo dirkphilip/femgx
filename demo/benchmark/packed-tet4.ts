@@ -1,10 +1,8 @@
 import { ElementShape } from "../../src/elements/shapes";
-import type { GeometryBody, Part } from "../../src/geometry/part";
-import { createPackedPart } from "../../src/geometry/packed/create-packed-part";
-import {
-  lazyPackedArray,
-  type PackedSemanticStorage,
-} from "../../src/geometry/packed/packed-semantic";
+import { createPartFromGraphColumns, type Part } from "../../src/geometry/part";
+import { completeEdgeColumns } from "../../src/geometry/semantic/edge-columns";
+import { completeFaceColumns } from "../../src/geometry/semantic/face-columns";
+import { assemblePartSemanticGraph } from "../../src/geometry/semantic/graph-assembly";
 import type { DenseTet4Payload } from "./tet4-transfer";
 
 const TET_FACE_CORNERS: readonly (readonly [number, number, number])[] = [
@@ -21,17 +19,15 @@ const TET_EDGES: readonly (readonly [number, number])[] = [
   [1, 3],
   [2, 3],
 ];
+const TET4_SHAPE_CODE = Object.values(ElementShape).indexOf(ElementShape.Tet4) + 1;
 
-/** Builds a packed semantic Part from the transferred structured Tet4 arrays. */
+/** Builds a graph-owned Tet4 Part from the transferred structured arrays. */
 export function createPackedTet4Part(
   partId: number,
   payload: DenseTet4Payload,
   name = "tet4 structured body",
 ): Part {
-  const bodyElementIds = lazyPackedArray(payload.elementCount, (ordinal) => ordinal + 1);
-  const body: GeometryBody = { id: 1, name, elementIds: bodyElementIds };
-  const semantic = createPackedTet4Semantic(payload, [body]);
-  return createPackedPart(partId, {
+  return createPartFromGraphColumns(partId, {
     geometries: [
       {
         primitive: "triangles",
@@ -40,28 +36,20 @@ export function createPackedTet4Part(
         nodePickIds: payload.nodePickIds,
       },
     ],
-    semantic,
     nodePositions: payload.nodePositions,
-    bodies: [body],
+    graph: createTet4Graph(payload, name),
   });
 }
 
-function createPackedTet4Semantic(
-  payload: DenseTet4Payload,
-  bodies: readonly GeometryBody[],
-): PackedSemanticStorage {
+function createTet4Graph(payload: DenseTet4Payload, bodyName: string) {
   const { elementCount, faceCount } = payloadCounts(payload);
   const elementIds = Uint32Array.from({ length: elementCount }, (_, ordinal) => ordinal + 1);
-  const elementPrimitiveStarts = Uint32Array.from(
+  const elementRangeStarts = Uint32Array.from(
     { length: elementCount },
     (_, ordinal) => ordinal * TET_FACE_CORNERS.length,
   );
-  const elementPrimitiveCounts = new Uint32Array(elementCount);
-  elementPrimitiveCounts.fill(TET_FACE_CORNERS.length);
-  const elementFaceOffsets = Uint32Array.from(
-    { length: elementCount + 1 },
-    (_, ordinal) => ordinal * TET_FACE_CORNERS.length,
-  );
+  const elementRangeCounts = new Uint32Array(elementCount);
+  elementRangeCounts.fill(TET_FACE_CORNERS.length);
   const elementBodyIds = new Uint32Array(elementCount);
   elementBodyIds.fill(1);
   const faceOwnerElementOrdinals = Uint32Array.from({ length: faceCount }, (_, faceOrdinal) =>
@@ -76,23 +64,32 @@ function createPackedTet4Semantic(
   facePrimitiveCounts.fill(1);
   const faceNodeOffsets = Uint32Array.from({ length: faceCount + 1 }, (_, ordinal) => ordinal * 3);
   const faceNodeIds = createFaceNodeIds(payload, faceCount);
+  const bodyNameText = new Uint16Array(bodyName.length);
+  for (let index = 0; index < bodyName.length; index += 1) {
+    bodyNameText[index] = bodyName.charCodeAt(index);
+  }
+  const bodyElementOrdinals = new Uint32Array(elementCount);
+  const elementIdOrdinals = new Uint32Array(elementCount);
+  for (let ordinal = 0; ordinal < elementCount; ordinal += 1) {
+    bodyElementOrdinals[ordinal] = ordinal;
+    elementIdOrdinals[ordinal] = ordinal;
+  }
   const edges = createPackedEdges(payload, faceNodeIds, faceOwnerElementOrdinals);
-  return {
-    primitive: "triangles",
-    elementIds,
-    elementPrimitiveStarts,
-    elementPrimitiveCounts,
-    elementFaceOffsets,
-    elementIdsOneBasedContiguous: true,
-    elementShape: ElementShape.Tet4,
-    elementBodyIds,
+  const faceColumns = completeFaceColumns({
+    faceGeometryOrdinals: new Uint8Array(faceCount),
     faceOwnerElementOrdinals,
     faceIndices,
     facePrimitiveStarts,
     facePrimitiveCounts,
     faceNeighborElementOrdinals: payload.faceNeighborIds,
+    faceNeighborMissing: new Uint8Array(faceCount),
+    faceNeighborMissingIds: new Uint32Array(faceCount),
+    faceBodyIds: new Uint32Array(faceCount).fill(1),
     faceNodeOffsets,
     faceNodeIds,
+  });
+  const edgeColumns = completeEdgeColumns({
+    edgeGeometryOrdinals: new Uint8Array(edges.nodeOffsets.length - 1),
     edgeNodeOffsets: edges.nodeOffsets,
     edgeNodeIds: edges.nodeIds,
     edgeIncidentOffsets: edges.incidentOffsets,
@@ -100,10 +97,86 @@ function createPackedTet4Semantic(
     edgeFaceOffsets: edges.faceOffsets,
     edgeFaceOwnerElementOrdinals: edges.faceOwnerElementOrdinals,
     edgeFaceIndices: edges.faceIndices,
-    faceSubsetOrdinals: payload.boundaryFaceIndices,
-    bodies,
-    nodeCount: payload.nodePositions.length / 3,
-  };
+  });
+  return assemblePartSemanticGraph({
+    geometryCount: 1,
+    elements: {
+      elementIds,
+      elementIdOrdinals,
+      elementShapeCodes: Uint8Array.from({ length: elementCount }, () => TET4_SHAPE_CODE),
+      elementBodyIds,
+      elementRangeOffsets: Uint32Array.from({ length: elementCount + 1 }, (_, ordinal) => ordinal),
+      elementRangeGeometryOrdinals: new Uint8Array(elementCount),
+      elementRangePrimitiveCodes: new Uint8Array(elementCount),
+      elementRangeStarts,
+      elementRangeCounts,
+    },
+    bodies: {
+      bodyIds: new Uint32Array([1]),
+      bodyIdOrdinals: new Uint32Array([0]),
+      bodyNameDefined: new Uint8Array([1]),
+      bodyNameOffsets: new Uint32Array([0, bodyName.length]),
+      bodyNameText,
+      bodyElementOffsets: new Uint32Array([0, elementCount]),
+      bodyElementOrdinals,
+    },
+    faces: faceColumns,
+    edges: edgeColumns,
+    faceSubset: {
+      offsets: new Uint32Array([0, payload.boundaryFaceIndices.length]),
+      ordinals: sortBoundaryFaceOrdinals(payload.boundaryFaceIndices, faceNodeIds),
+      defined: new Uint8Array([1]),
+    },
+  });
+}
+
+function sortBoundaryFaceOrdinals(boundary: Uint32Array, nodes: Uint32Array): Uint32Array {
+  const result = new Uint32Array(boundary);
+  const scratch = new Uint32Array(result.length);
+  for (let width = 1; width < result.length; width *= 2) {
+    for (let start = 0; start < result.length; start += width * 2) {
+      const middle = Math.min(start + width, result.length);
+      const end = Math.min(start + width * 2, result.length);
+      let left = start;
+      let right = middle;
+      for (let output = start; output < end; output += 1) {
+        const leftFace = result[left] ?? 0;
+        const rightFace = result[right] ?? 0;
+        if (left < middle && (right >= end || compareFaces(nodes, leftFace, rightFace) <= 0)) {
+          scratch[output] = leftFace;
+          left += 1;
+        } else {
+          scratch[output] = rightFace;
+          right += 1;
+        }
+      }
+    }
+    result.set(scratch);
+  }
+  return result;
+}
+
+function compareFaces(nodes: Uint32Array, leftFace: number, rightFace: number): number {
+  const leftFirst = nodes[leftFace * 3] ?? 0;
+  const leftSecond = nodes[leftFace * 3 + 1] ?? 0;
+  const leftThird = nodes[leftFace * 3 + 2] ?? 0;
+  const rightFirst = nodes[rightFace * 3] ?? 0;
+  const rightSecond = nodes[rightFace * 3 + 1] ?? 0;
+  const rightThird = nodes[rightFace * 3 + 2] ?? 0;
+  const leftLow = Math.min(leftFirst, leftSecond, leftThird);
+  const leftHigh = Math.max(leftFirst, leftSecond, leftThird);
+  const rightLow = Math.min(rightFirst, rightSecond, rightThird);
+  const rightHigh = Math.max(rightFirst, rightSecond, rightThird);
+  return (
+    leftLow - rightLow ||
+    leftFirst +
+      leftSecond +
+      leftThird -
+      leftLow -
+      leftHigh -
+      (rightFirst + rightSecond + rightThird - rightLow - rightHigh) ||
+    leftHigh - rightHigh
+  );
 }
 
 function payloadCounts(payload: DenseTet4Payload): {

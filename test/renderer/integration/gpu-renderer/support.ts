@@ -16,7 +16,7 @@ import { createElementModel } from "../../../../src/elements/model";
 
 import { ElementShape } from "../../../../src/elements/shapes";
 
-import { elementPart } from "../../../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../../../src/geometry/element-model-part";
 
 import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
 
@@ -42,9 +42,9 @@ import { setNodeSelected } from "../../../../src/interaction/nodes";
 
 import { setTargetHovered } from "../../../../src/interaction/targets";
 
-import { createScene, type Scene } from "../../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../../../src/scene/scene";
 
-import { identity, translation } from "../../../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../../../src/math/mat4";
 
 import {
   projectPoint,
@@ -99,18 +99,18 @@ export function buildScene(): Scene {
     primitive: "triangles" as const,
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry], nodePositions: geometry.positions }))
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", partId: 1, transform: translation(2, 0, 0) },
-        { kind: "part", partId: 1, transform: translation(4, 0, 0) },
+        { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
+        { kind: "part", partId: 1, transform: translationMatrix(4, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -121,14 +121,14 @@ export function buildPointScene(): Scene {
     indices: new Uint32Array([0]),
     primitive: "points" as const,
   };
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identity() }],
+      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -137,7 +137,7 @@ export function buildVariantScene(
   parts: readonly ReturnType<typeof createPart>[],
   bindings: readonly { readonly placementId: string; readonly partId: number }[],
 ): Scene {
-  const builder = createScene();
+  const builder = createSceneBuilder();
   for (const part of parts) builder.addPart(part);
   return builder
     .addAssembly({
@@ -147,10 +147,10 @@ export function buildVariantScene(
         kind: "part" as const,
         placementId,
         partId,
-        transform: translation(index, 0, 0),
+        transform: translationMatrix(index, 0, 0),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -160,15 +160,15 @@ export function buildSectionScene(): Scene {
     [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
     [createElement(7, ElementShape.Tet4, [0, 1, 2, 3])],
   );
-  const part = elementPart(1, model);
-  return createScene()
+  const part = createPartFromElementModel(1, model);
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: part.id, transform: identity() }],
+      placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -220,14 +220,14 @@ export function buildFaceScene(): Scene {
     ],
   };
   const { elements, nodePositions, ...localGeometry } = geometry;
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [localGeometry], elements, nodePositions }))
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identity() }],
+      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -249,14 +249,14 @@ export function buildBodyScene(): Scene {
     bodies: [{ id: 3, name: "body", elementIds: [0] }],
   };
   const { elements, bodies, ...localGeometry } = geometry;
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [localGeometry], elements, bodies }))
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identity() }],
+      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -357,7 +357,7 @@ export {
   createElement,
   createElementModel,
   ElementShape,
-  elementPart,
+  createPartFromElementModel,
   createPackedSceneRuntime,
   createInteractionState,
   setElementOverride,
@@ -372,10 +372,10 @@ export {
   setElementVisible,
   setNodeSelected,
   setTargetHovered,
-  createScene,
+  createSceneBuilder,
   type Scene,
-  identity,
-  translation,
+  identityMatrix,
+  translationMatrix,
   projectPoint,
   unprojectPoint,
   type Camera,

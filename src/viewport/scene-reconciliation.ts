@@ -7,7 +7,6 @@ import {
   type InteractionStateData,
 } from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
-import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartOccurrenceId } from "../scene/types";
 
@@ -79,16 +78,16 @@ function reconcileOccurrenceState(
   identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
   keepInstance: (partOccurrenceId: PartOccurrenceId) => boolean,
 ): ReconciledOccurrenceState {
-  const body = (owner: SceneIdentity, id: number): boolean => owner.semantic.bodies.has(id);
-  const element = (owner: SceneIdentity, id: number): boolean => owner.semantic.elements.has(id);
+  const body = (owner: SceneIdentity, id: number): boolean => owner.semantic.hasBody(id);
+  const element = (owner: SceneIdentity, id: number): boolean => owner.semantic.hasElement(id);
   const node = (owner: SceneIdentity, id: number): boolean =>
     id >= 0 && id < owner.semantic.nodeCount;
   const face = (
     owner: SceneIdentity,
-    key: string,
+    _key: string,
     ref: { readonly elementId: number; readonly faceIndex: number },
-  ): boolean => owner.semantic.faces.has(key) && faceId(ref.elementId, ref.faceIndex) === key;
-  const edge = (owner: SceneIdentity, key: string): boolean => owner.semantic.edges.has(key);
+  ): boolean => owner.semantic.hasFace(ref.elementId, ref.faceIndex);
+  const edge = (owner: SceneIdentity, key: string): boolean => owner.semantic.hasEdge(key);
   return {
     highlightedPartOccurrenceIds: filterSet(data.highlightedPartOccurrenceIds, keepInstance),
     selectedPartOccurrenceIds: filterSet(data.selectedPartOccurrenceIds, keepInstance),
@@ -120,18 +119,17 @@ function targetInScene(
   const owner = identityFor(target.partOccurrenceId);
   if (owner === undefined) return undefined;
   if (target.kind === "partOccurrence") return target;
-  if (target.kind === "body") return owner.semantic.bodies.has(target.bodyId) ? target : undefined;
+  if (target.kind === "body") return owner.semantic.hasBody(target.bodyId) ? target : undefined;
   if (target.kind === "element") {
-    return owner.semantic.elements.has(target.elementId) ? target : undefined;
+    return owner.semantic.hasElement(target.elementId) ? target : undefined;
   }
   if (target.kind === "node") {
     return target.nodeId >= 0 && target.nodeId < owner.semantic.nodeCount ? target : undefined;
   }
   if (target.kind === "face") {
-    const key = faceId(target.elementId, target.faceIndex);
-    return owner.semantic.faces.has(key) ? target : undefined;
+    return owner.semantic.hasFace(target.elementId, target.faceIndex) ? target : undefined;
   }
-  return owner.semantic.edges.has(target.key) ? target : undefined;
+  return owner.semantic.hasEdge(target.key) ? target : undefined;
 }
 
 function filterSet<T>(current: ReadonlySet<T>, keep: (value: T) => boolean): ReadonlySet<T> {

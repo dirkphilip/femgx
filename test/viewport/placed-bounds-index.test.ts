@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   applyOccurrenceMutations,
@@ -10,7 +10,7 @@ import {
   applyTransformPatch,
   prepareTransformPatch,
 } from "../../src/scene-runtime/transform-update";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { prepareSceneTransition } from "../../src/scene/update";
 import { PlacedBoundsIndex } from "../../src/viewport/bounds/placed-index";
 import { scenePlacedBounds } from "../../src/viewport/scene-bounds";
@@ -26,7 +26,7 @@ describe("PlacedBoundsIndex", () => {
         kind: "part",
         placementId: "far",
         partId: 1,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       });
     });
     if (transition === undefined) throw new Error("expected a scene transition");
@@ -59,7 +59,7 @@ describe("PlacedBoundsIndex", () => {
         kind: "part",
         placementId: "added",
         partId: 2,
-        transform: translation(20, 0, 0),
+        transform: translationMatrix(20, 0, 0),
       });
     });
     if (transition === undefined) throw new Error("expected a scene transition");
@@ -88,7 +88,7 @@ function boundsScene() {
       },
     ],
   });
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -97,16 +97,16 @@ function boundsScene() {
           kind: "part",
           placementId: "middle",
           partId: 1,
-          transform: translation(5, 0, 0),
+          transform: translationMatrix(5, 0, 0),
         },
         {
           kind: "part",
           placementId: "far",
           partId: 1,
-          transform: translation(10, 0, 0),
+          transform: translationMatrix(10, 0, 0),
         },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }

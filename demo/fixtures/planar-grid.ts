@@ -2,7 +2,7 @@ import type {
   GeometryBody,
   ElementTessellation,
   FaceTessellation,
-  TriangleGeometry,
+  TriangleGeometryInput,
 } from "../../src/entries/root";
 
 export type PlanarGridElementFamily = "triangle" | "quad";
@@ -14,7 +14,7 @@ export interface PlanarGridOptions {
 }
 
 export interface PlanarGridBuild {
-  readonly geometry: TriangleGeometry;
+  readonly geometry: TriangleGeometryInput;
   readonly elements: readonly ElementTessellation[];
   readonly nodePositions: Float32Array;
   readonly bodies?: readonly GeometryBody[];
@@ -56,7 +56,7 @@ export function createPlanarGridGeometry(
   }
   const nodePickIds = new Uint32Array(positions.length / 3);
   for (let node = 0; node < nodePickIds.length; node += 1) nodePickIds[node] = node + 1;
-  const geometry: TriangleGeometry = {
+  const geometry: TriangleGeometryInput = {
     positions,
     indices,
     primitive: "triangles",

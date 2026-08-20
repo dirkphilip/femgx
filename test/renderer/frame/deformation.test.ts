@@ -80,7 +80,7 @@ describe("syncDeformations", () => {
     }
   });
 
-  it("treats an undefined state as the disabled identity", () => {
+  it("treats an undefined state as the disabled identityMatrix", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();

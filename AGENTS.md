@@ -180,6 +180,20 @@ See [[architecture/api-design|API design north star]].
 - ESLint enforces 400 implementation lines per file, 60 lines per function, and
   nesting depth 4; 300 file lines is a design-review threshold. Split only when
   it improves cohesion.
+- These limits remain the default. A measured, single-purpose performance kernel
+  may exceed them only with a narrow local ESLint exception that documents why
+  splitting would add hot-path overhead or obscure one linear pass, and with
+  allocation or benchmark evidence. Functions above 200 lines require explicit
+  scrutiny; above 300 lines are a strong signal to split. This exception does
+  not relax ordinary production, test, or orchestration code.
+- For proven large-N kernels, optimize in this order: algorithm, avoided work,
+  data layout, allocation/GC, locality, passes, JIT predictability, call or
+  iterator overhead, then micro-optimizations. Use indexed loops, typed
+  structure-of-arrays columns, preallocated or occasionally grown buffers, and
+  hoisted invariants; avoid allocating objects, arrays, closures, or intermediate
+  map/filter results in hot loops. Fuse passes only where that remains clearer or
+  measured. Function calls are normally cheap, but a helper that allocates or
+  hides hot-path work may be inlined in a documented kernel exception.
 - Document exported public symbols with TypeDoc or JSDoc.
 
 Fix visual failures at their source by inspecting renderer, shader, pipeline,

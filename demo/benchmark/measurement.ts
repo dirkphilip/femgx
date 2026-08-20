@@ -2,7 +2,10 @@ import { createCamera, projectPoint, type Camera } from "../../src/camera/camera
 import { fitCamera } from "../../src/camera/fit";
 import { transformPoint } from "../../src/math/mat4";
 import type { Geometry } from "../../src/geometry/part";
-import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
+import {
+  geometrySemanticGraph,
+  type PartSemanticGraph,
+} from "../../src/geometry/semantic/part-semantic-graph";
 import {
   createWebGpuRendererInternal,
   drainGpuTimestampSamples,
@@ -320,7 +323,7 @@ function countUniqueTriangles(benchmarkCase: WebGpuBenchmarkCase): number {
 
 function countUniqueElements(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
-  for (const part of benchmarkCase.scene.parts.values()) count += part.elements?.length ?? 0;
+  for (const part of benchmarkCase.scene.parts.values()) count += part.elements?.count ?? 0;
   return count;
 }
 
@@ -336,12 +339,12 @@ function countSubmittedElementOccurrences(
     const submittedElementIds = new Set<number>();
     for (const geometry of part.geometries) {
       if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
-        const packed = packedSemanticStorageForGeometry(geometry);
-        if (packed?.faceSubsetOrdinals !== undefined) {
-          addPackedSubsetElementIds(submittedElementIds, packed);
+        const semantic = geometrySemanticGraph(geometry);
+        if (semantic !== undefined) {
+          addGraphSubsetElementIds(submittedElementIds, semantic.graph, semantic.geometryOrdinal);
           continue;
         }
-        for (const face of geometry.faceSubset.faceIds) submittedElementIds.add(face.elementId);
+        for (const face of geometry.faceSubset) submittedElementIds.add(face.elementId);
         continue;
       }
       for (const element of part.elements ?? []) {
@@ -359,20 +362,24 @@ function countSubmittedElementOccurrences(
   return count;
 }
 
-function addPackedSubsetElementIds(
+function addGraphSubsetElementIds(
   target: Set<number>,
-  packed: NonNullable<ReturnType<typeof packedSemanticStorageForGeometry>>,
+  graph: PartSemanticGraph,
+  geometryOrdinal: number,
 ): void {
-  for (const faceOrdinal of packed.faceSubsetOrdinals ?? []) {
-    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal];
-    const elementId = ownerOrdinal === undefined ? undefined : packed.elementIds[ownerOrdinal];
+  const first = graph.faceSubsetOffsets[geometryOrdinal] ?? 0;
+  const last = graph.faceSubsetOffsets[geometryOrdinal + 1] ?? first;
+  for (let row = first; row < last; row += 1) {
+    const faceOrdinal = graph.faceSubsetOrdinals[row] ?? 0;
+    const ownerOrdinal = graph.faceOwnerElementOrdinals[faceOrdinal];
+    const elementId = ownerOrdinal === undefined ? undefined : graph.elementIds[ownerOrdinal];
     if (elementId !== undefined) target.add(elementId);
   }
 }
 
 function countBodies(benchmarkCase: WebGpuBenchmarkCase): number {
   let count = 0;
-  for (const part of benchmarkCase.scene.parts.values()) count += part.bodies?.length ?? 0;
+  for (const part of benchmarkCase.scene.parts.values()) count += part.bodies?.count ?? 0;
   return count;
 }
 
@@ -391,7 +398,7 @@ function countFaces(benchmarkCase: WebGpuBenchmarkCase): number {
   for (const part of benchmarkCase.scene.parts.values()) {
     count += part.geometries.reduce(
       (total, geometry) =>
-        total + (geometry.primitive === "triangles" ? (geometry.faces?.length ?? 0) : 0),
+        total + (geometry.primitive === "triangles" ? (geometry.faces?.count ?? 0) : 0),
       0,
     );
   }
@@ -454,23 +461,27 @@ export function submittedTriangleCount(
 function submittedTrianglesForGeometry(geometry: Geometry): number {
   if (geometry.primitive !== "triangles") return 0;
   if (geometry.faceSubset === undefined) return geometry.indices.length / 3;
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed?.faceSubsetOrdinals !== undefined) {
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    const { graph, geometryOrdinal } = semantic;
     let count = 0;
-    for (const faceOrdinal of packed.faceSubsetOrdinals) {
-      count += packed.facePrimitiveCounts[faceOrdinal] ?? 0;
+    const first = graph.faceSubsetOffsets[geometryOrdinal] ?? 0;
+    const last = graph.faceSubsetOffsets[geometryOrdinal + 1] ?? first;
+    for (let row = first; row < last; row += 1) {
+      const faceOrdinal = graph.faceSubsetOrdinals[row] ?? 0;
+      count += graph.facePrimitiveCounts[faceOrdinal] ?? 0;
     }
     return count;
   }
-  const primitiveCountByFace = new Map(
-    (geometry.faces ?? []).map(
-      (face) => [`${face.elementId}:${face.faceIndex}`, face.primitiveCount] as const,
-    ),
-  );
-  return geometry.faceSubset.faceIds.reduce(
-    (total, face) => total + (primitiveCountByFace.get(`${face.elementId}:${face.faceIndex}`) ?? 0),
-    0,
-  );
+  const primitiveCountByFace = new Map<string, number>();
+  for (const face of geometry.faces ?? []) {
+    primitiveCountByFace.set(`${face.elementId}:${face.faceIndex}`, face.primitiveCount);
+  }
+  let count = 0;
+  for (const face of geometry.faceSubset) {
+    count += primitiveCountByFace.get(`${face.elementId}:${face.faceIndex}`) ?? 0;
+  }
+  return count;
 }
 
 interface IterationOptions {

@@ -102,11 +102,11 @@ connectivity, identity, memory, and negative-space contract is defined in
 “Show the surface” is presentation, not a statement about which topology the
 client or GPU owns. A host must choose an explicit data contract for each part:
 
-| Contract             | Client owns                                               | Update owner | Local interior reveal                                                           | Status       |
-| -------------------- | --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- | ------------ |
-| Surface snapshot     | One complete display-relevant `surfacePart()` payload     | Host         | No. Omitted topology cannot be rendered or selected.                            | **Core now** |
-| Host-updated surface | The latest complete authoritative `surfacePart()` payload | Host/server  | Only after the host supplies a replacement part revision or occurrence binding. | **Core now** |
-| Fully resident model | Complete `ElementModel` topology and reusable geometry    | femgx/host   | Yes, because the client retains the relevant faces and identities.              | **Core now** |
+| Contract             | Client owns                                                                  | Update owner | Local interior reveal                                                           | Status       |
+| -------------------- | ---------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- | ------------ |
+| Surface snapshot     | One complete display-relevant `createPartFromExplicitTopology()` payload     | Host         | No. Omitted topology cannot be rendered or selected.                            | **Core now** |
+| Host-updated surface | The latest complete authoritative `createPartFromExplicitTopology()` payload | Host/server  | Only after the host supplies a replacement part revision or occurrence binding. | **Core now** |
+| Fully resident model | Complete `ElementModel` topology and reusable geometry                       | femgx/host   | Yes, because the client retains the relevant faces and identities.              | **Core now** |
 
 The first two contracts are transfer-minimizing paths. In both, femgx treats the
 current surface payload as complete and never infers omitted topology. The
@@ -125,7 +125,7 @@ internally, but never become public blocks or interaction identities. Picking,
 results, deformation, visibility, bounds, and selection apply only to identities
 present in the current client payload.
 
-In the fully resident contract, `elementPart(..., { faceSubset })` is a compact
+In the fully resident contract, `createPartFromElementModel(..., { faceSubset })` is a compact
 ordinary draw order rather than a residency boundary. The current renderer may
 retain complete geometry on the GPU so that local visibility changes can expose
 and interact with interior faces. At present, any hidden body or element
@@ -133,7 +133,7 @@ switches those draws from the static exterior subset to the already-resident
 complete face order and filters it in the shader; the visibility change does not
 infer or upload a new compact skin. This is a correctness fallback for the fully
 resident contract, not GPU-surface residency. Hosts that do not want the full
-transfer or residency cost must author a `surfacePart()` instead of relying on a
+transfer or residency cost must author a `createPartFromExplicitTopology()` instead of relying on a
 display toggle.
 
 ## Optional semantics and rendering admission
@@ -467,7 +467,7 @@ Removals are implemented by their owning issues, not speculatively here:
   and device-loss recovery were reviewed there and **retained** as supported-path
   features of the WebGPU contract.
 - Flat `compileScene` snapshot and CPU raycast stack (`createPickScene` /
-  `pick()`) → **removed**; the product path is `createSceneRuntime` + GPU
+  `pick()`) → **removed**; the product path is `Viewport` plus GPU
   `ViewportInteraction.pick`.
 - Element families beyond the supported Point, Line, Line3, Triangle, Tri6,
   Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20 set remain outside the product and require an

@@ -273,7 +273,7 @@ describe("elemental orientation records", () => {
           primitive: "triangles",
         },
       ],
-      elements: noNodeMap.elements ?? [],
+      elements: [...(noNodeMap.elements ?? [])],
       nodePositions: NODE_POSITIONS,
     });
     expect(() =>

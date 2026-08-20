@@ -1,7 +1,7 @@
 import type { InteractionState } from "../interaction/interaction";
 import { createInteractionState } from "../interaction/interaction";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
-import { createPublicSceneRuntime, type SceneRuntime } from "../scene-runtime/public-runtime";
+import { createSceneOccurrences, type SceneOccurrences } from "../scene-runtime/occurrences";
 import { applyTransformPatch, prepareTransformPatch } from "../scene-runtime/transform-update";
 import {
   applyOccurrenceMutations,
@@ -26,7 +26,6 @@ import { prepareRendererPartAdditions, updateRendererOccurrences } from "../rend
 interface PreparedSceneReplacement {
   readonly scene: Scene;
   readonly runtime: PackedSceneRuntime;
-  readonly publicRuntime: SceneRuntime;
   readonly originTriadNominalScale: number;
   readonly placedBounds: PlacedBoundsIndex;
   readonly baseInteraction: InteractionState;
@@ -51,7 +50,7 @@ interface SceneUpdateResult {
 export class ViewportSceneController {
   private currentScene: Scene;
   private currentRuntime: PackedSceneRuntime;
-  private currentPublicRuntime: SceneRuntime;
+  private currentPublicRuntime: SceneOccurrences;
   private baseInteraction: InteractionState;
   private currentResults: ViewportResultsState | undefined;
   private originTriadNominalScale: number;
@@ -65,7 +64,7 @@ export class ViewportSceneController {
     this.currentVisibility = ViewportVisibilityState.create(options.scene, this.currentRuntime);
     this.placedBounds = new PlacedBoundsIndex(options.scene, this.currentRuntime);
     this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
-    this.currentPublicRuntime = createPublicSceneRuntime(this.currentRuntime);
+    this.currentPublicRuntime = createSceneOccurrences(() => this.currentRuntime);
     this.baseInteraction = options.interaction ?? createInteractionState();
   }
 
@@ -77,7 +76,7 @@ export class ViewportSceneController {
     return this.currentRuntime;
   }
 
-  get publicRuntime(): SceneRuntime {
+  get publicRuntime(): SceneOccurrences {
     return this.currentPublicRuntime;
   }
 
@@ -228,7 +227,6 @@ export class ViewportSceneController {
     this.currentRuntime = replacement.runtime;
     this.placedBounds = replacement.placedBounds;
     this.originTriadNominalScale = replacement.originTriadNominalScale;
-    this.currentPublicRuntime = replacement.publicRuntime;
     this.currentResults = replacement.results;
     this.baseInteraction = replacement.baseInteraction;
     this.currentVisibility = replacement.visibility;
@@ -244,7 +242,6 @@ export class ViewportSceneController {
     const nextPlacedBounds = new PlacedBoundsIndex(scene, nextRuntime);
     const nextVisibility = this.currentVisibility.reconcile(scene, nextRuntime);
     const nextOriginTriadNominalScale = originTriadScaleFromBounds(nextPlacedBounds.bounds);
-    const nextPublicRuntime = createPublicSceneRuntime(nextRuntime);
     const nextInteraction = reconcileInteractionState(
       this.baseInteraction,
       nextRuntime,
@@ -257,7 +254,6 @@ export class ViewportSceneController {
       scene,
       runtime: nextRuntime,
       placedBounds: nextPlacedBounds,
-      publicRuntime: nextPublicRuntime,
       originTriadNominalScale: nextOriginTriadNominalScale,
       baseInteraction: nextInteraction,
       results: resultUpdate.results,

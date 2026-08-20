@@ -14,9 +14,8 @@ import {
 } from "../geometry/part";
 import { buildElementSectionCap, type SectionCap } from "../geometry/section-cap";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { packedElementTransient, packedSemanticStorage } from "../geometry/packed/packed-semantic";
 import type { SectionPlane } from "../math/section-plane";
-import { identity } from "../math/mat4";
+import { identityMatrix } from "../math/mat4";
 import { defaultStyle } from "./resources/foundation";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
 import { resultBindingValue } from "../results/bindings";
@@ -50,7 +49,7 @@ export interface SectionCapFrame {
   readonly resultColors: ResultColorMap;
 }
 
-const CAP_TRANSFORM = identity();
+const CAP_TRANSFORM = identityMatrix();
 
 /** Builds active occurrence caps into renderer-private reusable draw records. */
 export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame {
@@ -66,7 +65,6 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     const elements = sourcePart.elements;
     const sourcePositions = sourcePart.nodePositions;
     if (elements === undefined || sourcePositions === undefined) continue;
-    const packed = packedSemanticStorage(sourcePart);
     const metadata = getPartSemanticIndex(sourcePart);
     for (const slot of options.runtime.getPartInstanceSlots(sourcePart.id)) {
       if (!options.runtime.isInstanceVisible(slot)) continue;
@@ -78,7 +76,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         sourcePart.id,
         instance.partOccurrenceId,
       );
-      for (const element of sectionElements(elements, packed)) {
+      for (const element of elements) {
         if (!capElementVisible(options.interaction, instanceId, element, metadata)) continue;
         const cap = buildElementSectionCap({
           part: sourcePart,
@@ -104,7 +102,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
           occurrenceValue(options.resultColors, sourcePart.id, instance.partOccurrenceId),
           cap,
           sourcePositions.length / 3,
-          metadata.elementOrdinalById.get(element.id),
+          metadata.elementOrdinal(element.id),
           elementColorOverridden(options.interaction, instanceId, element.id),
         );
         if (colors !== undefined) resultColors.set(capId, colors);
@@ -125,7 +123,7 @@ function capStyle(
     elementId,
     defaultStyle,
     options.interaction,
-    metadata.bodyByElement.get(elementId),
+    metadata.bodyForElement(elementId),
   );
 }
 
@@ -135,19 +133,6 @@ function occurrenceValue<Value>(
   occurrenceId: string,
 ): Value | undefined {
   return source === undefined ? undefined : resultBindingValue(source, partId, occurrenceId);
-}
-
-function* sectionElements(
-  elements: readonly ElementTessellation[],
-  packed: ReturnType<typeof packedSemanticStorage>,
-): IterableIterator<ElementTessellation> {
-  if (packed === undefined) {
-    yield* elements;
-    return;
-  }
-  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
-    yield packedElementTransient(packed, ordinal);
-  }
 }
 
 function installCapInstance(
@@ -178,7 +163,7 @@ function capElementVisible(
 ): boolean {
   if (!isElementVisible(interaction, { partOccurrenceId: instanceId, elementId: element.id }))
     return false;
-  const bodyId = metadata.bodyByElement.get(element.id);
+  const bodyId = metadata.bodyForElement(element.id);
   if (bodyId !== undefined && !isBodyVisible(interaction, { partOccurrenceId: instanceId, bodyId }))
     return false;
   return true;
@@ -260,7 +245,7 @@ function nextCapId(used: Set<PartId>, ordinal: number): PartId {
   let id = MAX_PART_ID - ordinal;
   while (used.has(id)) {
     id -= 1;
-    if (id < 0) throw new Error("Section-cap part identity capacity exhausted");
+    if (id < 0) throw new Error("Section-cap part identityMatrix capacity exhausted");
   }
   used.add(id);
   return id;

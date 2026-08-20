@@ -3,9 +3,9 @@ import type { JSONDocument, Mesh, Node, Scene as GltfScene } from "@gltf-transfo
 import { KHRDracoMeshCompression } from "@gltf-transform/extensions";
 import draco3d, { type DracoDecoderOptions } from "draco3dgltf";
 import dracoDecoderWasmUrl from "../../../node_modules/draco3dgltf/draco_decoder_gltf.wasm?url";
-import { createScene, type Scene } from "../../scene/scene";
+import { createSceneBuilder, type Scene } from "../../scene/scene";
 import type { AssemblyDefinition, Placement } from "../../scene/assembly";
-import { identity, multiply, type Mat4 } from "../../math/mat4";
+import { identityMatrix, multiplyMatrices, type Mat4 } from "../../math/mat4";
 import type { PartId } from "../../geometry/part";
 import type { StyleOverride } from "../../interaction/state";
 import { IoError } from "../diagnostics";
@@ -114,7 +114,7 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
   if (flattened !== undefined) return buildFlatScene(selected, flattened);
   const nodeIds = new Map<Node, number>();
   nodes.forEach((node, index) => nodeIds.set(node, index + 1));
-  let builder = createScene();
+  let builder = createSceneBuilder();
   const partNames = new Map<PartId, string>();
   const partStyles = new Map<PartId, StyleOverride>();
   for (const record of partRecords) {
@@ -128,7 +128,7 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
     const placements: Placement[] = [];
     const mesh = node.getMesh();
     for (const record of mesh === null ? [] : (collection.byMesh.get(mesh) ?? [])) {
-      placements.push({ kind: "part", partId: record.part.id, transform: identity() });
+      placements.push({ kind: "part", partId: record.part.id, transform: identityMatrix() });
     }
     for (const child of node.listChildren()) {
       const childId = nodeIds.get(child);
@@ -153,12 +153,12 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
     name: selected.getName().trim() || "GLB scene",
     placements: rootPlacements,
   };
-  const scene = builder.addAssembly(rootAssembly).withRoot(rootId).build();
+  const scene = builder.addAssembly(rootAssembly).setRootAssembly(rootId).build();
   return { scene, partNames, partStyles };
 }
 
 function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]): BuiltScene {
-  let builder = createScene();
+  let builder = createSceneBuilder();
   const partNames = new Map<PartId, string>();
   const partStyles = new Map<PartId, StyleOverride>();
   const placements: Placement[] = [];
@@ -166,14 +166,18 @@ function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]):
     builder = builder.addPart(record.part);
     partNames.set(record.part.id, record.name);
     partStyles.set(record.part.id, record.style);
-    placements.push({ kind: "part", partId: record.part.id, transform: identity() });
+    placements.push({ kind: "part", partId: record.part.id, transform: identityMatrix() });
   }
   const root: AssemblyDefinition = {
     id: 0,
     name: selected.getName().trim() || "GLB scene",
     placements,
   };
-  return { scene: builder.addAssembly(root).withRoot(root.id).build(), partNames, partStyles };
+  return {
+    scene: builder.addAssembly(root).setRootAssembly(root.id).build(),
+    partNames,
+    partStyles,
+  };
 }
 
 function flatSingleUseRootParts(
@@ -205,7 +209,7 @@ function flatSingleUseRootParts(
     seenMeshes.add(mesh);
     const local = nodeTransform(node, diagnostics);
     const transform =
-      parent === undefined ? local : multiply(nodeTransform(parent, diagnostics), local);
+      parent === undefined ? local : multiplyMatrices(nodeTransform(parent, diagnostics), local);
     for (const record of collection.byMesh.get(mesh) ?? []) placed.push({ record, transform });
   }
   return flattenPlacedParts(placed);

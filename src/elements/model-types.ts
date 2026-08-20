@@ -1,4 +1,4 @@
-import type { ElementId } from "./element";
+import type { ElementId, NodeId } from "./element";
 
 /**
  * Stable model-local identity of a body.
@@ -21,6 +21,8 @@ export interface Body {
  * @category Elements and model editing
  */
 export interface ElementModelOptions {
+  /** Optional stable ids aligned with coordinate rows; omitted rows use `0..n-1`. */
+  readonly nodeIds?: ArrayLike<NodeId>;
   /** Optional direct body ownership groups. */
   readonly bodies?: readonly Body[];
 }

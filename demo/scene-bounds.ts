@@ -1,20 +1,32 @@
-import { transformPoint, type Bounds, type Scene } from "../src/entries/root";
-import { createSceneRuntime } from "../src/entries/runtime";
+import {
+  identityMatrix,
+  multiplyMatrices,
+  transformPoint,
+  type Bounds,
+  type Scene,
+} from "../src/entries/root";
 
 /** Returns the union of all placed part bounds in a demo scene. */
 export function sceneBounds(
   scene: Scene,
   emptyMessage = "Preset scene must contain at least one part",
 ): Bounds {
-  const runtime = createSceneRuntime(scene);
   let result: Bounds | undefined;
-  for (const partOccurrenceId of runtime.getVisiblePartOccurrenceIds()) {
-    const partId = runtime.getPartId(partOccurrenceId);
-    const transform = runtime.getTransform(partOccurrenceId);
-    const part = partId === undefined ? undefined : scene.parts.get(partId);
-    if (part === undefined || transform === undefined) continue;
-    result = mergeBounds(result, transformBounds(part.bounds, transform));
-  }
+  const visitAssembly = (assemblyId: number, parentTransform: Float32Array): void => {
+    const assembly = scene.assemblies.get(assemblyId);
+    if (assembly === undefined || !scene.visibleAssemblyIds.has(assemblyId)) return;
+    for (const placement of assembly.placements) {
+      const transform = multiplyMatrices(parentTransform, placement.transform);
+      if (placement.kind === "assembly") visitAssembly(placement.assemblyId, transform);
+      else {
+        const part = scene.parts.get(placement.partId);
+        if (part !== undefined && scene.visiblePartIds.has(part.id)) {
+          result = mergeBounds(result, transformBounds(part.bounds, transform));
+        }
+      }
+    }
+  };
+  visitAssembly(scene.rootAssemblyId, identityMatrix());
   if (result === undefined) throw new Error(emptyMessage);
   return result;
 }

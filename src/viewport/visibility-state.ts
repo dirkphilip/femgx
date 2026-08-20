@@ -56,7 +56,7 @@ export class ViewportVisibilityState {
     );
   }
 
-  setPart(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
+  setPartVisible(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
     updateHidden(this.parts.hidden, partId, visible);
     return runtime.setPartVisible(partId, visible);
   }
@@ -87,7 +87,7 @@ export class ViewportVisibilityState {
     }
   }
 
-  setAssembly(
+  setAssemblyVisible(
     runtime: PackedSceneRuntime,
     assemblyId: AssemblyId,
     visible: boolean,
@@ -96,7 +96,7 @@ export class ViewportVisibilityState {
     return runtime.setAssemblyVisible(assemblyId, visible);
   }
 
-  setAssemblyOccurrence(
+  setAssemblyOccurrenceVisible(
     runtime: PackedSceneRuntime,
     occurrenceId: AssemblyOccurrenceId,
     node: number,

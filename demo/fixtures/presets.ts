@@ -120,10 +120,10 @@ export function createHex20CylinderPreset(): ModelPreset {
   const partId = fixture.partIds.hex20;
   const model = fixture.elementModels.get(partId);
   if (model === undefined) throw new Error("Hex20 cylinder fixture has no element model");
-  const elementCount = Math.max(...model.elements.map((element) => element.id)) + 1;
+  const elementCount = Math.max(...[...model.elements].map((element) => element.id)) + 1;
   const stressValues = new Float32Array(elementCount);
   for (const [index, element] of model.elements.entries()) {
-    stressValues[element.id] = 0.5 + index / Math.max(1, model.elements.length - 1);
+    stressValues[element.id] = 0.5 + index / Math.max(1, model.elements.count - 1);
   }
   const displacementValues = new Float32Array(model.nodes.length);
   for (let node = 0; node < model.nodes.length / 3; node += 1) {

@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { ElementShape } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../src/geometry/element-model-part";
 import { createPart } from "../../src/geometry/part";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
+import type { GeometryFaces } from "../../src/geometry/semantic/geometry-semantic-capabilities";
 
 describe("getPartSemanticIndex", () => {
   it("indexes every authored triangle face under each incident node", () => {
-    const part = elementPart(
+    const part = createPartFromElementModel(
       1,
       createElementModel(
         [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1],
@@ -51,13 +52,13 @@ describe("getPartSemanticIndex", () => {
 
 function faceElementIds(
   index: ReturnType<typeof getPartSemanticIndex>,
-  faces: readonly { readonly elementId: number }[] | undefined,
+  faces: GeometryFaces | undefined,
   nodeId: number,
 ): number[] {
   const start = index.nodeTriangleFaceOffsets[nodeId] ?? 0;
   const end = index.nodeTriangleFaceOffsets[nodeId + 1] ?? start;
   return Array.from({ length: end - start }, (_, offset) => {
     const faceId = index.nodeTriangleFaceIds[start + offset] ?? 0;
-    return faces?.[faceId]?.elementId ?? -1;
+    return faces?.at(faceId)?.elementId ?? -1;
   }).sort((left, right) => left - right);
 }

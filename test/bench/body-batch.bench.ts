@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, bench, describe } from "vitest";
 import { createPart, type ElementTessellation, type GeometryBody } from "../../src/geometry/part";
 import { setBodyVisible } from "../../src/interaction/bodies";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import type { Viewport } from "../../src/viewport/viewport";
 import { createViewport } from "../../src/viewport/viewport";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 const BODY_COUNT = 64;
@@ -31,14 +31,14 @@ function bodyScene() {
     bodies.push({ id: bodyId, elementIds: [bodyId] });
   }
   const geometry = { primitive: "triangles" as const, positions, indices };
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry], elements, bodies }))
     .addAssembly({
       id: 1,
       name: "body-benchmark",
-      placements: [{ kind: "part", partId: 1, transform: identity() }],
+      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 

@@ -20,7 +20,7 @@ import {
 import { setBodyOverride } from "../../src/interaction/bodies";
 import { readInteractionState } from "../../src/interaction/state";
 import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import type { ElementRef, PartOccurrence } from "../../src/scene/types";
 
 const base: ResolvedStyle = {
@@ -31,8 +31,16 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
-const other: PartOccurrence = { partOccurrenceId: "2/0", partId: 2, worldTransform: identity() };
+const item: PartOccurrence = {
+  partOccurrenceId: "1/0",
+  partId: 1,
+  worldTransform: identityMatrix(),
+};
+const other: PartOccurrence = {
+  partOccurrenceId: "2/0",
+  partId: 2,
+  worldTransform: identityMatrix(),
+};
 
 function filledState(): InteractionState {
   let state = createInteractionState();
@@ -263,7 +271,7 @@ describe("element interaction", () => {
     expect(setElementOverride(state, ref, override)).toBe(state);
   });
 
-  it("tracks visibility per element occurrence and preserves no-op identity", () => {
+  it("tracks visibility per element occurrence and preserves no-op identityMatrix", () => {
     const initial = createInteractionState();
     const hidden = setElementVisible(initial, ref, false);
     const other = { partOccurrenceId: "2/0", elementId: ref.elementId };

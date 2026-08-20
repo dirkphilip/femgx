@@ -49,7 +49,7 @@ return `undefined` when nothing is finite.
 ## Scalar color mapping (`mapping.ts`)
 
 `createScalarColorMap({ min, max })` builds a map over a fixed range with a
-default blue-cyan-yellow-red ramp. `mapScalar`:
+default blue-cyan-yellow-red ramp. `mapScalarToColor`:
 
 - clips values below/above the range to the nearest stop color,
 - interpolates linearly between `stops`,
@@ -165,9 +165,9 @@ authored FE nodes instead of assuming vertex `i` is node `i`. The same mapping a
 custom geometry that deliberately duplicates a source node at multiple output vertices.
 Vertices without a node, without a matching displacement, or whose displacement is missing
 (`NaN`) keep their original position. `deformGeometry` requires a node-mapped geometry
-(`elementPart` provides one for element-backed geometry) and throws otherwise.
+(`createPartFromElementModel` provides one for element-backed geometry) and throws otherwise.
 
-`nodalDisplacements(nodeCount, field)` builds the per-node displacement buffer consumed by the
+`createNodalDisplacementBuffer(nodeCount, field)` builds the per-node displacement buffer consumed by the
 GPU renderer's deformed-shape path: one vec3 per model node indexed by `NodeId`. Pass the owning
 model's node count (the largest node id used by the part's vertices plus one). `NaN`/missing values
 are zeroed so the node stays put. Feed it into
@@ -183,7 +183,7 @@ The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
   part's displacement buffer once, reusing it until the array reference changes.
 - `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
   `nodeCount * 3` floats indexed by `NodeId` (build them with
-  `nodalDisplacements`). An absent state disables deformation.
+  `createNodalDisplacementBuffer`). An absent state disables deformation.
 - The WGSL vertex shaders (`renderer/shaders/scene.ts`) resolve each vertex to its FE node through the
   part's per-vertex node pick ids and add `displacement * scale` to the model-space vertex in
   the triangle, point-sprite, and edge-overlay passes, so the wireframe and picking stay

@@ -6,8 +6,8 @@ import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
 import { RendererAttachment } from "../../src/renderer/attachment";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createPart } from "../../src/geometry/part";
-import { createScene } from "../../src/scene/scene";
-import { identity } from "../../src/math/mat4";
+import { createSceneBuilder } from "../../src/scene/scene";
+import { identityMatrix } from "../../src/math/mat4";
 import { fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
 
 function buildPart() {
@@ -57,17 +57,27 @@ function buildPart() {
 
 function buildScene() {
   const part = buildPart();
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, placementId: "left", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "right", partId: part.id, transform: identity() },
+        {
+          kind: "part" as const,
+          placementId: "left",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
+        {
+          kind: "part" as const,
+          placementId: "right",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -98,18 +108,18 @@ function buildBudgetScene() {
       ],
     })),
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "budget",
       placements: [
-        { kind: "part" as const, placementId: "a", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "b", partId: part.id, transform: identity() },
-        { kind: "part" as const, placementId: "c", partId: part.id, transform: identity() },
+        { kind: "part" as const, placementId: "a", partId: part.id, transform: identityMatrix() },
+        { kind: "part" as const, placementId: "b", partId: part.id, transform: identityMatrix() },
+        { kind: "part" as const, placementId: "c", partId: part.id, transform: identityMatrix() },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -157,14 +167,16 @@ function buildOversizeScene() {
       },
     ],
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "oversize",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }
@@ -212,14 +224,16 @@ function buildMixedPrimitiveScene() {
       { id: 2, elementIds: [2] },
     ],
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "mixed",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identity() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }

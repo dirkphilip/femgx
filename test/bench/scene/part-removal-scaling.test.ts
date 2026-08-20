@@ -30,7 +30,7 @@ afterAll(() => {
 describe("whole-part removal scaling", () => {
   it("removes a definition and 100k occurrences without replacing the runtime", () => {
     if (viewport === undefined) throw new Error("Part-removal viewport is missing");
-    const runtime = viewport.runtime;
+    const occurrences = viewport.occurrences;
     const started = performance.now();
 
     viewport.updateScene((update) => {
@@ -41,8 +41,8 @@ describe("whole-part removal scaling", () => {
     if (process.env["PERF_REPORT"] !== undefined) {
       console.log(`Viewport.updateScene part cascade (100k): ${measuredMs.toFixed(3)} ms`);
     }
-    expect(viewport.runtime).toBe(runtime);
-    expect(viewport.runtime.partOccurrenceCount).toBe(0);
+    expect(viewport.occurrences).toBe(occurrences);
+    expect(viewport.occurrences.partOccurrenceCount).toBe(0);
     expect(measuredMs).toBeLessThanOrEqual(500);
   });
 });

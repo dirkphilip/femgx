@@ -66,7 +66,7 @@ export function createSelectionFixture(): SelectionFixture {
   const layout = buildInstanceLayout(runtime);
   const partOccurrenceId = runtime.getInstanceId(0);
   if (partOccurrenceId === undefined) throw new Error("Tet4 benchmark instance is missing");
-  const targets = (part.elements ?? []).map((element) => ({
+  const targets = [...(part.elements ?? [])].map((element) => ({
     kind: "element" as const,
     partOccurrenceId,
     elementId: element.id,
@@ -296,9 +296,9 @@ function details(
 ): Readonly<Record<string, number>> {
   const triangles = fixture.part.geometries.find((geometry) => geometry.primitive === "triangles");
   const authoredFaceCount =
-    triangles?.primitive === "triangles" ? (triangles.faces?.length ?? 0) : 0;
+    triangles?.primitive === "triangles" ? (triangles.faces?.count ?? 0) : 0;
   const boundaryFaceCount =
-    triangles?.primitive === "triangles" ? (triangles.faceSubset?.faceIds.length ?? 0) : 0;
+    triangles?.primitive === "triangles" ? (triangles.faceSubset?.count ?? 0) : 0;
   const semantic = getPartSemanticIndex(fixture.part);
   return {
     selectedElements: selected.selectedCount,

@@ -17,7 +17,7 @@ export {
   type ModelSet,
   type ModelSetKind,
 } from "../io/fem-model";
-export { createModelBuilder, type FemModelBuilder } from "../io/model-builder";
+export { createFemModelBuilder, type FemModelBuilder } from "../io/model-builder";
 export {
   createElementModelFromFemModel,
   type ElementModelConversionOptions,
@@ -26,4 +26,4 @@ export {
   createResultFieldFromModelResult,
   type ModelResultFieldConversionOptions,
 } from "../io/conversions/result-field";
-export { validateModel } from "../io/model-validation";
+export { validateFemModel } from "../io/model-validation";

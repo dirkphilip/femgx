@@ -2,7 +2,7 @@ import { expect, it, describe } from "vitest";
 import {
   createInteractionState,
   setElementSelected,
-  translation,
+  translationMatrix,
   syncElementHighlights,
   createDrawResources,
   encodeInstanceRecord,
@@ -22,7 +22,7 @@ describe("syncElementHighlights", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, 1, [
-        { slot: 0, data: encodeInstanceRecord(translation(0, 0, 0), defaultStyle, 1) },
+        { slot: 0, data: encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, 1) },
       ]);
       const { scene, runtime } = elementScene();
       const layout = buildInstanceLayout(runtime);
@@ -63,7 +63,7 @@ describe("syncElementHighlights", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       patchInstances(draw, 1, [
-        { slot: 0, data: encodeInstanceRecord(translation(0, 0, 0), defaultStyle, 1) },
+        { slot: 0, data: encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, 1) },
       ]);
       Object.defineProperty(draw.storages, Symbol.iterator, {
         value: () => {

@@ -1,4 +1,4 @@
-import type { ElementTessellation } from "../../geometry/part";
+import type { ElementTessellation, PartElements } from "../../geometry/part";
 
 interface NodeOwnerData {
   readonly bodyRanges: Uint32Array;
@@ -7,14 +7,17 @@ interface NodeOwnerData {
 }
 
 /** Returns whether authored order already provides canonical body/element owners. */
-export function nodeOwnersAreCanonical(elements: readonly ElementTessellation[]): boolean {
-  for (let ordinal = 1; ordinal < elements.length; ordinal += 1) {
-    const previous = elements[ordinal - 1];
-    const current = elements[ordinal];
-    if (previous === undefined || current === undefined) continue;
+export function nodeOwnersAreCanonical(elements: PartElements | undefined): boolean {
+  let previous: ElementTessellation | undefined;
+  for (const current of elements ?? []) {
+    if (previous === undefined) {
+      previous = current;
+      continue;
+    }
     if ((previous.bodyId ?? -1) > (current.bodyId ?? -1)) return false;
     if ((previous.bodyId ?? -1) === (current.bodyId ?? -1) && previous.id > current.id)
       return false;
+    previous = current;
   }
   return true;
 }

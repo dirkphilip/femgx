@@ -3,7 +3,7 @@ import { afterEach, vi } from "vitest";
 import {
   createPart,
   type ElementTessellation,
-  type Geometry,
+  type GeometryInput,
   type GeometryBody,
   type Part,
 } from "../../../src/geometry/part";
@@ -16,11 +16,11 @@ import { setPartOverride } from "../../../src/interaction/interaction";
 
 import { isTargetSelected, setTargetSelected } from "../../../src/interaction/targets";
 
-import { translation } from "../../../src/math/mat4";
+import { translationMatrix } from "../../../src/math/mat4";
 
 import type { Placement } from "../../../src/scene/assembly";
 
-import { createScene, type Scene } from "../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../../src/scene/scene";
 
 import { createViewport } from "../../../src/viewport/viewport";
 
@@ -38,7 +38,7 @@ export let restoreGpuGlobals: (() => void) | undefined;
 
 export const originalNavigator = globalThis.navigator;
 
-export type SemanticGeometry = Geometry & {
+export type SemanticGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];
   readonly nodePositions?: Float32Array;
   readonly bodies?: readonly GeometryBody[];
@@ -162,22 +162,25 @@ export function scene(offset = 0) {
     indices: new Uint32Array([0, 1, 2]),
     primitive: "triangles" as const,
   };
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry] }))
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: translation(offset, 0, 0) }],
+      placements: [{ kind: "part", partId: 1, transform: translationMatrix(offset, 0, 0) }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
 /** Shared core test helper. */
 export function explicitScene(parts: readonly Part[], placements: readonly Placement[]): Scene {
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of parts) builder = builder.addPart(part);
-  return builder.addAssembly({ id: 1, name: "explicit-root", placements }).withRoot(1).build();
+  return builder
+    .addAssembly({ id: 1, name: "explicit-root", placements })
+    .setRootAssembly(1)
+    .build();
 }
 
 /** Shared core test helper. */
@@ -202,7 +205,7 @@ export function resultScene(nodeCount: 3 | 6): Scene {
   );
   const indices =
     nodeCount === 3 ? new Uint32Array([0, 1, 2]) : new Uint32Array([0, 1, 2, 3, 4, 5]);
-  return createScene()
+  return createSceneBuilder()
     .addPart(
       createPart(1, {
         geometries: [
@@ -220,9 +223,9 @@ export function resultScene(nodeCount: 3 | 6): Scene {
     .addAssembly({
       id: 1,
       name: "result-root",
-      placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
+      placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -275,7 +278,7 @@ export function identityScene(withSecondElement: boolean): Scene {
         ...(bodies === undefined ? {} : { bodies }),
       }),
     ],
-    [{ kind: "part", placementId: "keep", partId: 1, transform: translation(0, 0, 0) }],
+    [{ kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(0, 0, 0) }],
   );
 }
 
@@ -356,7 +359,7 @@ export function installTestGpuGlobals(): void {
 export {
   createPart,
   type ElementTessellation,
-  type Geometry,
+  type GeometryInput,
   type GeometryBody,
   type Part,
   createResultField,
@@ -365,9 +368,9 @@ export {
   setPartOverride,
   isTargetSelected,
   setTargetSelected,
-  translation,
+  translationMatrix,
   type Placement,
-  createScene,
+  createSceneBuilder,
   type Scene,
   createViewport,
   RendererAttachment,

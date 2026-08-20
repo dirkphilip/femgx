@@ -11,7 +11,7 @@ const sequentialElement = (id: number, shape: ElementShape) =>
   );
 
 describe("edgesOf", () => {
-  it("preserves the element's node identity, not connectivity positions", () => {
+  it("preserves the element's node identityMatrix, not connectivity positions", () => {
     const element = createElement(1, ElementShape.Tet4, [10, 20, 30, 40]);
     expect(edgesOf(element).map((edge) => edge.nodeIds)).toEqual([
       [10, 20],

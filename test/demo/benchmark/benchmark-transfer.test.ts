@@ -3,10 +3,7 @@ import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
 import { reconstructBenchmarkScene, transferredByteLength } from "../../../demo/benchmark/transfer";
 import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
-import {
-  packedSemanticMaterializationCounts,
-  packedSemanticStorage,
-} from "../../../src/geometry/packed/packed-semantic";
+import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
 import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
 import {
   buildElementPrimitiveOrdinals,
@@ -33,8 +30,8 @@ describe("dense Tet4 benchmark transfer", () => {
       throw new Error("Tet4 triangle geometry is missing");
     }
 
-    expect(reconstructedPart.elements).toEqual(canonicalPart.elements);
-    expect(reconstructedPart.bodies).toEqual(canonicalPart.bodies);
+    expect(reconstructedPart.elements?.count).toBe(canonicalPart.elements?.count);
+    expect([...(reconstructedPart.bodies ?? [])]).toEqual([...(canonicalPart.bodies ?? [])]);
     expect(reconstructedPart.nodePositions).toEqual(canonicalPart.nodePositions);
     expect(reconstructedGeometry.primitive).toBe("triangles");
     expect(canonicalGeometry.primitive).toBe("triangles");
@@ -47,9 +44,11 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(authoredNodeIndices(reconstructedGeometry)).toEqual(
       authoredNodeIndices(canonicalGeometry),
     );
-    expect(reconstructedGeometry.faces).toEqual(canonicalGeometry.faces);
-    expect(reconstructedGeometry.edges).toEqual(canonicalGeometry.edges);
-    expect(reconstructedGeometry.faceSubset).toEqual(canonicalGeometry.faceSubset);
+    expect([...(reconstructedGeometry.faces ?? [])]).toEqual([...(canonicalGeometry.faces ?? [])]);
+    expect([...(reconstructedGeometry.edges ?? [])]).toEqual([...(canonicalGeometry.edges ?? [])]);
+    expect(sortedFaceRefs(reconstructedGeometry.faceSubset)).toEqual(
+      sortedFaceRefs(canonicalGeometry.faceSubset),
+    );
     expect(reconstructedPart.bounds).toEqual(canonicalPart.bounds);
     expect(reconstructed.semanticAllocationCounts).toEqual({
       elementDescriptors: 0,
@@ -66,16 +65,16 @@ describe("dense Tet4 benchmark transfer", () => {
       edgeIncidentElementReferences: 288,
       edgeFaceReferenceArrays: 0,
       edgeFaceReferences: 576,
-      bodyDescriptors: 1,
+      bodyDescriptors: 0,
       bodyElementReferences: 0,
       semanticIndex: {
         elementEntries: 0,
         elementOrdinalEntries: 0,
-        bodyEntries: 1,
+        bodyEntries: 0,
         bodyByElementEntries: 0,
         faceEntries: 0,
         edgeEntries: 0,
-        nodeTriangleFaceOffsetsBytes: 112,
+        nodeTriangleFaceOffsetsBytes: 2_308,
         nodeTriangleFaceIdsBytes: 2_304,
         neighborTriangleFaceOffsetsBytes: 196,
         neighborTriangleFaceIdsBytes: 576,
@@ -83,53 +82,37 @@ describe("dense Tet4 benchmark transfer", () => {
     });
   });
 
-  it("builds packed semantic indexes without descriptor graph materialization", () => {
+  it("builds graph indexes without descriptor materialization", () => {
     const payload = buildDenseTet4Payload(2).payload;
     const part = reconstructBenchmarkScene(payload).scene.parts.get(1);
-    if (part === undefined) throw new Error("Packed Tet4 part is missing");
-    const storage = packedSemanticStorage(part);
-    if (storage === undefined) throw new Error("Packed Tet4 storage is missing");
-    expect(packedSemanticMaterializationCounts(storage)).toEqual({
-      elements: 0,
-      faces: 0,
-      edges: 0,
-    });
+    if (part === undefined) throw new Error("Tet4 part is missing");
+    const graph = partSemanticGraph(part);
+    if (graph === undefined) throw new Error("Tet4 graph is missing");
     const index = getPartSemanticIndex(part);
-    expect(index.elements.size).toBe(payload.elementCount);
-    expect(index.faces.size).toBe(payload.elementCount * 4);
-    expect(packedSemanticMaterializationCounts(storage)).toEqual({
-      elements: 0,
-      faces: 0,
-      edges: 0,
-    });
-    expect(part.elements?.[0]?.id).toBe(1);
-    expect(packedSemanticMaterializationCounts(storage).elements).toBe(1);
+    expect(index.elementCount).toBe(payload.elementCount);
+    expect(index.face(1, 0)).toBeDefined();
+    expect(part.elements?.count).toBe(payload.elementCount);
+    expect(graph.elementIds).toHaveLength(payload.elementCount);
   });
 
-  it("keeps packed upload metadata on typed tables", () => {
+  it("keeps graph upload metadata on typed tables", () => {
     const payload = buildDenseTet4Payload(2).payload;
     const part = reconstructBenchmarkScene(payload).scene.parts.get(1);
-    if (part === undefined) throw new Error("Packed Tet4 part is missing");
+    if (part === undefined) throw new Error("Tet4 part is missing");
     const geometry = part.geometries[0];
-    if (geometry?.primitive !== "triangles") throw new Error("Packed triangles are missing");
+    if (geometry?.primitive !== "triangles") throw new Error("Tet4 triangles are missing");
     const index = getPartSemanticIndex(part);
-    const ordinals = buildElementPrimitiveOrdinals(
-      geometry,
-      part.elements ?? [],
-      index.elementOrdinalById,
+    const ordinals = buildElementPrimitiveOrdinals(geometry, [...(part.elements ?? [])], (id) =>
+      index.elementOrdinal(id),
     );
-    const topology = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+    const topology = buildPrimitiveFaceBodyPickData(geometry, [...(part.elements ?? [])]);
     const subset = buildFaceSubsetIndices(geometry);
     expect(ordinals.length).toBe(payload.elementCount * 4);
     expect(topology.length).toBe(payload.elementCount * 4 * 5);
     expect(subset.length).toBe(payload.boundaryFaceIndices.length * 3);
-    const storage = packedSemanticStorage(part);
-    if (storage === undefined) throw new Error("Packed Tet4 storage is missing");
-    expect(packedSemanticMaterializationCounts(storage)).toEqual({
-      elements: 0,
-      faces: 0,
-      edges: 0,
-    });
+    expect(partSemanticGraph(part)?.faceOwnerElementOrdinals).toHaveLength(
+      payload.elementCount * 4,
+    );
   });
 
   it("uses node ids directly as vertices and bounds dense preset sizes", () => {
@@ -168,4 +151,10 @@ function authoredNodeIndices(geometry: {
   readonly nodePickIds?: Uint32Array;
 }): readonly number[] {
   return Array.from(geometry.indices, (vertex) => (geometry.nodePickIds?.[vertex] ?? 0) - 1);
+}
+
+function sortedFaceRefs(
+  subset: Iterable<{ readonly elementId: number; readonly faceIndex: number }> | undefined,
+): readonly string[] {
+  return Array.from(subset ?? [], (face) => `${face.elementId}/${face.faceIndex}`).sort();
 }

@@ -10,9 +10,9 @@ import {
   setElementVisible,
   setPartOverride,
   setBodyOverride,
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   fakeCanvas,
   fakeGpuDevice,
   installNavigator,
@@ -110,36 +110,36 @@ describe("WebGPU renderer", () => {
     };
     const part1 = createPart(1, { geometries: [geometry] });
 
-    const wrapped = createScene()
+    const wrapped = createSceneBuilder()
       .addPart(part1)
       .addAssembly({
         id: 2,
         name: "wrapped",
-        placements: [{ kind: "part", partId: 1, transform: translation(0, 0, 0) }],
+        placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
       })
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }],
+        placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime1 = createPackedSceneRuntime(wrapped);
     renderer.render(runtime1, camera, wrapped.parts);
     expect(gpu.buffers.every((buffer) => !buffer.destroyed)).toBe(true);
     const geometryBuffers = gpu.buffers.filter((buffer) => (buffer.usage & 4) !== 0);
 
-    const replacementScene = createScene()
+    const replacementScene = createSceneBuilder()
       .addPart(part1)
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-          { kind: "part", partId: 1, transform: translation(2, 0, 0) },
+          { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
+          { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime2 = createPackedSceneRuntime(replacementScene);
     renderer.render(runtime2, camera, replacementScene.parts);
@@ -159,14 +159,14 @@ describe("WebGPU renderer", () => {
       [1, 1],
       [2, 1],
     ]);
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(initialPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: initialPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: initialPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
@@ -196,14 +196,14 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const part = buildSubsetPart();
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: part.id, transform: identity() }],
+        placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
@@ -245,14 +245,14 @@ describe("WebGPU renderer", () => {
     installNavigator(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const part = buildSubsetPart();
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: part.id, transform: identity() }],
+        placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);

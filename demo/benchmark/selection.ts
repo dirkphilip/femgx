@@ -5,7 +5,7 @@ import { setTargetsSelected } from "../../src/interaction/targets";
 import type { BoxSelectionRect } from "../../src/interaction/box-selection";
 import type { InteractionTarget } from "../../src/interaction/target-types";
 import type { Part, PartId } from "../../src/geometry/part";
-import { packedSemanticStorage } from "../../src/geometry/packed/packed-semantic";
+import { partSemanticGraph } from "../../src/geometry/semantic/part-semantic-graph";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
@@ -140,14 +140,14 @@ export function authoredElementTargets(
 ): readonly InteractionTarget[] {
   const context = authoredElementContext(benchmarkCase, runtime);
   const { partOccurrenceId, part } = context;
-  const packed = packedSemanticStorage(part);
-  const elementCount = packed?.elementIds.length ?? part.elements?.length ?? 0;
+  const graph = partSemanticGraph(part);
+  const elementCount = graph?.elementIds.length ?? part.elements?.count ?? 0;
   if (count < 0 || count > elementCount) {
     throw new Error(`${benchmarkCase.id} requested ${count} of ${elementCount} elements`);
   }
   const targets = new Array<InteractionTarget>(count);
   for (let ordinal = 0; ordinal < count; ordinal += 1) {
-    const elementId = packed?.elementIds[ordinal] ?? part.elements?.[ordinal]?.id;
+    const elementId = graph?.elementIds[ordinal] ?? part.elements?.at(ordinal)?.id;
     if (elementId === undefined) throw new Error(`${benchmarkCase.id} element ${ordinal} missing`);
     targets[ordinal] = { kind: "element", partOccurrenceId, elementId };
   }
@@ -159,7 +159,7 @@ function authoredElementCount(
   runtime: PackedSceneRuntime,
 ): number {
   const { part } = authoredElementContext(benchmarkCase, runtime);
-  return packedSemanticStorage(part)?.elementIds.length ?? part.elements?.length ?? 0;
+  return partSemanticGraph(part)?.elementIds.length ?? part.elements?.count ?? 0;
 }
 
 function authoredElementContext(

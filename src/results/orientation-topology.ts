@@ -1,5 +1,8 @@
 import type { ElementTessellation, Part } from "../geometry/part";
-import { packedSemanticStorage } from "../geometry/packed/packed-semantic";
+import {
+  partSemanticGraph,
+  type PartSemanticGraph,
+} from "../geometry/semantic/part-semantic-graph";
 
 /** Topology-derived data shared by all orientation fields on one part. */
 export interface OrientationTopologyElement {
@@ -33,35 +36,38 @@ const topologyCache = new WeakMap<Part, OrientationPartTopology>();
 export function getOrientationTopology(part: Part): OrientationPartTopology {
   const cached = topologyCache.get(part);
   if (cached !== undefined) return cached;
-  const packed = packedSemanticStorage(part);
+  const graph = partSemanticGraph(part);
   const elements =
-    packed === undefined
-      ? (part.elements ?? []).map((element) => createTopologyElement(part, element))
-      : packedTopologyElements(packed);
+    graph === undefined || graph.faceNodeIds.length === 0
+      ? topologyElements(part)
+      : graphTopologyElements(graph);
   elements.sort((left, right) => left.id - right.id);
   const topology = { elements, byId: new Map(elements.map((element) => [element.id, element])) };
   topologyCache.set(part, topology);
   return topology;
 }
 
-function packedTopologyElements(
-  storage: NonNullable<ReturnType<typeof packedSemanticStorage>>,
-): OrientationTopologyElement[] {
-  return Array.from({ length: storage.elementIds.length }, (_, ordinal) => {
+function topologyElements(part: Part): OrientationTopologyElement[] {
+  const elements: OrientationTopologyElement[] = [];
+  for (const element of part.elements ?? []) elements.push(createTopologyElement(part, element));
+  return elements;
+}
+
+function graphTopologyElements(graph: PartSemanticGraph): OrientationTopologyElement[] {
+  return Array.from({ length: graph.elementIds.length }, (_, ordinal) => {
     const nodes = new Set<number>();
-    const first = storage.elementFaceOffsets?.[ordinal] ?? 0;
-    const last = storage.elementFaceOffsets?.[ordinal + 1] ?? 0;
-    for (let face = first; face < last; face += 1) {
-      const start = storage.faceNodeOffsets[face] ?? 0;
-      const end = storage.faceNodeOffsets[face + 1] ?? start;
+    for (let face = 0; face < graph.faceOwnerElementOrdinals.length; face += 1) {
+      if (graph.faceOwnerElementOrdinals[face] !== ordinal) continue;
+      const start = graph.faceNodeOffsets[face] ?? 0;
+      const end = graph.faceNodeOffsets[face + 1] ?? start;
       for (let index = start; index < end; index += 1) {
-        const nodeId = storage.faceNodeIds[index];
+        const nodeId = graph.faceNodeIds[index];
         if (nodeId !== undefined) nodes.add(nodeId);
       }
     }
-    const bodyId = storage.elementBodyIds?.[ordinal];
+    const bodyId = graph.elementBodyIds[ordinal];
     return {
-      id: storage.elementIds[ordinal] ?? 0,
+      id: graph.elementIds[ordinal] ?? 0,
       nodeIds: [...nodes].sort((left, right) => left - right),
       bodyId: bodyId === undefined || bodyId === 0 ? undefined : bodyId,
     };

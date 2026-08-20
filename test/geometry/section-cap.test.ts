@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { ElementShape } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../src/geometry/element-model-part";
 import { buildElementSectionCap, type SectionCap } from "../../src/geometry/section-cap";
-import { identity, translation } from "../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../src/math/mat4";
 import { GOLDEN_ELEMENT_CONVENTIONS } from "../elements/golden";
 
 function conventionFor(shape: ElementShape) {
@@ -22,14 +22,14 @@ const idsFor = (shape: ElementShape): number[] =>
 
 function capFor(shape: ElementShape, plane = 0.5): SectionCap {
   const model = createElementModel(nodesFor(shape), [createElement(7, shape, idsFor(shape))]);
-  const part = elementPart(1, model);
-  const element = part.elements?.[0];
+  const part = createPartFromElementModel(1, model);
+  const element = part.elements?.at(0);
   if (element === undefined) throw new Error("missing test element");
   const cap = buildElementSectionCap({
     part,
     element,
     plane: { normal: [0, 0, 1], distance: -plane },
-    transform: identity(),
+    transform: identityMatrix(),
   });
   if (cap === undefined) throw new Error(`expected a cap for ${shape}`);
   return cap;
@@ -65,15 +65,15 @@ describe("canonical FE section cap builder", () => {
     const model = createElementModel(nodesFor(ElementShape.Hex8), [
       createElement(7, ElementShape.Hex8, idsFor(ElementShape.Hex8)),
     ]);
-    const part = elementPart(1, model);
-    const element = part.elements?.[0];
+    const part = createPartFromElementModel(1, model);
+    const element = part.elements?.at(0);
     if (element === undefined) throw new Error("missing test element");
     expect(
       buildElementSectionCap({
         part,
         element,
         plane: { normal: [0, 0, 1], distance: -2 },
-        transform: identity(),
+        transform: identityMatrix(),
       }),
     ).toBeUndefined();
     expect(
@@ -81,7 +81,7 @@ describe("canonical FE section cap builder", () => {
         part,
         element,
         plane: { normal: [0, 0, 1], distance: 0 },
-        transform: identity(),
+        transform: identityMatrix(),
       }),
     ).toBeUndefined();
 
@@ -89,13 +89,15 @@ describe("canonical FE section cap builder", () => {
       [0, 0, 0, 1, 0, 0, 0, 1, 0],
       [createElement(7, ElementShape.Triangle, [0, 1, 2])],
     );
-    const surfacePart = elementPart(2, surface);
+    const createPartFromExplicitTopology = createPartFromElementModel(2, surface);
+    const surfaceElement = createPartFromExplicitTopology.elements?.at(0);
+    if (surfaceElement === undefined) throw new Error("missing surface test element");
     expect(
       buildElementSectionCap({
-        part: surfacePart,
-        element: surfacePart.elements?.[0] as NonNullable<typeof surfacePart.elements>[number],
+        part: createPartFromExplicitTopology,
+        element: surfaceElement,
         plane: { normal: [0, 0, 1], distance: 0 },
-        transform: identity(),
+        transform: identityMatrix(),
       }),
     ).toBeUndefined();
   });
@@ -104,14 +106,14 @@ describe("canonical FE section cap builder", () => {
     const model = createElementModel(nodesFor(ElementShape.Hex8), [
       createElement(7, ElementShape.Hex8, idsFor(ElementShape.Hex8)),
     ]);
-    const part = elementPart(1, model);
-    const element = part.elements?.[0];
+    const part = createPartFromElementModel(1, model);
+    const element = part.elements?.at(0);
     if (element === undefined) throw new Error("missing test element");
     const cap = buildElementSectionCap({
       part,
       element,
       plane: { normal: [1, 0, 0], distance: -2.75 },
-      transform: translation(2, 3, 4),
+      transform: translationMatrix(2, 3, 4),
       displacements: new Float32Array(
         nodesFor(ElementShape.Hex8).map((_, index) => (index % 3 === 0 ? 0.25 : 0)),
       ),

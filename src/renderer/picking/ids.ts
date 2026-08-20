@@ -3,10 +3,17 @@ import {
   type ElementTessellation,
   type Geometry,
 } from "../../geometry/part";
-import {
-  packedSemanticStorageForGeometry,
-  type PackedSemanticStorage,
-} from "../../geometry/packed/packed-semantic";
+import { geometrySemanticGraph } from "../../geometry/semantic/part-semantic-graph";
+
+export type ElementTessellations = Iterable<ElementTessellation> & { readonly count?: number };
+
+const noElements: ElementTessellations = {
+  *[Symbol.iterator](): IterableIterator<ElementTessellation> {},
+};
+
+function elementCount(elements: ElementTessellations): number {
+  return elements.count ?? (Array.isArray(elements) ? elements.length : 0);
+}
 
 /**
  * Builders for the per-primitive and per-vertex pick-id buffers uploaded with a
@@ -17,12 +24,12 @@ import {
 /** Builds the per-primitive element pick id map (`elementId + 1`, 0 = none). */
 export function buildElementPrimitivePickIds(
   geometry: Geometry,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = noElements,
 ): Uint32Array {
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed !== undefined) {
-    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
-      const elementId = packed.elementIds[ordinal];
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    return buildGraphPrimitiveMetadata(geometry, semantic, (ordinal) => {
+      const elementId = semantic.graph.elementIds[ordinal];
       return elementId === undefined ? undefined : elementId + 1;
     });
   }
@@ -32,36 +39,37 @@ export function buildElementPrimitivePickIds(
 /** Builds the per-primitive private part-wide dense element ordinal map. */
 export function buildElementPrimitiveOrdinals(
   geometry: Geometry,
-  elements: readonly ElementTessellation[],
-  elementOrdinalById: { get(key: number): number | undefined },
+  elements: ElementTessellations,
+  elementOrdinal: (elementId: number) => number | undefined,
 ): Uint32Array {
-  const packed = packedSemanticStorageForGeometry(geometry);
+  const semantic = geometrySemanticGraph(geometry);
   if (
-    packed === undefined &&
+    semantic === undefined &&
     geometry.primitive === "triangles" &&
     geometry.primitiveColors !== undefined &&
-    elements.length === 0
+    elementCount(elements) === 0
   ) {
     return Uint32Array.from({ length: logicalPrimitiveCount(geometry) }, (_, index) => index + 1);
   }
-  if (packed === undefined && elements.length === 0) return new Uint32Array();
-  if (packed !== undefined) {
-    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => ordinal + 1);
+  if (semantic === undefined && elementCount(elements) === 0) return new Uint32Array();
+  if (semantic !== undefined) {
+    return buildGraphPrimitiveMetadata(geometry, semantic, (ordinal) => {
+      const elementId = semantic.graph.elementIds[ordinal] ?? 0;
+      return elementOrdinal(elementId);
+    });
   }
-  return buildElementPrimitiveMetadata(geometry, elements, (element) =>
-    elementOrdinalById.get(element.id),
-  );
+  return buildElementPrimitiveMetadata(geometry, elements, (element) => elementOrdinal(element.id));
 }
 
 /** Builds the per-primitive body pick id map (`bodyId + 1`, 0 = ungrouped). */
 export function buildBodyPrimitivePickIds(
   geometry: Geometry,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = noElements,
 ): Uint32Array {
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed !== undefined) {
-    return buildPackedPrimitiveMetadata(geometry, packed, (ordinal) => {
-      const bodyId = packed.elementBodyIds?.[ordinal] ?? 0;
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    return buildGraphPrimitiveMetadata(geometry, semantic, (ordinal) => {
+      const bodyId = semantic.graph.elementBodyIds[ordinal] ?? 0;
       return bodyId === 0 ? undefined : bodyId + 1;
     });
   }
@@ -70,25 +78,31 @@ export function buildBodyPrimitivePickIds(
   );
 }
 
-function buildPackedPrimitiveMetadata(
+function buildGraphPrimitiveMetadata(
   geometry: Geometry,
-  packed: PackedSemanticStorage,
+  semantic: NonNullable<ReturnType<typeof geometrySemanticGraph>>,
   resolveValue: (ordinal: number) => number | undefined,
 ): Uint32Array {
   const metadata = new Uint32Array(logicalPrimitiveCount(geometry));
-  for (let ordinal = 0; ordinal < packed.elementIds.length; ordinal += 1) {
+  const { graph, geometryOrdinal } = semantic;
+  for (let ordinal = 0; ordinal < graph.elementIds.length; ordinal += 1) {
     const value = resolveValue(ordinal);
     if (value === undefined) continue;
-    const start = packed.elementPrimitiveStarts[ordinal] ?? 0;
-    const end = start + (packed.elementPrimitiveCounts[ordinal] ?? 0);
-    for (let primitive = start; primitive < end; primitive += 1) metadata[primitive] = value;
+    const firstRange = graph.elementRangeOffsets[ordinal] ?? 0;
+    const lastRange = graph.elementRangeOffsets[ordinal + 1] ?? firstRange;
+    for (let range = firstRange; range < lastRange; range += 1) {
+      if (graph.elementRangeGeometryOrdinals[range] !== geometryOrdinal) continue;
+      const start = graph.elementRangeStarts[range] ?? 0;
+      const end = start + (graph.elementRangeCounts[range] ?? 0);
+      for (let primitive = start; primitive < end; primitive += 1) metadata[primitive] = value;
+    }
   }
   return metadata;
 }
 
 function buildElementPrimitiveMetadata(
   geometry: Geometry,
-  elements: readonly ElementTessellation[],
+  elements: ElementTessellations,
   resolveValue: (element: ElementTessellation) => number | undefined,
 ): Uint32Array {
   const metadata = new Uint32Array(logicalPrimitiveCount(geometry));
@@ -111,17 +125,21 @@ export function buildFacePrimitivePickIds(geometry: Geometry): Uint32Array {
   const primitiveCount = logicalPrimitiveCount(geometry);
   const pickIds = new Uint32Array(primitiveCount);
   if (geometry.primitive !== "triangles") return pickIds;
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed !== undefined) {
-    for (let face = 0; face < packed.facePrimitiveStarts.length; face += 1) {
-      const start = packed.facePrimitiveStarts[face] ?? 0;
-      const end = start + (packed.facePrimitiveCounts[face] ?? 0);
-      for (let primitive = start; primitive < end; primitive += 1) pickIds[primitive] = face + 1;
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    const { graph, geometryOrdinal } = semantic;
+    const first = graph.faceGeometryOffsets[geometryOrdinal] ?? 0;
+    const last = graph.faceGeometryOffsets[geometryOrdinal + 1] ?? first;
+    for (let face = first; face < last; face += 1) {
+      const start = graph.facePrimitiveStarts[face] ?? 0;
+      const end = start + (graph.facePrimitiveCounts[face] ?? 0);
+      for (let primitive = start; primitive < end; primitive += 1)
+        pickIds[primitive] = face - first + 1;
     }
     return pickIds;
   }
-  for (let face = 0; face < (geometry.faces?.length ?? 0); face += 1) {
-    const range = geometry.faces?.[face];
+  for (let face = 0; face < (geometry.faces?.count ?? 0); face += 1) {
+    const range = geometry.faces?.at(face);
     if (range === undefined) continue;
     const end = range.primitiveStart + range.primitiveCount;
     for (let primitive = range.primitiveStart; primitive < end; primitive += 1) {
@@ -136,18 +154,27 @@ export type TriangleOwnerPair = readonly [number, number, number, number];
 /** Builds body and element owner/neighbor ids for each source triangle. */
 export function buildTriangleOwnerPairs(
   geometry: Geometry,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = noElements,
   facePickIds = buildFacePrimitivePickIds(geometry),
 ): TriangleOwnerPair[] {
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed !== undefined) return buildPackedTriangleOwnerPairs(packed, facePickIds);
+  const semantic = geometrySemanticGraph(geometry);
+  if (
+    semantic !== undefined &&
+    geometry.primitive === "triangles" &&
+    (semantic.graph.faceGeometryOffsets[semantic.geometryOrdinal + 1] ?? 0) >
+      (semantic.graph.faceGeometryOffsets[semantic.geometryOrdinal] ?? 0)
+  ) {
+    return buildGraphTriangleOwnerPairs(semantic, facePickIds);
+  }
   const bodyPickIds = buildBodyPrimitivePickIds(geometry, elements);
   const elementPickIds = buildElementPrimitivePickIds(geometry, elements);
-  const bodyByElement = new Map(elements.map((element) => [element.id, element.bodyId] as const));
+  const bodyByElement = new Map<number, number | undefined>();
+  for (const element of elements) bodyByElement.set(element.id, element.bodyId);
   return Array.from(facePickIds, (facePickId, triangle): TriangleOwnerPair => {
     const owner = bodyPickIds[triangle] ?? 0;
     const element = elementPickIds[triangle] ?? 0;
-    const face = geometry.primitive === "triangles" ? geometry.faces?.[facePickId - 1] : undefined;
+    const face =
+      geometry.primitive === "triangles" ? geometry.faces?.at(facePickId - 1) : undefined;
     const neighborElementId = face?.neighborElementId;
     const neighborBody =
       neighborElementId === undefined ? undefined : bodyByElement.get(neighborElementId);
@@ -157,23 +184,26 @@ export function buildTriangleOwnerPairs(
   });
 }
 
-function buildPackedTriangleOwnerPairs(
-  packed: PackedSemanticStorage,
+function buildGraphTriangleOwnerPairs(
+  semantic: NonNullable<ReturnType<typeof geometrySemanticGraph>>,
   facePickIds: Uint32Array,
 ): TriangleOwnerPair[] {
-  const bodyByElement = packed.elementBodyIds;
+  const { graph, geometryOrdinal } = semantic;
+  const first = graph.faceGeometryOffsets[geometryOrdinal] ?? 0;
+  const last = graph.faceGeometryOffsets[geometryOrdinal + 1] ?? first;
   return Array.from(facePickIds, (facePickId): TriangleOwnerPair => {
-    const faceOrdinal = facePickId - 1;
-    if (faceOrdinal < 0 || faceOrdinal >= packed.faceOwnerElementOrdinals.length) {
+    const faceOrdinal = first + facePickId - 1;
+    if (faceOrdinal < first || faceOrdinal >= last) {
       return [0, 0, 0, 0];
     }
-    const ownerOrdinal = packed.faceOwnerElementOrdinals[faceOrdinal] ?? 0;
-    const ownerElementId = packed.elementIds[ownerOrdinal] ?? 0;
-    const ownerBodyId = bodyByElement?.[ownerOrdinal] ?? 0;
-    const neighborOrdinal = packed.faceNeighborElementOrdinals[faceOrdinal] ?? 0;
+    const ownerOrdinal = graph.faceOwnerElementOrdinals[faceOrdinal] ?? 0;
+    const ownerElementId = graph.elementIds[ownerOrdinal] ?? 0;
+    const ownerBodyId = graph.faceBodyIds[faceOrdinal] ?? graph.elementBodyIds[ownerOrdinal] ?? 0;
+    const neighborOrdinal = graph.faceNeighborElementOrdinals[faceOrdinal] ?? 0;
     const neighborElementId =
-      neighborOrdinal === 0 ? 0 : (packed.elementIds[neighborOrdinal - 1] ?? 0);
-    const neighborBodyId = neighborOrdinal === 0 ? 0 : (bodyByElement?.[neighborOrdinal - 1] ?? 0);
+      neighborOrdinal === 0 ? 0 : (graph.elementIds[neighborOrdinal - 1] ?? 0);
+    const neighborBodyId =
+      neighborOrdinal === 0 ? 0 : (graph.elementBodyIds[neighborOrdinal - 1] ?? 0);
     const ownerPickId = ownerBodyId === 0 ? 0 : ownerBodyId + 1;
     const neighborPickId =
       neighborBodyId === 0 || neighborBodyId === ownerBodyId ? 0 : neighborBodyId + 1;
@@ -185,13 +215,14 @@ function buildPackedTriangleOwnerPairs(
 /** Builds interleaved per-triangle face/owner/neighbor ids for one storage binding. */
 export function buildPrimitiveFaceBodyPickData(
   geometry: Geometry,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = noElements,
 ): Uint32Array {
+  const graphOwner = geometrySemanticGraph(geometry);
+  if (graphOwner !== undefined) return buildGraphPrimitiveFaceBodyPickData(geometry, graphOwner);
   if (
     geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
-    elements.length === 0 &&
-    packedSemanticStorageForGeometry(geometry) === undefined
+    elementCount(elements) === 0
   ) {
     return new Uint32Array(logicalPrimitiveCount(geometry) * 5);
   }
@@ -208,6 +239,35 @@ export function buildPrimitiveFaceBodyPickData(
     data[base + 2] = neighbor;
     data[base + 3] = element;
     data[base + 4] = neighborElement;
+  }
+  return data;
+}
+
+function buildGraphPrimitiveFaceBodyPickData(
+  geometry: Geometry,
+  owner: NonNullable<ReturnType<typeof geometrySemanticGraph>>,
+): Uint32Array {
+  const data = new Uint32Array(logicalPrimitiveCount(geometry) * 5);
+  if (geometry.primitive !== "triangles") return data;
+  const { graph, geometryOrdinal } = owner;
+  const first = graph.faceGeometryOffsets[geometryOrdinal] ?? 0;
+  const last = graph.faceGeometryOffsets[geometryOrdinal + 1] ?? first;
+  for (let face = first; face < last; face += 1) {
+    const ownerOrdinal = graph.faceOwnerElementOrdinals[face] ?? 0;
+    const ownerBody = graph.faceBodyIds[face] ?? graph.elementBodyIds[ownerOrdinal] ?? 0;
+    const neighborOrdinal = graph.faceNeighborElementOrdinals[face] ?? 0;
+    const neighborBody =
+      neighborOrdinal === 0 ? 0 : (graph.elementBodyIds[neighborOrdinal - 1] ?? 0);
+    const firstPrimitive = graph.facePrimitiveStarts[face] ?? 0;
+    const lastPrimitive = firstPrimitive + (graph.facePrimitiveCounts[face] ?? 0);
+    for (let primitive = firstPrimitive; primitive < lastPrimitive; primitive += 1) {
+      const base = primitive * 5;
+      data[base] = face - first + 1;
+      data[base + 1] = ownerBody === 0 ? 0 : ownerBody + 1;
+      data[base + 2] = neighborBody === 0 || neighborBody === ownerBody ? 0 : neighborBody + 1;
+      data[base + 3] = (graph.elementIds[ownerOrdinal] ?? 0) + 1;
+      data[base + 4] = neighborOrdinal === 0 ? 0 : (graph.elementIds[neighborOrdinal - 1] ?? 0) + 1;
+    }
   }
   return data;
 }

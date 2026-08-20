@@ -12,7 +12,7 @@ import {
   createResultField,
 } from "./support";
 
-describe("elementPart geometry", () => {
+describe("createPartFromElementModel geometry", () => {
   it("retains the shared face between two tets for GPU visibility", () => {
     const model = sharedTetPairModel();
     const geometry = geometryFor(model, "triangle");
@@ -27,7 +27,7 @@ describe("elementPart geometry", () => {
         { id: 2, elementIds: [2] },
       ],
     });
-    const interfaces = (geometry.faces ?? []).filter(
+    const interfaces = Array.from(geometry.faces ?? []).filter(
       (face) => face.neighborElementId !== undefined,
     );
     expect(interfaces).toHaveLength(2);
@@ -44,18 +44,22 @@ describe("elementPart geometry", () => {
       bodies: [{ id: 1, elementIds: [1, 2] }],
     });
     expect(sameBody.indices.length).toBe(8 * 3);
-    expect(sameBody.faces?.some((face) => face.neighborElementId !== undefined)).toBe(true);
+    expect(
+      Array.from(sameBody.faces ?? []).some((face) => face.neighborElementId !== undefined),
+    ).toBe(true);
 
     const namedAndUnowned = geometryFor(model, "triangle", {
       bodies: [{ id: 1, elementIds: [1] }],
     });
     expect(namedAndUnowned.indices.length).toBe(8 * 3);
-    expect(namedAndUnowned.faces?.some((face) => face.neighborElementId !== undefined)).toBe(true);
+    expect(
+      Array.from(namedAndUnowned.faces ?? []).some((face) => face.neighborElementId !== undefined),
+    ).toBe(true);
   });
 
   it("records element tessellations so every triangle is element-pickable", () => {
     const hex = geometryFor(hex8Model(), "triangle");
-    expect(hex.part.elements).toEqual([
+    expect([...(hex.part.elements ?? [])]).toEqual([
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 12 }],
@@ -63,11 +67,11 @@ describe("elementPart geometry", () => {
       },
     ]);
     expect(() => {
-      validateElements(hex, hex.part.elements);
+      validateElements(hex, [...(hex.part.elements ?? [])]);
     }).not.toThrow();
 
     const solid = geometryFor(sharedTetPairModel(), "triangle");
-    expect(solid.part.elements).toEqual([
+    expect([...(solid.part.elements ?? [])]).toEqual([
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 4 }],
@@ -110,7 +114,7 @@ describe("elementPart geometry", () => {
       unit: "mm",
       values,
     });
-    const translation = createResultField({
+    const translationMatrix = createResultField({
       id: "hex20-translation",
       name: "Hex20 translation",
       location: "nodal",
@@ -119,7 +123,7 @@ describe("elementPart geometry", () => {
       unit: "mm",
       values: new Float32Array(20 * 3).fill(0.25),
     });
-    const translated = deformGeometry(geometry, translation);
+    const translated = deformGeometry(geometry, translationMatrix);
     for (let offset = 0; offset < translated.positions.length; offset += 3) {
       expect(translated.positions[offset]).toBeCloseTo((geometry.positions[offset] ?? 0) + 0.25);
       expect(translated.positions[offset + 1]).toBeCloseTo(

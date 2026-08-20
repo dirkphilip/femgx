@@ -38,7 +38,7 @@ function runCheck(root: string): { readonly status: number; readonly stderr: str
 describe("check-demo-import-boundary", () => {
   it("accepts explicit package entry imports", () => {
     const root = makeDemo({
-      "ordinary.ts": 'import { createScene } from "../src/entries/root";\n',
+      "ordinary.ts": 'import { createSceneBuilder } from "../src/entries/root";\n',
       "glb.ts": 'import { importGlb } from "../src/entries/io/glb";\n',
       "results.ts": 'import { createResultField } from "../src/entries/results";\n',
     });
@@ -63,7 +63,9 @@ describe("check-demo-import-boundary", () => {
   });
 
   it("rejects deep imports from ordinary demo code", () => {
-    const root = makeDemo({ "ordinary.ts": 'import { createScene } from "../src/scene/scene";\n' });
+    const root = makeDemo({
+      "ordinary.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n',
+    });
     const result = runCheck(root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("unauthorized deep demo import ../src/scene/scene");
@@ -72,7 +74,7 @@ describe("check-demo-import-boundary", () => {
   it("rejects deep imports from ordinary Svelte components", () => {
     const root = makeDemo({
       "workbench/WorkbenchShell.svelte":
-        '<script lang="ts">\nimport { createScene } from "../../src/scene/scene";\n</script>\n',
+        '<script lang="ts">\nimport { createSceneBuilder } from "../../src/scene/scene";\n</script>\n',
     });
     const result = runCheck(root);
     expect(result.status).toBe(1);
@@ -128,7 +130,7 @@ describe("check-demo-import-boundary", () => {
     expect(result.status).toBe(0);
 
     const runnerRoot = makeDemo({
-      "benchmark/runner.ts": 'import { createScene } from "../src/scene/scene";\n',
+      "benchmark/runner.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n',
     });
     expect(runCheck(runnerRoot).status).toBe(1);
   });

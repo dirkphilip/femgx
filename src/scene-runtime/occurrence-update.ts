@@ -1,5 +1,5 @@
 import type { PartId } from "../geometry/part";
-import { multiply, type Mat4 } from "../math/mat4";
+import { multiplyMatrices, type Mat4 } from "../math/mat4";
 import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { SceneStructuralChanges } from "../scene/update-changes";
@@ -200,7 +200,7 @@ function instanceInput(
     partVisible: resolvePartVisible(placement.partId, scene.visiblePartIds.has(placement.partId)),
     overrideVisible:
       currentSlot === undefined || runtime.instanceOverrideVisible[currentSlot] !== 0,
-    worldTransform: multiply(ownerWorld, placement.transform),
+    worldTransform: multiplyMatrices(ownerWorld, placement.transform),
   };
 }
 

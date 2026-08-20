@@ -8,14 +8,38 @@ import {
   expandMeshEdgeData,
   meshEdgeEndpointData,
 } from "../../../src/renderer/edges/edge-expansion";
-import type { ElementTessellation, Geometry } from "../../../src/geometry/part";
+import {
+  createPart,
+  type ElementTessellation,
+  type GeometryInput,
+} from "../../../src/geometry/part";
 
-type SemanticGeometry = Geometry & {
+type SemanticGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];
 };
 
 function buildSemanticEdgeData(geometry: SemanticGeometry) {
-  return buildMeshEdgeData(geometry, geometry.indices, geometry.elements ?? []);
+  const { elements = [], ...input } = geometry;
+  const bodies = bodyMembership(elements);
+  const part = createPart(1, {
+    geometries: [input],
+    ...(elements.length === 0 ? {} : { elements }),
+    ...(bodies.length === 0 ? {} : { bodies }),
+  });
+  const retained = part.geometries[0];
+  if (retained === undefined) throw new Error("Expected retained geometry");
+  return buildMeshEdgeData(retained, retained.indices, part.elements ?? []);
+}
+
+function bodyMembership(elements: readonly ElementTessellation[]) {
+  const members = new Map<number, number[]>();
+  for (const element of elements) {
+    if (element.bodyId === undefined) continue;
+    const elementIds = members.get(element.bodyId) ?? [];
+    elementIds.push(element.id);
+    members.set(element.bodyId, elementIds);
+  }
+  return Array.from(members, ([id, elementIds]) => ({ id, elementIds }));
 }
 
 describe("buildMeshEdgeData", () => {
@@ -81,12 +105,20 @@ describe("buildMeshEdgeData", () => {
       nodePickIds: new Uint32Array([1, 2, 3, 4]),
       faces: [
         {
-          elementId: 0,
+          elementId: 1,
           faceIndex: 0,
           primitiveStart: 0,
           primitiveCount: 2,
           key: "0/1/2/3",
           nodeIds: [0, 1, 2, 3],
+        },
+      ],
+      elements: [
+        {
+          id: 1,
+          primitiveRanges: [
+            { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 2 },
+          ],
         },
       ],
     };
@@ -126,6 +158,7 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
+          bodyId: 7,
         },
         {
           elementId: 5,
@@ -134,6 +167,7 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/3",
           nodeIds: [0, 1, 3],
+          bodyId: 8,
         },
       ],
     };
@@ -174,6 +208,7 @@ describe("buildMeshEdgeData", () => {
           primitiveCount: 1,
           key: "0/1/2",
           nodeIds: [0, 1, 2],
+          bodyId: 7,
         },
         {
           elementId: 5,

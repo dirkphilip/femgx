@@ -1,6 +1,6 @@
 import { tick, mount, unmount } from "svelte";
 import { createInteractionState } from "../../../src/entries/interaction";
-import { createSceneRuntime } from "../../../src/entries/runtime";
+import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createExampleModel } from "../../../demo/workbench/models/model";
@@ -110,7 +110,7 @@ function createSnapshot(
     models: [model],
     catalogMode: "ordinary",
     catalogSelectionId: model.id,
-    runtime: createSceneRuntime(model.scene),
+    runtime: createSceneOccurrenceSnapshot(model.scene),
     interaction: createInteractionState(),
     rendererName: "webgpu",
     rendererState: "",
@@ -181,7 +181,14 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     position: 1,
     setSize: 1,
   };
-  return { context: "AssemblyDefinition · Root", rows: [assembly, body] };
+  return {
+    context: "AssemblyDefinition · Root",
+    rows: [assembly, body],
+    page: 0,
+    pageCount: 1,
+    rowCount: 2,
+    materializedRowCount: 2,
+  };
 }
 
 /** Enables the overlay state needed by workspace and status assertions. */
@@ -228,7 +235,7 @@ export {
   mount,
   unmount,
   createInteractionState,
-  createSceneRuntime,
+  createSceneOccurrenceSnapshot,
   createBoltedPlatePreset,
   createResultsPreset,
   createExampleModel,

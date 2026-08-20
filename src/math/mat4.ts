@@ -20,7 +20,7 @@ function setCell(m: Float32Array, row: number, column: number, value: number): v
  * Creates a fresh identity matrix.
  * @category Camera and math
  */
-export function identity(): Mat4 {
+export function identityMatrix(): Mat4 {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
 
@@ -28,7 +28,7 @@ export function identity(): Mat4 {
  * Creates a translation matrix from x, y, z components.
  * @category Camera and math
  */
-export function translation(x: number, y: number, z: number): Mat4 {
+export function translationMatrix(x: number, y: number, z: number): Mat4 {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
 }
 
@@ -36,7 +36,7 @@ export function translation(x: number, y: number, z: number): Mat4 {
  * Creates a uniform or non-uniform scale matrix.
  * @category Camera and math
  */
-export function scale(x: number, y = x, z = x): Mat4 {
+export function scalingMatrix(x: number, y = x, z = x): Mat4 {
   return new Float32Array([x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1]);
 }
 
@@ -44,7 +44,7 @@ export function scale(x: number, y = x, z = x): Mat4 {
  * Creates a rotation matrix around the z axis.
  * @category Camera and math
  */
-export function rotationZ(radians: number): Mat4 {
+export function rotationZMatrix(radians: number): Mat4 {
   const c = Math.cos(radians);
   const s = Math.sin(radians);
   return new Float32Array([c, s, 0, 0, -s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
@@ -99,7 +99,7 @@ export function transformDirection(matrix: Mat4, direction: Vec3): Vec3 {
  * Multiplies two matrices and returns a new matrix (a * b).
  * @category Camera and math
  */
-export function multiply(a: Mat4, b: Mat4): Mat4 {
+export function multiplyMatrices(a: Mat4, b: Mat4): Mat4 {
   const out = new Float32Array(16);
   for (let row = 0; row < 4; row++) {
     for (let column = 0; column < 4; column++) {

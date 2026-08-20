@@ -36,7 +36,13 @@ runtime, or renderer pool.
 ## Minimal example
 
 ```ts
-import { createPart, createViewport, createScene, identity, type Geometry } from "femgx";
+import {
+  createPart,
+  createViewport,
+  createSceneBuilder,
+  identityMatrix,
+  type Geometry,
+} from "femgx";
 import {
   createInteractionState,
   setPartOccurrenceOverride,
@@ -50,14 +56,14 @@ const geometry: Geometry = {
 };
 const part = createPart(1, { geometries: [geometry], elements });
 
-const scene = createScene()
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 1,
     name: "root",
-    placements: [{ kind: "part", partId: part.id, transform: identity() }],
+    placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
   })
-  .withRoot(1)
+  .setRootAssembly(1)
   .build();
 
 const viewport = await createViewport({
@@ -78,7 +84,7 @@ interaction = setPartOccurrenceOverrides(interaction, [
   ["1/0", { color: { r: 0.2, g: 0.7, b: 0.4, a: 1 } }],
 ]);
 viewport.interaction.set(interaction);
-viewport.visibility.setPart(part.id, false);
+viewport.visibility.setPartVisible(part.id, false);
 viewport.results.clear();
 viewport.destroy();
 ```
@@ -106,16 +112,16 @@ while renderer-owned edge helpers retain their separate line-list path.
 
 | Area        | Core API                                                                                                                                                                                                                                                                     | Owns                                                                                                                                                                                                                              |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Geometry    | `Geometry`, `Part`, `createPart`, `GeometryBody`, `FaceSubset`, `femgx/model: surfacePart`                                                                                                                                                                                   | Validated immutable local positions, mixed compact surface topology, indices, derived body/element/node/face metadata, and local bounds. Focused validators and raw bound calculation are implementation helpers.                 |
-| Elements    | `femgx/model`: `createElement`, `ElementModel`, `Body`, `createElementModel`, `elementPart`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                                                                                                 | Validated FE connectivity (Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, Hex20), optional direct body ownership, canonical topology, mixed primitive grouping, and face selection inputs. |
+| Geometry    | `Geometry`, `Part`, `createPart`, `GeometryBody`, `FaceSubset`, `femgx/model: createPartFromExplicitTopology`                                                                                                                                                                | Validated immutable local positions, mixed compact surface topology, indices, derived body/element/node/face metadata, and local bounds. Focused validators and raw bound calculation are implementation helpers.                 |
+| Elements    | `femgx/model`: `createElement`, `ElementModel`, `Body`, `createElementModel`, `createPartFromElementModel`, `boundaryFaceRefs`, `FaceIdRef`, `ElementShape`                                                                                                                  | Validated FE connectivity (Point, Line, Line3, Triangle, Tri6, Quad, Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, Hex20), optional direct body ownership, canonical topology, mixed primitive grouping, and face selection inputs. |
 | Assemblies  | `AssemblyDefinition`, `PartPlacement`, `AssemblyPlacement`                                                                                                                                                                                                                   | Reusable hierarchical placement definitions and local transforms.                                                                                                                                                                 |
-| Scene       | `createScene`, `SceneBuilder`, `Scene`                                                                                                                                                                                                                                       | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                                                            |
+| Scene       | `createSceneBuilder`, `SceneBuilder`, `Scene`                                                                                                                                                                                                                                | Authoritative part/assembly registries, root identity, and authoring visibility state.                                                                                                                                            |
 | Viewport    | `createViewport`, `Viewport`, `ViewportOptions`, `ViewportView`, `ViewportInteraction`, `ViewportVisibility`, `ViewportResults`, `ViewportPresentation`                                                                                                                      | Runtime compilation, one lifecycle owner, stable capability facades, WebGPU renderer, controls, resize, recovery, and teardown.                                                                                                   |
 | Interaction | `createInteractionState`, `InteractionTarget`, `setTargetSelected`, `setTargetHighlighted`, `setTargetHovered`, `isTargetSelected`, `isTargetHighlighted`, `isHoveredTarget`, `clearSelection`, `setPartOverride`, `setPartOccurrenceOverride`, `setPartOccurrenceOverrides` | Opaque immutable selection, highlight, and single-hover state. Body visibility and explicit part/part-occurrence style overrides remain separate target-scoped layers; occurrence style is more specific than part style.         |
 | Camera      | `femgx/camera`: `createCamera`, `setProjection`, `orbitCamera`, `panCamera`, `zoomCamera`, `fitCamera`                                                                                                                                                                       | Immutable camera values and projection/navigation math.                                                                                                                                                                           |
 | Picking     | `ViewportInteraction.pick`, `PickHit`, `interactionTargetFromHit`, `InteractionGranularity`                                                                                                                                                                                  | One complete side-effect-free GPU hit plus explicit host-owned interaction-target conversion.                                                                                                                                     |
 | Results     | `createResultField`, `ViewportResultsConfig`                                                                                                                                                                                                                                 | Authored nodal/elemental scalar values, ranges, maps, and optional nodal deformation configuration.                                                                                                                               |
-| IO          | `femgx/io`: `createModelBuilder`, `validateModel`, `createElementModelFromFemModel`, `createResultFieldFromModelResult`                                                                                                                                                      | Host-supplied serializable model staging, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                                |
+| IO          | `femgx/io`: `createFemModelBuilder`, `validateFemModel`, `createElementModelFromFemModel`, `createResultFieldFromModelResult`                                                                                                                                                | Host-supplied serializable model staging, diagnostics, and narrow conversion into authored viewport result fields.                                                                                                                |
 | Platform    | `femgx/platform`: `queryWebGpuSupport`, `WebGpuUnsupportedError`, `requestWebGpuDevice`                                                                                                                                                                                      | Capability probing, typed unsupported results, device creation, and loss information.                                                                                                                                             |
 
 ## Ownership and identity rules
@@ -136,19 +142,18 @@ while renderer-owned edge helpers retain their separate line-list path.
   non-overlapping element membership. Body interaction state remains scoped by
   the placement `PartOccurrenceId`. Semantic element blocks are removed from the
   product and must not survive as compatibility identities or serialized fields.
-- `Scene` is the authoring source of truth. `SceneRuntime`, typed arrays, draw
+- `Scene` is the authoring source of truth. Packed scene state, typed arrays, draw
   orders, GPU buffers, and batch records are derived representations. Public
-  runtime transforms and collections are defensive snapshots; visible handles
-  are named `getVisiblePartOccurrenceIds()` and use deterministic runtime order.
-- `Viewport` is the public owner of the current live `SceneRuntime` facade
-  and the internal WebGPU renderer; hosts should reacquire `viewport.runtime`
-  after `replaceScene` or a committed `updateScene` and never manually synchronize packed
-  runtime state.
+  occurrence transforms and collections are defensive snapshots; visible handles
+  stream from `visiblePartOccurrenceIds()` in deterministic hierarchy order.
+- `Viewport` is the public owner of the stable live `SceneOccurrences` facade
+  and the internal WebGPU renderer; hosts read `viewport.occurrences` and never
+  manually synchronize packed scene state.
 
 For host-supplied data, `createElementModelFromFemModel` is the validated
 conversion from the serializable `FemModel` into the dense `ElementModel`
 consumed by element tessellation. Hosts then call
-`elementPart` once and register the returned semantic part in an `Assembly`;
+`createPartFromElementModel` once and register the returned semantic part in an `Assembly`;
 its homogeneous primitive groups remain internal draw partitions, not
 additional authoring identities. A selected `ModelResultField` enters the authored
 results path through `createResultFieldFromModelResult` before
@@ -171,8 +176,8 @@ results path through `createResultFieldFromModelResult` before
 
 ### Visibility and interaction
 
-`viewport.visibility.setPart`, `setAssemblyOccurrence`, `setAssembly`,
-`setPartOccurrence`, and `setPartOccurrences` update four independent
+`viewport.visibility.setPartVisible`, `setAssemblyOccurrenceVisible`, `setAssemblyVisible`,
+`setPartOccurrenceVisible`, and `setPartOccurrences` update four independent
 viewport-owned visibility causes using stable part, assembly, and placement
 handles. The bulk occurrence method validates its complete iterable before one
 atomic update. Renderer synchronization receives affected part identities, so a
@@ -270,8 +275,9 @@ See [[data/vector-field-visualization|Authored elemental orientation visualizati
 
 These exports are supported utilities around the canonical viewport path:
 
-- `femgx/runtime`: `createSceneRuntime` / `SceneRuntime` for hosts that intentionally own
-  runtime compilation and stable-handle queries.
+- `Viewport` occurrence inspection exposes stable placement identity, hierarchy,
+  world transforms, and effective visibility. Packed runtime compilation remains
+  an internal implementation detail.
 - `femgx/camera`: `installCameraControls` and the lower-level camera math for custom viewport
   shells.
 - `interactionTargetFromHit` for pure host-side selection policy.

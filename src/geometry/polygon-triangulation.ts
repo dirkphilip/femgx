@@ -2,8 +2,8 @@ import type { NodeId } from "../elements/element";
 import { at } from "../elements/indices";
 import { cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 
-/** Machine-readable failures for compact surface-part authoring. */
-export type SurfacePartValidationCode =
+/** Machine-readable failures for compact explicit-topology authoring. */
+export type ExplicitTopologyValidationCode =
   | "invalid-positions"
   | "invalid-connectivity"
   | "record-count-mismatch"
@@ -18,13 +18,13 @@ export type SurfacePartValidationCode =
   | "self-intersecting";
 
 /** Typed failure raised before invalid compact topology reaches a renderer. */
-export class SurfacePartError extends Error {
-  /** Machine-readable surface-part validation code. */
-  readonly code: SurfacePartValidationCode;
+export class ExplicitTopologyError extends Error {
+  /** Machine-readable explicit-topology validation code. */
+  readonly code: ExplicitTopologyValidationCode;
 
-  constructor(code: SurfacePartValidationCode, message: string) {
+  constructor(code: ExplicitTopologyValidationCode, message: string) {
     super(message);
-    this.name = "SurfacePartError";
+    this.name = "ExplicitTopologyError";
     this.code = code;
   }
 }
@@ -47,14 +47,14 @@ export function triangulatePolygon(
   rejectIntersections(projected, scale);
   const area = signedArea(projected);
   if (Math.abs(area) <= EPSILON * scale * scale) {
-    throw new SurfacePartError("degenerate", "Polygon has zero projected area");
+    throw new ExplicitTopologyError("degenerate", "Polygon has zero projected area");
   }
   return earClip(nodeIds, projected, area, scale);
 }
 
 function validatePolygon(nodeIds: readonly NodeId[], positions: Float32Array): readonly Vec3[] {
   if (nodeIds.length < 3) {
-    throw new SurfacePartError(
+    throw new ExplicitTopologyError(
       "too-few-nodes",
       `Polygon requires at least 3 node ids but got ${nodeIds.length}`,
     );
@@ -64,13 +64,13 @@ function validatePolygon(nodeIds: readonly NodeId[], positions: Float32Array): r
   const points: Vec3[] = [];
   for (const nodeId of nodeIds) {
     if (!Number.isInteger(nodeId) || nodeId < 0 || nodeId >= nodeCount) {
-      throw new SurfacePartError(
+      throw new ExplicitTopologyError(
         "invalid-node-id",
         `Polygon references node ${nodeId}, outside 0..${Math.max(0, nodeCount - 1)}`,
       );
     }
     if (seen.has(nodeId)) {
-      throw new SurfacePartError("duplicate-node", `Polygon references node ${nodeId} twice`);
+      throw new ExplicitTopologyError("duplicate-node", `Polygon references node ${nodeId} twice`);
     }
     seen.add(nodeId);
     points.push(pointAt(positions, nodeId));
@@ -85,7 +85,7 @@ function pointAt(positions: Float32Array, nodeId: NodeId): Vec3 {
 
 function polygonNormal(points: readonly Vec3[]): Vec3 {
   const origin = points[0];
-  if (origin === undefined) throw new SurfacePartError("degenerate", "Polygon has no points");
+  if (origin === undefined) throw new ExplicitTopologyError("degenerate", "Polygon has no points");
   const scale = spatialScale(points);
   for (let first = 1; first < points.length - 1; first += 1) {
     for (let second = first + 1; second < points.length; second += 1) {
@@ -96,7 +96,7 @@ function polygonNormal(points: readonly Vec3[]): Vec3 {
       if (length(candidate) > EPSILON * scale * scale) return candidate;
     }
   }
-  throw new SurfacePartError("degenerate", "Polygon points are collinear");
+  throw new ExplicitTopologyError("degenerate", "Polygon points are collinear");
 }
 
 function validatePlanarity(points: readonly Vec3[], normal: Vec3): void {
@@ -107,7 +107,7 @@ function validatePlanarity(points: readonly Vec3[], normal: Vec3): void {
   for (const point of points) {
     const distance = Math.abs(dot(subtract(point, origin), normal)) / normalLength;
     if (distance > tolerance) {
-      throw new SurfacePartError(
+      throw new ExplicitTopologyError(
         "non-planar",
         `Polygon node is ${distance} units from its fitted plane (tolerance ${tolerance})`,
       );
@@ -172,7 +172,7 @@ function rejectIntersections(points: readonly Vec2[], scale: number): void {
           EPSILON * scale * scale,
         )
       ) {
-        throw new SurfacePartError(
+        throw new ExplicitTopologyError(
           "self-intersecting",
           `Polygon edges ${first}-${firstNext} and ${second}-${secondNext} intersect`,
         );
@@ -228,7 +228,7 @@ function earClip(
   while (remaining.length > 3) {
     const ear = findEar(remaining, points, winding, scale);
     if (ear === undefined) {
-      throw new SurfacePartError(
+      throw new ExplicitTopologyError(
         "degenerate",
         "Polygon could not be triangulated; check for collinear or overlapping corners",
       );

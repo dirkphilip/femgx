@@ -86,11 +86,11 @@ Part/assembly-wide convenience visibility and occurrence-specific visibility
 are separate viewport-local policies:
 
 ```ts
-viewport.visibility.setPart(partId, false);
-viewport.visibility.setPartOccurrence(partOccurrenceId, true);
+viewport.visibility.setPartVisible(partId, false);
+viewport.visibility.setPartOccurrenceVisible(partOccurrenceId, true);
 viewport.visibility.setPartOccurrences(partOccurrenceIds, false);
-viewport.visibility.setAssembly(assemblyId, false);
-viewport.visibility.setAssemblyOccurrence(assemblyOccurrenceId, true);
+viewport.visibility.setAssemblyVisible(assemblyId, false);
+viewport.visibility.setAssemblyOccurrenceVisible(assemblyOccurrenceId, true);
 ```
 
 Definition and occurrence causes remain independent, so showing one layer does
@@ -107,13 +107,13 @@ const outcome = viewport.updateScene((update) => {
     kind: "part",
     placementId: "new-part",
     partId: newPart.id,
-    transform: identity(),
+    transform: identityMatrix(),
   });
 });
 if (outcome.results === "cleared") {
   console.warn(outcome.reason);
 }
-const currentRuntime = viewport.runtime;
+const currentOccurrences = viewport.occurrences;
 ```
 
 `addPlacement`, `replacePlacement`, and `removePlacement` edit authored records
@@ -121,7 +121,7 @@ inside reusable assembly definitions. Occurrence ids instead address individual
 expanded runtime instances for visibility, interaction, results, and queries.
 
 The editor uses copy-on-write registries and publishes one immutable scene and
-runtime revision only after complete validation. A thrown, nested, async, or
+private packed revision only after complete validation. A thrown, nested, async, or
 semantic no-op callback publishes nothing. Definition removal rejects live
 references unless explicit cascade removal is requested. `updateScene`
 preserves compatible camera, interaction, visibility, and authored-result state;

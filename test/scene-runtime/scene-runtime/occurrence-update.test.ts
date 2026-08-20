@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { createPublicSceneRuntime } from "../../../src/scene-runtime/public-runtime";
+import { createSceneOccurrences } from "../../../src/scene-runtime/occurrences";
 import {
   applyOccurrenceMutations,
   prepareOccurrenceMutations,
 } from "../../../src/scene-runtime/occurrence-update";
 import { prepareSceneTransition } from "../../../src/scene/update";
-import { buildScene, createPackedSceneRuntime, identity, part, translation } from "./support";
+import {
+  buildScene,
+  createPackedSceneRuntime,
+  identityMatrix,
+  part,
+  translationMatrix,
+} from "./support";
 
 describe("incremental part occurrence storage", () => {
   it("reuses removed slots without moving surviving identities or exposing holes", () => {
@@ -15,8 +21,8 @@ describe("incremental part occurrence storage", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", placementId: "remove", partId: 1, transform: identity() },
-            { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+            { kind: "part", placementId: "remove", partId: 1, transform: identityMatrix() },
+            { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(1, 0, 0) },
           ],
         },
       ],
@@ -29,7 +35,7 @@ describe("incremental part occurrence storage", () => {
         kind: "part",
         placementId: "added",
         partId: 2,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       });
     });
     if (prepared === undefined) throw new Error("expected a scene transition");
@@ -43,18 +49,22 @@ describe("incremental part occurrence storage", () => {
     expect(runtime.getInstanceSlot("1/remove")).toBeUndefined();
     expect(runtime.activeInstanceCount).toBe(2);
     expect(delta.slots).toEqual([{ slot: 0, beforePartId: 1, afterPartId: 2 }]);
-    const publicRuntime = createPublicSceneRuntime(runtime);
-    expect(publicRuntime.partOccurrenceCount).toBe(2);
-    expect(publicRuntime.getPartOccurrenceIds()).toEqual(["1/added", "1/keep"]);
+    const occurrences = createSceneOccurrences(() => runtime);
+    expect(occurrences.partOccurrenceCount).toBe(2);
+    expect(
+      Array.from(occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId),
+    ).toEqual(["1/added", "1/keep"]);
   });
 
-  it("coalesces remove plus add of one placement identity into a retained-slot replacement", () => {
+  it("coalesces remove plus add of one placement identityMatrix into a retained-slot replacement", () => {
     const scene = buildScene(
       1,
       [
         {
           id: 1,
-          placements: [{ kind: "part", placementId: "item", partId: 1, transform: identity() }],
+          placements: [
+            { kind: "part", placementId: "item", partId: 1, transform: identityMatrix() },
+          ],
         },
       ],
       [1, 2],
@@ -68,7 +78,7 @@ describe("incremental part occurrence storage", () => {
         kind: "part",
         placementId: "item",
         partId: 2,
-        transform: translation(3, 0, 0),
+        transform: translationMatrix(3, 0, 0),
       });
     });
     if (prepared === undefined) throw new Error("expected a scene transition");
@@ -90,8 +100,8 @@ describe("incremental part occurrence storage", () => {
         {
           id: 1,
           placements: [
-            { kind: "assembly", placementId: "left", assemblyId: 2, transform: identity() },
-            { kind: "assembly", placementId: "right", assemblyId: 2, transform: identity() },
+            { kind: "assembly", placementId: "left", assemblyId: 2, transform: identityMatrix() },
+            { kind: "assembly", placementId: "right", assemblyId: 2, transform: identityMatrix() },
           ],
         },
         { id: 2, placements: [] },
@@ -105,7 +115,7 @@ describe("incremental part occurrence storage", () => {
         kind: "part",
         placementId: "shared",
         partId: 2,
-        transform: identity(),
+        transform: identityMatrix(),
       });
     });
     if (prepared === undefined) throw new Error("expected a scene transition");
@@ -144,15 +154,15 @@ describe("incremental part occurrence storage", () => {
         {
           id: 1,
           placements: [
-            { kind: "assembly", placementId: "left", assemblyId: 2, transform: identity() },
-            { kind: "assembly", placementId: "right", assemblyId: 2, transform: identity() },
+            { kind: "assembly", placementId: "left", assemblyId: 2, transform: identityMatrix() },
+            { kind: "assembly", placementId: "right", assemblyId: 2, transform: identityMatrix() },
           ],
         },
         {
           id: 2,
           placements: [
-            { kind: "part", placementId: "removed", partId: 1, transform: identity() },
-            { kind: "part", placementId: "retained", partId: 2, transform: identity() },
+            { kind: "part", placementId: "removed", partId: 1, transform: identityMatrix() },
+            { kind: "part", placementId: "retained", partId: 2, transform: identityMatrix() },
           ],
         },
       ],

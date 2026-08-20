@@ -146,7 +146,7 @@ function denseFullSelectionUsesOrdinarySurface(options: {
   const { selectedElements, selectedFaces, localSlot, part, metadata, denseSelection } = options;
   if (
     (selectedFaces?.size ?? 0) > 0 ||
-    selectedElements?.size !== metadata.elements.size ||
+    selectedElements?.size !== metadata.elementCount ||
     part.geometries.some(
       (geometry) => geometry.primitive !== "triangles" || geometry.faceSubset !== undefined,
     )
@@ -154,7 +154,7 @@ function denseFullSelectionUsesOrdinarySurface(options: {
     return false;
   }
   const occurrence = denseOccurrenceAtSlot(denseSelection, localSlot);
-  return occurrence?.selectedCount === metadata.elements.size;
+  return occurrence?.selectedCount === metadata.elementCount;
 }
 
 function fallbackSelectionGeometry(
@@ -166,7 +166,7 @@ function fallbackSelectionGeometry(
   const byPrimitive = new Map<Primitive, number[]>();
   let rangeCount = 0;
   for (const elementId of selectedElements ?? []) {
-    const element = metadata.elements.get(elementId);
+    const element = metadata.element(elementId);
     if (element === undefined) return undefined;
     for (const range of element.primitiveRanges) {
       const nextRangeCount = addPrimitiveRange(
@@ -181,7 +181,7 @@ function fallbackSelectionGeometry(
     }
   }
   for (const [key] of selectedFaces ?? []) {
-    const face = metadata.faces.get(key)?.face;
+    const face = faceForIdentity(metadata, key);
     if (face === undefined) return undefined;
     const nextRangeCount = addPrimitiveRange(
       byPrimitive,
@@ -202,6 +202,15 @@ function fallbackSelectionGeometry(
   return rangedIndexCount * 2 < fullIndexCount ? ranges : undefined;
 }
 
+function faceForIdentity(metadata: PartSemanticIndex, identity: string) {
+  const separator = identity.indexOf("/");
+  if (separator < 1) return undefined;
+  const elementId = Number(identity.slice(0, separator));
+  const faceIndex = Number(identity.slice(separator + 1));
+  if (!Number.isInteger(elementId) || !Number.isInteger(faceIndex)) return undefined;
+  return metadata.face(elementId, faceIndex)?.face;
+}
+
 function denseSelectionSkin(
   selectedElements: ReadonlySet<number> | undefined,
   localSlot: number,
@@ -209,7 +218,7 @@ function denseSelectionSkin(
   metadata: PartSemanticIndex,
   denseSelection: DenseElementSelection | undefined,
 ): SelectionSkin | undefined {
-  const elementCount = metadata.elements.size;
+  const elementCount = metadata.elementCount;
   if (
     selectedElements === undefined ||
     selectedElements.size * 2 < elementCount ||
@@ -249,7 +258,7 @@ function denseInterfaceRanges(
   let rangeCount = 0;
   for (let wordIndex = 0; wordIndex < words.length; wordIndex += 1) {
     const firstOrdinal = wordIndex * 32 + 1;
-    const validBits = Math.min(32, metadata.elements.size - wordIndex * 32);
+    const validBits = Math.min(32, metadata.elementCount - wordIndex * 32);
     if (validBits <= 0) break;
     const mask = validBits === 32 ? 0xffffffff : (1 << validBits) - 1;
     let unselected = (~(words[wordIndex] ?? 0) & mask) >>> 0;
@@ -260,9 +269,9 @@ function denseInterfaceRanges(
       const end = offsets[ordinal] ?? start;
       for (let index = start; index < end; index += 1) {
         const faceId = faceIds[index];
-        const face = faceId === undefined ? undefined : triangles.faces[faceId];
+        const face = faceId === undefined ? undefined : triangles.faces.at(faceId);
         if (face === undefined) return undefined;
-        const ownerOrdinal = metadata.elementOrdinalById.get(face.elementId);
+        const ownerOrdinal = metadata.elementOrdinal(face.elementId);
         if (ownerOrdinal === undefined) return undefined;
         if (!isSelectionBitSet(words, ownerOrdinal)) continue;
         const nextRangeCount = addPrimitiveRangeToIntervals(

@@ -1,4 +1,4 @@
-import { identity, multiply, type Mat4 } from "../math/mat4";
+import { identityMatrix, multiplyMatrices, type Mat4 } from "../math/mat4";
 import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
@@ -123,7 +123,7 @@ class DraftWriter {
         assembly.placements[placementIndex],
         `placement ${placementIndex} in assembly ${item.assemblyId}`,
       );
-      const placementWorld = multiply(item.world, placement.transform);
+      const placementWorld = multiplyMatrices(item.world, placement.transform);
       const placementPath = `${item.path}/${placement.placementId ?? placementIndex}`;
       if (placement.kind === "part") {
         const node = invariantValue(
@@ -167,6 +167,6 @@ export function buildSceneDrafts(scene: Scene): {
   instances: InstanceDraft[];
 } {
   const writer = new DraftWriter(scene);
-  writer.walk(scene.rootAssemblyId, identity(), String(scene.rootAssemblyId));
+  writer.walk(scene.rootAssemblyId, identityMatrix(), String(scene.rootAssemblyId));
   return { nodes: writer.nodes, instances: writer.instances };
 }

@@ -1,6 +1,6 @@
 # Surface-derived part authoring
 
-This note defines the **Core-now** `surfacePart()` authoring contract. The host
+This note defines the **Core-now** `createPartFromExplicitTopology()` authoring contract. The host
 transfers only the display-relevant geometry of a finite-element part; femgx
 does not require omitted solid topology to reconstruct the same surface.
 
@@ -35,12 +35,12 @@ facet or element may therefore leave a hole rather than reveal an interior
 face. A later server response is a host-owned replacement payload, not an
 incremental femgx geometry stream.
 
-`elementPart(..., { faceSubset })` does not satisfy the memory contract: it
+`createPartFromElementModel(..., { faceSubset })` does not satisfy the memory contract: it
 retains complete tessellated geometry and filters only draw indices. This path
 must avoid constructing omitted geometry.
 
 Likewise, a presentation choice such as disabling edge and node overlays says
-nothing about topology residency. The host chooses `surfacePart()` when the
+nothing about topology residency. The host chooses `createPartFromExplicitTopology()` when the
 client must not own the interior; a renderer display toggle cannot convert a
 fully authored part into that data contract.
 
@@ -69,7 +69,7 @@ coordinates. An adapter may normalize the established host ordering into the
 existing quadratic tessellator. The sign is decoded once at the authoring
 boundary rather than leaking into geometry or renderer code.
 
-`SurfacePartInput.facets` carries parallel `elementIds` and `faceIndices`
+`ExplicitTopologyInput.facets` carries parallel `elementIds` and `faceIndices`
 arrays with one entry per decoded facet. Its optional `neighbors` stream uses
 aligned `0` records for boundaries and `1, neighborElementId` records for an
 interface. `lines.connectivity` accepts `2, a, b` and `3, a, mid, b`; points
@@ -77,7 +77,7 @@ use a flat `nodeIds` array. Lines and points have aligned `elementIds`. Every
 field accepts typed arrays without requiring one JavaScript object per face.
 
 ```ts
-const part = surfacePart(10, {
+const part = createPartFromExplicitTopology(10, {
   positions,
   facets: { connectivity: facets, elementIds, faceIndices },
   lines: { connectivity: lines, elementIds: lineElementIds },
@@ -111,7 +111,7 @@ part and reused by every assembly placement.
 
 ## Replacement and negative space
 
-`surfacePart()` replaced the former polygon-only builders and subsumes their
+`createPartFromExplicitTopology()` replaced the former polygon-only builders and subsumes their
 useful contracts: deterministic convex and concave tessellation, validation,
 face/element/body ownership, node picking and deformation, and empty no-draw
 input. The implementation retains shared triangulation and edge-incidence

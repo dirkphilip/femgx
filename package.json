@@ -57,10 +57,6 @@
       "types": "./dist/entries/results.d.ts",
       "default": "./dist/results.js"
     },
-    "./runtime": {
-      "types": "./dist/entries/runtime.d.ts",
-      "default": "./dist/runtime.js"
-    },
     "./platform": {
       "types": "./dist/entries/platform.d.ts",
       "default": "./dist/platform.js"

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createPart } from "../../src/geometry/part";
-import { identity, translation } from "../../src/math/mat4";
-import { createScene } from "../../src/scene/scene";
+import { identityMatrix, translationMatrix } from "../../src/math/mat4";
+import { createSceneBuilder } from "../../src/scene/scene";
 import {
   prepareSceneTransition,
   prepareSceneUpdate,
@@ -30,21 +30,21 @@ const secondPart = createPart(2, {
 });
 
 function scene() {
-  return createScene()
+  return createSceneBuilder()
     .addPart(firstPart)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part", placementId: "first", partId: firstPart.id, transform: identity() },
+        { kind: "part", placementId: "first", partId: firstPart.id, transform: identityMatrix() },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
 describe("prepareSceneUpdate", () => {
-  it("prepares stable-identity structural changes without exposing runtime slots", () => {
+  it("prepares stable-identityMatrix structural changes without exposing runtime slots", () => {
     const source = scene();
     const prepared = prepareSceneTransition(source, (update) => {
       update.addPart(secondPart);
@@ -52,13 +52,13 @@ describe("prepareSceneUpdate", () => {
         kind: "part",
         placementId: "first",
         partId: 2,
-        transform: identity(),
+        transform: identityMatrix(),
       });
       update.addPlacement(1, {
         kind: "part",
         placementId: "added",
         partId: 1,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       });
     });
 
@@ -82,13 +82,13 @@ describe("prepareSceneUpdate", () => {
         kind: "part",
         placementId: "second",
         partId: secondPart.id,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       });
       update.replacePlacement(1, {
         kind: "part",
         placementId: "first",
         partId: 1,
-        transform: translation(1, 0, 0),
+        transform: translationMatrix(1, 0, 0),
       });
     });
 
@@ -123,7 +123,7 @@ describe("prepareSceneUpdate", () => {
         kind: "part",
         placementId: "first",
         partId: 2,
-        transform: identity(),
+        transform: identityMatrix(),
       });
     });
     expect(rebound?.assemblies.get(1)?.placements[0]).toMatchObject({ partId: 2 });
@@ -143,13 +143,13 @@ describe("prepareSceneUpdate", () => {
         kind: "assembly",
         placementId: "child",
         assemblyId: 2,
-        transform: identity(),
+        transform: identityMatrix(),
       });
       update.replacePlacement(1, {
         kind: "assembly",
         placementId: "child",
         assemblyId: 3,
-        transform: translation(4, 0, 0),
+        transform: translationMatrix(4, 0, 0),
       });
     });
     if (nested === undefined) throw new Error("expected a scene revision");
@@ -182,7 +182,7 @@ describe("prepareSceneUpdate", () => {
         kind: "assembly",
         placementId: "first",
         assemblyId: 2,
-        transform: translation(4, 0, 0),
+        transform: translationMatrix(4, 0, 0),
       });
     });
 
@@ -203,7 +203,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "first",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       }),
     ).toBeUndefined();
@@ -213,13 +213,13 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "first",
           partId: 1,
-          transform: translation(3, 0, 0),
+          transform: translationMatrix(3, 0, 0),
         });
         update.replacePlacement(1, {
           kind: "part",
           placementId: "first",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       }),
     ).toBeUndefined();
@@ -227,7 +227,7 @@ describe("prepareSceneUpdate", () => {
 
   it("rejects an invalid transform before the transform-only fast path can commit", () => {
     const source = scene();
-    const invalid = identity();
+    const invalid = identityMatrix();
     invalid[7] = Number.NaN;
 
     expect(() =>
@@ -240,7 +240,7 @@ describe("prepareSceneUpdate", () => {
         });
       }),
     ).toThrow(/transform component 7 must be finite/);
-    expect(source.assemblies.get(1)?.placements[0]?.transform).toEqual(identity());
+    expect(source.assemblies.get(1)?.placements[0]?.transform).toEqual(identityMatrix());
   });
 
   it("rejects an invalid added part id at the changed registry boundary", () => {
@@ -261,7 +261,7 @@ describe("prepareSceneUpdate", () => {
         kind: "part",
         placementId: "reused",
         partId: 1,
-        transform: identity(),
+        transform: identityMatrix(),
       });
       for (let id = 2; id < 66; id += 1) {
         update.addPart({ ...secondPart, id });
@@ -269,7 +269,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: `part-${id}`,
           partId: id,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       }
       for (let id = 2; id < 66; id += 2) {
@@ -290,7 +290,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "first",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       },
     ],
@@ -301,7 +301,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "bad/id",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       },
     ],
@@ -312,7 +312,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "missing",
           partId: 99,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       },
     ],
@@ -323,7 +323,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "missing",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       },
     ],
@@ -334,7 +334,7 @@ describe("prepareSceneUpdate", () => {
     expect(source.assemblies.get(1)?.placements).toHaveLength(1);
   });
 
-  it("rejects replacement and removal of a missing placement identity", () => {
+  it("rejects replacement and removal of a missing placement identityMatrix", () => {
     const source = scene();
     const remove = (): unknown =>
       prepareSceneUpdate(source, (update) => {
@@ -347,7 +347,7 @@ describe("prepareSceneUpdate", () => {
           kind: "part",
           placementId: "missing",
           partId: 1,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       }),
     ).toThrow(/no placement missing/);
@@ -387,14 +387,14 @@ describe("prepareSceneUpdate", () => {
         update.addAssembly({
           id: 2,
           placements: [
-            { kind: "assembly", placementId: "cycle", assemblyId: 1, transform: identity() },
+            { kind: "assembly", placementId: "cycle", assemblyId: 1, transform: identityMatrix() },
           ],
         });
         update.addPlacement(1, {
           kind: "assembly",
           placementId: "child",
           assemblyId: 2,
-          transform: identity(),
+          transform: identityMatrix(),
         });
       }),
     ).toThrow(/cycle/);

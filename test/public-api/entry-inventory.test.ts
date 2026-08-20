@@ -6,7 +6,6 @@ import * as glb from "../../src/entries/io/glb";
 import * as camera from "../../src/entries/camera";
 import * as interaction from "../../src/entries/interaction";
 import * as results from "../../src/entries/results";
-import * as runtime from "../../src/entries/runtime";
 import * as platform from "../../src/entries/platform";
 
 const inventory = (module: object): string[] => Object.keys(module).sort();
@@ -19,16 +18,16 @@ describe("public package entries", () => {
       "UnknownSceneIdentityError",
       "WebGpuUnsupportedError",
       "createPart",
-      "createScene",
+      "createSceneBuilder",
       "createViewport",
-      "identity",
-      "multiply",
+      "identityMatrix",
+      "multiplyMatrices",
       "queryWebGpuSupport",
-      "rotationZ",
-      "scale",
+      "rotationZMatrix",
+      "scalingMatrix",
       "transformPoint",
-      "translation",
-      "unsupportedMessage",
+      "translationMatrix",
+      "webGpuUnsupportedMessage",
     ]);
     expect(inventory(interaction)).toEqual([
       "bodyOverride",
@@ -65,6 +64,7 @@ describe("public package entries", () => {
       "FRAME_COMPONENT_COUNT",
       "LOAD_COMPONENT_COUNT",
       "createElementFrameField",
+      "createNodalDisplacementBuffer",
       "createNodalLoadField",
       "createResultField",
       "createScalarColorMap",
@@ -72,8 +72,7 @@ describe("public package entries", () => {
       "deformPositions",
       "finiteRange",
       "frameAt",
-      "mapScalar",
-      "nodalDisplacements",
+      "mapScalarToColor",
       "scalarAt",
       "scalarRange",
       "vectorAt",
@@ -81,17 +80,17 @@ describe("public package entries", () => {
     expect(inventory(model)).toEqual([
       "ElementModelValidationError",
       "ElementShape",
+      "ExplicitTopologyError",
       "FaceSelectionError",
-      "SurfacePartError",
       "boundaryFaceRefs",
       "classifyFaces",
       "createElement",
       "createElementModel",
+      "createPartFromElementModel",
+      "createPartFromExplicitTopology",
       "edgesOf",
-      "elementPart",
+      "faceRefsOf",
       "facesOf",
-      "facesOfElement",
-      "surfacePart",
       "topologyFor",
       "uniqueEdges",
     ]);
@@ -99,9 +98,9 @@ describe("public package entries", () => {
       "FEMGX_FORMAT_VERSION",
       "IoError",
       "createElementModelFromFemModel",
-      "createModelBuilder",
+      "createFemModelBuilder",
       "createResultFieldFromModelResult",
-      "validateModel",
+      "validateFemModel",
     ]);
     expect(inventory(glb)).toEqual(["importGlb"]);
     expect(inventory(camera)).toEqual([
@@ -123,13 +122,12 @@ describe("public package entries", () => {
       "zoomCamera",
       "zoomCameraAtPoint",
     ]);
-    expect(inventory(runtime)).toEqual(["createSceneRuntime"]);
     expect(inventory(platform)).toEqual([
       "WebGpuUnsupportedError",
       "queryWebGpuSupport",
       "requestWebGpuAdapter",
       "requestWebGpuDevice",
-      "unsupportedMessage",
+      "webGpuUnsupportedMessage",
     ]);
   });
 
@@ -146,15 +144,14 @@ describe("public package entries", () => {
   it("exposes one runtime and one type-level entry for each documented domain", () => {
     expect(root.createViewport).toBeTypeOf("function");
     expect(model.createElementModel).toBeTypeOf("function");
-    expect(io.createModelBuilder).toBeTypeOf("function");
-    expect(io.validateModel).toBeTypeOf("function");
+    expect(io.createFemModelBuilder).toBeTypeOf("function");
+    expect(io.validateFemModel).toBeTypeOf("function");
     expect(io.createElementModelFromFemModel).toBeTypeOf("function");
     expect(io.createResultFieldFromModelResult).toBeTypeOf("function");
     expect(glb.importGlb).toBeTypeOf("function");
     expect(camera.createCamera).toBeTypeOf("function");
     expect(interaction.createInteractionState).toBeTypeOf("function");
     expect(results.createResultField).toBeTypeOf("function");
-    expect(runtime.createSceneRuntime).toBeTypeOf("function");
     expect(platform.requestWebGpuDevice).toBeTypeOf("function");
   });
 });

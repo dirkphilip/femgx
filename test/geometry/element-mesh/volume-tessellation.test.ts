@@ -17,7 +17,7 @@ import {
   triangleCenter,
 } from "./support";
 
-describe("elementPart geometry", () => {
+describe("createPartFromElementModel geometry", () => {
   it("tessellates a Tet4 into four outward-facing solid triangles", () => {
     const geometry = geometryFor(tet4Model(), "triangle");
     expect(geometry.primitive).toBe("triangles");
@@ -70,7 +70,7 @@ describe("elementPart geometry", () => {
   );
 });
 
-describe("elementPart geometry", () => {
+describe("createPartFromElementModel geometry", () => {
   it("tessellates a Hex20 solid through its twelve mid-edge nodes", () => {
     const geometry = geometryFor(hex20Model(), "triangle");
     expect(geometry.indices.length).toBe(6 * 6 * 3);

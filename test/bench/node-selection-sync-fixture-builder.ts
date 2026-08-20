@@ -52,7 +52,7 @@ function createTet4Setup(): Tet4Setup {
   const layout = buildInstanceLayout(runtime);
   const partOccurrenceIds = runtimeInstanceIds(runtime);
   const nodeCount = (part.nodePositions?.length ?? 0) / 3;
-  const elementCount = (part.elements ?? []).length;
+  const elementCount = part.elements?.count ?? 0;
   if (nodeCount !== NODE_COUNT) throw new Error(`Tet4 node count changed: ${nodeCount}`);
   if (elementCount !== ELEMENT_COUNT)
     throw new Error(`Tet4 element count changed: ${elementCount}`);
@@ -111,12 +111,12 @@ function buildCase(setup: Tet4Setup, id: NodeCase["id"], nodeIds: readonly numbe
 
 function authoredFaceCount(part: Part): number {
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  return triangles?.primitive === "triangles" ? (triangles.faces?.length ?? 0) : 0;
+  return triangles?.primitive === "triangles" ? (triangles.faces?.count ?? 0) : 0;
 }
 
 function boundaryFaceCount(part: Part): number {
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  return triangles?.primitive === "triangles" ? (triangles.faceSubset?.faceIds.length ?? 0) : 0;
+  return triangles?.primitive === "triangles" ? (triangles.faceSubset?.count ?? 0) : 0;
 }
 
 function nodePickIdsBytes(part: Part): number {

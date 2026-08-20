@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { identity, type Scene, type Viewport } from "../../../src/entries/root";
+import { identityMatrix, type Scene, type Viewport } from "../../../src/entries/root";
 import { createInteractionState } from "../../../src/entries/interaction";
 import { createCamera } from "../../../src/entries/camera";
-import { createSceneRuntime } from "../../../src/entries/runtime";
+import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
 import type { BoxSelectionRequest } from "../../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../../demo/workbench/selection/through-box-selection";
@@ -46,7 +46,7 @@ function denseTet4Fixture(): {
           id: 0,
           name: "root",
           placements: [
-            { kind: "part", placementId: "dense", partId: part.id, transform: identity() },
+            { kind: "part", placementId: "dense", partId: part.id, transform: identityMatrix() },
           ],
         },
       ],
@@ -54,10 +54,10 @@ function denseTet4Fixture(): {
     visiblePartIds: new Set([part.id]),
     visibleAssemblyIds: new Set([0]),
   };
-  const runtime = createSceneRuntime(scene);
+  const runtime = createSceneOccurrenceSnapshot(scene);
   const view: Viewport = {
     scene,
-    runtime,
+    occurrences: runtime,
     view: {
       camera: createCamera({
         mode: "orthographic",

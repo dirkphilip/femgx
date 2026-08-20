@@ -2,7 +2,7 @@ import type { Camera } from "../../src/camera/camera";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { INSTANCE_STRIDE } from "../../src/renderer/resources/instance-storage";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene, type Scene } from "../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "../../src/scene/scene";
 import type { WebGpuBenchmarkCase } from "./model";
 import type {
   BenchmarkGpuCostSnapshot,
@@ -122,11 +122,11 @@ function replacementScene(source: Scene, changedCount: number): Scene {
     transform[14] = (transform[14] ?? 0) + 0.25;
     return { ...placement, transform };
   });
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of source.parts.values()) builder = builder.addPart(part);
   return builder
     .addAssembly({ id: root.id, name: "many-piece-replacement", placements })
-    .withRoot(root.id)
+    .setRootAssembly(root.id)
     .build();
 }
 

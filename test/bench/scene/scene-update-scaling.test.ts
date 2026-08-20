@@ -2,9 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createViewport,
   createPart,
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   type Viewport,
   type Scene,
 } from "../../../src/entries/root";
@@ -72,7 +72,7 @@ describe("public scene replacement scaling", () => {
           const useSecond = nextScene[index] === 1;
           viewport.replaceScene(useSecond ? second : first);
           nextScene[index] = useSecond ? 0 : 1;
-          expect(viewport.runtime.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
+          expect(viewport.occurrences.partOccurrenceCount).toBe(PLACEMENT_COUNTS[index]);
         },
       })),
       // Batch repeatable replacements so timer and scheduler noise does not
@@ -107,7 +107,7 @@ describe("public scene update scaling", () => {
             kind: "part",
             placementId: "99999",
             partId: 1,
-            transform: translation(offset, 0, 0),
+            transform: translationMatrix(offset, 0, 0),
           });
         });
         offset = offset === 1 ? 2 : 1;
@@ -133,7 +133,7 @@ describe("public scene update scaling", () => {
               kind: "part",
               placementId: "99999",
               partId: 1,
-              transform: identity(),
+              transform: identityMatrix(),
             });
           }
         });
@@ -279,14 +279,16 @@ interface VisibilityFixture {
 
 async function createVisibilityFixture(faceCount: number): Promise<VisibilityFixture> {
   const part = createVisibilityPart(faceCount);
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "visibility",
-      placements: [{ kind: "part", placementId: "0", partId: part.id, transform: identity() }],
+      placements: [
+        { kind: "part", placementId: "0", partId: part.id, transform: identityMatrix() },
+      ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
   const attachment = new RendererAttachment();
@@ -346,7 +348,7 @@ async function createVariantFixture(placementCount: number): Promise<VariantFixt
     ],
   });
   const makeScene = (rebound: boolean): Scene =>
-    createScene()
+    createSceneBuilder()
       .addPart(partA)
       .addPart(partB)
       .addAssembly({
@@ -357,10 +359,10 @@ async function createVariantFixture(placementCount: number): Promise<VariantFixt
           placementId: String(index),
           partId:
             rebound && index === 0 ? partB.id : index === placementCount - 1 ? partB.id : partA.id,
-          transform: translation(index, 0, 0),
+          transform: translationMatrix(index, 0, 0),
         })),
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
   const first = makeScene(false);
   const second = makeScene(true);
@@ -387,7 +389,7 @@ function createReplacementFixture(placementCount: number): {
     ],
   });
   const scene = (offset: number): Scene =>
-    createScene()
+    createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
@@ -396,10 +398,10 @@ function createReplacementFixture(placementCount: number): {
           kind: "part" as const,
           placementId: String(index),
           partId: part.id,
-          transform: offset === 0 ? identity() : translation(offset, 0, 0),
+          transform: offset === 0 ? identityMatrix() : translationMatrix(offset, 0, 0),
         })),
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
   return { first: scene(0), second: scene(1) };
 }

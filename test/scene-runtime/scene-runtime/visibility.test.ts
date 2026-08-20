@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildScene, identity, translation, createPackedSceneRuntime } from "./support";
+import { buildScene, identityMatrix, translationMatrix, createPackedSceneRuntime } from "./support";
 
 describe("createPackedSceneRuntime", () => {
   it("hides and shows a part with deltas that keep instance ids stable", () => {
@@ -9,9 +9,9 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(2, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
           ],
         },
       ],
@@ -43,19 +43,19 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
-            { kind: "part", partId: 4, transform: identity() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            { kind: "part", partId: 4, transform: identityMatrix() },
           ],
         },
         {
           id: 2,
           placements: [
-            { kind: "part", partId: 2, transform: identity() },
-            { kind: "assembly", assemblyId: 3, transform: identity() },
+            { kind: "part", partId: 2, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 3, transform: identityMatrix() },
           ],
         },
-        { id: 3, placements: [{ kind: "part", partId: 3, transform: identity() }] },
+        { id: 3, placements: [{ kind: "part", partId: 3, transform: identityMatrix() }] },
       ],
       [1, 2, 3, 4],
     );
@@ -80,12 +80,12 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "assembly", assemblyId: 3, transform: identity() }] },
-        { id: 3, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+        { id: 2, placements: [{ kind: "assembly", assemblyId: 3, transform: identityMatrix() }] },
+        { id: 3, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
       ],
       [1, 2],
     );
@@ -106,11 +106,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
       ],
       [1, 2],
     );
@@ -133,9 +133,9 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translation(1, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(2, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(3, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
           ],
         },
       ],
@@ -159,11 +159,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "assembly", assemblyId: 2, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 1, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] },
       ],
       [1],
     );
@@ -185,9 +185,9 @@ describe("createPackedSceneRuntime", () => {
       [
         {
           id: 1,
-          placements: [{ kind: "assembly", assemblyId: 2, transform: identity() }],
+          placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
         },
-        { id: 2, placements: [{ kind: "part", partId: 1, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] },
       ],
       [1],
     );
@@ -211,7 +211,7 @@ describe("createPackedSceneRuntime", () => {
   it("returns empty deltas for out-of-range or no-op updates", () => {
     const scene = buildScene(
       1,
-      [{ id: 1, placements: [{ kind: "part", partId: 1, transform: identity() }] }],
+      [{ id: 1, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] }],
       [1],
     );
     const runtime = createPackedSceneRuntime(scene);
@@ -237,12 +237,12 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 2, transform: identity() },
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "assembly", assemblyId: 2, transform: identity() },
+            { kind: "part", partId: 2, transform: identityMatrix() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 3, transform: identity() }] },
+        { id: 2, placements: [{ kind: "part", partId: 3, transform: identityMatrix() }] },
       ],
       [1, 2, 3],
     );
@@ -262,12 +262,12 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 2, transform: translation(1, 0, 0) },
-            { kind: "assembly", assemblyId: 2, transform: translation(0, 0, 0) },
-            { kind: "part", partId: 1, transform: translation(2, 0, 0) },
+            { kind: "part", partId: 2, transform: translationMatrix(1, 0, 0) },
+            { kind: "assembly", assemblyId: 2, transform: translationMatrix(0, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 3, transform: translation(0, 0, 0) }] },
+        { id: 2, placements: [{ kind: "part", partId: 3, transform: translationMatrix(0, 0, 0) }] },
       ],
       [1, 2, 3],
     );

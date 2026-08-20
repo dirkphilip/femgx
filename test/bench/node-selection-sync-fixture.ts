@@ -1,11 +1,11 @@
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setTargetsSelected } from "../../src/interaction/targets";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { collectEmphasisUpdates } from "../../src/renderer/resources/element-resources";
 import { collectDenseNodeSelections } from "../../src/renderer/selection/node-selection";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { type NodeCase, type NodeSelectionFixture } from "./node-selection-sync-operation";
 import { MULTI_CASE_ID, runtimeInstanceIds, slotMap } from "./node-selection-sync-shared";
 
@@ -13,7 +13,7 @@ const MULTI_OCCURRENCE_COUNT = 32;
 
 /** Creates an additional 32-placement fixture for occurrence-scaling facts. */
 export function createMultiPlacementNodeFixture(base: NodeSelectionFixture): NodeSelectionFixture {
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(base.part)
     .addAssembly({
       id: 2,
@@ -22,10 +22,10 @@ export function createMultiPlacementNodeFixture(base: NodeSelectionFixture): Nod
         kind: "part" as const,
         partId: base.part.id,
         placementId: `placement-${index}`,
-        transform: translation(index * 2, 0, 0),
+        transform: translationMatrix(index * 2, 0, 0),
       })),
     })
-    .withRoot(2)
+    .setRootAssembly(2)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const layout = buildInstanceLayout(runtime);
