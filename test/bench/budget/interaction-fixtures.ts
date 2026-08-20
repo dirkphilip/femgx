@@ -68,8 +68,8 @@ const bulkSelectionTargets: InteractionTarget[] = Array.from(
   { length: BULK_SELECTION_COUNT },
   (_, index) => ({ kind: "element", partOccurrenceId: "bench/0", elementId: index + 1 }),
 );
-const TET4_SELECTION_COUNT = 131_712;
-const tet4SelectionTargets = makeSelectionTargets(TET4_SELECTION_COUNT, 1);
+const LARGE_ELEMENT_SELECTION_COUNT = 131_712;
+const largeElementSelectionTargets = makeSelectionTargets(LARGE_ELEMENT_SELECTION_COUNT, 4);
 const duplicateBulkSelectionTargets = [
   ...bulkSelectionTargets,
   ...bulkSelectionTargets.slice(0, 1_024),
@@ -141,7 +141,7 @@ export {
   bulkSelectionTargets,
   duplicateBulkSelectionTargets,
   bulkHighlightTargets,
-  tet4SelectionTargets,
+  largeElementSelectionTargets,
   phaseSelectionTargets,
   phaseSelectionStates,
   sceneBuilderParts,

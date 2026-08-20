@@ -1,4 +1,3 @@
-import type { EdgeRef, FaceRef } from "./refs";
 import { faceIdentity as faceId } from "../geometry/element-face-selection";
 import { setBodyHighlighted, setBodySelected } from "./bodies";
 import { setFaceHighlighted, setFaceSelected } from "./faces";
@@ -21,6 +20,11 @@ import {
 } from "./interaction";
 import { hoveredTarget, isHoveredTarget } from "./state";
 import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics";
+import {
+  updateSelectedTargetCollections,
+  type TargetCollections,
+  type TargetGroups,
+} from "./selection-transients";
 export type { InteractionTarget, InteractionTargetFor } from "./target-types";
 import type { InteractionTarget, InteractionTargetFor } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
@@ -115,7 +119,7 @@ export function setTargetsSelected(
 ): InteractionState {
   const data = readInteractionState(state);
   const current = selectedCollections(data);
-  const next = updateTargetCollections(current, collectTargetGroups(targets), selected);
+  const next = updateSelectedTargetCollections(current, collectTargetGroups(targets), selected);
   if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
     selectedPartIds: next.partIds,
@@ -126,37 +130,6 @@ export function setTargetsSelected(
     selectedNodeIds: next.nodeIds,
     selectedEdges: next.edgeRefs,
   });
-}
-
-type PartTarget = Extract<InteractionTarget, { readonly kind: "part" }>;
-type PartOccurrenceTarget = Extract<InteractionTarget, { readonly kind: "partOccurrence" }>;
-type BodyTarget = Extract<InteractionTarget, { readonly kind: "body" }>;
-type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
-type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
-type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
-type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
-
-interface TargetGroups {
-  readonly partIds: Set<PartTarget["partId"]>;
-  readonly partOccurrenceIds: Set<PartOccurrenceTarget["partOccurrenceId"]>;
-  readonly bodyIds: Map<BodyTarget["partOccurrenceId"], Set<BodyTarget["bodyId"]>>;
-  readonly elementIds: Map<ElementTarget["partOccurrenceId"], Set<ElementTarget["elementId"]>>;
-  readonly faceRefs: Map<FaceTarget["partOccurrenceId"], Map<string, FaceRef>>;
-  readonly nodeIds: Map<NodeTarget["partOccurrenceId"], Set<NodeTarget["nodeId"]>>;
-  readonly edgeRefs: Map<EdgeTarget["partOccurrenceId"], Map<string, EdgeRef>>;
-}
-
-interface TargetCollections {
-  readonly partIds: ReadonlySet<PartTarget["partId"]>;
-  readonly partOccurrenceIds: ReadonlySet<PartOccurrenceTarget["partOccurrenceId"]>;
-  readonly bodyIds: ReadonlyMap<BodyTarget["partOccurrenceId"], ReadonlySet<BodyTarget["bodyId"]>>;
-  readonly elementIds: ReadonlyMap<
-    ElementTarget["partOccurrenceId"],
-    ReadonlySet<ElementTarget["elementId"]>
-  >;
-  readonly faceRefs: ReadonlyMap<FaceTarget["partOccurrenceId"], ReadonlyMap<string, FaceRef>>;
-  readonly nodeIds: ReadonlyMap<NodeTarget["partOccurrenceId"], ReadonlySet<NodeTarget["nodeId"]>>;
-  readonly edgeRefs: ReadonlyMap<EdgeTarget["partOccurrenceId"], ReadonlyMap<string, EdgeRef>>;
 }
 
 function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroups {
