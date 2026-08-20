@@ -1,7 +1,6 @@
 import type { ElementTessellation, FaceTessellation, GeometryBody, GeometryEdge } from "./types";
+import type { ElementId } from "../elements/element";
 import type { BodyId } from "../elements/model";
-
-type ElementId = ElementTessellation["id"];
 
 export interface FaceMetadata {
   readonly face: FaceTessellation;

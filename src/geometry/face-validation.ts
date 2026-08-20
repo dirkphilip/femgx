@@ -1,13 +1,9 @@
 import { validateOneBasedId } from "./id-validation";
-import { ordinalForId, sortedOrdinals } from "../elements/model-storage";
+import { ordinalForId } from "../elements/model-storage";
 import { faceIdentity } from "./element-face-selection";
 import { geometrySemanticGraph } from "./semantic/part-semantic-graph";
-import {
-  addTypedPair,
-  createTypedPairIndex,
-  findTypedPair,
-  type TypedPairIndex,
-} from "./semantic/typed-pair-index";
+import { addTypedPair, createTypedPairIndex, findTypedPair } from "./semantic/typed-pair-index";
+import { elementOrdinalColumns, facePairIndex, findFace } from "./validation-helpers";
 import type {
   ElementTessellation,
   FaceTessellation,
@@ -205,34 +201,4 @@ export function faceForPrimitive(
     }
   }
   return undefined;
-}
-
-function elementOrdinalColumns(elements: readonly ElementTessellation[]): {
-  readonly ids: Uint32Array;
-  readonly ordinals: Uint32Array;
-} {
-  const ids = new Uint32Array(elements.length);
-  for (let ordinal = 0; ordinal < elements.length; ordinal += 1) {
-    ids[ordinal] = elements[ordinal]?.id ?? 0;
-  }
-  return { ids, ordinals: sortedOrdinals(ids, "Part element", false) };
-}
-
-function facePairIndex(faces: readonly FaceTessellation[]): TypedPairIndex {
-  const index = createTypedPairIndex(faces.length);
-  for (let row = 0; row < faces.length; row += 1) {
-    const face = faces[row];
-    if (face !== undefined) addTypedPair(index, row, face.elementId, face.faceIndex);
-  }
-  return index;
-}
-
-function findFace(
-  faces: readonly FaceTessellation[],
-  index: TypedPairIndex,
-  elementId: number,
-  faceIndex: number,
-): FaceTessellation | undefined {
-  const row = findTypedPair(index, faces, elementId, faceIndex);
-  return row === undefined ? undefined : faces[row];
 }

@@ -20,6 +20,7 @@ import {
   type AttachmentFlagState,
   type AttachmentOrderParts,
 } from "./attachment/reconciliation";
+import type { HiddenInteractionTuple } from "./attachment/interaction";
 import { writeNodeOrders, type SelectionState } from "./selection-state";
 import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
@@ -39,9 +40,6 @@ import {
   prepareAttachmentParts,
   removeAttachmentParts,
 } from "./attachment/part-definitions";
-
-type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
-type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
 
 /**
  * The renderer's CPU-side attachment to a packed scene runtime: the instance

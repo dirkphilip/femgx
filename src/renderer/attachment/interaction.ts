@@ -20,8 +20,8 @@ import { collectDenseNodeSelections } from "../selection/node-selection";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { rebuildAttachmentCalls } from "./calls";
 
-type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
-type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
+export type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
+export type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
 
 export interface AttachmentInteractionState {
   interaction: InteractionState;
