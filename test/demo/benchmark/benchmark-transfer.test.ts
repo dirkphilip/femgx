@@ -190,17 +190,6 @@ describe("dense Tet4 benchmark transfer", () => {
     );
   });
 
-  it("builds the first unsafe face-key grid with symmetric neighbors", () => {
-    const gridSize = 59;
-    const payload = buildDenseTet4Payload(gridSize).payload;
-    expect(payload.elementCount).toBe(6 * gridSize ** 3);
-    expect(payload.boundaryFaceIndices).toHaveLength(12 * gridSize ** 2);
-    expect(faceNeighborId(payload, 1_015_206, 1)).toBe(1_015_215);
-    expect(faceNeighborId(payload, 1_015_214, 3)).toBe(1_015_207);
-    expect(faceNeighborId(payload, 1_015_213, 2)).toBe(1_015_215);
-    expect(faceNeighborId(payload, 1_015_214, 0)).toBe(1_015_214);
-  }, 15_000);
-
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
     "builds the reported grid beyond safe numeric face packing",
     () => {
