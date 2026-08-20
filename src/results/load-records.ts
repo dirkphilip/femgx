@@ -1,4 +1,5 @@
 import type { Part } from "../geometry/part";
+import { finiteOrZero } from "../math/scalar";
 import type { NodalLoadField } from "./fields";
 import type { ElementalOrientationRecords } from "./orientation-records";
 
@@ -132,9 +133,9 @@ function packLoadRecords(
 function nodeDelta(displacements: Float32Array, node: number): Vec3 {
   const base = node * 3;
   return [
-    finite(displacements[base]),
-    finite(displacements[base + 1]),
-    finite(displacements[base + 2]),
+    finiteOrZero(displacements[base]),
+    finiteOrZero(displacements[base + 1]),
+    finiteOrZero(displacements[base + 2]),
   ];
 }
 
@@ -192,10 +193,6 @@ function crossUnit(a: Vec3, b: Vec3): Vec3 {
 function normalize(value: Vec3): Vec3 {
   const length = Math.hypot(...value);
   return [value[0] / length, value[1] / length, value[2] / length];
-}
-
-function finite(value: number | undefined): number {
-  return value !== undefined && Number.isFinite(value) ? value : 0;
 }
 
 function nodeOwners(

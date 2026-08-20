@@ -1,3 +1,5 @@
+import { nextPowerOfTwo } from "../../math/scalar";
+
 /** Maximum number of records probed for one emphasis lookup in WGSL. */
 export const HIGHLIGHT_BUCKET_SIZE = 4;
 
@@ -90,10 +92,4 @@ function compareEntries(left: HighlightTableEntry, right: HighlightTableEntry): 
     left.facePickId - right.facePickId ||
     left.nodePickId - right.nodePickId
   );
-}
-
-function nextPowerOfTwo(value: number): number {
-  let result = 1;
-  while (result < value) result *= 2;
-  return result;
 }
