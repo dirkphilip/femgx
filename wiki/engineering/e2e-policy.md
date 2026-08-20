@@ -102,8 +102,10 @@ The large browser surfaces are partitioned by ownership rather than by runner:
   command state.
 - `e2e/demo/demo-visibility.spec.ts` — hierarchy, body/part/instance visibility,
   and target/view context-menu semantics.
-- `e2e/demo/demo-interaction.spec.ts` — selection, inspection, edge controls, and
-  the smallest context-menu selection routes.
+- `e2e/demo/interaction/selection.spec.ts` — selection controls and the smallest
+  context-menu selection routes.
+- `e2e/demo/interaction/primitives.spec.ts` — node, Point, Line, Line3,
+  face, and authored-edge GPU-pick/inspection journeys.
 - `e2e/demo/demo-import.spec.ts` — GLB file input, import errors, reset, and
   responsive source controls.
 - `e2e/demo/mobile.spec.ts` — phone drawer, reachable controls, stacked viewport routing,
@@ -128,8 +130,9 @@ At least one required journey covers each retained interactive concern in the
 partitioned demo suites above (plus the mobile coverage in
 `e2e/demo/mobile.spec.ts`):
 
-- **picking and inspection routes** — node, face, and authored-edge context
-  menus remain in `demo-interaction`, with adjacency and ownership assertions;
+- **picking and inspection routes** — node, Point/Line/Line3, face, and
+  authored-edge journeys remain in `demo-primitive-interaction`, with adjacency,
+  ownership, and selected-element visibility assertions;
 - **selection state** — granularity and through-intersection controls remain in
   `demo-interaction`, while raster selection transitions belong to `e2e/core`;
 - **visibility changes** — occurrence, body, hierarchy, Show all,

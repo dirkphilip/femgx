@@ -261,8 +261,9 @@ or benchmark contract.
 ## Demo e2e coverage
 
 The current workbench journeys are split by ownership across
-`e2e/demo/demo-lifecycle.spec.ts`, `e2e/demo/demo-visibility.spec.ts`, and
-`e2e/demo/demo-interaction.spec.ts`.
+`e2e/demo/demo-lifecycle.spec.ts`, `e2e/demo/demo-visibility.spec.ts`,
+`e2e/demo/interaction/selection.spec.ts`, and
+`e2e/demo/interaction/primitives.spec.ts`.
 `e2e/demo/mobile.spec.ts` asserts at a 390x844 viewport that the page has no
 horizontal overflow, the phone drawer and Analysis disclosure are mutually
 exclusive, primary controls stay reachable with 44px hit areas, the optional

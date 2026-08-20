@@ -85,7 +85,8 @@ adds retained hardware evidence for the bounded combined journey.
 The browser contracts have one semantic owner per feature. Workbench DOM and
 interaction journeys live in `e2e/demo/demo-lifecycle.spec.ts`,
 `e2e/demo/demo-results.spec.ts`, `e2e/demo/demo-visibility.spec.ts`,
-`e2e/demo/demo-interaction.spec.ts`, `e2e/demo/demo-import.spec.ts`,
+`e2e/demo/interaction/selection.spec.ts`,
+`e2e/demo/interaction/primitives.spec.ts`, `e2e/demo/demo-import.spec.ts`,
 `e2e/demo/mobile.spec.ts`, and `e2e/demo/demo-layout.spec.ts`. Core browser
 journeys own low-level GPU lifecycle, camera, picking, and raster contracts;
 owner-neutral mechanics live in `e2e/browser-support/helpers.ts`. Performance remains
