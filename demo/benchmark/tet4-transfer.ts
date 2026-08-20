@@ -17,6 +17,10 @@ const TET_EDGES: readonly (readonly [number, number])[] = [
   [1, 3],
   [2, 3],
 ];
+const TET_FACE_ONE_AXES = [0, 1, 1, 2, 2, 0] as const;
+const TET_FACE_ONE_NEIGHBOR_LOCALS = [2, 5, 4, 1, 0, 3] as const;
+const TET_FACE_THREE_AXES = [2, 2, 0, 0, 1, 1] as const;
+const TET_FACE_THREE_NEIGHBOR_LOCALS = [4, 3, 0, 5, 2, 1] as const;
 const MAX_DENSE_TET4_GRID_SIZE = 200;
 
 /** Compact ownership-transfer payload for the heavy structured Tet4 case. */
@@ -203,41 +207,58 @@ function createNodePositions(
 
 function createTopology(gridSize: number, elementCount: number, faceCount: number): Topology {
   const faceNeighborIds = new Uint32Array(faceCount);
-  const side = gridSize + 1;
-  const layer = side * side;
-  const nodeCount = layer * side;
-  const firstFaceByKey = new Map<number, number>();
-  for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
-    const elementId = elementIndex + 1;
-    const nodes = tetNodes(elementIndex, gridSize, side, layer);
-    for (let faceIndex = 0; faceIndex < TET_FACE_CORNERS.length; faceIndex += 1) {
-      const faceNumber = elementIndex * TET_FACE_CORNERS.length + faceIndex;
-      const corners = TET_FACE_CORNERS[faceIndex];
-      if (corners === undefined) throw new Error("Tet4 face topology is incomplete");
-      const key = packedFaceKey(nodes, corners, nodeCount);
-      const previous = firstFaceByKey.get(key);
-      if (previous === undefined) {
-        firstFaceByKey.set(key, faceNumber);
-      } else {
-        if (faceNeighborIds[previous] !== 0) {
-          throw new Error("Structured Tet4 topology contains a non-manifold face");
-        }
-        faceNeighborIds[previous] = elementId;
-        faceNeighborIds[faceNumber] = Math.floor(previous / TET_FACE_CORNERS.length) + 1;
-      }
-    }
-  }
   const boundaryFaceIndices = new Uint32Array(12 * gridSize * gridSize);
+  const gridLayer = gridSize * gridSize;
   let boundaryIndex = 0;
-  for (const faceNumber of firstFaceByKey.values()) {
-    if (faceNeighborIds[faceNumber] !== 0) continue;
-    boundaryFaceIndices[boundaryIndex] = faceNumber;
-    boundaryIndex += 1;
+  for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
+    const cellIndex = Math.floor(elementIndex / 6);
+    const local = elementIndex % 6;
+    const cellElementIndex = elementIndex - local;
+    const faceNumber = elementIndex * TET_FACE_CORNERS.length;
+    faceNeighborIds[faceNumber] = cellElementIndex + ((local + 5) % 6) + 1;
+    faceNeighborIds[faceNumber + 2] = cellElementIndex + ((local + 1) % 6) + 1;
+    const faceOneNeighborId = outerFaceNeighborId(cellIndex, gridSize, gridLayer, local, 1);
+    const faceThreeNeighborId = outerFaceNeighborId(cellIndex, gridSize, gridLayer, local, 3);
+    faceNeighborIds[faceNumber + 1] = faceOneNeighborId;
+    faceNeighborIds[faceNumber + 3] = faceThreeNeighborId;
+    if (faceOneNeighborId === 0) {
+      boundaryFaceIndices[boundaryIndex] = faceNumber + 1;
+      boundaryIndex += 1;
+    }
+    if (faceThreeNeighborId === 0) {
+      boundaryFaceIndices[boundaryIndex] = faceNumber + 3;
+      boundaryIndex += 1;
+    }
   }
   if (boundaryIndex !== boundaryFaceIndices.length) {
     throw new Error(`Tet4 boundary face count ${boundaryIndex} is inconsistent with the grid`);
   }
   return { faceNeighborIds, boundaryFaceIndices };
+}
+
+function outerFaceNeighborId(
+  cellIndex: number,
+  gridSize: number,
+  gridLayer: number,
+  local: number,
+  faceIndex: 1 | 3,
+): number {
+  const faceOne = faceIndex === 1;
+  const axis = at(faceOne ? TET_FACE_ONE_AXES : TET_FACE_THREE_AXES, local);
+  const neighborLocal = at(
+    faceOne ? TET_FACE_ONE_NEIGHBOR_LOCALS : TET_FACE_THREE_NEIGHBOR_LOCALS,
+    local,
+  );
+  const direction = faceOne ? 1 : -1;
+  const coordinate =
+    axis === 0
+      ? cellIndex % gridSize
+      : axis === 1
+        ? Math.floor(cellIndex / gridSize) % gridSize
+        : Math.floor(cellIndex / gridLayer);
+  if (coordinate + direction < 0 || coordinate + direction >= gridSize) return 0;
+  const stride = axis === 0 ? 1 : axis === 1 ? gridSize : gridLayer;
+  return (cellIndex + direction * stride) * 6 + neighborLocal + 1;
 }
 
 function createTessellation(
@@ -310,32 +331,6 @@ function faceIsReversed(
   const outwardY = (ay + by + cy) / 3 - elementCenter[1];
   const outwardZ = (az + bz + cz) / 3 - elementCenter[2];
   return nx * outwardX + ny * outwardY + nz * outwardZ < 0;
-}
-
-function packedFaceKey(
-  nodes: readonly [number, number, number, number],
-  corners: readonly [number, number, number],
-  nodeCount: number,
-): number {
-  let first = at(nodes, corners[0]);
-  let second = at(nodes, corners[1]);
-  let third = at(nodes, corners[2]);
-  if (first > second) {
-    const swap = first;
-    first = second;
-    second = swap;
-  }
-  if (second > third) {
-    const swap = second;
-    second = third;
-    third = swap;
-  }
-  if (first > second) {
-    const swap = first;
-    first = second;
-    second = swap;
-  }
-  return (first * nodeCount + second) * nodeCount + third;
 }
 
 function tetNodes(
