@@ -92,12 +92,50 @@ opacity does not create click-through or multi-hit semantics. Per-part order
 buffers remain deterministic; no CPU depth tracking, sorting, or material
 clones are needed.
 
-Resolved style color is a flat per-primitive shader varying. Nodal result color
-must remain perspective-interpolated, so the fragment stage snaps only
-interpolation noise within `1e-5` of transparent and opaque alpha boundaries
-before pass classification. This preserves meaningful fractional values while
-preventing an authored opaque result alpha from rounding below `1` and
-discarding scattered perspective samples on some GPU backends.
+## Perspective result-alpha stability
+
+Resolved style color is a flat per-primitive shader varying, but nodal result
+color must remain perspective-interpolated so its RGB gradient follows the
+surface. Result alpha therefore travels through the same interpolator even when
+every contributing vertex authored the exact opaque value `1`.
+
+Some Windows/NVIDIA shader paths can return an interpolated alpha infinitesimally
+below `1`. The opaque fragment shaders previously classified opacity with the
+exact condition `alpha < 1`, so those samples were discarded. The resulting
+holes appeared as view-dependent white speckles: perspective interpolation
+weights change with camera angle and distance, while the tested orthographic
+path remained stable. This is a floating-point boundary problem rather than
+missing geometry, depth fighting, temporal instability, or a driver-version
+feature gap; a current driver may still expose it.
+
+All lit and unlit opaque and weighted-transparency surface fragment paths now
+resolve displayed color through one rule. Alpha is clamped to `[0, 1]`, values
+at or below `1e-5` become exactly `0`, and values at or above `1 - 1e-5` become
+exactly `1`. RGB and meaningful fractional alpha remain unchanged. Keeping the
+rule shared prevents the opaque and transparent passes from disagreeing at the
+same boundary. Making the complete result color flat would also avoid the
+rounding, but would incorrectly remove nodal result interpolation and is not an
+acceptable fix.
+
+The revealage attachment format is downstream of this classification. Using
+portable `r8unorm` revealage avoids optional float-blending requirements, but a
+revealage format change cannot restore a sample already discarded by the opaque
+shader and was not the fix for these holes.
+
+The runtime cost is one clamp, two comparisons, and two selects per authored
+surface fragment. It adds no pass, draw, buffer, texture, bind group, readback,
+CPU work, or memory, and it does not change batching. The expected performance
+impact is negligible relative to lighting and rasterization; the only semantic
+tradeoff is that alpha within `0.001%` of either endpoint is treated as that
+endpoint.
+
+Regression coverage asserts that all four surface fragment paths use the shared
+resolver while `resultColor` remains interpolated. The real-Chrome workbench
+test also checks stable result-colored perspective frames before and after an
+orbit and a zoom. CI does not reproduce every vendor shader compiler, so the
+same angle-and-distance check on affected hardware remains the final evidence
+for a driver-specific report. The fix and original RTX 2000 Ada report are
+tracked in [PR #1155](https://github.com/dirkphilip/femgx/pull/1155).
 
 The deterministic `transparency` demo preset contains a translucent shell, a
 solid interior, and two overlapping placements of one translucent part. The
