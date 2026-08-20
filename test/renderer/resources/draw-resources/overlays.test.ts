@@ -117,11 +117,15 @@ describe("GPU draw path", () => {
         { kind: "nodes", pipeline: {} as GPURenderPipeline },
       );
       const nodeResource = draw.nodeParts.get(nodePart.id);
+      expect(nodeResource?.indexBuffer).toBeUndefined();
       const positionBuffer = gpu.buffers.find(
         (candidate) => candidate.resource === nodeResource?.vertexBuffer,
       );
       expect(positionBuffer?.usage).toBe(GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
       expect((positionBuffer?.usage ?? 0) & GPUBufferUsage.VERTEX).toBe(0);
+      expect(gpu.buffers.filter((buffer) => (buffer.usage & GPUBufferUsage.INDEX) !== 0)).toEqual(
+        [],
+      );
       drawBatches(
         pass,
         draw,
@@ -131,10 +135,42 @@ describe("GPU draw path", () => {
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([
-        { indexCount: 18, instanceCount: 2 },
-        { indexCount: 18, instanceCount: 2 },
+        { vertexCount: 4, instanceCount: 6 },
+        { vertexCount: 4, instanceCount: 6 },
       ]);
       expect(gpu.bindGroupCreations).toBe(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it("flattens a ranged node order into non-indexed instances", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, nodePart.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+        { slot: 2, data: record(2) },
+      ]);
+      writeNodeOrder(draw, nodePart.id, new Uint32Array([0, 1, 2]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(
+        pass,
+        draw,
+        { ...drawContext(), parts: new Map([[nodePart.id, nodePart]]) },
+        [{ partId: nodePart.id, instanceCount: 2, firstInstance: 1 }],
+        { kind: "nodes", pipeline: {} as GPURenderPipeline },
+      );
+      pass.end();
+      expect(gpu.drawCalls).toEqual([{ vertexCount: 4, instanceCount: 6, firstInstance: 3 }]);
     } finally {
       restore();
     }

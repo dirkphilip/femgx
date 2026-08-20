@@ -53,7 +53,7 @@ async function createNodePipeline(options: NodePipelineOptions): Promise<GPURend
       entryPoint: "nodeOverlayFragmentMain",
       targets: [{ format: options.format, writeMask: 0xf }],
     },
-    primitive: { topology: "triangle-list", cullMode: "none" },
+    primitive: { topology: "triangle-strip", cullMode: "none" },
     depthStencil: {
       format: options.depthFormat,
       depthWriteEnabled: false,

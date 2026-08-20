@@ -27,7 +27,7 @@ import { GpuCostAccumulator } from "../diagnostics/cost";
 import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
 import type { DrawResources } from "./draw-types";
 import type { VisibilitySkin } from "../visibility/types";
-import { buildNodeSpriteBuffers, expandPointGeometry, type PointVertexData } from "./point-sprites";
+import { compactNodeSpriteData, expandPointGeometry, type PointVertexData } from "./point-sprites";
 
 export type { DrawResources } from "./draw-types";
 
@@ -123,23 +123,23 @@ export function createDrawResources(
   };
 }
 
-/** Uploads the transient node-sprite geometry and its body-owner metadata. */
+/** Uploads the transient node-sprite data and its body-owner metadata. */
 export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
   const existing = draw.nodeParts.get(part.id);
   if (existing !== undefined) return existing;
   const nodes = part.nodePositions ?? new Float32Array(0);
   const spritePickIds = buildNodeSpritePickIds(part);
   const nodeTopology = buildPackedNodeTopologyData(part, spritePickIds);
-  const { positions, ids, indices } = buildNodeSpriteBuffers(nodes, spritePickIds);
+  const { positions, ids } = compactNodeSpriteData(nodes, spritePickIds);
   const vertexBuffer = createBuffer(draw.device, positions, GPUBufferUsage.STORAGE);
   const resource: PartResource = {
     vertexBuffer,
-    indexBuffer: createBuffer(draw.device, indices, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE),
     facePickIdsBuffer: createBuffer(draw.device, nodeTopology, GPUBufferUsage.STORAGE),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edge: undefined,
     edgePick: undefined,
-    indexCount: indices.length,
+    indexCount: 0,
+    nodeCount: ids.length,
     subsetIndexCount: 0,
   };
   draw.nodeParts.set(part.id, resource);

@@ -1,6 +1,4 @@
-import { orderBindGroup } from "../resources/bind-groups";
 import type { GpuCostAdmission } from "../diagnostics/cost";
-import { ensureDeformationBuffer } from "./deformation";
 import {
   drawIntentState,
   geometriesForIntent,
@@ -10,7 +8,6 @@ import {
   selectionRangesForIntent,
   visibilitySkinForIntent,
   type DrawIntent,
-  type DrawIntentState,
 } from "./draw-admission";
 import type { Geometry, Part } from "../../geometry/part";
 import {
@@ -26,7 +23,8 @@ import {
 } from "../resources/draw-resources";
 import type { PartResource } from "../resources/foundation";
 import { bindDrawGeometry } from "./geometry-binding";
-import { resultColorBuffer } from "../resources/result-colors";
+import { buildNodeDraws } from "./node-draw";
+import { createBatchBindGroup } from "./batch-bind-group";
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -95,12 +93,28 @@ function drawOneBatch(
   const { draw, call, intent, range, resource, overlay, subset, edgePick, visibilitySkin } =
     preparedBatch;
   const prepared = prepareBatchDraw(pass, preparedBatch);
+  if (intent.kind === "nodes") {
+    for (const nodeDraw of buildNodeDraws(
+      resource.nodeCount ?? 0,
+      call.instanceCount,
+      call.firstInstance,
+      draw.device.limits.minStorageBufferOffsetAlignment,
+    )) {
+      if (nodeDraw.orderByteOffset !== 0) {
+        bindNodeDrawOrder(pass, preparedBatch, prepared.admission, nodeDraw.orderByteOffset);
+      }
+      pass.draw(nodeDraw.vertexCount, nodeDraw.instanceCount, 0, nodeDraw.firstInstance);
+      draw.cost.draw(drawCostCategory(intent), nodeDraw.vertexCount, nodeDraw.instanceCount);
+      draw.cost.admission(prepared.admission);
+    }
+    return prepared.pipeline;
+  }
   const geometryCount = bindDrawGeometry(pass, {
     geometry: resource,
     overlay,
     subset,
     edgePick,
-    bindVertexBuffer: intent.kind !== "nodes",
+    bindVertexBuffer: true,
     minimal: prepared.admission === "minimal",
     featureTriangles:
       preparedBatch.geometry?.primitive === "triangles" &&
@@ -115,6 +129,27 @@ function drawOneBatch(
   draw.cost.draw(drawCostCategory(intent), count, call.instanceCount);
   draw.cost.admission(prepared.admission);
   return prepared.pipeline;
+}
+
+function bindNodeDrawOrder(
+  pass: GPURenderPassEncoder,
+  batch: PreparedBatch,
+  admission: GpuCostAdmission,
+  orderByteOffset: number,
+): void {
+  const { orderKind, overlay, edgePick } = drawIntentState(batch.intent);
+  pass.setBindGroup(
+    1,
+    createBatchBindGroup({
+      ...batch,
+      orderKind,
+      overlay,
+      edgePick,
+      admission,
+      orderByteOffset,
+      cache: false,
+    }),
+  );
 }
 
 interface PreparedBatch {
@@ -254,54 +289,6 @@ function prepareBatchDraw(
     }),
   );
   return { pipeline, admission };
-}
-
-function createBatchBindGroup(options: {
-  readonly draw: DrawResources;
-  readonly context: DrawCallContext;
-  readonly call: DrawCall;
-  readonly part: Part;
-  readonly storage: InstanceStorage;
-  readonly resource: PartResource;
-  readonly orderKind: DrawIntentState["orderKind"];
-  readonly overlay: boolean;
-  readonly edgePick: boolean;
-  readonly subset: boolean;
-  readonly admission: GpuCostAdmission;
-}): GPUBindGroup {
-  const {
-    draw,
-    context,
-    call,
-    part,
-    storage,
-    resource,
-    orderKind,
-    overlay,
-    edgePick,
-    subset,
-    admission,
-  } = options;
-  const deformation = ensureDeformationBuffer(
-    draw.device,
-    draw.deformations,
-    call.partId,
-    draw.emptyDeformationBuffer,
-  );
-  const instanceLayout =
-    admission === "minimal" && context.minimalInstanceLayout !== undefined
-      ? context.minimalInstanceLayout
-      : context.instanceLayout;
-  return orderBindGroup(draw.device, instanceLayout, storage, orderKind, {
-    geometry: resource,
-    deformation,
-    resultColors: resultColorBuffer(draw, call.partId, resource.primitiveColorBuffer),
-    edge: overlay,
-    surfaceSubset: !overlay && subset,
-    edgePick,
-    admission,
-    cache: !edgePick && part.geometries.length === 1,
-  });
 }
 
 function hasBatchResources(options: {

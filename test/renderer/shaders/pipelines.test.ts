@@ -115,6 +115,11 @@ describe("GPU render resources", () => {
         )?.multisample?.count,
       ).toBe(COLOR_SAMPLE_COUNT);
       expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "node annotation overlay",
+        )?.primitive?.topology,
+      ).toBe("triangle-strip");
+      expect(
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === "line picking")
           ?.depthStencil?.depthCompare,
       ).toBe("less-equal");
@@ -139,6 +144,11 @@ describe("GPU render resources", () => {
           (descriptor) => descriptor.label === "node selection visible",
         )?.vertex.buffers,
       ).toEqual([]);
+      expect(
+        gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === "node selection visible",
+        )?.primitive?.topology,
+      ).toBe("triangle-strip");
       expect(
         gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === "point selection visible",

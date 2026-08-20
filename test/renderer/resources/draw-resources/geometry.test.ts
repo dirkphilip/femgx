@@ -83,24 +83,7 @@ describe("GPU draw path", () => {
     try {
       const gpu = fakeGpuDevice();
       const resource = uploadNodePart(createDrawResources(gpu.device), nodePart);
-      let vertexBinds = 0;
-      const pass = {
-        setVertexBuffer: () => {
-          vertexBinds += 1;
-        },
-        setIndexBuffer: () => undefined,
-      } as unknown as GPURenderPassEncoder;
-      expect(
-        bindDrawGeometry(pass, {
-          geometry: resource,
-          overlay: false,
-          subset: false,
-          edgePick: false,
-          bindVertexBuffer: false,
-          visibilitySkin: undefined,
-        }),
-      ).toBe(resource.indexCount);
-      expect(vertexBinds).toBe(0);
+      expect(resource.indexBuffer).toBeUndefined();
     } finally {
       restore();
     }

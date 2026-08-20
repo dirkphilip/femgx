@@ -44,6 +44,11 @@ function expectCombinedOverlay(entry: WebGpuBenchmarkCaseResult): void {
     presentationEdges: true,
     materializedEdgePartCount: entry.partCount,
   });
+  expect(overlay.nodeCenterBytes).toBe(entry.nodeCount * 3 * Float32Array.BYTES_PER_ELEMENT);
+  expect(overlay.nodeIdBytes).toBe(entry.nodeCount * Uint32Array.BYTES_PER_ELEMENT);
+  expect(overlay.nodeSpriteIndexBytes).toBe(0);
+  expect(overlay.nodeDrawVertices).toBe(4);
+  expect(overlay.nodeDrawInstances).toBe(entry.nodeCount * entry.instanceCount);
   expect(overlay.estimatedRetainedEdgeBufferUpperBoundBytes).toBeGreaterThan(0);
   if (entry.id === "unique-2m-local") {
     expect(overlay.edgeConstructionTypedArrayBytes).toBe(252_663_296);
@@ -58,7 +63,8 @@ function expectCombinedOverlay(entry: WebGpuBenchmarkCaseResult): void {
   }
   expect(overlay.coldNodeGpuCost.draws["nodes"]).toMatchObject({
     calls: entry.partCount,
-    instances: entry.instanceCount,
+    indices: overlay.nodeDrawVertices,
+    instances: overlay.nodeDrawInstances,
   });
   expect(overlay.coldEdgeGpuCost.draws["edges"]).toMatchObject({
     calls: entry.partCount,
@@ -66,7 +72,10 @@ function expectCombinedOverlay(entry: WebGpuBenchmarkCaseResult): void {
   });
   expect(overlay.largeSelection.targetCount).toBe(entry.uniqueElementCount);
   expect(overlay.largeSelection.interactionHighlightWriteBytes).toBeGreaterThan(0);
-  expect(overlay.largeSelection.gpuCost.draws["nodes"]?.instances).toBe(entry.instanceCount);
+  expect(overlay.largeSelection.gpuCost.draws["nodes"]).toMatchObject({
+    indices: overlay.nodeDrawVertices,
+    instances: overlay.nodeDrawInstances,
+  });
   expect(overlay.largeSelection.gpuCost.draws["edges"]?.instances).toBe(entry.instanceCount);
   expect(overlay.largeSelection.gpuCost.draws["opaque"]).toEqual({
     calls: 1,

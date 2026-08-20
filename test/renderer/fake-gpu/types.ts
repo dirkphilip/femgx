@@ -15,9 +15,11 @@ export interface FakeBuffer {
 }
 
 export interface DrawCall {
-  readonly indexCount: number;
+  readonly indexCount?: number;
+  readonly vertexCount?: number;
   readonly instanceCount: number;
   readonly firstIndex?: number;
+  readonly firstVertex?: number;
   readonly firstInstance?: number;
 }
 

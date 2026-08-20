@@ -157,9 +157,9 @@ export interface NodeSelectionBenchmarkPhase {
   readonly targetCount: number;
   readonly uniqueNodeCount: number;
   readonly selectedOccurrenceCount: number;
-  /** Exact indices represented by the renderer node-selection order in each replay pass. */
-  readonly selectedNodeDrawIndices: number;
-  /** Exact instances represented by the renderer node-selection order in each replay pass. */
+  /** Exact non-indexed vertices in one procedural node-sprite draw. */
+  readonly selectedNodeDrawVertices: number;
+  /** Exact flattened node-occurrence instances in one procedural node-sprite draw. */
   readonly selectedNodeDrawInstances: number;
   /** Immutable interaction-state construction wall time. */
   readonly interactionStateMs: number;
@@ -181,6 +181,12 @@ export interface NodeSelectionBenchmarkPhase {
 
 export interface NodeSelectionBenchmarkReport {
   readonly selectedTargetGranularity: "node";
+  /** Renderer-owned compact node-center storage, separate from topology ownership. */
+  readonly nodeCenterBytes: number;
+  /** Renderer-owned stable node-id storage, separate from topology ownership. */
+  readonly nodeIdBytes: number;
+  /** Renderer-owned node-sprite index storage; zero for procedural quads. */
+  readonly nodeSpriteIndexBytes: 0;
   readonly phases: readonly NodeSelectionBenchmarkPhase[];
 }
 
@@ -311,6 +317,16 @@ export interface CombinedOverlaySelectionSample {
 export interface CombinedOverlayBenchmarkReport {
   readonly nodes: true;
   readonly presentationEdges: true;
+  /** Renderer-owned compact node-center storage, separate from topology ownership. */
+  readonly nodeCenterBytes: number;
+  /** Renderer-owned stable node-id storage, separate from topology ownership. */
+  readonly nodeIdBytes: number;
+  /** Renderer-owned node-sprite index storage; zero for procedural quads. */
+  readonly nodeSpriteIndexBytes: 0;
+  /** Exact non-indexed vertices in each procedural node-sprite draw. */
+  readonly nodeDrawVertices: 4;
+  /** Exact flattened node-occurrence instances in each procedural node-sprite draw. */
+  readonly nodeDrawInstances: number;
   readonly coldNodeInteractionSyncMs: number;
   readonly coldNodeFirstFrameMs: number;
   readonly coldNodeFirstFrameCpuMs: number;

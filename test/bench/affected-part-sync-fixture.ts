@@ -305,7 +305,8 @@ function partBuffers(fixture: Fixture, partId: PartId): GPUBuffer[] {
     }
   }
   for (const resource of fixture.bundle.draw.primitiveParts.get(partId)?.values() ?? []) {
-    buffers.push(resource.vertexBuffer, resource.indexBuffer, resource.facePickIdsBuffer);
+    buffers.push(resource.vertexBuffer, resource.facePickIdsBuffer);
+    if (resource.indexBuffer !== undefined) buffers.push(resource.indexBuffer);
   }
   for (const entries of fixture.bundle.draw.visibilitySkins.get(partId)?.entries.values() ?? []) {
     for (const entry of entries) buffers.push(entry.skin.indexBuffer);
