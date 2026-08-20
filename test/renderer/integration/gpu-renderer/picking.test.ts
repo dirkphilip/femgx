@@ -11,20 +11,18 @@ import {
   unprojectPoint,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   buildFaceScene,
   buildBodyScene,
   camera,
-  installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 import { setRendererResultColors } from "@/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("reuses pick snapshots until pick-relevant state changes", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1 });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -76,9 +74,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("preserves pick snapshots across result color updates", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1 });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -101,9 +98,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("invalidates pick snapshots when body visibility changes", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1 });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildBodyScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -150,7 +146,6 @@ describe("WebGPU renderer", () => {
   it.each(["perspective", "orthographic"] as const)(
     "resolves a visible face pixel to an exact world-space point in %s mode",
     async (mode) => {
-      installGpuTestGlobals();
       const faceCamera = {
         ...camera,
         mode,
@@ -164,7 +159,7 @@ describe("WebGPU renderer", () => {
         facePickValue: 1,
         ndcDepth: depth,
       });
-      installNavigator(gpu.device);
+      installGpuTestEnvironment(gpu.device);
       const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
       const scene = buildFaceScene();
       const runtime = createPackedSceneRuntime(scene);
@@ -187,7 +182,6 @@ describe("WebGPU renderer", () => {
   );
 
   it("reconstructs a displayed point in a large-coordinate camera frame", async () => {
-    installGpuTestGlobals();
     const faceCamera = {
       ...camera,
       position: [10_000, 20_000, 30_005] as const,
@@ -197,7 +191,7 @@ describe("WebGPU renderer", () => {
     const displayedPoint = [10_000, 20_000, 30_001] as const;
     const depth = projectPoint(faceCamera, displayedPoint)?.[2] ?? 1;
     const gpu = fakeGpuDevice({ pickValue: 1, facePickValue: 1, ndcDepth: depth });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
     renderer.render(createPackedSceneRuntime(scene), faceCamera, scene.parts);
@@ -209,9 +203,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("materializes exact edge-pick geometry without enabling the presentation overlay", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
     renderer.render(createPackedSceneRuntime(scene), camera, scene.parts);

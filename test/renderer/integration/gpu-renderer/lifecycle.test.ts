@@ -12,12 +12,12 @@ import {
   zoomCamera,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   buildPointScene,
   buildVariantScene,
   camera,
   installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 
 describe("WebGPU renderer", () => {
@@ -106,9 +106,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("renders, uploads, picks, resizes, and destroys with a mocked device", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1, ndcDepth: 0.5 });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
 
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
@@ -167,9 +166,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("keeps the bounds-derived triad scale stable while the camera moves", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -189,9 +187,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("does not write a disabled origin triad", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), originTriad: false });
     const scene = buildScene();
     renderer.render(createPackedSceneRuntime(scene), camera, scene.parts, 10);
@@ -205,9 +202,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("replays authored points only when the origin triad is present", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), originTriad: false });
     const scene = buildPointScene();
 
@@ -222,9 +218,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("rebuilds caller parts after reset when the same source map is rendered", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);

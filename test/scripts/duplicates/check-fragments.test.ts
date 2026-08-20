@@ -1,23 +1,15 @@
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanupRepos, makeRepo } from "./support";
+import { runCheck } from "../support/run-check";
 
 const SCRIPT_PATH = fileURLToPath(
   new URL("../../../scripts/duplicates/check-fragments.mjs", import.meta.url),
 );
 
 afterEach(cleanupRepos);
-
-function runCheck(
-  root: string,
-  args: readonly string[] = [],
-): { readonly status: number; readonly stdout: string; readonly stderr: string } {
-  const result = spawnSync(process.execPath, [SCRIPT_PATH, root, ...args], { encoding: "utf8" });
-  return { status: result.status ?? -1, stdout: result.stdout, stderr: result.stderr };
-}
 
 describe("duplicates/check-fragments", () => {
   it("prints nothing when statement operations differ", () => {
@@ -27,7 +19,7 @@ describe("duplicates/check-fragments", () => {
       "src/b.ts":
         "function beta(): number {\n  const first = 1;\n  const second = 2;\n  const sum = first * second;\n  const scaled = sum * 3;\n  return scaled;\n}\n",
     });
-    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    const result = runCheck(SCRIPT_PATH, [root, "--min-lines", "3", "--min-statements", "3"], root);
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("");
   });
@@ -39,7 +31,7 @@ describe("duplicates/check-fragments", () => {
       "src/b.ts":
         "function beta(): number {\n  const first = 1;\n  const second = 2;\n  const sum = first + second;\n  return sum;\n}\n",
     });
-    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    const result = runCheck(SCRIPT_PATH, [root, "--min-lines", "3", "--min-statements", "3"], root);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Fragment clone (");
     expect(result.stdout).toContain("src/a.ts:");
@@ -53,7 +45,7 @@ describe("duplicates/check-fragments", () => {
       "src/b.ts":
         "function beta(): number {\n  const w = 1;\n  const x = 2;\n  const y = 3;\n  const z = w + x + y;\n  return z;\n}\n",
     });
-    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    const result = runCheck(SCRIPT_PATH, [root, "--min-lines", "3", "--min-statements", "3"], root);
     expect(result.stdout.match(/^Fragment clone /gmu)).toHaveLength(1);
     expect(result.stdout).toContain("Fragment clone (5 lines, 5 statements");
   });
@@ -65,7 +57,7 @@ describe("duplicates/check-fragments", () => {
       "src/b.ts": `function beta(): number {\n${shared}  return d;\n}\n`,
       "src/c.ts": `function gamma(): void {\n${shared}}\n`,
     });
-    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    const result = runCheck(SCRIPT_PATH, [root, "--min-lines", "3", "--min-statements", "3"], root);
     expect(result.stdout).toContain("5 statements, 2 files");
     expect(result.stdout).toContain("4 statements, 3 files");
   });
@@ -78,9 +70,13 @@ describe("duplicates/check-fragments", () => {
     ).join("");
     const root = makeRepo({ "src/a.ts": functions, "src/b.ts": functions });
     const args = ["--min-lines", "3", "--min-statements", "3"];
-    expect(runCheck(root, args).stdout.match(/^Fragment clone /gmu)).toHaveLength(105);
     expect(
-      runCheck(root, [...args, "--max-reports", "7"]).stdout.match(/^Fragment clone /gmu),
+      runCheck(SCRIPT_PATH, [root, ...args], root).stdout.match(/^Fragment clone /gmu),
+    ).toHaveLength(105);
+    expect(
+      runCheck(SCRIPT_PATH, [root, ...args, "--max-reports", "7"], root).stdout.match(
+        /^Fragment clone /gmu,
+      ),
     ).toHaveLength(7);
   });
 
@@ -91,7 +87,7 @@ describe("duplicates/check-fragments", () => {
       "src/b.ts":
         "function longMatch(): void {\n  const p = 1;\n  const q = 2;\n  const r = 3;\n  const s = 4;\n  const t = p + q + r + s;\n  console.log(t);\n}\nfunction shortMatch(): void {\n  const m = 10;\n  const n = 20;\n  const o = m + n;\n  console.log(o);\n}\n",
     });
-    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    const result = runCheck(SCRIPT_PATH, [root, "--min-lines", "3", "--min-statements", "3"], root);
     const longIndex = result.stdout.indexOf("-line fragment clones:");
     const shortHeader = result.stdout.lastIndexOf("-line fragment clones:");
     expect(longIndex).toBeGreaterThanOrEqual(0);
@@ -113,14 +109,11 @@ describe("duplicates/check-fragments", () => {
       ignorePath,
       JSON.stringify({ entries: [{ file: "src/b.ts", startLine: 2, endLine: 5 }] }),
     );
-    const result = runCheck(root, [
-      "--min-lines",
-      "3",
-      "--min-statements",
-      "3",
-      "--ignore",
-      ignorePath,
-    ]);
+    const result = runCheck(
+      SCRIPT_PATH,
+      [root, "--min-lines", "3", "--min-statements", "3", "--ignore", ignorePath],
+      root,
+    );
     expect(result.status).toBe(0);
     expect(result.stdout).toBe("");
   });
@@ -129,7 +122,7 @@ describe("duplicates/check-fragments", () => {
     const root = makeRepo({});
     const ignorePath = join(root, "ignores.json");
     writeFileSync(ignorePath, JSON.stringify({ entries: [{ startLine: 1 }] }));
-    const result = runCheck(root, ["--ignore", ignorePath]);
+    const result = runCheck(SCRIPT_PATH, [root, "--ignore", ignorePath], root);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('require a string "file"');
   });
