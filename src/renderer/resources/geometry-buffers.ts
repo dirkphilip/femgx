@@ -2,6 +2,7 @@ import type { MeshEdgeData } from "../edges/mesh-edge";
 
 interface TopologyMetadata {
   readonly elementOrdinals: ArrayLike<number>;
+  readonly conditionElementOrdinals?: ArrayLike<number>;
   readonly primitiveIds: ArrayLike<number>;
   readonly edgeIds: ArrayLike<number>;
   /** Optional triangle corner-to-source connectivity for feature draws. */
@@ -33,15 +34,23 @@ export function packTopologyData(
     bodyIds.every((value) => value === 0) &&
     elementIds.every((value) => value === 0);
   const storedConditionCount = conditionCount > 0 && !sentinelOnly ? conditionCount : 0;
+  const conditionElementOrdinals =
+    metadata.conditionElementOrdinals ?? new Uint32Array(storedConditionCount * 2);
   const storedBodyIds = storedConditionCount === 0 ? new Uint32Array() : bodyIds;
   const storedElementIds = storedConditionCount === 0 ? new Uint32Array() : elementIds;
+  const storedConditionOrdinals =
+    storedConditionCount === 0 ? new Uint32Array() : conditionElementOrdinals;
   const metadataOffset =
-    4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length;
+    4 +
+    faceBodyPickIds.length +
+    bodyRanges.length +
+    storedBodyIds.length +
+    storedElementIds.length +
+    storedConditionOrdinals.length;
   const primitiveIdsOffset = metadataOffset + elementOrdinals.length;
   const cornerIndexCount = cornerIndices?.length ?? 0;
-  const cornerDataLength = cornerIndexCount;
   const data = new Uint32Array(
-    primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length + cornerDataLength,
+    primitiveIdsOffset + 1 + primitiveIds.length + edgeIds.length + cornerIndexCount,
   );
   data[0] = faceRecordCount;
   data[1] = rangeCount;
@@ -51,6 +60,10 @@ export function packTopologyData(
   data.set(bodyRanges, 4 + faceBodyPickIds.length);
   data.set(storedBodyIds, 4 + faceBodyPickIds.length + bodyRanges.length);
   data.set(storedElementIds, 4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length);
+  data.set(
+    storedConditionOrdinals,
+    4 + faceBodyPickIds.length + bodyRanges.length + storedBodyIds.length + storedElementIds.length,
+  );
   data.set(elementOrdinals, metadataOffset);
   data[primitiveIdsOffset] = primitiveIds.length;
   data.set(primitiveIds, primitiveIdsOffset + 1);
@@ -70,6 +83,7 @@ export function packUnownedEdgeTopologyData(
   elementOrdinals: ArrayLike<number>,
   primitiveElementPickIds: Uint32Array,
   edgeIds: ArrayLike<number>,
+  elementOrdinal: (elementPickId: number) => number,
 ): Uint32Array {
   const faceStride = 5;
   const faceDataLength = primitiveElementPickIds.length * faceStride;
@@ -83,12 +97,17 @@ export function packUnownedEdgeTopologyData(
   const storedConditionCount = conditionCount > 0 && !sentinelOnly ? conditionCount : 0;
   const storedBodyIds = storedConditionCount === 0 ? new Uint32Array() : edgeData.bodyIds;
   const storedElementIds = storedConditionCount === 0 ? new Uint32Array() : edgeData.elementIds;
+  const storedElementOrdinals = new Uint32Array(storedElementIds.length);
+  for (let index = 0; index < storedElementIds.length; index += 1) {
+    storedElementOrdinals[index] = elementOrdinal(storedElementIds[index] ?? 0);
+  }
   const metadataOffset =
     4 +
     faceDataLength +
     edgeData.bodyRanges.length +
     storedBodyIds.length +
-    storedElementIds.length;
+    storedElementIds.length +
+    storedElementOrdinals.length;
   const primitiveIdsOffset = metadataOffset + elementOrdinals.length;
   const data = new Uint32Array(primitiveIdsOffset + 1 + edgeIds.length);
   data[0] = primitiveElementPickIds.length;
@@ -104,6 +123,8 @@ export function packUnownedEdgeTopologyData(
   data.set(storedBodyIds, offset);
   offset += storedBodyIds.length;
   data.set(storedElementIds, offset);
+  offset += storedElementIds.length;
+  data.set(storedElementOrdinals, offset);
   data.set(elementOrdinals, metadataOffset);
   data[primitiveIdsOffset] = 0;
   data.set(edgeIds, primitiveIdsOffset + 1);

@@ -14,6 +14,33 @@ export interface SelectedTargetSummary {
   readonly partOccurrenceIds: ReadonlySet<string>;
 }
 
+type SelectedElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
+
+/** Returns selected element occurrences in deterministic occurrence/id order. */
+export function selectedElementTargets(state: InteractionState): SelectedElementTarget[] {
+  const data = readInteractionState(state);
+  const targets: SelectedElementTarget[] = [];
+  for (const [partOccurrenceId, elementIds] of [...data.selectedElementIds.entries()].sort(
+    ([left], [right]) => left.localeCompare(right),
+  )) {
+    for (const elementId of [...elementIds].sort((left, right) => left - right)) {
+      targets.push({ kind: "element", partOccurrenceId, elementId });
+    }
+  }
+  return targets;
+}
+
+/** Counts selected elements that are not hidden without materializing targets. */
+export function visibleSelectedElementCount(state: InteractionState): number {
+  const data = readInteractionState(state);
+  let count = 0;
+  for (const [partOccurrenceId, elementIds] of data.selectedElementIds) {
+    const hidden = data.hiddenElementIds.get(partOccurrenceId);
+    for (const elementId of elementIds) if (hidden?.has(elementId) !== true) count += 1;
+  }
+  return count;
+}
+
 /** Counts selected identities and occurrences without materializing or sorting them. */
 export function selectedTargetSummary(state: InteractionState): SelectedTargetSummary {
   const data = readInteractionState(state);

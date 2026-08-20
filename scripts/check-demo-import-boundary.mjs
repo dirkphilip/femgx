@@ -14,13 +14,14 @@ const benchmarkExemptions = new Set([
   "demo/benchmark/many-piece.ts",
   "demo/benchmark/node-selection.ts",
   "demo/benchmark/selection.ts",
+  "demo/benchmark/workflows/selection-hide-workflow.ts",
   "demo/benchmark/structured-fe.ts",
   "demo/benchmark/tet4-transfer.ts",
   "demo/benchmark/packed-tet4.ts",
   "demo/benchmark/memory.ts",
   "demo/benchmark/model.ts",
   "demo/benchmark/transfer.ts",
-  "demo/benchmark/visibility.ts",
+  "demo/benchmark/workflows/visibility.ts",
   "demo/fixtures/performance-fixture.ts",
 ]);
 const importPattern = /(?:from|import\()\s*["']([^"']+)["']/gu;

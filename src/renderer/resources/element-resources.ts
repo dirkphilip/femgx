@@ -70,6 +70,7 @@ interface EmphasisCollectionOptions {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly interaction: InteractionState;
   readonly denseSelections?: DenseElementSelections;
+  readonly denseHidden?: DenseElementSelections;
   readonly denseNodeSelections?: DenseNodeSelections;
   readonly edgeKeysByPart?: ReadonlyMap<PartId, readonly string[]>;
 }
@@ -118,7 +119,8 @@ export function collectEmphasisUpdates(
   options: EmphasisCollectionOptions,
 ): EmphasisUpdates {
   const context = { runtime, layout, slotByInstanceId };
-  const { parts, interaction, denseSelections, denseNodeSelections, edgeKeysByPart } = options;
+  const { parts, interaction, denseSelections, denseHidden, denseNodeSelections, edgeKeysByPart } =
+    options;
   const byPart = new Map<PartId, EmphasisUpdate[]>();
   const push = (partId: PartId, update: EmphasisUpdate): void => {
     const list = byPart.get(partId);
@@ -126,7 +128,10 @@ export function collectEmphasisUpdates(
     else list.push(update);
   };
   collectBodyEmphasis(context, parts, interaction, push);
-  collectElementEmphasis(context, parts, interaction, push, denseSelections);
+  collectElementEmphasis(context, parts, interaction, push, {
+    selections: denseSelections,
+    hidden: denseHidden,
+  });
   collectFaceEmphasis(context, parts, interaction, push);
   collectNodeEmphasis(context, parts, interaction, push, denseNodeSelections);
   collectEdgeEmphasis(context, interaction, edgeKeysByPart, push);
@@ -200,19 +205,30 @@ interface EmphasisContext {
   readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
 }
 
+interface DenseElementEmphasis {
+  readonly selections: DenseElementSelections | undefined;
+  readonly hidden: DenseElementSelections | undefined;
+}
+
 /** Collects element-level emphasis records (hover, selection, overrides). */
 function collectElementEmphasis(
   context: EmphasisContext,
   parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
   push: (partId: PartId, update: EmphasisUpdate) => void,
-  denseSelections?: DenseElementSelections,
+  dense: DenseElementEmphasis,
 ): void {
   const data = readInteractionState(interaction);
   const refs =
-    denseSelections === undefined
+    dense.selections === undefined && dense.hidden === undefined
       ? emphasizedElementRefs(interaction)
-      : sparseElementEmphasisRefs(context.runtime, context.layout, interaction, denseSelections);
+      : sparseElementEmphasisRefs(
+          context.runtime,
+          context.layout,
+          interaction,
+          dense.selections ?? new Map(),
+          dense.hidden,
+        );
   for (const ref of refs) {
     const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;

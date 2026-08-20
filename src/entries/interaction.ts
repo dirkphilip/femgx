@@ -36,7 +36,7 @@ export {
   setBodyOverride,
   setBodyVisible,
 } from "../interaction/bodies";
-export { isElementVisible, setElementVisible } from "../interaction/elements";
+export { isElementVisible, setElementVisible, setElementsVisible } from "../interaction/elements";
 export type { BodyRef, EdgeRef, FaceRef, NodeRef } from "../interaction/refs";
 export {
   installBoxSelection,

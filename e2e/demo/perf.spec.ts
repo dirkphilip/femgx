@@ -273,6 +273,7 @@ for (const spec of benchmarkCaseSpecs(includeLarge)) {
               .neighborTriangleFaceIdsBytes ?? 0),
         ).toBe(2_596_612);
         expect(entry.interactive).toBeDefined();
+        selectionAssertions.expectSelectionHideWorkflow(entry);
         const broad = entry.selection?.phases.find((phase) => phase.id === "broad");
         if (broad === undefined) throw new Error("Tet4 broad selection phase is missing");
         expect(broad.returnedTargetCount).toBe(4_704);

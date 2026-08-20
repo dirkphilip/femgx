@@ -8,13 +8,17 @@ import {
   isBodyVisible,
   isElementVisible,
   isTargetHighlighted,
-  selectedTargets,
   setElementVisible,
+  setElementsVisible,
   setTargetHighlighted,
   setBodyVisible,
   type InteractionTarget,
   type InteractionState,
 } from "../../../src/entries/interaction";
+import {
+  selectedElementTargets as selectedElementTargetsForInteraction,
+  visibleSelectedElementCount as visibleSelectedElementCountForInteraction,
+} from "../../../src/interaction/selection-queries";
 import type { BodyId } from "../../../src/entries/model";
 import type { SceneOccurrences } from "../../../src/entries/root";
 import type { SelectTarget } from "../selection/pick";
@@ -39,16 +43,7 @@ type SelectedElementTarget = Extract<InteractionTarget, { readonly kind: "elemen
 export function selectedElementTargets(
   interaction: InteractionState,
 ): readonly SelectedElementTarget[] {
-  const seen = new Set<string>();
-  const elements: SelectedElementTarget[] = [];
-  for (const target of selectedTargets(interaction)) {
-    if (target.kind !== "element") continue;
-    const key = `${target.partOccurrenceId}:${target.elementId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    elements.push(target);
-  }
-  return elements;
+  return selectedElementTargetsForInteraction(interaction);
 }
 
 /** Returns selected, currently visible element occurrences without promoting other target kinds. */
@@ -58,6 +53,11 @@ export function visibleSelectedElementTargets(
   return selectedElementTargets(interaction).filter((target) =>
     isElementVisible(interaction, target),
   );
+}
+
+/** Counts visible selected elements without materializing the full target list. */
+export function visibleSelectedElementCount(interaction: InteractionState): number {
+  return visibleSelectedElementCountForInteraction(interaction);
 }
 
 /** Keeps all demo visibility mutations on the viewport/runtime path. */
@@ -109,7 +109,7 @@ export class WorkbenchVisibilityActions {
   hideSelected(): void {
     const interaction = this.options.interaction();
     const selected = selectedElementTargets(interaction);
-    const visible = visibleSelectedElementTargets(interaction);
+    const visible = selected.filter((target) => isElementVisible(interaction, target));
     if (visible.length === 0) {
       this.options.feedback?.(
         selected.length === 0
@@ -119,10 +119,7 @@ export class WorkbenchVisibilityActions {
       return;
     }
 
-    let next = interaction;
-    for (const target of visible) {
-      next = setElementVisible(next, target, false);
-    }
+    const next = setElementsVisible(interaction, visible, false);
     this.options.applyInteraction(next);
     this.finish();
     this.options.feedback?.(
@@ -172,14 +169,8 @@ export class WorkbenchVisibilityActions {
           true,
         );
       }
-      for (const element of part?.elements ?? []) {
-        interaction = setElementVisible(
-          interaction,
-          { partOccurrenceId: instance.partOccurrenceId, elementId: element.id },
-          true,
-        );
-      }
     }
+    interaction = setElementsVisible(interaction, allElementRefs(scene, runtime), true);
     this.options.applyInteraction(interaction);
     const viewport = this.options.viewport();
     viewport.batch(() => {
@@ -230,5 +221,16 @@ export class WorkbenchVisibilityActions {
   private finish(render = true): void {
     this.options.syncPanel();
     if (render) this.options.render();
+  }
+}
+
+function* allElementRefs(
+  scene: Scene,
+  runtime: SceneOccurrences,
+): Generator<{ readonly partOccurrenceId: PartOccurrenceId; readonly elementId: number }> {
+  for (const instance of runtime.partOccurrences()) {
+    for (const element of scene.parts.get(instance.partId)?.elements ?? []) {
+      yield { partOccurrenceId: instance.partOccurrenceId, elementId: element.id };
+    }
   }
 }

@@ -4,6 +4,7 @@ interface NodeOwnerData {
   readonly bodyRanges: Uint32Array;
   readonly bodyIds: Uint32Array;
   readonly elementIds: Uint32Array;
+  readonly elementOrdinals?: Uint32Array;
 }
 
 /** Returns whether authored order already provides canonical body/element owners. */
@@ -70,6 +71,9 @@ function compareNodeOwners(output: NodeOwnerData, first: number, second: number)
 function swapNodeOwners(output: NodeOwnerData, first: number, second: number): void {
   swapOwnerPair(output.bodyIds, first, second);
   swapOwnerPair(output.elementIds, first, second);
+  if (output.elementOrdinals !== undefined) {
+    swapOwnerPair(output.elementOrdinals, first, second);
+  }
 }
 
 function swapOwnerPair(values: Uint32Array, first: number, second: number): void {

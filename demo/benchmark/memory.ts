@@ -266,7 +266,7 @@ function topologyBytesUpperBound(
     3 +
     primitiveCount * 5 +
     edgeEndpointUpperBound * 2 +
-    edgeEndpointUpperBound * 4 +
+    edgeEndpointUpperBound * 6 +
     1 +
     expandedVertexCount +
     edgeEndpointUpperBound +

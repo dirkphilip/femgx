@@ -1,26 +1,29 @@
-import { benchmarkCaseSpecs, createBenchmarkCase } from "../../demo/benchmark/model";
-import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import type { Part, PartId } from "../../src/geometry/part";
-import { createInteractionState, type InteractionState } from "../../src/interaction/interaction";
-import { readInteractionState } from "../../src/interaction/state";
-import { setTargetsSelected } from "../../src/interaction/targets";
-import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { buildInstanceLayout, buildSelectionOrder } from "../../src/renderer/runtime-state";
-import { buildSelectionDrawCalls } from "../../src/renderer/selection/draw-ranges";
+import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
+import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
+import type { Part, PartId } from "../../../src/geometry/part";
+import {
+  createInteractionState,
+  type InteractionState,
+} from "../../../src/interaction/interaction";
+import { readInteractionState } from "../../../src/interaction/state";
+import { setTargetsSelected } from "../../../src/interaction/targets";
+import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+import { buildInstanceLayout, buildSelectionOrder } from "../../../src/renderer/runtime-state";
+import { buildSelectionDrawCalls } from "../../../src/renderer/selection/draw-ranges";
 import {
   collectDenseElementSelections,
   denseSelectionContains,
   type DenseElementSelection,
   type DenseElementSelections,
-} from "../../src/renderer/selection/element-selection";
+} from "../../../src/renderer/selection/element-selection";
 import {
   writeDenseSelectionData,
   writeSelectionHeader,
-} from "../../src/renderer/selection/highlight-selection-storage";
-import { createHighlightStorage } from "../../src/renderer/selection/highlight-storage";
-import { HIGHLIGHT_HEADER } from "../../src/renderer/selection/highlight-layout";
-import { fakeGpuDevice, installGpuGlobals } from "../renderer/fake-gpu";
-import type { OperationSpec } from "./operation-report";
+} from "../../../src/renderer/selection/highlight-selection-storage";
+import { createHighlightStorage } from "../../../src/renderer/selection/highlight-storage";
+import { HIGHLIGHT_HEADER } from "../../../src/renderer/selection/highlight-layout";
+import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
+import type { OperationSpec } from "../operation-report";
 import { countDenseSkinNeighborFaceEntries } from "./selection-sync-probe";
 
 const ELEMENT_COUNT = 131_712;
@@ -152,7 +155,11 @@ function buildDensePayloadOperation(
       );
       const selection = dense.get(PART_ID);
       assertDenseSelection(selection, selected.selectedCount);
-      writeDenseSelectionData(storage.data, storage, selection);
+      writeDenseSelectionData(storage.data, storage, {
+        selection,
+        visibility: undefined,
+        nodeSelection: undefined,
+      });
       assertDensePayload(storage.data, selected.selectedCount);
     },
   };
@@ -199,17 +206,20 @@ function drawRangeOperation(fixture: SelectionFixture, selected: SelectionCase):
 
 function unchangedCollectOperation(fixture: SelectionFixture): OperationSpec {
   const selected = requireCase(fixture, "all");
-  const dense = collectDenseElementSelections(
-    fixture.runtime,
-    fixture.layout,
-    fixture.parts,
-    selected.interaction,
-  ).get(PART_ID);
+  let dense: DenseElementSelection | undefined;
   return {
     name: "selection-all-unchanged-repeat-collect-cache",
     workloadUnit: "unchanged selected authored elements",
     workloadCount: ELEMENT_COUNT,
     workloadDetails: details(fixture, selected),
+    beforeEach: () => {
+      dense = collectDenseElementSelections(
+        fixture.runtime,
+        fixture.layout,
+        fixture.parts,
+        selected.interaction,
+      ).get(PART_ID);
+    },
     run: () => {
       const next = collectDenseElementSelections(
         fixture.runtime,
@@ -232,9 +242,10 @@ function createSelectionStorage(selected: SelectionCase) {
   });
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const dense = selected.denseSelections.get(PART_ID);
-  writeSelectionHeader(new Uint32Array(header.buffer), storage, dense, undefined);
+  const payload = { selection: dense, visibility: undefined, nodeSelection: undefined };
+  writeSelectionHeader(new Uint32Array(header.buffer), storage, payload, undefined);
   storage.data.set(header);
-  writeDenseSelectionData(storage.data, storage, dense);
+  writeDenseSelectionData(storage.data, storage, payload);
   return storage;
 }
 

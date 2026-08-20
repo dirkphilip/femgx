@@ -19,7 +19,11 @@ import {
 } from "../../src/interaction/targets";
 import { setBodyOverride } from "../../src/interaction/bodies";
 import { readInteractionState } from "../../src/interaction/state";
-import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
+import {
+  isElementVisible,
+  setElementVisible,
+  setElementsVisible,
+} from "../../src/interaction/elements";
 import { identityMatrix } from "../../src/math/mat4";
 import type { ElementRef, PartOccurrence } from "../../src/scene/types";
 
@@ -288,5 +292,24 @@ describe("element interaction", () => {
   it("keeps hidden elements in the emphasis stream for GPU updates", () => {
     const hidden = setElementVisible(createInteractionState(), ref, false);
     expect(emphasizedElementRefs(hidden)).toEqual([ref]);
+  });
+
+  it("updates broad element visibility in one nested transition", () => {
+    const initial = createInteractionState();
+    const refs = [
+      ref,
+      { partOccurrenceId: ref.partOccurrenceId, elementId: 4 },
+      { partOccurrenceId: "2/0", elementId: 7 },
+      ref,
+    ];
+    const hidden = setElementsVisible(initial, refs, false);
+    expect(readInteractionState(hidden).hiddenElementIds).toEqual(
+      new Map([
+        ["1/0", new Set([2, 4])],
+        ["2/0", new Set([7])],
+      ]),
+    );
+    expect(setElementsVisible(hidden, refs, false)).toBe(hidden);
+    expect(setElementsVisible(hidden, refs, true)).not.toBe(hidden);
   });
 });

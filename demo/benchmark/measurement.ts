@@ -30,9 +30,10 @@ import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
 import { measureSelectionBenchmark } from "./selection";
 import { measureNodeSelectionBenchmark } from "./node-selection";
 import { measureHoverBenchmark } from "./hover";
-import { measureVisibilityBenchmark } from "./visibility";
+import { measureVisibilityBenchmark } from "./workflows/visibility";
 import { measureManyPieceBenchmark } from "./many-piece";
 import { measureCombinedOverlayBenchmark } from "./combined-overlay";
+import { measureSelectionHideWorkflow } from "./workflows/selection-hide-workflow";
 import type {
   BenchmarkTimings,
   NodeSelectionBenchmarkReport,
@@ -99,6 +100,7 @@ export async function measureBenchmarkCase(
   let visibility: WebGpuBenchmarkCaseResult["visibility"];
   let manyPiece: WebGpuBenchmarkCaseResult["manyPiece"];
   let combinedOverlay: WebGpuBenchmarkCaseResult["combinedOverlay"];
+  let selectionHideWorkflow: WebGpuBenchmarkCaseResult["selectionHideWorkflow"];
   let rendererCreateMs: number;
   let gpuCost: WebGpuBenchmarkCaseResult["gpuCost"] | undefined;
   let gpuTimestamps: WebGpuBenchmarkCaseResult["gpuTimestamps"];
@@ -217,6 +219,15 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "selection-hide workflow sample";
+    selectionHideWorkflow = await measureSelectionHideWorkflow({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+    });
+    materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
     phase = "many-piece interaction sample";
     manyPiece = await measureManyPieceBenchmark({
       renderer,
@@ -264,6 +275,7 @@ export async function measureBenchmarkCase(
     ...(nodeSelection === undefined ? {} : { nodeSelection }),
     ...(hover === undefined ? {} : { hover }),
     ...(visibility === undefined ? {} : { visibility }),
+    ...(selectionHideWorkflow === undefined ? {} : { selectionHideWorkflow }),
     ...(manyPiece === undefined ? {} : { manyPiece }),
     ...(combinedOverlay === undefined ? {} : { combinedOverlay }),
     estimatedMemory: estimateBenchmarkMemory(

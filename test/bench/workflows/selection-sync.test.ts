@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildOperationsReport, emitOperationsReport } from "./operation-report";
+import { buildOperationsReport, emitOperationsReport } from "../operation-report";
 import { createSelectionFixture, selectionSyncOperations } from "./selection-sync-operation";
 
 describe("local selection synchronization baseline", () => {

@@ -71,6 +71,17 @@ test("captures nodes, presentation edges, and dense selection on desktop and mob
   });
   const entry = report.cases[0];
   if (entry === undefined) throw new Error("Combined-overlay benchmark case is missing");
+  console.log(
+    `WEBGPU_COMBINED_OVERLAY_JSON ${JSON.stringify({
+      fixedCamera: entry.combinedOverlay?.fixedCamera,
+      movingCamera: entry.combinedOverlay?.movingCamera,
+      retainedEdgeBufferUpperBoundBytes:
+        entry.combinedOverlay?.estimatedRetainedEdgeBufferUpperBoundBytes,
+      coldNodeInteractionSyncMs: entry.combinedOverlay?.coldNodeInteractionSyncMs,
+      coldEdgeInteractionSyncMs: entry.combinedOverlay?.coldEdgeInteractionSyncMs,
+      largeSelection: entry.combinedOverlay?.largeSelection,
+    })}`,
+  );
   expectTwoMillionInteractions(entry);
 });
 

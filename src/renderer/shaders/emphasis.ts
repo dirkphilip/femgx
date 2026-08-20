@@ -44,10 +44,10 @@ struct ElementHighlights {
   nodeSelectionBitsWord: u32,
   nodeSelectionRecordCount: u32,
   nodeSelectionSlotCapacity: u32,
-  _reserved0: u32,
-  _reserved1: u32,
-  _reserved2: u32,
-  _reserved3: u32,
+  visibilityWords: u32,
+  visibilityOffsetWord: u32,
+  visibilityBitsWord: u32,
+  visibilityRecordCount: u32,
   data: array<u32>,
 };
 
@@ -87,6 +87,34 @@ fn denseElementSelected(slot: u32, ordinal: u32) -> bool {
   return (elementHighlights.data[
     elementHighlights.selectionBitsWord + record * elementHighlights.selectionWords + word
   ] & mask) != 0u;
+}
+
+fn denseElementHidden(slot: u32, ordinal: u32) -> bool {
+  if (ordinal == 0u || slot >= elementHighlights.selectionSlotCapacity ||
+      elementHighlights.visibilityRecordCount == 0u ||
+      elementHighlights.visibilityWords == 0u) {
+    return false;
+  }
+  let record = elementHighlights.data[elementHighlights.visibilityOffsetWord + slot];
+  if (record == 0xffffffffu || record >= elementHighlights.visibilityRecordCount) {
+    return false;
+  }
+  let bit = ordinal - 1u;
+  let word = bit / 32u;
+  if (word >= elementHighlights.visibilityWords) { return false; }
+  let mask = 1u << (bit % 32u);
+  return (elementHighlights.data[
+    elementHighlights.visibilityBitsWord + record * elementHighlights.visibilityWords + word
+  ] & mask) != 0u;
+}
+
+fn denseVisibilityActive(slot: u32) -> bool {
+  if (slot >= elementHighlights.selectionSlotCapacity ||
+      elementHighlights.visibilityRecordCount == 0u) {
+    return false;
+  }
+  let record = elementHighlights.data[elementHighlights.visibilityOffsetWord + slot];
+  return record != 0xffffffffu && record < elementHighlights.visibilityRecordCount;
 }
 
 fn denseNodeSelected(slot: u32, nodePickId: u32) -> bool {

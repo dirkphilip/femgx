@@ -16,6 +16,7 @@ import {
   type ElementQuery,
   type MutableVec3,
 } from "./through-box-geometry";
+import { localBoundsPlanes } from "./through-box-bounds";
 
 interface ThroughQueryContext {
   readonly view: Viewport;
@@ -104,6 +105,11 @@ function appendVisibleOccurrenceTargets(
         elementBounds: partQuery.elementBounds,
         elementIndex,
         points: context.points,
+        boundsPlanes: localBoundsPlanes(
+          instance.transform,
+          context.frustum,
+          view.presentation.sectionPlane,
+        ),
       };
     } else {
       elementQuery.element = element;

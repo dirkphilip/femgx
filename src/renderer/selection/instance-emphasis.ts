@@ -17,13 +17,18 @@ interface InstanceEmphasisSync {
   readonly storages: ReadonlyMap<PartId, InstanceStorage>;
 }
 
+export interface InstanceEmphasisMemberships {
+  readonly elements?: DenseElementSelections;
+  readonly nodes?: DenseNodeSelections;
+  readonly hidden?: DenseElementSelections;
+}
+
 /** Updates per-occurrence admission bits without touching unaffected records. */
 export function syncInstanceEmphasisAdmission(
   sync: InstanceEmphasisSync,
   updates: EmphasisUpdates,
   affectedParts: ReadonlySet<PartId>,
-  denseSelections?: DenseElementSelections,
-  denseNodeSelections?: DenseNodeSelections,
+  dense: InstanceEmphasisMemberships = {},
 ): void {
   for (const partId of affectedParts) {
     const storage = sync.storages.get(partId);
@@ -33,10 +38,13 @@ export function syncInstanceEmphasisAdmission(
     const nextEdgeSlots = new Set(
       partUpdates.filter((update) => update.edgePickId !== undefined).map((update) => update.slot),
     );
-    for (const occurrence of denseSelections?.get(partId)?.occurrences ?? []) {
+    for (const occurrence of dense.elements?.get(partId)?.occurrences ?? []) {
       nextSlots.add(occurrence.slot);
     }
-    for (const occurrence of denseNodeSelections?.get(partId)?.occurrences ?? []) {
+    for (const occurrence of dense.hidden?.get(partId)?.occurrences ?? []) {
+      nextSlots.add(occurrence.slot);
+    }
+    for (const occurrence of dense.nodes?.get(partId)?.occurrences ?? []) {
       nextSlots.add(occurrence.slot);
     }
     const changedSlots = new Set([

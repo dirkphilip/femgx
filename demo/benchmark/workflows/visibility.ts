@@ -1,9 +1,9 @@
-import type { Camera } from "../../src/camera/camera";
-import { percentiles } from "./statistics";
-import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
-import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import type { WebGpuBenchmarkCase } from "./model";
-import type { VisibilityBenchmarkPhase, VisibilityBenchmarkReport } from "./types";
+import type { Camera } from "../../../src/camera/camera";
+import { percentiles } from "../statistics";
+import { readGpuCostSnapshot, type WebGpuRenderer } from "../../../src/renderer/gpu-renderer";
+import type { PackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+import type { WebGpuBenchmarkCase } from "../model";
+import type { VisibilityBenchmarkPhase, VisibilityBenchmarkReport } from "../types";
 
 const STEADY_SAMPLES = 7;
 const SUPPORTED_CASES = new Set([
@@ -48,8 +48,9 @@ async function measureScenario(
   const mutationStart = performance.now();
   for (const slot of slots) runtime.setInstanceVisible(slot, false);
   const runtimeMutationMs = performance.now() - mutationStart;
+  const affectedPartIds = affectedPartsForSlots(runtime, slots);
   const syncStart = performance.now();
-  renderer.updateVisibility(runtime, slots);
+  renderer.updateVisibility(runtime, affectedPartIds);
   const rendererSyncMs = performance.now() - syncStart;
   const firstHiddenFrameMs = await renderFrame(options);
   const hiddenGpuCost = readGpuCostSnapshot(renderer);
@@ -64,7 +65,7 @@ async function measureScenario(
   for (let index = 0; index < STEADY_SAMPLES; index += 1) steady.push(await renderFrame(options));
   const restoreStart = performance.now();
   for (const slot of slots) runtime.setInstanceVisible(slot, true);
-  renderer.updateVisibility(runtime, slots);
+  renderer.updateVisibility(runtime, affectedPartIds);
   await renderFrame(options);
   const restoreMs = performance.now() - restoreStart;
   const restoredSurfaceSubmittedIndices = assertOpaqueSubmission(
@@ -89,6 +90,18 @@ async function measureScenario(
     restoredSurfaceSubmittedIndices,
     hiddenGpuCost,
   };
+}
+
+function affectedPartsForSlots(
+  runtime: PackedSceneRuntime,
+  slots: readonly number[],
+): readonly number[] {
+  const partIds = new Set<number>();
+  for (const slot of slots) {
+    const partId = runtime.getPartId(slot);
+    if (partId !== undefined) partIds.add(partId);
+  }
+  return [...partIds].sort((left, right) => left - right);
 }
 
 function submittedIndicesForSlots(

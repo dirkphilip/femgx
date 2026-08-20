@@ -91,13 +91,14 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/many-piece.ts",
       "demo/benchmark/node-selection.ts",
       "demo/benchmark/selection.ts",
+      "demo/benchmark/workflows/selection-hide-workflow.ts",
       "demo/benchmark/structured-fe.ts",
       "demo/benchmark/tet4-transfer.ts",
       "demo/benchmark/packed-tet4.ts",
       "demo/benchmark/memory.ts",
       "demo/benchmark/model.ts",
       "demo/benchmark/transfer.ts",
-      "demo/benchmark/visibility.ts",
+      "demo/benchmark/workflows/visibility.ts",
       "demo/fixtures/performance-fixture.ts",
     ];
     const script = readFileSync(SCRIPT_PATH, "utf8");
@@ -123,7 +124,10 @@ describe("check-demo-import-boundary", () => {
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',
       "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',
-      "benchmark/visibility.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/selection-hide-workflow.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/visibility.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
       "fixtures/performance-fixture.ts": 'import { createPart } from "../../src/geometry/part";\n',
     });
     const result = runCheck(root);

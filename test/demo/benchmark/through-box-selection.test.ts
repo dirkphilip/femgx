@@ -7,35 +7,53 @@ import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
 import type { BoxSelectionRequest } from "../../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../../demo/workbench/selection/through-box-selection";
 
-const DENSE_CELLS = 28;
 const NARROW_RECT = { left: 390, top: 290, right: 410, bottom: 310, width: 20, height: 20 };
 const BROAD_RECT = { left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 };
+const HALF_RECT = { left: 0, top: 0, right: 400, bottom: 600, width: 400, height: 600 };
+
+const CASES = [
+  { family: "tet4" as const, gridSize: 28 },
+  { family: "hex8" as const, gridSize: 51 },
+] as const;
 
 describe("through-box selection benchmark", () => {
-  it("measures dense Tet4 query work after setup", async () => {
-    const { resolver, expectedCount } = denseTet4Fixture();
-    const narrowRequest = request(NARROW_RECT);
-    const broadRequest = request(BROAD_RECT);
-    const narrowTargets = await resolver(narrowRequest);
-    await resolver(broadRequest);
-    expect(narrowTargets.length).toBeGreaterThan(0);
-    const narrow = await measure(resolver, narrowRequest, 3, narrowTargets.length);
-    const broad = await measure(resolver, broadRequest, 3, expectedCount);
+  it.each(CASES)(
+    "measures dense $family query work after setup",
+    async ({ family, gridSize }) => {
+      const { resolver, expectedCount } = denseFixture(family, gridSize);
+      const narrowRequest = request(NARROW_RECT);
+      const broadRequest = request(BROAD_RECT);
+      const halfRequest = request(HALF_RECT);
+      const narrowTargets = await resolver(narrowRequest);
+      const halfTargets = await resolver(halfRequest);
+      const broadTargets = await resolver(broadRequest);
+      expect(narrowTargets.length).toBeGreaterThan(0);
+      expect(halfTargets.length).toBeGreaterThan(0);
+      expect(halfTargets.length).toBeLessThan(broadTargets.length);
+      const narrow = await measure(resolver, narrowRequest, 3, narrowTargets.length);
+      const half = await measure(resolver, halfRequest, 3, halfTargets.length);
+      const broad = await measure(resolver, broadRequest, 3, expectedCount);
 
-    console.info(
-      `through-box Tet4 ${DENSE_CELLS}^3: narrow median ${narrow.toFixed(2)} ms, ` +
-        `broad median ${broad.toFixed(2)} ms, ${expectedCount} elements`,
-    );
-    expect(narrow).toBeGreaterThanOrEqual(0);
-    expect(broad).toBeGreaterThanOrEqual(0);
-  }, 30_000);
+      console.info(
+        `through-box ${family} ${gridSize}^3: narrow median ${narrow.toFixed(2)} ms, ` +
+          `half median ${half.toFixed(2)} ms (${halfTargets.length} elements), ` +
+          `broad median ${broad.toFixed(2)} ms, ${expectedCount} elements`,
+      );
+      expect(narrow).toBeGreaterThanOrEqual(0);
+      expect(broad).toBeGreaterThanOrEqual(0);
+    },
+    30_000,
+  );
 });
 
-function denseTet4Fixture(): {
+function denseFixture(
+  family: "tet4" | "hex8",
+  gridSize: number,
+): {
   readonly resolver: ReturnType<typeof throughIntersectionBoxSelectionResolver>;
   readonly expectedCount: number;
 } {
-  const part = createStructuredFePart(1, "tet4", DENSE_CELLS);
+  const part = createStructuredFePart(1, family, gridSize);
   const scene: Scene = {
     rootAssemblyId: 0,
     parts: new Map([[part.id, part]]),
@@ -61,12 +79,12 @@ function denseTet4Fixture(): {
     view: {
       camera: createCamera({
         mode: "orthographic",
-        position: [14, 14, 80],
-        target: [14, 14, 14],
+        position: [gridSize / 2, gridSize / 2, gridSize * 3],
+        target: [gridSize / 2, gridSize / 2, gridSize / 2],
         up: [0, 1, 0],
         width: 800,
         height: 600,
-        orthoHeight: 28,
+        orthoHeight: gridSize,
       }),
     },
     interaction: { state: createInteractionState() },
@@ -75,7 +93,7 @@ function denseTet4Fixture(): {
   } as unknown as Viewport;
   return {
     resolver: throughIntersectionBoxSelectionResolver(() => view),
-    expectedCount: DENSE_CELLS ** 3 * 6,
+    expectedCount: family === "tet4" ? gridSize ** 3 * 6 : gridSize ** 3,
   };
 }
 
@@ -96,7 +114,7 @@ async function measure(
   return durations[Math.floor(durations.length / 2)] ?? 0;
 }
 
-function request(rect: typeof NARROW_RECT): BoxSelectionRequest {
+function request(rect: typeof NARROW_RECT | typeof HALF_RECT): BoxSelectionRequest {
   return {
     event: {
       type: "complete",

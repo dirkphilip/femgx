@@ -218,6 +218,38 @@ export interface VisibilityBenchmarkReport {
   readonly phases: readonly VisibilityBenchmarkPhase[];
 }
 
+export interface SelectionHideWorkflowFrames {
+  readonly firstFrameMs: number;
+  readonly steadyFrameMs: BenchmarkPercentiles;
+  readonly movingFirstFrameMs: number;
+  readonly movingSteadyFrameMs: BenchmarkPercentiles;
+}
+
+export interface SelectionHideWorkflowPhase {
+  readonly interactionStateMs: number;
+  readonly interactionSyncMs: number;
+  readonly frames: SelectionHideWorkflowFrames;
+  readonly highlightRetainedBytes: number;
+  readonly topologyRetainedBytes: number;
+  readonly gpuMemoryDeltaBytes: number;
+}
+
+/** Real-WebGPU half-element select/hide workflow with dense presentation enabled. */
+export interface SelectionHideWorkflowReport {
+  readonly nodes: true;
+  readonly authoredEdges: true;
+  readonly presentationGpuCost: BenchmarkGpuCostSnapshot;
+  readonly selectedElementCount: number;
+  readonly selectedOccurrenceCount: number;
+  readonly presentationStateMs: number;
+  readonly presentationSyncMs: number;
+  readonly selection: SelectionHideWorkflowPhase;
+  readonly hide: SelectionHideWorkflowPhase;
+  readonly restoreStateMs: number;
+  readonly restoreSyncMs: number;
+  readonly restoredVisibleElementCount: number;
+}
+
 export interface ManyPieceInteractionPhase {
   readonly id: "one" | "half" | "all";
   readonly targetCount: number;
@@ -336,6 +368,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly nodeSelection?: NodeSelectionBenchmarkReport;
   readonly hover?: HoverBenchmarkReport;
   readonly visibility?: VisibilityBenchmarkReport;
+  readonly selectionHideWorkflow?: SelectionHideWorkflowReport;
   readonly manyPiece?: ManyPieceBenchmarkReport;
   readonly combinedOverlay?: CombinedOverlayBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;

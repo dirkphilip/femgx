@@ -9,6 +9,7 @@ import type {
 } from "../../../src/entries/root";
 import type { BoxSelectionFrustum } from "../../../src/entries/interaction";
 import type { DeformationState } from "../../../src/entries/results";
+import { classifyLocalBounds, type LocalBoundsPlane } from "./through-box-bounds";
 
 const PRIMITIVE_ARITY: Record<Primitive, number> = {
   triangles: 3,
@@ -142,12 +143,16 @@ export interface ElementQuery {
   readonly elementBounds: Float64Array;
   readonly elementIndex: number;
   readonly points: readonly MutableVec3[];
+  readonly boundsPlanes: readonly LocalBoundsPlane[] | undefined;
 }
 
 /** Tests one element against the exact frustum and any active section plane. */
 export function elementIntersectsBox(query: ElementQuery): boolean {
   // Deformation changes the cached local bounds, so those queries keep the exact primitive path.
-  if (query.deformation === undefined && !boundsMayIntersect(query)) return false;
+  if (query.deformation === undefined) {
+    const bounds = boundsIntersection(query);
+    if (bounds !== undefined) return bounds;
+  }
   for (const range of query.element.primitiveRanges) {
     const geometry = query.geometryByPrimitive.get(range.primitive);
     if (geometry === undefined) continue;
@@ -172,68 +177,10 @@ export function elementIntersectsBox(query: ElementQuery): boolean {
   return false;
 }
 
-function boundsMayIntersect(query: ElementQuery): boolean {
-  const base = query.elementIndex * 6;
-  if (!isAffineTransform(query.transform)) return true;
-  for (const name of FRUSTUM_PLANES) {
-    if (
-      maxBoundsDistance(query.elementBounds, base, query.transform, query.frustum[name]) <
-      -query.tolerance
-    ) {
-      return false;
-    }
-  }
-  return (
-    query.sectionPlane === undefined ||
-    maxBoundsDistance(query.elementBounds, base, query.transform, query.sectionPlane) >=
-      -query.tolerance
-  );
-}
-
-function isAffineTransform(transform: Mat4): boolean {
-  return (
-    matrixValue(transform, 3) === 0 &&
-    matrixValue(transform, 7) === 0 &&
-    matrixValue(transform, 11) === 0 &&
-    matrixValue(transform, 15) === 1
-  );
-}
-
-function maxBoundsDistance(
-  bounds: Float64Array,
-  base: number,
-  transform: Mat4,
-  plane: { readonly normal: Vec3; readonly distance: number },
-): number {
-  const minX = bounds[base] ?? Infinity;
-  const minY = bounds[base + 1] ?? Infinity;
-  const minZ = bounds[base + 2] ?? Infinity;
-  const maxX = bounds[base + 3] ?? -Infinity;
-  const maxY = bounds[base + 4] ?? -Infinity;
-  const maxZ = bounds[base + 5] ?? -Infinity;
-  const x =
-    plane.normal[0] * matrixValue(transform, 0) +
-    plane.normal[1] * matrixValue(transform, 1) +
-    plane.normal[2] * matrixValue(transform, 2);
-  const y =
-    plane.normal[0] * matrixValue(transform, 4) +
-    plane.normal[1] * matrixValue(transform, 5) +
-    plane.normal[2] * matrixValue(transform, 6);
-  const z =
-    plane.normal[0] * matrixValue(transform, 8) +
-    plane.normal[1] * matrixValue(transform, 9) +
-    plane.normal[2] * matrixValue(transform, 10);
-  const constant =
-    plane.normal[0] * matrixValue(transform, 12) +
-    plane.normal[1] * matrixValue(transform, 13) +
-    plane.normal[2] * matrixValue(transform, 14) +
-    plane.distance;
-  return (
-    constant +
-    (x >= 0 ? x * maxX : x * minX) +
-    (y >= 0 ? y * maxY : y * minY) +
-    (z >= 0 ? z * maxZ : z * minZ)
-  );
+function boundsIntersection(query: ElementQuery): boolean | undefined {
+  const planes = query.boundsPlanes;
+  if (planes === undefined) return undefined;
+  return classifyLocalBounds(query.elementBounds, query.elementIndex * 6, planes, query.tolerance);
 }
 
 function matrixValue(matrix: Mat4, index: number): number {

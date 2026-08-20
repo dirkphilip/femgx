@@ -63,13 +63,18 @@ interface FullGeometryBuffers {
 function partTopologyData(
   part: Part,
   geometry: Geometry,
-): { readonly elementOrdinals: Uint32Array; readonly faceBodyPickIds: Uint32Array } {
+): {
+  readonly elementOrdinals: Uint32Array;
+  readonly faceBodyPickIds: Uint32Array;
+} {
   const elements = elementsForPart(part) ?? [];
+  const metadata = getPartSemanticIndex(part);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elements);
   return {
     elementOrdinals: buildElementPrimitiveOrdinals(geometry, elements, (elementId) =>
-      getPartSemanticIndex(part).elementOrdinal(elementId),
+      metadata.elementOrdinal(elementId),
     ),
-    faceBodyPickIds: buildPrimitiveFaceBodyPickData(geometry, elements),
+    faceBodyPickIds,
   };
 }
 
@@ -269,6 +274,10 @@ function uploadEdgeResourceData(
     elementsForPart(part) ?? [],
     (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
+  const metadata = getPartSemanticIndex(part);
+  const conditionElementOrdinals = conditionOrdinals(edgeData.elementIds, (elementId) =>
+    metadata.elementOrdinal(elementId - 1),
+  );
   return {
     edgeVertexBuffer: vertexBuffer,
     edgeIndexBuffer: createIndexBuffer(device, drawData.indices),
@@ -281,13 +290,19 @@ function uploadEdgeResourceData(
             edgeData.bodyRanges,
             edgeData.bodyIds,
             edgeData.elementIds,
-            { elementOrdinals, primitiveIds: [], edgeIds: drawData.edgeIds },
+            {
+              elementOrdinals,
+              conditionElementOrdinals,
+              primitiveIds: [],
+              edgeIds: drawData.edgeIds,
+            },
           )
         : packUnownedEdgeTopologyData(
             edgeData,
             elementOrdinals,
             options.primitiveElementPickIds,
             drawData.edgeIds,
+            (elementPickId) => metadata.elementOrdinal(elementPickId - 1) ?? 0,
           ),
       GPUBufferUsage.STORAGE,
     ),
@@ -309,6 +324,7 @@ function createTopologyBuffer(
   edgeData: MeshEdgeData,
   metadata: {
     readonly elementOrdinals: ArrayLike<number>;
+    readonly conditionElementOrdinals?: ArrayLike<number>;
     readonly primitiveIds: ArrayLike<number>;
     readonly edgeIds: ArrayLike<number>;
     readonly cornerIndices?: ArrayLike<number>;
@@ -377,4 +393,16 @@ function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
     indices.length > 0 ? indices : new Uint32Array(1),
     GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE,
   );
+}
+
+function conditionOrdinals(
+  elementPickIds: Uint32Array,
+  ordinal: (elementPickId: number) => number | undefined,
+): Uint32Array {
+  const ordinals = new Uint32Array(elementPickIds.length);
+  for (let index = 0; index < elementPickIds.length; index += 1) {
+    const pickId = elementPickIds[index] ?? 0;
+    if (pickId !== 0) ordinals[index] = ordinal(pickId) ?? 0;
+  }
+  return ordinals;
 }
