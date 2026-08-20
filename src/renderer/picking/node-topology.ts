@@ -1,4 +1,10 @@
-import type { ElementTessellation, Geometry, Part, PartElements } from "../../geometry/part";
+import {
+  geometryUsesPartNodeTable,
+  type ElementTessellation,
+  type Geometry,
+  type Part,
+  type PartElements,
+} from "../../geometry/part";
 import { nodeOwnersAreCanonical, sortNodeOwners } from "./node-topology-order";
 
 interface NodeTopologyData {
@@ -237,15 +243,17 @@ function sequentialNodePickIds(nodeCount: number): Uint32Array {
 export function buildNodeSpritePickIds(part: Part): Uint32Array {
   const nodeCount = (part.nodePositions?.length ?? 0) / 3;
   const used = new Uint8Array(nodeCount);
-  let usedCount = 0;
   for (const geometry of part.geometries) {
     if (geometry.primitive === "points") continue;
-    for (const pickId of geometry.nodePickIds ?? []) {
-      if (pickId <= 0 || pickId > nodeCount || used[pickId - 1] !== 0) continue;
-      used[pickId - 1] = 1;
-      usedCount += 1;
+    const nodePickIds = geometry.nodePickIds;
+    if (nodePickIds === undefined) continue;
+    if (geometryUsesPartNodeTable(part, geometry)) {
+      for (const vertex of geometry.indices) markNodePickId(used, nodePickIds[vertex] ?? 0);
+    } else {
+      for (const pickId of nodePickIds) markNodePickId(used, pickId);
     }
   }
+  const usedCount = countUsedNodes(used);
   const ids = new Uint32Array(usedCount);
   let target = 0;
   for (let nodeId = 0; nodeId < nodeCount; nodeId += 1) {
@@ -254,4 +262,15 @@ export function buildNodeSpritePickIds(part: Part): Uint32Array {
     target += 1;
   }
   return ids;
+}
+
+function markNodePickId(used: Uint8Array, pickId: number): void {
+  if (pickId <= 0 || pickId > used.length) return;
+  used[pickId - 1] = 1;
+}
+
+function countUsedNodes(used: Uint8Array): number {
+  let count = 0;
+  for (const value of used) count += value;
+  return count;
 }

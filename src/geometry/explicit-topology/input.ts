@@ -9,17 +9,8 @@ import { validateSurfaceNodes, writeSurfaceFacetTriangles } from "./validation";
 export interface ExplicitTopologyInput {
   /** Flat xyz coordinates indexed by every compact connectivity value. */
   readonly positions: ArrayLike<number>;
-  /** Count-prefixed polygon records plus aligned element and face ownership. */
-  readonly facets?: {
-    /** Positive counts are linear; `-6` and `-8` are interleaved quadratic loops. */
-    readonly connectivity: ArrayLike<number>;
-    /** One owning element id per facet record. */
-    readonly elementIds: ArrayLike<ElementId>;
-    /** One zero-based face index per facet record. */
-    readonly faceIndices: ArrayLike<number>;
-    /** Aligned count-prefixed records containing zero or one neighbor element id. */
-    readonly neighbors?: ArrayLike<number>;
-  };
+  /** Count-prefixed polygon records with element ownership and optional face identity. */
+  readonly facets?: FaceOwnedSurfaceFacets | ElementOwnedSurfaceFacets;
   /** Count-prefixed `2, a, b` or `3, a, mid, b` records. */
   readonly lines?: {
     /** Count-prefixed line connectivity records. */
@@ -38,24 +29,61 @@ export interface ExplicitTopologyInput {
   readonly bodies?: readonly GeometryBody[];
 }
 
-type SurfaceFacets = NonNullable<ExplicitTopologyInput["facets"]>;
+/** Facets that retain authored face, neighbor, and exact-edge identity. */
+export interface FaceOwnedSurfaceFacets {
+  /** Positive counts are linear; `-6` and `-8` are interleaved quadratic loops. */
+  readonly connectivity: ArrayLike<number>;
+  /** One owning element id per facet record. */
+  readonly elementIds: ArrayLike<ElementId>;
+  /** One zero-based face index per facet record. */
+  readonly faceIndices: ArrayLike<number>;
+  /** Aligned count-prefixed records containing zero or one neighbor element id. */
+  readonly neighbors?: ArrayLike<number>;
+}
+
+/** Facets that retain stable element and node identity only. */
+export interface ElementOwnedSurfaceFacets {
+  /** Positive counts are linear; `-6` and `-8` are interleaved quadratic loops. */
+  readonly connectivity: ArrayLike<number>;
+  /** One owning element id per facet record. */
+  readonly elementIds: ArrayLike<ElementId>;
+  /** Omission declares that this facet stream has no authored face identity. */
+  readonly faceIndices?: never;
+  /** Neighbors are authored face semantics and require `faceIndices`. */
+  readonly neighbors?: never;
+}
+
+type SurfaceFacets = FaceOwnedSurfaceFacets | ElementOwnedSurfaceFacets;
 type SurfaceLines = NonNullable<ExplicitTopologyInput["lines"]>;
 type SurfacePoints = NonNullable<ExplicitTopologyInput["points"]>;
 
-/** Dense validated facet columns retained only while explicit topology compiles. */
-export interface SurfaceFacetColumns {
+/** Dense validated facet columns used by the explicit-topology compiler. */
+interface SurfaceFacetColumnsBase {
   readonly count: number;
   readonly nodeOffsets: Uint32Array;
   readonly nodeIds: Uint32Array;
   readonly elementIds: Uint32Array;
-  readonly faceIndices: Uint32Array;
-  readonly neighborElementIds: Uint32Array;
-  /** A boundary has no neighbor even when element id zero is valid. */
-  readonly neighborPresent: Uint8Array;
   readonly quadratic: Uint8Array;
   readonly triangleOffsets: Uint32Array;
   readonly triangleNodeIds: Uint32Array;
 }
+
+/** Dense authored face columns present only when the host supplied face identity. */
+export interface FaceOwnedSurfaceFacetColumns extends SurfaceFacetColumnsBase {
+  readonly faceIndices: Uint32Array;
+  readonly neighborElementIds: Uint32Array;
+  /** A boundary has no neighbor even when element id zero is valid. */
+  readonly neighborPresent: Uint8Array;
+}
+
+/** Dense element-only facet columns with no face or neighbor storage. */
+export interface ElementOwnedSurfaceFacetColumns extends SurfaceFacetColumnsBase {
+  readonly faceIndices?: undefined;
+  readonly neighborElementIds?: undefined;
+  readonly neighborPresent?: undefined;
+}
+
+export type SurfaceFacetColumns = FaceOwnedSurfaceFacetColumns | ElementOwnedSurfaceFacetColumns;
 
 /** Dense validated line columns retained only while explicit topology compiles. */
 export interface SurfaceLineColumns {
@@ -134,10 +162,19 @@ function readFacets(
     validFacetCount,
     facetTriangleCount,
   );
+  const faceOwned = isFaceOwnedSurfaceFacets(input);
+  const neighborInput = (input as { readonly neighbors?: ArrayLike<number> }).neighbors;
+  if (!faceOwned && neighborInput !== undefined) {
+    throw new ExplicitTopologyError(
+      "face-identity-required",
+      "Surface facet neighbors require aligned faceIndices",
+    );
+  }
   validateAlignedCount("facet elementIds", input.elementIds.length, layout.records);
-  validateAlignedCount("facet faceIndices", input.faceIndices.length, layout.records);
-  const neighbors = readNeighbors(input.neighbors, layout.records);
-  const columns = createFacetColumns(layout);
+  if (faceOwned)
+    validateAlignedCount("facet faceIndices", input.faceIndices.length, layout.records);
+  const neighbors = faceOwned ? readNeighbors(neighborInput, layout.records) : undefined;
+  const columns = createFacetColumns(layout, faceOwned);
   let sourceOffset = 0;
   let nodeOffset = 0;
   let triangleOffset = 0;
@@ -145,19 +182,9 @@ function readFacets(
     const count = requiredCount(input.connectivity, sourceOffset);
     const size = Math.abs(count);
     const elementId = requiredElementId(input.elementIds, record, "Facet");
-    const faceIndex = requiredFaceIndex(input.faceIndices, record, elementId);
-    const neighborId = neighbors.ids[record] ?? 0;
-    if ((neighbors.present[record] ?? 0) === 1 && neighborId === elementId) {
-      throw new ExplicitTopologyError(
-        "invalid-element-id",
-        `Facet ${elementId}/${faceIndex} cannot neighbor its owning element`,
-      );
-    }
     columns.nodeOffsets[record] = nodeOffset;
     columns.elementIds[record] = elementId;
-    columns.faceIndices[record] = faceIndex;
-    columns.neighborElementIds[record] = neighborId;
-    columns.neighborPresent[record] = neighbors.present[record] ?? 0;
+    writeFacetIdentity(columns, input, neighbors, record, elementId);
     columns.quadratic[record] = count < 0 ? 1 : 0;
     columns.triangleOffsets[record] = triangleOffset / 3;
     writeSurfaceFacetTriangles(input.connectivity, sourceOffset + 1, count, positions, {
@@ -173,8 +200,30 @@ function readFacets(
   }
   columns.nodeOffsets[layout.records] = nodeOffset;
   columns.triangleOffsets[layout.records] = triangleOffset / 3;
-  validateUniqueSurfaceFaces(columns.elementIds, columns.faceIndices);
+  if (isFaceOwnedFacetColumns(columns))
+    validateUniqueSurfaceFaces(columns.elementIds, columns.faceIndices);
   return columns;
+}
+
+function writeFacetIdentity(
+  columns: SurfaceFacetColumns,
+  input: SurfaceFacets,
+  neighbors: SurfaceNeighbors | undefined,
+  record: number,
+  elementId: ElementId,
+): void {
+  if (!isFaceOwnedFacetColumns(columns) || !isFaceOwnedSurfaceFacets(input)) return;
+  const faceIndex = requiredFaceIndex(input.faceIndices, record, elementId);
+  const neighborId = neighbors?.ids[record] ?? 0;
+  if ((neighbors?.present[record] ?? 0) === 1 && neighborId === elementId) {
+    throw new ExplicitTopologyError(
+      "invalid-element-id",
+      `Facet ${elementId}/${faceIndex} cannot neighbor its owning element`,
+    );
+  }
+  columns.faceIndices[record] = faceIndex;
+  columns.neighborElementIds[record] = neighborId;
+  columns.neighborPresent[record] = neighbors?.present[record] ?? 0;
 }
 
 function readLines(input: SurfaceLines | undefined, nodeCount: number): SurfaceLineColumns {
@@ -297,19 +346,24 @@ function readNeighbors(input: ArrayLike<number> | undefined, facetCount: number)
   return { ids, present };
 }
 
-function createFacetColumns(layout: ConnectivityLayout): SurfaceFacetColumns {
-  return {
+function createFacetColumns(layout: ConnectivityLayout, faceOwned: boolean): SurfaceFacetColumns {
+  const common: SurfaceFacetColumnsBase = {
     count: layout.records,
     nodeOffsets: new Uint32Array(layout.records + 1),
     nodeIds: new Uint32Array(layout.nodes),
     elementIds: new Uint32Array(layout.records),
-    faceIndices: new Uint32Array(layout.records),
-    neighborElementIds: new Uint32Array(layout.records),
-    neighborPresent: new Uint8Array(layout.records),
     quadratic: new Uint8Array(layout.records),
     triangleOffsets: new Uint32Array(layout.records + 1),
     triangleNodeIds: new Uint32Array(layout.primitives * 3),
   };
+  return faceOwned
+    ? {
+        ...common,
+        faceIndices: new Uint32Array(layout.records),
+        neighborElementIds: new Uint32Array(layout.records),
+        neighborPresent: new Uint8Array(layout.records),
+      }
+    : common;
 }
 
 function createLineColumns(layout: ConnectivityLayout): SurfaceLineColumns {
@@ -323,7 +377,7 @@ function createLineColumns(layout: ConnectivityLayout): SurfaceLineColumns {
 }
 
 function emptyFacets(): SurfaceFacetColumns {
-  return createFacetColumns({ records: 0, nodes: 0, primitives: 0 });
+  return createFacetColumns({ records: 0, nodes: 0, primitives: 0 }, false);
 }
 
 function emptyLines(): SurfaceLineColumns {
@@ -382,4 +436,18 @@ function validateAlignedCount(label: string, actual: number, expected: number): 
     "record-count-mismatch",
     `Surface ${label} has ${actual} entries for ${expected} records`,
   );
+}
+
+function isFaceOwnedSurfaceFacets(input: SurfaceFacets): input is FaceOwnedSurfaceFacets {
+  return input.faceIndices !== undefined;
+}
+
+/**
+ * Returns whether validated facet columns retain authored face identity.
+ * @internal
+ */
+export function isFaceOwnedFacetColumns(
+  columns: SurfaceFacetColumns,
+): columns is FaceOwnedSurfaceFacetColumns {
+  return columns.faceIndices !== undefined;
 }

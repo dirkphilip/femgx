@@ -12,7 +12,7 @@ Related: [[requirements/product-scope|Product scope]],
 
 One reusable logical part may contain any combination of:
 
-- polygonal facets owned by stable faces and elements;
+- polygonal facets owned by stable elements and, when supplied, stable faces;
 - authored line elements; and
 - authored point elements.
 
@@ -69,21 +69,30 @@ coordinates. An adapter may normalize the established host ordering into the
 existing quadratic tessellator. The sign is decoded once at the authoring
 boundary rather than leaking into geometry or renderer code.
 
-`ExplicitTopologyInput.facets` carries parallel `elementIds` and `faceIndices`
-arrays with one entry per decoded facet. Its optional `neighbors` stream uses
-aligned `0` records for boundaries and `1, neighborElementId` records for an
-interface. `lines.connectivity` accepts `2, a, b` and `3, a, mid, b`; points
-use a flat `nodeIds` array. Lines and points have aligned `elementIds`. Every
-field accepts typed arrays without requiring one JavaScript object per face.
+`ExplicitTopologyInput.facets` always carries a parallel `elementIds` array
+with one entry per decoded facet. Supplying an aligned `faceIndices` array makes
+the stream face-owned; its optional `neighbors` stream then uses aligned `0`
+records for boundaries and `1, neighborElementId` records for an interface.
+Omitting `faceIndices` makes the stream element/node-only. It retains no face,
+neighbor, face-subset, or facet-derived authored-edge semantics, and supplying
+`neighbors` in that form is rejected at the boundary. `lines.connectivity`
+accepts `2, a, b` and `3, a, mid, b`; points use a flat `nodeIds` array. Lines
+and points have aligned `elementIds`. Every field accepts typed arrays without
+requiring one JavaScript object per face.
 
 ```ts
 const part = createPartFromExplicitTopology(10, {
   positions,
-  facets: { connectivity: facets, elementIds, faceIndices },
+  facets: { connectivity: facets, elementIds }, // no authored face identity
   lines: { connectivity: lines, elementIds: lineElementIds },
   points: { nodeIds: pointNodeIds, elementIds: pointElementIds },
 });
 ```
+
+Add `faceIndices` (and, when present, `neighbors`) only when the host needs
+authored face picking, face visibility, adjacency, or facet-derived exact edge
+identity. The face-owned and element/node-only forms share the same one `Part`
+and assembly-placement lifecycle.
 
 ## Node and primitive identity
 
@@ -95,9 +104,14 @@ back when needed. Repeated records share a node by reusing its local id, while
 coincident coordinates with different ids remain distinct nodes.
 
 The compiled part has at most one triangle, line, and point geometry group. An
-element may own ranges in more than one group; facet triangles additionally map
-to their oriented face. Construction validates and sizes the typed output
-buffers directly so the input connectivity can be released afterward.
+element may own ranges in more than one group; face-owned facet triangles also
+map to their oriented face. Construction copies `positions` once into one
+part-owned dense Float32 node table. Every primitive group's indices address
+that table directly, and one shared private `nodeId + 1` map preserves node
+picking and deformation without copied per-group coordinate or identity arrays.
+Bounds use only node rows referenced by retained connectivity, so unused source
+rows do not enlarge the part. Renderer-specific triangle corners, line quads,
+and point sprites may still be derived per draw path.
 
 Authored line elements are not inferred surface edges, point elements are not
 node annotations, and tessellation diagonals are never authored edges. Exact
@@ -106,8 +120,10 @@ topology from which femgx can derive them.
 
 Only retained geometry participates in rendering, results, and interaction.
 Elements with no retained primitive have no renderer identity; nodal results
-and deformation require only retained nodes. Geometry is uploaded once per
-part and reused by every assembly placement.
+and deformation require only retained nodes. An element/node-only facet stream
+renders and picks elements and nodes, but face picks resolve to no target and
+node face-derived adjacency is empty. Geometry is uploaded once per part and
+reused by every assembly placement.
 
 ## Replacement and negative space
 

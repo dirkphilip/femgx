@@ -128,11 +128,17 @@ without reconstructing omitted solid connectivity.
 ```ts
 const part = createPartFromExplicitTopology(10, {
   positions,
-  facets: { connectivity: facets, elementIds, faceIndices },
+  facets: { connectivity: facets, elementIds },
   lines: { connectivity: lines, elementIds: lineElementIds },
   points: { nodeIds: pointNodeIds, elementIds: pointElementIds },
 });
 ```
+
+The shown facet form is element/node-only: it retains host-mappable element and
+node identity but no authored face, neighbor, or facet-derived edge identity.
+Add aligned `faceIndices` (and optional `neighbors`) when face capability is
+required. All primitive leaves reference one copied part-owned node table; this
+is private `Part` construction detail, not a packed-geometry or renderer API.
 
 Future host-authored CAD topology is explicitly Deferred by the
 [[requirements/product-scope#semantic-cad-topology-is-deferred|scope contract]].
