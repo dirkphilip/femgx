@@ -1,4 +1,4 @@
-import type { SurfaceFacetColumns, SurfaceLineColumns } from "../explicit-topology/input";
+import type { FaceOwnedSurfaceFacetColumns, SurfaceLineColumns } from "../explicit-topology/input";
 import { sortIndexRows } from "../../math/index-merge-sort";
 import type { DirectEdgeSources } from "./direct-edge-columns";
 
@@ -12,7 +12,7 @@ export interface DirectEdgeCandidates {
 }
 
 /** Builds sorted, deduplicated facet edges without descriptor records. */
-export function surfaceFacetEdgeSources(columns: SurfaceFacetColumns): DirectEdgeSources {
+export function surfaceFacetEdgeSources(columns: FaceOwnedSurfaceFacetColumns): DirectEdgeSources {
   let edges = 0;
   let nodes = 0;
   for (let record = 0; record < columns.count; record += 1) {

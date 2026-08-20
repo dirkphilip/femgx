@@ -1,4 +1,4 @@
-import type { Part, PartId } from "../geometry/part";
+import { geometryUsesPartNodeTable, type Part, type PartId } from "../geometry/part";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
 import { elementalResultIndex, scalarAt, type ScalarField } from "../results/fields";
 import { mapScalarToColor, type ScalarColorMap } from "../results/mapping";
@@ -106,8 +106,17 @@ export function mergedNodePickIds(part: Part): Uint32Array | undefined {
   const ids = new Set<number>();
   let hasNodeIds = false;
   for (const geometry of part.geometries) {
-    if (geometry.nodePickIds !== undefined) hasNodeIds = true;
-    for (const pickId of geometry.nodePickIds ?? []) ids.add(pickId);
+    const nodePickIds = geometry.nodePickIds;
+    if (nodePickIds === undefined) continue;
+    hasNodeIds = true;
+    if (geometryUsesPartNodeTable(part, geometry)) {
+      for (const vertex of geometry.indices) {
+        const pickId = nodePickIds[vertex] ?? 0;
+        if (pickId > 0) ids.add(pickId);
+      }
+    } else {
+      for (const pickId of nodePickIds) if (pickId > 0) ids.add(pickId);
+    }
   }
   return hasNodeIds ? Uint32Array.from(ids) : undefined;
 }

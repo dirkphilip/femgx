@@ -101,6 +101,14 @@ export interface PartInput {
 const partBrand: unique symbol = Symbol("Part");
 
 /**
+ * Returns whether a geometry indexes the owning part's canonical node table.
+ * @internal
+ */
+export function geometryUsesPartNodeTable(part: Part, geometry: Geometry): boolean {
+  return part.nodePositions !== undefined && geometry.positions === part.nodePositions;
+}
+
+/**
  * Validates and constructs one immutable part boundary.
  *
  * `input.geometries` is the required plural collection: each primitive kind
@@ -225,6 +233,8 @@ export function createPartFromGraphColumns(
     readonly geometries: readonly GeometryInput[];
     readonly nodePositions?: Float32Array;
     readonly graph: PartSemanticGraph;
+    /** Precomputed from retained referenced geometry by a direct compiler. */
+    readonly bounds?: Bounds;
   },
 ): Part {
   validatePartId(id);
@@ -232,12 +242,16 @@ export function createPartFromGraphColumns(
     throw new Error("Part must contain at least one geometry group");
   validateNodePositions(input.nodePositions);
   for (const geometry of input.geometries) validateGeometryArrays(geometry);
-  const part = createPartRecord(id, {
-    geometries: retainedGeometries(input.geometries, input.graph),
-    elements: createPartElements(input.graph),
-    ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
-    ...(input.graph.bodyIds.length === 0 ? {} : { bodies: createPartBodies(input.graph) }),
-  });
+  const part = createPartRecord(
+    id,
+    {
+      geometries: retainedGeometries(input.geometries, input.graph),
+      elements: createPartElements(input.graph),
+      ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
+      ...(input.graph.bodyIds.length === 0 ? {} : { bodies: createPartBodies(input.graph) }),
+    },
+    input.bounds,
+  );
   registerPartSemanticGraph(part, input.graph);
   for (let ordinal = 0; ordinal < part.geometries.length; ordinal += 1) {
     const geometry = part.geometries[ordinal];

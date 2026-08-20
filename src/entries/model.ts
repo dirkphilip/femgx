@@ -18,8 +18,10 @@ export {
 export {
   createPartFromExplicitTopology,
   ExplicitTopologyError,
+  type ElementOwnedSurfaceFacets,
   type ExplicitTopologyInput,
   type ExplicitTopologyValidationCode,
+  type FaceOwnedSurfaceFacets,
 } from "../geometry/explicit-topology/part";
 export {
   ElementShape,

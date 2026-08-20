@@ -9,6 +9,7 @@ export type ExplicitTopologyValidationCode =
   | "record-count-mismatch"
   | "invalid-element-id"
   | "invalid-face-index"
+  | "face-identity-required"
   | "duplicate-face"
   | "too-few-nodes"
   | "invalid-node-id"

@@ -38,6 +38,13 @@ disconnected, overlapping, or non-manifold: “explicit topology” describes th
 representation, not a promise that the facets form a closed mathematical
 surface.
 
+Facets always have stable element ownership. To render and interact only at
+element and node granularity, omit `faceIndices`; the resulting part has no
+authored face, neighbor, or facet-derived edge identity. Add aligned
+`faceIndices` and optional `neighbors` only when face interaction is needed.
+All facet, line, and point connectivity indexes the same dense part-local
+`positions` table, copied once by the constructor.
+
 ## The canonical flow
 
 ```text

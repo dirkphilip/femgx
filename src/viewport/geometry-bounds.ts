@@ -1,4 +1,5 @@
 import {
+  geometryUsesPartNodeTable,
   isFiniteBounds,
   logicalPrimitiveCount,
   primitiveRangesForElement,
@@ -182,7 +183,13 @@ function nodeBounds(
   deformation: DeformationState | undefined,
 ): Bounds | undefined {
   const nodePickId = nodeId + 1;
-  const hasNode = part.geometries.some((geometry) => geometry.nodePickIds?.includes(nodePickId));
+  const hasNode = part.geometries.some((geometry) => {
+    const nodePickIds = geometry.nodePickIds;
+    if (nodePickIds === undefined) return false;
+    return geometryUsesPartNodeTable(part, geometry)
+      ? geometry.indices.some((vertex) => nodePickIds[vertex] === nodePickId)
+      : nodePickIds.includes(nodePickId);
+  });
   if (!hasNode) return undefined;
   const nodePositions = part.nodePositions;
   if (nodePositions !== undefined) {
@@ -376,14 +383,8 @@ function displacedNode(
 }
 
 function pointBounds(point: readonly [number, number, number]): Bounds {
-  return {
-    minX: point[0],
-    minY: point[1],
-    minZ: point[2],
-    maxX: point[0],
-    maxY: point[1],
-    maxZ: point[2],
-  };
+  const [x, y, z] = point;
+  return { minX: x, minY: y, minZ: z, maxX: x, maxY: y, maxZ: z };
 }
 
 function combineBounds(bounds: readonly (Bounds | undefined)[]): Bounds | undefined {

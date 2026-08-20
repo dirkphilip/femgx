@@ -160,9 +160,10 @@ describe("createElementFixture", () => {
         ],
       },
     ]);
-    const nodeIds = mixed?.geometries.map((geometry) =>
-      [...new Set(geometry.nodePickIds ?? [])].filter((id) => id !== 0),
-    );
+    const nodeIds = mixed?.geometries.map((geometry) => {
+      const mappedIds = geometry.indices.map((index) => geometry.nodePickIds?.[index] ?? 0);
+      return [...new Set(mappedIds)].filter((id) => id !== 0);
+    });
     expect(nodeIds).toEqual([[4, 5, 6], [2, 3], [1]]);
     expect(new Set(nodeIds?.flat()).size).toBe(6);
   });

@@ -1,5 +1,5 @@
 import { ordinalForId } from "../../elements/model-storage";
-import { type Part, type PartId, type Primitive } from "../part";
+import { type Bounds, type Part, type PartId, type Primitive } from "../part";
 import { createPartFromGraphColumns } from "../part";
 import {
   buildPartElementColumnsFromFragments,
@@ -16,6 +16,7 @@ import {
 import { completeFaceColumns, type FaceColumns } from "../semantic/face-columns";
 import {
   validateExplicitTopologyInput,
+  isFaceOwnedFacetColumns,
   type SurfaceFacetColumns,
   type SurfaceLineColumns,
   type ExplicitTopologyInput,
@@ -48,39 +49,50 @@ interface SurfaceFaceFragment {
 
 export { ExplicitTopologyError } from "../polygon-triangulation";
 export type { ExplicitTopologyValidationCode } from "../polygon-triangulation";
-export type { ExplicitTopologyInput } from "./input";
+export type {
+  ElementOwnedSurfaceFacets,
+  ExplicitTopologyInput,
+  FaceOwnedSurfaceFacets,
+} from "./input";
 
 /**
  * Compiles compact host-reduced facets, lines, and points into one mixed Part.
- * Connectivity is copied into renderer-owned typed buffers and may be released
- * by the caller after this function returns.
+ * Positions and connectivity are copied into part-owned typed storage and may
+ * be released by the caller after this function returns.
  * @category Scene and geometry
  */
 export function createPartFromExplicitTopology(partId: PartId, input: ExplicitTopologyInput): Part {
   const { positions, facets, lines, points } = validateExplicitTopologyInput(input);
+  const nodePickIds = sharedNodePickIds(positions.length / 3, facets, lines, points);
   const builds: SurfaceGeometryBuild<GeometryInput>[] = [];
-  if (facets.count > 0) builds.push(buildFacetGeometry(facets, positions));
-  if (lines.count > 0) builds.push(buildLineGeometry(lines, positions));
-  if (points.count > 0) builds.push(buildPointGeometry(points, positions));
-  if (builds.length === 0) builds.push(emptyTriangleGeometry());
+  if (facets.count > 0) builds.push(buildFacetGeometry(facets, positions, nodePickIds));
+  if (lines.count > 0) builds.push(buildLineGeometry(lines, positions, nodePickIds));
+  if (points.count > 0) builds.push(buildPointGeometry(points, positions, nodePickIds));
+  if (builds.length === 0) builds.push(emptyTriangleGeometry(positions, nodePickIds));
   const geometries = builds.map((build) => build.geometry);
   const columns = buildPartElementColumnsFromFragments(
     geometries,
     builds.map((build) => build.fragment),
   );
   assignBodyIds(columns, input.bodies);
-  const facetBuild = builds[0];
+  const facetBuild = builds.find((build) => build.faces !== undefined);
   const edgeSources = mergeSurfaceEdgeSources(builds);
   const graph = buildPartSemanticGraphFromColumns(geometries, columns, input.bodies, {
     ...(facetBuild?.faces === undefined ? {} : { faces: faceColumns(facetBuild.faces, columns) }),
     ...(edgeSources === undefined ? {} : { edgeSources }),
   });
-  return createPartFromGraphColumns(partId, { geometries, graph, nodePositions: positions });
+  return createPartFromGraphColumns(partId, {
+    geometries,
+    graph,
+    nodePositions: positions,
+    bounds: referencedGeometryBounds(geometries),
+  });
 }
 
 function buildFacetGeometry(
   columns: SurfaceFacetColumns,
   positions: Float32Array,
+  nodePickIds: Uint32Array,
 ): SurfaceGeometryBuild<TriangleGeometryInput> {
   const starts = columns.triangleOffsets.subarray(0, columns.count);
   const counts = new Uint32Array(columns.count);
@@ -89,30 +101,35 @@ function buildFacetGeometry(
       (columns.triangleOffsets[record + 1] ?? 0) - (columns.triangleOffsets[record] ?? 0);
   }
   return {
-    geometry: compactGeometry("triangles", columns.triangleNodeIds, positions),
+    geometry: sharedGeometry("triangles", columns.triangleNodeIds, positions, nodePickIds),
     fragment: {
       primitive: "triangles",
       elementIds: columns.elementIds,
       primitiveStarts: starts,
       primitiveCounts: counts,
     },
-    faces: {
-      elementIds: columns.elementIds,
-      faceIndices: columns.faceIndices,
-      primitiveStarts: starts,
-      primitiveCounts: counts,
-      neighborElementIds: columns.neighborElementIds,
-      neighborPresent: columns.neighborPresent,
-      nodeOffsets: columns.nodeOffsets,
-      nodeIds: columns.nodeIds,
-    },
-    edges: surfaceFacetEdgeSources(columns),
+    ...(isFaceOwnedFacetColumns(columns)
+      ? {
+          faces: {
+            elementIds: columns.elementIds,
+            faceIndices: columns.faceIndices,
+            primitiveStarts: starts,
+            primitiveCounts: counts,
+            neighborElementIds: columns.neighborElementIds,
+            neighborPresent: columns.neighborPresent,
+            nodeOffsets: columns.nodeOffsets,
+            nodeIds: columns.nodeIds,
+          },
+          edges: surfaceFacetEdgeSources(columns),
+        }
+      : {}),
   };
 }
 
 function buildLineGeometry(
   columns: SurfaceLineColumns,
   positions: Float32Array,
+  nodePickIds: Uint32Array,
 ): SurfaceGeometryBuild<LineGeometryInput> {
   const starts = new Uint32Array(columns.count);
   const counts = new Uint32Array(columns.count);
@@ -124,7 +141,7 @@ function buildLineGeometry(
     primitive += count;
   }
   return {
-    geometry: compactGeometry("lines", columns.segmentNodeIds, positions),
+    geometry: sharedGeometry("lines", columns.segmentNodeIds, positions, nodePickIds),
     fragment: {
       primitive: "lines",
       elementIds: columns.elementIds,
@@ -138,6 +155,7 @@ function buildLineGeometry(
 function buildPointGeometry(
   columns: SurfacePointColumns,
   positions: Float32Array,
+  nodePickIds: Uint32Array,
 ): SurfaceGeometryBuild<PointGeometryInput> {
   const starts = new Uint32Array(columns.count);
   const counts = new Uint32Array(columns.count);
@@ -146,7 +164,7 @@ function buildPointGeometry(
     counts[record] = 1;
   }
   return {
-    geometry: compactGeometry("points", columns.nodeIds, positions),
+    geometry: sharedGeometry("points", columns.nodeIds, positions, nodePickIds),
     fragment: {
       primitive: "points",
       elementIds: columns.elementIds,
@@ -229,60 +247,43 @@ function assignBodyIds(columns: PartElementColumns, bodies: ExplicitTopologyInpu
   }
 }
 
-function compactGeometry(
+function sharedGeometry(
   primitive: "triangles",
   nodeIndices: Uint32Array,
   nodePositions: Float32Array,
+  nodePickIds: Uint32Array,
 ): TriangleGeometryInput;
-function compactGeometry(
+function sharedGeometry(
   primitive: "lines",
   nodeIndices: Uint32Array,
   nodePositions: Float32Array,
+  nodePickIds: Uint32Array,
 ): LineGeometryInput;
-function compactGeometry(
+function sharedGeometry(
   primitive: "points",
   nodeIndices: Uint32Array,
   nodePositions: Float32Array,
+  nodePickIds: Uint32Array,
 ): PointGeometryInput;
-function compactGeometry(
+function sharedGeometry(
   primitive: Primitive,
   nodeIndices: Uint32Array,
   nodePositions: Float32Array,
+  nodePickIds: Uint32Array,
 ): GeometryInput {
-  const verticesByNode = new Uint32Array(nodePositions.length / 3);
-  let vertexCount = 0;
-  for (let index = 0; index < nodeIndices.length; index += 1) {
-    const nodeId = nodeIndices[index] ?? 0;
-    if ((verticesByNode[nodeId] ?? 0) === 0) verticesByNode[nodeId] = ++vertexCount;
-  }
-  const positions = new Float32Array(vertexCount * 3);
-  const nodePickIds = new Uint32Array(vertexCount);
-  for (let nodeId = 0; nodeId < verticesByNode.length; nodeId += 1) {
-    const vertex = verticesByNode[nodeId] ?? 0;
-    if (vertex === 0) continue;
-    const source = nodeId * 3;
-    const target = (vertex - 1) * 3;
-    positions[target] = nodePositions[source] ?? 0;
-    positions[target + 1] = nodePositions[source + 1] ?? 0;
-    positions[target + 2] = nodePositions[source + 2] ?? 0;
-    nodePickIds[vertex - 1] = nodeId + 1;
-  }
-  const indices = new Uint32Array(nodeIndices.length);
-  for (let index = 0; index < nodeIndices.length; index += 1) {
-    const nodeId = nodeIndices[index] ?? 0;
-    indices[index] = (verticesByNode[nodeId] ?? 1) - 1;
-  }
-  const geometry: GeometryInput = { primitive, positions, indices, nodePickIds };
-  return geometry;
+  return { primitive, positions: nodePositions, indices: nodeIndices, nodePickIds };
 }
 
-function emptyTriangleGeometry(): SurfaceGeometryBuild<TriangleGeometryInput> {
+function emptyTriangleGeometry(
+  positions: Float32Array,
+  nodePickIds: Uint32Array,
+): SurfaceGeometryBuild<TriangleGeometryInput> {
   return {
     geometry: {
       primitive: "triangles",
-      positions: new Float32Array(),
+      positions,
       indices: new Uint32Array(),
-      nodePickIds: new Uint32Array(),
+      nodePickIds,
     },
     fragment: {
       primitive: "triangles",
@@ -291,4 +292,47 @@ function emptyTriangleGeometry(): SurfaceGeometryBuild<TriangleGeometryInput> {
       primitiveCounts: new Uint32Array(),
     },
   };
+}
+
+function sharedNodePickIds(
+  nodeCount: number,
+  facets: SurfaceFacetColumns,
+  lines: SurfaceLineColumns,
+  points: SurfacePointColumns,
+): Uint32Array {
+  const ids = new Uint32Array(nodeCount);
+  markNodePickIds(ids, facets.nodeIds);
+  markNodePickIds(ids, lines.nodeIds);
+  markNodePickIds(ids, points.nodeIds);
+  return ids;
+}
+
+function markNodePickIds(target: Uint32Array, nodeIds: Uint32Array): void {
+  for (const nodeId of nodeIds) target[nodeId] = nodeId + 1;
+}
+
+function referencedGeometryBounds(geometries: readonly GeometryInput[]): Bounds {
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+  for (const geometry of geometries) {
+    for (const vertex of geometry.indices) {
+      const offset = vertex * 3;
+      const x = geometry.positions[offset] ?? 0;
+      const y = geometry.positions[offset + 1] ?? 0;
+      const z = geometry.positions[offset + 2] ?? 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      minZ = Math.min(minZ, z);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+      maxZ = Math.max(maxZ, z);
+    }
+  }
+  return Number.isFinite(minX)
+    ? { minX, minY, minZ, maxX, maxY, maxZ }
+    : { minX: 0, minY: 0, minZ: 0, maxX: 0, maxY: 0, maxZ: 0 };
 }

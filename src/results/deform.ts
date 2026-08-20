@@ -64,8 +64,9 @@ export function deformPositions(
 /**
  * Returns the geometry with deformed positions. The part must carry a
  * per-vertex node map (`nodePickIds`) to resolve vertices back to their model
- * nodes, which `createPartFromElementModel` provides for element-backed geometry. All other
- * geometry data (indices and any element tessellations) is preserved.
+ * nodes, which the element-model and explicit-topology constructors provide
+ * for node-backed geometry. All other geometry data (indices and any element
+ * tessellations) is preserved.
  * @category Results
  */
 export function deformGeometry(
