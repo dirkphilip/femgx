@@ -34,7 +34,7 @@ export interface DrawResources {
   readonly primitiveParts: Map<PartId, Map<Primitive, PartResource>>;
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
-  /** Bounded compact surface skins keyed by effective body/element visibility. */
+  /** Compact surface skins keyed by visibility; retained bytes are bounded per Part. */
   readonly visibilitySkins: Map<PartId, VisibilitySkinCache>;
   readonly admissionCache: Map<PartId, PipelineAdmissionCacheEntry>;
   /** Fixed device-scoped binding for inactive order sidecars. */

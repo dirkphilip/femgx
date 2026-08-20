@@ -28,7 +28,7 @@ import type {
 const MIN_SKIN_BUDGET = 64 * 1024;
 const MAX_SKIN_BUDGET = 16 * 1024 * 1024;
 
-/** Creates an empty bounded skin cache. */
+/** Creates an empty cache whose complete retained skin ownership is bounded. */
 export function createVisibilitySkinCache(): VisibilitySkinCache {
   return { entries: new Map(), budgetBytes: MIN_SKIN_BUDGET, residentBytes: 0, clock: 0 };
 }
@@ -178,6 +178,9 @@ function ensureVisibilitySkin(options: {
     return existing.skin;
   }
   const indices = buildSkinIndices(part, geometry, signature);
+  // The feature topology path already filters this signature against the shared
+  // complete surface. Refuse a new compact order when it would break the
+  // per-Part ownership bound instead of retaining an unbounded active entry.
   return retainVisibilitySkin({ cache, draw, signature, indices, active });
 }
 
@@ -187,12 +190,12 @@ function retainVisibilitySkin(options: {
   readonly signature: VisibilitySignature;
   readonly indices: Uint32Array;
   readonly active: Set<VisibilitySkinEntry>;
-}): VisibilitySkin {
+}): VisibilitySkin | undefined {
   const { cache, draw, signature, indices, active } = options;
   if (indices.length === 0)
     return { signature, indexBuffer: emptyBuffer(draw), indexCount: 0, byteLength: 0 };
   const byteLength = indices.byteLength;
-  releaseLeastRecentlyUsed(cache, draw, byteLength, active);
+  if (!releaseLeastRecentlyUsed(cache, draw, byteLength, active)) return undefined;
   const indexBuffer = createBuffer(
     draw.device,
     indices,
@@ -296,7 +299,7 @@ function releaseLeastRecentlyUsed(
   draw: VisibilityDrawOwner,
   requiredBytes: number,
   active: ReadonlySet<VisibilitySkinEntry>,
-): void {
+): boolean {
   while (cache.residentBytes + requiredBytes > cache.budgetBytes) {
     let candidate: VisibilitySkinEntry | undefined;
     for (const entries of cache.entries.values()) {
@@ -309,9 +312,10 @@ function releaseLeastRecentlyUsed(
         }
       }
     }
-    if (candidate === undefined) return;
+    if (candidate === undefined) return false;
     removeEntry(cache, draw, candidate);
   }
+  return true;
 }
 
 function releaseInactiveSkins(

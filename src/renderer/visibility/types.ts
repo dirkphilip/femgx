@@ -26,7 +26,7 @@ export interface VisibilitySkinEntry {
   lastUsed: number;
 }
 
-/** Bounded per-part skin cache owned by the renderer draw resources. */
+/** Per-part compact-skin cache whose total retained GPU buffers never exceed its budget. */
 export interface VisibilitySkinCache {
   readonly entries: Map<number, VisibilitySkinEntry[]>;
   budgetBytes: number;
