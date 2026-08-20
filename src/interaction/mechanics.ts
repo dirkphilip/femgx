@@ -262,6 +262,13 @@ function sortedNestedEntries<
   InnerKey,
   Values extends NestedValues<InnerKey>,
 >(map: ReadonlyMap<OuterKey, Values>): Array<readonly [OuterKey, Values]> {
+  return sortedStringMapEntries(map);
+}
+
+/** Returns string-keyed map entries in deterministic ascending key order. */
+export function sortedStringMapEntries<Key extends string, Value>(
+  map: ReadonlyMap<Key, Value>,
+): Array<readonly [Key, Value]> {
   return [...map.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 

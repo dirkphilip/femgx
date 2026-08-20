@@ -1,29 +1,32 @@
 import type { Part, PartId } from "../../geometry/part";
-import { collectUniqueRefs, sortedNumbers } from "../../interaction/mechanics";
+import {
+  collectUniqueRefs,
+  sortedNumbers,
+  sortedStringMapEntries,
+} from "../../interaction/mechanics";
 import type { InteractionState } from "../../interaction/interaction";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
 import type { NodeRef } from "../../interaction/refs";
 import type { PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
+import {
+  denseMembershipContains,
+  denseMembershipOccurrenceAtSlot as denseNodeOccurrenceAtSlot,
+  sortDenseMembershipOccurrences,
+  type DenseMembership,
+  type DenseMembershipLayout,
+  type DenseMembershipOccurrence,
+} from "./dense-membership";
 
 /** The stable layout fields required to resolve dense node selections. */
-export interface DenseNodeLayout {
-  readonly slotPartLocal: Int32Array;
-  readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
-  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
-}
+export type DenseNodeLayout = DenseMembershipLayout;
 
 /** One part-local occurrence's dense selected-node membership. */
-export interface DenseNodeOccurrence {
-  readonly slot: number;
-  readonly selectedCount: number;
-  /** One bit per local node id. */
-  readonly words: Uint32Array;
-}
+export type DenseNodeOccurrence = DenseMembershipOccurrence;
 
 /** All dense selected-node membership for one reusable part. */
-export interface DenseNodeSelection {
+export interface DenseNodeSelection extends DenseMembership {
   readonly nodeCount: number;
   readonly occurrences: readonly DenseNodeOccurrence[];
 }
@@ -64,7 +67,7 @@ export function collectDenseNodeSelections(
   for (const [partId, candidate] of byPart) {
     const occurrences = denseOccurrences(candidate);
     if (occurrences.length === 0) continue;
-    occurrences.sort((left, right) => left.slot - right.slot);
+    sortDenseMembershipOccurrences(occurrences);
     selections.set(partId, {
       nodeCount: candidate.nodeCount,
       occurrences,
@@ -82,32 +85,11 @@ export function denseNodeSelectionContains(
   slot: number,
   nodeId: number,
 ): boolean {
-  const occurrence = denseNodeOccurrenceAtSlot(selection, slot);
-  if (occurrence === undefined || !Number.isSafeInteger(nodeId) || nodeId < 0) return false;
-  const bit = nodeId;
-  if (selection === undefined || bit >= selection.nodeCount) return false;
-  return ((occurrence.words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
+  if (!isValidNodeId(nodeId, selection?.nodeCount ?? 0)) return false;
+  return denseMembershipContains(denseNodeOccurrenceAtSlot(selection, slot), nodeId);
 }
 
-/** Finds one sorted dense occurrence without scanning preceding placements. */
-export function denseNodeOccurrenceAtSlot(
-  selection: DenseNodeSelection | undefined,
-  slot: number,
-): DenseNodeOccurrence | undefined {
-  const occurrences = selection?.occurrences;
-  if (occurrences === undefined) return undefined;
-  let lower = 0;
-  let upper = occurrences.length - 1;
-  while (lower <= upper) {
-    const middle = lower + Math.floor((upper - lower) / 2);
-    const candidate = occurrences[middle];
-    if (candidate === undefined) return undefined;
-    if (candidate.slot === slot) return candidate;
-    if (candidate.slot < slot) lower = middle + 1;
-    else upper = middle - 1;
-  }
-  return undefined;
-}
+export { denseNodeOccurrenceAtSlot };
 
 /** Omits selected-only refs already represented by dense occurrence membership. */
 export function sparseNodeEmphasisRefs(
@@ -124,7 +106,7 @@ export function sparseNodeEmphasisRefs(
     (ref) => `${ref.partOccurrenceId}/${ref.nodeId}`,
     (push) => {
       appendNodeRefs(data.highlightedNodeIds, push);
-      for (const [instanceId, ids] of sortedInstances(data.selectedNodeIds)) {
+      for (const [instanceId, ids] of sortedStringMapEntries(data.selectedNodeIds)) {
         if (instanceUsesDenseSelection(runtime, layout, denseSelections, instanceId)) continue;
         for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId: instanceId, nodeId });
       }
@@ -257,13 +239,7 @@ function appendNodeRefs(
   groups: ReadonlyMap<PartOccurrenceId, ReadonlySet<number>>,
   push: (ref: NodeRef) => void,
 ): void {
-  for (const [instanceId, ids] of sortedInstances(groups)) {
+  for (const [instanceId, ids] of sortedStringMapEntries(groups)) {
     for (const nodeId of sortedNumbers(ids)) push({ partOccurrenceId: instanceId, nodeId });
   }
-}
-
-function sortedInstances<Values>(
-  groups: ReadonlyMap<PartOccurrenceId, Values>,
-): Array<readonly [PartOccurrenceId, Values]> {
-  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
