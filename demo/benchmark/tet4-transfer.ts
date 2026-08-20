@@ -1,7 +1,5 @@
-import { canonicalKey } from "../../src/elements/keys";
 import { at } from "../../src/elements/indices";
-import type { FaceIdRef } from "../../src/elements/faces";
-import type { GeometryEdge } from "../../src/geometry/part";
+import { sortFixedCanonicalRows } from "../../src/elements/canonical-row-order";
 
 const TET_FACE_CORNERS: readonly (readonly [number, number, number])[] = [
   [0, 1, 3],
@@ -9,18 +7,6 @@ const TET_FACE_CORNERS: readonly (readonly [number, number, number])[] = [
   [2, 0, 3],
   [0, 2, 1],
 ];
-const TET_EDGES: readonly (readonly [number, number])[] = [
-  [0, 1],
-  [1, 2],
-  [2, 0],
-  [0, 3],
-  [1, 3],
-  [2, 3],
-];
-const TET_FACE_ONE_AXES = [0, 1, 1, 2, 2, 0] as const;
-const TET_FACE_ONE_NEIGHBOR_LOCALS = [2, 5, 4, 1, 0, 3] as const;
-const TET_FACE_THREE_AXES = [2, 2, 0, 0, 1, 1] as const;
-const TET_FACE_THREE_NEIGHBOR_LOCALS = [4, 3, 0, 5, 2, 1] as const;
 const MAX_DENSE_TET4_GRID_SIZE = 200;
 
 /** Compact ownership-transfer payload for the heavy structured Tet4 case. */
@@ -125,61 +111,6 @@ export function tet4FaceNodeIdsFromNodes(
   return [first, second, third];
 }
 
-/** Recreates authored edge metadata from the deterministic Tet4 specification. */
-export function createTet4Edges(gridSize: number, elementCount: number): GeometryEdge[] {
-  const side = gridSize + 1;
-  const nodeCount = side ** 3;
-  const edges = new Map<number, EdgeAccumulator>();
-  for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
-    const elementId = elementIndex + 1;
-    const nodes = tetNodes(elementIndex, gridSize, side, side * side);
-    for (const [firstCorner, secondCorner] of TET_EDGES) {
-      const first = at(nodes, firstCorner);
-      const second = at(nodes, secondCorner);
-      const nodeIds: readonly [number, number] = [Math.min(first, second), Math.max(first, second)];
-      const key = nodeIds[0] * nodeCount + nodeIds[1];
-      const edge = edges.get(key) ?? {
-        nodeIds,
-        incidentElementIds: [],
-        faceRefs: [],
-      };
-      if (edge.incidentElementIds.at(-1) !== elementId) edge.incidentElementIds.push(elementId);
-      edges.set(key, edge);
-    }
-    for (let faceIndex = 0; faceIndex < TET_FACE_CORNERS.length; faceIndex += 1) {
-      const corners = TET_FACE_CORNERS[faceIndex];
-      if (corners === undefined) throw new Error("Tet4 face topology is incomplete");
-      const faceNodes = [
-        at(nodes, corners[0]),
-        at(nodes, corners[1]),
-        at(nodes, corners[2]),
-      ] as const;
-      for (let edgeIndex = 0; edgeIndex < faceNodes.length; edgeIndex += 1) {
-        const first = faceNodes[edgeIndex] ?? 0;
-        const second = faceNodes[(edgeIndex + 1) % faceNodes.length] ?? 0;
-        const key = Math.min(first, second) * nodeCount + Math.max(first, second);
-        const edge = edges.get(key);
-        if (edge === undefined) throw new Error("Tet4 face edge is missing");
-        edge.faceRefs.push({ elementId, faceIndex });
-      }
-    }
-  }
-  return [...edges.values()]
-    .sort((left, right) => compareNodeIds(left.nodeIds, right.nodeIds))
-    .map((edge) => ({
-      key: canonicalKey(edge.nodeIds),
-      nodeIds: edge.nodeIds,
-      incidentElementIds: edge.incidentElementIds,
-      faceRefs: edge.faceRefs,
-    }));
-}
-
-interface EdgeAccumulator {
-  readonly nodeIds: readonly [number, number];
-  readonly incidentElementIds: number[];
-  readonly faceRefs: FaceIdRef[];
-}
-
 interface Topology {
   readonly faceNeighborIds: Uint32Array;
   readonly boundaryFaceIndices: Uint32Array;
@@ -207,58 +138,68 @@ function createNodePositions(
 
 function createTopology(gridSize: number, elementCount: number, faceCount: number): Topology {
   const faceNeighborIds = new Uint32Array(faceCount);
-  const boundaryFaceIndices = new Uint32Array(12 * gridSize * gridSize);
-  const gridLayer = gridSize * gridSize;
-  let boundaryIndex = 0;
+  const side = gridSize + 1;
+  const layer = side * side;
+  const faceNodes = new Uint32Array(faceCount * 3);
   for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
-    const cellIndex = Math.floor(elementIndex / 6);
-    const local = elementIndex % 6;
-    const cellElementIndex = elementIndex - local;
-    const faceNumber = elementIndex * TET_FACE_CORNERS.length;
-    faceNeighborIds[faceNumber] = cellElementIndex + ((local + 5) % 6) + 1;
-    faceNeighborIds[faceNumber + 2] = cellElementIndex + ((local + 1) % 6) + 1;
-    const faceOneNeighborId = outerFaceNeighborId(cellIndex, gridSize, gridLayer, local, 1);
-    const faceThreeNeighborId = outerFaceNeighborId(cellIndex, gridSize, gridLayer, local, 3);
-    faceNeighborIds[faceNumber + 1] = faceOneNeighborId;
-    faceNeighborIds[faceNumber + 3] = faceThreeNeighborId;
-    if (faceOneNeighborId === 0) {
-      boundaryFaceIndices[boundaryIndex] = faceNumber + 1;
-      boundaryIndex += 1;
-    }
-    if (faceThreeNeighborId === 0) {
-      boundaryFaceIndices[boundaryIndex] = faceNumber + 3;
-      boundaryIndex += 1;
+    const nodes = tetNodes(elementIndex, gridSize, side, layer);
+    for (let faceIndex = 0; faceIndex < TET_FACE_CORNERS.length; faceIndex += 1) {
+      const faceNumber = elementIndex * TET_FACE_CORNERS.length + faceIndex;
+      const corners = TET_FACE_CORNERS[faceIndex];
+      if (corners === undefined) throw new Error("Tet4 face topology is incomplete");
+      writeCanonicalFaceNodes(faceNodes, faceNumber * 3, nodes, corners);
     }
   }
-  if (boundaryIndex !== boundaryFaceIndices.length) {
+  const order = sortFixedCanonicalRows(faceNodes, 3);
+  const expectedBoundaryCount = 12 * gridSize * gridSize;
+  const boundaryFaceIndices = new Uint32Array(expectedBoundaryCount);
+  let boundaryIndex = 0;
+  for (let start = 0; start < order.length;) {
+    const first = order[start] ?? 0;
+    let end = start + 1;
+    while (end < order.length && equalFixedRows(faceNodes, first, order[end] ?? 0, 3)) end += 1;
+    if (end - start === 1) {
+      boundaryFaceIndices[boundaryIndex] = first;
+      boundaryIndex += 1;
+    } else if (end - start === 2) {
+      const second = order[start + 1] ?? 0;
+      faceNeighborIds[first] = Math.floor(second / TET_FACE_CORNERS.length) + 1;
+      faceNeighborIds[second] = Math.floor(first / TET_FACE_CORNERS.length) + 1;
+    } else throw new Error("Structured Tet4 topology contains a non-manifold face");
+    start = end;
+  }
+  if (boundaryIndex !== expectedBoundaryCount) {
     throw new Error(`Tet4 boundary face count ${boundaryIndex} is inconsistent with the grid`);
   }
+  boundaryFaceIndices.sort();
   return { faceNeighborIds, boundaryFaceIndices };
 }
 
-function outerFaceNeighborId(
-  cellIndex: number,
-  gridSize: number,
-  gridLayer: number,
-  local: number,
-  faceIndex: 1 | 3,
-): number {
-  const faceOne = faceIndex === 1;
-  const axis = at(faceOne ? TET_FACE_ONE_AXES : TET_FACE_THREE_AXES, local);
-  const neighborLocal = at(
-    faceOne ? TET_FACE_ONE_NEIGHBOR_LOCALS : TET_FACE_THREE_NEIGHBOR_LOCALS,
-    local,
-  );
-  const direction = faceOne ? 1 : -1;
-  const coordinate =
-    axis === 0
-      ? cellIndex % gridSize
-      : axis === 1
-        ? Math.floor(cellIndex / gridSize) % gridSize
-        : Math.floor(cellIndex / gridLayer);
-  if (coordinate + direction < 0 || coordinate + direction >= gridSize) return 0;
-  const stride = axis === 0 ? 1 : axis === 1 ? gridSize : gridLayer;
-  return (cellIndex + direction * stride) * 6 + neighborLocal + 1;
+function writeCanonicalFaceNodes(
+  target: Uint32Array,
+  offset: number,
+  nodes: readonly [number, number, number, number],
+  corners: readonly [number, number, number],
+): void {
+  target[offset] = at(nodes, corners[0]);
+  target[offset + 1] = at(nodes, corners[1]);
+  target[offset + 2] = at(nodes, corners[2]);
+  if ((target[offset] ?? 0) > (target[offset + 1] ?? 0)) swap(target, offset, offset + 1);
+  if ((target[offset + 1] ?? 0) > (target[offset + 2] ?? 0)) swap(target, offset + 1, offset + 2);
+  if ((target[offset] ?? 0) > (target[offset + 1] ?? 0)) swap(target, offset, offset + 1);
+}
+
+function swap(values: Uint32Array, left: number, right: number): void {
+  const value = values[left] ?? 0;
+  values[left] = values[right] ?? 0;
+  values[right] = value;
+}
+
+function equalFixedRows(nodes: Uint32Array, left: number, right: number, width: number): boolean {
+  for (let column = 0; column < width; column += 1) {
+    if (nodes[left * width + column] !== nodes[right * width + column]) return false;
+  }
+  return true;
 }
 
 function createTessellation(
@@ -369,8 +310,4 @@ function tetNodes(
     default:
       throw new Error("Tet4 element topology is incomplete");
   }
-}
-
-function compareNodeIds(left: readonly number[], right: readonly number[]): number {
-  return (left[0] ?? 0) - (right[0] ?? 0) || (left[1] ?? 0) - (right[1] ?? 0);
 }
