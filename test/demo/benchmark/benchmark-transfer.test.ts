@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
-import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
+import {
+  buildDenseTet4Payload,
+  type DenseTet4Payload,
+} from "../../../demo/benchmark/tet4-transfer";
 import { reconstructBenchmarkScene, transferredByteLength } from "../../../demo/benchmark/transfer";
 import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
@@ -121,7 +124,81 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(Array.from(result.payload.nodePickIds)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),
     );
+    expect(() => buildDenseTet4Payload(0)).toThrow(/\[1,200\]/);
+    expect(() => buildDenseTet4Payload(1.5)).toThrow(/integer/);
     expect(() => buildDenseTet4Payload(201)).toThrow(/\[1,200\]/);
+  });
+
+  it("uses the structured six-Tet4 neighbor table and boundary order", () => {
+    const gridSize = 2;
+    const payload = buildDenseTet4Payload(gridSize).payload;
+    const element = (x: number, y: number, z: number, local: number): number =>
+      (z * gridSize * gridSize + y * gridSize + x) * 6 + local;
+    const directNeighborCases = [
+      [element(0, 0, 0, 0), 0, element(0, 0, 0, 5)],
+      [element(0, 0, 0, 0), 2, element(0, 0, 0, 1)],
+      [element(0, 0, 0, 1), 0, element(0, 0, 0, 0)],
+      [element(0, 0, 0, 1), 2, element(0, 0, 0, 2)],
+      [element(0, 0, 0, 2), 0, element(0, 0, 0, 1)],
+      [element(0, 0, 0, 2), 2, element(0, 0, 0, 3)],
+      [element(0, 0, 0, 3), 0, element(0, 0, 0, 2)],
+      [element(0, 0, 0, 3), 2, element(0, 0, 0, 4)],
+      [element(0, 0, 0, 4), 0, element(0, 0, 0, 3)],
+      [element(0, 0, 0, 4), 2, element(0, 0, 0, 5)],
+      [element(0, 0, 0, 5), 0, element(0, 0, 0, 4)],
+      [element(0, 0, 0, 5), 2, element(0, 0, 0, 0)],
+      [element(0, 0, 0, 0), 1, element(1, 0, 0, 2)],
+      [element(1, 0, 0, 2), 3, element(0, 0, 0, 0)],
+      [element(0, 0, 0, 5), 1, element(1, 0, 0, 3)],
+      [element(1, 0, 0, 3), 3, element(0, 0, 0, 5)],
+      [element(0, 0, 0, 1), 1, element(0, 1, 0, 5)],
+      [element(0, 1, 0, 5), 3, element(0, 0, 0, 1)],
+      [element(0, 0, 0, 2), 1, element(0, 1, 0, 4)],
+      [element(0, 1, 0, 4), 3, element(0, 0, 0, 2)],
+      [element(0, 0, 0, 3), 1, element(0, 0, 1, 1)],
+      [element(0, 0, 1, 1), 3, element(0, 0, 0, 3)],
+      [element(0, 0, 0, 4), 1, element(0, 0, 1, 0)],
+      [element(0, 0, 1, 0), 3, element(0, 0, 0, 4)],
+    ] as const;
+    for (const [elementIndex, faceIndex, neighborIndex] of directNeighborCases) {
+      expect(faceNeighborId(payload, elementIndex, faceIndex)).toBe(neighborIndex + 1);
+    }
+
+    const exteriorCases = [
+      [element(1, 0, 0, 0), 1],
+      [element(1, 0, 0, 5), 1],
+      [element(0, 0, 0, 2), 3],
+      [element(0, 0, 0, 3), 3],
+      [element(0, 1, 0, 1), 1],
+      [element(0, 1, 0, 2), 1],
+      [element(0, 0, 0, 4), 3],
+      [element(0, 0, 0, 5), 3],
+      [element(0, 0, 1, 3), 1],
+      [element(0, 0, 1, 4), 1],
+      [element(0, 0, 0, 0), 3],
+      [element(0, 0, 0, 1), 3],
+    ] as const;
+    for (const [elementIndex, faceIndex] of exteriorCases) {
+      const faceNumber = elementIndex * 4 + faceIndex;
+      expect(faceNeighborId(payload, elementIndex, faceIndex)).toBe(0);
+      expect(payload.boundaryFaceIndices).toContain(faceNumber);
+    }
+
+    const singleCell = buildDenseTet4Payload(1).payload;
+    expect(singleCell.boundaryFaceIndices).toEqual(
+      Uint32Array.from([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23]),
+    );
+  });
+
+  it("builds the first unsafe face-key grid with symmetric neighbors", () => {
+    const gridSize = 59;
+    const payload = buildDenseTet4Payload(gridSize).payload;
+    expect(payload.elementCount).toBe(6 * gridSize ** 3);
+    expect(payload.boundaryFaceIndices).toHaveLength(12 * gridSize ** 2);
+    expect(faceNeighborId(payload, 1_015_206, 1)).toBe(1_015_215);
+    expect(faceNeighborId(payload, 1_015_214, 3)).toBe(1_015_207);
+    expect(faceNeighborId(payload, 1_015_213, 2)).toBe(1_015_215);
+    expect(faceNeighborId(payload, 1_015_214, 0)).toBe(1_015_214);
   });
 
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
@@ -157,4 +234,12 @@ function sortedFaceRefs(
   subset: Iterable<{ readonly elementId: number; readonly faceIndex: number }> | undefined,
 ): readonly string[] {
   return Array.from(subset ?? [], (face) => `${face.elementId}/${face.faceIndex}`).sort();
+}
+
+function faceNeighborId(
+  payload: DenseTet4Payload,
+  elementIndex: number,
+  faceIndex: number,
+): number {
+  return payload.faceNeighborIds[elementIndex * 4 + faceIndex] ?? 0;
 }

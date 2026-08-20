@@ -12,8 +12,7 @@ guards that policy across every workflow file.
 The `CI` workflow uses a workflow-specific concurrency group for each pull
 request, so a newer pull-request commit cancels older pending or in-progress
 `check` and `e2e` runs. Pushes to `main` use a separate ref-based group and are
-never cancelled by pull-request runs. The group includes the workflow identity,
-so it cannot overlap with Pages or the manually triggered performance workflow.
+never cancelled by pull-request runs.
 
 Coverage artifacts are retained for 7 days on pull requests and 14 days on
 `main`: pull-request coverage is primarily a current-review aid, while the
@@ -37,7 +36,8 @@ The required `check` context is a small aggregator over three parallel jobs:
 `check-static` owns pre-commit, formatting, type checking, linting, and API
 documentation validation;
 `check-runtime` owns non-demo library coverage, while `check-package` owns
-performance budgets and package smoke tests. Demo coverage remains in
+package smoke tests. Performance budgets remain a local validation gate because
+shared CI timing is not stable enough to be a useful merge signal. Demo coverage remains in
 `check-runtime` through its dedicated core and component suites, so those tests
 run once and retain their independent coverage thresholds and reports.
 `check-static` restores and saves ESLint's content-addressed cache. It still
