@@ -223,6 +223,32 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
+  it("applies section visibility from an instance-only renderer update", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const visible = createInteractionState();
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+
+    const hidden = setElementVisible(visible, { partOccurrenceId: "1/0", elementId: 7 }, false);
+    renderer.updateInstances(runtime, hidden, [0]);
+    const hideStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(gpu.drawCalls.slice(hideStart).filter((call) => call.indexCount === 3)).toHaveLength(0);
+    renderer.updateInstances(runtime, visible, [0]);
+    const restoreStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(
+      gpu.drawCalls.slice(restoreStart).filter((call) => call.indexCount === 3),
+    ).not.toHaveLength(0);
+    renderer.destroy();
+  });
+
   it("maps cap fragments to the owning element without fabricated node identityMatrix", async () => {
     installGpuTestGlobals();
     const gpu = fakeGpuDevice({

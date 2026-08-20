@@ -38,6 +38,7 @@ interface CapBuildOptions {
   readonly deformation: DeformationState | undefined;
   readonly resultColors: ResultColorMap | undefined;
   readonly draw: DrawResources;
+  readonly reusable?: SectionCapFrame;
 }
 
 export interface SectionCapFrame {
@@ -48,6 +49,12 @@ export interface SectionCapFrame {
   readonly transparentCalls: readonly DrawCall[];
   readonly allCalls: readonly DrawCall[];
   readonly resultColors: ResultColorMap;
+}
+
+interface CapCallLists {
+  readonly opaque: DrawCall[];
+  readonly transparent: DrawCall[];
+  readonly all: DrawCall[];
 }
 
 const CAP_TRANSFORM = identityMatrix();
@@ -62,7 +69,8 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
   const resultColors = new Map<PartId, ResultColorTable>();
-  const usedIds = new Set(options.parts.keys());
+  const reusable = reusableCapParts(options.reusable);
+  const usedIds = new Set([...options.parts.keys(), ...reusable.ids]);
   let ordinal = 0;
   for (const sourcePart of options.parts.values()) {
     const elements = sourcePart.elements;
@@ -90,10 +98,10 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
           deformationScale: options.deformation?.scale ?? 1,
         });
         if (cap === undefined) continue;
-        const capId = nextCapId(usedIds, ordinal);
-        ordinal += 1;
+        const prior = reusable.parts.get(capKey(sourcePart.id, slot, element.id));
+        const capId = prior?.id ?? nextCapId(usedIds, ordinal++);
         const style = capStyle(options.interaction, instance, element.id, metadata);
-        const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
+        const capPart = prior ?? makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
         sourcePartIds.set(capId, sourcePart.id);
         sourceSlots.set(capId, slot);
@@ -122,6 +130,22 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     allCalls,
     resultColors,
   };
+}
+
+function reusableCapParts(frame: SectionCapFrame | undefined): {
+  readonly parts: ReadonlyMap<string, Part>;
+  readonly ids: ReadonlySet<PartId>;
+} {
+  const parts = new Map<string, Part>();
+  if (frame === undefined) return { parts, ids: new Set() };
+  for (const [capId, part] of frame.parts) {
+    const sourcePartId = frame.sourcePartIds.get(capId);
+    const slot = frame.sourceSlots.get(capId);
+    const elementId = part.elements?.at(0)?.id;
+    if (sourcePartId === undefined || slot === undefined || elementId === undefined) continue;
+    parts.set(capKey(sourcePartId, slot, elementId), part);
+  }
+  return { parts, ids: new Set(frame.parts.keys()) };
 }
 
 function capStyle(
@@ -154,7 +178,13 @@ export function syncSectionCapStyles(options: {
     const sourceSlot = options.frame.sourceSlots.get(capId);
     const sourcePart = sourcePartId === undefined ? undefined : options.parts.get(sourcePartId);
     const element = capPart.elements?.at(0);
-    if (sourcePart === undefined || sourceSlot === undefined || element === undefined) continue;
+    if (
+      sourcePartId === undefined ||
+      sourcePart === undefined ||
+      sourceSlot === undefined ||
+      element === undefined
+    )
+      continue;
     const instance = instanceAt(options.runtime, sourceSlot, sourcePart.id);
     const style = capStyle(
       options.interaction,
@@ -170,6 +200,82 @@ export function syncSectionCapStyles(options: {
     else calls.push(call);
   }
   return { calls, transparentCalls };
+}
+
+/** Filters retained cap records when visibility can only remove elements. */
+export function filterSectionCapFrame(options: {
+  readonly frame: SectionCapFrame;
+  readonly runtime: PackedSceneRuntime;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly draw: DrawResources;
+}): SectionCapFrame {
+  const parts = new Map<PartId, Part>();
+  const sourcePartIds = new Map<PartId, PartId>();
+  const sourceSlots = new Map<PartId, number>();
+  const calls: CapCallLists = { opaque: [], transparent: [], all: [] };
+  const resultColors = new Map<PartId, ResultColorTable>();
+  for (const [capId, capPart] of options.frame.parts) {
+    const sourcePartId = options.frame.sourcePartIds.get(capId);
+    const sourceSlot = options.frame.sourceSlots.get(capId);
+    const sourcePart = sourcePartId === undefined ? undefined : options.parts.get(sourcePartId);
+    const element = capPart.elements?.at(0);
+    if (
+      sourcePartId === undefined ||
+      sourcePart === undefined ||
+      sourceSlot === undefined ||
+      element === undefined
+    )
+      continue;
+    const instance = instanceAt(options.runtime, sourceSlot, sourcePart.id);
+    if (
+      !capElementVisible(
+        options.interaction,
+        instance.partOccurrenceId,
+        element,
+        getPartSemanticIndex(sourcePart),
+      )
+    )
+      continue;
+    parts.set(capId, capPart);
+    sourcePartIds.set(capId, sourcePartId);
+    sourceSlots.set(capId, sourceSlot);
+    const style = capStyle(
+      options.interaction,
+      instance,
+      element.id,
+      getPartSemanticIndex(sourcePart),
+    );
+    appendCapCall(options.draw, capId, style, sourceSlot, calls);
+    const colors = options.frame.resultColors.get(capId);
+    if (colors !== undefined) resultColors.set(capId, colors);
+  }
+  const frame: SectionCapFrame = {
+    parts,
+    sourcePartIds,
+    sourceSlots,
+    calls: calls.opaque,
+    transparentCalls: calls.transparent,
+    allCalls: calls.all,
+    resultColors,
+  };
+  return frame;
+}
+
+function appendCapCall(
+  draw: DrawResources,
+  capId: PartId,
+  style: ReturnType<typeof resolveElementStyle>,
+  sourceSlot: number,
+  calls: CapCallLists,
+): void {
+  patchInstances(draw, capId, [
+    { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, sourceSlot + 1) },
+  ]);
+  const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
+  calls.all.push(call);
+  if (style.color.a * style.opacity < 1) calls.transparent.push(call);
+  else calls.opaque.push(call);
 }
 
 function occurrenceValue<Value>(
@@ -294,4 +400,8 @@ function nextCapId(used: Set<PartId>, ordinal: number): PartId {
   }
   used.add(id);
   return id;
+}
+
+function capKey(sourcePartId: PartId, slot: number, elementId: number): string {
+  return `${sourcePartId}/${slot}/${elementId}`;
 }

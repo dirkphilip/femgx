@@ -14,6 +14,19 @@ export function sectionCapVisibilityChanged(
   );
 }
 
+/** Returns whether a visibility update can only remove admitted cap elements. */
+export function sectionCapVisibilityCanOnlyReduce(
+  previous: InteractionState,
+  next: InteractionState,
+): boolean {
+  const before = readInteractionState(previous);
+  const after = readInteractionState(next);
+  return (
+    hiddenSetsIncluded(before.hiddenBodyIds, after.hiddenBodyIds) &&
+    hiddenSetsIncluded(before.hiddenElementIds, after.hiddenElementIds)
+  );
+}
+
 function sameHiddenElements(
   left: ReadonlyMap<string, ReadonlySet<number>>,
   right: ReadonlyMap<string, ReadonlySet<number>>,
@@ -24,6 +37,18 @@ function sameHiddenElements(
     const rightIds = right.get(instanceId);
     if (rightIds === undefined || leftIds.size !== rightIds.size) return false;
     for (const id of leftIds) if (!rightIds.has(id)) return false;
+  }
+  return true;
+}
+
+function hiddenSetsIncluded(
+  before: ReadonlyMap<string, ReadonlySet<number>>,
+  after: ReadonlyMap<string, ReadonlySet<number>>,
+): boolean {
+  for (const [instanceId, ids] of before) {
+    const next = after.get(instanceId);
+    if (next === undefined) return false;
+    for (const id of ids) if (!next.has(id)) return false;
   }
   return true;
 }
