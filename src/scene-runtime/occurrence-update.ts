@@ -109,19 +109,25 @@ export function applyOccurrenceMutations(
     if (mutation.slot === undefined || mutation.after !== undefined) continue;
     removedOccurrenceSlots.push(mutation.slot);
     recordBefore(bySlot, mutation.slot, mutation.beforePartId);
-    runtime.removeInstance(mutation.slot);
   }
+  runtime.removeInstances(removedOccurrenceSlots);
   for (const mutation of mutations) {
     if (mutation.slot === undefined || mutation.after === undefined) continue;
     recordBefore(bySlot, mutation.slot, mutation.beforePartId);
     runtime.updateInstance(mutation.slot, mutation.after);
     recordAfter(bySlot, mutation.slot, mutation.after.partId);
   }
-  for (const mutation of mutations) {
-    if (mutation.slot !== undefined || mutation.after === undefined) continue;
-    const slot = runtime.addInstance(mutation.after);
+  const additions: RuntimeInstanceInput[] = [];
+  for (let index = 0; index < mutations.length; index += 1) {
+    const mutation = invariantValue(mutations[index], `occurrence mutation at ${index}`);
+    if (mutation.slot === undefined && mutation.after !== undefined) additions.push(mutation.after);
+  }
+  const addedSlots = runtime.addInstances(additions);
+  for (let index = 0; index < additions.length; index += 1) {
+    const addition = invariantValue(additions[index], `added occurrence at ${index}`);
+    const slot = invariantValue(addedSlots[index], `added occurrence slot at ${index}`);
     recordBefore(bySlot, slot, bySlot.get(slot)?.beforePartId);
-    recordAfter(bySlot, slot, mutation.after.partId);
+    recordAfter(bySlot, slot, addition.partId);
   }
   const slots = [...bySlot.values()].sort((left, right) => left.slot - right.slot);
   const affectedPartIds = new Set<PartId>();

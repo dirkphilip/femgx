@@ -191,6 +191,7 @@ export class RendererAttachment {
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     delta: RuntimeOccurrenceDelta,
+    sourceParts: Map<PartId, Part>,
     bundle: GpuBundle,
   ): boolean {
     const layout = this.layout;
@@ -208,10 +209,9 @@ export class RendererAttachment {
     });
     this.instances = state.instances;
     this.slotByInstanceId = state.slotByInstanceId;
-    const retainedParts = new Set(
-      [...delta.affectedPartIds].filter((partId) => !delta.removedPartIds.has(partId)),
-    );
-    this.applyAttachmentOrders(runtime, layout, retainedParts, bundle, optionalParts);
+    const partOptions = this.partAttachmentOptions(bundle);
+    removeAttachmentParts(partOptions, sourceParts, delta.removedPartIds, false);
+    this.applyAttachmentOrders(runtime, layout, delta.affectedPartIds, bundle, optionalParts);
     return true;
   }
 
@@ -366,6 +366,7 @@ export class RendererAttachment {
         partDefinitions: this.attachedParts,
         selection: this.selection,
         bundle,
+        previousCalls: this,
         ...(optionalParts === undefined ? {} : { optionalParts }),
       }),
     );

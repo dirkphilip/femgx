@@ -185,5 +185,6 @@ describe("incremental part occurrence storage", () => {
     expect(runtime.getInstanceSlot("1/left/retained")).toBeDefined();
     expect(runtime.getInstanceSlot("1/right/retained")).toBeDefined();
     expect(runtime.activeInstanceCount).toBe(2);
+    expect(runtime.sortedPartIds).toEqual(new Uint32Array([2]));
   });
 });

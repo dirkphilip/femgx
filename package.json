@@ -116,6 +116,7 @@
     "bench:tet4-visibility-sync": "vitest run --config config/vitest.tet4-visibility-sync.config.ts",
     "bench:affected-part-sync": "vitest run --config config/vitest.affected-part-sync.config.ts",
     "bench:cold-attachment": "vitest run --config config/vitest.cold-attachment.config.ts",
+    "bench:distinct-part-churn": "vitest run --config config/vitest.distinct-part-churn.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",
     "bench:webgpu:glb": "RUN_GLB_VIEWPORT_PERF=1 playwright test --project=chrome e2e/demo/perf-glb-{viewport,file-open}.spec.ts",
     "test:e2e": "npm run test:e2e:combined",

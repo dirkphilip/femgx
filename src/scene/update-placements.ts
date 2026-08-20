@@ -77,9 +77,16 @@ export class ScenePlacementDrafts {
     assemblyId: AssemblyId,
     assembly: AssemblyDefinition,
     placements: readonly Placement[],
+    removed?: { readonly placementId: string; readonly index: number },
   ): void {
     if (this.drafts.has(assemblyId)) this.install(assemblyId, assembly, placements);
-    else this.publish(assemblyId, { ...assembly, placements });
+    else {
+      const revision = { ...assembly, placements };
+      if (removed !== undefined) {
+        retainRemovedPlacementIndex(assembly, revision, removed.placementId, removed.index);
+      }
+      this.publish(assemblyId, revision);
+    }
   }
 
   private mutable(assemblyId: AssemblyId, assembly: AssemblyDefinition): MutableAssemblyPlacements {
