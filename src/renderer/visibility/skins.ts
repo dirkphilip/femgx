@@ -1,7 +1,7 @@
 import type { Part, TriangleGeometry } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
-import { packedSemanticStorage } from "../../geometry/packed/packed-semantic";
-import { buildPackedVisibilitySkinIndices } from "./packed-skin";
+import { geometrySemanticGraph } from "../../geometry/semantic/part-semantic-graph";
+import { buildGraphVisibilitySkinIndices } from "./graph-skin";
 import {
   visibilityPartMetadata,
   visibilitySignature,
@@ -217,11 +217,11 @@ function buildSkinIndices(
   geometry: TriangleGeometry,
   signature: VisibilitySignature,
 ): Uint32Array {
-  const metadata = getPartSemanticIndex(part);
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    return buildPackedVisibilitySkinIndices(packed, signature, geometry.indices.length);
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    return buildGraphVisibilitySkinIndices(semantic, signature, geometry.indices.length);
   }
+  const metadata = getPartSemanticIndex(part);
   return buildVisibilityTriangleIndices(geometry.indices.length, (target) =>
     writeGenericSkin(geometry, metadata, signature, target),
   );
@@ -229,25 +229,27 @@ function buildSkinIndices(
 
 function writeGenericSkin(
   geometry: TriangleGeometry,
-  metadata: Pick<ReturnType<typeof getPartSemanticIndex>, "bodyByElement" | "elementOrdinalById">,
+  metadata: Pick<ReturnType<typeof getPartSemanticIndex>, "bodyForElement" | "elementOrdinal">,
   signature: VisibilitySignature,
   target: Uint32Array | number[] | undefined,
 ): number {
   let offset = 0;
-  for (const face of geometry.faces ?? []) {
-    const ownerBody = face.bodyId ?? metadata.bodyByElement.get(face.elementId);
+  const faces = geometry.faces;
+  if (faces === undefined) return 0;
+  for (const face of faces) {
+    const ownerBody = face.bodyId ?? metadata.bodyForElement(face.elementId);
     const ownerVisible =
       !contains(signature.bodyIds, ownerBody) &&
-      !genericElementHidden(signature, face.elementId, metadata.elementOrdinalById);
+      !genericElementHidden(signature, face.elementId, metadata.elementOrdinal);
     if (!ownerVisible) continue;
     const neighborBody =
       face.neighborElementId === undefined
         ? undefined
-        : metadata.bodyByElement.get(face.neighborElementId);
+        : metadata.bodyForElement(face.neighborElementId);
     const neighborVisible =
       face.neighborElementId !== undefined &&
       !contains(signature.bodyIds, neighborBody) &&
-      !genericElementHidden(signature, face.neighborElementId, metadata.elementOrdinalById);
+      !genericElementHidden(signature, face.neighborElementId, metadata.elementOrdinal);
     if (neighborVisible) continue;
     offset = writeTriangleRange(target, offset, face.primitiveStart, face.primitiveCount);
   }
@@ -257,11 +259,11 @@ function writeGenericSkin(
 function genericElementHidden(
   signature: VisibilitySignature,
   elementId: number,
-  ordinals: { get(id: number): number | undefined },
+  ordinalForElement: (id: number) => number | undefined,
 ): boolean {
   const words = signature.elementWords;
   if (words === undefined) return contains(signature.elementIds, elementId);
-  const ordinal = ordinals.get(elementId);
+  const ordinal = ordinalForElement(elementId);
   if (ordinal === undefined) return false;
   const bit = ordinal - 1;
   return ((words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;

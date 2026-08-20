@@ -4,9 +4,9 @@ import { createCamera } from "../../src/camera/camera";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { setTargetSelected } from "../../src/interaction/targets";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { displayedPartBounds, padDegenerateBounds } from "../../src/viewport/geometry-bounds";
 import {
   SceneNavigationBoundsCache,
@@ -48,7 +48,7 @@ function sceneWithRepeatedPart(placementCount = 2) {
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     bodies: [{ id: 4, elementIds: [8] }],
   });
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -56,10 +56,10 @@ function sceneWithRepeatedPart(placementCount = 2) {
       placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
         partId: 1,
-        transform: translation(index * 10, 0, 0),
+        transform: translationMatrix(index * 10, 0, 0),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -91,6 +91,10 @@ describe("viewport scene bounds", () => {
           ],
           faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
         },
+      ],
+      elements: [
+        { id: 1, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
+        { id: 2, primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }] },
       ],
     });
 

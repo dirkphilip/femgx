@@ -24,7 +24,7 @@ export {
 export { finiteRange, scalarRange, type ValueRange } from "../results/range";
 export {
   createScalarColorMap,
-  mapScalar,
+  mapScalarToColor,
   type ColorStop,
   type ScalarColorMap,
   type ScalarColorMapOptions,
@@ -32,6 +32,6 @@ export {
 export {
   deformGeometry,
   deformPositions,
-  nodalDisplacements,
+  createNodalDisplacementBuffer,
   type DeformationState,
 } from "../results/deform";

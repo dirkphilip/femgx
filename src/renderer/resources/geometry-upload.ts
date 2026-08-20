@@ -45,6 +45,10 @@ export interface PartGeometryData {
   readonly subsetIndices: Uint32Array | undefined;
 }
 
+function elementsForPart(part: Part) {
+  return part.elements;
+}
+
 export interface PartSubsetGeometryData {
   readonly subsetBuffers: ReturnType<typeof createSubsetBuffers>;
   readonly subsetIndices: Uint32Array;
@@ -67,10 +71,10 @@ export function buildPartGeometryData(
   const subsetIndices = getSubsetIndices(triangleGeometry);
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    elementsForPart(part) ?? [],
+    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
@@ -119,10 +123,10 @@ export function buildPartSubsetGeometryData(
   if (subsetIndices === undefined || subsetIndices.length === 0) return undefined;
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    elementsForPart(part) ?? [],
+    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
   const subsetVertexData = triangleSubsetUploadData(geometry, subsetIndices);
   return {
     subsetBuffers: createSubsetBuffers(device, subsetVertexData, faceBodyPickIds, elementOrdinals),
@@ -144,10 +148,10 @@ export function materializeFullGeometry(
       : expandSurfaceGeometry(geometry);
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    elementsForPart(part) ?? [],
+    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []);
+  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
@@ -237,8 +241,8 @@ function buildPartMeshEdgeData(
   presentationOnly: boolean,
 ): MeshEdgePresentationBuild {
   const indices = getSubsetIndices(geometry) ?? geometry.indices;
-  const elements = part.elements ?? [];
-  if (presentationOnly && (part.bodies?.length ?? 0) === 0) {
+  const elements = elementsForPart(part) ?? [];
+  if (presentationOnly && (part.bodies?.count ?? 0) === 0) {
     return buildUnownedMeshEdgePresentation(geometry, indices, elements);
   }
   return { edgeData: buildMeshEdgeData(geometry, indices, elements) };
@@ -264,8 +268,8 @@ function uploadEdgeResourceData(
   );
   const elementOrdinals = buildElementPrimitiveOrdinals(
     geometry,
-    part.elements ?? [],
-    getPartSemanticIndex(part).elementOrdinalById,
+    elementsForPart(part) ?? [],
+    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
   return {
     edgeVertexBuffer: vertexBuffer,
@@ -275,7 +279,7 @@ function uploadEdgeResourceData(
       device,
       options.primitiveElementPickIds === undefined
         ? packTopologyData(
-            buildPrimitiveFaceBodyPickData(geometry, part.elements ?? []),
+            buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []),
             edgeData.bodyRanges,
             edgeData.bodyIds,
             edgeData.elementIds,

@@ -9,7 +9,7 @@ import type { FemModel, ModelElementShapeBlock, ModelSet, ModelResultField } fro
  * references, and result field shapes. Issues are reported, never thrown.
  * @category Import and export
  */
-export function validateModel(model: FemModel): readonly Issue[] {
+export function validateFemModel(model: FemModel): readonly Issue[] {
   const issues: Issue[] = [];
   const nodeIds = new Set<NodeId>();
   const elementIds = new Set<ElementId>();

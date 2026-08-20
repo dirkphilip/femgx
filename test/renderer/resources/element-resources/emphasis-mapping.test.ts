@@ -12,9 +12,9 @@ import {
   setEdgeSelected,
   setNodeSelected,
   setTargetHovered,
-  translation,
+  translationMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   collectEmphasisUpdates,
   collectDenseElementSelections,
   buildInstanceLayout,
@@ -265,14 +265,14 @@ describe("collectEmphasisUpdates", () => {
       ],
       nodePositions: new Float32Array([0, 0, 0]),
     });
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(point)
       .addAssembly({
         id: 1,
         name: "standalone-node",
-        placements: [{ kind: "part", partId: 2, transform: translation(0, 0, 0) }],
+        placements: [{ kind: "part", partId: 2, transform: translationMatrix(0, 0, 0) }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);

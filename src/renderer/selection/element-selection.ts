@@ -180,7 +180,7 @@ interface DenseSelectionContext {
 
 interface DenseSelectionBuilder {
   readonly elementCount: number;
-  readonly elementOrdinalById: { readonly get: (elementId: number) => number | undefined };
+  readonly elementOrdinal: (elementId: number) => number | undefined;
   readonly slotCount: number;
   readonly candidates: DenseSelectionCandidate[];
 }
@@ -204,16 +204,15 @@ function addInstanceSelections(context: DenseSelectionContext): void {
   const metadata = getPartSemanticIndex(part);
   let selectedCount = 0;
   for (const elementId of elementIds) {
-    if (metadata.elementOrdinalById.has(elementId)) selectedCount += 1;
+    if (metadata.hasElement(elementId)) selectedCount += 1;
   }
-  const wordBytes =
-    Math.ceil(metadata.elementOrdinalById.size / 32) * Uint32Array.BYTES_PER_ELEMENT;
+  const wordBytes = Math.ceil(metadata.elementCount / 32) * Uint32Array.BYTES_PER_ELEMENT;
   if (selectedCount === 0 || selectedCount * ELEMENT_RECORD_STRIDE <= wordBytes + 4) return;
   let builder = byPart.get(partId);
   if (builder === undefined) {
     builder = {
-      elementCount: metadata.elementOrdinalById.size,
-      elementOrdinalById: metadata.elementOrdinalById,
+      elementCount: metadata.elementCount,
+      elementOrdinal: (elementId) => metadata.elementOrdinal(elementId),
       slotCount: layout.partLocalSlots.get(partId)?.length ?? 0,
       candidates: [],
     };
@@ -245,7 +244,7 @@ function selectionWords(
 ): Uint32Array {
   const words = new Uint32Array(Math.ceil(builder.elementCount / 32));
   for (const elementId of elementIds) {
-    const ordinal = builder.elementOrdinalById.get(elementId);
+    const ordinal = builder.elementOrdinal(elementId);
     if (ordinal === undefined) continue;
     const bit = ordinal - 1;
     const word = bit >> 5;

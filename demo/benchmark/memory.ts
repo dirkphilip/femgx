@@ -1,6 +1,6 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import { packedSemanticStorageForGeometry } from "../../src/geometry/packed/packed-semantic";
+import { geometrySemanticGraph } from "../../src/geometry/semantic/part-semantic-graph";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/frame/deformation";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/frame/pipelines";
 import {
@@ -70,7 +70,7 @@ export function denseEdgeTypedMemory(options: {
   const entry = entries.length === 1 ? entries[0] : undefined;
   if (
     entry?.geometry.primitive !== "triangles" ||
-    (entry.part.bodies?.length ?? 0) !== 0 ||
+    (entry.part.bodies?.count ?? 0) !== 0 ||
     entry.geometry.faces !== undefined ||
     entry.geometry.edges !== undefined ||
     entry.geometry.faceSubset !== undefined
@@ -282,17 +282,18 @@ function subsetEstimate(
     return { bufferBytes: 0 };
   }
   let primitiveCount = 0;
-  const packed = packedSemanticStorageForGeometry(geometry);
-  if (packed?.faceSubsetOrdinals !== undefined) {
-    for (const faceOrdinal of packed.faceSubsetOrdinals) {
-      primitiveCount += packed.facePrimitiveCounts[faceOrdinal] ?? 0;
+  const semantic = geometrySemanticGraph(geometry);
+  if (semantic !== undefined) {
+    const { graph, geometryOrdinal } = semantic;
+    const first = graph.faceSubsetOffsets[geometryOrdinal] ?? 0;
+    const last = graph.faceSubsetOffsets[geometryOrdinal + 1] ?? first;
+    for (let row = first; row < last; row += 1) {
+      const faceOrdinal = graph.faceSubsetOrdinals[row] ?? 0;
+      primitiveCount += graph.facePrimitiveCounts[faceOrdinal] ?? 0;
     }
   } else {
-    for (const faceId of geometry.faceSubset.faceIds) {
-      const face = geometry.faces?.find(
-        (candidate) =>
-          candidate.elementId === faceId.elementId && candidate.faceIndex === faceId.faceIndex,
-      );
+    for (const faceId of geometry.faceSubset) {
+      const face = geometry.faces?.get(faceId.elementId, faceId.faceIndex);
       primitiveCount += face?.primitiveCount ?? 0;
     }
   }

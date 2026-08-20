@@ -46,7 +46,7 @@ export interface Scene {
  */
 export interface SceneBuilder {
   /** Selects the registered root assembly that expands into the scene. */
-  withRoot(rootAssemblyId: AssemblyId): SceneBuilder;
+  setRootAssembly(rootAssemblyId: AssemblyId): SceneBuilder;
   /**
    * Registers one reusable {@link Part} definition by its stable id. Newly
    * registered parts are visible by default in the built scene.
@@ -59,13 +59,10 @@ export interface SceneBuilder {
    */
   addAssembly(assembly: AssemblyDefinition): SceneBuilder;
   /** Hides every occurrence of a registered part definition. */
-  hidePart(partId: PartId): SceneBuilder;
-  /** Shows every occurrence of a registered part definition. */
-  showPart(partId: PartId): SceneBuilder;
-  /** Hides a registered assembly definition and all of its expanded occurrences. */
-  hideAssembly(assemblyId: AssemblyId): SceneBuilder;
-  /** Shows a registered assembly definition and its expanded occurrences. */
-  showAssembly(assemblyId: AssemblyId): SceneBuilder;
+  /** Sets visibility for every occurrence of a registered part definition. */
+  setPartVisible(partId: PartId, visible: boolean): SceneBuilder;
+  /** Sets visibility for a registered assembly definition and all of its expanded occurrences. */
+  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): SceneBuilder;
   /** Validates references and snapshots the accumulated state into an immutable scene. */
   build(): Scene;
 }
@@ -80,7 +77,7 @@ interface SceneState {
 
 function createBuilder(state: SceneState): SceneBuilder {
   const builder: SceneBuilder = {
-    withRoot(rootAssemblyId: AssemblyId): SceneBuilder {
+    setRootAssembly(rootAssemblyId: AssemblyId): SceneBuilder {
       state.rootAssemblyId = rootAssemblyId;
       return builder;
     },
@@ -100,20 +97,14 @@ function createBuilder(state: SceneState): SceneBuilder {
       state.visibleAssemblyIds.add(assembly.id);
       return builder;
     },
-    hidePart(partId: PartId): SceneBuilder {
-      state.visiblePartIds.delete(partId);
+    setPartVisible(partId: PartId, visible: boolean): SceneBuilder {
+      if (visible) state.visiblePartIds.add(partId);
+      else state.visiblePartIds.delete(partId);
       return builder;
     },
-    showPart(partId: PartId): SceneBuilder {
-      state.visiblePartIds.add(partId);
-      return builder;
-    },
-    hideAssembly(assemblyId: AssemblyId): SceneBuilder {
-      state.visibleAssemblyIds.delete(assemblyId);
-      return builder;
-    },
-    showAssembly(assemblyId: AssemblyId): SceneBuilder {
-      state.visibleAssemblyIds.add(assemblyId);
+    setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): SceneBuilder {
+      if (visible) state.visibleAssemblyIds.add(assemblyId);
+      else state.visibleAssemblyIds.delete(assemblyId);
       return builder;
     },
     build(): Scene {
@@ -337,14 +328,14 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>
 /**
  * Creates an empty mutable authoring transaction.
  *
- * The normal path is `addPart → addAssembly → withRoot → build`. A scene must
+ * The normal path is `addPart → addAssembly → setRootAssembly → build`. A scene must
  * have a registered root; all placement references must resolve to registered
  * definitions and the assembly graph must be acyclic. `build()` returns an
  * isolated immutable snapshot, so it is also the boundary used to prepare a
  * initial snapshot for {@link Viewport}; use `Viewport.updateScene` for live edits.
  * @example Register one reusable part and its root assembly.
  * ```ts
- * import { createPart, createScene, identity } from "femgx";
+ * import { createPart, createSceneBuilder, identityMatrix } from "femgx";
  *
  * const part = createPart(1, {
  *   geometries: [{
@@ -353,19 +344,19 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>
  *     indices: new Uint32Array([0]),
  *   }],
  * });
- * const scene = createScene()
+ * const scene = createSceneBuilder()
  *   .addPart(part)
  *   .addAssembly({
  *     id: 2,
  *     name: "root",
- *     placements: [{ kind: "part", partId: 1, transform: identity() }],
+ *     placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
  *   })
- *   .withRoot(2)
+ *   .setRootAssembly(2)
  *   .build();
  * ```
  * @category Start here
  */
-export function createScene(): SceneBuilder {
+export function createSceneBuilder(): SceneBuilder {
   return createBuilder({
     parts: new Map(),
     assemblies: new Map(),

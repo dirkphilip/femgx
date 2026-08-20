@@ -1,4 +1,4 @@
-import type { ElementTessellation, Geometry, Part } from "../../geometry/part";
+import type { ElementTessellation, Geometry, Part, PartElements } from "../../geometry/part";
 import { nodeOwnersAreCanonical, sortNodeOwners } from "./node-topology-order";
 
 interface NodeTopologyData {
@@ -52,7 +52,7 @@ function prepareNodeTopology(
 ): NodeTopologyBuild {
   const nodeCount = Math.floor((part.nodePositions?.length ?? 0) / 3);
   const sprites = spritePickIds ?? sequentialNodePickIds(nodeCount);
-  const elements = part.elements ?? [];
+  const elements = part.elements;
   const build = {
     geometries: part.geometries,
     elements,
@@ -108,7 +108,7 @@ function buildNodeOwnerCursors(ranges: Uint32Array, spriteCount: number): Uint32
 
 interface NodeOwnerPass {
   readonly geometries: readonly Geometry[];
-  readonly elements: readonly ElementTessellation[];
+  readonly elements: PartElements | undefined;
   readonly stamps: Uint32Array;
   readonly counts: Uint32Array;
   readonly spriteByNode: Int32Array;
@@ -118,11 +118,10 @@ interface NodeOwnerPass {
 }
 
 function accumulateNodeOwners(input: NodeOwnerPass): void {
-  const { elements } = input;
-  for (let ordinal = 0; ordinal < elements.length; ordinal += 1) {
-    const element = elements[ordinal];
-    if (element === undefined) continue;
+  let ordinal = 0;
+  for (const element of input.elements ?? []) {
     accumulateElementNodeOwners(input, element, ordinal + 1);
+    ordinal += 1;
   }
 }
 

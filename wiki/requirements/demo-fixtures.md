@@ -78,7 +78,7 @@ the topology and interaction evidence the demo is required to preserve.
 
 The visual workbench and the benchmark lane may share deterministic fixture
 factories, but neither may create a parallel scene representation. Fixtures
-enter the normal `Scene` → `SceneRuntime` → `Viewport` path. Large cases are
+enter the normal `Scene` → `Viewport` → occurrence-inspection path. Large cases are
 selected explicitly and built lazily; they are not part of ordinary startup,
 default screenshots, or default unit-test setup.
 

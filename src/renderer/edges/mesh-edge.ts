@@ -1,5 +1,9 @@
-import type { ElementTessellation, Geometry, GeometryEdge } from "../../geometry/part";
-import { buildTriangleOwnerPairs, type TriangleOwnerPair } from "../picking/ids";
+import type { Geometry, GeometryEdge } from "../../geometry/part";
+import {
+  buildTriangleOwnerPairs,
+  type ElementTessellations,
+  type TriangleOwnerPair,
+} from "../picking/ids";
 import { compareEdgeNodeIds } from "../../geometry/part-semantic-index";
 import { elementEdgeKeys } from "./authored-edge";
 import { appendEdgeConditions } from "./edge-conditions";
@@ -25,7 +29,7 @@ interface MeshEdge {
 export function buildMeshEdgeData(
   geometry: Geometry,
   sourceIndices = geometry.indices,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = [],
 ): MeshEdgeData {
   if (
     geometry.primitive === "triangles" &&
@@ -37,7 +41,7 @@ export function buildMeshEdgeData(
   if (
     geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
-    elements.length === 0 &&
+    (elements.count ?? (Array.isArray(elements) ? elements.length : 0)) === 0 &&
     sourceIndices === geometry.indices
   ) {
     return buildDenseUnownedEdgeData(geometry, elements);
@@ -56,7 +60,7 @@ export function buildMeshEdgeData(
 export function buildUnownedMeshEdgePresentation(
   geometry: Geometry,
   sourceIndices = geometry.indices,
-  elements: readonly ElementTessellation[] = [],
+  elements: ElementTessellations = [],
 ): MeshEdgePresentationBuild {
   if (
     geometry.primitive === "triangles" &&

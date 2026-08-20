@@ -5,10 +5,10 @@ import type { SectionPlane } from "../math/section-plane";
 import { cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 import { ElementShape } from "../elements/shapes";
 import {
-  packedElementOrdinal,
-  packedSemanticStorageForGeometry,
-  type PackedSemanticStorage,
-} from "./packed/packed-semantic";
+  geometrySemanticGraph,
+  graphElementOrdinal,
+  type PartSemanticGraph,
+} from "./semantic/part-semantic-graph";
 
 /** A generated cap vertex and its two authored nodal result endpoints. */
 export interface SectionCapVertex {
@@ -69,11 +69,11 @@ export function buildElementSectionCap(input: SectionCapBuildInput): SectionCap 
   const triangles = part.geometries.find((geometry) => geometry.primitive === "triangles");
   const positions = part.nodePositions;
   if (triangles?.primitive !== "triangles" || positions === undefined) return undefined;
-  const packed = packedSemanticStorageForGeometry(triangles);
+  const semantic = geometrySemanticGraph(triangles);
   const edges =
-    packed === undefined
+    semantic === undefined
       ? authoredEdges(triangles.faces, element.id)
-      : authoredEdgesPacked(packed, element.id);
+      : authoredGraphEdges(semantic.graph, element.id);
   if (edges.length === 0) return undefined;
   const world = (nodeId: number): Vec3 | undefined =>
     worldNode(positions, nodeId, transform, input.displacements, input.deformationScale ?? 1);
@@ -143,11 +143,12 @@ function collectCandidates(
 }
 
 function authoredEdges(
-  faces: readonly { readonly elementId: number; readonly nodeIds: readonly number[] }[] | undefined,
+  faces: Iterable<{ readonly elementId: number; readonly nodeIds: readonly number[] }> | undefined,
   elementId: number,
 ): readonly Edge[] {
   const unique = new Map<string, Edge>();
-  for (const face of faces ?? []) {
+  if (faces === undefined) return [];
+  for (const face of faces) {
     if (face.elementId !== elementId || face.nodeIds.length < 3) continue;
     for (let index = 0; index < face.nodeIds.length; index += 1) {
       const a = face.nodeIds[index];
@@ -162,18 +163,19 @@ function authoredEdges(
   );
 }
 
-function authoredEdgesPacked(storage: PackedSemanticStorage, elementId: number): readonly Edge[] {
-  const ordinal = packedElementOrdinal(storage, elementId);
+function authoredGraphEdges(graph: PartSemanticGraph, elementId: number): readonly Edge[] {
+  const ordinal = graphElementOrdinal(graph, elementId);
   if (ordinal === undefined) return [];
-  const first = storage.elementFaceOffsets?.[ordinal] ?? 0;
-  const last = storage.elementFaceOffsets?.[ordinal + 1] ?? storage.faceOwnerElementOrdinals.length;
+  const first = faceStartForElement(graph, ordinal);
+  const last = faceEndForElement(graph, ordinal);
   const unique = new Map<string, Edge>();
   for (let faceOrdinal = first; faceOrdinal < last; faceOrdinal += 1) {
-    const nodeStart = storage.faceNodeOffsets[faceOrdinal] ?? 0;
-    const nodeEnd = storage.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
+    if ((graph.faceOwnerElementOrdinals[faceOrdinal] ?? -1) !== ordinal) continue;
+    const nodeStart = graph.faceNodeOffsets[faceOrdinal] ?? 0;
+    const nodeEnd = graph.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
     for (let index = nodeStart; index < nodeEnd; index += 1) {
-      const a = storage.faceNodeIds[index];
-      const b = storage.faceNodeIds[index + 1 < nodeEnd ? index + 1 : nodeStart];
+      const a = graph.faceNodeIds[index];
+      const b = graph.faceNodeIds[index + 1 < nodeEnd ? index + 1 : nodeStart];
       if (a === undefined || b === undefined || a === b) continue;
       const key = edgeKey(a, b);
       if (!unique.has(key)) unique.set(key, { a: Math.min(a, b), b: Math.max(a, b) });
@@ -182,6 +184,28 @@ function authoredEdgesPacked(storage: PackedSemanticStorage, elementId: number):
   return [...unique.values()].sort((left, right) =>
     edgeKey(left.a, left.b).localeCompare(edgeKey(right.a, right.b)),
   );
+}
+
+function faceStartForElement(graph: PartSemanticGraph, elementOrdinal: number): number {
+  let first = graph.faceOwnerElementOrdinals.length;
+  for (let face = 0; face < graph.faceOwnerElementOrdinals.length; face += 1) {
+    if (graph.faceOwnerElementOrdinals[face] === elementOrdinal) {
+      first = face;
+      break;
+    }
+  }
+  return first;
+}
+
+function faceEndForElement(graph: PartSemanticGraph, elementOrdinal: number): number {
+  let last = 0;
+  for (let face = graph.faceOwnerElementOrdinals.length - 1; face >= 0; face -= 1) {
+    if (graph.faceOwnerElementOrdinals[face] === elementOrdinal) {
+      last = face + 1;
+      break;
+    }
+  }
+  return last;
 }
 
 function edgeKey(a: number, b: number): string {

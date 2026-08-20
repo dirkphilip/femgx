@@ -13,8 +13,8 @@ and update lifecycle, not by a renderer quality enum.
 
 | Contract             | Client state                                                           | Interior behavior                                                      |
 | -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Surface snapshot     | One authoritative `surfacePart()` payload                              | Omitted geometry is unavailable. Local hiding may leave a hole.        |
-| Host-updated surface | The latest authoritative `surfacePart()` revision supplied by the host | Newly exposed geometry appears only when the host publishes new state. |
+| Surface snapshot     | One authoritative `createPartFromExplicitTopology()` payload                              | Omitted geometry is unavailable. Local hiding may leave a hole.        |
+| Host-updated surface | The latest authoritative `createPartFromExplicitTopology()` revision supplied by the host | Newly exposed geometry appears only when the host publishes new state. |
 | Fully resident model | Complete `ElementModel` topology and reusable geometry                 | Body/element visibility can reveal retained interiors locally.         |
 
 In both surface contracts, the supplied payload is complete from femgx's point
@@ -170,7 +170,7 @@ presentation rather than silently thinning or degrading it.
    progressive refinement, public cache controls, and arbitrary capability
    flag combinations.
 5. **Public API:** no renderer residency enum is required. Existing
-   `surfacePart()`/`elementPart()` data plus host scene updates express the
+   `createPartFromExplicitTopology()`/`createPartFromElementModel()` data plus host scene updates express the
    contract; any later interaction-detail profile requires its own API decision.
 
 [rendering/face-subsets|Face subsets]: face-subsets.md

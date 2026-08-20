@@ -9,9 +9,9 @@ import {
   createElement,
   createElementModel,
   ElementShape,
-  elementPart,
+  createPartFromElementModel,
   createPart,
-  type TriangleGeometry,
+  type TriangleGeometryInput,
   shared,
   resolvePick,
   resolvePickHit,
@@ -51,14 +51,15 @@ describe("resolvePickHit", () => {
     });
   });
 
-  it("preserves body identity on element, face, and node targets", () => {
-    const bodyGeometry: TriangleGeometry = {
-      ...geometry,
-      faces: (geometry.faces ?? []).map((face) => ({ ...face, bodyId: 6 })),
+  it("preserves body identityMatrix on element, face, and node targets", () => {
+    const { edges: _edges, faceSubset: _faceSubset, ...triangleInput } = geometry;
+    const bodyGeometry: TriangleGeometryInput = {
+      ...triangleInput,
+      faces: Array.from(geometry.faces ?? [], (face) => ({ ...face, bodyId: 6 })),
     };
     const bodyPart = createPart(1, {
       geometries: [bodyGeometry],
-      elements: (part.elements ?? []).map((element) => ({ ...element, bodyId: 6 })),
+      elements: [...(part.elements ?? [])].map((element) => ({ ...element, bodyId: 6 })),
       bodies: [{ id: 6, elementIds: [1] }],
       nodePositions: new Float32Array(TET_NODES),
     });
@@ -135,7 +136,7 @@ describe("resolvePickHit", () => {
   });
 
   it("resolves exact adjacency for a shared node across multiple elements", () => {
-    const sharedPart = elementPart(1, shared());
+    const sharedPart = createPartFromElementModel(1, shared());
     const target = resolvePickHit(
       { instances: [instanceAt(0)], parts: new Map([[1, sharedPart]]) },
       ids({ instancePickId: 1, elementPickId: 2, nodePickId: 1 }),
@@ -203,12 +204,12 @@ describe("resolvePickHit", () => {
       [0, 0, 0, 1, 0, 0],
       [createElement(5, ElementShape.Line, [0, 1]), createElement(8, ElementShape.Point, [1])],
     );
-    const lineElement = model.elements[0];
-    const pointElement = model.elements[1];
+    const lineElement = model.elements.at(0);
+    const pointElement = model.elements.at(1);
     if (lineElement === undefined || pointElement === undefined)
       throw new Error("elements missing");
-    const linePart = elementPart(2, createElementModel([...model.nodes], [lineElement]));
-    const pointPart = elementPart(3, createElementModel([...model.nodes], [pointElement]));
+    const linePart = createPartFromElementModel(2, createElementModel([...model.nodes], [lineElement]));
+    const pointPart = createPartFromElementModel(3, createElementModel([...model.nodes], [pointElement]));
     const mixedContext: PickContext = {
       instances: [instanceAt(0, 2), instanceAt(1, 3)],
       parts: new Map([

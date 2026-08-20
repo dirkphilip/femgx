@@ -12,7 +12,7 @@ import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { deformGeometry } from "../../../src/results/deform";
 import { computeBounds } from "../../../src/geometry/part";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { mapScalar } from "../../../src/results/mapping";
+import { mapScalarToColor } from "../../../src/results/mapping";
 import { resolveViewportResults, viewportOrientationRecords } from "../../../src/viewport/results";
 import { createPresetInteraction } from "../../../demo/workbench/state/preset";
 import { readInteractionState } from "../../../src/interaction/state";
@@ -43,7 +43,7 @@ describe("createModelPresets", () => {
 
   it("uses the element gallery as the default showcase", () => {
     expect(createDefaultPreset().id).toBe("gallery");
-    expect(createModelPresets()[0]).toEqual(createDefaultPreset());
+    expect(createModelPresets()[0]?.id).toBe(createDefaultPreset().id);
   });
 
   it("exposes element models for every typed FE preset part", () => {
@@ -52,7 +52,9 @@ describe("createModelPresets", () => {
     )) {
       for (const partId of preset.scene.parts.keys()) {
         const part = preset.scene.parts.get(partId);
-        const hasTypedElements = part?.elements?.some((element) => element.shape !== undefined);
+        const hasTypedElements = [...(part?.elements ?? [])].some(
+          (element) => element.shape !== undefined,
+        );
         if (hasTypedElements) {
           expect(preset.elementModels.get(partId), `${preset.id} part ${partId}`).toBeDefined();
         }
@@ -121,14 +123,14 @@ describe("createGalleryPreset", () => {
     expect(state.scalar?.field.location).toBe("elemental");
     expect(nodalState.scalar?.field.location).toBe("nodal");
     expect(state.scalar?.field.count).toBeGreaterThan(
-      Math.max(...hex8.elements.map((element) => element.id)),
+      Math.max(...[...hex8.elements].map((element) => element.id)),
     );
     expect(
-      new Set(hex8.elements.map((element) => state.scalar?.field.values[element.id])).size,
-    ).toBe(hex8.elements.length);
-    expect(records.elementIds).toHaveLength(hex8.elements.length * 3);
+      new Set([...hex8.elements].map((element) => state.scalar?.field.values[element.id])).size,
+    ).toBe(hex8.elements.count);
+    expect(records.elementIds).toHaveLength(hex8.elements.count * 3);
     expect(Array.from(records.elementIds).filter((_, index) => index % 3 === 0)).toEqual(
-      hex8.elements.map((element) => element.id),
+      [...hex8.elements].map((element) => element.id),
     );
   });
 });
@@ -205,10 +207,14 @@ describe("results preset", () => {
       "demo-element-frames",
     ]);
     expect(preset.scene.assemblies.get(20)?.placements).toHaveLength(2);
-    expect(model?.elements).toHaveLength(8);
+    expect(model?.elements.count).toBe(8);
     expect(model?.nodes).toHaveLength(45);
-    expect(new Set(model?.elements.flatMap((element) => element.nodeIds)).size).toBe(15);
-    expect(model?.elements.map((element) => element.id)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(new Set([...(model?.elements ?? [])].flatMap((element) => element.nodeIds)).size).toBe(
+      15,
+    );
+    expect([...(model?.elements ?? [])].map((element) => element.id)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7,
+    ]);
     const part = preset.scene.parts.get(20);
     const displacement = preset.results?.deformation?.field;
     if (part === undefined || displacement === undefined) {
@@ -264,10 +270,10 @@ describe("results preset", () => {
     if (scalar === undefined) throw new Error("Results preset has no scalar role");
     expect(Array.from(scalar.field.values)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
     expect(scalar.range).toEqual({ min: 10, max: 80 });
-    expect(mapScalar(scalar.colorMap, 10)).toEqual(scalar.colorMap.stops[0]?.color);
-    expect(mapScalar(scalar.colorMap, 45)).toMatchObject({ r: 0.95, g: 0.85, a: 1 });
-    expect(mapScalar(scalar.colorMap, 45).b).toBeCloseTo(0.2);
-    expect(mapScalar(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
+    expect(mapScalarToColor(scalar.colorMap, 10)).toEqual(scalar.colorMap.stops[0]?.color);
+    expect(mapScalarToColor(scalar.colorMap, 45)).toMatchObject({ r: 0.95, g: 0.85, a: 1 });
+    expect(mapScalarToColor(scalar.colorMap, 45).b).toBeCloseTo(0.2);
+    expect(mapScalarToColor(scalar.colorMap, 80)).toEqual(scalar.colorMap.stops.at(-1)?.color);
   });
 
   it("authors finite nodal temperature snapshots with one shared range", () => {

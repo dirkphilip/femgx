@@ -1,6 +1,6 @@
-import { createPart, type Geometry } from "../../../../src/geometry/part";
+import { createPart, type Geometry, type GeometryInput } from "../../../../src/geometry/part";
 
-import { identity } from "../../../../src/math/mat4";
+import { identityMatrix } from "../../../../src/math/mat4";
 
 import {
   pickEdgeTargetsFromRegion,
@@ -51,11 +51,11 @@ export function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRec
 
 /** Shared renderer test helper. */
 export function instance(partId = 1): PartOccurrence {
-  return { partOccurrenceId: "root/0", partId, worldTransform: identity() };
+  return { partOccurrenceId: "root/0", partId, worldTransform: identityMatrix() };
 }
 
 /** Shared renderer test helper. */
-export function triangleGeometry(): Geometry {
+export function triangleGeometry(): GeometryInput {
   return {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
@@ -139,7 +139,7 @@ export async function targets(
 export {
   createPart,
   type Geometry,
-  identity,
+  identityMatrix,
   pickEdgeTargetsFromRegion,
   pickTargetsFromRegion,
   renderPixelRect,

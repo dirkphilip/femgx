@@ -1,32 +1,24 @@
 # Runtime, camera, and WebGPU
 
 This page covers the specialized APIs around the canonical viewport path. The
-runtime entrypoint is for CPU inspection only; the platform entrypoint owns the
+viewport owns compiled-scene inspection; the platform entrypoint owns the
 supported WebGPU path and never supplies a fallback renderer.
 
 ## Public symbols
 
-| Symbol                                                                                            | Role                                     |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| {@link runtime.SceneRuntime SceneRuntime} / {@link runtime.createSceneRuntime createSceneRuntime} | CPU-only compiled-scene inspection       |
-| {@link camera.Camera Camera} / {@link camera.createCamera createCamera}                           | Immutable camera state and construction  |
-| {@link camera.fitCamera fitCamera} / {@link camera.setProjection setProjection}                   | Camera framing and projection            |
-| {@link root.queryWebGpuSupport queryWebGpuSupport}                                                | Non-throwing support probe               |
-| {@link platform.requestWebGpuDevice requestWebGpuDevice}                                          | Explicit supported-path device ownership |
+| Symbol                                                                                                                                                                          | Role                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| [`Camera`](https://github.com/dirkphilip/femgx/blob/main/src/camera/camera.ts#L14) / [`createCamera`](https://github.com/dirkphilip/femgx/blob/main/src/camera/camera.ts#L84)   | Immutable camera state and construction  |
+| [`fitCamera`](https://github.com/dirkphilip/femgx/blob/main/src/camera/fit.ts#L34) / [`setProjection`](https://github.com/dirkphilip/femgx/blob/main/src/camera/camera.ts#L115) | Camera framing and projection            |
+| [`queryWebGpuSupport`](https://github.com/dirkphilip/femgx/blob/main/src/platform/capabilities.ts#L172)                                                                         | Non-throwing support probe               |
+| [`requestWebGpuDevice`](https://github.com/dirkphilip/femgx/blob/main/src/platform/device.ts#L25)                                                                               | Explicit supported-path device ownership |
 
-## Inspect a scene without a viewport
+## Inspect placed occurrences
 
-```ts
-import { createSceneRuntime } from "femgx/runtime";
-
-const runtime = createSceneRuntime(scene);
-console.log(runtime.getVisiblePartOccurrenceIds());
-console.log(runtime.getOccurrences());
-```
-
-This is useful for host-side inspection before a canvas or GPU exists. It is
-not a second rendering lifecycle. Runtime arrays, packed slots, draw batches,
-and GPU record layouts remain implementation details.
+Use the viewport's stable occurrence inspection facade for hierarchy, world
+transforms, and effective visibility. Packed runtime arrays, slots, draw
+batches, and GPU record layouts remain implementation details; there is no
+standalone runtime package entry or second rendering lifecycle.
 
 ## Custom camera state
 

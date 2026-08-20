@@ -1,6 +1,7 @@
 import type { ElementId } from "../elements/element";
 import type { BodyId } from "../elements/model";
-import type { ElementTessellation, Geometry, GeometryBody } from "./types";
+import { ordinalForId, sortedOrdinals } from "../elements/model-storage";
+import type { ElementTessellation, GeometryBody, GeometryInput } from "./types";
 import { MAX_ONE_BASED_ID, isValidOneBasedId, validateOneBasedId } from "./id-validation";
 import { validateFaceMetadata, validateFaceSubset } from "./face-validation";
 import { validateEdges } from "./edge-validation";
@@ -34,7 +35,7 @@ export function validateElements(
   for (const element of elements) {
     validateOneBasedId(element.id, "Element");
     if (element.bodyId !== undefined) validateBodyId(element.bodyId);
-    if (!element.primitiveRanges.some((range) => range.primitive === primitive)) continue;
+    if (!hasPrimitiveRange(element, primitive)) continue;
     validateElementRanges(element, primitive, primitiveCount, coverage);
   }
   for (let primitiveIndex = 0; primitiveIndex < primitiveCount; primitiveIndex++) {
@@ -52,10 +53,10 @@ function validateElementRanges(
   primitiveCount: number,
   coverage: Uint8Array,
 ): void {
-  const ranges = element.primitiveRanges.filter((candidate) => candidate.primitive === primitive);
-  if (ranges.length === 0)
+  if (!hasPrimitiveRange(element, primitive))
     throw new Error(`Element ${element.id} has no ${primitiveLabel(primitive)}`);
-  for (const range of ranges) {
+  for (const range of element.primitiveRanges) {
+    if (range.primitive !== primitive) continue;
     if (
       !Number.isInteger(range.primitiveStart) ||
       range.primitiveStart < 0 ||
@@ -82,6 +83,14 @@ function validateElementRanges(
   }
 }
 
+function hasPrimitiveRange(
+  element: ElementTessellation,
+  primitive: "triangles" | "lines" | "points",
+): boolean {
+  for (const range of element.primitiveRanges) if (range.primitive === primitive) return true;
+  return false;
+}
+
 /** Returns the number of logical draw primitives in geometry. */
 export function logicalPrimitiveCount(geometry: {
   readonly positions?: Float32Array;
@@ -103,9 +112,13 @@ export function primitiveRangesForElement(
   element: ElementTessellation,
   primitive: "triangles" | "lines" | "points",
 ): readonly { readonly start: number; readonly count: number }[] {
-  return element.primitiveRanges
-    .filter((range) => range.primitive === primitive)
-    .map(({ primitiveStart: start, primitiveCount: count }) => ({ start, count }));
+  const ranges: { start: number; count: number }[] = [];
+  for (const range of element.primitiveRanges) {
+    if (range.primitive === primitive) {
+      ranges.push({ start: range.primitiveStart, count: range.primitiveCount });
+    }
+  }
+  return ranges;
 }
 
 function primitiveLabel(primitive: "triangles" | "lines" | "points"): string {
@@ -137,29 +150,20 @@ export function validateBodies(geometry: {
     validateElementsWithoutBodies(geometry.elements ?? []);
     return;
   }
-  const elementIds = new Set((geometry.elements ?? []).map((element) => element.id));
-  const membership = collectBodyMembership(bodies, elementIds);
-  validateElementMembership(geometry.elements ?? [], membership.declaredBodies, membership.ids);
-}
-
-/** Resolves body ownership once against a complete element list. */
-export function bodyAssignments(
-  elements: readonly Pick<ElementTessellation, "id">[],
-  bodies: readonly GeometryBody[] | undefined,
-): ReadonlyMap<ElementId, BodyId> {
-  if (bodies === undefined || bodies.length === 0) return new Map();
-  const assignments = new Map<ElementId, BodyId>();
-  for (const body of bodies) {
-    for (const elementId of body.elementIds) assignments.set(elementId, body.id);
+  const elements = geometry.elements ?? [];
+  const elementIds = new Uint32Array(elements.length);
+  for (let ordinal = 0; ordinal < elements.length; ordinal += 1) {
+    elementIds[ordinal] = elements[ordinal]?.id ?? 0;
   }
-  validateBodies({
-    elements: elements.map((element) => {
-      const bodyId = assignments.get(element.id);
-      return bodyId === undefined ? { id: element.id } : { id: element.id, bodyId };
-    }),
-    bodies,
-  });
-  return assignments;
+  const elementOrdinals = sortedOrdinals(elementIds, "Part element", false);
+  const membership = collectBodyMembership(bodies, elementIds, elementOrdinals);
+  validateElementMembership(
+    elements,
+    membership.bodyIds,
+    membership.elementBodyIds,
+    elementIds,
+    elementOrdinals,
+  );
 }
 
 function validateElementsWithoutBodies(
@@ -176,30 +180,29 @@ function validateElementsWithoutBodies(
 
 function collectBodyMembership(
   bodies: readonly GeometryBody[],
-  elementIds: ReadonlySet<ElementId>,
+  elementIds: Uint32Array,
+  elementOrdinals: Uint32Array,
 ): {
-  readonly declaredBodies: ReadonlySet<BodyId>;
-  readonly ids: ReadonlyMap<ElementId, BodyId>;
+  readonly bodyIds: Uint32Array;
+  readonly elementBodyIds: Uint32Array;
 } {
-  const declaredBodies = new Set<BodyId>();
-  const ids = new Map<ElementId, BodyId>();
+  const bodyIds = new Uint32Array(bodies.length);
+  const elementBodyIds = new Uint32Array(elementIds.length);
   let previousBodyId: BodyId | undefined;
-  for (const body of bodies) {
-    validateBodyOrder(body, previousBodyId, declaredBodies);
+  for (let bodyOrdinal = 0; bodyOrdinal < bodies.length; bodyOrdinal += 1) {
+    const body = bodies[bodyOrdinal];
+    if (body === undefined) throw new Error(`Part has no body ${bodyOrdinal}`);
+    validateBodyOrder(body, previousBodyId);
     previousBodyId = body.id;
-    declaredBodies.add(body.id);
-    collectBodyElements(body, elementIds, ids);
+    bodyIds[bodyOrdinal] = body.id;
+    collectBodyElements(body, elementIds, elementOrdinals, elementBodyIds);
   }
-  return { declaredBodies, ids };
+  return { bodyIds, elementBodyIds };
 }
 
-function validateBodyOrder(
-  body: GeometryBody,
-  previousBodyId: BodyId | undefined,
-  declaredBodies: ReadonlySet<BodyId>,
-): void {
+function validateBodyOrder(body: GeometryBody, previousBodyId: BodyId | undefined): void {
   validateBodyId(body.id);
-  if (declaredBodies.has(body.id)) {
+  if (previousBodyId !== undefined && body.id === previousBodyId) {
     throw new GeometryValidationError("duplicate-body-id", `Duplicate body id ${body.id}`);
   }
   if (previousBodyId !== undefined && body.id <= previousBodyId) {
@@ -220,8 +223,9 @@ function validateBodyId(bodyId: BodyId): void {
 
 function collectBodyElements(
   body: GeometryBody,
-  elementIds: ReadonlySet<ElementId>,
-  membership: Map<ElementId, BodyId>,
+  elementIds: Uint32Array,
+  elementOrdinals: Uint32Array,
+  membership: Uint32Array,
 ): void {
   let previousElementId: ElementId | undefined;
   for (const elementId of body.elementIds) {
@@ -231,39 +235,43 @@ function collectBodyElements(
         `Body ${body.id} element ids must be strictly ascending`,
       );
     }
-    if (!elementIds.has(elementId)) {
+    const elementOrdinal = ordinalForId(elementIds, elementOrdinals, elementId);
+    if (elementOrdinal === undefined) {
       throw new GeometryValidationError(
         "unknown-body-element",
         `Body ${body.id} references unknown element ${elementId}`,
       );
     }
-    if (membership.has(elementId)) {
+    if ((membership[elementOrdinal] ?? 0) !== 0) {
       throw new GeometryValidationError(
         "duplicate-body-membership",
         `Element ${elementId} belongs to more than one body`,
       );
     }
-    membership.set(elementId, body.id);
+    membership[elementOrdinal] = body.id;
     previousElementId = elementId;
   }
 }
 
 function validateElementMembership(
   elements: readonly Pick<ElementTessellation, "id" | "bodyId">[],
-  declaredBodies: ReadonlySet<BodyId>,
-  membership: ReadonlyMap<ElementId, BodyId>,
+  bodyIds: Uint32Array,
+  membership: Uint32Array,
+  elementIds: Uint32Array,
+  elementOrdinals: Uint32Array,
 ): void {
   for (const element of elements) {
-    const listedBodyId = membership.get(element.id);
-    if (element.bodyId !== undefined && !declaredBodies.has(element.bodyId)) {
+    const ordinal = ordinalForId(elementIds, elementOrdinals, element.id);
+    const listedBodyId = ordinal === undefined ? 0 : (membership[ordinal] ?? 0);
+    if (element.bodyId !== undefined && !containsSorted(bodyIds, element.bodyId)) {
       throw new GeometryValidationError(
         "unknown-element-body",
         `Element ${element.id} references unknown body ${element.bodyId}`,
       );
     }
     if (
-      listedBodyId !== element.bodyId &&
-      (listedBodyId !== undefined || element.bodyId !== undefined)
+      listedBodyId !== (element.bodyId ?? 0) &&
+      (listedBodyId !== 0 || element.bodyId !== undefined)
     ) {
       throw new GeometryValidationError(
         "body-membership-mismatch",
@@ -271,6 +279,19 @@ function validateElementMembership(
       );
     }
   }
+}
+
+function containsSorted(ids: Uint32Array, id: number): boolean {
+  let low = 0;
+  let high = ids.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const candidate = ids[middle] ?? 0;
+    if (candidate === id) return true;
+    if (candidate < id) low = middle + 1;
+    else high = middle - 1;
+  }
+  return false;
 }
 
 /** Returns the body id associated with an element, if any. */
@@ -288,7 +309,7 @@ export function bodyIdForElement(
  * counts and the declared face descriptors.
  */
 export function validatePickIds(
-  geometry: Geometry,
+  geometry: GeometryInput,
   elements: readonly ElementTessellation[] | undefined,
   nodePositions: Float32Array | undefined,
 ): void {
@@ -304,7 +325,10 @@ export function validatePickIds(
   validateFaceSubset(geometry);
 }
 
-function validateNodePickIds(geometry: Geometry, nodePositions: Float32Array | undefined): void {
+function validateNodePickIds(
+  geometry: GeometryInput,
+  nodePositions: Float32Array | undefined,
+): void {
   const nodeCount = nodePositions === undefined ? undefined : nodePositions.length / 3;
   if (nodeCount !== undefined && !Number.isInteger(nodeCount)) {
     throw new Error("nodePositions length must be a multiple of 3");

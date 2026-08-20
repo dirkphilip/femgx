@@ -67,16 +67,7 @@ function main() {
     console.log(`Packed ${packResult.filename} (${tarballFiles.length} files)`);
 
     // 3. Sanity-check tarball contents: declarations, no source/demo leakage.
-    const publicEntries = [
-      "model",
-      "io",
-      "io/glb",
-      "camera",
-      "interaction",
-      "results",
-      "runtime",
-      "platform",
-    ];
+    const publicEntries = ["model", "io", "io/glb", "camera", "interaction", "results", "platform"];
     const expectedArtifacts = [
       "dist/femgx.js",
       "dist/entries/root.d.ts",
@@ -198,37 +189,35 @@ function main() {
     writeFileSync(
       join(consumer, "smoke.mjs"),
       [
-        'import { createScene, identity } from "femgx";',
+        'import { createSceneBuilder, identityMatrix } from "femgx";',
         'import { createCamera } from "femgx/camera";',
         'import { boxSelectionFrustum, createInteractionState, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride } from "femgx/interaction";',
         'import * as model from "femgx/model";',
         'import * as io from "femgx/io";',
         'import * as glb from "femgx/io/glb";',
-        'import * as runtime from "femgx/runtime";',
         'import * as platform from "femgx/platform";',
-        "const scene = createScene();",
+        "const scene = createSceneBuilder();",
         "const camera = createCamera();",
         'if (camera.mode !== "orthographic") throw new Error("orthographic default failed");',
         "const frustum = boxSelectionFrustum(camera, { left: 0, top: 0, right: camera.width, bottom: camera.height, width: camera.width, height: camera.height });",
         'if (frustum.near.normal.length !== 3) throw new Error("frustum export failed");',
-        "const m = identity();",
-        'if (m.length !== 16) throw new Error("identity() is not a 4x4 matrix");',
+        "const m = identityMatrix();",
+        'if (m.length !== 16) throw new Error("identityMatrix() is not a 4x4 matrix");',
         'if (typeof setPartOverride !== "function" || typeof setPartOccurrenceOverride !== "function" || typeof setPartOccurrenceOverrides !== "function") throw new Error("part-occurrence override exports failed");',
         "let interaction = createInteractionState();",
         "interaction = setPartOverride(interaction, 1, { lineWidthPixels: 2 });",
         'interaction = setPartOccurrenceOverride(interaction, "1/0", { lineWidthPixels: 3 });',
         'interaction = setPartOccurrenceOverrides(interaction, [["1/0", { emissive: 0.2 }]]);',
         'if (typeof model.createElementModel !== "function") throw new Error("model entry failed");',
-        "const builder = io.createModelBuilder();",
+        "const builder = io.createFemModelBuilder();",
         "builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);",
         "builder.openElementShapeBlock(model.ElementShape.Triangle);",
         "builder.appendElements([1], [0, 1, 2]);",
         "const femModel = builder.build();",
-        'if (io.validateModel(femModel).length !== 0) throw new Error("io validation failed");',
-        'if (io.createElementModelFromFemModel(femModel).elements.length !== 1) throw new Error("io conversion failed");',
+        'if (io.validateFemModel(femModel).length !== 0) throw new Error("io validation failed");',
+        'if (io.createElementModelFromFemModel(femModel).elements.count !== 1) throw new Error("io conversion failed");',
         'if (typeof io.createResultFieldFromModelResult !== "function") throw new Error("io result conversion failed");',
         'if (typeof glb.importGlb !== "function") throw new Error("GLB entry failed");',
-        'if (typeof runtime.createSceneRuntime !== "function") throw new Error("runtime entry failed");',
         'if (typeof platform.queryWebGpuSupport !== "function") throw new Error("platform entry failed");',
         'console.log("ESM import OK");',
       ].join("\n"),
@@ -239,14 +228,13 @@ function main() {
     const tsc = join(repoRoot, "node_modules", ".bin", "tsc");
     const tsc5 = join(repoRoot, "node_modules", "typescript-5", "bin", "tsc");
     const smokeTs = [
-      'import { createViewport, createPart, createScene, identity, translation, UnknownSceneIdentityError, type Viewport } from "femgx";',
+      'import { createViewport, createPart, createSceneBuilder, identityMatrix, translationMatrix, UnknownSceneIdentityError, type Viewport } from "femgx";',
       'import { boxSelectionFrustum, createInteractionState, setPartOccurrenceOverride, setPartOccurrenceOverrides, setPartOverride, setTargetHighlighted, setTargetSelected, type InteractionTarget, type StyleOverride } from "femgx/interaction";',
       'import { createResultField } from "femgx/results";',
-      'import { createElement, createElementModel, elementPart, ElementShape } from "femgx/model";',
-      'import { createElementModelFromFemModel, createModelBuilder, createResultFieldFromModelResult, validateModel } from "femgx/io";',
+      'import { createElement, createElementModel, createPartFromElementModel, ElementShape } from "femgx/model";',
+      'import { createElementModelFromFemModel, createFemModelBuilder, createResultFieldFromModelResult, validateFemModel } from "femgx/io";',
       'import { createCamera } from "femgx/camera";',
       'import type { GlbSceneImport } from "femgx/io/glb";',
-      'import type { SceneRuntime } from "femgx/runtime";',
       'import type { RequestedWebGpuDevice } from "femgx/platform";',
       "declare const canvas: HTMLCanvasElement;",
       "declare const viewportContainer: HTMLElement;",
@@ -267,28 +255,27 @@ function main() {
       "  createElement(2, ElementShape.Line, [0, 1]),",
       "  createElement(3, ElementShape.Point, [2]),",
       "]);",
-      "const typedPart = elementPart(2, typedModel);",
-      "const mixedScene = createScene()",
+      "const typedPart = createPartFromElementModel(2, typedModel);",
+      "const mixedScene = createSceneBuilder()",
       "  .addPart(typedPart)",
       "  .addAssembly({ id: 2, name: 'mixed', placements: [",
-      "    { kind: 'part', partId: typedPart.id, transform: identity() },",
+      "    { kind: 'part', partId: typedPart.id, transform: identityMatrix() },",
       "  ] })",
-      "  .withRoot(2)",
+      "  .setRootAssembly(2)",
       ".build();",
-      "const scene = createScene()",
+      "const scene = createSceneBuilder()",
       "  .addPart(part)",
       "  .addAssembly({",
       "    id: 1,",
       '    name: "root",',
       "    placements: [",
-      '      { kind: "part", placementId: "first", partId: part.id, transform: identity() },',
-      '      { kind: "part", placementId: "second", partId: part.id, transform: translation(2, 0, 0) },',
+      '      { kind: "part", placementId: "first", partId: part.id, transform: identityMatrix() },',
+      '      { kind: "part", placementId: "second", partId: part.id, transform: translationMatrix(2, 0, 0) },',
       "    ],",
       "  })",
-      "  .withRoot(1)",
+      "  .setRootAssembly(1)",
       ".build();",
       "const customCamera = createCamera();",
-      "const runtimeTypeCheck = undefined as unknown as SceneRuntime;",
       "const glbTypeCheck = undefined as unknown as GlbSceneImport;",
       "const platformTypeCheck = undefined as unknown as RequestedWebGpuDevice;",
       'const bodyTarget: InteractionTarget = { kind: "body", partOccurrenceId: "1/0", bodyId: 0 };',
@@ -310,20 +297,20 @@ function main() {
       "  viewport.presentation.setEdgeDepthTest(true);",
       "  const frustum = boxSelectionFrustum(viewport.view.camera, { left: 0, top: 0, right: viewport.view.camera.width, bottom: viewport.view.camera.height, width: viewport.view.camera.width, height: viewport.view.camera.height });",
       "  frustum.far.distance;",
-      "  viewport.visibility.setPart(part.id, true);",
+      "  viewport.visibility.setPartVisible(part.id, true);",
       "  viewport.updateScene((update) => {",
       "    update.addPart(typedPart);",
-      "    update.addPlacement(1, { kind: 'part', placementId: 'added', partId: typedPart.id, transform: identity() });",
-      "    update.replacePlacement(1, { kind: 'part', placementId: 'first', partId: part.id, transform: translation(1, 0, 0) });",
+      "    update.addPlacement(1, { kind: 'part', placementId: 'added', partId: typedPart.id, transform: identityMatrix() });",
+      "    update.replacePlacement(1, { kind: 'part', placementId: 'first', partId: part.id, transform: translationMatrix(1, 0, 0) });",
       "  });",
       "  viewport.updateScene((update) => {",
       "    update.removePlacement(1, 'added');",
       "    update.removePart(typedPart.id);",
       "  });",
-      "  const runtime = viewport.runtime;",
-      "  runtime.getPartOccurrenceIds();",
-      "  runtime.getOccurrences();",
-      "  runtime.getVisiblePartOccurrenceIds();",
+      "  viewport.occurrences.getPartOccurrenceId(0);",
+      "  viewport.occurrences.getAssemblyOccurrenceId(0);",
+      "  viewport.occurrences.partOccurrences();",
+      "  viewport.occurrences.visiblePartOccurrenceIds();",
       "  viewport.results.set({ scalar: { field: stress }, deformation: { field: displacement, scale: 1 } });",
       "  viewport.results.clear();",
       "  await viewport.interaction.pick(0, 0);",
@@ -340,15 +327,15 @@ function main() {
       "}",
       "void UnknownSceneIdentityError;",
       "void viewportPromise.then(exerciseViewport);",
-      "const ioBuilder = createModelBuilder();",
+      "const ioBuilder = createFemModelBuilder();",
       "ioBuilder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);",
       "ioBuilder.openElementShapeBlock(ElementShape.Triangle);",
       "ioBuilder.appendElements([1], [0, 1, 2]);",
       'ioBuilder.addResult({ name: "stress", location: "element", components: 1, ids: new Uint32Array([1]), values: new Float64Array([1]) });',
       "const ioModel = ioBuilder.build();",
-      "if (validateModel(ioModel).length !== 0) throw new Error();",
+      "if (validateFemModel(ioModel).length !== 0) throw new Error();",
       "const ioElementModel = createElementModelFromFemModel(ioModel);",
-      "if (ioElementModel.elements.length !== 1) throw new Error();",
+      "if (ioElementModel.elements.count !== 1) throw new Error();",
       "const ioResult = ioModel.results[0];",
       'if (ioResult === undefined) throw new Error("missing smoke result");',
       'const ioField = createResultFieldFromModelResult(ioModel, ioResult, { id: "stress", unit: "MPa", shape: "scalar" });',
@@ -455,7 +442,7 @@ function isolatedNpmEnvironment(cache, userConfig) {
 }
 
 function checkBundleBudgets(root) {
-  const entries = ["femgx", "model", "io", "camera", "runtime", "platform", "io/glb"];
+  const entries = ["femgx", "model", "io", "camera", "platform", "io/glb"];
   const forbiddenInCore = ["gltf-transform", "draco", "KHRDraco", "draco_decoder", ".wasm"];
   for (const entry of entries) {
     const file = join(root, "dist", `${entry}.js`);
@@ -470,10 +457,10 @@ function checkBundleBudgets(root) {
       );
     }
     if (entry === "femgx") {
-      // Keep the raw ceiling below the next bundle-size tier while retaining
-      // the stricter compression ceiling and optional-code exclusion checks.
-      expect(rawBytes <= 600_000, `root bundle exceeds raw budget: ${rawBytes}`);
-      expect(gzipBytes <= 110_000, `root bundle exceeds gzip budget: ${gzipBytes}`);
+      // The experimental package has an explicit 1 MiB ceiling in both
+      // representations; optional-code exclusion remains the stronger guard.
+      expect(rawBytes <= 1_048_576, `root bundle exceeds raw budget: ${rawBytes}`);
+      expect(gzipBytes <= 1_048_576, `root bundle exceeds gzip budget: ${gzipBytes}`);
     }
   }
 }

@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createPackedTet4Part } from "../../../demo/benchmark/packed-tet4";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
-import { packedSemanticStorage } from "../../../src/geometry/packed/packed-semantic";
+import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
 import { createInteractionState } from "../../../src/interaction/interaction";
 import { updateInteractionState } from "../../../src/interaction/state";
-import { identity } from "../../../src/math/mat4";
+import { identityMatrix } from "../../../src/math/mat4";
 import { RendererAttachment } from "../../../src/renderer/attachment";
 import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
-import { buildPackedVisibilitySkinIndices } from "../../../src/renderer/visibility/packed-skin";
+import { buildGraphVisibilitySkinIndices } from "../../../src/renderer/visibility/graph-skin";
 import { destroyVisibilitySkinCache } from "../../../src/renderer/visibility/skins";
 import type { VisibilitySignature } from "../../../src/renderer/visibility/types";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import {
   buildOperationsReport,
@@ -26,12 +26,12 @@ describe("local Tet4 element-visibility synchronization baseline", () => {
     const restore = installGpuGlobals();
     const { payload } = buildDenseTet4Payload(28);
     const part = createPackedTet4Part(1, payload);
-    const packed = packedSemanticStorage(part);
-    if (packed === undefined) throw new Error("Tet4 benchmark lost packed semantic storage");
-    const fixture = await visibilityFixture(part, packed.elementIds);
+    const graph = partSemanticGraph(part);
+    if (graph === undefined) throw new Error("Tet4 benchmark lost semantic graph");
+    const fixture = await visibilityFixture(part, graph.elementIds);
     try {
       const operations = [
-        ...visibilityOperations(packed, payload.indices.length),
+        ...visibilityOperations(graph, payload.indices.length),
         ...cacheOperations(fixture),
       ];
       const report = buildOperationsReport(operations);
@@ -52,14 +52,14 @@ describe("local Tet4 element-visibility synchronization baseline", () => {
 type VisibilityFixture = Awaited<ReturnType<typeof visibilityFixture>>;
 
 async function visibilityFixture(part: ReturnType<typeof createPackedTet4Part>, ids: Uint32Array) {
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "visibility",
-      placements: [{ kind: "part", placementId: "tet4", partId: part.id, transform: identity() }],
+      placements: [{ kind: "part", placementId: "tet4", partId: part.id, transform: identityMatrix() }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -136,17 +136,17 @@ function cacheOperation(
 }
 
 function visibilityOperations(
-  packed: NonNullable<ReturnType<typeof packedSemanticStorage>>,
+  graph: NonNullable<ReturnType<typeof partSemanticGraph>>,
   indexUpperBound: number,
 ): readonly OperationSpec[] {
   return CASES.map((id) => {
     const hiddenCount =
-      id === "one" ? 1 : id === "half" ? packed.elementIds.length / 2 : packed.elementIds.length;
-    const elementWords = denseElementWords(packed.elementIds.length, hiddenCount);
+      id === "one" ? 1 : id === "half" ? graph.elementIds.length / 2 : graph.elementIds.length;
+    const elementWords = denseElementWords(graph.elementIds.length, hiddenCount);
     const elementIds =
       elementWords === undefined
-        ? Array.from(packed.elementIds.subarray(0, hiddenCount))
-        : packed.elementIds.slice(0, hiddenCount);
+        ? Array.from(graph.elementIds.subarray(0, hiddenCount))
+        : graph.elementIds.slice(0, hiddenCount);
     const signature: VisibilitySignature = {
       hash: hiddenCount,
       bodyIds: [],
@@ -154,8 +154,8 @@ function visibilityOperations(
       ...(elementWords === undefined ? {} : { elementWords }),
       hasHidden: true,
     };
-    const expectedIndexCount = buildPackedVisibilitySkinIndices(
-      packed,
+    const expectedIndexCount = buildGraphVisibilitySkinIndices(
+      { graph, geometryOrdinal: 0 },
       signature,
       indexUpperBound,
     ).length;
@@ -163,13 +163,13 @@ function visibilityOperations(
       (elementIds instanceof Uint32Array ? elementIds.byteLength : 0) +
       (elementWords?.byteLength ?? 0);
     return {
-      name: `tet4-visibility-${id}-build-packed-skin-cold`,
+      name: `tet4-visibility-${id}-build-graph-skin-cold`,
       workloadUnit: "authored triangle faces classified into a compact visible skin",
-      workloadCount: packed.faceOwnerElementOrdinals.length,
+      workloadCount: graph.faceOwnerElementOrdinals.length,
       workloadDetails: {
-        elementCount: packed.elementIds.length,
+        elementCount: graph.elementIds.length,
         hiddenElementCount: hiddenCount,
-        faceCount: packed.faceOwnerElementOrdinals.length,
+        faceCount: graph.faceOwnerElementOrdinals.length,
         outputIndexCount: expectedIndexCount,
         outputBytes: expectedIndexCount * Uint32Array.BYTES_PER_ELEMENT,
         signatureElementIdCount: elementIds.length,
@@ -177,7 +177,11 @@ function visibilityOperations(
         signatureOrdinalWordBytes: elementWords?.byteLength ?? 0,
       },
       run: () => {
-        const indices = buildPackedVisibilitySkinIndices(packed, signature, indexUpperBound);
+        const indices = buildGraphVisibilitySkinIndices(
+          { graph, geometryOrdinal: 0 },
+          signature,
+          indexUpperBound,
+        );
         if (indices.length !== expectedIndexCount) throw new Error(`${id} visibility skin changed`);
       },
     };

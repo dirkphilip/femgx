@@ -1,8 +1,8 @@
 import { expect, it, describe } from "vitest";
 import {
-  identity,
+  identityMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   buildDrawOrder,
   buildNodeSelectionOrder,
   buildSelectionOrder,
@@ -25,17 +25,17 @@ import {
 
 describe("renderer runtime state", () => {
   it("keeps transparent classification in a separate visible order", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part(1))
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -45,18 +45,18 @@ describe("renderer runtime state", () => {
 
   it("compacts selected instances and selected-node instances independently", () => {
     const triangle = part(1);
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(triangle)
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: identity() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -77,14 +77,14 @@ describe("renderer runtime state", () => {
   });
 
   it("builds ranged selection calls for omitted face-subset elements and keeps broad selection fallback", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(rangedSelectionPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -246,14 +246,14 @@ describe("renderer runtime state", () => {
   });
 
   it("falls back when one grouped instance would issue too many range draws", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(fragmentedSelectionPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -284,14 +284,14 @@ describe("renderer runtime state", () => {
   });
 
   it("retains full hidden selection when an explicit face subset contains interior faces", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(interiorSubsetPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: interiorSubsetPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: interiorSubsetPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -325,14 +325,14 @@ describe("renderer runtime state", () => {
   });
 
   it("builds one selected-region skin when a dense selection omits an element", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(denseSelectionPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: denseSelectionPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: denseSelectionPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);

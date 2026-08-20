@@ -3,9 +3,9 @@ import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { updateInteractionState } from "../../src/interaction/state";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { reconcileInteractionState } from "../../src/viewport/scene-reconciliation";
 
 function reusableScene() {
@@ -47,17 +47,17 @@ function reusableScene() {
     nodePositions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     bodies: [{ id: 7, elementIds: [10] }],
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part" as const, partId: 1, transform: translation(2, 0, 0) },
+        { kind: "part" as const, partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part" as const, partId: 1, transform: translationMatrix(2, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { part, scene, runtime: createPackedSceneRuntime(scene) };
 }

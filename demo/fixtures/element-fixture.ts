@@ -1,9 +1,9 @@
 import {
   createPart,
-  createScene,
-  multiply,
-  scale,
-  translation,
+  createSceneBuilder,
+  multiplyMatrices,
+  scalingMatrix,
+  translationMatrix,
   type AssemblyId,
   type Bounds,
   type Part,
@@ -12,8 +12,8 @@ import {
 } from "../../src/entries/root";
 import {
   createElementModel,
-  elementPart,
-  surfacePart,
+  createPartFromElementModel,
+  createPartFromExplicitTopology,
   topologyFor,
   type ElementModel,
 } from "../../src/entries/model";
@@ -274,19 +274,19 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const genericPart = createGenericSolverMappedPart();
   const parts: readonly Part[] = [
     createControlNodePart(),
-    elementPart(POINT_PART_ID, elementsOf(pointLineModel, "point")),
-    elementPart(LINE_PART_ID, elementsOf(lineModel, "line", 1)),
-    elementPart(LINE3_PART_ID, elementsOf(line3Model, "line", 2)),
-    elementPart(TET4_PART_ID, tet4Model),
-    elementPart(TET10_PART_ID, tet10Model),
-    elementPart(HEX8_PART_ID, hex8Model),
-    elementPart(HEX20_PART_ID, hex20Model),
-    elementPart(WEDGE6_PART_ID, wedge6Model),
-    elementPart(PYRAMID5_PART_ID, pyramid5Model),
-    elementPart(TRIANGLE_PART_ID, triangleModel),
-    elementPart(QUAD_PART_ID, quadModel),
-    elementPart(TRI6_PART_ID, tri6Model),
-    elementPart(QUAD8_PART_ID, quad8Model),
+    createPartFromElementModel(POINT_PART_ID, elementsOf(pointLineModel, "point")),
+    createPartFromElementModel(LINE_PART_ID, elementsOf(lineModel, "line", 1)),
+    createPartFromElementModel(LINE3_PART_ID, elementsOf(line3Model, "line", 2)),
+    createPartFromElementModel(TET4_PART_ID, tet4Model),
+    createPartFromElementModel(TET10_PART_ID, tet10Model),
+    createPartFromElementModel(HEX8_PART_ID, hex8Model),
+    createPartFromElementModel(HEX20_PART_ID, hex20Model),
+    createPartFromElementModel(WEDGE6_PART_ID, wedge6Model),
+    createPartFromElementModel(PYRAMID5_PART_ID, pyramid5Model),
+    createPartFromElementModel(TRIANGLE_PART_ID, triangleModel),
+    createPartFromElementModel(QUAD_PART_ID, quadModel),
+    createPartFromElementModel(TRI6_PART_ID, tri6Model),
+    createPartFromElementModel(QUAD8_PART_ID, quad8Model),
     genericPart,
     createMixedPrimitivePart(),
   ];
@@ -334,7 +334,7 @@ function createControlNodePart(): Part {
 
 /** One semantic element rendered through point, line, and triangle leaves. */
 function createMixedPrimitivePart(): Part {
-  return surfacePart(MIXED_PART_ID, {
+  return createPartFromExplicitTopology(MIXED_PART_ID, {
     positions: [0, 0, 0, 0.35, 0, 0, 1.25, 0, 0, 0.35, 0.35, 0, 1.25, 0.35, 0, 0.8, 1.2, 0],
     facets: {
       connectivity: [3, 3, 4, 5],
@@ -357,7 +357,7 @@ type Hex20CylinderFixture = Omit<ElementFixture, "partIds"> & {
 /** Builds the Hex20 cylinder example used by the gallery preset. */
 export function createHex20CylinderFixture(): Hex20CylinderFixture {
   const model = buildHex20CylinderModel();
-  const part = elementPart(HEX20_PART_ID, model);
+  const part = createPartFromElementModel(HEX20_PART_ID, model);
   const parts = [part];
   const scene = galleryScene(parts, 0, SINGLE_PART_LAYOUT);
   return {
@@ -379,7 +379,7 @@ export function createHex20CylinderFixture(): Hex20CylinderFixture {
 function elementsOf(model: ElementModel, family: "point" | "line", order?: number): ElementModel {
   return createElementModel(
     [...model.nodes],
-    model.elements.filter(
+    [...model.elements].filter(
       (element) =>
         topologyFor(element.shape).family === family &&
         (order === undefined || topologyFor(element.shape).order === order),
@@ -390,7 +390,7 @@ function elementsOf(model: ElementModel, family: "point" | "line", order?: numbe
 /** Maps temporary solver-style polyhedron records into one retained Part. */
 function createGenericSolverMappedPart(): Part {
   const solverNodes = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, 0.35, 0.2, 1.5];
-  return surfacePart(GENERIC_PART_ID, {
+  return createPartFromExplicitTopology(GENERIC_PART_ID, {
     positions: solverNodes,
     facets: {
       connectivity: [4, 0, 3, 2, 1, 3, 0, 1, 4, 3, 1, 2, 4, 3, 2, 3, 4, 3, 3, 0, 4],
@@ -406,7 +406,7 @@ function galleryScene(
   blockSize: number,
   layout: readonly (ElementGalleryEntry | GalleryPlacement)[],
 ): Scene {
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of parts) builder = builder.addPart(part);
   const partById = new Map(parts.map((part) => [part.id, part]));
   const spacing = blockSize + GAP;
@@ -429,11 +429,11 @@ function galleryScene(
                 row * spacing,
                 blockSize,
               )
-            : translation(column * spacing, row * spacing, 0),
+            : translationMatrix(column * spacing, row * spacing, 0),
       };
     }),
   };
-  return builder.addAssembly(root).withRoot(root.id).build();
+  return builder.addAssembly(root).setRootAssembly(root.id).build();
 }
 
 function centeredTransform(
@@ -447,9 +447,9 @@ function centeredTransform(
   const centerY = ((bounds.minY + bounds.maxY) / 2) * displayScale;
   const centerZ = ((bounds.minZ + bounds.maxZ) / 2) * displayScale;
   const target = cellOriginX + blockSize / 2;
-  return multiply(
-    translation(target - centerX, cellOriginY + blockSize / 2 - centerY, blockSize / 2 - centerZ),
-    scale(displayScale),
+  return multiplyMatrices(
+    translationMatrix(target - centerX, cellOriginY + blockSize / 2 - centerY, blockSize / 2 - centerZ),
+    scalingMatrix(displayScale),
   );
 }
 

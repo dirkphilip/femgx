@@ -28,7 +28,7 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
   return options.updates.filter((update) => {
     if (update.selected !== true || update.elementPickId === 0) return true;
     const elementId = update.elementPickId - 1;
-    const ordinal = metadata.elementOrdinalById.get(elementId);
+    const ordinal = metadata.elementOrdinal(elementId);
     if (ordinal === undefined || !denseSelectionContains(options.selection, update.slot, ordinal)) {
       return true;
     }

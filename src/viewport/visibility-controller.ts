@@ -19,23 +19,24 @@ export class ViewportVisibilityController {
 
   constructor(private readonly options: VisibilityControllerOptions) {}
 
-  setPart(partId: PartId, visible: boolean): void {
+  setPartVisible(partId: PartId, visible: boolean): void {
     if (!this.options.sceneController.scene.parts.has(partId)) {
       throw new UnknownSceneIdentityError("part", partId);
     }
     const runtime = this.options.sceneController.runtime;
     this.applyChanged(
-      this.options.sceneController.visibility.setPart(runtime, partId, visible).affectedPartIds,
+      this.options.sceneController.visibility.setPartVisible(runtime, partId, visible)
+        .affectedPartIds,
     );
   }
 
-  setAssemblyOccurrence(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
+  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
     const runtime = this.options.sceneController.runtime;
     const node = runtime.getNodeSlot(occurrenceId);
     if (node === undefined)
       throw new UnknownSceneIdentityError("assembly-occurrence", occurrenceId);
     this.applyChanged(
-      this.options.sceneController.visibility.setAssemblyOccurrence(
+      this.options.sceneController.visibility.setAssemblyOccurrenceVisible(
         runtime,
         occurrenceId,
         node,
@@ -44,18 +45,18 @@ export class ViewportVisibilityController {
     );
   }
 
-  setAssembly(assemblyId: AssemblyId, visible: boolean): void {
+  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
     if (!this.options.sceneController.scene.assemblies.has(assemblyId)) {
       throw new UnknownSceneIdentityError("assembly", assemblyId);
     }
     const runtime = this.options.sceneController.runtime;
     this.applyChanged(
-      this.options.sceneController.visibility.setAssembly(runtime, assemblyId, visible)
+      this.options.sceneController.visibility.setAssemblyVisible(runtime, assemblyId, visible)
         .affectedPartIds,
     );
   }
 
-  setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
+  setPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
     this.setPartOccurrences([partOccurrenceId], visible);
   }
 

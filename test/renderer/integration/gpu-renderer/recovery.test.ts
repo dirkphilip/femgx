@@ -162,7 +162,7 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
-  it("maps cap fragments to the owning element without fabricated node identity", async () => {
+  it("maps cap fragments to the owning element without fabricated node identityMatrix", async () => {
     installGpuTestGlobals();
     const gpu = fakeGpuDevice({
       pickValue: 1,

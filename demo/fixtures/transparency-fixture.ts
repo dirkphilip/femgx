@@ -1,13 +1,13 @@
 import {
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   type AssemblyId,
   type Part,
   type PartId,
   type Scene,
 } from "../../src/entries/root";
-import { elementPart, type ElementModel } from "../../src/entries/model";
+import { createPartFromElementModel, type ElementModel } from "../../src/entries/model";
 import { buildHexModel } from "./element-models";
 
 /** Stable geometry identities for the order-independent transparency fixture. */
@@ -51,29 +51,29 @@ export function createTransparencyFixture(): TransparencyFixture {
 }
 
 function trianglePart(id: PartId, model: ElementModel): Part {
-  return elementPart(id, model);
+  return createPartFromElementModel(id, model);
 }
 
 function transparencyScene(parts: readonly Part[]): Scene {
-  let builder = createScene();
+  let builder = createSceneBuilder();
   for (const part of parts) builder = builder.addPart(part);
   const root = {
     id: ROOT_ASSEMBLY_ID,
     name: "transparency-fixture",
     placements: [
-      { kind: "part" as const, partId: INTERIOR_PART_ID, transform: translation(0.5, 0.5, 0.5) },
-      { kind: "part" as const, partId: SHELL_PART_ID, transform: identity() },
+      { kind: "part" as const, partId: INTERIOR_PART_ID, transform: translationMatrix(0.5, 0.5, 0.5) },
+      { kind: "part" as const, partId: SHELL_PART_ID, transform: identityMatrix() },
       {
         kind: "part" as const,
         partId: OVERLAP_PART_ID,
-        transform: translation(0.25, 0.25, 0.25),
+        transform: translationMatrix(0.25, 0.25, 0.25),
       },
       {
         kind: "part" as const,
         partId: OVERLAP_PART_ID,
-        transform: translation(0.4, 0.4, 0.4),
+        transform: translationMatrix(0.4, 0.4, 0.4),
       },
     ],
   };
-  return builder.addAssembly(root).withRoot(root.id).build();
+  return builder.addAssembly(root).setRootAssembly(root.id).build();
 }

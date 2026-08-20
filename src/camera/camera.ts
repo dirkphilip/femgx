@@ -1,4 +1,4 @@
-import { multiply, transformPoint4, type Mat4 } from "../math/mat4";
+import { multiplyMatrices, transformPoint4, type Mat4 } from "../math/mat4";
 import { add, cross, dot, length, normalize, scale, subtract, type Vec3 } from "../math/vec3";
 
 /**
@@ -298,7 +298,7 @@ export function projectionMatrix(camera: Camera): Mat4 {
  * @category Camera and math
  */
 export function viewProjectionMatrix(camera: Camera): Mat4 {
-  return multiply(projectionMatrix(camera), viewMatrix(camera));
+  return multiplyMatrices(projectionMatrix(camera), viewMatrix(camera));
 }
 
 /**

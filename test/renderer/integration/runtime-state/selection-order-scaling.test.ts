@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "../../../../src/geometry/part";
 import { createInteractionState } from "../../../../src/interaction/interaction";
 import { setTargetsSelected, setTargetSelected } from "../../../../src/interaction/targets";
-import { identity } from "../../../../src/math/mat4";
+import { identityMatrix } from "../../../../src/math/mat4";
 import { buildInstanceLayout, buildSelectionOrder } from "../../../../src/renderer/runtime-state";
 import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
-import { createScene } from "../../../../src/scene/scene";
+import { createSceneBuilder } from "../../../../src/scene/scene";
 
 const PLACEMENTS = 4_096;
 
@@ -26,7 +26,7 @@ describe("selection order scaling", () => {
         },
       ],
     });
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part)
       .addAssembly({
         id: 1,
@@ -35,10 +35,10 @@ describe("selection order scaling", () => {
           kind: "part" as const,
           placementId: String(index),
           partId: part.id,
-          transform: identity(),
+          transform: identityMatrix(),
         })),
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);

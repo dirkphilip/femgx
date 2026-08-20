@@ -5,9 +5,9 @@ import {
   setPartOccurrenceOverride,
   setPartOverride,
 } from "../../../src/interaction/interaction";
-import { translation } from "../../../src/math/mat4";
+import { translationMatrix } from "../../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 import {
   interactionDirtyParts,
   refreshTransparencyFlags,
@@ -23,17 +23,17 @@ function sceneRuntime() {
     primitive: "triangles" as const,
   };
   const part = createPart(1, { geometries: [geometry] });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part" as const, partId: 1, transform: translation(2, 0, 0) },
+        { kind: "part" as const, partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part" as const, partId: 1, transform: translationMatrix(2, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return { runtime: createPackedSceneRuntime(scene), parts: new Map([[1, part]]) };
 }
@@ -87,7 +87,7 @@ describe("interactionDirtyParts", () => {
     const part = parts.get(1);
     if (part === undefined) throw new Error("Transparency part is missing");
     const scene = (ids: readonly string[]) =>
-      createScene()
+      createSceneBuilder()
         .addPart(part)
         .addAssembly({
           id: 1,
@@ -96,10 +96,10 @@ describe("interactionDirtyParts", () => {
             kind: "part" as const,
             placementId,
             partId: 1,
-            transform: translation(0, 0, 0),
+            transform: translationMatrix(0, 0, 0),
           })),
         })
-        .withRoot(1)
+        .setRootAssembly(1)
         .build();
     const firstRuntime = createPackedSceneRuntime(scene(["a", "b", "c", "d"]));
     const firstLayout = buildInstanceLayout(firstRuntime);

@@ -134,4 +134,27 @@ describe("workbench selection-interactions", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(calls).not.toContain("clearContextMenu");
   });
+
+  it("navigates an addressable visibility page beyond the first window", async () => {
+    const calls: string[] = [];
+    const target = document.createElement("div");
+    document.body.append(target);
+    const base = visibilitySnapshot();
+    const component = mount(VisibilityTree, {
+      target,
+      props: {
+        controller: fakeController(calls),
+        visibility: { ...base, pageCount: 2, rowCount: 1_001 },
+      },
+    });
+
+    expect(element(target, '[data-testid="visibility-page-status"]').textContent).toContain(
+      "Page 1 of 2",
+    );
+    button(target, '[data-testid="visibility-page-next"]').click();
+    await tick();
+
+    expect(calls).toContain("setVisibilityPage");
+    await unmount(component);
+  });
 });

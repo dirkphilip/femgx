@@ -1,8 +1,8 @@
 import { createElement, type Element, type NodeId } from "../../src/elements/element";
 import { createElementModel, type Body, type ElementModel } from "../../src/elements/model";
-import { boundaryFaceRefs, facesOfElement, type FaceIdRef } from "../../src/elements/faces";
+import { boundaryFaceRefsForModel, faceRefsOf, type FaceIdRef } from "../../src/elements/faces";
 import { ElementShape } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../src/geometry/element-model-part";
 import type { Part } from "../../src/geometry/part";
 
 export type StructuredFeFamily = "quad" | "quad8" | "tet4" | "hex8" | "hex20";
@@ -17,7 +17,7 @@ export function createStructuredFePart(
   const body: Body = {
     id: 1,
     name: `${family} structured body`,
-    elementIds: model.elements.map((element) => element.id),
+    elementIds: [...model.elements].map((element) => element.id),
   };
   // This fixture has one body, so the static boundary skin cannot hide a
   // cross-body interface. Multi-body parts must retain all faces for dynamic
@@ -25,9 +25,9 @@ export function createStructuredFePart(
   const faceSubset =
     family === "quad" || family === "quad8"
       ? allSurfaceFaces(model)
-      : boundaryFaceRefs(model.elements);
-  const authoredModel = createElementModel(model.nodes, model.elements, { bodies: [body] });
-  return elementPart(partId, authoredModel, { faceSubset });
+      : boundaryFaceRefsForModel(model);
+  const authoredModel = createElementModel(model.nodes, [...model.elements], { bodies: [body] });
+  return createPartFromElementModel(partId, authoredModel, { faceSubset });
 }
 
 /** Builds a deterministic shared-node structured model for one supported FE family. */
@@ -265,7 +265,7 @@ function midNode(builder: StructuredNodeBuilder, first: NodeId, second: NodeId):
 }
 
 function allSurfaceFaces(model: ElementModel): readonly FaceIdRef[] {
-  return model.elements.flatMap((element) =>
-    facesOfElement(element).map(({ elementId, faceIndex }) => ({ elementId, faceIndex })),
+  return [...model.elements].flatMap((element) =>
+    faceRefsOf(element).map(({ elementId, faceIndex }) => ({ elementId, faceIndex })),
   );
 }

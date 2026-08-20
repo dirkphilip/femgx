@@ -1,10 +1,10 @@
 import { createPart, MAX_PART_ID, type Part } from "../../../../src/geometry/part";
 
-import { identity, translation } from "../../../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "../../../../src/math/mat4";
 
 import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
 
-import { createScene } from "../../../../src/scene/scene";
+import { createSceneBuilder } from "../../../../src/scene/scene";
 
 import {
   buildDrawOrder,
@@ -203,10 +203,10 @@ export {
   createPart,
   MAX_PART_ID,
   type Part,
-  identity,
-  translation,
+  identityMatrix,
+  translationMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   buildDrawOrder,
   buildNodeOrder,
   buildNodeSelectionOrder,

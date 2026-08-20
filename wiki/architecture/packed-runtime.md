@@ -6,19 +6,18 @@ visibility updates.
 
 ## What it provides
 
-`createSceneRuntime(scene)` returns the stable-handle `SceneRuntime` public
-boundary. Its renderer-owned packed counterpart is created internally by
-`createPackedSceneRuntime` and is not part of the package root API.
-
-The public runtime exposes stable part-occurrence and assembly-occurrence handles via
-`getPartOccurrences()`, `getOccurrences()`, `getPartOccurrence(partOccurrenceId)`, and
-`getOccurrence(occurrenceId)`. It is query-only; every transform and collection
-result is a defensive snapshot, and live visibility mutations go through
-`Viewport`, which keeps CPU runtime state, GPU buffers, invalidation, and
-picking synchronized. `getVisiblePartOccurrenceIds()` returns visible handles in
-deterministic depth-first runtime order, not the renderer's private part-batched
-draw order. `RuntimeAssemblyOccurrence.partOccurrenceIds` contains only direct part placements;
-walk `childIds` when a subtree is required.
+The renderer-owned packed counterpart is created internally by
+`createPackedSceneRuntime`; it is not a package entry point. `Viewport.occurrences`
+is the public, query-only boundary for stable part-occurrence and
+assembly-occurrence handles. It offers count/indexed lookup and fresh streaming
+iteration (`partOccurrences()`, `assemblyOccurrences()`, and
+`visiblePartOccurrenceIds()`), so inspection does not retain model-sized object
+or id arrays. Every transform and record is a defensive snapshot. Live
+visibility mutations go through `Viewport`, which keeps CPU runtime state, GPU
+buffers, invalidation, and picking synchronized. Visible handles stream in
+deterministic depth-first order rather than renderer-private part-batched draw
+order. An assembly occurrence exposes direct children and part occurrences by
+local ordinal; callers walk those relationships for a subtree.
 
 The internal packed representation stores, in typed arrays indexed by private
 slots:
@@ -27,8 +26,8 @@ slots:
 - part references (`instancePartIds`),
 - a compiled assembly tree (`nodeParents`, `nodeFirstChild`, `nodeNextSibling`)
   with per-node authoring/effective visibility, and
-- per-instance visibility bits (`instanceVisible`) plus a contiguous subtree
-  instance range per node (`nodeInstanceStart/End`).
+- per-instance visibility bits (`instanceVisible`) and compact node/part group
+  indexes for direct placement membership.
 
 `RuntimeState` is the single owner of those compiled fields. The internal
 `PackedSceneRuntime` augments that state with behavior and stable identity
@@ -49,7 +48,7 @@ because rendering, bounds, picking, and result deformation consume the
 placed-part transform directly. A private placed-bounds segment tree updates
 changed transform leaves and the renderer-owned origin-triad scale without a
 complete occurrence scan; neither node transforms nor bounds-tree storage leaks
-through `SceneRuntime`.
+through the private packed runtime.
 
 ## Internal visibility deltas
 
@@ -71,8 +70,9 @@ changed ids plus before/after `visibleCount`; geometry and the instance list are
 never rebuilt.
 
 The viewport maps those affected slots directly to renderer uploads. Public
-callers use the viewport visibility methods and read the resulting state from
-`viewport.runtime`; they do not receive or apply mutation deltas.
+callers use the viewport visibility methods and inspect resulting stable
+handles through `viewport.occurrences`; they do not receive or apply mutation
+deltas.
 
 The internal runtime maintains both slot → handle and handle → slot maps. This
 lets
@@ -86,10 +86,9 @@ back to slots.
 - `Scene.build()` now validates references and cycles, so the runtime assumes
   valid input but still skips missing assemblies defensively.
 - The packed typed arrays are private implementation state; public queries never
-  return those views. `viewport.runtime` is the current live query facade, so hosts
-  should read it again after `replaceScene()` or a committed `updateScene()`. Standalone
-  `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for host
-  inspection and does not own a renderer or visibility mutations.
+  return those views. `viewport.occurrences` remains the same live query facade
+  after `replaceScene()` or a committed `updateScene()` and does not own renderer
+  or visibility mutation controls.
 
 Visibility is the conjunction of part-definition, assembly-definition,
 assembly-occurrence, and part-occurrence causes. Viewports retain those policies

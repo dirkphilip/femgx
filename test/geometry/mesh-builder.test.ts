@@ -31,7 +31,7 @@ describe("TriangleMeshAssembler", () => {
     expect(Array.from(geometry.indices)).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
-  it("supports explicit generated identity while keeping anonymous corners distinct", () => {
+  it("supports explicit generated identityMatrix while keeping anonymous corners distinct", () => {
     const assembler = new TriangleMeshAssembler();
     const shared: MeshVertex = { point: [0, 0, 0], nodeId: undefined, sourceId: "shared" };
     const anonymous: MeshVertex = { point: [1, 0, 0], nodeId: undefined };

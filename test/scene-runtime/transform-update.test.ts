@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import {
   applyTransformPatch,
   prepareTransformPatch,
 } from "../../src/scene-runtime/transform-update";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { prepareSceneTransition } from "../../src/scene/update";
 
 describe("incremental runtime transform updates", () => {
@@ -20,7 +20,7 @@ describe("incremental runtime transform updates", () => {
         kind: "assembly",
         placementId: "left",
         assemblyId: 2,
-        transform: translation(30, 0, 0),
+        transform: translationMatrix(30, 0, 0),
       });
     });
     if (transition === undefined) throw new Error("expected a scene transition");
@@ -42,7 +42,7 @@ describe("incremental runtime transform updates", () => {
         kind: "part",
         placementId: "item",
         partId: 1,
-        transform: translation(5, 0, 0),
+        transform: translationMatrix(5, 0, 0),
       });
     });
     if (transition === undefined) throw new Error("expected a scene transition");
@@ -67,7 +67,7 @@ function repeatedAssemblyScene() {
       },
     ],
   });
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 2,
@@ -76,7 +76,7 @@ function repeatedAssemblyScene() {
           kind: "part",
           placementId: "item",
           partId: 1,
-          transform: translation(1, 0, 0),
+          transform: translationMatrix(1, 0, 0),
         },
       ],
     })
@@ -87,17 +87,17 @@ function repeatedAssemblyScene() {
           kind: "assembly",
           placementId: "left",
           assemblyId: 2,
-          transform: translation(10, 0, 0),
+          transform: translationMatrix(10, 0, 0),
         },
         {
           kind: "assembly",
           placementId: "right",
           assemblyId: 2,
-          transform: translation(20, 0, 0),
+          transform: translationMatrix(20, 0, 0),
         },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 

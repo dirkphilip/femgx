@@ -1,7 +1,7 @@
 import {
-  createScene,
+  createSceneBuilder,
   createViewport,
-  translation,
+  translationMatrix,
   type PartOccurrenceId,
   type PickHit,
   type Viewport,
@@ -31,7 +31,7 @@ export async function mountHostIntegration(): Promise<MountedExample> {
     diagnostics.value += `${issue.severity}: ${issue.code}: ${issue.message}\n`;
   });
   if (ingested.issues.length === 0) diagnostics.value = "Model validation passed";
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(ingested.part)
     .addAssembly({
       id: 200,
@@ -41,20 +41,23 @@ export async function mountHostIntegration(): Promise<MountedExample> {
           kind: "part",
           placementId: "baseline",
           partId: ingested.part.id,
-          transform: translation(-1.5, 0, 0),
+          transform: translationMatrix(-1.5, 0, 0),
         },
         {
           kind: "part",
           placementId: "overloaded",
           partId: ingested.part.id,
-          transform: translation(1.5, 0, 0),
+          transform: translationMatrix(1.5, 0, 0),
         },
       ],
     })
-    .withRoot(200)
+    .setRootAssembly(200)
     .build();
   const viewport = await createViewport({ canvas, scene, background: "studio" });
-  const occurrenceIds = viewport.runtime.getPartOccurrenceIds();
+  const occurrenceIds = Array.from(
+    viewport.occurrences.partOccurrences(),
+    ({ partOccurrenceId }) => partOccurrenceId,
+  );
   const overloadedOccurrenceId = required(occurrenceIds[1], "overloaded part occurrence");
   viewport.results.set({
     scalar: { field: ingested.baselineStress, range: { min: 100, max: 300 } },

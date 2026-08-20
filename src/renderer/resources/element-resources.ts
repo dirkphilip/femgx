@@ -171,7 +171,7 @@ function collectBodyEmphasis(
     const occurrence = occurrenceAt(context, ref.partOccurrenceId);
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
-    const body = part === undefined ? undefined : getPartSemanticIndex(part).bodies.get(ref.bodyId);
+    const body = part === undefined ? undefined : getPartSemanticIndex(part).body(ref.bodyId);
     if (body === undefined) continue;
     const explicitOverride = data.bodyOverrides.get(ref.partOccurrenceId)?.get(ref.bodyId);
     const style = resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction);
@@ -218,7 +218,7 @@ function collectElementEmphasis(
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
-    const bodyId = metadata?.bodyByElement.get(ref.elementId);
+    const bodyId = metadata?.bodyForElement(ref.elementId);
     const explicitOverride = data.elementOverrides.get(ref.partOccurrenceId)?.get(ref.elementId);
     const style = resolveElementStyle(
       occurrence.instance,
@@ -257,7 +257,7 @@ function collectFaceEmphasis(
     if (occurrence === undefined) continue;
     const part = parts.get(occurrence.instance.partId);
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
-    const faceMetadata = metadata?.faces.get(faceKey(ref.elementId, ref.faceIndex));
+    const faceMetadata = metadata?.face(ref.elementId, ref.faceIndex);
     if (faceMetadata === undefined) continue;
     const { face, faceId } = faceMetadata;
     const style = resolveFaceStyle(
@@ -265,7 +265,7 @@ function collectFaceEmphasis(
       ref,
       defaultStyle,
       interaction,
-      face.bodyId ?? metadata?.bodyByElement.get(ref.elementId),
+      face.bodyId ?? metadata?.bodyForElement(ref.elementId),
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,

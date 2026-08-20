@@ -1,4 +1,4 @@
-import { createScene, translation, type Scene, type Viewport } from "../../src/entries/root";
+import { createSceneBuilder, translationMatrix, type Scene, type Viewport } from "../../src/entries/root";
 import { projectPoint, setProjection } from "../../src/entries/camera";
 import {
   createInteractionState,
@@ -9,7 +9,7 @@ import {
 import {
   createElement,
   createElementModel,
-  elementPart,
+  createPartFromElementModel,
   ElementShape,
 } from "../../src/entries/model";
 import { createResultField } from "../../src/entries/results";
@@ -22,18 +22,18 @@ export function hardwareConformanceScene(): Scene {
     new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1]),
     [createElement(1, ElementShape.Hex8, [0, 1, 2, 3, 4, 5, 6, 7])],
   );
-  const part = elementPart(1, model);
-  return createScene()
+  const part = createPartFromElementModel(1, model);
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
       name: "hardware-conformance",
       placements: [
-        { kind: "part", partId: part.id, transform: translation(-1.4, 0, 0) },
-        { kind: "part", partId: part.id, transform: translation(0.4, 0, 0) },
+        { kind: "part", partId: part.id, transform: translationMatrix(-1.4, 0, 0) },
+        { kind: "part", partId: part.id, transform: translationMatrix(0.4, 0, 0) },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 

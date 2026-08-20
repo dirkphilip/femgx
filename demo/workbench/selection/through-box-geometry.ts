@@ -40,7 +40,7 @@ const EMPTY_ELEMENTS: readonly ElementTessellation[] = [];
 export function queryData(part: Part): PartQueryData {
   const cached = queryDataByPart.get(part);
   if (cached !== undefined) return cached;
-  const elements = orderedElements(part.elements ?? EMPTY_ELEMENTS);
+  const elements = orderedElements([...(part.elements ?? EMPTY_ELEMENTS)]);
   const geometryByPrimitive = new Map(
     part.geometries.map((geometry) => [geometry.primitive, geometry]),
   );

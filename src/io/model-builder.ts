@@ -168,7 +168,7 @@ class ModelBuilder implements FemModelBuilder {
  * Creates an empty model builder for chunked accumulation.
  * @category Import and export
  */
-export function createModelBuilder(): FemModelBuilder {
+export function createFemModelBuilder(): FemModelBuilder {
   return new ModelBuilder();
 }
 

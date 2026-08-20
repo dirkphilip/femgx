@@ -1,7 +1,7 @@
 import type { AssemblyOccurrenceId, PartOccurrenceId } from "../../../src/entries/root";
 import type { InteractionTarget } from "../../../src/entries/interaction";
 import type { BodyId } from "../../../src/entries/model";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 
 /** Semantic identity carried by one visibility-tree row. */
 export type VisibilityRowTarget =
@@ -35,6 +35,14 @@ export interface WorkbenchVisibilityRowSnapshot {
 export interface WorkbenchVisibilitySnapshot {
   readonly context: string;
   readonly rows: readonly WorkbenchVisibilityRowSnapshot[];
+  /** Zero-based window of at most 1,000 logical rows. */
+  readonly page: number;
+  /** Number of addressable logical row windows. */
+  readonly pageCount: number;
+  /** Total logical rows before windowing. */
+  readonly rowCount: number;
+  /** Rows materialized for this window; bounded independently of hierarchy size. */
+  readonly materializedRowCount: number;
 }
 
 /**
@@ -42,19 +50,24 @@ export interface WorkbenchVisibilitySnapshot {
  * AssemblyDefinition rows stay demo-private and expand through their exact occurrence subtree.
  */
 export function interactionTargetsForRow(
-  runtime: SceneRuntime,
+  runtime: SceneOccurrences,
   row: VisibilityRowTarget,
 ): readonly InteractionTarget[] {
   if (row.kind !== "assembly") return [row];
   const targets: InteractionTarget[] = [];
   const visit = (occurrenceId: AssemblyOccurrenceId): void => {
-    const occurrence = runtime.getOccurrence(occurrenceId);
+    const occurrence = runtime.getAssemblyOccurrence(occurrenceId);
     if (occurrence === undefined || !occurrence.effectiveVisible) return;
-    for (const partOccurrenceId of occurrence.partOccurrenceIds) {
+    for (let ordinal = 0; ordinal < occurrence.partOccurrenceCount; ordinal += 1) {
+      const partOccurrenceId = occurrence.getPartOccurrenceId(ordinal);
+      if (partOccurrenceId === undefined) continue;
       if (runtime.isPartOccurrenceVisible(partOccurrenceId))
         targets.push({ kind: "partOccurrence", partOccurrenceId });
     }
-    for (const childId of occurrence.childIds) visit(childId);
+    for (let ordinal = 0; ordinal < occurrence.childCount; ordinal += 1) {
+      const childId = occurrence.getChildId(ordinal);
+      if (childId !== undefined) visit(childId);
+    }
   };
   visit(row.occurrenceId);
   return targets;

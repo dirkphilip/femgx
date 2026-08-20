@@ -6,7 +6,7 @@ import { createElementModel } from "../../../src/elements/model";
 
 import { ElementShape } from "../../../src/elements/shapes";
 
-import { elementPart } from "../../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
 
 import { createPart } from "../../../src/geometry/part";
 
@@ -14,13 +14,13 @@ import { createInteractionState, setPartOverride } from "../../../src/interactio
 
 import { readInteractionState } from "../../../src/interaction/state";
 
-import { identity, scale } from "../../../src/math/mat4";
+import { identityMatrix, scalingMatrix } from "../../../src/math/mat4";
 
 import { GpuRenderer } from "../../../src/renderer/renderer-core";
 
 import { createResultField } from "../../../src/results/fields";
 
-import { createScene } from "../../../src/scene/scene";
+import { createSceneBuilder } from "../../../src/scene/scene";
 
 import { createViewport } from "../../../src/viewport/viewport";
 
@@ -53,7 +53,7 @@ export function installNavigator(): void {
 }
 
 /** Shared core test helper. */
-export function createTestScene(transform = identity()) {
+export function createTestScene(transform = identityMatrix()) {
   const geometry = {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
@@ -70,14 +70,14 @@ export function createTestScene(transform = identity()) {
     nodePickIds: new Uint32Array([1, 2, 3]),
   };
   const { elements, nodePositions, ...localGeometry } = geometry;
-  return createScene()
+  return createSceneBuilder()
     .addPart(createPart(1, { geometries: [localGeometry], elements, nodePositions }))
     .addAssembly({
       id: 1,
       name: "root",
       placements: [{ kind: "part", partId: 1, transform }],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -112,15 +112,15 @@ export function createHex20ViewportScene() {
       Array.from({ length: 20 }, (_, index) => index),
     ),
   ]);
-  const part = elementPart(7, model);
-  const scene = createScene()
+  const part = createPartFromElementModel(7, model);
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 7,
       name: "hex20",
-      placements: [{ kind: "part", partId: 7, transform: identity() }],
+      placements: [{ kind: "part", partId: 7, transform: identityMatrix() }],
     })
-    .withRoot(7)
+    .setRootAssembly(7)
     .build();
   return { model, scene, part };
 }
@@ -186,16 +186,16 @@ export {
   createElement,
   createElementModel,
   ElementShape,
-  elementPart,
+  createPartFromElementModel,
   createPart,
   createInteractionState,
   setPartOverride,
   readInteractionState,
-  identity,
-  scale,
+  identityMatrix,
+  scalingMatrix,
   GpuRenderer,
   createResultField,
-  createScene,
+  createSceneBuilder,
   createViewport,
   type ViewportResultsConfig,
   resolveViewportResults,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState } from "../../src/entries/interaction";
-import { createSceneRuntime } from "../../src/entries/runtime";
+import { createSceneOccurrenceSnapshot } from "../../src/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../demo/fixtures/presets";
 import { createPerformancePreset } from "../../demo/fixtures/performance-fixture";
 import { statsText } from "../../demo/devtools/diagnostics";
@@ -13,7 +13,7 @@ describe("demo diagnostics", () => {
     const preset = createBoltedPlatePreset();
     const context = {
       model: createExampleModel(preset),
-      runtime: createSceneRuntime(preset.scene),
+      runtime: createSceneOccurrenceSnapshot(preset.scene),
       interaction: createInteractionState(),
     };
     const text = statsText(context, {
@@ -32,7 +32,7 @@ describe("demo diagnostics", () => {
     const preset = createBoltedPlatePreset();
     const context = {
       model: createExampleModel(preset),
-      runtime: createSceneRuntime(preset.scene),
+      runtime: createSceneOccurrenceSnapshot(preset.scene),
       interaction: createInteractionState(),
     };
     const text = statsText(context, {
@@ -51,7 +51,7 @@ describe("demo diagnostics", () => {
     const preset = createPerformancePreset();
     const context = {
       model: { ...createExampleModel(preset), benchmarkElementFamily: "quad" as const },
-      runtime: createSceneRuntime(preset.scene),
+      runtime: createSceneOccurrenceSnapshot(preset.scene),
       interaction: createInteractionState(),
     };
     const text = statsText(context, {
@@ -76,26 +76,28 @@ describe("demo diagnostics", () => {
       benchmarkElementFamily: "quad" as const,
     };
     const runtime = {
-      getPartOccurrences: () => [
-        {
-          partOccurrenceId: "visible",
-          partId: 1,
-          occurrenceId: "root",
-          visible: true,
-          partVisible: true,
-          overrideVisible: true,
-          transform: new Float32Array(16),
-        },
-        {
-          partOccurrenceId: "hidden",
-          partId: 1,
-          occurrenceId: "root",
-          visible: false,
-          partVisible: true,
-          overrideVisible: true,
-          transform: new Float32Array(16),
-        },
-      ],
+      *partOccurrences() {
+        yield* [
+          {
+            partOccurrenceId: "visible",
+            partId: 1,
+            occurrenceId: "root",
+            visible: true,
+            partVisible: true,
+            overrideVisible: true,
+            transform: new Float32Array(16),
+          },
+          {
+            partOccurrenceId: "hidden",
+            partId: 1,
+            occurrenceId: "root",
+            visible: false,
+            partVisible: true,
+            overrideVisible: true,
+            transform: new Float32Array(16),
+          },
+        ];
+      },
     } as unknown as WorkbenchSceneContext["runtime"];
     const text = statsText(
       { model, runtime, interaction: createInteractionState() },
@@ -116,20 +118,22 @@ describe("demo diagnostics", () => {
     const preset = createPerformancePreset();
     const model = createExampleModel(preset);
     const runtime = {
-      getPartOccurrences: () => [
-        {
-          partOccurrenceId: "hidden-first",
-          partId: 1,
-          occurrenceId: "root/hidden",
-          visible: false,
-        },
-        {
-          partOccurrenceId: "visible-second",
-          partId: 1,
-          occurrenceId: "root/visible",
-          visible: true,
-        },
-      ],
+      *partOccurrences() {
+        yield* [
+          {
+            partOccurrenceId: "hidden-first",
+            partId: 1,
+            occurrenceId: "root/hidden",
+            visible: false,
+          },
+          {
+            partOccurrenceId: "visible-second",
+            partId: 1,
+            occurrenceId: "root/visible",
+            visible: true,
+          },
+        ];
+      },
     } as unknown as WorkbenchSceneContext["runtime"];
     const text = statsText(
       { model, runtime, interaction: createInteractionState() },
@@ -153,7 +157,7 @@ describe("demo diagnostics", () => {
         benchmarkElementFamily: "quad" as const,
         performanceRetentionReason: "reused" as const,
       },
-      runtime: createSceneRuntime(preset.scene),
+      runtime: createSceneOccurrenceSnapshot(preset.scene),
       interaction: createInteractionState(),
     };
     const text = statsText(context, {

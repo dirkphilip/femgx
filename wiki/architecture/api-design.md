@@ -2,7 +2,7 @@
 
 The default and only public rendering lifecycle is
 `createViewport({ canvas, scene })`. The viewport owns the derived
-`SceneRuntime`, internal WebGPU renderer, fitted camera, standard controls,
+private packed scene state, internal WebGPU renderer, fitted camera, standard controls,
 resize synchronization, render invalidation, device recovery, and teardown.
 Lower-level renderer construction remains an internal implementation detail;
 camera math, stable runtime queries, and pick-id resolution are separate
@@ -14,9 +14,9 @@ surface; the concise [[architecture/core-api|Core API review]] is the reader
 oriented API map, and the root [[../index|wiki index]] is the navigation map.
 
 The published root import is `femgx`. FE authoring, interchange, optional GLB,
-custom camera, runtime inspection, and raw WebGPU ownership are intentionally
-published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
-`femgx/runtime`, and `femgx/platform`.
+custom camera, and raw WebGPU ownership are intentionally published as
+`femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`, and
+`femgx/platform`; placed-occurrence inspection is viewport-owned.
 
 ## Canonical concepts
 
@@ -27,14 +27,14 @@ published as `femgx/model`, `femgx/io`, `femgx/io/glb`, `femgx/camera`,
 | Part occurrence     | `PartOccurrenceId`     | One expanded runtime identity produced from the reusable assembly hierarchy        |
 | Assembly definition | `AssemblyDefinition`   | Ordered hierarchy of part and assembly placements                                  |
 | Scene registry      | `Scene`                | Authoritative maps of parts and assemblies plus visibility state                   |
-| Scene runtime       | `SceneRuntime`         | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
+| Placed occurrences  | `SceneOccurrences`     | Stable placement/assembly-occurrence queries; live mutations belong to `Viewport`  |
 | Viewport            | `Viewport`             | Public scene lifecycle, GPU rendering, and stable capability facades               |
 
-`SceneRuntime` is the defensive query boundary: its public transforms and
-collections are snapshots, and `RuntimeAssemblyOccurrence.partOccurrenceIds` contains only
-direct part placements. The canonical viewport owns the current live facade at
-`viewport.runtime`; standalone `createSceneRuntime(scene)` is a CPU-only
-immutable compiled snapshot for intentional host inspection.
+`SceneOccurrences` is the defensive query boundary: public transforms and
+records are snapshots, while model-sized collections stream fresh.
+`AssemblyOccurrence.partOccurrenceCount` plus its ordinal getter expose only
+direct part placements. The canonical viewport owns the live facade at
+`viewport.occurrences`; packed scene compilation remains internal.
 
 The public API keeps definitions, authored placements, and expanded occurrences
 distinct. A definition owns reusable geometry, a placement owns the authored
@@ -61,7 +61,7 @@ Surface-derived topology ───┴─→ Part + assembly placements
                                 ↓
                        createViewport
                                 ↓
-                        viewport.runtime
+                     viewport.occurrences
 ```
 
 Reusable geometry is defined once. Part occurrences refer to that definition by a
@@ -107,15 +107,15 @@ compiled into one semantic `Part` with homogeneous primitive leaves, and an
 `Assembly` places that part without copying its geometry:
 
 ```ts
-const part = elementPart(10, model);
-const scene = createScene()
+const part = createPartFromElementModel(10, model);
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 1,
     name: "model",
-    placements: [{ kind: "part", partId: 10, transform: identity() }],
+    placements: [{ kind: "part", partId: 10, transform: identityMatrix() }],
   })
-  .withRoot(1)
+  .setRootAssembly(1)
   .build();
 ```
 
@@ -126,7 +126,7 @@ It compiles retained facets, lines, and points into the same reusable `Part`
 without reconstructing omitted solid connectivity.
 
 ```ts
-const part = surfacePart(10, {
+const part = createPartFromExplicitTopology(10, {
   positions,
   facets: { connectivity: facets, elementIds, faceIndices },
   lines: { connectivity: lines, elementIds: lineElementIds },
@@ -161,13 +161,11 @@ product decision must establish any narrower boundary.
 - Runtime slots and GPU-local slots are implementation details and must not
   leak into the authoring API.
 - The authoritative CPU representation owns the model data; typed arrays in
-  the private packed runtime and GPU buffers are compiled representations. The
-  public `SceneRuntime` exposes stable handles and defensive query objects, not
-  slots or mutation deltas. `Viewport.runtime` is the current live facade;
-  hosts should reacquire it after `replaceScene` or a committed `updateScene`. Standalone
-  `createSceneRuntime(scene)` is a CPU-only immutable compiled snapshot for
-  intentional host inspection. Live visibility changes and transactional
-  structural scene updates go through `Viewport`.
+  the private packed runtime and GPU buffers are compiled representations.
+  `Viewport.occurrences` exposes stable handles and defensive query objects,
+  not slots or mutation deltas. The facade remains attached to the viewport
+  across `replaceScene` and committed `updateScene` calls. Live visibility
+  changes and transactional structural scene updates go through `Viewport`.
 
 ## Public API boundary
 
@@ -209,8 +207,8 @@ decision and stable public lifecycle contract.
 
 The public results boundary supports authored scalar coloring, nodal deformation,
 and one orthogonal elemental vector or full-frame presentation role. `Viewport` owns all
-roles in the same atomic result replacement; `Part`, `Scene`, and
-`SceneRuntime` do not own glyph state. The vector role's public vocabulary is
+roles in the same atomic result replacement; `Part`, `Scene`, and occurrence
+inspection do not own glyph state. The vector role's public vocabulary is
 limited to an authored field, `arrow`/`axis` presentation, `direction`/`normal`
 transform semantics, and a finite positive element-relative scale:
 

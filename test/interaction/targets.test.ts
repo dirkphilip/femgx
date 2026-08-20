@@ -23,7 +23,7 @@ import {
   selectedTargets,
 } from "../../src/interaction/selection-queries";
 import type { PickHit } from "../../src/picking/types";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import type { PartOccurrence } from "../../src/scene/types";
 import { readInteractionState } from "../../src/interaction/state";
 
@@ -229,7 +229,7 @@ describe("element highlight state", () => {
   const instance: PartOccurrence = {
     partOccurrenceId: "1/0",
     partId: 1,
-    worldTransform: identity(),
+    worldTransform: identityMatrix(),
   };
   const ref = { partOccurrenceId: "1/0", elementId: 3 } as const;
 

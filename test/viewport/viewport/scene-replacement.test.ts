@@ -12,7 +12,7 @@ import {
   setPartOverride,
   isTargetSelected,
   setTargetSelected,
-  translation,
+  translationMatrix,
   createViewport,
   RendererAttachment,
   GpuRenderer,
@@ -120,7 +120,7 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
     const camera = viewport.view.camera;
-    viewport.visibility.setPartOccurrence("1/keep", false);
+    viewport.visibility.setPartOccurrenceVisible("1/keep", false);
     viewport.interaction.set(
       setTargetSelected(
         viewport.interaction.state,
@@ -139,8 +139,8 @@ describe("Viewport", () => {
     expect(viewport.scene).not.toBe(initial);
     expect(viewport.scene.parts.get(1)).toBe(replacementPart);
     expect(viewport.view.camera).toBe(camera);
-    expect(viewport.runtime.getPartOccurrenceIds()).toEqual(["1/keep"]);
-    expect(viewport.runtime.isPartOccurrenceVisible("1/keep")).toBe(false);
+    expect(Array.from(viewport.occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId)).toEqual(["1/keep"]);
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
     expect(
       isTargetSelected(viewport.interaction.state, {
         kind: "partOccurrence",
@@ -160,11 +160,11 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
     const currentScene = viewport.scene;
-    const currentRuntime = viewport.runtime;
+    const currentOccurrences = viewport.occurrences;
 
     expect(viewport.updateScene(() => undefined)).toEqual({ results: "none" });
     expect(viewport.scene).toBe(currentScene);
-    expect(viewport.runtime).toBe(currentRuntime);
+    expect(viewport.occurrences).toBe(currentOccurrences);
     expect(() =>
       viewport.updateScene(() => {
         viewport.updateScene(() => undefined);
@@ -175,7 +175,7 @@ describe("Viewport", () => {
     >[0];
     expect(() => viewport.updateScene(asyncOperation)).toThrow(/synchronous/);
     expect(viewport.scene).toBe(currentScene);
-    expect(viewport.runtime).toBe(currentRuntime);
+    expect(viewport.occurrences).toBe(currentOccurrences);
     viewport.destroy();
   });
 
@@ -289,15 +289,15 @@ describe("Viewport", () => {
     const initial = explicitScene(
       [remove, keep],
       [
-        { kind: "part", placementId: "remove", partId: 2, transform: translation(0, 0, 0) },
-        { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+        { kind: "part", placementId: "remove", partId: 2, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(1, 0, 0) },
       ],
     );
     const replacement = explicitScene(
       [keep, added],
       [
-        { kind: "part", placementId: "keep", partId: 1, transform: translation(10, 0, 0) },
-        { kind: "part", placementId: "added", partId: 3, transform: translation(20, 0, 0) },
+        { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(10, 0, 0) },
+        { kind: "part", placementId: "added", partId: 3, transform: translationMatrix(20, 0, 0) },
       ],
     );
     const viewport = await createViewport({
@@ -310,7 +310,7 @@ describe("Viewport", () => {
       target: [4, 5, 6] as [number, number, number],
     });
     const camera = viewport.view.camera;
-    viewport.visibility.setPartOccurrence("1/keep", false);
+    viewport.visibility.setPartOccurrenceVisible("1/keep", false);
     let interaction = setTargetSelected(
       viewport.interaction.state,
       { kind: "partOccurrence", partOccurrenceId: "1/keep" },
@@ -322,8 +322,8 @@ describe("Viewport", () => {
     viewport.replaceScene(replacement);
 
     expect(viewport.view.camera).toBe(camera);
-    expect(viewport.runtime.getPartOccurrenceIds()).toEqual(["1/keep", "1/added"]);
-    expect(viewport.runtime.isPartOccurrenceVisible("1/keep")).toBe(false);
+    expect(Array.from(viewport.occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId)).toEqual(["1/keep", "1/added"]);
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
     expect(
       isTargetSelected(viewport.interaction.state, {
         kind: "partOccurrence",
@@ -367,7 +367,7 @@ describe("Viewport", () => {
     const previous = {
       camera: viewport.view.camera,
       interaction: viewport.interaction.state,
-      runtime: viewport.runtime,
+      occurrences: viewport.occurrences,
       scene: viewport.scene,
       submissions: gpu.submissionCount,
       writes: gpu.writes.length,
@@ -378,7 +378,7 @@ describe("Viewport", () => {
     }).toThrow(/transform must contain exactly 16 components/);
     expect(viewport.view.camera).toBe(previous.camera);
     expect(viewport.interaction.state).toBe(previous.interaction);
-    expect(viewport.runtime).toBe(previous.runtime);
+    expect(viewport.occurrences).toBe(previous.occurrences);
     expect(viewport.scene).toBe(previous.scene);
     expect(gpu.submissionCount).toBe(previous.submissions);
     expect(gpu.writes).toHaveLength(previous.writes);

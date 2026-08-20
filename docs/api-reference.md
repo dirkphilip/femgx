@@ -14,21 +14,21 @@ its generated TypeDoc declaration.
 ## Five-minute workflow
 
 ```ts
-import { createScene, createViewport, identity } from "femgx";
-import { ElementShape, createElement, createElementModel, elementPart } from "femgx/model";
+import { createSceneBuilder, createViewport, identityMatrix } from "femgx";
+import { ElementShape, createElement, createElementModel, createPartFromElementModel } from "femgx/model";
 
 const model = createElementModel(new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0]), [
   createElement(100, ElementShape.Triangle, [0, 1, 2]),
 ]);
-const part = elementPart(10, model);
-const scene = createScene()
+const part = createPartFromElementModel(10, model);
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: 20,
     name: "root",
-    placements: [{ kind: "part", partId: part.id, transform: identity() }],
+    placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
   })
-  .withRoot(20)
+  .setRootAssembly(20)
   .build();
 
 const canvas = document.querySelector<HTMLCanvasElement>("#femgx-viewport");
@@ -46,13 +46,12 @@ environments receive a typed result or error; there is no CPU renderer. Call
 | Entry               | Use it for                                                                        |
 | ------------------- | --------------------------------------------------------------------------------- |
 | `femgx`             | Parts, scenes, viewport lifecycle, common math, picking, and support probing      |
-| `femgx/model`       | FE elements, typed models, `elementPart`, `surfacePart`, shapes, faces, and edges |
+| `femgx/model`       | FE elements, typed models, `createPartFromElementModel`, `createPartFromExplicitTopology`, shapes, faces, and edges |
 | `femgx/io`          | Serializable FEM models, validation, diagnostics, and result conversion           |
 | `femgx/io/glb`      | Self-contained GLB 2.0 display-scene import                                       |
 | `femgx/camera`      | Camera construction, fitting, projection, and custom controls                     |
 | `femgx/interaction` | Interaction state, target mapping, and host-owned selection policy                |
 | `femgx/results`     | Authored fields, ranges, color mapping, and deformation                           |
-| `femgx/runtime`     | Standalone CPU runtime inspection                                                 |
 | `femgx/platform`    | Explicit supported-path WebGPU adapter/device ownership                           |
 
 Do not import `importGlb` from `femgx`; it is published only from
@@ -83,28 +82,28 @@ Capability objects are stable non-owning views into the live viewport state:
 ```ts
 viewport.view.camera;
 viewport.interaction.state;
-viewport.visibility.setPart(part.id, false);
+viewport.visibility.setPartVisible(part.id, false);
 viewport.visibility.setPartOccurrences(partOccurrenceIds, false);
 viewport.results.state;
 viewport.presentation.setBackground("dark");
 ```
 
-After `replaceScene()` or a committed `updateScene()`, reacquire
-`viewport.runtime` so the host reads the new compiled snapshot.
+Use `viewport.occurrences` to inspect the viewport's current expanded
+placements. The capability object remains stable across `replaceScene()` and
+committed `updateScene()` calls.
 
 ## Public entrypoints
 
-| Package entry       | TypeScript facade                          |
-| ------------------- | ------------------------------------------ |
-| `femgx`             | Root scene and viewport API                |
-| `femgx/model`       | FE elements, models, and part construction |
-| `femgx/io`          | FEM validation and result conversion       |
-| `femgx/io/glb`      | GLB display-scene import                   |
-| `femgx/camera`      | Camera construction and controls           |
-| `femgx/interaction` | Interaction state and target mapping       |
-| `femgx/results`     | Authored fields and deformation            |
-| `femgx/runtime`     | CPU runtime inspection                     |
-| `femgx/platform`    | WebGPU adapter and device ownership        |
+| Package entry       | TypeScript facade                                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `femgx`             | [`src/entries/root.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/root.ts)               |
+| `femgx/model`       | [`src/entries/model.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/model.ts)             |
+| `femgx/io`          | [`src/entries/io.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io.ts)                   |
+| `femgx/io/glb`      | [`src/entries/io/glb.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/io/glb.ts)           |
+| `femgx/camera`      | [`src/entries/camera.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/camera.ts)           |
+| `femgx/interaction` | [`src/entries/interaction.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/interaction.ts) |
+| `femgx/results`     | [`src/entries/results.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/results.ts)         |
+| `femgx/platform`    | [`src/entries/platform.ts`](https://github.com/dirkphilip/femgx/blob/main/src/entries/platform.ts)       |
 
 The generated navigation is the searchable reference for every exported
 symbol. The guides above are organized around host tasks so that the API is

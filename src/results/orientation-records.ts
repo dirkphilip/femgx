@@ -1,6 +1,6 @@
 import type { Part } from "../geometry/part";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import { packedSemanticStorage } from "../geometry/packed/packed-semantic";
+import { partSemanticGraph } from "../geometry/semantic/part-semantic-graph";
 import { elementalResultIndex, type ElementFrameField, type VectorField } from "./fields";
 import { getOrientationTopology, resolveOrientationAnchor } from "./orientation-topology";
 import type { OrientationTopologyElement } from "./orientation-topology";
@@ -148,19 +148,19 @@ function validateElementCoverage(
   field: VectorField<"elemental">,
   densePartLocal: boolean,
 ): void {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    validatePackedElementIds({
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined && graph.elementIds.length > 0) {
+    validateGraphElementIds({
       part,
       fieldLabel: "Elemental orientation field",
       field,
-      elementIds: packed.elementIds,
+      elementIds: graph.elementIds,
       densePartLocal,
     });
     return;
   }
   const elements = part.elements;
-  if (elements === undefined || elements.length === 0) {
+  if (elements === undefined || elements.count === 0) {
     if (hasActiveVector(field)) {
       throw new Error(
         `Elemental orientation field ${field.id} cannot resolve part ${part.id}: geometry has no element metadata`,
@@ -182,19 +182,19 @@ function validateFrameCoverage(
   field: ElementFrameField,
   densePartLocal: boolean,
 ): void {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) {
-    validatePackedElementIds({
+  const graph = partSemanticGraph(part);
+  if (graph !== undefined && graph.elementIds.length > 0) {
+    validateGraphElementIds({
       part,
       fieldLabel: "Element frame field",
       field,
-      elementIds: packed.elementIds,
+      elementIds: graph.elementIds,
       densePartLocal,
     });
     return;
   }
   const elements = part.elements;
-  if (elements === undefined || elements.length === 0) {
+  if (elements === undefined || elements.count === 0) {
     if (hasActiveFrame(field)) {
       throw new Error(
         `Element frame field ${field.id} cannot resolve part ${part.id}: geometry has no element metadata`,
@@ -211,7 +211,7 @@ function validateFrameCoverage(
   }
 }
 
-interface PackedElementValidation {
+interface GraphElementValidation {
   readonly part: Part;
   readonly fieldLabel: string;
   readonly field: { readonly count: number; readonly id: string };
@@ -219,13 +219,13 @@ interface PackedElementValidation {
   readonly densePartLocal: boolean;
 }
 
-function validatePackedElementIds({
+function validateGraphElementIds({
   part,
   fieldLabel,
   field,
   elementIds,
   densePartLocal,
-}: PackedElementValidation): void {
+}: GraphElementValidation): void {
   for (const [ordinal, elementId] of elementIds.entries()) {
     if (elementFieldIndex(part, field, elementId, ordinal, densePartLocal) === undefined) {
       throw new Error(
@@ -243,13 +243,13 @@ function elementFieldIndex(
   densePartLocal = true,
 ): number | undefined {
   const metadata = getPartSemanticIndex(part);
-  const privateOrdinal = metadata.elementOrdinalById.get(elementId);
+  const privateOrdinal = metadata.elementOrdinal(elementId);
   if (privateOrdinal === undefined && fallbackOrdinal === undefined) return undefined;
   return elementalResultIndex(
     field,
     elementId,
     privateOrdinal === undefined ? (fallbackOrdinal ?? 0) : privateOrdinal - 1,
-    metadata.elements.size,
+    metadata.elementCount,
     densePartLocal,
   );
 }

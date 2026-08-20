@@ -1,7 +1,7 @@
 import type { Part, PartId } from "../geometry/part";
 import type { ResultColorMap, ResultColorTable } from "../results/colors";
 import { elementalResultIndex, scalarAt, type ScalarField } from "../results/fields";
-import { mapScalar, type ScalarColorMap } from "../results/mapping";
+import { mapScalarToColor, type ScalarColorMap } from "../results/mapping";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
@@ -85,15 +85,15 @@ export function validateResultCoverage(
   }
   for (const renderedPartId of targetPartIds(runtime, partId)) {
     const part = scene.parts.get(renderedPartId);
-    const elements = part?.elements ?? [];
+    const elements = part?.elements;
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
-    for (const [ordinal, element] of elements.entries()) {
-      const privateOrdinal = metadata?.elementOrdinalById.get(element.id);
+    for (const [ordinal, element] of elements?.entries() ?? []) {
+      const privateOrdinal = metadata?.elementOrdinal(element.id);
       const index = elementalResultIndex(
         field,
         element.id,
         privateOrdinal === undefined ? ordinal : privateOrdinal - 1,
-        elements.length,
+        elements?.count ?? 0,
         partId !== undefined,
       );
       if (index === undefined) validateElementId(field, renderedPartId, element.id);
@@ -193,20 +193,20 @@ function buildElementalResultColors(
   const colors = new Map<PartId, ResultColorTable>();
   for (const renderedPartId of targetPartIds(runtime, partId)) {
     const part = scene.parts.get(renderedPartId);
-    if (part === undefined || part.elements === undefined || part.elements.length === 0) continue;
+    if (part === undefined || part.elements === undefined || part.elements.count === 0) continue;
     const elements = part.elements;
     const metadata = getPartSemanticIndex(part);
-    const values = new Float32Array((elements.length + 1) * 4);
+    const values = new Float32Array((elements.count + 1) * 4);
     for (const [index, element] of elements.entries()) {
-      const privateOrdinal = metadata.elementOrdinalById.get(element.id);
+      const privateOrdinal = metadata.elementOrdinal(element.id);
       const fieldIndex = elementalResultIndex(
         field,
         element.id,
         privateOrdinal === undefined ? index : privateOrdinal - 1,
-        elements.length,
+        elements.count,
         partId !== undefined,
       );
-      const color = mapScalar(
+      const color = mapScalarToColor(
         colorMap,
         fieldIndex === undefined ? NaN : scalarAt(field, fieldIndex),
       );
@@ -238,7 +238,7 @@ function buildNodalResultColors(
     if (nodePickIds === undefined) continue;
     const data = new Float32Array((maxNodePickId(nodePickIds) + 1) * 4);
     for (const pickId of nodePickIds) {
-      const color = mapScalar(colorMap, scalarAt(field, pickId - 1));
+      const color = mapScalarToColor(colorMap, scalarAt(field, pickId - 1));
       const offset = pickId * 4;
       data[offset] = color.r;
       data[offset + 1] = color.g;

@@ -14,13 +14,13 @@ import { setTargetHovered } from "../../src/interaction/targets";
 import { setFaceHighlighted } from "../../src/interaction/faces";
 import { setNodeSelected } from "../../src/interaction/nodes";
 import { setElementVisible } from "../../src/interaction/elements";
-import { translation } from "../../src/math/mat4";
+import { translationMatrix } from "../../src/math/mat4";
 import { changedInstanceSlots } from "../../src/viewport/interaction-diff";
 import {
   createPackedSceneRuntime,
   type PackedSceneRuntime as SceneRuntime,
 } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 
 /** A two-part scene: three instances of part 1 (slots 0-2) and two of part 2 (slots 3-4). */
 function runtime(): SceneRuntime {
@@ -32,9 +32,9 @@ function runtime(): SceneRuntime {
   const place = (partId: number, x: number) => ({
     kind: "part" as const,
     partId,
-    transform: translation(x, 0, 0),
+    transform: translationMatrix(x, 0, 0),
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(createPart(1, { geometries: [geometry] }))
     .addPart(createPart(2, { geometries: [geometry] }))
     .addAssembly({
@@ -42,7 +42,7 @@ function runtime(): SceneRuntime {
       name: "root",
       placements: [place(1, 0), place(1, 2), place(1, 4), place(2, 6), place(2, 8)],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   return createPackedSceneRuntime(scene);
 }
@@ -61,7 +61,7 @@ describe("changedInstanceSlots", () => {
     );
   });
 
-  it("reuses runtime identity indexes instead of scanning instance ids", () => {
+  it("reuses runtime identityMatrix indexes instead of scanning instance ids", () => {
     const rt = runtime();
     const getInstanceId = vi.spyOn(rt, "getInstanceId");
     const empty = createInteractionState();

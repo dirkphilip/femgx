@@ -85,7 +85,7 @@ export function createScalarColorMap(options: ScalarColorMapOptions): ScalarColo
  * thresholded), and returns `missingColor` for `NaN`.
  * @category Results
  */
-export function mapScalar(map: ScalarColorMap, value: number): Color {
+export function mapScalarToColor(map: ScalarColorMap, value: number): Color {
   if (!Number.isFinite(value)) return map.missingColor;
   if (map.thresholds !== undefined) {
     return bandColor(map, bandIndex(map.thresholds, value));

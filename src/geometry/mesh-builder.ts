@@ -1,11 +1,9 @@
 import type {
   FaceTessellation,
-  Geometry,
   GeometryEdge,
-  LineGeometry,
   Primitive,
-  TriangleGeometry,
 } from "./part";
+import type { GeometryInput, LineGeometryInput, TriangleGeometryInput } from "./types";
 import type { Vec3 } from "../math/vec3";
 
 /** A tessellated triangle vertex plus the authored model node it came from. */
@@ -66,8 +64,8 @@ export class TriangleMeshAssembler {
     return generated;
   }
 
-  build(primitive: "triangles", metadata?: MeshMetadata): TriangleGeometry;
-  build(primitive: Primitive, metadata: MeshMetadata = {}): Geometry {
+  build(primitive: "triangles", metadata?: MeshMetadata): TriangleGeometryInput;
+  build(primitive: Primitive, metadata: MeshMetadata = {}): GeometryInput {
     const { edges, faces } = metadata;
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
@@ -100,8 +98,8 @@ export class LineMeshBuilder {
     }
   }
 
-  build(primitive: "lines"): LineGeometry;
-  build(primitive: Primitive): Geometry {
+  build(primitive: "lines"): LineGeometryInput;
+  build(primitive: Primitive): GeometryInput {
     const hasNodeIds = this.nodePickIds.some((id) => id !== 0);
     return {
       positions: new Float32Array(this.positions),

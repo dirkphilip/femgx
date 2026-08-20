@@ -1,9 +1,9 @@
 import { expect, it, describe } from "vitest";
 import {
   createPart,
-  identity,
+  identityMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   buildDrawOrder,
   buildNodeOrder,
   buildNodeSelectionOrder,
@@ -19,14 +19,14 @@ import {
 
 describe("renderer runtime state", () => {
   it("merges a large out-of-order contiguous selection into one bounded range", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(fragmentedSelectionPart)
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identity() }],
+        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() }],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -76,19 +76,19 @@ describe("renderer runtime state", () => {
       ],
       nodePositions: new Float32Array([0, 0, 0]),
     });
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(triangle)
       .addPart(point)
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 2, transform: identity() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 2, transform: identityMatrix() },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     const layout = buildInstanceLayout(runtime);
@@ -123,18 +123,18 @@ describe("renderer runtime state", () => {
   });
 
   it("keeps hidden slots addressable and omits parts without visible slots", () => {
-    const scene = createScene()
+    const scene = createSceneBuilder()
       .addPart(part(1))
       .addPart(part(2))
       .addAssembly({
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identity() },
-          { kind: "part", partId: 2, transform: identity() },
+          { kind: "part", partId: 1, transform: identityMatrix() },
+          { kind: "part", partId: 2, transform: identityMatrix() },
         ],
       })
-      .withRoot(1)
+      .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
     runtime.setPartVisible(2, false);

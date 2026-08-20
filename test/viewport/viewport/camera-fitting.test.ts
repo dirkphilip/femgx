@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createCamera, projectPoint } from "../../../src/camera/camera";
 import { boundsCorners, createPart } from "../../../src/geometry/part";
-import { translation } from "../../../src/math/mat4";
+import { translationMatrix } from "../../../src/math/mat4";
 import {
   explicitScene,
   installNavigator,
@@ -36,8 +36,8 @@ describe("Viewport", () => {
     input.wheel(-100);
     expect(displayedBounds).toHaveBeenCalledTimes(1);
 
-    viewport.visibility.setPartOccurrence("1/0", false);
-    viewport.visibility.setPartOccurrence("1/0", true);
+    viewport.visibility.setPartOccurrenceVisible("1/0", false);
+    viewport.visibility.setPartOccurrenceVisible("1/0", true);
     input.wheel(100);
     expect(displayedBounds).toHaveBeenCalledTimes(2);
     viewport.destroy();
@@ -80,7 +80,7 @@ describe("Viewport", () => {
     });
 
     expect(viewport.view.camera.target[0]).toBeCloseTo(25);
-    expect(viewport.runtime.getTransform("1/0")?.[12]).toBe(25);
+    expect(viewport.occurrences.getTransform("1/0")?.[12]).toBe(25);
     viewport.destroy();
   });
 });
@@ -130,7 +130,7 @@ describe("Viewport", () => {
       scene: scene(),
       device: fakeGpuDevice().device,
     });
-    viewport.visibility.setPartOccurrence("1/0", false);
+    viewport.visibility.setPartOccurrenceVisible("1/0", false);
     viewport.interaction.set(
       setTargetSelected(
         viewport.interaction.state,
@@ -173,8 +173,8 @@ describe("Viewport", () => {
       scene: explicitScene(
         [selectedPart, remotePart],
         [
-          { kind: "part", partId: 1, transform: translation(0, 0, 0) },
-          { kind: "part", partId: 2, transform: translation(30, 8, 30) },
+          { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
+          { kind: "part", partId: 2, transform: translationMatrix(30, 8, 30) },
         ],
       ),
       device: fakeGpuDevice().device,

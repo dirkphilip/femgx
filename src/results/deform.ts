@@ -63,7 +63,7 @@ export function deformPositions(
 /**
  * Returns the geometry with deformed positions. The part must carry a
  * per-vertex node map (`nodePickIds`) to resolve vertices back to their model
- * nodes, which `elementPart` provides for element-backed geometry. All other
+ * nodes, which `createPartFromElementModel` provides for element-backed geometry. All other
  * geometry data (indices and any element tessellations) is preserved.
  * @category Results
  */
@@ -75,7 +75,7 @@ export function deformGeometry(
   const nodePickIds = geometry.nodePickIds;
   if (nodePickIds === undefined) {
     throw new Error(
-      "Cannot deform geometry without per-vertex node ids; build it with elementPart or supply nodePickIds",
+      "Cannot deform geometry without per-vertex node ids; build it with createPartFromElementModel or supply nodePickIds",
     );
   }
   return {
@@ -95,7 +95,7 @@ export function deformGeometry(
  * `DeformationState.displacements` expects for one part.
  * @category Results
  */
-export function nodalDisplacements(
+export function createNodalDisplacementBuffer(
   nodeCount: number,
   field: VectorField<"nodal"> | undefined,
 ): Float32Array {

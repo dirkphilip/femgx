@@ -1,6 +1,16 @@
 import { validateBodies, validateElements, validatePickIds } from "./part-validation";
 import { validatePartId } from "./id-validation";
-import type { Bounds, ElementTessellation, Geometry, GeometryBody } from "./types";
+import { createPartElements, type PartElements } from "./part-elements";
+import { createPartBodies, type PartBodies } from "./part-bodies";
+import { buildPartSemanticGraph } from "./semantic/part-semantic-graph-builder";
+import {
+  registerPartGeometrySemantic,
+  registerPartSemanticGraph,
+} from "./semantic/part-semantic-graph";
+import type { PartSemanticGraph } from "./semantic/part-semantic-graph";
+import { geometrySemanticCapabilities } from "./semantic/geometry-semantic-capabilities";
+import { sortedOrdinals } from "../elements/model-storage";
+import type { Bounds, ElementTessellation, Geometry, GeometryBody, GeometryInput } from "./types";
 
 export type {
   Bounds,
@@ -11,11 +21,17 @@ export type {
   GeometryBody,
   GeometryEdge,
   Geometry,
+  GeometryInput,
   LineGeometry,
+  LineGeometryInput,
   PointGeometry,
+  PointGeometryInput,
   Primitive,
   TriangleGeometry,
+  TriangleGeometryInput,
 } from "./types";
+export type { PartElements } from "./part-elements";
+export type { PartBodies } from "./part-bodies";
 export type { BodyId } from "../elements/model";
 
 /**
@@ -40,7 +56,7 @@ export { MAX_PART_ID, validatePartId } from "./id-validation";
  * elemental identity and elemental result mapping; node picking, nodal results,
  * and deformation require part-level `nodePositions` plus per-geometry
  * `nodePickIds`; authored edge interaction requires per-geometry `edges`.
- * {@link model.elementPart} supplies these FE mappings consistently.
+ * {@link model.createPartFromElementModel} supplies these FE mappings consistently.
  * @category Start here
  */
 export interface Part {
@@ -50,12 +66,12 @@ export interface Part {
   readonly id: PartId;
   /** Indexed geometry groups, one group per primitive topology. */
   readonly geometries: readonly Geometry[];
-  /** Optional element-to-primitive ownership table. */
-  readonly elements?: readonly ElementTessellation[];
+  /** Optional query capability over packed FE ownership columns. */
+  readonly elements?: PartElements;
   /** Optional dense part-local node coordinates for nodal results/deformation. */
   readonly nodePositions?: Float32Array;
-  /** Optional semantic body table with direct element membership. */
-  readonly bodies?: readonly GeometryBody[];
+  /** Optional query capability over packed body membership columns. */
+  readonly bodies?: PartBodies;
   /** Derived axis-aligned bounds in local part coordinates. */
   readonly bounds: Bounds;
 }
@@ -70,7 +86,7 @@ export interface Part {
  */
 export interface PartInput {
   /** Indexed geometry groups, one group per primitive topology. */
-  readonly geometries: readonly Geometry[];
+  readonly geometries: readonly GeometryInput[];
   /** Optional element-to-primitive ownership table. */
   readonly elements?: readonly ElementTessellation[];
   /** Optional dense part-local node coordinates for nodal results/deformation. */
@@ -92,12 +108,12 @@ const partBrand: unique symbol = Symbol("Part");
  *
  * The function retains the supplied typed arrays without defensive copies and
  * takes ownership of them. Do not mutate or reuse those arrays after this call.
- * For typed FE authoring, prefer `elementPart(partId, model)`, which supplies
+ * For typed FE authoring, prefer `createPartFromElementModel(partId, model)`, which supplies
  * element tessellation, node positions, node-pick ids, and authored topology
  * consistently.
  * @example Create a display part, then place the definition in a scene.
  * ```ts
- * import { createPart, createScene, identity } from "femgx";
+ * import { createPart, createSceneBuilder, identityMatrix } from "femgx";
  *
  * const part = createPart(10, {
  *   geometries: [{
@@ -106,14 +122,14 @@ const partBrand: unique symbol = Symbol("Part");
  *     indices: new Uint32Array([0, 1, 2]),
  *   }],
  * });
- * const scene = createScene()
+ * const scene = createSceneBuilder()
  *   .addPart(part)
  *   .addAssembly({
  *     id: 20,
  *     name: "root",
- *     placements: [{ kind: "part", partId: part.id, transform: identity() }],
+ *     placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
  *   })
- *   .withRoot(20)
+ *   .setRootAssembly(20)
  *   .build();
  * ```
  * @category Start here
@@ -123,14 +139,24 @@ export function createPart(id: PartId, input: PartInput): Part {
   const groups = input.geometries;
   if (groups.length === 0) throw new Error("Part must contain at least one geometry group");
   validateNodePositions(input.nodePositions);
-  const primitives = new Set<Geometry["primitive"]>();
+  let triangleSeen = false;
+  let lineSeen = false;
+  let pointSeen = false;
   for (const geometry of groups) {
-    if (primitives.has(geometry.primitive)) {
+    const duplicate =
+      geometry.primitive === "triangles"
+        ? triangleSeen
+        : geometry.primitive === "lines"
+          ? lineSeen
+          : pointSeen;
+    if (duplicate) {
       throw new Error(`Part cannot contain duplicate ${geometry.primitive} geometry groups`);
     }
-    primitives.add(geometry.primitive);
+    if (geometry.primitive === "triangles") triangleSeen = true;
+    else if (geometry.primitive === "lines") lineSeen = true;
+    else pointSeen = true;
   }
-  validateSemanticIds(input.elements ?? [], primitives);
+  validateSemanticIds(input.elements ?? [], { triangleSeen, lineSeen, pointSeen });
   for (const geometry of groups) {
     validateGeometryArrays(geometry);
     validateElements(geometry, input.elements);
@@ -140,48 +166,126 @@ export function createPart(id: PartId, input: PartInput): Part {
     ...(input.elements === undefined ? {} : { elements: input.elements }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
   });
-  return createPartRecord(id, {
-    geometries: groups,
-    ...(input.elements === undefined ? {} : { elements: input.elements }),
+  const graph =
+    input.elements === undefined
+      ? undefined
+      : buildPartSemanticGraph(groups, input.elements, input.bodies);
+  const part = createPartRecord(id, {
+    geometries: retainedGeometries(groups, graph),
+    ...(graph === undefined ? {} : { elements: createPartElements(graph) }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
-    ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
+    ...(graph === undefined || graph.bodyIds.length === 0
+      ? {}
+      : { bodies: createPartBodies(graph) }),
   });
+  if (graph !== undefined) {
+    registerPartSemanticGraph(part, graph);
+    for (let ordinal = 0; ordinal < part.geometries.length; ordinal += 1) {
+      const geometry = part.geometries[ordinal];
+      if (geometry === undefined) throw new Error(`Part has no geometry ${ordinal}`);
+      registerPartGeometrySemantic(geometry, graph, ordinal);
+    }
+  }
+  return part;
 }
 
 /**
  * Internal branded record construction after an owning boundary has validated its inputs.
  * A supplied bound must have been derived from the retained geometry by that same boundary.
  */
-export function createPartRecord(id: PartId, input: PartInput, bounds?: Bounds): Part {
+export function createPartRecord(
+  id: PartId,
+  input: {
+    readonly geometries: readonly Geometry[];
+    readonly nodePositions?: Float32Array;
+    readonly elements?: PartElements;
+    readonly bodies?: PartBodies;
+  },
+  bounds?: Bounds,
+): Part {
+  const elements = input.elements;
   return {
     [partBrand]: true,
     id,
     geometries: input.geometries,
-    ...(input.elements === undefined ? {} : { elements: input.elements }),
+    ...(elements === undefined ? {} : { elements }),
     ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
     ...(input.bodies === undefined ? {} : { bodies: input.bodies }),
     bounds: bounds ?? finitePartBounds(input.geometries),
   };
 }
 
+/** Publishes already-validated geometry and one canonical semantic graph. */
+export function createPartFromGraphColumns(
+  id: PartId,
+  input: {
+    readonly geometries: readonly GeometryInput[];
+    readonly nodePositions?: Float32Array;
+    readonly graph: PartSemanticGraph;
+  },
+): Part {
+  validatePartId(id);
+  if (input.geometries.length === 0)
+    throw new Error("Part must contain at least one geometry group");
+  validateNodePositions(input.nodePositions);
+  for (const geometry of input.geometries) validateGeometryArrays(geometry);
+  const part = createPartRecord(id, {
+    geometries: retainedGeometries(input.geometries, input.graph),
+    elements: createPartElements(input.graph),
+    ...(input.nodePositions === undefined ? {} : { nodePositions: input.nodePositions }),
+    ...(input.graph.bodyIds.length === 0 ? {} : { bodies: createPartBodies(input.graph) }),
+  });
+  registerPartSemanticGraph(part, input.graph);
+  for (let ordinal = 0; ordinal < part.geometries.length; ordinal += 1) {
+    const geometry = part.geometries[ordinal];
+    if (geometry === undefined) throw new Error(`Part has no geometry ${ordinal}`);
+    registerPartGeometrySemantic(geometry, input.graph, ordinal);
+  }
+  return part;
+}
+
 function validateSemanticIds(
   elements: readonly ElementTessellation[],
-  primitives: ReadonlySet<Geometry["primitive"]>,
+  primitives: {
+    readonly triangleSeen: boolean;
+    readonly lineSeen: boolean;
+    readonly pointSeen: boolean;
+  },
 ): void {
-  const seen = new Set<number>();
+  const ids = new Uint32Array(elements.length);
   for (const element of elements) {
-    if (seen.has(element.id)) throw new Error(`Duplicate element id ${element.id}`);
-    seen.add(element.id);
+    if (!Number.isSafeInteger(element.id) || element.id < 0 || element.id > 0xffff_fffe) {
+      throw new Error(`Element id ${element.id} must be an integer in [0, 4294967294]`);
+    }
     if (element.primitiveRanges.length === 0) {
       throw new Error(`Element ${element.id} must declare at least one primitive range`);
     }
     for (const range of element.primitiveRanges) {
-      if (!primitives.has(range.primitive)) {
+      const exists =
+        range.primitive === "triangles"
+          ? primitives.triangleSeen
+          : range.primitive === "lines"
+            ? primitives.lineSeen
+            : primitives.pointSeen;
+      if (!exists) {
         throw new Error(
           `Element ${element.id} references missing ${range.primitive} geometry group`,
         );
       }
     }
+  }
+  for (let ordinal = 0; ordinal < elements.length; ordinal += 1) {
+    const element = elements[ordinal];
+    if (element === undefined) throw new Error(`Part has no element ${ordinal}`);
+    ids[ordinal] = element.id;
+  }
+  try {
+    sortedOrdinals(ids, "Part element");
+  } catch (error) {
+    if (error instanceof Error && error.message === "Part element ids must be unique") {
+      throw new Error("Duplicate element id", { cause: error });
+    }
+    throw error;
   }
 }
 
@@ -241,7 +345,7 @@ function finitePartBounds(geometries: readonly Geometry[]): Bounds {
   return bounds ?? EMPTY_PART_BOUNDS;
 }
 
-function validateGeometryArrays(geometry: Geometry): void {
+function validateGeometryArrays(geometry: GeometryInput): void {
   if (geometry.positions.length % 3 !== 0) {
     throw new Error("Geometry positions length must be a multiple of 3");
   }
@@ -282,6 +386,39 @@ function validateGeometryArrays(geometry: Geometry): void {
       }
     }
   }
+}
+
+function retainedGeometries(
+  inputs: readonly GeometryInput[],
+  graph: ReturnType<typeof buildPartSemanticGraph> | undefined,
+): readonly Geometry[] {
+  return inputs.map((input, ordinal) => retainedGeometry(input, graph, ordinal));
+}
+
+function retainedGeometry(
+  input: GeometryInput,
+  graph: ReturnType<typeof buildPartSemanticGraph> | undefined,
+  ordinal: number,
+): Geometry {
+  const capabilities =
+    graph === undefined ? undefined : geometrySemanticCapabilities(graph, ordinal);
+  const edges = capabilities?.edges;
+  if (input.primitive !== "triangles") {
+    const { edges: _edges, ...geometry } = input;
+    return {
+      ...geometry,
+      ...(edges === undefined || edges.count === 0 ? {} : { edges }),
+    };
+  }
+  const { edges: _edges, faces: _faces, faceSubset: _faceSubset, ...triangle } = input;
+  const faces = capabilities?.faces;
+  const faceSubset = capabilities?.faceSubset;
+  return {
+    ...triangle,
+    ...(edges === undefined || edges.count === 0 ? {} : { edges }),
+    ...(faces === undefined || faces.count === 0 ? {} : { faces }),
+    ...(faceSubset === undefined ? {} : { faceSubset }),
+  };
 }
 
 /** Returns whether every component of a bounding box is finite. */

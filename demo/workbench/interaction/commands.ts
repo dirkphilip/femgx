@@ -1,4 +1,4 @@
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { WorkbenchCommands, WorkbenchMenuAction } from "../results/snapshot";
 import { meshTet4ForOwner, type CatalogModeOwner } from "../controllers/controller-catalog";
 import type { WorkbenchElementDetailActions } from "../controllers/controller-element-detail";
@@ -16,9 +16,12 @@ interface WorkbenchCommandOwner extends CatalogModeOwner {
   vectorDisplay: VectorDisplayState;
   readonly presentation: { reflectResults: () => void };
   applyResultMode(render: boolean): void;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   readonly visibilityActions: WorkbenchVisibilityActions;
-  readonly visibilityPanel: { toggleExpanded(occurrenceId: string): void };
+  readonly visibilityPanel: {
+    toggleExpanded(occurrenceId: string): void;
+    setPage(page: number): void;
+  };
   readonly menu: WorkbenchMenu;
   readonly interactionController: WorkbenchInteraction;
   setProjection(): void;
@@ -96,9 +99,7 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     toggleVisibility: (target) => {
       toggleVisibility(owner, target);
     },
-    toggleVisibilityTree: (occurrenceId) => {
-      owner.visibilityPanel.toggleExpanded(occurrenceId);
-    },
+    ...visibilityCommands(owner),
     toggleBodyHighlight: (target) => {
       owner.visibilityActions.bodyHighlight(target.partOccurrenceId, target.bodyId);
     },
@@ -110,6 +111,19 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     setElementDetailHover: owner.elementDetailActions.setElementDetailHover,
     clearElementDetailHover: owner.elementDetailActions.clearElementDetailHover,
     ...resultPlaybackCommands(owner),
+  };
+}
+
+function visibilityCommands(
+  owner: WorkbenchCommandOwner,
+): Pick<WorkbenchCommands, "toggleVisibilityTree" | "setVisibilityPage"> {
+  return {
+    toggleVisibilityTree: (occurrenceId) => {
+      owner.visibilityPanel.toggleExpanded(occurrenceId);
+    },
+    setVisibilityPage: (page) => {
+      owner.visibilityPanel.setPage(page);
+    },
   };
 }
 
@@ -152,16 +166,16 @@ function resultPlaybackCommands(
 function toggleVisibility(owner: WorkbenchCommandOwner, target: VisibilityRowTarget): void {
   switch (target.kind) {
     case "assembly": {
-      const occurrence = owner.runtime.getOccurrence(target.occurrenceId);
+      const occurrence = owner.runtime.getAssemblyOccurrence(target.occurrenceId);
       if (occurrence !== undefined) {
-        owner.visibilityActions.setAssemblyOccurrence(target.occurrenceId, !occurrence.visible);
+        owner.visibilityActions.setAssemblyOccurrenceVisible(target.occurrenceId, !occurrence.visible);
       }
       break;
     }
     case "partOccurrence": {
       const instance = owner.runtime.getPartOccurrence(target.partOccurrenceId);
       if (instance !== undefined) {
-        owner.visibilityActions.setPartOccurrence(target.partOccurrenceId, !instance.visible);
+        owner.visibilityActions.setPartOccurrenceVisible(target.partOccurrenceId, !instance.visible);
       }
       break;
     }

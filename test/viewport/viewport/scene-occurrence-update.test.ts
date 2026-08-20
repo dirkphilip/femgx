@@ -14,7 +14,7 @@ import {
   resultScene,
   setPartOverride,
   setTargetSelected,
-  translation,
+  translationMatrix,
 } from "./support";
 
 describe("Viewport incremental part occurrences", () => {
@@ -27,7 +27,7 @@ describe("Viewport incremental part occurrences", () => {
       device: fakeGpuDevice().device,
     });
     viewport.render();
-    const runtime = viewport.runtime;
+    const occurrences = viewport.occurrences;
     const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
     const added = createPart(2, {
       geometries: [
@@ -43,7 +43,7 @@ describe("Viewport incremental part occurrences", () => {
       update.addPart(added);
     });
 
-    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.get(2)).toBe(added);
     expect(updateOccurrences).not.toHaveBeenCalled();
     viewport.destroy();
@@ -58,7 +58,7 @@ describe("Viewport incremental part occurrences", () => {
       device: fakeGpuDevice().device,
     });
     viewport.render();
-    const runtime = viewport.runtime;
+    const occurrences = viewport.occurrences;
     const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
     const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
     const added = createPart(2, {
@@ -77,14 +77,14 @@ describe("Viewport incremental part occurrences", () => {
         kind: "part",
         placementId: "new-part",
         partId: 2,
-        transform: translation(5, 0, 0),
+        transform: translationMatrix(5, 0, 0),
       });
     });
     viewport.render();
 
-    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.get(2)).toBe(added);
-    expect(viewport.runtime.getPartId("1/new-part")).toBe(2);
+    expect(viewport.occurrences.getPartId("1/new-part")).toBe(2);
     expect(updateOccurrences).toHaveBeenCalledTimes(1);
     expect(prepareParts).not.toHaveBeenCalled();
     viewport.destroy();
@@ -103,8 +103,8 @@ describe("Viewport incremental part occurrences", () => {
     const scene = explicitScene(
       [first, second],
       [
-        { kind: "part", placementId: "remove", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", placementId: "keep", partId: 1, transform: translation(1, 0, 0) },
+        { kind: "part", placementId: "remove", partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(1, 0, 0) },
       ],
     );
     const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
@@ -124,21 +124,21 @@ describe("Viewport incremental part occurrences", () => {
         kind: "part",
         placementId: "keep",
         partId: 2,
-        transform: translation(1, 0, 0),
+        transform: translationMatrix(1, 0, 0),
       });
       update.addPlacement(1, {
         kind: "part",
         placementId: "added",
         partId: 2,
-        transform: translation(2, 0, 0),
+        transform: translationMatrix(2, 0, 0),
       });
     });
     viewport.render();
 
-    expect(viewport.runtime.partOccurrenceCount).toBe(2);
-    expect(viewport.runtime.getPartId("1/keep")).toBe(2);
-    expect(viewport.runtime.getPartId("1/added")).toBe(2);
-    expect(viewport.runtime.getPartOccurrence("1/remove")).toBeUndefined();
+    expect(viewport.occurrences.partOccurrenceCount).toBe(2);
+    expect(viewport.occurrences.getPartId("1/keep")).toBe(2);
+    expect(viewport.occurrences.getPartId("1/added")).toBe(2);
+    expect(viewport.occurrences.getPartOccurrence("1/remove")).toBeUndefined();
     expect(updateOccurrences).toHaveBeenCalledTimes(1);
     expect(clear).not.toHaveBeenCalled();
     viewport.destroy();
@@ -169,7 +169,7 @@ describe("Viewport incremental part occurrences", () => {
         kind: "part",
         placementId: "added",
         partId: 1,
-        transform: translation(0, 0, 0),
+        transform: translationMatrix(0, 0, 0),
       });
     });
 
@@ -205,7 +205,7 @@ describe("Viewport incremental part occurrences", () => {
         kind: "part",
         placementId: "uncolored",
         partId: 2,
-        transform: translation(4, 0, 0),
+        transform: translationMatrix(4, 0, 0),
       });
     });
 
@@ -227,8 +227,8 @@ describe("Viewport incremental part occurrences", () => {
     const scene = explicitScene(
       [removedPart, retainedPart],
       [
-        { kind: "part", placementId: "removed", partId: 1, transform: translation(0, 0, 0) },
-        { kind: "part", placementId: "retained", partId: 2, transform: translation(1, 0, 0) },
+        { kind: "part", placementId: "removed", partId: 1, transform: translationMatrix(0, 0, 0) },
+        { kind: "part", placementId: "retained", partId: 2, transform: translationMatrix(1, 0, 0) },
       ],
     );
     const gpu = fakeGpuDevice();
@@ -236,7 +236,7 @@ describe("Viewport incremental part occurrences", () => {
     const clear = vi.spyOn(RendererAttachment.prototype, "clear");
     const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
     viewport.render();
-    const runtime = viewport.runtime;
+    const occurrences = viewport.occurrences;
     let interaction = setTargetSelected(
       viewport.interaction.state,
       { kind: "part", partId: 1 },
@@ -252,10 +252,10 @@ describe("Viewport incremental part occurrences", () => {
     });
 
     const attachment = updateOccurrences.mock.instances[0] as RendererAttachment | undefined;
-    expect(viewport.runtime).toBe(runtime);
+    expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.has(1)).toBe(false);
-    expect(viewport.runtime.getPartOccurrence("1/removed")).toBeUndefined();
-    expect(viewport.runtime.getPartId("1/retained")).toBe(2);
+    expect(viewport.occurrences.getPartOccurrence("1/removed")).toBeUndefined();
+    expect(viewport.occurrences.getPartId("1/retained")).toBe(2);
     expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 1 })).toBe(false);
     expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 2 })).toBe(true);
     expect(attachment?.layout?.partOrder).toEqual([2]);
@@ -279,7 +279,7 @@ describe("Viewport incremental part occurrences", () => {
           kind: "part",
           placementId: "result",
           partId: 1,
-          transform: translation(0, 0, 0),
+          transform: translationMatrix(0, 0, 0),
         },
       ],
     );

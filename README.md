@@ -34,18 +34,18 @@ Part → AssemblyDefinition → Scene → Viewport
 ```
 
 ```ts
-import { createScene, createViewport, identity } from "femgx";
-import { elementPart } from "femgx/model";
+import { createSceneBuilder, createViewport, identityMatrix } from "femgx";
+import { createPartFromElementModel } from "femgx/model";
 
-const part = elementPart(partId, model);
-const scene = createScene()
+const part = createPartFromElementModel(partId, model);
+const scene = createSceneBuilder()
   .addPart(part)
   .addAssembly({
     id: assemblyId,
     name: "root",
-    placements: [{ kind: "part", partId: part.id, transform: identity() }],
+    placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
   })
-  .withRoot(assemblyId)
+  .setRootAssembly(assemblyId)
   .build();
 
 const viewport = await createViewport({ canvas, scene });
@@ -104,13 +104,14 @@ viewport.updateScene((update) => {
     kind: "part",
     placementId: "new-part",
     partId: newPart.id,
-    transform: identity(),
+    transform: identityMatrix(),
   });
 });
 ```
 
-Re-read `viewport.runtime` after a committed update or replacement because the
-viewport installs a new compiled snapshot.
+`viewport.occurrences` is a stable, query-only facade across committed updates
+and replacements. Its streaming occurrence queries expose stable authoring
+handles, never packed runtime slots.
 
 Visibility changes stay viewport-local and do not rebuild the scene. The
 part-wide setter is a convenience policy keyed by reusable part id; it affects
@@ -118,7 +119,7 @@ every current and future occurrence without mutating the part or authored scene.
 The bulk occurrence setter validates all ids before one atomic renderer sync:
 
 ```ts
-viewport.visibility.setPart(partId, false);
+viewport.visibility.setPartVisible(partId, false);
 viewport.visibility.setPartOccurrences(selectedPartOccurrenceIds, false);
 ```
 
@@ -132,7 +133,7 @@ The primary entry points are:
 | `femgx/interaction` | Interaction state, selection, and host-owned gestures       |
 | `femgx/results`     | Authored fields, ranges, color mapping, and deformation     |
 
-Specialized entry points for camera math, runtime inspection, WebGPU device
+Specialized entry points for camera math, viewport occurrence inspection, WebGPU device
 ownership, and optional display-only GLB import are documented in the
 [API reference](docs/api-reference.md).
 

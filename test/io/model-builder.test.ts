@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { required } from "./assertions";
-import { createModelBuilder } from "../../src/io/model-builder";
+import { createFemModelBuilder } from "../../src/io/model-builder";
 import { IoError } from "../../src/io/diagnostics";
 import { ElementShape } from "../../src/elements/shapes";
 
-describe("createModelBuilder", () => {
+describe("createFemModelBuilder", () => {
   it("builds an empty model with the current format version", () => {
-    const model = createModelBuilder().build();
+    const model = createFemModelBuilder().build();
     expect(model.formatVersion).toBe(1);
     expect(model.nodes.count).toBe(0);
     expect(model.elementShapeBlocks).toEqual([]);
@@ -16,7 +16,7 @@ describe("createModelBuilder", () => {
   });
 
   it("accumulates chunked nodes without materializing objects", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1], [0, 0, 0, 1, 0, 0]);
     builder.appendNodes([2], [0, 1, 0]);
     const model = builder.build();
@@ -27,7 +27,7 @@ describe("createModelBuilder", () => {
   });
 
   it("groups elements into shape blocks, closing the open block implicitly", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.openElementShapeBlock(ElementShape.Tet4);
     builder.appendElements([1], [0, 1, 2, 3]);
     builder.openElementShapeBlock(ElementShape.Hex8);
@@ -43,14 +43,14 @@ describe("createModelBuilder", () => {
   });
 
   it("rejects nodes whose coordinate count does not match ids", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     expect(() => {
       builder.appendNodes([0], [0, 0]);
     }).toThrow(IoError);
   });
 
   it("rejects element connectivity that does not match the block shape", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.openElementShapeBlock(ElementShape.Tet4);
     expect(() => {
       builder.appendElements([1], [0, 1, 2]);
@@ -58,14 +58,14 @@ describe("createModelBuilder", () => {
   });
 
   it("rejects appendElements without an open block", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     expect(() => {
       builder.appendElements([1], [0, 1, 2, 3]);
     }).toThrow(IoError);
   });
 
   it("rejects non-integer ids", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     expect(() => {
       builder.appendNodes([1.5], [0, 0, 0]);
     }).toThrow(IoError);
@@ -75,7 +75,7 @@ describe("createModelBuilder", () => {
   });
 
   it("adds sets, metadata, and results in insertion order", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0, 1], [0, 0, 0, 1, 0, 0]);
     builder.addSet("node", "nset", [1]);
     builder.setMetadata("units", "mm");
@@ -96,7 +96,7 @@ describe("createModelBuilder", () => {
   });
 
   it("rejects empty set names and metadata keys", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     expect(() => {
       builder.addSet("node", "", [0]);
     }).toThrow(IoError);
@@ -106,7 +106,7 @@ describe("createModelBuilder", () => {
   });
 
   it("rejects malformed results", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     expect(() => {
       builder.addResult({
         name: "",
@@ -137,7 +137,7 @@ describe("createModelBuilder", () => {
   });
 
   it("builds deterministically: repeated builds are equal", () => {
-    const builder = createModelBuilder();
+    const builder = createFemModelBuilder();
     builder.appendNodes([0], [0, 0, 0]);
     builder.openElementShapeBlock(ElementShape.Tet4);
     builder.appendElements([1], [0, 0, 0, 0]);

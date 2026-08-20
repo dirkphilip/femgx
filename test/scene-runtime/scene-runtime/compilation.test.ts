@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildScene,
-  identity,
-  translation,
+  identityMatrix,
+  translationMatrix,
   MAX_PART_ID,
   createPackedSceneRuntime,
 } from "./support";
@@ -11,7 +11,7 @@ describe("createPackedSceneRuntime", () => {
   it("preserves the largest supported part id in packed runtime and grouping", () => {
     const scene = buildScene(
       1,
-      [{ id: 1, placements: [{ kind: "part", partId: MAX_PART_ID, transform: identity() }] }],
+      [{ id: 1, placements: [{ kind: "part", partId: MAX_PART_ID, transform: identityMatrix() }] }],
       [MAX_PART_ID],
     );
     const runtime = createPackedSceneRuntime(scene);
@@ -27,11 +27,11 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translation(10, 0, 0) },
-            { kind: "assembly", assemblyId: 2, transform: translation(100, 0, 0) },
+            { kind: "part", partId: 1, transform: translationMatrix(10, 0, 0) },
+            { kind: "assembly", assemblyId: 2, transform: translationMatrix(100, 0, 0) },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: translation(1, 0, 0) }] },
+        { id: 2, placements: [{ kind: "part", partId: 2, transform: translationMatrix(1, 0, 0) }] },
       ],
       [1, 2],
     );
@@ -56,8 +56,8 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identity() },
-            { kind: "part", partId: 2, transform: identity() },
+            { kind: "part", partId: 1, transform: identityMatrix() },
+            { kind: "part", partId: 2, transform: identityMatrix() },
           ],
         },
       ],

@@ -89,7 +89,7 @@ function syncPaneDataset(
   canvas.dataset["sectionAxis"] = state.sectionAxis;
   canvas.dataset["sectionOffset"] = String(state.sectionOffset);
   canvas.dataset["background"] = state.background;
-  canvas.dataset["visibleInstances"] = String(slot.viewport.runtime.visibleCount);
+  canvas.dataset["visibleInstances"] = String(slot.viewport.occurrences.visibleCount);
 }
 
 function canvasSize(canvas: HTMLCanvasElement): {

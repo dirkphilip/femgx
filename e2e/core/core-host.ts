@@ -1,9 +1,9 @@
 import {
   createViewport,
   createPart,
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   WebGpuUnsupportedError,
   type Viewport,
 } from "../../src/entries/root";
@@ -83,7 +83,7 @@ function coreScene(placementCount = 1, separated = false) {
     ],
     nodePositions: new Float32Array([0, -1, 0, 1, -1, 0, 0, 1, 0]),
   });
-  return createScene()
+  return createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -92,10 +92,10 @@ function coreScene(placementCount = 1, separated = false) {
         kind: "part" as const,
         partId: part.id,
         transform:
-          index === 0 ? identity() : translation(separated ? 0 : index * 2.5, 0, -0.2 * index),
+          index === 0 ? identityMatrix() : translationMatrix(separated ? 0 : index * 2.5, 0, -0.2 * index),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 
@@ -219,10 +219,10 @@ async function runPicking(current: Viewport): Promise<void> {
       ? undefined
       : await current.interaction.pick(projected[0], projected[1]);
   const edgeTargets = await current.interaction.pickRegion(region, "edge");
-  current.visibility.setPartOccurrence("1/0", false);
+  current.visibility.setPartOccurrenceVisible("1/0", false);
   current.render();
   const hidden = await current.interaction.pickRegion(region, "element");
-  current.visibility.setPartOccurrence("1/0", true);
+  current.visibility.setPartOccurrenceVisible("1/0", true);
   current.render();
   setStatus(
     "picking",

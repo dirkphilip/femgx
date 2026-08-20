@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState } from "../../src/entries/interaction";
-import { createSceneRuntime } from "../../src/entries/runtime";
+import { createSceneOccurrenceSnapshot } from "../../src/scene-runtime/occurrences";
 import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
 import {
   createWorkbenchSnapshot,
@@ -22,7 +22,7 @@ describe("workbench presentation snapshot", () => {
     });
     expect(snapshot.model).toMatchObject({ mode: "ordinary", selectedId: input.model.id });
     expect(snapshot.model.partCount).toBe(input.model.scene.parts.size);
-    expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.occurrenceCount);
+    expect(snapshot.hierarchy.occurrenceCount).toBe(input.runtime.assemblyOccurrenceCount);
     expect(snapshot.hierarchy.hideSelectedElementCount).toBe(0);
     expect(snapshot.toolbar).toMatchObject({
       activeSlot: "primary",
@@ -121,7 +121,7 @@ function createSnapshotInput(): WorkbenchSnapshotInput {
     models: [model],
     catalogMode: "ordinary",
     catalogSelectionId: model.id,
-    runtime: createSceneRuntime(model.scene),
+    runtime: createSceneOccurrenceSnapshot(model.scene),
     interaction: createInteractionState(),
     rendererName: "webgpu",
     rendererState: "",

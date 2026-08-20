@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   queryWebGpuSupport,
   requestWebGpuAdapter,
-  unsupportedMessage,
+  webGpuUnsupportedMessage,
   WebGpuUnsupportedError,
   type WebGpuAdapterProfile,
 } from "../../src/platform/capabilities";
@@ -82,7 +82,7 @@ describe("WebGPU capability probing", () => {
     expect(report).toEqual({
       status: "unsupported",
       reason: "adapter-unavailable",
-      message: unsupportedMessage("adapter-unavailable"),
+      message: webGpuUnsupportedMessage("adapter-unavailable"),
     });
   });
 
@@ -159,10 +159,10 @@ describe("WebGpuUnsupportedError", () => {
   });
 });
 
-describe("unsupportedMessage", () => {
+describe("webGpuUnsupportedMessage", () => {
   it("explains each unsupported reason with actionable guidance", () => {
-    expect(unsupportedMessage("no-webgpu")).toContain("WebGPU-capable browser");
-    expect(unsupportedMessage("adapter-unavailable")).toContain("adapter");
-    expect(unsupportedMessage("device-unavailable")).toContain("device");
+    expect(webGpuUnsupportedMessage("no-webgpu")).toContain("WebGPU-capable browser");
+    expect(webGpuUnsupportedMessage("adapter-unavailable")).toContain("adapter");
+    expect(webGpuUnsupportedMessage("device-unavailable")).toContain("device");
   });
 });

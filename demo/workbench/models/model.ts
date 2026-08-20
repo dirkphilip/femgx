@@ -1,4 +1,4 @@
-import { createScene, type Bounds, type PartId, type Scene } from "../../../src/entries/root";
+import { createSceneBuilder, type Bounds, type PartId, type Scene } from "../../../src/entries/root";
 import type { Color } from "../../../src/entries/interaction";
 import { type StyleOverride } from "../../../src/entries/interaction";
 import {
@@ -125,7 +125,7 @@ export function createExampleModel(preset: ModelPreset): WorkbenchModel {
 
 /** Returns a selector entry whose bounded benchmark geometry is lazy. */
 export function createLazyBenchmarkModel(spec: WebGpuBenchmarkSpec): WorkbenchModel {
-  const placeholderScene = createSceneRuntimePlaceholder();
+  const placeholderScene = createPlaceholderScene();
   const workerLoad = isWorkerBenchmarkSpec(spec)
     ? createBenchmarkWorkerLoad(spec, (result, transferMs) => {
         const reconstructionStart = performance.now();
@@ -204,7 +204,7 @@ export function isWorkerBenchmarkSpec(spec: WebGpuBenchmarkSpec): boolean {
 function estimateBenchmarkRetentionBytes(scene: Scene, kind: WebGpuBenchmarkSpec["kind"]): number {
   const typedArrayBytes = estimateBenchmarkMemory(scene, 0, 1, 1).cpuSceneTypedArrayBytes;
   const authoredElementCount = [...scene.parts.values()].reduce(
-    (total, part) => total + (part.elements?.length ?? 0),
+    (total, part) => total + (part.elements?.count ?? 0),
     0,
   );
   // Account for retained JS topology records that typed-array accounting cannot see.
@@ -307,9 +307,9 @@ const placeholderBounds: Bounds = {
   maxZ: 0.5,
 };
 
-function createSceneRuntimePlaceholder(): Scene {
-  return createScene()
+function createPlaceholderScene(): Scene {
+  return createSceneBuilder()
     .addAssembly({ id: 1, name: "lazy-benchmark-placeholder", placements: [] })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }

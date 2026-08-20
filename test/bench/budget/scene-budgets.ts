@@ -11,8 +11,8 @@ import {
   makeScene,
 } from "../fixtures";
 import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneRuntime } from "../../../src/entries/runtime";
-import { translation, createPart } from "../../../src/entries/root";
+import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
+import { translationMatrix, createPart } from "../../../src/entries/root";
 import { SceneNavigationBoundsCache, sceneWorldBounds } from "../../../src/viewport/scene-bounds";
 import type { BudgetCase, ScalingCase } from "./types";
 import { bodyGeometry } from "./geometry-fixtures";
@@ -60,7 +60,7 @@ const boundsScene = {
         placements: Array.from({ length: 64 }, (_, index) => ({
           kind: "part" as const,
           partId: boundsPart.id,
-          transform: translation(index, 0, 0),
+          transform: translationMatrix(index, 0, 0),
         })),
       },
     ],
@@ -139,11 +139,11 @@ export const sceneBudgets: readonly BudgetCase[] = [
 export const sceneScalingCases: readonly ScalingCase[] = [
   {
     name: "public scene runtime rebuild",
-    description: "compile 50k–200k placements through createSceneRuntime",
+    description: "inspect 50k–200k compiled placements",
     points: runtimeScalingScenes.map((scene, index) => ({
       size: RUNTIME_SCALING_PLACEMENTS[index] ?? 0,
       run: () => {
-        createSceneRuntime(scene);
+        createSceneOccurrenceSnapshot(scene);
       },
     })),
     maxNormalizedSpread: 3,

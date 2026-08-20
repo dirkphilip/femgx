@@ -1,259 +1,338 @@
-import type {
-  ElementTessellation,
-  FaceTessellation,
-  GeometryEdge,
-  TriangleGeometry,
-} from "./types";
-import type { BodyId, Part } from "./part";
-import { faceIdentity } from "./element-face-selection";
-import { packedSemanticStorage } from "./packed/packed-semantic";
-import { buildPackedSemanticIndex } from "./packed/packed-semantic-index";
-import type { FaceMetadata, PartSemanticIndex } from "./part-semantic-types";
+import type { Part } from "./part";
+import { ordinalForId } from "../elements/model-storage";
+import { partSemanticGraph, type PartSemanticGraph } from "./semantic/part-semantic-graph";
+import {
+  graphBodyAt,
+  graphEdgeAt,
+  graphElementAt,
+  graphFaceAt,
+} from "./semantic/part-semantic-views";
+import type { PartSemanticIndex } from "./part-semantic-types";
 
-export type { FaceMetadata, PartSemanticIndex, SemanticMap } from "./part-semantic-types";
-
+export type { FaceMetadata, PartSemanticIndex } from "./part-semantic-types";
 export { compareNodeIds as compareEdgeNodeIds } from "../elements/edges";
 
-type ElementId = ElementTessellation["id"];
-
-interface TriangleSemanticIndex {
-  readonly faces: Map<string, FaceMetadata>;
-  readonly nodeCount: number;
-  readonly nodeTriangleFaceOffsets: Uint32Array;
-  readonly nodeTriangleFaceIds: Uint32Array;
-  readonly neighborTriangleFaceOffsets: Uint32Array;
-  readonly neighborTriangleFaceIds: Uint32Array;
-  readonly hasBoundaryFaceSubset: boolean;
-  readonly hasCompleteNeighborTriangleIndex: boolean;
-}
 const indexByPart = new WeakMap<Part, PartSemanticIndex>();
 
-/** Returns the cached immutable semantic index for one validated part identity. */
+/** Returns graph-backed semantic lookups; raw display parts have an empty capability. */
 export function getPartSemanticIndex(part: Part): PartSemanticIndex {
   const cached = indexByPart.get(part);
   if (cached !== undefined) return cached;
-  const index = buildPartSemanticIndex(part);
+  const graph = partSemanticGraph(part);
+  const index =
+    graph === undefined ? emptySemanticIndex(part) : buildGraphSemanticIndex(graph, part);
   indexByPart.set(part, index);
   return index;
 }
 
-function buildPartSemanticIndex(part: Part): PartSemanticIndex {
-  const packed = packedSemanticStorage(part);
-  if (packed !== undefined) return buildPackedSemanticIndex(packed);
-  const { elements: partElements = [], bodies: partBodies = [] } = part;
-  const elements = new Map(partElements.map((element) => [element.id, element]));
-  const elementOrdinalById = new Map(partElements.map((element, index) => [element.id, index + 1]));
-  const bodies = new Map(partBodies.map((body) => [body.id, body]));
-  const bodyByElement = new Map<ElementId, BodyId>();
-  for (const element of partElements) {
-    if (element.bodyId !== undefined) bodyByElement.set(element.id, element.bodyId);
-  }
-  for (const body of partBodies) {
-    for (const elementId of body.elementIds) {
-      if (!bodyByElement.has(elementId)) bodyByElement.set(elementId, body.id);
-    }
-  }
-  const triangleIndex = buildTriangleSemanticIndex(part, partElements, elementOrdinalById);
-  const visibilityBodyIds = buildVisibilityBodyIds(
-    partElements,
-    bodyByElement,
-    triangleIndex.faces,
-  );
-  const nonTriangleElementOrdinals =
-    triangleIndex.hasBoundaryFaceSubset && triangleIndex.hasCompleteNeighborTriangleIndex
-      ? buildNonTriangleElementOrdinals(partElements)
-      : new Uint32Array(0);
-  const edges = new Map<string, GeometryEdge>();
-  for (const geometry of part.geometries) {
-    for (const edge of geometry.edges ?? []) {
-      if (!edges.has(edge.key)) edges.set(edge.key, edge);
-    }
-  }
+function buildGraphSemanticIndex(graph: PartSemanticGraph, part: Part): PartSemanticIndex {
+  const triangle = buildTriangleCsr(graph, part);
   return {
-    elements,
-    elementOrdinalById,
-    bodies,
-    bodyByElement,
-    visibilityBodyIds,
-    faces: triangleIndex.faces,
-    edges,
-    nodeCount: triangleIndex.nodeCount,
-    nodeTriangleFaceOffsets: triangleIndex.nodeTriangleFaceOffsets,
-    nodeTriangleFaceIds: triangleIndex.nodeTriangleFaceIds,
-    neighborTriangleFaceOffsets: triangleIndex.neighborTriangleFaceOffsets,
-    neighborTriangleFaceIds: triangleIndex.neighborTriangleFaceIds,
-    nonTriangleElementOrdinals,
-    hasBoundaryFaceSubset: triangleIndex.hasBoundaryFaceSubset,
-    hasCompleteNeighborTriangleIndex: triangleIndex.hasCompleteNeighborTriangleIndex,
+    elementCount: graph.elementIds.length,
+    element: (id) => graphElement(graph, id),
+    hasElement: (id) => graphElementOrdinal(graph, id) !== undefined,
+    elementOrdinal: (id) => graphElementOrdinal(graph, id),
+    body: (id) => graphBody(graph, id),
+    hasBody: (id) => graphBodyOrdinal(graph, id) !== undefined,
+    bodyForElement: (id) => graphBodyForElement(graph, id),
+    face: (elementId, faceIndex) => graphFace(graph, elementId, faceIndex),
+    hasFace: (elementId, faceIndex) => graphFace(graph, elementId, faceIndex) !== undefined,
+    edge: (key) => graphEdge(graph, key),
+    hasEdge: (key) => graphEdge(graph, key) !== undefined,
+    hasVisibilityBody: (id) => containsSorted(graph.surfaceBodyIds, id),
+    nodeCount: triangle.nodeCount,
+    nodeTriangleFaceOffsets: triangle.nodeOffsets,
+    nodeTriangleFaceIds: triangle.nodeFaceIds,
+    neighborTriangleFaceOffsets: triangle.completeNeighbors
+      ? triangle.neighborOffsets
+      : new Uint32Array(0),
+    neighborTriangleFaceIds: triangle.neighborFaceIds,
+    nonTriangleElementOrdinals:
+      triangle.hasBoundaryFaceSubset && triangle.completeNeighbors
+        ? nonTriangleOrdinals(graph)
+        : new Uint32Array(0),
+    hasBoundaryFaceSubset: triangle.hasBoundaryFaceSubset,
+    hasCompleteNeighborTriangleIndex: triangle.completeNeighbors,
   };
 }
 
-function buildVisibilityBodyIds(
-  elements: readonly ElementTessellation[],
-  bodyByElement: ReadonlyMap<ElementId, BodyId>,
-  faces: ReadonlyMap<string, FaceMetadata>,
-): ReadonlySet<BodyId> {
-  const result = new Set<BodyId>();
-  for (const element of elements) {
-    if (!element.primitiveRanges.some((range) => range.primitive === "triangles")) continue;
-    const bodyId = bodyByElement.get(element.id);
-    if (bodyId !== undefined) result.add(bodyId);
+function emptySemanticIndex(part: Part): PartSemanticIndex {
+  return {
+    elementCount: 0,
+    element: () => undefined,
+    hasElement: () => false,
+    elementOrdinal: () => undefined,
+    body: () => undefined,
+    hasBody: () => false,
+    bodyForElement: () => undefined,
+    face: () => undefined,
+    hasFace: () => false,
+    edge: () => undefined,
+    hasEdge: () => false,
+    hasVisibilityBody: () => false,
+    nodeCount: Math.floor((part.nodePositions?.length ?? 0) / 3),
+    nodeTriangleFaceOffsets: new Uint32Array(0),
+    nodeTriangleFaceIds: new Uint32Array(0),
+    neighborTriangleFaceOffsets: new Uint32Array(0),
+    neighborTriangleFaceIds: new Uint32Array(0),
+    nonTriangleElementOrdinals: new Uint32Array(0),
+    hasBoundaryFaceSubset: false,
+    hasCompleteNeighborTriangleIndex: false,
+  };
+}
+
+function graphElement(graph: PartSemanticGraph, id: number) {
+  const ordinal = graphElementOrdinal(graph, id);
+  return ordinal === undefined ? undefined : graphElementAt(graph, ordinal - 1);
+}
+
+function graphElementOrdinal(graph: PartSemanticGraph, id: number): number | undefined {
+  const ordinal = ordinalForId(graph.elementIds, graph.elementIdOrdinals, id);
+  return ordinal === undefined ? undefined : ordinal + 1;
+}
+
+function graphBody(graph: PartSemanticGraph, id: number) {
+  const ordinal = graphBodyOrdinal(graph, id);
+  return ordinal === undefined ? undefined : graphBodyAt(graph, ordinal);
+}
+
+function graphBodyOrdinal(graph: PartSemanticGraph, id: number): number | undefined {
+  return ordinalForId(graph.bodyIds, graph.bodyIdOrdinals, id);
+}
+
+function graphBodyForElement(graph: PartSemanticGraph, id: number): number | undefined {
+  const ordinal = graphElementOrdinal(graph, id);
+  const bodyId = ordinal === undefined ? 0 : (graph.elementBodyIds[ordinal - 1] ?? 0);
+  return bodyId === 0 ? undefined : bodyId;
+}
+
+function graphFace(graph: PartSemanticGraph, elementId: number, faceIndex: number) {
+  const elementOrdinal = graphElementOrdinal(graph, elementId);
+  if (elementOrdinal === undefined) return undefined;
+  let low = 0;
+  let high = graph.faceLookupOrdinals.length - 1;
+  while (low <= high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const ordinal = graph.faceLookupOrdinals[middle] ?? 0;
+    const owner = graph.faceOwnerElementOrdinals[ordinal] ?? 0;
+    const index = graph.faceIndices[ordinal] ?? 0;
+    if (owner === elementOrdinal - 1 && index === faceIndex) {
+      const face = graphFaceAt(graph, ordinal);
+      return face === undefined ? undefined : { face, faceId: ordinal };
+    }
+    if (owner < elementOrdinal - 1 || (owner === elementOrdinal - 1 && index < faceIndex)) {
+      low = middle + 1;
+    } else high = middle - 1;
   }
-  for (const { face } of faces.values()) {
-    if (face.bodyId !== undefined) result.add(face.bodyId);
-    if (face.neighborElementId === undefined) continue;
-    const bodyId = bodyByElement.get(face.neighborElementId);
-    if (bodyId !== undefined) result.add(bodyId);
+  return undefined;
+}
+
+function graphEdge(graph: PartSemanticGraph, key: string) {
+  const hash = hashEdgeKey(key);
+  if (hash === undefined || graph.edgeIndexHeads.length === 0) return undefined;
+  for (
+    let ordinal = graph.edgeIndexHeads[hash & (graph.edgeIndexHeads.length - 1)] ?? -1;
+    ordinal !== -1;
+    ordinal = graph.edgeIndexNext[ordinal] ?? -1
+  ) {
+    if (graph.edgeIndexHashes[ordinal] === hash && edgeKeyMatches(graph, ordinal, key)) {
+      return graphEdgeAt(graph, ordinal);
+    }
+  }
+  return undefined;
+}
+
+function containsSorted(values: Uint32Array, target: number): boolean {
+  let low = 0;
+  let high = values.length - 1;
+  while (low <= high) {
+    const middle = low + Math.floor((high - low) / 2);
+    const value = values[middle] ?? 0;
+    if (value === target) return true;
+    if (value < target) low = middle + 1;
+    else high = middle - 1;
+  }
+  return false;
+}
+
+function hashEdgeKey(key: string): number | undefined {
+  let first = 0;
+  let second = 0;
+  let third = 0;
+  let count = 0;
+  let value = 0;
+  let digits = 0;
+  for (let index = 0; index <= key.length; index += 1) {
+    const code = index === key.length ? 44 : key.charCodeAt(index);
+    if (code === 44) {
+      if (digits === 0 || count === 3) return undefined;
+      if (count === 0) first = value;
+      else if (count === 1) second = value;
+      else third = value;
+      count += 1;
+      value = 0;
+      digits = 0;
+    } else if (code >= 48 && code <= 57) {
+      value = value * 10 + code - 48;
+      digits += 1;
+    } else return undefined;
+  }
+  if (count < 2 || count > 3) return undefined;
+  const finalThird = count === 3 ? third : undefined;
+  const low = Math.min(first, second, finalThird ?? first);
+  const high = Math.max(first, second, finalThird ?? second);
+  const middle = finalThird === undefined ? undefined : first + second + finalThird - low - high;
+  let hash = Math.imul(2_166_136_261 ^ low, 16_777_619) >>> 0;
+  if (middle !== undefined) hash = Math.imul(hash ^ middle, 16_777_619) >>> 0;
+  return Math.imul(hash ^ high, 16_777_619) >>> 0;
+}
+
+function edgeKeyMatches(graph: PartSemanticGraph, ordinal: number, key: string): boolean {
+  const first = graph.edgeNodeOffsets[ordinal] ?? 0;
+  const last = graph.edgeNodeOffsets[ordinal + 1] ?? first;
+  let firstId = graph.edgeNodeIds[first] ?? 0;
+  let secondId = graph.edgeNodeIds[first + 1] ?? 0;
+  const thirdId = graph.edgeNodeIds[first + 2] ?? 0;
+  const count = last - first;
+  if (count === 2 && firstId > secondId) [firstId, secondId] = [secondId, firstId];
+  const low = count === 3 ? Math.min(firstId, secondId, thirdId) : firstId;
+  const high = count === 3 ? Math.max(firstId, secondId, thirdId) : secondId;
+  const middle = count === 3 ? firstId + secondId + thirdId - low - high : 0;
+  let cursor = 0;
+  for (let index = 0; index < count; index += 1) {
+    const expected = String(
+      count === 3
+        ? index === 0
+          ? low
+          : index === 1
+            ? middle
+            : high
+        : index === 0
+          ? firstId
+          : secondId,
+    );
+    if (!key.startsWith(expected, cursor)) return false;
+    cursor += expected.length;
+    if (index + 1 < count) {
+      if (key.charCodeAt(cursor) !== 44) return false;
+      cursor += 1;
+    }
+  }
+  return cursor === key.length;
+}
+
+interface TriangleCsr {
+  readonly nodeCount: number;
+  readonly nodeOffsets: Uint32Array;
+  readonly nodeFaceIds: Uint32Array;
+  readonly neighborOffsets: Uint32Array;
+  readonly neighborFaceIds: Uint32Array;
+  readonly completeNeighbors: boolean;
+  readonly hasBoundaryFaceSubset: boolean;
+}
+
+function buildTriangleCsr(graph: PartSemanticGraph, part: Part): TriangleCsr {
+  const nodeCount = Math.floor((part.nodePositions?.length ?? 0) / 3);
+  const triangles = part.geometries.some((geometry) => geometry.primitive === "triangles");
+  const nodeOffsets = triangles ? new Uint32Array(nodeCount + 1) : new Uint32Array(0);
+  const neighborOffsets = triangles
+    ? new Uint32Array(graph.elementIds.length + 1)
+    : new Uint32Array(0);
+  let completeNeighbors = true;
+  for (let face = 0; face < graph.faceIndices.length; face += 1) {
+    const first = graph.faceNodeOffsets[face] ?? 0;
+    const last = graph.faceNodeOffsets[face + 1] ?? first;
+    for (let index = first; index < last; index += 1) {
+      const node = graph.faceNodeIds[index] ?? nodeCount;
+      if (node < nodeCount) nodeOffsets[node + 1] = (nodeOffsets[node + 1] ?? 0) + 1;
+    }
+    if (graph.faceNeighborMissing[face] === 1) completeNeighbors = false;
+    const neighbor = graph.faceNeighborElementOrdinals[face] ?? 0;
+    if (neighbor !== 0) {
+      if (neighbor > graph.elementIds.length) completeNeighbors = false;
+      else neighborOffsets[neighbor] = (neighborOffsets[neighbor] ?? 0) + 1;
+    }
+  }
+  prefix(nodeOffsets);
+  if (completeNeighbors) prefix(neighborOffsets);
+  const nodeFaceIds = new Uint32Array(nodeOffsets[nodeCount] ?? 0);
+  const neighborFaceIds = completeNeighbors
+    ? new Uint32Array(neighborOffsets[neighborOffsets.length - 1] ?? 0)
+    : new Uint32Array(0);
+  const nodeCursor = nodeOffsets.slice(0, -1);
+  const neighborCursor = completeNeighbors ? neighborOffsets.slice(0, -1) : new Uint32Array(0);
+  for (let face = 0; face < graph.faceIndices.length; face += 1) {
+    const first = graph.faceNodeOffsets[face] ?? 0;
+    const last = graph.faceNodeOffsets[face + 1] ?? first;
+    for (let index = first; index < last; index += 1) {
+      const node = graph.faceNodeIds[index] ?? nodeCount;
+      if (node >= nodeCount) continue;
+      const cursor = nodeCursor[node] ?? 0;
+      nodeFaceIds[cursor] = face;
+      nodeCursor[node] = cursor + 1;
+    }
+    const neighbor = graph.faceNeighborElementOrdinals[face] ?? 0;
+    if (completeNeighbors && neighbor !== 0) {
+      const cursor = neighborCursor[neighbor - 1] ?? 0;
+      neighborFaceIds[cursor] = face;
+      neighborCursor[neighbor - 1] = cursor + 1;
+    }
+  }
+  return {
+    nodeCount,
+    nodeOffsets,
+    nodeFaceIds,
+    neighborOffsets,
+    neighborFaceIds,
+    completeNeighbors,
+    hasBoundaryFaceSubset: boundarySubset(graph, part),
+  };
+}
+
+function prefix(values: Uint32Array): void {
+  for (let index = 1; index < values.length; index += 1)
+    values[index] = (values[index] ?? 0) + (values[index - 1] ?? 0);
+}
+
+function nonTriangleOrdinals(graph: PartSemanticGraph): Uint32Array {
+  let count = 0;
+  for (let element = 0; element < graph.elementIds.length; element += 1) {
+    const first = graph.elementRangeOffsets[element] ?? 0;
+    const last = graph.elementRangeOffsets[element + 1] ?? first;
+    for (let range = first; range < last; range += 1)
+      if ((graph.elementRangePrimitiveCodes[range] ?? 0) !== 0) {
+        count += 1;
+        break;
+      }
+  }
+  const result = new Uint32Array(count);
+  let output = 0;
+  for (let element = 0; element < graph.elementIds.length; element += 1) {
+    const first = graph.elementRangeOffsets[element] ?? 0;
+    const last = graph.elementRangeOffsets[element + 1] ?? first;
+    for (let range = first; range < last; range += 1)
+      if ((graph.elementRangePrimitiveCodes[range] ?? 0) !== 0) {
+        result[output++] = element + 1;
+        break;
+      }
   }
   return result;
 }
 
-function buildTriangleSemanticIndex(
-  part: Part,
-  partElements: readonly ElementTessellation[],
-  elementOrdinalById: ReadonlyMap<ElementId, number>,
-): TriangleSemanticIndex {
-  const faces = new Map<string, FaceMetadata>();
-  const triangleGeometry = part.geometries.find((geometry) => geometry.primitive === "triangles");
-  const nodeCount = Math.floor((part.nodePositions?.length ?? 0) / 3);
-  const triangleFaces =
-    triangleGeometry?.primitive === "triangles" ? triangleGeometry.faces : undefined;
-  const nodeTriangleFaceOffsets =
-    triangleFaces === undefined || triangleFaces.length === 0
-      ? new Uint32Array(0)
-      : new Uint32Array(nodeCount + 1);
-  collectTriangleFaceMetadata(triangleFaces, nodeCount, faces, nodeTriangleFaceOffsets);
-  const hasBoundaryFaceSubset = hasBoundaryTriangleSubset(triangleGeometry, faces);
-  const neighborTriangleFaceOffsets =
-    !hasBoundaryFaceSubset || triangleFaces === undefined || partElements.length === 0
-      ? new Uint32Array(0)
-      : new Uint32Array(partElements.length + 1);
-  const hasCompleteNeighborTriangleIndex =
-    neighborTriangleFaceOffsets.length === 0 ||
-    collectNeighborFaceCounts(triangleFaces ?? [], elementOrdinalById, neighborTriangleFaceOffsets);
-  const usableNeighborFaceOffsets = hasCompleteNeighborTriangleIndex
-    ? neighborTriangleFaceOffsets
-    : new Uint32Array(0);
-  const { nodeTriangleFaceIds, neighborTriangleFaceIds } = buildTriangleFaceIds(
-    triangleFaces,
-    elementOrdinalById,
-    usableNeighborFaceOffsets,
-    nodeTriangleFaceOffsets,
-    nodeCount,
+function boundarySubset(graph: PartSemanticGraph, part: Part): boolean {
+  const geometryOrdinal = part.geometries.findIndex(
+    (geometry) => geometry.primitive === "triangles",
   );
-  return {
-    faces,
-    nodeCount,
-    nodeTriangleFaceOffsets,
-    nodeTriangleFaceIds,
-    neighborTriangleFaceOffsets: usableNeighborFaceOffsets,
-    neighborTriangleFaceIds,
-    hasBoundaryFaceSubset,
-    hasCompleteNeighborTriangleIndex,
-  };
-}
-
-function collectTriangleFaceMetadata(
-  triangleFaces: readonly FaceTessellation[] | undefined,
-  nodeCount: number,
-  faces: Map<string, FaceMetadata>,
-  nodeOffsets: Uint32Array,
-): void {
-  for (let faceId = 0; faceId < (triangleFaces?.length ?? 0); faceId += 1) {
-    const face = triangleFaces?.[faceId];
-    if (face === undefined) continue;
-    faces.set(faceIdentity(face.elementId, face.faceIndex), { face, faceId });
-    if (nodeCount > 0) {
-      for (const nodeId of face.nodeIds) {
-        const offset = nodeId + 1;
-        nodeOffsets[offset] = (nodeOffsets[offset] ?? 0) + 1;
-      }
-    }
-  }
-}
-
-function collectNeighborFaceCounts(
-  triangleFaces: readonly FaceTessellation[],
-  elementOrdinalById: ReadonlyMap<ElementId, number>,
-  neighborOffsets: Uint32Array,
-): boolean {
-  for (const face of triangleFaces) {
-    const ordinal =
-      face.neighborElementId === undefined
-        ? undefined
-        : elementOrdinalById.get(face.neighborElementId);
-    if (ordinal === undefined && face.neighborElementId !== undefined) return false;
-    if (ordinal !== undefined) neighborOffsets[ordinal] = (neighborOffsets[ordinal] ?? 0) + 1;
-  }
+  const triangle = part.geometries[geometryOrdinal];
+  if (triangle?.primitive !== "triangles" || triangle.faceSubset === undefined) return false;
+  const first = graph.faceSubsetOffsets[geometryOrdinal] ?? 0;
+  const last = graph.faceSubsetOffsets[geometryOrdinal + 1] ?? first;
+  for (let index = first; index < last; index += 1)
+    if (
+      (graph.faceNeighborElementOrdinals[
+        graph.faceSubsetOrdinals[index] ?? graph.faceIndices.length
+      ] ?? 0) !== 0
+    )
+      return false;
   return true;
-}
-
-function buildNonTriangleElementOrdinals(elements: readonly ElementTessellation[]): Uint32Array {
-  const ordinals: number[] = [];
-  for (let index = 0; index < elements.length; index += 1) {
-    if (elements[index]?.primitiveRanges.some((range) => range.primitive !== "triangles")) {
-      ordinals.push(index + 1);
-    }
-  }
-  return Uint32Array.from(ordinals);
-}
-
-function buildTriangleFaceIds(
-  faces: readonly FaceTessellation[] | undefined,
-  elementOrdinals: ReadonlyMap<ElementId, number>,
-  neighborOffsets: Uint32Array,
-  nodeOffsets: Uint32Array,
-  nodeCount: number,
-): { readonly nodeTriangleFaceIds: Uint32Array; readonly neighborTriangleFaceIds: Uint32Array } {
-  if (faces === undefined) {
-    return { nodeTriangleFaceIds: new Uint32Array(0), neighborTriangleFaceIds: new Uint32Array(0) };
-  }
-  for (let index = 1; index < nodeOffsets.length; index += 1) {
-    nodeOffsets[index] = (nodeOffsets[index] ?? 0) + (nodeOffsets[index - 1] ?? 0);
-  }
-  if (neighborOffsets.length > 0) {
-    for (let index = 1; index < neighborOffsets.length; index += 1) {
-      neighborOffsets[index] = (neighborOffsets[index] ?? 0) + (neighborOffsets[index - 1] ?? 0);
-    }
-  }
-  const nodeFaceIds = new Uint32Array(nodeOffsets[nodeCount] ?? 0);
-  const neighborFaceIds = new Uint32Array(neighborOffsets[neighborOffsets.length - 1] ?? 0);
-  const nodeCursors = nodeOffsets.slice(0, nodeCount);
-  const neighborCursors = neighborOffsets.length > 0 ? neighborOffsets.slice(0, -1) : undefined;
-  for (let faceId = 0; faceId < faces.length; faceId += 1) {
-    const face = faces[faceId];
-    if (face === undefined) continue;
-    if (nodeCount > 0) {
-      for (const nodeId of face.nodeIds) {
-        const cursor = nodeCursors[nodeId] ?? 0;
-        nodeFaceIds[cursor] = faceId;
-        nodeCursors[nodeId] = cursor + 1;
-      }
-    }
-    if (neighborCursors !== undefined) {
-      const neighborElementId = face.neighborElementId;
-      const ordinal =
-        neighborElementId === undefined ? undefined : elementOrdinals.get(neighborElementId);
-      if (ordinal !== undefined) {
-        const cursor = neighborCursors[ordinal - 1] ?? 0;
-        neighborFaceIds[cursor] = faceId;
-        neighborCursors[ordinal - 1] = cursor + 1;
-      }
-    }
-  }
-  return { nodeTriangleFaceIds: nodeFaceIds, neighborTriangleFaceIds: neighborFaceIds };
-}
-
-function hasBoundaryTriangleSubset(
-  triangles: TriangleGeometry | undefined,
-  faces: ReadonlyMap<string, FaceMetadata>,
-): boolean {
-  const subset = triangles?.faceSubset;
-  return (
-    subset !== undefined &&
-    subset.faceIds.every(({ elementId, faceIndex }) => {
-      const face = faces.get(faceIdentity(elementId, faceIndex))?.face;
-      return face !== undefined && face.neighborElementId === undefined;
-    })
-  );
 }

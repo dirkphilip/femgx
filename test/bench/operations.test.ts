@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createResultField } from "../../src/results/fields";
 import type { Part } from "../../src/geometry/part";
 import { createScalarColorMap } from "../../src/results/mapping";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { buildInstanceLayout } from "../../src/renderer/runtime-state";
 import {
@@ -42,7 +42,7 @@ const tet4Runtime = createPackedSceneRuntime(tet4Case.scene);
 const tet4Layout = buildInstanceLayout(tet4Runtime);
 const tet4InstanceId = firstInstanceId(tet4Runtime);
 const tet4Part = requirePart([...tet4Case.scene.parts.values()][0]);
-const tet4Targets = (tet4Part.elements ?? []).map((element) => ({
+const tet4Targets = [...(tet4Part.elements ?? [])].map((element) => ({
   kind: "element" as const,
   partOccurrenceId: tet4InstanceId,
   elementId: element.id,
@@ -59,7 +59,7 @@ const bodyFixture = {
   runtime: emphasisRuntime,
   partOccurrenceId: requireInstanceId(emphasisInstanceId),
 };
-const bodyIds = (bodyFixture.part.bodies ?? []).map((body) => body.id);
+const bodyIds = [...(bodyFixture.part.bodies ?? [])].map((body) => body.id);
 if (bodyIds.length !== BODY_COUNT) throw new Error("Body operation fixture has unexpected bodies");
 
 const elementalResultFixtures = ELEMENTAL_RESULT_PLACEMENT_COUNTS.map(buildElementalResultFixture);
@@ -347,7 +347,7 @@ function buildElementalResultFixture(placementCount: number): ElementalResultFix
           placements: Array.from({ length: placementCount }, () => ({
             kind: "part" as const,
             partId: bodyFixture.part.id,
-            transform: identity(),
+            transform: identityMatrix(),
           })),
         },
       ],

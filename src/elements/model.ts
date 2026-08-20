@@ -1,88 +1,144 @@
-import type { Element, ElementId } from "./element";
-import { validateElementModel } from "./model-validation";
+import type { Element, ElementId, NodeId } from "./element";
+import type { ElementModel } from "./model-contract";
+import {
+  buildElementModel,
+  buildElementModelFromColumns,
+  type ElementModelColumns,
+} from "./model-builder";
+import { elementShapeForCode, elementModelStorage, ordinalForId } from "./model-storage";
 import type { Body, BodyId, ElementModelOptions } from "./model-types";
 
 export { ElementModelValidationError } from "./model-validation";
 export type { ElementModelValidationCode } from "./model-validation";
 export type { Body, BodyId, ElementModelOptions } from "./model-types";
+export type { ElementModel, ElementModelBodies, ElementModelElements } from "./model-contract";
 
-/** Resolved authored ownership used while deriving primitive-group geometry. */
-export interface ElementModelMembership {
-  readonly bodyByElement: ReadonlyMap<ElementId, BodyId>;
+/** Number of dense authored element rows. */
+export function elementModelElementCount(model: ElementModel): number {
+  return model.elementIds.length;
 }
 
-const EMPTY_BODY_MEMBERSHIP = new Map<ElementId, BodyId>();
+/** Resolves an authored element id through its compact sparse-id index. */
+export function elementModelElementOrdinal(model: ElementModel, id: ElementId): number | undefined {
+  return ordinalForId(model.elementIds, elementModelStorage(model).elementIdOrdinals, id);
+}
 
-/**
- * A CPU-side finite-element model: node coordinates plus typed elements.
- *
- * `nodes` holds one xyz triple per node and is indexed directly by `NodeId`, so
- * node ids must be dense (`0 .. nodeCount - 1`). Element connectivity references
- * node ids into this array. The model is pure data with no renderer dependency;
- * {@link model.elementPart} tessellates it into reusable part geometry while
- * retaining the authored element ids. Optional bodies are direct ownership
- * metadata, not a second scene graph.
- * @category Elements and model editing
- */
-export interface ElementModel {
-  /** Flat xyz coordinates, three floats per node id. */
-  readonly nodes: Float32Array;
-  /** Authored elements with stable ids and canonical connectivity. */
-  readonly elements: readonly Element[];
-  /** Optional bodies with direct element membership. */
-  readonly bodies?: readonly Body[];
+/** Resolves an authored node id through its compact sparse-id index. */
+export function elementModelNodeOrdinal(model: ElementModel, id: NodeId): number | undefined {
+  return ordinalForId(model.nodeIds, elementModelStorage(model).nodeIdOrdinals, id);
+}
+
+/** Returns one fresh immutable descriptor for a dense authored element row. */
+export function elementModelElementAt(model: ElementModel, ordinal: number): Element | undefined {
+  const id = model.elementIds[ordinal];
+  const code = elementModelStorage(model).shapeCodes[ordinal];
+  const start = model.elementNodeOffsets[ordinal];
+  const end = model.elementNodeOffsets[ordinal + 1];
+  if (id === undefined || code === undefined || start === undefined || end === undefined)
+    return undefined;
+  return Object.freeze({
+    id,
+    shape: elementShapeForCode(code),
+    nodeIds: Object.freeze(Array.from(model.elementNodeIds.subarray(start, end))),
+  });
 }
 
 /**
- * Creates an element model from node coordinates and elements.
- *
- * This is the FE authoring boundary before geometry compilation. It validates
- * dense node numbering, finite coordinates, element references, and optional
- * body ownership. Coordinates and connectivity are copied into the
- * returned model, so the model owns its CPU-side input and can be passed to
- * {@link model.elementPart} without a renderer or WebGPU device.
- * @example Build one renderable typed model.
- * ```ts
- * import { createElementModel, createElement, elementPart, ElementShape } from "femgx/model";
- *
- * const model = createElementModel(
- *   new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
- *   [createElement(100, ElementShape.Triangle, [0, 1, 2])],
- * );
- * const part = elementPart(10, model);
- * ```
- * @category Elements and model editing
+ * Iterates fresh descriptors in deterministic authored input order.
+ * @yields {Element} Descriptor.
  */
+export function* elementModelElements(model: ElementModel): IterableIterator<Element> {
+  yield* model.elements;
+}
+
+/** Returns direct body ownership for one element row, when authored. */
+export function elementModelBodyId(model: ElementModel, ordinal: number): BodyId | undefined {
+  const id = model.elementBodyIds?.[ordinal] ?? 0;
+  return id === 0 ? undefined : id;
+}
+
+/** Returns one fresh immutable descriptor for a packed authored body row. */
+export function elementModelBodyAt(model: ElementModel, ordinal: number): Body | undefined {
+  const storage = elementModelStorage(model);
+  const ids = storage.bodyIds;
+  const names = storage.bodyNameDefined;
+  const nameOffsets = storage.bodyNameOffsets;
+  const nameText = storage.bodyNameText;
+  const elementOffsets = storage.bodyElementOffsets;
+  const elementOrdinals = storage.bodyElementOrdinals;
+  const id = ids?.[ordinal];
+  const start = elementOffsets?.[ordinal];
+  const end = elementOffsets?.[ordinal + 1];
+  if (
+    id === undefined ||
+    start === undefined ||
+    end === undefined ||
+    names === undefined ||
+    nameOffsets === undefined ||
+    nameText === undefined ||
+    elementOrdinals === undefined
+  ) {
+    return undefined;
+  }
+  const elementIds = new Array<number>(end - start);
+  for (let index = start; index < end; index += 1) {
+    const elementOrdinal = elementOrdinals[index];
+    const elementId = model.elementIds[elementOrdinal ?? -1];
+    if (elementId === undefined) throw new Error(`Body ${id} references invalid element row`);
+    elementIds[index - start] = elementId;
+  }
+  const nameStart = nameOffsets[ordinal] ?? 0;
+  const nameEnd = nameOffsets[ordinal + 1] ?? nameStart;
+  const name =
+    names[ordinal] === 0
+      ? undefined
+      : String.fromCharCode(...nameText.subarray(nameStart, nameEnd));
+  return Object.freeze({
+    id,
+    ...(name === undefined ? {} : { name }),
+    elementIds: Object.freeze(elementIds),
+  });
+}
+
+/** Resolves an authored body id through its compact sparse-id index. */
+export function elementModelBodyOrdinal(model: ElementModel, id: BodyId): number | undefined {
+  const storage = elementModelStorage(model);
+  return storage.bodyIds === undefined || storage.bodyIdOrdinals === undefined
+    ? undefined
+    : ordinalForId(storage.bodyIds, storage.bodyIdOrdinals, id);
+}
+
+/** Resolves direct ownership without a retained object map. */
+export function elementModelMembership(model: ElementModel): {
+  readonly bodyIdForElement: (elementId: ElementId) => BodyId | undefined;
+} {
+  return {
+    bodyIdForElement: (elementId) => {
+      const ordinal = elementModelElementOrdinal(model, elementId);
+      return ordinal === undefined ? undefined : elementModelBodyId(model, ordinal);
+    },
+  };
+}
+
+/** Creates a packed model from transient ergonomic authoring records. */
 export function createElementModel(
   nodes: ArrayLike<number>,
   elements: readonly Element[],
   options: ElementModelOptions = {},
 ): ElementModel {
-  if (nodes.length % 3 !== 0) {
-    throw new Error("Node coordinate array length must be a multiple of 3");
-  }
-  const nodeCount = nodes.length / 3;
-  validateNodeCoordinates(nodes, nodeCount);
-  for (const element of elements) {
-    for (const nodeId of element.nodeIds) {
-      if (!Number.isInteger(nodeId) || nodeId < 0 || nodeId >= nodeCount) {
-        throw new Error(`Element ${element.id} references out-of-range node ${nodeId}`);
-      }
-    }
-  }
-  validateElementModel(elements, options.bodies);
-  const copiedBodies = copyBodies(options.bodies);
-  return {
-    nodes: new Float32Array(nodes),
-    elements: elements.map((element) => ({ ...element, nodeIds: [...element.nodeIds] })),
-    ...(copiedBodies === undefined ? {} : { bodies: copiedBodies }),
-  };
+  return buildElementModel(nodes, elements, options, modelQueries);
 }
 
 /**
- * Reifies a model from elements whose ids, shapes, connectivity, and ownership
- * have already been validated by an internal importer. This keeps the importer
- * handoff from copying each owned connectivity collection a second time.
+ * Internal bulk column boundary used by typed interchange conversion.
+ * @internal
+ */
+export function createElementModelFromColumns(input: ElementModelColumns): ElementModel {
+  return buildElementModelFromColumns(input, modelQueries);
+}
+
+/**
+ * Internal entry for the same packed authoring boundary.
  * @internal
  */
 export function createElementModelFromOwnedElements(
@@ -90,43 +146,12 @@ export function createElementModelFromOwnedElements(
   elements: readonly Element[],
   options: ElementModelOptions = {},
 ): ElementModel {
-  if (nodes.length % 3 !== 0) {
-    throw new Error("Node coordinate array length must be a multiple of 3");
-  }
-  validateNodeCoordinates(nodes, nodes.length / 3);
-  if (options.bodies !== undefined) validateElementModel(elements, options.bodies);
-  const copiedBodies = copyBodies(options.bodies);
-  return {
-    nodes: new Float32Array(nodes),
-    elements,
-    ...(copiedBodies === undefined ? {} : { bodies: copiedBodies }),
-  };
+  return buildElementModel(nodes, elements, options, modelQueries);
 }
 
-/** Resolves authored body ownership without allocating state for bodyless models. */
-export function elementModelMembership(model: ElementModel): ElementModelMembership {
-  if (model.bodies === undefined) return { bodyByElement: EMPTY_BODY_MEMBERSHIP };
-  const bodyByElement = new Map<ElementId, BodyId>();
-  for (const body of model.bodies) {
-    for (const elementId of body.elementIds) bodyByElement.set(elementId, body.id);
-  }
-  return { bodyByElement };
-}
-
-function validateNodeCoordinates(nodes: ArrayLike<number>, nodeCount: number): void {
-  for (let nodeId = 0; nodeId < nodeCount; nodeId += 1) {
-    const x = nodes[nodeId * 3] ?? 0;
-    const y = nodes[nodeId * 3 + 1] ?? 0;
-    const z = nodes[nodeId * 3 + 2] ?? 0;
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
-      throw new Error(`Node ${nodeId} has non-finite coordinates`);
-    }
-  }
-}
-
-function copyBodies(bodies: readonly Body[] | undefined): readonly Body[] | undefined {
-  return bodies?.map((body): Body => {
-    const name = body.name === undefined ? {} : { name: body.name };
-    return { id: body.id, ...name, elementIds: [...body.elementIds] };
-  });
-}
+const modelQueries = {
+  elementOrdinal: elementModelElementOrdinal,
+  elementAt: elementModelElementAt,
+  bodyOrdinal: elementModelBodyOrdinal,
+  bodyAt: elementModelBodyAt,
+};

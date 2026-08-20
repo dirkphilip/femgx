@@ -56,7 +56,7 @@ describe("WebGPU benchmark models", () => {
     const part = benchmarkCase.scene.parts.get(1);
     expect(part?.geometries[0]?.positions).toHaveLength(27);
     expect(part?.geometries[0]?.indices).toHaveLength(24);
-    expect(part?.elements).toEqual([
+    expect([...(part?.elements ?? [])]).toEqual([
       {
         id: 1,
         primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }],
@@ -99,10 +99,12 @@ describe("WebGPU benchmark models", () => {
     });
     expect(manyParts.scene.parts.size).toBe(3);
     expect(manyParts.scene.parts.get(1)).not.toBe(manyParts.scene.parts.get(2));
-    expect(bodyHeavy.scene.parts.get(1)?.bodies).toHaveLength(4);
-    expect(bodyHeavy.scene.parts.get(1)?.elements).toHaveLength(16);
+    expect(bodyHeavy.scene.parts.get(1)?.bodies?.count).toBe(4);
+    expect(bodyHeavy.scene.parts.get(1)?.elements?.count).toBe(16);
     expect(
-      bodyHeavy.scene.parts.get(1)?.elements?.every((element) => element.bodyId !== undefined),
+      [...(bodyHeavy.scene.parts.get(1)?.elements ?? [])].every(
+        (element) => element.bodyId !== undefined,
+      ),
     ).toBe(true);
   });
 
@@ -113,20 +115,24 @@ describe("WebGPU benchmark models", () => {
     const hex8 = createStructuredFeModel("hex8", 2);
     const hex20 = createStructuredFeModel("hex20", 2);
     expect(quad.nodes).toHaveLength(27);
-    expect(quad.elements).toHaveLength(4);
+    expect(quad.elements.count).toBe(4);
     expect(quad8.nodes).toHaveLength(63);
-    expect(quad8.elements).toHaveLength(4);
+    expect(quad8.elements.count).toBe(4);
     expect(tet4.nodes).toHaveLength(81);
-    expect(tet4.elements).toHaveLength(48);
+    expect(tet4.elements.count).toBe(48);
     expect(
-      new Set(quad8.elements[0]?.nodeIds.filter((id) => quad8.elements[1]?.nodeIds.includes(id))),
+      new Set(
+        quad8.elements.at(0)?.nodeIds.filter((id) => quad8.elements.at(1)?.nodeIds.includes(id)),
+      ),
     ).toHaveLength(3);
     expect(hex8.nodes).toHaveLength(81);
-    expect(hex8.elements).toHaveLength(8);
+    expect(hex8.elements.count).toBe(8);
     expect(hex20.nodes).toHaveLength(243);
-    expect(hex20.elements).toHaveLength(8);
+    expect(hex20.elements.count).toBe(8);
     expect(
-      new Set(hex20.elements[0]?.nodeIds.filter((id) => hex20.elements[1]?.nodeIds.includes(id))),
+      new Set(
+        hex20.elements.at(0)?.nodeIds.filter((id) => hex20.elements.at(1)?.nodeIds.includes(id)),
+      ),
     ).toHaveLength(8);
 
     const quadPart = createStructuredFePart(1, "quad", 2);
@@ -147,23 +153,23 @@ describe("WebGPU benchmark models", () => {
       hex20Geometry?.primitive !== "triangles"
     )
       throw new Error("Structured fixtures must contain triangle geometry");
-    expect(quadPart.elements).toHaveLength(4);
-    expect(quadGeometry.faces).toHaveLength(4);
+    expect(quadPart.elements?.count).toBe(4);
+    expect(quadGeometry.faces?.count).toBe(4);
     expect(quadGeometry.indices).toHaveLength(4 * 2 * 3);
-    expect(quad8Geometry.faces).toHaveLength(4);
+    expect(quad8Geometry.faces?.count).toBe(4);
     expect(quad8Geometry.indices).toHaveLength(4 * 6 * 3);
-    expect(tet4Part.elements).toHaveLength(48);
-    expect(tet4Geometry.faces).toHaveLength(48 * 4);
+    expect(tet4Part.elements?.count).toBe(48);
+    expect(tet4Geometry.faces?.count).toBe(48 * 4);
     expect(tet4Geometry.indices).toHaveLength(48 * 4 * 3);
-    expect(tet4Geometry.faceSubset?.faceIds).toHaveLength(12 * 2 ** 2);
-    expect(hex8Geometry.faces).toHaveLength(48);
+    expect(tet4Geometry.faceSubset?.count).toBe(12 * 2 ** 2);
+    expect(hex8Geometry.faces?.count).toBe(48);
     expect(hex8Geometry.indices).toHaveLength(48 * 2 * 3);
-    expect(hex20Geometry.faces).toHaveLength(48);
+    expect(hex20Geometry.faces?.count).toBe(48);
     expect(hex20Geometry.indices).toHaveLength(48 * 6 * 3);
-    expect(hex20Part.bodies).toEqual([
+    expect([...(hex20Part.bodies ?? [])]).toEqual([
       { id: 1, name: "hex20 structured body", elementIds: [1, 2, 3, 4, 5, 6, 7, 8] },
     ]);
-    expect(tet4Part.bodies?.[0]?.elementIds).toHaveLength(48);
+    expect(tet4Part.bodies?.at(0)?.elementIds).toHaveLength(48);
   });
 
   it("keeps structured solid geometry complete while submitting only exterior triangles", () => {
@@ -180,17 +186,17 @@ describe("WebGPU benchmark models", () => {
     ) {
       throw new Error("Structured fixtures must contain triangle geometry");
     }
-    expect(tet4Geometry.faces).toHaveLength(48 * 4);
+    expect(tet4Geometry.faces?.count).toBe(48 * 4);
     expect(tet4Geometry.indices).toHaveLength(48 * 4 * 3);
-    expect(tet4Geometry.faceSubset?.faceIds).toHaveLength(48);
+    expect(tet4Geometry.faceSubset?.count).toBe(48);
     expect(buildFaceSubsetIndices(tet4Geometry)).toHaveLength(48 * 3);
-    expect(hex8Geometry.faces).toHaveLength(6 * 8 ** 3);
+    expect(hex8Geometry.faces?.count).toBe(6 * 8 ** 3);
     expect(hex8Geometry.indices).toHaveLength(6 * 8 ** 3 * 2 * 3);
-    expect(hex8Geometry.faceSubset?.faceIds).toHaveLength(6 * 8 ** 2);
+    expect(hex8Geometry.faceSubset?.count).toBe(6 * 8 ** 2);
     expect(buildFaceSubsetIndices(hex8Geometry)).toHaveLength(768 * 3);
-    expect(hex20Geometry.faces).toHaveLength(6 * 6 ** 3);
+    expect(hex20Geometry.faces?.count).toBe(6 * 6 ** 3);
     expect(hex20Geometry.indices).toHaveLength(6 * 6 ** 3 * 6 * 3);
-    expect(hex20Geometry.faceSubset?.faceIds).toHaveLength(6 * 6 ** 2);
+    expect(hex20Geometry.faceSubset?.count).toBe(6 * 6 ** 2);
     expect(buildFaceSubsetIndices(hex20Geometry)).toHaveLength(1_296 * 3);
 
     const hex8Spec = benchmarkCaseSpecs(false).find(
@@ -382,6 +388,6 @@ describe("WebGPU benchmark models", () => {
     expect(lazy.scene.parts.size).toBe(0);
     const loaded = await lazy.deferredLoad?.();
     expect(loaded?.scene.parts.size).toBe(1);
-    expect(loaded?.scene.parts.get(1)?.bodies).toHaveLength(256);
+    expect(loaded?.scene.parts.get(1)?.bodies?.count).toBe(256);
   });
 });

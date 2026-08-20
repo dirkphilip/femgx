@@ -1,6 +1,6 @@
 import { createPart, MAX_PART_ID, type Part } from "../../../../src/geometry/part";
 
-import { translation } from "../../../../src/math/mat4";
+import { translationMatrix } from "../../../../src/math/mat4";
 
 import {
   createDrawResources,
@@ -122,6 +122,9 @@ export const subsetPart: Part = createPart(2, {
       faceSubset: { faceIds: [{ elementId: 1, faceIndex: 1 }] },
     },
   ],
+  elements: [
+    { id: 1, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 2 }] },
+  ],
 });
 
 export const logicalPointPart: Part = createPart(3, {
@@ -178,7 +181,7 @@ export const mixedPart: Part = createPart(6, {
 
 /** Shared renderer test helper. */
 export function record(x: number): ArrayBuffer {
-  return encodeInstanceRecord(translation(x, 0, 0), defaultStyle, 1);
+  return encodeInstanceRecord(translationMatrix(x, 0, 0), defaultStyle, 1);
 }
 
 /** Shared renderer test helper. */
@@ -216,7 +219,7 @@ export {
   createPart,
   MAX_PART_ID,
   type Part,
-  translation,
+  translationMatrix,
   createDrawResources,
   destroyDrawResources,
   EMISSIVE_BYTE_OFFSET,

@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "../../src/elements/element";
 import { createElementModel } from "../../src/elements/model";
 import { ElementShape } from "../../src/elements/shapes";
-import { elementPart } from "../../src/geometry/element-part";
+import { createPartFromElementModel } from "../../src/geometry/element-model-part";
 import { createInteractionState } from "../../src/interaction/interaction";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
 import { uploadPart } from "../../src/renderer/resources/draw-resources";
 import { SectionCapController } from "../../src/renderer/section-cap-controller";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import { createScene } from "../../src/scene/scene";
+import { createSceneBuilder } from "../../src/scene/scene";
 import { fakeGpuDevice, installGpuGlobals } from "./fake-gpu";
 
 describe("section-cap part retirement", () => {
@@ -74,19 +74,19 @@ describe("section-cap part retirement", () => {
 function sectionScene() {
   const nodes = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];
   const element = createElement(7, ElementShape.Tet4, [0, 1, 2, 3]);
-  const first = elementPart(1, createElementModel(nodes, [element]));
-  const second = elementPart(2, createElementModel(nodes, [element]));
-  return createScene()
+  const first = createPartFromElementModel(1, createElementModel(nodes, [element]));
+  const second = createPartFromElementModel(2, createElementModel(nodes, [element]));
+  return createSceneBuilder()
     .addPart(first)
     .addPart(second)
     .addAssembly({
       id: 1,
       placements: [
-        { kind: "part", placementId: "first", partId: 1, transform: identity() },
-        { kind: "part", placementId: "second", partId: 2, transform: identity() },
+        { kind: "part", placementId: "first", partId: 1, transform: identityMatrix() },
+        { kind: "part", placementId: "second", partId: 2, transform: identityMatrix() },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 

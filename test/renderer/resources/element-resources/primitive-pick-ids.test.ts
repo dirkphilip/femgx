@@ -5,8 +5,15 @@ import {
   buildElementPrimitivePickIds,
   buildFacePrimitivePickIds,
   buildPrimitiveFaceBodyPickData,
+  partFor,
   type SemanticTestGeometry,
 } from "./support";
+
+function retained(geometry: SemanticTestGeometry) {
+  const output = partFor(geometry).geometries[0];
+  if (output === undefined) throw new Error("Expected retained geometry");
+  return output;
+}
 
 describe("buildElementPrimitivePickIds", () => {
   it("maps each triangle to its element pick id (element id + 1)", () => {
@@ -25,9 +32,9 @@ describe("buildElementPrimitivePickIds", () => {
         },
       ],
     };
-    expect(Array.from(buildElementPrimitivePickIds(geometry, geometry.elements))).toEqual([
-      1, 1, 4,
-    ]);
+    expect(Array.from(buildElementPrimitivePickIds(retained(geometry), geometry.elements))).toEqual(
+      [1, 1, 4],
+    );
   });
 
   it("produces all-zero ids when the geometry has no elements", () => {
@@ -88,7 +95,7 @@ describe("buildElementPrimitiveOrdinals", () => {
       indices: new Uint32Array([0, 1, 2]),
     };
 
-    expect(buildElementPrimitiveOrdinals(geometry, [], new Map())).toEqual(new Uint32Array());
+    expect(buildElementPrimitiveOrdinals(geometry, [], () => undefined)).toEqual(new Uint32Array());
   });
 
   it("maps each primitive to its stable part-wide element ordinal", () => {
@@ -109,13 +116,8 @@ describe("buildElementPrimitiveOrdinals", () => {
     };
     expect(
       Array.from(
-        buildElementPrimitiveOrdinals(
-          geometry,
-          geometry.elements ?? [],
-          new Map([
-            [40, 4],
-            [2, 2],
-          ]),
+        buildElementPrimitiveOrdinals(retained(geometry), geometry.elements ?? [], (id) =>
+          id === 40 ? 4 : id === 2 ? 2 : undefined,
         ),
       ),
     ).toEqual([4, 4, 2]);
@@ -137,7 +139,9 @@ describe("buildBodyPrimitivePickIds", () => {
       ],
       bodies: [{ id: 7, elementIds: [4] }],
     };
-    expect(Array.from(buildBodyPrimitivePickIds(geometry, geometry.elements))).toEqual([8, 8]);
+    expect(Array.from(buildBodyPrimitivePickIds(retained(geometry), geometry.elements))).toEqual([
+      8, 8,
+    ]);
   });
 });
 
@@ -149,7 +153,7 @@ describe("buildFacePrimitivePickIds", () => {
       primitive: "triangles" as const,
       faces: [
         {
-          elementId: 0,
+          elementId: 1,
           faceIndex: 0,
           primitiveStart: 0,
           primitiveCount: 1,
@@ -157,16 +161,22 @@ describe("buildFacePrimitivePickIds", () => {
           nodeIds: [],
         },
         {
-          elementId: 0,
+          elementId: 1,
           faceIndex: 1,
-          primitiveStart: 2,
-          primitiveCount: 1,
+          primitiveStart: 1,
+          primitiveCount: 2,
           key: "b",
           nodeIds: [],
         },
       ],
+      elements: [
+        {
+          id: 1,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 3 }],
+        },
+      ],
     };
-    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([1, 0, 2]);
+    expect(Array.from(buildFacePrimitivePickIds(retained(geometry)))).toEqual([1, 2, 2]);
   });
 
   it("produces all-zero ids when the geometry has no faces", () => {
@@ -175,7 +185,7 @@ describe("buildFacePrimitivePickIds", () => {
       indices: new Uint32Array(3),
       primitive: "triangles" as const,
     };
-    expect(Array.from(buildFacePrimitivePickIds(geometry))).toEqual([0]);
+    expect(Array.from(buildFacePrimitivePickIds(retained(geometry)))).toEqual([0]);
   });
 });
 
@@ -201,11 +211,12 @@ describe("buildPrimitiveFaceBodyPickData", () => {
           primitiveCount: 2,
           key: "a",
           nodeIds: [],
+          bodyId: 7,
         },
       ],
     };
-    expect(Array.from(buildPrimitiveFaceBodyPickData(geometry, geometry.elements))).toEqual([
-      1, 8, 0, 5, 0, 1, 8, 0, 5, 0,
-    ]);
+    expect(
+      Array.from(buildPrimitiveFaceBodyPickData(retained(geometry), geometry.elements)),
+    ).toEqual([1, 8, 0, 5, 0, 1, 8, 0, 5, 0]);
   });
 });

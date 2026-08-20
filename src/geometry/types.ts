@@ -13,6 +13,21 @@ export interface FaceSubset {
   readonly faceIds: readonly FaceIdRef[];
 }
 
+/** Query-only selected face identities owned by one retained triangle geometry leaf. */
+export interface GeometryFaceSubset extends Iterable<FaceIdRef> {
+  readonly count: number;
+  at(ordinal: number): FaceIdRef | undefined;
+  entries(): IterableIterator<[number, FaceIdRef]>;
+}
+
+/** Query-only authored-edge metadata owned by one retained geometry leaf. */
+export interface GeometryEdges extends Iterable<GeometryEdge> {
+  readonly count: number;
+  get(key: string): GeometryEdge | undefined;
+  at(ordinal: number): GeometryEdge | undefined;
+  entries(): IterableIterator<[number, GeometryEdge]>;
+}
+
 /**
  * Derived body metadata carried by a renderable part.
  * @category Scene and geometry
@@ -100,6 +115,14 @@ export interface FaceTessellation {
   readonly bodyId?: BodyId;
 }
 
+/** Query-only authored-face metadata owned by one retained triangle geometry leaf. */
+export interface GeometryFaces extends Iterable<FaceTessellation> {
+  readonly count: number;
+  get(elementId: number, faceIndex: number): FaceTessellation | undefined;
+  at(ordinal: number): FaceTessellation | undefined;
+  entries(): IterableIterator<[number, FaceTessellation]>;
+}
+
 /**
  * Stable authored-edge metadata retained alongside tessellated geometry.
  *
@@ -135,7 +158,7 @@ interface GeometryBase {
   readonly positions: Float32Array;
   readonly indices: Uint32Array;
   /** Optional stable authored FE edges; absent for generic display geometry. */
-  readonly edges?: readonly GeometryEdge[];
+  readonly edges?: GeometryEdges;
   /**
    * Optional per-vertex node pick ids: `nodeId + 1` for vertices that come from
    * an authored model node. When present the part is node-pickable and the
@@ -162,10 +185,10 @@ export interface TriangleGeometry extends GeometryBase {
    * edge identities.
    */
   readonly presentationEdges?: Uint32Array;
-  /** Optional oriented face descriptors with exact triangle ranges. */
-  readonly faces?: readonly FaceTessellation[];
-  /** Optional render-time subset of the declared triangle faces. */
-  readonly faceSubset?: FaceSubset;
+  /** Optional graph-backed oriented face inspection capability. */
+  readonly faces?: GeometryFaces;
+  /** Optional graph-backed subset of declared triangle faces. */
+  readonly faceSubset?: GeometryFaceSubset;
 }
 
 /**
@@ -196,3 +219,24 @@ export interface PointGeometry extends GeometryBase {
  * @category Scene and geometry
  */
 export type Geometry = TriangleGeometry | LineGeometry | PointGeometry;
+
+/** Transient descriptor-bearing geometry accepted only by the Part boundary. */
+interface GeometryInputBase extends Omit<GeometryBase, "edges"> {
+  readonly edges?: readonly GeometryEdge[];
+}
+
+/** Transient triangle authoring input; face descriptors are not retained by output geometry. */
+export interface TriangleGeometryInput
+  extends GeometryInputBase, Omit<TriangleGeometry, "edges" | "faces" | "faceSubset"> {
+  readonly faces?: readonly FaceTessellation[];
+  readonly faceSubset?: FaceSubset;
+}
+
+/** Transient line authoring input. */
+export interface LineGeometryInput extends GeometryInputBase, Omit<LineGeometry, "edges"> {}
+
+/** Transient point authoring input. */
+export interface PointGeometryInput extends GeometryInputBase, Omit<PointGeometry, "edges"> {}
+
+/** One transient geometry leaf accepted while building an immutable Part. */
+export type GeometryInput = TriangleGeometryInput | LineGeometryInput | PointGeometryInput;

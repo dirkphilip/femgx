@@ -3,20 +3,28 @@ import { createElement, type Element } from "../../../src/elements/element";
 import { createElementModel } from "../../../src/elements/model";
 import { FEMGX_FORMAT_VERSION, type FemModel } from "../../../src/io/fem-model";
 import { ElementShape } from "../../../src/elements/shapes";
-import { createPart, type Part, type TriangleGeometry } from "../../../src/entries/root";
+import { createPart, type Part, type TriangleGeometry, type TriangleGeometryInput } from "../../../src/entries/root";
 import { BENCH_BODY_COUNT, BENCH_BODY_GRID_CELLS, makeBodies, makeBodyGeometry } from "../fixtures";
 
 const CONVERSION_BENCH_ELEMENT_COUNT = 250_000;
 const conversionBenchmarkModel = makeConversionBenchmarkModel();
-const faceSubsetBenchmarkGeometry = makeFaceSubsetBenchmarkGeometry();
-const faceSubsetBenchmarkPart = makeFaceSubsetBenchmarkPart(faceSubsetBenchmarkGeometry);
+const faceSubsetBenchmarkInput = makeFaceSubsetBenchmarkGeometry();
+const faceSubsetBenchmarkPart = makeFaceSubsetBenchmarkPart(faceSubsetBenchmarkInput);
+const faceSubsetBenchmarkGeometry = triangleGeometry(faceSubsetBenchmarkPart);
 
 const heterogeneousModel = makeHeterogeneousModel(100);
 const bodyGeometry = makeBodyGeometry();
+const bodyGeometryPart = createPart(910, {
+  geometries: [bodyGeometry.geometry],
+  elements: bodyGeometry.elements,
+  nodePositions: bodyGeometry.nodePositions,
+  ...(bodyGeometry.bodies === undefined ? {} : { bodies: bodyGeometry.bodies }),
+});
+const bodyRetainedGeometry = triangleGeometry(bodyGeometryPart);
 
 const bodyModel = createStructuredFeModel("quad", BENCH_BODY_GRID_CELLS);
-const bodies = makeBodies(bodyModel.elements.length, BENCH_BODY_COUNT);
-const bodyModelWithBodies = createElementModel([...bodyModel.nodes], bodyModel.elements, {
+const bodies = makeBodies(bodyModel.elements.count, BENCH_BODY_COUNT);
+const bodyModelWithBodies = createElementModel([...bodyModel.nodes], [...bodyModel.elements], {
   bodies,
 });
 
@@ -101,7 +109,7 @@ function makeConversionBenchmarkModel(): FemModel {
   };
 }
 
-function makeFaceSubsetBenchmarkGeometry(): TriangleGeometry {
+function makeFaceSubsetBenchmarkGeometry(): TriangleGeometryInput {
   const faceCount = 20_000;
   const faces = Array.from({ length: faceCount }, (_, index) => ({
     elementId: index + 1,
@@ -121,24 +129,35 @@ function makeFaceSubsetBenchmarkGeometry(): TriangleGeometry {
   };
 }
 
-function makeFaceSubsetBenchmarkPart(geometry: TriangleGeometry): Part {
-  const { faceSubset: _faceSubset, ...geometryWithoutSubset } = geometry;
-  const validated = createPart(908, { geometries: [geometryWithoutSubset] });
-  return { ...validated, geometries: [geometry] };
+function makeFaceSubsetBenchmarkPart(geometry: TriangleGeometryInput): Part {
+  const faceCount = geometry.faces?.length ?? 0;
+  return createPart(908, {
+    geometries: [geometry],
+    elements: Array.from({ length: faceCount }, (_, index) => ({
+      id: index + 1,
+      primitiveRanges: [{ primitive: "triangles" as const, primitiveStart: index, primitiveCount: 1 }],
+    })),
+  });
 }
 
 /** Rebuilds the validated face-subset fixture for its construction budget. */
 function makeValidatedFaceSubsetPart(): Part {
-  const subset = faceSubsetBenchmarkGeometry.faceSubset;
+  const subset = faceSubsetBenchmarkInput.faceSubset;
   if (subset === undefined) throw new Error("Expected a face subset benchmark fixture");
   return createPart(909, {
     geometries: [
       {
-        ...faceSubsetBenchmarkGeometry,
+        ...faceSubsetBenchmarkInput,
         faceSubset: { faceIds: [...subset.faceIds] },
       },
     ],
   });
+}
+
+function triangleGeometry(part: Part): TriangleGeometry {
+  const geometry = part.geometries[0];
+  if (geometry?.primitive !== "triangles") throw new Error("Expected triangle geometry");
+  return geometry;
 }
 
 export {
@@ -148,6 +167,7 @@ export {
   faceSubsetBenchmarkPart,
   heterogeneousModel,
   bodyGeometry,
+  bodyRetainedGeometry,
   bodyModelWithBodies,
   lineHeavyGeometry,
   solidScalingModels,

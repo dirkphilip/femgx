@@ -44,6 +44,10 @@ test("keeps the compact rail and command row inside a narrow desktop viewport", 
   await page.setViewportSize(COMPACT);
   await page.goto("/");
   await waitForRenderer(page);
+  const canvas = page.getByTestId("view-canvas");
+  await page.getByTestId("model-select").selectOption("bolted");
+  await expect(canvas).toHaveAttribute("data-model", "bolted");
+  await expect.poll(() => drawnPixels(canvas), { timeout: 15_000 }).toBe(true);
   await assertWorkbenchLayout(page, false, false);
 });
 

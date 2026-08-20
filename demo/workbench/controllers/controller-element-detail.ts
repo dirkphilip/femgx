@@ -1,7 +1,7 @@
 import { type PartOccurrenceId } from "../../../src/entries/root";
 import { isTargetSelected, type InteractionState } from "../../../src/entries/interaction";
 import type { ElementId } from "../../../src/entries/model";
-import type { SceneRuntime } from "../../../src/entries/runtime";
+import type { SceneOccurrences } from "../../../src/entries/root";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchElementDetailSnapshot } from "../results/snapshot";
@@ -33,7 +33,7 @@ export interface WorkbenchElementDetailActions {
 
 interface WorkbenchElementDetailOwner extends WorkbenchHoverController {
   readonly model: WorkbenchModel;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   interaction: InteractionState;
   readonly interactionController: WorkbenchInteraction;
   elementDetail: WorkbenchElementDetailSnapshot | undefined;
@@ -72,7 +72,7 @@ function openElementDetail(
 ): void {
   const instance = owner.runtime.getPartOccurrence(target.partOccurrenceId);
   const part = instance === undefined ? undefined : owner.model.scene.parts.get(instance.partId);
-  const body = part?.bodies?.find((candidate) => candidate.id === target.bodyId);
+  const body = part?.bodies?.get(target.bodyId);
   const count = part?.elements === undefined ? 0 : (body?.elementIds.length ?? 0);
   if (instance === undefined || body === undefined || count === 0) return;
   const partName = owner.model.partNames.get(instance.partId) ?? `Part ${instance.partId}`;
@@ -98,7 +98,7 @@ function elementIdsForDetail(
 ): readonly ElementId[] {
   const instance = owner.runtime.getPartOccurrence(detail.partOccurrenceId);
   const part = instance === undefined ? undefined : owner.model.scene.parts.get(instance.partId);
-  return part?.bodies?.find((body) => body.id === detail.bodyId)?.elementIds ?? [];
+  return part?.bodies?.get(detail.bodyId)?.elementIds ?? [];
 }
 
 function isElementSelected(

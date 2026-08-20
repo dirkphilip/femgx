@@ -94,19 +94,19 @@ model workflow.
 
 ```ts
 import { ElementShape } from "femgx/model";
-import { createElementModelFromFemModel, createModelBuilder, validateModel } from "femgx/io";
-import { elementPart } from "femgx/model";
+import { createElementModelFromFemModel, createFemModelBuilder, validateFemModel } from "femgx/io";
+import { createPartFromElementModel } from "femgx/model";
 
-const builder = createModelBuilder();
+const builder = createFemModelBuilder();
 builder.appendNodes([0, 1, 2], [0, 0, 0, 1, 0, 0, 0, 1, 0]);
 builder.openElementShapeBlock(ElementShape.Triangle);
 builder.appendElements([100], [0, 1, 2]);
 const model = builder.build();
-const issues = validateModel(model);
+const issues = validateFemModel(model);
 if (issues.some((issue) => issue.severity === "error")) {
   throw new Error("Invalid host-supplied model");
 }
-const part = elementPart(70, createElementModelFromFemModel(model));
+const part = createPartFromElementModel(70, createElementModelFromFemModel(model));
 ```
 
 Node ids become dense render ordinals, while element ids remain authored. Pass

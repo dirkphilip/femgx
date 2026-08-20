@@ -1,7 +1,7 @@
 import type { Viewport } from "../../src/entries/root";
 import type { InteractionState } from "../../src/entries/interaction";
 import type { GlbSceneImport } from "../../src/entries/io/glb";
-import type { SceneRuntime } from "../../src/entries/runtime";
+import type { SceneOccurrences } from "../../src/entries/root";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";
 import type { WorkbenchModel } from "./models/model";
 
@@ -53,7 +53,7 @@ export interface WorkbenchOptions {
 /** Read-only context needed by visibility and status helpers. */
 export interface WorkbenchSceneContext {
   readonly model: WorkbenchModel;
-  readonly runtime: SceneRuntime;
+  readonly runtime: SceneOccurrences;
   readonly interaction: InteractionState;
 }
 

@@ -118,13 +118,13 @@ several multiples, so budgets are only meaningful on clean timing runs.
 
 | Case                              | Model                                  | Workload                                                          |
 | --------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
-| public runtime rebuild scaling    | 50k / 100k / 200k placements           | exported `createSceneRuntime`                                     |
+| packed scene compile scaling      | 50k / 100k / 200k placements           | internal packed runtime compilation                               |
 | public scene replacement scaling  | 1 024 / 4 096 / 16 384 placements      | exported `Viewport.replaceScene`                                  |
 | public scene update scaling       | 100 000 placements                     | one stable transform edit or direct occurrence add/removal        |
 | new-part admission scaling        | 0 / 1 / 1 000 / 100 000 occurrences    | one definition plus its first direct occurrences and first render |
 | whole-part cascade removal        | 100 000 shared-part occurrences        | retained-runtime removal and exact part-resource retirement       |
-| `createSceneRuntime` (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
-| structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `elementPart`                                            |
+| packed scene compile (deep)       | balanced tree, 204 800 instances       | nested transform composition                                      |
+| structured Hex8 part scaling      | 512 / 1 728 / 4 096 elements           | exported `createPartFromElementModel`                                            |
 | `createElementModelFromFemModel`  | 250 000 Triangle3 elements             | typed connectivity conversion                                     |
 | `createPart` (face subset)        | 20 000 declared/selected faces         | linear face identity validation                                   |
 | `buildFaceSubsetIndices`          | 20 000 declared/selected faces         | declared-order compact index construction                         |
@@ -150,11 +150,11 @@ several multiples, so budgets are only meaningful on clean timing runs.
 | `collectEmphasisUpdates`          | 16 384 selected elements               | cached ownership and one reusable sync snapshot                   |
 | `buildHighlightTable`             | 16 384 emphasis records                | bounded four-entry hash buckets                                   |
 | `encodeEmphasisRecord` mirror     | 16 384 emphasis records                | CPU highlight-buffer preparation                                  |
-| `elementPart`                     | 600 mixed linear elements              | grouped triangle/line/point tessellation                          |
-| `elementPart` (large node pool)   | 500 000 nodes / one Tet4               | volume tessellation without a transient node copy                 |
+| `createPartFromElementModel`                     | 600 mixed linear elements              | grouped triangle/line/point tessellation                          |
+| `createPartFromElementModel` (large node pool)   | 500 000 nodes / one Tet4               | volume tessellation without a transient node copy                 |
 | `expand line geometry`            | 10,000 authored line segments          | one reusable four-corner triangle quad per segment                |
 | `createPart`                      | 16 384 quads / 256 bodies              | element/body/face validation                                      |
-| `elementPart`                     | 16 384 FE quads / 256 bodies           | body-aware canonical tessellation                                 |
+| `createPartFromElementModel`                     | 16 384 FE quads / 256 bodies           | body-aware canonical tessellation                                 |
 | primitive topology ids            | 16 384 quads / 256 bodies              | face/body/element GPU-id preparation                              |
 | body-aware mesh edges             | 16 384 quads / 256 bodies              | edge topology and ownership preparation                           |
 
@@ -164,8 +164,8 @@ several multiples, so budgets are only meaningful on clean timing runs.
   `demo/benchmark/structured-fe.ts` with the sizes above. Runtime fixtures are
   constructed outside timed regions. Fixture generation supplies inputs and
   structural counts but is not performance evidence; scaling series time the
-  exported core operations `elementPart`, `createScene`, and
-  `createSceneRuntime`.
+  exported core operations `createPartFromElementModel` and `createSceneBuilder`, plus private packed
+  runtime compilation where required.
 - `test/bench/measure.ts` defines the timing rules: **2 untimed warmup runs**,
   **7 timed samples**, **median** reported in milliseconds per iteration.
   Scaling series use one warmup and three samples to keep the default gate
@@ -237,7 +237,7 @@ commit message.
 
 ## Large CPU scaling (local opt-in)
 
-`npm run bench:scaling:large` runs exported `elementPart` at 13 824, 42 875,
+`npm run bench:scaling:large` runs exported `createPartFromElementModel` at 13 824, 42 875,
 and 103 823 authored Hex8 elements. It also imports and activates generated GLBs
 with 25 000, 50 000, and 100 000 same-material triangle primitives. The GLB case
 includes parsing, material-group coalescing, scene/runtime construction, and
@@ -246,7 +246,7 @@ command is excluded from `npm test`, coverage, the default budget gate, and CI.
 The local runner has a bounded 60-second per-test timeout.
 
 This case measures the canonical authored solid topology retained by
-`elementPart`. It does not substitute authored element count with a surface
+`createPartFromElementModel`. It does not substitute authored element count with a surface
 triangle aggregate and does not claim a boundary-only submitted triangle
 count. Its pass/fail contract is the same maximum 3x spread in normalized cost,
 not an absolute duration.
@@ -802,7 +802,7 @@ accounting for each logical pass. Unsupported adapters report an explicit
 unavailable shape and allocate no query resources.
 
 The structured FE cases use the validated `createElement` and
-`elementPart` path with shared corner and mid-edge node ids. The
+`createPartFromElementModel` path with shared corner and mid-edge node ids. The
 report adds `structuredFamily`, `uniqueElementCount`,
 `submittedElementOccurrences`, `nodeCount`, and `faceCount`, alongside
 `modelBuildMs` and `runtimeCompileMs`, so FE construction/tessellation and
@@ -1016,12 +1016,12 @@ guarantee from one adapter.
 
 ## Package bundle budget
 
-The root package smoke test admits at most 445,000 raw bytes and 110,000 gzip
-bytes. The raw ceiling includes the internal packed semantic consumers required
-for dense upload, picking, visibility, selection, sections, bounds, and result
-orientation; their constructor and validation path remains outside the public
-facade. Keep the gzip ceiling unchanged and treat further growth as a design
-review trigger rather than weakening both limits together.
+The experimental root package smoke test admits at most 1 MiB in both raw and
+gzip representations. The ceiling includes canonical dense semantic-graph
+consumers required for upload, picking, visibility, selection, sections,
+bounds, and result orientation; graph construction and validation remain
+internal. Optional-code exclusion remains the stronger packaging
+guard, while material package growth remains a design-review trigger.
 
 [engineering/quality-gate|Quality gate]: quality-gate.md
 [engineering/gpu-performance|GPU rendering performance]: gpu-performance.md

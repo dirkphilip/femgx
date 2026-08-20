@@ -138,7 +138,7 @@ function displayedInteraction(owner: WorkbenchHoverController): InteractionState
   }
   return setTargetsHighlighted(
     owner.interaction,
-    interactionTargetsForRow(activeViewport(owner)?.runtime ?? ownerRuntime(owner), hoverOwner.row),
+    interactionTargetsForRow(activeViewport(owner)?.occurrences ?? ownerRuntime(owner), hoverOwner.row),
     true,
   );
 }
@@ -147,10 +147,10 @@ function activeViewport(owner: WorkbenchHoverController): Viewport | undefined {
   return owner.activeViewport?.() ?? owner.viewports?.()[0];
 }
 
-function ownerRuntime(owner: WorkbenchHoverController): Viewport["runtime"] {
+function ownerRuntime(owner: WorkbenchHoverController): Viewport["occurrences"] {
   const viewport = activeViewport(owner);
   if (viewport === undefined) throw new Error("Workbench hover has no viewport");
-  return viewport.runtime;
+  return viewport.occurrences;
 }
 
 /** Reports whether a viewport slot still owns transient canvas hover. */

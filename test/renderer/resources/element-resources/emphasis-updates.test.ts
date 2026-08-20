@@ -6,9 +6,9 @@ import {
   setBodyOverride,
   setBodyVisible,
   setTargetHovered,
-  translation,
+  translationMatrix,
   createPackedSceneRuntime,
-  createScene,
+  createSceneBuilder,
   collectEmphasisUpdates,
   getPartSemanticIndex,
   collectDenseElementSelections,
@@ -142,7 +142,7 @@ describe("collectEmphasisUpdates", () => {
     ).toHaveLength(2_048);
   });
 
-  it("caches sparse element, body, and face ownership by part identity", () => {
+  it("caches sparse element, body, and face ownership by part identityMatrix", () => {
     const geometry: SemanticTestGeometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
       indices: new Uint32Array([0, 1, 2]),
@@ -170,10 +170,10 @@ describe("collectEmphasisUpdates", () => {
     const part = partFor(geometry);
     const metadata = getPartSemanticIndex(part);
     expect(getPartSemanticIndex(part)).toBe(metadata);
-    expect(metadata.elements.get(100_000)).toBe(geometry.elements?.[0]);
-    expect(metadata.bodies.get(7)).toBe(geometry.bodies?.[0]);
-    expect(metadata.bodyByElement.get(100_000)).toBe(7);
-    expect(metadata.faces.get("100000/0")?.faceId).toBe(0);
+    expect(metadata.element(100_000)).toEqual(geometry.elements?.at(0));
+    expect(metadata.body(7)).toEqual(geometry.bodies?.at(0));
+    expect(metadata.bodyForElement(100_000)).toBe(7);
+    expect(metadata.face(100_000, 0)?.faceId).toBe(0);
 
     const replacement = partFor({
       ...geometry,
@@ -255,7 +255,7 @@ function denseSelectionFixture(elementCount: number, placementCount = 1) {
     ],
     elements,
   });
-  const scene = createScene()
+  const scene = createSceneBuilder()
     .addPart(part)
     .addAssembly({
       id: 1,
@@ -263,10 +263,10 @@ function denseSelectionFixture(elementCount: number, placementCount = 1) {
       placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
         partId: 99,
-        transform: translation(index, 0, 0),
+        transform: translationMatrix(index, 0, 0),
       })),
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
   const runtime = createPackedSceneRuntime(scene);
   const partOccurrenceIds = Array.from({ length: placementCount }, (_, index) => {

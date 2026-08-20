@@ -11,7 +11,10 @@ import {
   setTargetSelected,
   type InteractionState,
 } from "../../../src/entries/interaction";
-import { createSceneRuntime, type SceneRuntime } from "../../../src/entries/runtime";
+import {
+  createSceneOccurrenceSnapshot,
+  type SceneOccurrences,
+} from "../../../src/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import {
   visibleSelectedElementTargets,
@@ -21,15 +24,15 @@ import {
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {
     const scene = createBoltedPlatePreset().scene;
-    const runtime = createSceneRuntime(scene);
-    const instances = runtime.getPartOccurrences();
+    const runtime = createSceneOccurrenceSnapshot(scene);
+    const instances = Array.from(runtime.partOccurrences());
     const first = instances[0];
     const second = instances[1];
     if (first === undefined || second === undefined) {
       throw new Error("Fixture must contain two instances");
     }
-    const firstElement = scene.parts.get(first.partId)?.elements?.[0];
-    const secondElement = scene.parts.get(second.partId)?.elements?.[0];
+    const firstElement = scene.parts.get(first.partId)?.elements?.at(0);
+    const secondElement = scene.parts.get(second.partId)?.elements?.at(0);
     if (firstElement === undefined || secondElement === undefined) {
       throw new Error("Fixture must contain two elements");
     }
@@ -70,27 +73,27 @@ describe("WorkbenchVisibilityActions", () => {
 
   it("reports only visible selected elements as hide eligibility", () => {
     const scene = createBoltedPlatePreset().scene;
-    const runtime = createSceneRuntime(scene);
-    const instance = runtime.getPartOccurrences()[0];
+    const runtime = createSceneOccurrenceSnapshot(scene);
+    const instance = runtime.getPartOccurrenceId(0);
     if (instance === undefined) throw new Error("Fixture must contain an instance");
-    const element = scene.parts.get(instance.partId)?.elements?.[0];
+    const element = scene.parts.get(runtime.getPartId(instance) ?? -1)?.elements?.at(0);
     if (element === undefined) throw new Error("Fixture must contain an element");
     const elementTarget = {
       kind: "element" as const,
-      partOccurrenceId: instance.partOccurrenceId,
+      partOccurrenceId: instance,
       elementId: element.id,
     };
     let interaction = createInteractionState();
     for (const target of [
-      { kind: "body" as const, partOccurrenceId: instance.partOccurrenceId, bodyId: 1 },
+      { kind: "body" as const, partOccurrenceId: instance, bodyId: 1 },
       {
         kind: "face" as const,
-        partOccurrenceId: instance.partOccurrenceId,
+        partOccurrenceId: instance,
         elementId: element.id,
         faceIndex: 0,
       },
-      { kind: "node" as const, partOccurrenceId: instance.partOccurrenceId, nodeId: 0 },
-      { kind: "edge" as const, partOccurrenceId: instance.partOccurrenceId, key: "0:1" },
+      { kind: "node" as const, partOccurrenceId: instance, nodeId: 0 },
+      { kind: "edge" as const, partOccurrenceId: instance, key: "0:1" },
       elementTarget,
     ]) {
       interaction = setTargetSelected(interaction, target, true);
@@ -104,14 +107,14 @@ describe("WorkbenchVisibilityActions", () => {
 
   it("reports no-op feedback without rendering when selected elements are already hidden", () => {
     const scene = createBoltedPlatePreset().scene;
-    const runtime = createSceneRuntime(scene);
-    const instance = runtime.getPartOccurrences()[0];
+    const runtime = createSceneOccurrenceSnapshot(scene);
+    const instance = runtime.getPartOccurrenceId(0);
     if (instance === undefined) throw new Error("Fixture must contain an instance");
-    const element = scene.parts.get(instance.partId)?.elements?.[0];
+    const element = scene.parts.get(runtime.getPartId(instance) ?? -1)?.elements?.at(0);
     if (element === undefined) throw new Error("Fixture must contain an element");
     const target = {
       kind: "element" as const,
-      partOccurrenceId: instance.partOccurrenceId,
+      partOccurrenceId: instance,
       elementId: element.id,
     };
     let interaction = setElementVisible(createInteractionState(), target, false);
@@ -129,22 +132,23 @@ describe("WorkbenchVisibilityActions", () => {
 
   it("restores every visibility layer while preserving one interaction update", () => {
     const scene = createBoltedPlatePreset().scene;
-    const runtime = createSceneRuntime(scene);
-    const firstInstance = runtime.getPartOccurrences()[0];
+    const runtime = createSceneOccurrenceSnapshot(scene);
+    const firstInstance = runtime.getPartOccurrenceId(0);
     if (firstInstance === undefined) throw new Error("Fixture must contain an instance");
-    const firstBody = scene.parts.get(firstInstance.partId)?.bodies?.[0];
+    const firstPartId = runtime.getPartId(firstInstance);
+    const firstBody = scene.parts.get(firstPartId ?? -1)?.bodies?.at(0);
     if (firstBody === undefined) throw new Error("Fixture must contain a body");
 
     let interaction = setBodyVisible(
       createInteractionState(),
-      { partOccurrenceId: firstInstance.partOccurrenceId, bodyId: firstBody.id },
+      { partOccurrenceId: firstInstance, bodyId: firstBody.id },
       false,
     );
-    const firstElement = scene.parts.get(firstInstance.partId)?.elements?.[0];
+    const firstElement = scene.parts.get(firstPartId ?? -1)?.elements?.at(0);
     if (firstElement === undefined) throw new Error("Fixture must contain an element");
     interaction = setElementVisible(
       interaction,
-      { partOccurrenceId: firstInstance.partOccurrenceId, elementId: firstElement.id },
+      { partOccurrenceId: firstInstance, elementId: firstElement.id },
       false,
     );
     let appliedInteractionCount = 0;
@@ -157,16 +161,16 @@ describe("WorkbenchVisibilityActions", () => {
         return operation();
       },
       visibility: {
-        setAssembly(assemblyId: number, visible: boolean): void {
+        setAssemblyVisible(assemblyId: number, visible: boolean): void {
           calls.push(`assembly:${assemblyId}:${visible}`);
         },
-        setAssemblyOccurrence(occurrenceId: string, visible: boolean): void {
+        setAssemblyOccurrenceVisible(occurrenceId: string, visible: boolean): void {
           calls.push(`occurrence:${occurrenceId}:${visible}`);
         },
-        setPart(partId: number, visible: boolean): void {
+        setPartVisible(partId: number, visible: boolean): void {
           calls.push(`part:${partId}:${visible}`);
         },
-        setPartOccurrence(partOccurrenceId: string, visible: boolean): void {
+        setPartOccurrenceVisible(partOccurrenceId: string, visible: boolean): void {
           calls.push(`instance:${partOccurrenceId}:${visible}`);
         },
       },
@@ -200,13 +204,16 @@ describe("WorkbenchVisibilityActions", () => {
     const expectedCalls = [
       "batch",
       ...[...scene.assemblies.keys()].map((id) => `assembly:${id}:true`),
-      ...runtime.getOccurrenceIds().map((id) => `occurrence:${id}:true`),
+      ...Array.from(
+        runtime.assemblyOccurrences(),
+        ({ assemblyOccurrenceId: id }) => `occurrence:${id}:true`,
+      ),
       ...[...scene.parts.keys()].map((id) => `part:${id}:true`),
-      ...runtime.getPartOccurrenceIds().map((id) => `instance:${id}:true`),
+      ...Array.from(runtime.partOccurrences(), ({ partOccurrenceId: id }) => `instance:${id}:true`),
     ];
     expect(calls).toEqual(expectedCalls);
 
-    for (const instance of runtime.getPartOccurrences()) {
+    for (const instance of runtime.partOccurrences()) {
       const bodies = scene.parts.get(instance.partId)?.bodies ?? [];
       for (const body of bodies) {
         expect(
@@ -228,7 +235,7 @@ describe("WorkbenchVisibilityActions", () => {
   });
 });
 
-function createActionHarness(scene: Scene, runtime: SceneRuntime, initial: InteractionState) {
+function createActionHarness(scene: Scene, runtime: SceneOccurrences, initial: InteractionState) {
   let interaction = initial;
   let appliedInteractionCount = 0;
   let panelSyncCount = 0;

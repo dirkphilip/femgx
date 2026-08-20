@@ -17,7 +17,7 @@ import {
 } from "../../src/interaction/bodies";
 import { setTargetHovered } from "../../src/interaction/targets";
 import { readInteractionState } from "../../src/interaction/state";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import type { PartOccurrence } from "../../src/scene/types";
 
 const base: ResolvedStyle = {
@@ -28,7 +28,7 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identity() };
+const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identityMatrix() };
 const ref = { partOccurrenceId: "1/0", bodyId: 3 } as const;
 
 describe("body interaction state", () => {

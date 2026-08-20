@@ -1,8 +1,8 @@
 import {
   createPart,
-  createScene,
-  identity,
-  translation,
+  createSceneBuilder,
+  identityMatrix,
+  translationMatrix,
   type Viewport,
 } from "../../src/entries/root";
 import { createInteractionState, setTargetSelected } from "../../src/entries/interaction";
@@ -40,19 +40,19 @@ export function selectionScene(reverse: boolean, behind: boolean) {
       nodePositions: new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
     });
   const selectedId = reverse ? 2 : 1;
-  const selectedTransform = behind ? translation(-0.12, -0.12, -0.2) : identity();
-  return createScene()
+  const selectedTransform = behind ? translationMatrix(-0.12, -0.12, -0.2) : identityMatrix();
+  return createSceneBuilder()
     .addPart(part(selectedId))
     .addPart(part(reverse ? 1 : 2))
     .addAssembly({
       id: 1,
       name: "selection-precedence",
       placements: [
-        { kind: "part", partId: 1, transform: selectedId === 1 ? selectedTransform : identity() },
-        { kind: "part", partId: 2, transform: selectedId === 2 ? selectedTransform : identity() },
+        { kind: "part", partId: 1, transform: selectedId === 1 ? selectedTransform : identityMatrix() },
+        { kind: "part", partId: 2, transform: selectedId === 2 ? selectedTransform : identityMatrix() },
       ],
     })
-    .withRoot(1)
+    .setRootAssembly(1)
     .build();
 }
 

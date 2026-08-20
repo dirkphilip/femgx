@@ -1,7 +1,8 @@
 import { transformPoint } from "../math/mat4";
 import type { Vec3 } from "../math/vec3";
 import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-semantic-index";
-import type { FaceTessellation, Geometry, Part } from "../geometry/part";
+import type { Geometry, Part } from "../geometry/part";
+import type { GeometryFaces } from "../geometry/semantic/geometry-semantic-capabilities";
 import type { PartId } from "../geometry/part";
 import type { PartOccurrence } from "../scene/types";
 import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
@@ -59,7 +60,7 @@ export function resolveEdgePickHit(
   const instance = resolvePick(context.instances, instancePickId - 1);
   const part = instance === undefined ? undefined : context.parts.get(instance.partId);
   const semantic = part === undefined ? undefined : getPartSemanticIndex(part);
-  const edge = semantic?.edges.get(edgeKey);
+  const edge = semantic?.edge(edgeKey);
   if (instance === undefined || edge === undefined) return undefined;
   const first = edge.nodeIds[0];
   const last = edge.nodeIds[edge.nodeIds.length - 1];
@@ -196,7 +197,7 @@ function elementIdFromPick(
 ): number | undefined {
   if (elementPickId <= 0) return undefined;
   const elementId = elementPickId - 1;
-  return semantic?.elements.has(elementId) === true ? elementId : undefined;
+  return semantic?.hasElement(elementId) === true ? elementId : undefined;
 }
 
 function faceHit(
@@ -207,7 +208,7 @@ function faceHit(
   worldPosition: Vec3,
 ): FacePickHit {
   const faceId = ids.facePickId - 1;
-  const face = geometry.faces?.[faceId];
+  const face = geometry.faces?.at(faceId);
   if (face === undefined) {
     throw new Error(`Part ${instance.partId} has no face descriptor ${faceId}`);
   }
@@ -235,7 +236,7 @@ function bodyFields(
   elementId: number,
   explicitBodyId?: number,
 ): { readonly bodyId?: number } {
-  const bodyId = explicitBodyId ?? semantic?.bodyByElement.get(elementId);
+  const bodyId = explicitBodyId ?? semantic?.bodyForElement(elementId);
   return bodyId === undefined ? {} : { bodyId };
 }
 
@@ -252,7 +253,9 @@ export function geometryAdjacency(
   }
   const elementIds = new Set<number>();
   const nodeIds = new Set<number>();
-  for (const face of geometry.faces ?? []) {
+  const faces = geometry.faces;
+  if (faces === undefined) return { neighborElementIds: [], neighborNodeIds: [] };
+  for (const face of faces) {
     if (!face.nodeIds.includes(nodeId)) continue;
     elementIds.add(face.elementId);
     for (const other of face.nodeIds) {
@@ -267,7 +270,7 @@ export function geometryAdjacency(
 
 function indexedPartAdjacency(
   semantic: PartSemanticIndex,
-  faces: readonly FaceTessellation[] | undefined,
+  faces: GeometryFaces | undefined,
   nodeId: number,
 ): { readonly neighborElementIds: readonly number[]; readonly neighborNodeIds: readonly number[] } {
   if (faces === undefined) {
@@ -278,7 +281,7 @@ function indexedPartAdjacency(
   const start = semantic.nodeTriangleFaceOffsets[nodeId] ?? 0;
   const end = semantic.nodeTriangleFaceOffsets[nodeId + 1] ?? start;
   for (let index = start; index < end; index += 1) {
-    const face = faces[semantic.nodeTriangleFaceIds[index] ?? 0];
+    const face = faces.at(semantic.nodeTriangleFaceIds[index] ?? 0);
     if (face === undefined) continue;
     elementIds.add(face.elementId);
     for (const other of face.nodeIds) {

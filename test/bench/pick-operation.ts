@@ -1,6 +1,6 @@
 import type { Part } from "../../src/geometry/part";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
-import { identity } from "../../src/math/mat4";
+import { identityMatrix } from "../../src/math/mat4";
 import { resolvePickHit, type PickContext, type ResolvedPickIds } from "../../src/picking/pick";
 import { buildFaceSubsetIndices } from "../../src/renderer/selection/face-subset";
 import {
@@ -68,7 +68,7 @@ function buildPickBenchmarkSetup(input: PickBenchmarkInput): PickBenchmarkSetup 
   const semanticIndexStart = performance.now();
   const semantic = getPartSemanticIndex(input.part);
   const semanticIndexSetupMs = performance.now() - semanticIndexStart;
-  const elements = input.part.elements ?? [];
+  const elements = [...(input.part.elements ?? [])];
   const triangles = input.part.geometries.find((geometry) => geometry.primitive === "triangles");
   const lastElement = elements.at(-1);
   if (triangles?.primitive !== "triangles" || lastElement === undefined) {
@@ -107,7 +107,7 @@ function buildPickBenchmarkSetup(input: PickBenchmarkInput): PickBenchmarkSetup 
     expectedNodeId: physicalNodePickId - 1,
     baseWorkloadDetails: {
       elements: elements.length,
-      faces: triangles.faces?.length ?? 0,
+      faces: triangles.faces?.count ?? 0,
       nodes: (input.part.nodePositions?.length ?? 0) / 3,
       renderedTriangles: subsetIndices.length / 3,
       nodeTriangleFaceIndexBytes:
@@ -123,7 +123,7 @@ function pickContext(input: PickBenchmarkInput): PickContext {
       {
         partOccurrenceId: input.partOccurrenceId,
         partId: input.part.id,
-        worldTransform: identity(),
+        worldTransform: identityMatrix(),
       },
     ],
     parts: new Map([[input.part.id, input.part]]),

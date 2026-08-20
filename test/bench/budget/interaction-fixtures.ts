@@ -1,4 +1,4 @@
-import { createPart, translation, type Part } from "../../../src/entries/root";
+import { createPart, translationMatrix, type Part } from "../../../src/entries/root";
 import {
   createInteractionState,
   setTargetsSelected,
@@ -30,7 +30,7 @@ const emphasisScene = {
       {
         id: 1,
         placements: [
-          { kind: "part" as const, partId: emphasisPart.id, transform: translation(0, 0, 0) },
+          { kind: "part" as const, partId: emphasisPart.id, transform: translationMatrix(0, 0, 0) },
         ],
       },
     ],

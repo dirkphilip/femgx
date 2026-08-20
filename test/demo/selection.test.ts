@@ -6,7 +6,7 @@ import {
   setTargetSelected,
   setTargetsSelected,
 } from "../../src/entries/interaction";
-import type { SceneRuntime } from "../../src/entries/runtime";
+import type { SceneOccurrences } from "../../src/scene-runtime/occurrences";
 import { elementTarget, exactTarget, selectTarget } from "../../demo/workbench/selection/pick";
 import {
   replaceSelection,
@@ -279,7 +279,7 @@ describe("demo selection policy", () => {
     expect(isTargetSelected(state, other)).toBe(true);
   });
 
-  it("applies box replacement and append policies once per target identity", () => {
+  it("applies box replacement and append policies once per target identityMatrix", () => {
     const targets = [part, element, element];
     const replaced = replaceTargets(createInteractionState(), targets);
     expect(isTargetSelected(replaced, part)).toBe(true);
@@ -292,7 +292,7 @@ describe("demo selection policy", () => {
     expect(appendTargets(appended, [])).toBe(appended);
   });
 
-  it("bounds dense selection diagnostics without enumerating every identity", () => {
+  it("bounds dense selection diagnostics without enumerating every identityMatrix", () => {
     const targets = Array.from({ length: 257 }, (_, elementId) => ({
       kind: "element" as const,
       partOccurrenceId: "1/0",
@@ -309,14 +309,14 @@ describe("demo selection policy", () => {
 
   it("only advertises framing for selected geometry in visible occurrences", () => {
     const runtime = {
-      getPartOccurrences: () => [
+      partOccurrences: () => [
         { partId: 4, visible: true },
         { partId: 9, visible: false },
       ],
-      getVisiblePartOccurrenceIds: () => ["visible"],
+      visiblePartOccurrenceIds: () => ["visible"],
       getPartId: (partOccurrenceId: string) => (partOccurrenceId === "visible" ? 4 : 9),
       isPartOccurrenceVisible: (partOccurrenceId: string) => partOccurrenceId === "visible",
-    } as unknown as SceneRuntime;
+    } as unknown as SceneOccurrences;
     const visibleInstance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "visible" };
     const hiddenInstance: SelectTarget = { kind: "partOccurrence", partOccurrenceId: "hidden" };
 
@@ -342,17 +342,17 @@ describe("demo selection policy", () => {
     let materialized = 0;
     let visibleQueries = 0;
     const runtime = {
-      getPartOccurrences: () => {
+      partOccurrences: () => {
         materialized += 1;
         return [{ partId: 4, visible: true }];
       },
-      getVisiblePartOccurrenceIds: () => {
+      visiblePartOccurrenceIds: () => {
         visibleQueries += 1;
         return ["visible"];
       },
       getPartId: () => 4,
       isPartOccurrenceVisible: () => true,
-    } as unknown as SceneRuntime;
+    } as unknown as SceneOccurrences;
 
     expect(
       hasVisibleSelection(

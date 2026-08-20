@@ -194,13 +194,13 @@ describe("createBoltedPlateFixture", () => {
     expect(plateSolid?.geometries[0]?.indices).toHaveLength(288);
     const plateGeometry = plateSolid?.geometries[0];
     if (plateGeometry?.primitive !== "triangles") throw new Error("expected plate triangles");
-    const interfaceFaces = (plateGeometry.faces ?? []).filter(
+    const interfaceFaces = Array.from(plateGeometry.faces ?? []).filter(
       (face) => face.neighborElementId !== undefined,
     );
     expect(interfaceFaces).toHaveLength(20);
     expect(new Set(interfaceFaces.map((face) => face.key)).size).toBe(10);
     const boltModel = createBoltedPlateFixture().elementModels.get(partIds.bolt.partId);
-    expect(boltModel?.elements).toHaveLength(2);
+    expect(boltModel?.elements.count).toBe(2);
     expect(scene.parts.get(partIds.bolt.partId)?.bounds).toEqual({
       minX: -0.699999988079071,
       minY: -4,
@@ -215,15 +215,15 @@ describe("createBoltedPlateFixture", () => {
     const { elementModels, partIds } = createBoltedPlateFixture();
     const plate = elementModels.get(partIds.plate.partId);
     const bolt = elementModels.get(partIds.bolt.partId);
-    expect(plate?.elements).toHaveLength(8);
-    expect(plate?.bodies).toEqual([
+    expect(plate?.elements.count).toBe(8);
+    expect([...(plate?.bodies ?? [])]).toEqual([
       { id: 1, name: "Plate row A", elementIds: [1, 2, 3, 4] },
       { id: 2, name: "Plate row B", elementIds: [5, 6, 7, 8] },
     ]);
     for (const body of plate?.bodies ?? []) {
       expect(new Set(body.elementIds).size).toBe(body.elementIds.length);
     }
-    expect(bolt?.bodies?.every((body) => "elementIds" in body)).toBe(true);
+    expect([...(bolt?.bodies ?? [])].every((body) => "elementIds" in body)).toBe(true);
   });
 
   it("produces identical output on repeated calls", () => {

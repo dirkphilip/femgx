@@ -33,14 +33,14 @@ function targetForGranularity(
   switch (granularity) {
     case "body": {
       const elementId = zeroBasedPickId(ids.elementPickId);
-      const bodyId = elementId === undefined ? undefined : metadata?.bodyByElement.get(elementId);
+      const bodyId = elementId === undefined ? undefined : metadata?.bodyForElement(elementId);
       return bodyId === undefined
         ? undefined
         : { kind: "body", partOccurrenceId: instanceId, bodyId };
     }
     case "element": {
       const elementId = zeroBasedPickId(ids.elementPickId);
-      return elementId !== undefined && metadata?.elements.has(elementId) === true
+      return elementId !== undefined && metadata?.hasElement(elementId) === true
         ? { kind: "element", partOccurrenceId: instanceId, elementId }
         : undefined;
     }
@@ -52,7 +52,7 @@ function targetForGranularity(
       const descriptor =
         face === undefined || triangleGeometry?.primitive !== "triangles"
           ? undefined
-          : triangleGeometry.faces?.[face];
+          : triangleGeometry.faces?.at(face);
       return descriptor === undefined
         ? undefined
         : {

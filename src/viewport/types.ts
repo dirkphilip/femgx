@@ -9,7 +9,7 @@ import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/ty
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import type { Scene } from "../scene/scene";
 import type { SceneUpdate } from "../scene/update";
-import type { SceneRuntime } from "../scene-runtime/public-runtime";
+import type { SceneOccurrences } from "../scene-runtime/occurrences";
 import type { OrientationGizmoOptions } from "./orientation-gizmo";
 import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import type { CameraContentInset } from "../camera/fit";
@@ -174,22 +174,22 @@ export interface ViewportVisibility {
    * occurrence of one reusable part without mutating the part or scene.
    * @throws {UnknownSceneIdentityError} when `partId` is not registered.
    */
-  setPart(partId: PartId, visible: boolean): void;
+  setPartVisible(partId: PartId, visible: boolean): void;
   /**
    * Changes live visibility for one expanded assembly occurrence.
    * @throws {UnknownSceneIdentityError} when `occurrenceId` is absent.
    */
-  setAssemblyOccurrence(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
+  setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void;
   /**
    * Changes live visibility for every expanded occurrence of one assembly definition.
    * @throws {UnknownSceneIdentityError} when `assemblyId` is not registered.
    */
-  setAssembly(assemblyId: AssemblyId, visible: boolean): void;
+  setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void;
   /**
    * Changes live visibility for one expanded placed-part occurrence.
    * @throws {UnknownSceneIdentityError} when `partOccurrenceId` is absent.
    */
-  setPartOccurrence(partOccurrenceId: PartOccurrenceId, visible: boolean): void;
+  setPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId, visible: boolean): void;
   /**
    * Changes live visibility for many placed-part occurrences in one atomic update.
    * @throws {UnknownSceneIdentityError} when any supplied id is absent.
@@ -229,7 +229,7 @@ export interface ViewportPresentation {
  * Canonical scene, rendering, and lifecycle owner.
  *
  * `Viewport` is the sole public rendering lifecycle. It consumes one
- * immutable {@link Scene}, owns its derived live {@link SceneRuntime}, and
+ * immutable {@link Scene}, owns its derived live occurrence view, and
  * exposes stable, non-owning capability facades for camera/navigation,
  * interaction/picking, visibility, results, and presentation. Runtime slots,
  * GPU buffers, and renderer construction are intentionally not public API.
@@ -243,12 +243,11 @@ export interface Viewport {
   /** The authoritative immutable scene currently compiled by this viewport. */
   readonly scene: Scene;
   /**
-   * The current live query facade. Read it again after `replaceScene` or
-   * `updateScene`; structural replacement installs a new runtime snapshot.
-   * The facade exposes stable handles and defensive query objects, not packed
-   * slots or renderer draw order.
+   * Stable live query facade over expanded placements. It exposes stable
+   * handles and defensive query objects, not packed slots or renderer draw
+   * order.
    */
-  readonly runtime: SceneRuntime;
+  readonly occurrences: SceneOccurrences;
   /** Stable camera and navigation capability view. */
   readonly view: ViewportView;
   /** Stable interaction and picking capability view. */
@@ -266,10 +265,10 @@ export interface Viewport {
    * The callback must be synchronous and its editor must not escape. The
    * viewport publishes one immutable scene snapshot after the complete
    * candidate validates. A semantic no-op retains the existing scene and
-   * runtime. Re-read {@link runtime} after a committed update.
+   * packed state while this occurrence facade remains live after a committed update.
    */
   updateScene(operation: (update: SceneUpdate) => void): SceneUpdateOutcome;
-  /** Replaces the scene and resets placement-scoped state; re-read {@link runtime}. */
+  /** Replaces the scene and resets placement-scoped state. */
   replaceScene(scene: Scene): void;
   /**
    * Groups synchronous mutations into one deferred invalidation and render.

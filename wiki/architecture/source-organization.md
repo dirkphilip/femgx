@@ -20,8 +20,8 @@ canonical description.
 - `src/scene/` — authoritative CPU model: assembly/instance identities
   (`types.ts`), assemblies, and the scene builder. `PartId` remains owned by
   geometry because it identifies reusable geometry.
-- `src/scene-runtime/` — packed CPU-side scene runtime with delta-oriented
-  visibility updates (`createSceneRuntime`).
+- `src/scene-runtime/` — private packed CPU-side scene compilation with
+  delta-oriented visibility updates.
 - `src/camera/` — immutable orbit camera and projection math.
 - `src/interaction/` — centralized highlight/selection/hover/override state.
 - `src/results/` — authored scalar fields over nodes or elements, nodal vector
