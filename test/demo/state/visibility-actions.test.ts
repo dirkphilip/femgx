@@ -16,10 +16,8 @@ import {
   type SceneOccurrences,
 } from "../../../src/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
-import {
-  visibleSelectedElementTargets,
-  WorkbenchVisibilityActions,
-} from "../../../demo/workbench/state/visibility-actions";
+import { WorkbenchVisibilityActions } from "../../../demo/workbench/state/visibility-actions";
+import { selectedElementVisibilitySummary } from "../../../src/interaction/selection-queries";
 
 describe("WorkbenchVisibilityActions", () => {
   it("hides selected elements in one update while preserving their selection", () => {
@@ -99,10 +97,16 @@ describe("WorkbenchVisibilityActions", () => {
       interaction = setTargetSelected(interaction, target, true);
     }
 
-    expect(visibleSelectedElementTargets(interaction)).toEqual([elementTarget]);
+    expect(selectedElementVisibilitySummary(interaction)).toEqual({
+      selectedCount: 1,
+      visibleCount: 1,
+    });
 
     interaction = setElementVisible(interaction, elementTarget, false);
-    expect(visibleSelectedElementTargets(interaction)).toEqual([]);
+    expect(selectedElementVisibilitySummary(interaction)).toEqual({
+      selectedCount: 1,
+      visibleCount: 0,
+    });
   });
 
   it("reports no-op feedback without rendering when selected elements are already hidden", () => {
