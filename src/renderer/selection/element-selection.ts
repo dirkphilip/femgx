@@ -1,29 +1,32 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
-import { collectUniqueRefs, sortedNumbers } from "../../interaction/mechanics";
+import {
+  collectUniqueRefs,
+  sortedNumbers,
+  sortedStringMapEntries,
+} from "../../interaction/mechanics";
 import { readInteractionState, type InteractionStateData } from "../../interaction/state";
 import type { ElementRef, PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import { ELEMENT_RECORD_STRIDE } from "./highlight-layout";
+import {
+  denseMembershipContains,
+  denseMembershipOccurrenceAtSlot as denseOccurrenceAtSlot,
+  sortDenseMembershipOccurrences,
+  type DenseMembership,
+  type DenseMembershipLayout,
+  type DenseMembershipOccurrence,
+} from "./dense-membership";
 
 /** The stable layout fields required to resolve dense element selections. */
-export interface DenseElementLayout {
-  readonly slotPartLocal: Int32Array;
-  readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
-  readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
-}
+export type DenseElementLayout = DenseMembershipLayout;
 
 /** One part-local occurrence's dense selected-element membership. */
-export interface DenseElementOccurrence {
-  readonly slot: number;
-  readonly selectedCount: number;
-  /** One bit per private element ordinal (`ordinal - 1`). */
-  readonly words: Uint32Array;
-}
+export type DenseElementOccurrence = DenseMembershipOccurrence;
 
 /** All dense element membership for one reusable part. */
-export interface DenseElementSelection {
+export interface DenseElementSelection extends DenseMembership {
   readonly elementCount: number;
   readonly occurrences: readonly DenseElementOccurrence[];
 }
@@ -103,7 +106,7 @@ function collectDenseElementMemberships(
   for (const [partId, candidate] of byPart) {
     const occurrences = denseOccurrences(candidate);
     if (occurrences.length === 0) continue;
-    occurrences.sort((left, right) => left.slot - right.slot);
+    sortDenseMembershipOccurrences(occurrences);
     selections.set(partId, {
       elementCount: candidate.elementCount,
       occurrences,
@@ -121,31 +124,10 @@ export function denseSelectionContains(
   slot: number,
   ordinal: number,
 ): boolean {
-  const occurrence = denseOccurrenceAtSlot(selection, slot);
-  if (occurrence === undefined) return false;
-  const bit = ordinal - 1;
-  return bit >= 0 && ((occurrence.words[bit >> 5] ?? 0) & (1 << (bit & 31))) !== 0;
+  return denseMembershipContains(denseOccurrenceAtSlot(selection, slot), ordinal - 1);
 }
 
-/** Finds one sorted dense occurrence without scanning preceding placements. */
-export function denseOccurrenceAtSlot(
-  selection: DenseElementSelection | undefined,
-  slot: number,
-): DenseElementOccurrence | undefined {
-  const occurrences = selection?.occurrences;
-  if (occurrences === undefined) return undefined;
-  let lower = 0;
-  let upper = occurrences.length - 1;
-  while (lower <= upper) {
-    const middle = lower + Math.floor((upper - lower) / 2);
-    const candidate = occurrences[middle];
-    if (candidate === undefined) return undefined;
-    if (candidate.slot === slot) return candidate;
-    if (candidate.slot < slot) lower = middle + 1;
-    else upper = middle - 1;
-  }
-  return undefined;
-}
+export { denseOccurrenceAtSlot };
 
 /** Omits selected-only refs already represented by dense occurrence membership. */
 export function sparseElementEmphasisRefs(
@@ -166,13 +148,13 @@ export function sparseElementEmphasisRefs(
     (ref) => `${ref.partOccurrenceId}/${ref.elementId}`,
     (push) => {
       appendElementRefs(data.highlightedElementIds, push);
-      for (const [instanceId, ids] of sortedInstances(data.selectedElementIds)) {
+      for (const [instanceId, ids] of sortedStringMapEntries(data.selectedElementIds)) {
         if (instanceUsesDenseSelection(runtime, layout, denseSelections, instanceId)) continue;
         for (const elementId of sortedNumbers(ids))
           push({ partOccurrenceId: instanceId, elementId });
       }
       appendElementRefs(data.elementOverrides, push);
-      for (const [instanceId, ids] of sortedInstances(data.hiddenElementIds)) {
+      for (const [instanceId, ids] of sortedStringMapEntries(data.hiddenElementIds)) {
         if (instanceUsesDenseSelection(runtime, layout, denseHidden, instanceId)) continue;
         for (const elementId of sortedNumbers(ids))
           push({ partOccurrenceId: instanceId, elementId });
@@ -199,16 +181,10 @@ function appendElementRefs(
   groups: ReadonlyMap<PartOccurrenceId, { readonly keys: () => Iterable<number> }>,
   push: (ref: ElementRef) => void,
 ): void {
-  for (const [instanceId, values] of sortedInstances(groups)) {
+  for (const [instanceId, values] of sortedStringMapEntries(groups)) {
     for (const elementId of sortedNumbers(values.keys()))
       push({ partOccurrenceId: instanceId, elementId });
   }
-}
-
-function sortedInstances<Values>(
-  groups: ReadonlyMap<PartOccurrenceId, Values>,
-): Array<readonly [PartOccurrenceId, Values]> {
-  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
 interface DenseSelectionContext {
