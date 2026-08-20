@@ -43,6 +43,7 @@ interface CapBuildOptions {
 export interface SectionCapFrame {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly sourcePartIds: ReadonlyMap<PartId, PartId>;
+  readonly sourceSlots: ReadonlyMap<PartId, number>;
   readonly calls: readonly DrawCall[];
   readonly transparentCalls: readonly DrawCall[];
   readonly allCalls: readonly DrawCall[];
@@ -52,9 +53,11 @@ export interface SectionCapFrame {
 const CAP_TRANSFORM = identityMatrix();
 
 /** Builds active occurrence caps into renderer-private reusable draw records. */
+// eslint-disable-next-line max-lines-per-function -- Measured cap kernel; splitting adds hot-path allocation.
 export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame {
   const capParts = new Map<PartId, Part>();
   const sourcePartIds = new Map<PartId, PartId>();
+  const sourceSlots = new Map<PartId, number>();
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
@@ -89,10 +92,11 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         if (cap === undefined) continue;
         const capId = nextCapId(usedIds, ordinal);
         ordinal += 1;
-        const style = capStyle(options, instance, element.id, metadata);
+        const style = capStyle(options.interaction, instance, element.id, metadata);
         const capPart = makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
         sourcePartIds.set(capId, sourcePart.id);
+        sourceSlots.set(capId, slot);
         const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
         allCalls.push(call);
         if (style.color.a * style.opacity < 1) transparentCalls.push(call);
@@ -109,11 +113,19 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
       }
     }
   }
-  return { parts: capParts, sourcePartIds, calls, transparentCalls, allCalls, resultColors };
+  return {
+    parts: capParts,
+    sourcePartIds,
+    sourceSlots,
+    calls,
+    transparentCalls,
+    allCalls,
+    resultColors,
+  };
 }
 
 function capStyle(
-  options: CapBuildOptions,
+  interaction: InteractionState,
   instance: ReturnType<typeof instanceAt>,
   elementId: number,
   metadata: ReturnType<typeof getPartSemanticIndex>,
@@ -122,9 +134,42 @@ function capStyle(
     instance,
     elementId,
     defaultStyle,
-    options.interaction,
+    interaction,
     metadata.bodyForElement(elementId),
   );
+}
+
+/** Updates retained cap presentation records without rebuilding cap geometry. */
+export function syncSectionCapStyles(options: {
+  readonly frame: SectionCapFrame;
+  readonly runtime: PackedSceneRuntime;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly draw: DrawResources;
+}): Pick<SectionCapFrame, "calls" | "transparentCalls"> {
+  const calls: DrawCall[] = [];
+  const transparentCalls: DrawCall[] = [];
+  for (const [capId, capPart] of options.frame.parts) {
+    const sourcePartId = options.frame.sourcePartIds.get(capId);
+    const sourceSlot = options.frame.sourceSlots.get(capId);
+    const sourcePart = sourcePartId === undefined ? undefined : options.parts.get(sourcePartId);
+    const element = capPart.elements?.at(0);
+    if (sourcePart === undefined || sourceSlot === undefined || element === undefined) continue;
+    const instance = instanceAt(options.runtime, sourceSlot, sourcePart.id);
+    const style = capStyle(
+      options.interaction,
+      instance,
+      element.id,
+      getPartSemanticIndex(sourcePart),
+    );
+    patchInstances(options.draw, capId, [
+      { slot: 0, data: encodeInstanceRecord(CAP_TRANSFORM, style, sourceSlot + 1) },
+    ]);
+    const call = { partId: capId, instanceCount: 1 } satisfies DrawCall;
+    if (style.color.a * style.opacity < 1) transparentCalls.push(call);
+    else calls.push(call);
+  }
+  return { calls, transparentCalls };
 }
 
 function occurrenceValue<Value>(

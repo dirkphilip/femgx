@@ -16,7 +16,7 @@ import { syncDeformations, validateDeformation } from "./frame/deformation";
 import { syncResultColors } from "./resources/result-colors";
 import { encodeVisibleFrame } from "./frame/frame";
 import { GpuDeviceLifecycle } from "./recovery";
-import { writeBackgroundColors } from "./frame/background";
+import { writeBundleBackgroundColors } from "./frame/background";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { SectionPlane } from "../math/section-plane";
 import {
@@ -34,6 +34,7 @@ import {
   type GpuTimestampSnapshot,
 } from "./diagnostics/timestamps";
 import type { GpuRendererConstruction } from "./renderer-construction";
+import { sectionCapVisibilityChanged } from "./section-cap-interaction";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer {
@@ -106,11 +107,7 @@ export class GpuRenderer implements WebGpuRenderer {
       ensureSectionCaps: this.ensureSectionCaps.bind(this),
       frameOptions: () => this.frameOptions(),
     });
-    writeBackgroundColors(
-      this.lifecycle.bundle.device,
-      this.lifecycle.bundle.resources.background,
-      this.background,
-    );
+    writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     this.resize();
   }
 
@@ -214,15 +211,15 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
-    const interactionChanged = this.interaction !== interaction;
-    this.interaction = interaction;
     const changed = this.attachment.updateInstances(
       runtime,
       interaction,
       changedInstanceIds,
       this.lifecycle.bundle,
     );
-    if (interactionChanged || changed) this.sectionCaps.invalidate();
+    if (changed || sectionCapVisibilityChanged(this.interaction, interaction))
+      this.sectionCaps.invalidate();
+    this.interaction = interaction;
     if (changed) this.picking.invalidate();
   }
 
@@ -250,7 +247,7 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds?: readonly number[],
   ): void {
     this.ensureAlive();
-    const interactionChanged = this.interaction !== interaction;
+    const previousInteraction = this.interaction;
     this.interaction = interaction;
     const changed = this.attachment.updateElements(
       runtime,
@@ -259,7 +256,15 @@ export class GpuRenderer implements WebGpuRenderer {
       this.parts,
       changedInstanceIds,
     );
-    if (interactionChanged || changed) this.sectionCaps.invalidate();
+    if (changed) this.sectionCaps.invalidate();
+    else
+      this.sectionCaps.syncInteraction(
+        previousInteraction,
+        interaction,
+        runtime,
+        this.parts,
+        this.lifecycle.bundle.draw,
+      );
     if (changed) this.picking.invalidate();
   }
 
@@ -271,8 +276,7 @@ export class GpuRenderer implements WebGpuRenderer {
   public setBackground(background: ViewportBackground): void {
     this.ensureAlive();
     if (this.background === background) return;
-    const { device, resources } = this.lifecycle.bundle;
-    writeBackgroundColors(device, resources.background, background);
+    writeBundleBackgroundColors(this.lifecycle.bundle, background);
     this.background = background;
   }
 
@@ -383,11 +387,7 @@ export class GpuRenderer implements WebGpuRenderer {
       this.attachment.clear(this.lifecycle.bundle);
       this.sectionCaps.recover(this.parts, this.resultColors);
       this.picking.resetAfterRecovery();
-      writeBackgroundColors(
-        this.lifecycle.bundle.device,
-        this.lifecycle.bundle.resources.background,
-        this.background,
-      );
+      writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     }
   }
 

@@ -37,6 +37,8 @@ export interface PartSemanticGraph {
   readonly faceNodeIds: Uint32Array;
   /** Face rows sorted by owner element ordinal and authored face index. */
   readonly faceLookupOrdinals: Uint32Array;
+  /** CSR rows into faceLookupOrdinals, grouped by owner element ordinal; empty when no faces. */
+  readonly faceElementOffsets: Uint32Array;
   readonly edgeGeometryOrdinals: Uint8Array;
   /** CSR rows grouping graph edges by retained geometry ordinal. */
   readonly edgeGeometryOffsets: Uint32Array;
