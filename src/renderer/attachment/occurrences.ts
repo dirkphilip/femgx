@@ -98,9 +98,10 @@ export function applyOccurrenceAttachment(options: {
     options.delta.removedPartIds,
   );
   updateSnapshot(options.runtime, options.delta, options.state);
-  const changedSlots = options.delta.slots
-    .filter(({ afterPartId }) => afterPartId !== undefined)
-    .map(({ slot }) => slot);
+  const changedSlots: number[] = [];
+  for (const change of options.delta.slots) {
+    if (change.afterPartId !== undefined) changedSlots.push(change.slot);
+  }
   options.draw.cost.cpu("instance-scan", changedSlots.length);
   const collected = collectInstanceUpdates(
     options.runtime,
@@ -179,21 +180,64 @@ function assignCurrentLocals(
   mergePartOrder(layout.partOrder, newParts);
   const allocators = new Map<PartId, PartLocalAllocator>();
   for (const [partId, count] of required) {
-    allocators.set(partId, preparePartLocalAllocator(layout, partId, count));
+    if (!newParts.has(partId)) {
+      allocators.set(partId, preparePartLocalAllocator(layout, partId, count));
+    }
   }
+  const nextNewLocals = new Map<PartId, number>();
   for (const change of delta.slots) {
     if (change.afterPartId === undefined) continue;
-    const allocator = allocators.get(change.afterPartId);
-    if (allocator === undefined)
-      throw new Error(`Missing part-local allocator for ${change.afterPartId}`);
-    const local = allocator.free[allocator.next++];
-    if (local === undefined)
-      throw new Error(`Exhausted part-local slots for ${change.afterPartId}`);
-    layout.slotPartLocal[change.slot] = local;
-    allocator.slots[local] = change.slot;
+    if (newParts.has(change.afterPartId)) {
+      assignNewPartLocal(layout, required, nextNewLocals, change);
+    } else {
+      assignExistingPartLocal(layout, allocators, change);
+    }
     if (!runtime.isInstanceActive(change.slot))
       throw new Error(`Inactive changed slot ${change.slot}`);
   }
+}
+
+function assignNewPartLocal(
+  layout: InstanceLayout,
+  required: ReadonlyMap<PartId, number>,
+  nextLocals: Map<PartId, number>,
+  change: RuntimeOccurrenceDelta["slots"][number],
+): void {
+  const partId = change.afterPartId;
+  if (partId === undefined) throw new Error("New part assignment is missing its part id");
+  let slots = layout.partLocalSlots.get(partId);
+  let local = 0;
+  if (slots === undefined) {
+    const count = required.get(partId);
+    if (count === undefined) throw new Error(`Missing required slots for part ${partId}`);
+    let capacity = 1;
+    while (capacity < count) capacity *= 2;
+    slots = new Int32Array(capacity).fill(-1);
+    layout.partLocalSlots.set(partId, slots);
+    initializePartCounts(layout, partId);
+  } else {
+    const next = nextLocals.get(partId);
+    if (next === undefined) throw new Error(`Missing next local slot for part ${partId}`);
+    local = next;
+  }
+  nextLocals.set(partId, local + 1);
+  layout.slotPartLocal[change.slot] = local;
+  slots[local] = change.slot;
+}
+
+function assignExistingPartLocal(
+  layout: InstanceLayout,
+  allocators: ReadonlyMap<PartId, PartLocalAllocator>,
+  change: RuntimeOccurrenceDelta["slots"][number],
+): void {
+  const partId = change.afterPartId;
+  if (partId === undefined) throw new Error("Existing part assignment is missing its part id");
+  const allocator = allocators.get(partId);
+  if (allocator === undefined) throw new Error(`Missing part-local allocator for ${partId}`);
+  const local = allocator.free[allocator.next++];
+  if (local === undefined) throw new Error(`Exhausted part-local slots for ${partId}`);
+  layout.slotPartLocal[change.slot] = local;
+  allocator.slots[local] = change.slot;
 }
 
 interface PartLocalAllocator {
@@ -298,26 +342,23 @@ function updateSnapshot(
 }
 
 function resetFlags(state: AttachmentState, slot: number): void {
-  for (const flags of [
-    state.flags.edgeFlags,
-    state.flags.edgeEmphasisFlags,
-    state.flags.nodeFlags,
-    state.flags.transparentFlags,
-    state.flags.selectedNodeFlags,
-  ]) {
-    if (flags.length <= slot) flags.length = slot + 1;
-    flags[slot] = false;
-  }
+  resetFlag(state.flags.edgeFlags, slot);
+  resetFlag(state.flags.edgeEmphasisFlags, slot);
+  resetFlag(state.flags.nodeFlags, slot);
+  resetFlag(state.flags.transparentFlags, slot);
+  resetFlag(state.flags.selectedNodeFlags, slot);
+}
+
+function resetFlag(flags: boolean[], slot: number): void {
+  if (flags.length <= slot) flags.length = slot + 1;
+  flags[slot] = false;
 }
 
 function initializePartCounts(layout: InstanceLayout, partId: PartId): void {
-  for (const counts of [
-    layout.partVisibleCounts,
-    layout.partEdgeCounts,
-    layout.partNodeCounts,
-    layout.partTransparentCounts,
-    layout.partSelectionCounts,
-    layout.partSelectedNodeCounts,
-  ])
-    counts.set(partId, 0);
+  layout.partVisibleCounts.set(partId, 0);
+  layout.partEdgeCounts.set(partId, 0);
+  layout.partNodeCounts.set(partId, 0);
+  layout.partTransparentCounts.set(partId, 0);
+  layout.partSelectionCounts.set(partId, 0);
+  layout.partSelectedNodeCounts.set(partId, 0);
 }

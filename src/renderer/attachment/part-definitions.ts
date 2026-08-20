@@ -72,6 +72,7 @@ export function removeAttachmentParts(
   options: PartAttachmentOptions,
   sourceParts: Map<PartId, Part>,
   partIds: ReadonlySet<PartId>,
+  rebuildCalls = true,
 ): DrawCallLists | undefined {
   const removed = releasePartDefinitions({
     ...options,
@@ -79,7 +80,9 @@ export function removeAttachmentParts(
     partIds,
     draw: options.bundle.draw,
   });
-  return removed ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost) : undefined;
+  return removed && rebuildCalls
+    ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost)
+    : undefined;
 }
 
 function rebuildPartVisibility(options: PartAttachmentOptions, part: Part | undefined): void {

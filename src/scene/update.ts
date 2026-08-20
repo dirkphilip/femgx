@@ -97,11 +97,14 @@ class SceneUpdateDraft implements SceneUpdate {
   removePart(partId: PartId, options?: DefinitionRemovalOptions): void {
     this.ensureActive();
     if (!this.currentParts().has(partId)) throw new Error(`Part ${partId} is not registered`);
-    const references = this.partReferences(partId);
-    if (references > 0 && options?.placements !== "remove") {
-      throw new Error(`Part ${partId} is still referenced by ${references} placement(s)`);
+    if (options?.placements === "remove") {
+      this.pendingPartPlacementRemovals.add(partId);
+    } else {
+      const references = this.partReferences(partId);
+      if (references > 0) {
+        throw new Error(`Part ${partId} is still referenced by ${references} placement(s)`);
+      }
     }
-    if (references > 0) this.pendingPartPlacementRemovals.add(partId);
     this.mutableParts().delete(partId);
     this.mutableVisibleParts().delete(partId);
     this.touchedParts.add(partId);
@@ -331,13 +334,27 @@ class SceneUpdateDraft implements SceneUpdate {
     const removed = this.pendingPartPlacementRemovals;
     for (const [id, assembly] of this.rawAssemblies()) {
       const placements: Placement[] = [];
-      for (const placement of assembly.placements) {
+      let singleRemoval: { readonly placementId: string; readonly index: number } | undefined;
+      let removalCount = 0;
+      for (let index = 0; index < assembly.placements.length; index += 1) {
+        const placement = assembly.placements[index];
+        if (placement === undefined) continue;
         if (placement.kind === "part" && removed.has(placement.partId)) {
           this.placementChanges.push({ ownerAssemblyId: id, before: placement, after: undefined });
+          removalCount += 1;
+          singleRemoval =
+            placement.placementId === undefined
+              ? undefined
+              : { placementId: placement.placementId, index };
         } else placements.push(placement);
       }
       if (placements.length !== assembly.placements.length) {
-        this.placementDrafts.replaceAll(id, assembly, placements);
+        this.placementDrafts.replaceAll(
+          id,
+          assembly,
+          placements,
+          removalCount === 1 ? singleRemoval : undefined,
+        );
       }
     }
     removed.clear();

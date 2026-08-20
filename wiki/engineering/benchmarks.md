@@ -345,21 +345,24 @@ measurements and is separate from the required default-CI budget gate.
 `npm run bench:distinct-part-churn` measures public `Viewport.updateScene`
 transactions against an already attached scene containing 100,000 distinct
 two-element parts with one explicit root occurrence each. Initial scene
-construction, attachment, and the first render are setup. The timed report
-covers repeated admission and cascade removal of one new definition plus its
-occurrence, followed by one transaction removing 50,000 definitions and their
-occurrences and one transaction adding them back. Renderer synchronization uses
-the fake GPU; the report does not claim geometry upload completion, a rendered
-frame, or real GPU timing and remains out of the default CI gate.
+construction, attachment, and the first render are setup. A benchmark-local
+deferred animation-frame scheduler prevents `updateScene` from implicitly
+rendering in Node. Each row reports the structural update, an immediately
+following explicit first render, and their total separately. Part definitions,
+placements, and transforms are prebuilt outside the timed operations. Single
+churn reports p50/p95 after two warmups and seven samples; half-scene churn uses
+one warmup and three samples.
 
-The regression baseline on the local development machine was 228.8 ms to add
-one, 242.3 ms to remove one, 48,642.2 ms to remove half, and 12,978.2 ms to add
-half. After transaction-local placement compaction and batched runtime/renderer
-part-order publication, a clean run measured add-one p50/p95 at 248.0/405.3 ms,
-remove-one at 272.3/317.9 ms, half removal at 340.5 ms, and half addition at
-1,311.6 ms. The single-part rows still publish 100k-entry scene snapshots and
-revise the complete 100k-part draw-call list; the bulk rows demonstrate that one
-transaction no longer repeats those whole-collection costs per part.
+The original combined benchmark measured 228.8 ms to add one, 242.3 ms to
+remove one, 48,642.2 ms to remove half, and 12,978.2 ms to add half. CPU profiles
+showed that the single rows included a synchronous full render while the bulk
+rows also repeated whole-collection placement, runtime-membership, and renderer
+ordering work per part. After phase isolation and profiler-guided batching, a
+clean run measured update/render/total p50 at 13.0/201.6/214.6 ms to add one,
+13.7/191.1/206.6 ms to remove one, 316.7/243.1/758.5 ms to remove half, and
+1,243.9/568.3/1,812.2 ms to add half. Renderer synchronization and the explicit
+frame use the fake GPU; the report makes no real GPU or queue-completion claim
+and remains outside the default CI gate.
 
 `npm run bench` remains a local opt-in Vitest benchmark for the distinct body
 visibility batching comparison in `test/bench/body-batch.bench.ts`. It reports

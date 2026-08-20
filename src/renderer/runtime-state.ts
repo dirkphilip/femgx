@@ -317,44 +317,48 @@ export interface DrawCallLists {
 
 /** Builds the deterministic per-part draw calls from the layout's counts. */
 export function buildDrawCalls(layout: InstanceLayout): DrawCallLists {
-  const calls: DrawCall[] = [];
-  const transparentCalls: DrawCall[] = [];
-  const edgeCalls: DrawCall[] = [];
-  const nodeCalls: DrawCall[] = [];
-  const selectionCalls: DrawCall[] = [];
-  const selectedNodeCalls: DrawCall[] = [];
-  for (const partId of layout.partOrder) {
-    const count = layout.partVisibleCounts.get(partId);
-    if (count !== undefined && count > 0) {
-      const surfaceCalls = layout.partSurfaceDrawCalls.get(partId);
-      if (surfaceCalls === undefined) calls.push({ partId, instanceCount: count });
-      else calls.push(...surfaceCalls);
-    }
-    const edgeCount = layout.partEdgeCounts.get(partId);
-    if (edgeCount !== undefined && edgeCount > 0) {
-      edgeCalls.push({ partId, instanceCount: edgeCount });
-    }
-    const transparentCount = layout.partTransparentCounts.get(partId);
-    if (transparentCount !== undefined && transparentCount > 0) {
-      transparentCalls.push({ partId, instanceCount: transparentCount });
-    }
-    const nodeCount = layout.partNodeCounts.get(partId);
-    if (nodeCount !== undefined && nodeCount > 0) {
-      nodeCalls.push({ partId, instanceCount: nodeCount });
-    }
-    const selectionCount = layout.partSelectionCounts.get(partId);
-    if (selectionCount !== undefined && selectionCount > 0) {
-      const rangedCalls = layout.partSelectionDrawCalls.get(partId);
-      if (rangedCalls === undefined) {
-        selectionCalls.push({ partId, instanceCount: selectionCount });
-      } else {
-        selectionCalls.push(...rangedCalls);
-      }
-    }
-    const selectedNodeCount = layout.partSelectedNodeCounts.get(partId);
-    if (selectedNodeCount !== undefined && selectedNodeCount > 0) {
-      selectedNodeCalls.push({ partId, instanceCount: selectedNodeCount });
-    }
+  const calls = emptyDrawCallLists();
+  for (const partId of layout.partOrder) appendPartDrawCalls(calls, layout, partId);
+  return calls;
+}
+
+/** Creates mutable empty per-pass call lists for attachment-owned derivation. */
+export function emptyDrawCallLists(): DrawCallLists {
+  return {
+    calls: [],
+    transparentCalls: [],
+    edgeCalls: [],
+    nodeCalls: [],
+    selectionCalls: [],
+    selectedNodeCalls: [],
+  };
+}
+
+/** Appends one part's current calls to ascending attachment call lists. */
+export function appendPartDrawCalls(
+  target: DrawCallLists,
+  layout: InstanceLayout,
+  partId: PartId,
+): void {
+  const count = layout.partVisibleCounts.get(partId);
+  if (count !== undefined && count > 0) {
+    const surfaceCalls = layout.partSurfaceDrawCalls.get(partId);
+    if (surfaceCalls === undefined) target.calls.push({ partId, instanceCount: count });
+    else target.calls.push(...surfaceCalls);
   }
-  return { calls, transparentCalls, edgeCalls, nodeCalls, selectionCalls, selectedNodeCalls };
+  appendCountCall(target.edgeCalls, partId, layout.partEdgeCounts.get(partId));
+  appendCountCall(target.transparentCalls, partId, layout.partTransparentCounts.get(partId));
+  appendCountCall(target.nodeCalls, partId, layout.partNodeCounts.get(partId));
+  const selectionCount = layout.partSelectionCounts.get(partId);
+  if (selectionCount !== undefined && selectionCount > 0) {
+    const rangedCalls = layout.partSelectionDrawCalls.get(partId);
+    if (rangedCalls === undefined) {
+      target.selectionCalls.push({ partId, instanceCount: selectionCount });
+    } else target.selectionCalls.push(...rangedCalls);
+  }
+  appendCountCall(target.selectedNodeCalls, partId, layout.partSelectedNodeCounts.get(partId));
+}
+
+function appendCountCall(target: DrawCall[], partId: PartId, count: number | undefined): void {
+  if (count !== undefined && count > 0) target.push({ partId, instanceCount: count });
 }
