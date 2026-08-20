@@ -1,4 +1,5 @@
 import type { Geometry, PartId } from "../geometry/part";
+import { finiteOrZero } from "../math/scalar";
 import type { ResultField, VectorField } from "./fields";
 
 /**
@@ -109,8 +110,4 @@ export function createNodalDisplacementBuffer(
     displacements[source + 2] = finiteOrZero(field.values[source + 2]);
   }
   return displacements;
-}
-
-function finiteOrZero(value: number | undefined): number {
-  return value !== undefined && Number.isFinite(value) ? value : 0;
 }

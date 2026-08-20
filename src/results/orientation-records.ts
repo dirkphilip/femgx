@@ -1,4 +1,5 @@
 import type { Part } from "../geometry/part";
+import { finiteOrZero } from "../math/scalar";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
 import { partSemanticGraph } from "../geometry/semantic/part-semantic-graph";
 import { elementalResultIndex, type ElementFrameField, type VectorField } from "./fields";
@@ -443,8 +444,4 @@ function hasActiveFrameAt(field: ElementFrameField, element: number): boolean {
       Math.hypot(x, y, z) > VECTOR_ZERO_TOLERANCE
     );
   });
-}
-
-function finiteOrZero(value: number | undefined): number {
-  return value !== undefined && Number.isFinite(value) ? value : 0;
 }

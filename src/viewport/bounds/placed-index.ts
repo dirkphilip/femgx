@@ -1,5 +1,6 @@
 import { isFiniteBounds, type Bounds, type Part, type PartId } from "../../geometry/part";
 import { transformPoint } from "../../math/mat4";
+import { nextPowerOfTwo } from "../../math/scalar";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
 import { displayedPartBounds } from "../geometry-bounds";
@@ -147,10 +148,4 @@ function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {
         maxZ = Math.max(maxZ, tz);
       }
   return { minX, minY, minZ, maxX, maxY, maxZ };
-}
-
-function nextPowerOfTwo(value: number): number {
-  let result = 1;
-  while (result < value) result *= 2;
-  return result;
 }

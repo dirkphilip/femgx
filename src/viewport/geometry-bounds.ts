@@ -7,6 +7,7 @@ import {
 } from "../geometry/part";
 import { faceSubsetPrimitiveMask } from "../geometry/face-validation";
 import type { InteractionTarget } from "../interaction/target-types";
+import { finiteOrZero } from "../math/scalar";
 import type { DeformationState } from "../results/deform";
 import {
   geometrySemanticGraph,
@@ -423,8 +424,4 @@ function boundsScale(bounds: Bounds): number {
     bounds.maxY - bounds.minY,
     bounds.maxZ - bounds.minZ,
   );
-}
-
-function finiteOrZero(value: number | undefined): number {
-  return value !== undefined && Number.isFinite(value) ? value : 0;
 }

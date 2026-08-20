@@ -10,7 +10,7 @@ const subsystemDependencies = {
   scene: ["math", "elements", "geometry"],
   "scene-runtime": ["math", "geometry", "scene"],
   interaction: ["camera", "elements", "geometry", "math", "picking", "scene"],
-  results: ["geometry", "interaction"],
+  results: ["geometry", "interaction", "math"],
   picking: ["math", "elements", "geometry", "scene"],
   renderer: [
     "camera",
