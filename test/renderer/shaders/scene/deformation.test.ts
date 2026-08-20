@@ -102,7 +102,7 @@ describe("GPU deformation shader contract", () => {
       /pointVertex\(position, instanceIndex, vertexIndex \/ 4u, vertexIndex, vertexIndex % 4u, false\)/,
     );
     expect(pointVertexShader).toMatch(
-      /nodeOverlayVertexMain[\s\S]*pointVertex\(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true\)/,
+      /nodeOverlayVertexMain[\s\S]*nodeCount = topologyData\[3\][\s\S]*instanceIndex = flatInstance \/ nodeCount[\s\S]*spriteIndex = flatInstance % nodeCount[\s\S]*pointVertex\(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true\)/,
     );
     expect(pointVertexShader).toMatch(/select\(camera\.pointSize, camera\.nodeSize, nodeOverlay\)/);
     expect(pointVertexShader).toMatch(/clip\.z,/);

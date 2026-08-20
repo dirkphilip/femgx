@@ -1,5 +1,6 @@
 import { encodePickId } from "@/renderer/picking/pick-format";
 import { READBACK_BYTE_STRIDE } from "@/renderer/picking/pick";
+import { createRenderPass } from "./render-pass";
 import type {
   BufferCopy,
   DrawCall,
@@ -219,38 +220,6 @@ function createTexture(
       record.destroyCount += 1;
     },
   } as unknown as GPUTexture;
-}
-
-function createRenderPass(state: FakeGpuState): GPURenderPassEncoder {
-  const pass = {
-    setPipeline: (pipeline: { readonly __tag?: string }) => {
-      state.pipelineCalls.push(pipeline);
-      state.counters.currentPipeline = pipeline.__tag ?? "unknown";
-    },
-    setBindGroup: () => undefined,
-    setStencilReference: () => undefined,
-    setVertexBuffer: () => undefined,
-    setIndexBuffer: () => undefined,
-    drawIndexed: (
-      indexCount: number,
-      instanceCount: number,
-      firstIndex = 0,
-      _baseVertex = 0,
-      firstInstance = 0,
-    ) => {
-      const call: DrawCall = {
-        indexCount,
-        instanceCount,
-        ...(firstIndex === 0 ? {} : { firstIndex }),
-        ...(firstInstance === 0 ? {} : { firstInstance }),
-      };
-      state.drawCalls.push(call);
-      state.pipelineDraws.push({ pipeline: state.counters.currentPipeline, ...call });
-    },
-    draw: () => undefined,
-    end: () => undefined,
-  };
-  return pass as unknown as GPURenderPassEncoder;
 }
 
 function createComputePass(state: FakeGpuState): GPUComputePassEncoder {

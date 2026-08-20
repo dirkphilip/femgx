@@ -16,6 +16,8 @@ export interface PartDrawInputs {
   readonly surfaceSubset?: boolean;
   /** Whether to retain the per-path bind group; edge-pick bindings stay transient. */
   readonly cache?: boolean;
+  /** Aligned byte offset into the active occurrence order buffer. */
+  readonly orderByteOffset?: number;
   /** Selects the binding layout admitted for this draw. */
   readonly admission?: "minimal" | "topology" | "feature";
 }
@@ -37,7 +39,7 @@ export function orderBindGroup(
     part.admission === "minimal"
       ? minimalInstanceBindGroup(device, layout, storage, orderBuffer)
       : instanceBindGroup(device, layout, storage, orderBuffer, part);
-  if (part.cache === false) return create();
+  if (part.cache === false || part.orderByteOffset !== undefined) return create();
   if (part.admission === "minimal") {
     return orderKind === "transparent"
       ? (storage.minimalTransparentBindGroup ??= create())
@@ -60,6 +62,10 @@ function minimalInstanceBindGroup(
       { binding: 1, resource: { buffer: orderBuffer } },
     ],
   });
+}
+
+function orderBinding(buffer: GPUBuffer, offset: number | undefined): GPUBufferBinding {
+  return offset === undefined ? { buffer } : { buffer, offset };
 }
 
 function cachedOrderBindGroup(
@@ -135,7 +141,7 @@ function instanceBindGroup(
     layout,
     entries: [
       { binding: 0, resource: { buffer: storage.buffer } },
-      { binding: 1, resource: { buffer: orderBuffer } },
+      { binding: 1, resource: orderBinding(orderBuffer, part.orderByteOffset) },
       { binding: 3, resource: { buffer: storage.highlight.buffer } },
       { binding: 4, resource: { buffer: part.deformation } },
       { binding: 5, resource: { buffer: topologyBuffer } },

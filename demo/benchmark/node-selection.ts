@@ -59,7 +59,13 @@ export async function measureNodeSelectionBenchmark(
     await presentFinalSelection(context);
     await options.holdFinalSelection();
   }
-  return { selectedTargetGranularity: "node", phases };
+  return {
+    selectedTargetGranularity: "node",
+    nodeCenterBytes: context.nodeCount * 3 * Float32Array.BYTES_PER_ELEMENT,
+    nodeIdBytes: context.nodeCount * Uint32Array.BYTES_PER_ELEMENT,
+    nodeSpriteIndexBytes: 0,
+    phases,
+  };
 }
 
 /** Builds sequential authored-node targets for one benchmark occurrence. */
@@ -135,7 +141,7 @@ async function measureNodeScenario(
     targetCount,
     uniqueNodeCount: facts.uniqueNodeCount,
     selectedOccurrenceCount: facts.selection.occurrences.length,
-    selectedNodeDrawIndices: selectedNodeDraw.indices,
+    selectedNodeDrawVertices: selectedNodeDraw.vertices,
     selectedNodeDrawInstances: selectedNodeDraw.instances,
     interactionStateMs,
     interactionSyncMs,
@@ -226,20 +232,20 @@ async function presentFinalSelection(context: NodeSelectionContext): Promise<voi
 function selectedNodeDrawWork(
   nodeCount: number,
   occurrenceCount: number,
-): { readonly indices: number; readonly instances: number } {
-  return { indices: nodeCount * 6 * occurrenceCount, instances: occurrenceCount };
+): { readonly vertices: number; readonly instances: number } {
+  return { vertices: 4, instances: nodeCount * occurrenceCount };
 }
 
 function assertAggregateSelectedWork(
   cost: NodeSelectionBenchmarkPhase["interactionGpuCost"],
-  nodeWork: { readonly indices: number; readonly instances: number },
+  nodeWork: { readonly vertices: number; readonly instances: number },
 ): void {
   for (const pass of ["selection-visible", "selection-hidden"] as const) {
     const draw = cost.draws[pass];
     if (
       draw === undefined ||
       draw.calls !== 1 ||
-      draw.indices !== nodeWork.indices ||
+      draw.indices !== nodeWork.vertices ||
       draw.instances !== nodeWork.instances
     ) {
       throw new Error(`${pass} aggregate included unexpected non-node selection work`);

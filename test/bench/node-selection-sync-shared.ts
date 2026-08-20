@@ -105,8 +105,9 @@ export function details(
     nodePositionsBytes: fixture.nodePositionsBytes,
     nodePickIdsBytes: fixture.nodePickIdsBytes,
     nodeSpriteVertexCount: fixture.nodeCount * 4,
-    nodeSpriteIndexCount: fixture.nodeCount * 6,
-    selectedNodeDrawIndexCount: selectedOccurrenceCount * fixture.nodeCount * 6,
+    nodeSpriteIndexCount: 0,
+    selectedNodeDrawVertexCount: selectedOccurrenceCount * fixture.nodeCount * 4,
+    selectedNodeDrawInstanceCount: selectedOccurrenceCount * fixture.nodeCount,
     denseSelectionBytes: denseNodeBytes(fixture, selected),
     sparseHighlightTableBytes: sparseHighlightTableBytes(selected),
   };

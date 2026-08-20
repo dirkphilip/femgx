@@ -379,8 +379,10 @@ fn pointVertexMain(@location(0) position: vec3<f32>, @builtin(instance_index) in
 }
 
 @vertex
-fn nodeOverlayVertexMain(@builtin(instance_index) instanceIndex: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-  let spriteIndex = vertexIndex / 4u;
+fn nodeOverlayVertexMain(@builtin(instance_index) flatInstance: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  let nodeCount = topologyData[3];
+  let instanceIndex = flatInstance / nodeCount;
+  let spriteIndex = flatInstance % nodeCount;
   let positionBase = spriteIndex * 3u;
   let position = vec3<f32>(
     geometryPosition(positionBase),

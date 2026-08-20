@@ -12,17 +12,12 @@ interface PointSpriteBuffers {
   readonly indices: Uint32Array;
 }
 
-/** Compacts the authored centers and ids used by procedural node sprites. */
-export function buildNodeSpriteBuffers(
+/** Compacts the authored centers and ids addressed by procedural node sprites. */
+export function compactNodeSpriteData(
   nodes: Float32Array,
   spritePickIds: Uint32Array,
-): { readonly positions: Float32Array; readonly ids: Uint32Array; readonly indices: Uint32Array } {
-  const positions = compactNodePositions(nodes, spritePickIds);
-  const indices = new Uint32Array(spritePickIds.length * 6);
-  for (let sprite = 0; sprite < spritePickIds.length; sprite += 1) {
-    writePointSpriteIndices(indices, sprite);
-  }
-  return { positions, ids: spritePickIds, indices };
+): { readonly positions: Float32Array; readonly ids: Uint32Array } {
+  return { positions: compactNodePositions(nodes, spritePickIds), ids: spritePickIds };
 }
 
 function compactNodePositions(nodes: Float32Array, spritePickIds: Uint32Array): Float32Array {

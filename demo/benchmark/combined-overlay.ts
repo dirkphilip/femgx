@@ -85,9 +85,15 @@ export async function measureCombinedOverlayBenchmark(
   renderer.updateInstances(runtime, createInteractionState(), slots);
   renderer.updateElements(runtime, createInteractionState(), slots);
   await renderFrame(options);
+  const nodeWork = nodeDrawWork(options);
   return {
     nodes: true,
     presentationEdges: true,
+    nodeCenterBytes: nodeWork.nodeCount * 3 * Float32Array.BYTES_PER_ELEMENT,
+    nodeIdBytes: nodeWork.nodeCount * Uint32Array.BYTES_PER_ELEMENT,
+    nodeSpriteIndexBytes: 0,
+    nodeDrawVertices: nodeWork.vertices,
+    nodeDrawInstances: nodeWork.instances,
     coldNodeInteractionSyncMs,
     coldNodeFirstFrameMs: coldNodeFrame.queueMs,
     coldNodeFirstFrameCpuMs: coldNodeFrame.cpuMs,
@@ -236,8 +242,8 @@ function assertOverlayWork(
       ? 2 * cells * (cells + 1)
       : 3 * cells * cells + 2 * cells;
   const expectedEdgeIndices = edgeCount * 2;
-  const expectedNodeIndices = (cells + 1) * (cells + 1) * 6;
   const expected = { calls: 1, instances: options.runtime.instanceCount };
+  const nodeWork = nodeDrawWork(options);
   const edges = cost.draws["edges"];
   const nodes = cost.draws["nodes"];
   if (
@@ -245,8 +251,8 @@ function assertOverlayWork(
     edges.indices !== expectedEdgeIndices ||
     edges.instances !== expected.instances ||
     nodes?.calls !== expected.calls ||
-    nodes.indices !== expectedNodeIndices ||
-    nodes.instances !== expected.instances ||
+    nodes.indices !== nodeWork.vertices ||
+    nodes.instances !== nodeWork.instances ||
     edgePartIds.size !== options.benchmarkCase.scene.parts.size
   ) {
     throw new Error(
@@ -254,7 +260,7 @@ function assertOverlayWork(
         edges,
         nodes,
         expectedEdgeIndices,
-        expectedNodeIndices,
+        expectedNodeDraw: { calls: 1, indices: nodeWork.vertices, instances: nodeWork.instances },
         expected,
         materializedEdgePartCount: edgePartIds.size,
       })}`,
@@ -266,16 +272,25 @@ function assertNodeWork(
   options: CombinedOverlayOptions,
   cost: CombinedOverlayBenchmarkReport["coldNodeGpuCost"],
 ): void {
-  const cells = options.benchmarkCase.gridCells;
   const nodes = cost.draws["nodes"];
+  const nodeWork = nodeDrawWork(options);
   if (
     nodes?.calls !== 1 ||
-    nodes.indices !== (cells + 1) * (cells + 1) * 6 ||
-    nodes.instances !== options.runtime.instanceCount ||
+    nodes.indices !== nodeWork.vertices ||
+    nodes.instances !== nodeWork.instances ||
     (cost.draws["edges"]?.calls ?? 0) !== 0
   ) {
     throw new Error(`${options.benchmarkCase.id} node overlay omitted structural draw work`);
   }
+}
+
+function nodeDrawWork(options: CombinedOverlayOptions): {
+  readonly nodeCount: number;
+  readonly vertices: 4;
+  readonly instances: number;
+} {
+  const nodeCount = (options.benchmarkCase.gridCells + 1) ** 2;
+  return { nodeCount, vertices: 4, instances: nodeCount * options.runtime.instanceCount };
 }
 
 async function renderFrame(options: CombinedOverlayOptions): Promise<number> {

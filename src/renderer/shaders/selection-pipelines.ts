@@ -96,7 +96,7 @@ export async function createSelectionPipelines(
       label: "node",
       vertexModule: options.pointVertex,
       vertexEntry: "nodeOverlayVertexMain",
-      primitive: "triangle-list",
+      primitive: "triangle-strip",
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
       vertexBuffers: [],

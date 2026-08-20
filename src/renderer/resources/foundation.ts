@@ -23,7 +23,8 @@ export interface PartEdgePickResource {
 
 export interface PartResource {
   readonly vertexBuffer: GPUBuffer;
-  readonly indexBuffer: GPUBuffer;
+  /** Absent for procedural node sprites, which use non-indexed quad strips. */
+  readonly indexBuffer?: GPUBuffer;
   /** Minimal triangle index order into the shared source vertex table. */
   readonly minimalIndexBuffer?: GPUBuffer;
   readonly minimalIndexOffset?: number;
@@ -45,6 +46,8 @@ export interface PartResource {
   edge: PartEdgeResource | undefined;
   edgePick: PartEdgePickResource | undefined;
   readonly indexCount: number;
+  /** Logical node-sprite count for the private procedural node draw path. */
+  readonly nodeCount?: number;
   /** Optional compact index orders for a validated face subset. */
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetMinimalIndexBuffer?: GPUBuffer;
