@@ -212,9 +212,9 @@ describe("GPU draw path", () => {
       expect(gpu.buffers[4]?.size).toBe(36);
       expect(gpu.buffers[5]?.size).toBe(12);
       expect(gpu.buffers[6]?.size).toBe(12);
-      expect(gpu.buffers[7]?.size).toBe(72);
+      expect(gpu.buffers[7]?.size).toBe(76);
       expect(first.minimalIndexBuffer).toBe(first.facePickIdsBuffer);
-      expect(first.minimalIndexOffset).toBe(60);
+      expect(first.minimalIndexOffset).toBe(64);
       expect(first.edge).toBeUndefined();
     } finally {
       restore();

@@ -32,7 +32,7 @@ import { measureNodeSelectionBenchmark } from "./node-selection";
 import { measureHoverBenchmark } from "./hover";
 import { measureVisibilityBenchmark } from "./visibility";
 import { measureManyPieceBenchmark } from "./many-piece";
-import { measureCombinedOverlayBenchmark } from "./combined-overlay";
+import { captureHiddenInterior, measureCombinedOverlayBenchmark } from "./combined-overlay";
 import type {
   BenchmarkTimings,
   NodeSelectionBenchmarkReport,
@@ -81,6 +81,7 @@ export async function measureBenchmarkCase(
       phase: "all-but-one" | "all-authored",
     ) => Promise<void>;
     readonly holdCombinedOverlayForCapture?: () => Promise<void>;
+    readonly holdHiddenInteriorForCapture?: () => Promise<void>;
   } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
@@ -217,6 +218,17 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    if (options.holdHiddenInteriorForCapture !== undefined) {
+      phase = "half-hidden interior capture";
+      await captureHiddenInterior({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        hold: options.holdHiddenInteriorForCapture,
+      });
+    }
     phase = "many-piece interaction sample";
     manyPiece = await measureManyPieceBenchmark({
       renderer,

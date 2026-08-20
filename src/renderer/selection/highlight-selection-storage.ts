@@ -12,6 +12,8 @@ export interface HighlightSelectionStorage {
   readonly selectionSlotCapacity: number;
   readonly selectionRecordCapacity: number;
   readonly selectionWordCapacity: number;
+  readonly visibilityRecordCapacity: number;
+  readonly visibilityWordCapacity: number;
   readonly nodeSelectionSlotCapacity: number;
   readonly nodeSelectionRecordCapacity: number;
   readonly nodeSelectionWordCapacity: number;
@@ -20,7 +22,15 @@ export interface HighlightSelectionStorage {
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
 export interface HighlightStorage extends HighlightSelectionStorage {
   denseSelection: DenseElementSelection | undefined;
+  denseVisibility: DenseElementSelection | undefined;
   denseNodeSelection: DenseNodeSelection | undefined;
+}
+
+/** Dense membership sections packed beside the sparse emphasis table. */
+export interface DenseHighlightPayload {
+  readonly selection: DenseElementSelection | undefined;
+  readonly visibility: DenseElementSelection | undefined;
+  readonly nodeSelection: DenseNodeSelection | undefined;
 }
 
 /** Dense and sparse capacities used to size one highlight payload. */
@@ -29,6 +39,8 @@ export interface HighlightPayloadCapacity {
   readonly selectionSlotCapacity: number;
   readonly selectionRecordCapacity: number;
   readonly selectionWordCapacity: number;
+  readonly visibilityRecordCapacity: number;
+  readonly visibilityWordCapacity: number;
   readonly nodeSelectionSlotCapacity: number;
   readonly nodeSelectionRecordCapacity: number;
   readonly nodeSelectionWordCapacity: number;
@@ -41,6 +53,8 @@ export function highlightByteLength(capacity: HighlightPayloadCapacity): number 
     capacity.sparseCapacity * ELEMENT_RECORD_STRIDE +
     capacity.selectionSlotCapacity * 4 +
     capacity.selectionRecordCapacity * capacity.selectionWordCapacity * 4 +
+    capacity.selectionSlotCapacity * 4 +
+    capacity.visibilityRecordCapacity * capacity.visibilityWordCapacity * 4 +
     capacity.nodeSelectionSlotCapacity * 4 +
     capacity.nodeSelectionRecordCapacity * capacity.nodeSelectionWordCapacity * 4
   );
@@ -50,14 +64,18 @@ export function highlightByteLength(capacity: HighlightPayloadCapacity): number 
 export function writeSelectionHeader(
   view: Uint32Array,
   storage: HighlightSelectionStorage,
-  selection: DenseElementSelection | undefined,
+  payload: DenseHighlightPayload,
   selectedTheme: PrimitiveStyleOverride | undefined,
-  nodeSelection?: DenseNodeSelection,
 ): void {
+  const { selection, nodeSelection, visibility } = payload;
   const sparseWords = storage.sparseCapacity * (ELEMENT_RECORD_STRIDE / 4);
   const offsetWord = sparseWords;
   const bitsWord = offsetWord + storage.selectionSlotCapacity;
-  const nodeOffsetWord = bitsWord + storage.selectionRecordCapacity * storage.selectionWordCapacity;
+  const visibilityOffsetWord =
+    bitsWord + storage.selectionRecordCapacity * storage.selectionWordCapacity;
+  const visibilityBitsWord = visibilityOffsetWord + storage.selectionSlotCapacity;
+  const nodeOffsetWord =
+    visibilityBitsWord + storage.visibilityRecordCapacity * storage.visibilityWordCapacity;
   const nodeBitsWord = nodeOffsetWord + storage.nodeSelectionSlotCapacity;
   view[3] =
     selection === undefined
@@ -94,20 +112,29 @@ export function writeSelectionHeader(
   view[17] = nodeBitsWord;
   view[18] = nodeSelection?.occurrences.length ?? 0;
   view[19] = storage.nodeSelectionSlotCapacity;
+  view[20] =
+    visibility === undefined
+      ? storage.visibilityWordCapacity
+      : Math.ceil(visibility.elementCount / 32);
+  view[21] = visibilityOffsetWord;
+  view[22] = visibilityBitsWord;
+  view[23] = visibility?.occurrences.length ?? 0;
 }
 
 /** Copies dense offsets and packed per-occurrence words into the fixed payload. */
 export function writeDenseSelectionData(
   next: Uint8Array,
   storage: HighlightSelectionStorage,
-  selection: DenseElementSelection | undefined,
-  nodeSelection?: DenseNodeSelection,
+  payload: DenseHighlightPayload,
 ): void {
+  const { selection, nodeSelection, visibility } = payload;
   const view = new Uint32Array(next.buffer);
   const offsetWord = view[4] ?? 0;
   const bitsWord = view[5] ?? 0;
   const nodeOffsetWord = view[16] ?? 0;
   const nodeBitsWord = view[17] ?? 0;
+  const visibilityOffsetWord = view[21] ?? 0;
+  const visibilityBitsWord = view[22] ?? 0;
   const dataBase = HIGHLIGHT_HEADER / 4;
   view.fill(0xffffffff, dataBase + offsetWord, dataBase + bitsWord);
   view.fill(
@@ -123,10 +150,27 @@ export function writeDenseSelectionData(
       nodeBitsWord +
       storage.nodeSelectionRecordCapacity * storage.nodeSelectionWordCapacity,
   );
+  view.fill(0xffffffff, dataBase + visibilityOffsetWord, dataBase + visibilityBitsWord);
+  view.fill(
+    0,
+    dataBase + visibilityBitsWord,
+    dataBase +
+      visibilityBitsWord +
+      storage.visibilityRecordCapacity * storage.visibilityWordCapacity,
+  );
   if (selection !== undefined) {
     for (const [record, occurrence] of selection.occurrences.entries()) {
       view[dataBase + offsetWord + occurrence.slot] = record;
       view.set(occurrence.words, dataBase + bitsWord + record * storage.selectionWordCapacity);
+    }
+  }
+  if (visibility !== undefined) {
+    for (const [record, occurrence] of visibility.occurrences.entries()) {
+      view[dataBase + visibilityOffsetWord + occurrence.slot] = record;
+      view.set(
+        occurrence.words,
+        dataBase + visibilityBitsWord + record * storage.visibilityWordCapacity,
+      );
     }
   }
   if (nodeSelection === undefined) return;

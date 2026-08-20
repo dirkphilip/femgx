@@ -35,6 +35,7 @@ import {
   writeDenseSelectionBuffer,
   writeDenseSelectionData,
   writeSelectionHeader,
+  type DenseHighlightPayload,
   type HighlightStorage,
 } from "./highlight-selection-storage";
 import { readInteractionState } from "../../interaction/state";
@@ -50,6 +51,7 @@ const EMPTY_HIGHLIGHT_HEADER = new Uint32Array(4);
 interface HighlightWriteOptions {
   readonly cost?: GpuCostAccumulator;
   readonly selection?: DenseElementSelection | undefined;
+  readonly visibility?: DenseElementSelection | undefined;
   readonly nodeSelection?: DenseNodeSelection | undefined;
   readonly selectedTheme?: PrimitiveStyleOverride | undefined;
   readonly slotCapacity?: number;
@@ -66,15 +68,25 @@ export function writeElementHighlights(
   const table = buildHighlightTable(entries);
   const selection = options.selection;
   const nodeSelection = options.nodeSelection;
-  if (table.entries.length === 0 && selection === undefined && nodeSelection === undefined) {
+  const visibility = options.visibility;
+  const payload: DenseHighlightPayload = { selection, visibility, nodeSelection };
+  if (
+    table.entries.length === 0 &&
+    selection === undefined &&
+    visibility === undefined &&
+    nodeSelection === undefined
+  ) {
     releaseHighlightStorage(device, storage, options.cost);
     return;
   }
   const storageReallocated = ensureHighlightStorage(device, storage, {
     minimumRecords: table.entries.length,
-    selectionSlotCapacity: selection === undefined ? 0 : (options.slotCapacity ?? 0),
+    selectionSlotCapacity:
+      selection === undefined && visibility === undefined ? 0 : (options.slotCapacity ?? 0),
     selectionRecordCapacity: selection?.occurrences.length ?? 0,
     selectionWordCapacity: selection === undefined ? 0 : Math.ceil(selection.elementCount / 32),
+    visibilityRecordCapacity: visibility?.occurrences.length ?? 0,
+    visibilityWordCapacity: visibility === undefined ? 0 : Math.ceil(visibility.elementCount / 32),
     nodeSelectionSlotCapacity: nodeSelection === undefined ? 0 : (options.slotCapacity ?? 0),
     nodeSelectionRecordCapacity: nodeSelection?.occurrences.length ?? 0,
     nodeSelectionWordCapacity:
@@ -83,22 +95,25 @@ export function writeElementHighlights(
   });
   const highlight = storage.highlight;
   const selectionChanged =
-    highlight.denseSelection !== selection || highlight.denseNodeSelection !== nodeSelection;
+    highlight.denseSelection !== selection ||
+    highlight.denseVisibility !== visibility ||
+    highlight.denseNodeSelection !== nodeSelection;
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const view = new Uint32Array(header.buffer);
   view[0] = entries.length;
   view[1] = table.bucketCount;
   view[2] = table.seed;
-  writeSelectionHeader(view, highlight, selection, options.selectedTheme, nodeSelection);
+  writeSelectionHeader(view, highlight, payload, options.selectedTheme);
   writeChangedRanges(device, storage, header, table.entries, options.cost);
   highlight.data.set(header);
   if (selectionChanged) {
-    writeDenseSelectionData(highlight.data, highlight, selection, nodeSelection);
+    writeDenseSelectionData(highlight.data, highlight, payload);
   }
   if (selectionChanged || storageReallocated) {
     writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost);
   }
   highlight.denseSelection = selection;
+  highlight.denseVisibility = visibility;
   highlight.denseNodeSelection = nodeSelection;
 }
 
@@ -203,6 +218,7 @@ export interface ElementHighlightSync {
   readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly denseSelections?: DenseElementSelections;
+  readonly denseVisibility?: DenseElementSelections;
   readonly denseNodeSelections?: DenseNodeSelections;
 }
 
@@ -227,6 +243,7 @@ export function syncElementHighlights(
       parts: sync.parts,
       interaction,
       denseSelections,
+      ...(sync.denseVisibility === undefined ? {} : { denseHidden: sync.denseVisibility }),
       ...(sync.denseNodeSelections === undefined
         ? {}
         : { denseNodeSelections: sync.denseNodeSelections }),
@@ -238,6 +255,7 @@ export function syncElementHighlights(
     if (storage === undefined) continue;
     const selection = denseSelections.get(partId);
     const nodeSelection = sync.denseNodeSelections?.get(partId);
+    const visibility = sync.denseVisibility?.get(partId);
     writeElementHighlights(
       sync.device,
       storage,
@@ -253,6 +271,7 @@ export function syncElementHighlights(
       {
         cost: sync.draw.cost,
         selection,
+        visibility,
         nodeSelection,
         selectedTheme,
         slotCapacity: storage.capacity,

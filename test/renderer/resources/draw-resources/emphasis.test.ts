@@ -94,7 +94,9 @@ describe("GPU draw path", () => {
           },
         ],
       ]);
-      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), denseSelections);
+      syncInstanceEmphasisAdmission(draw, new Map(), new Set([part.id]), {
+        elements: denseSelections,
+      });
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
       expect(flags[22]).toBe(INSTANCE_EMPHASIS_FLAG);
     } finally {

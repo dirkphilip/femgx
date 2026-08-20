@@ -19,7 +19,7 @@ describe("packed topology data", () => {
     );
 
     expect(Array.from(data)).toEqual([
-      1, 1, 1, 2, 10, 11, 12, 13, 14, 0, 1, 20, 21, 30, 31, 41, 42, 2, 51, 52, 61, 62,
+      1, 1, 1, 2, 0, 10, 11, 12, 13, 14, 0, 1, 20, 21, 30, 31, 0, 0, 41, 42, 2, 51, 52, 61, 62,
     ]);
   });
 
@@ -33,6 +33,7 @@ describe("packed topology data", () => {
 
     const expected = packTopologyData(faceData, bodyRanges, bodyIds, elementIds, {
       elementOrdinals,
+      conditionElementOrdinals: new Uint32Array([5, 0, 4, 0, 5, 0]),
       primitiveIds: [],
       edgeIds,
     });
@@ -49,6 +50,7 @@ describe("packed topology data", () => {
       elementOrdinals,
       new Uint32Array([21, 9]),
       edgeIds,
+      (elementPickId) => (elementPickId === 21 ? 4 : elementPickId === 9 ? 5 : 0),
     );
 
     expect(actual).toEqual(expected);
@@ -72,7 +74,13 @@ describe("packed topology data", () => {
     );
 
     expect(
-      packUnownedEdgeTopologyData(empty, new Uint32Array(), new Uint32Array(), new Uint32Array()),
+      packUnownedEdgeTopologyData(
+        empty,
+        new Uint32Array(),
+        new Uint32Array(),
+        new Uint32Array(),
+        () => 0,
+      ),
     ).toEqual(expected);
   });
 
@@ -90,6 +98,6 @@ describe("packed topology data", () => {
       },
     );
 
-    expect(Array.from(data)).toEqual([1, 1, 0, 1, 0, 0, 0, 7, 0, 0, 1, 2, 1, 3, 4, 5, 6]);
+    expect(Array.from(data)).toEqual([1, 1, 0, 1, 0, 0, 0, 0, 7, 0, 0, 1, 2, 1, 3, 4, 5, 6]);
   });
 });
