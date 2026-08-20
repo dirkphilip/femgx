@@ -1,4 +1,5 @@
-export type BenchmarkCapture = "node-selection" | "combined-overlay" | "element-selection";
+export type BenchmarkCapture =
+  "node-selection" | "combined-overlay" | "element-selection" | "hidden-interior";
 
 export type ElementSelectionCapture = "all-but-one" | "all-authored";
 
