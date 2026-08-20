@@ -80,8 +80,11 @@ the `rgba16float` accumulation finite under supported overlap. The renderer
 derives one internal contributor predicate from fractional scene calls, hidden
 selection/node calls, the origin triad, and the active orbit pivot. When none is
 present, it resolves the opaque MSAA color directly to the swap chain, draws
-edge/node helpers in that same MSAA pass, and retains no OIT-only targets. This
-does not inspect pixels or change product semantics. This remains a
+ordinary node and always-visible edge helpers in that same MSAA pass, and
+retains no OIT-only targets. Depth-tested native edges instead use their active
+resolved-depth presentation path after this pass, followed by node annotations
+so nodes remain on top. This does not inspect pixels or change product
+semantics. This remains a
 weighted-blended approximation: it improves front/back readability but does
 not recover exact per-pixel ordering, refraction, thickness, or absorption.
 

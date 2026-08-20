@@ -113,15 +113,17 @@ paths. Admission changes only when authoritative state changes and must not scan
 the full scene each frame. Pipeline objects are owned and cached per renderer,
 not rebuilt per model or Performance Lab case.
 
-Dense exterior presentation shares the visible color path:
+Dense exterior presentation keeps 4× MSAA for surfaces and node annotations.
+When no depth-tested presentation edge is admitted, it adds no overlay target,
+resolve pipeline, bind group, or per-frame work; always-visible edges draw
+directly in the ordinary MSAA presentation pass. Active depth-tested native
+edges resolve conservative multisample surface depth once into a single-sample
+depth attachment, then draw into the already resolved visible color. Node
+annotations then use that same resolved pass so they remain above authored
+edges. That active-only two-pass cost retains compact endpoint geometry and
+stable coplanar edge visibility without changing the ordinary surface shader or
+depth contract.
 
-- Surfaces, presentation edges, and node annotations retain 4× MSAA. Edges and
-  nodes draw at the end of the opaque pass, or at the end of the composite pass
-  when weighted transparency is active, before that pass resolves to the
-  canvas.
-- Presentation overlays reuse the multisampled color and depth targets. They do
-  not add a single-sample overlay pass, a copied depth attachment, or an extra
-  color resolve.
 - Presentation edges use compact authored endpoints as one-device-pixel native
   lines. Exact edge picking keeps separate lazy screen-space-width quads.
 - Node display and node interaction data remain separable. Node presentation
@@ -142,6 +144,14 @@ the combined edge/node view. Those results remain historical optimization
 evidence, not the quality baseline for the current four-sample path. Future
 dense-overlay measurements must preserve authored topology and four-sample
 presentation rather than silently thinning or degrading it.
+
+The opt-in `combined-overlay` capture asserts both `overlay-depth` and
+`overlay` passes for the dense `instanced-2.10m` case at desktop and 390×844.
+For #1216, the local system-Chrome run reached both screenshots but subsequently
+failed an existing visibility-accounting assertion, so it is not performance
+evidence. Windows/RTX evidence was also not obtained: no runner was available
+and workflow dispatch returned HTTP 403. Neither platform may be represented as
+having passed.
 
 ## Invariants
 

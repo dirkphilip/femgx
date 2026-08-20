@@ -6,6 +6,12 @@ import {
 } from "@/renderer/edges/mesh-edge";
 import { expandMeshEdgeData, meshEdgeEndpointData } from "@/renderer/edges/edge-expansion";
 import { createPart, type ElementTessellation, type GeometryInput } from "@/geometry/part";
+import {
+  createElement,
+  createElementModel,
+  createPartFromElementModel,
+  ElementShape,
+} from "@/entries/model";
 
 type SemanticGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];
@@ -36,6 +42,25 @@ function bodyMembership(elements: readonly ElementTessellation[]) {
 }
 
 describe("buildMeshEdgeData", () => {
+  it("retains authored top and side Hex8 edges before raster presentation", () => {
+    const part = createPartFromElementModel(
+      1,
+      createElementModel(
+        new Float32Array([
+          0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0.2, 1, 0, 0.2, 1, 1, 0.2, 0, 1, 0.2,
+        ]),
+        [createElement(1, ElementShape.Hex8, [0, 1, 2, 3, 4, 5, 6, 7])],
+      ),
+    );
+    const geometry = part.geometries.find((candidate) => candidate.primitive === "triangles");
+    if (geometry === undefined) throw new Error("Hex8 part has no triangle presentation geometry");
+
+    const edges = buildMeshEdgeData(geometry, geometry.indices, part.elements ?? []);
+
+    expect(edges.edgeNodeIds).toContainEqual([4, 5]);
+    expect(edges.edgeNodeIds).toContainEqual([1, 5]);
+  });
+
   it("uses importer-owned presentation edges without global topology hashing", () => {
     const geometry = {
       positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),

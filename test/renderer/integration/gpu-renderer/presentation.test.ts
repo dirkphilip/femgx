@@ -1,12 +1,14 @@
 import { expect, it, describe } from "vitest";
 import {
   createWebGpuRenderer,
+  readGpuCostSnapshot,
   createPackedSceneRuntime,
   createInteractionState,
   setPartOverride,
   fakeCanvas,
   fakeGpuDevice,
   buildScene,
+  buildPointScene,
   camera,
   installGpuTestEnvironment,
 } from "./support";
@@ -31,6 +33,8 @@ describe("WebGPU renderer", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
+    const inactiveShaderCount = gpu.shaderModuleDescriptors.length;
+    const inactivePipelineCount = gpu.renderPipelineDescriptors.length;
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws).toEqual([
       { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
@@ -39,6 +43,15 @@ describe("WebGPU renderer", () => {
     const edge = setPartOverride(createInteractionState(), 1, { edge: true });
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 1, overlay: 1 });
+    expect(readGpuCostSnapshot(renderer).targets).toMatchObject({ presentationOverlay: true });
+    expect(gpu.shaderModuleDescriptors).toHaveLength(inactiveShaderCount + 1);
+    expect(gpu.renderPipelineDescriptors).toHaveLength(inactivePipelineCount + 1);
+    expect(
+      gpu.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "presentation depth resolve",
+      ),
+    ).toBe(true);
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
       { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
       { pipeline: "pipeline-22", indexCount: 6, instanceCount: 3 },
@@ -46,6 +59,9 @@ describe("WebGPU renderer", () => {
 
     renderer.setEdgeDepthTest(false);
     renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 0, overlay: 0 });
+    expect(readGpuCostSnapshot(renderer).targets).toMatchObject({ presentationOverlay: false });
+    expect(gpu.textures.at(-1)?.destroyed).toBe(true);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-23",
       indexCount: 6,
@@ -60,6 +76,29 @@ describe("WebGPU renderer", () => {
       instanceCount: 3,
     });
 
+    renderer.destroy();
+  });
+
+  it("does not admit resolved presentation work for edge-styled point-only parts", async () => {
+    const gpu = fakeGpuDevice();
+    installGpuTestEnvironment(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildPointScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const shaderCount = gpu.shaderModuleDescriptors.length;
+    const pipelineCount = gpu.renderPipelineDescriptors.length;
+
+    renderer.updateInstances(
+      runtime,
+      setPartOverride(createInteractionState(), 1, { edge: true }),
+      [0],
+    );
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 0, overlay: 0 });
+    expect(readGpuCostSnapshot(renderer).targets).toMatchObject({ presentationOverlay: false });
+    expect(gpu.shaderModuleDescriptors).toHaveLength(shaderCount);
+    expect(gpu.renderPipelineDescriptors).toHaveLength(pipelineCount);
     renderer.destroy();
   });
 

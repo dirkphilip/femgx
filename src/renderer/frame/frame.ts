@@ -11,6 +11,8 @@ import { ensureColorTargets, ensureCompositeBindGroup } from "./pipelines";
 import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
+import { drawPresentationOverlayPass, needsResolvedOverlay } from "./presentation-overlay";
+import { releaseResolvedNodeOverlayPipeline } from "../shaders/node-overlay";
 import { drawSectionCaps } from "./section-cap-draw";
 import { writeFrameUniforms } from "./frame-uniforms";
 import type { GpuTimestampFrame } from "../diagnostics/timestamps";
@@ -58,6 +60,7 @@ interface VisibleFrameSetup {
   readonly targets: ReadyColorTargets;
   readonly swapChainView: GPUTextureView;
   readonly needsTransparency: boolean;
+  readonly resolvedOverlay: boolean;
   readonly orbitPivotActive: boolean;
 }
 
@@ -94,18 +97,22 @@ function prepareVisibleFrame(
     },
     orbitPivotActive,
   );
+  const resolvedOverlay = needsResolvedOverlay(frame, parts);
   const targets = ensureColorTargets(frame.draw, {
     width: frame.canvas.width,
     height: frame.canvas.height,
     colorFormat: frame.colorFormat,
     depthFormat: frame.depthFormat,
     requiresTransparency: needsTransparency,
+    requiresOverlays: resolvedOverlay,
   });
+  if (!resolvedOverlay) releaseResolvedNodeOverlayPipeline(frame.resources.nodeOverlayPipelines);
   frame.draw.cost.targets(
     frame.canvas.width,
     frame.canvas.height,
     frame.devicePixelRatio,
     needsTransparency,
+    resolvedOverlay,
   );
   return {
     colorEncoder: frame.device.createCommandEncoder({ label: "femgx visible frame" }),
@@ -113,6 +120,7 @@ function prepareVisibleFrame(
     targets,
     swapChainView: frame.context.getCurrentTexture().createView({ label: "femgx swapchain view" }),
     needsTransparency,
+    resolvedOverlay,
     orbitPivotActive,
   };
 }
@@ -124,13 +132,21 @@ export function encodeVisibleFrame(
   frame: FrameOptions,
 ): void {
   const timestampFrame = frame.timestampRecorder?.beginFrame();
-  const { colorEncoder, context, targets, swapChainView, needsTransparency, orbitPivotActive } =
-    prepareVisibleFrame(camera, parts, frame);
+  const {
+    colorEncoder,
+    context,
+    targets,
+    swapChainView,
+    needsTransparency,
+    resolvedOverlay,
+    orbitPivotActive,
+  } = prepareVisibleFrame(camera, parts, frame);
   drawOpaquePass({
     colorEncoder,
     context,
     frame,
     needsTransparency,
+    resolvedOverlay,
     orbitPivotActive,
     swapChainView,
     targets,
@@ -150,7 +166,18 @@ export function encodeVisibleFrame(
       encoder: colorEncoder,
       frame,
       context,
+      resolvedOverlay,
       targets: weightedTargets,
+      swapChainView,
+      timestampFrame,
+    });
+  }
+  if (resolvedOverlay) {
+    drawPresentationOverlayPass({
+      encoder: colorEncoder,
+      frame,
+      context,
+      targets,
       swapChainView,
       timestampFrame,
     });
@@ -164,6 +191,7 @@ interface OpaquePassOptions {
   readonly context: DrawCallContext;
   readonly frame: FrameOptions;
   readonly needsTransparency: boolean;
+  readonly resolvedOverlay: boolean;
   readonly orbitPivotActive: boolean;
   readonly swapChainView: GPUTextureView;
   readonly targets: ReadyColorTargets;
@@ -176,6 +204,7 @@ function drawOpaquePass(options: OpaquePassOptions): void {
     context,
     frame,
     needsTransparency,
+    resolvedOverlay,
     orbitPivotActive,
     swapChainView,
     targets,
@@ -216,7 +245,7 @@ function drawOpaquePass(options: OpaquePassOptions): void {
   drawOrientationGlyphs(opaquePass, frame, context, frame.calls, "visible");
   if (orbitPivotActive) drawOrbitPivot(opaquePass, frame.resources.orbitPivot, "visible");
   if (orbitPivotActive) frame.draw.cost.draw("pivot", 60);
-  if (!needsTransparency) drawPresentationOverlays(opaquePass, frame, context);
+  if (!needsTransparency && !resolvedOverlay) drawPresentationOverlays(opaquePass, frame, context);
   popDebugGroup(opaquePass);
   opaquePass.end();
 }
@@ -272,13 +301,15 @@ interface CompositePassOptions {
   readonly encoder: GPUCommandEncoder;
   readonly frame: FrameOptions;
   readonly context: DrawCallContext;
+  readonly resolvedOverlay: boolean;
   readonly targets: WeightedColorTargets;
   readonly swapChainView: GPUTextureView;
   readonly timestampFrame: GpuTimestampFrame | undefined;
 }
 
 function drawCompositePass(options: CompositePassOptions): void {
-  const { encoder, frame, context, targets, swapChainView, timestampFrame } = options;
+  const { encoder, frame, context, targets, swapChainView, timestampFrame, resolvedOverlay } =
+    options;
   const pass = beginCompositePass(
     encoder,
     targets.color.createView({ label: "femgx composite color view" }),
@@ -292,7 +323,7 @@ function drawCompositePass(options: CompositePassOptions): void {
   pass.setBindGroup(0, ensureCompositeBindGroup(frame.draw, frame.resources));
   pass.draw(3);
   frame.draw.cost.draw("composite", 3);
-  drawPresentationOverlays(pass, frame, context);
+  if (!resolvedOverlay) drawPresentationOverlays(pass, frame, context);
   popDebugGroup(pass);
   pass.end();
 }
@@ -306,9 +337,7 @@ function drawPresentationOverlays(
     pushDebugGroup(pass, "edges");
     drawBatches(pass, frame.draw, context, frame.edgeCalls, {
       kind: "edge",
-      pipeline: frame.edgeDepthTest
-        ? frame.resources.edgePipeline
-        : frame.resources.edgeAlwaysPipeline,
+      pipeline: frame.resources.edgeAlwaysPipeline,
     });
     popDebugGroup(pass);
   }

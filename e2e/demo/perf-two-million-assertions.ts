@@ -70,6 +70,7 @@ function expectCombinedOverlay(entry: WebGpuBenchmarkCaseResult): void {
     calls: entry.partCount,
     instances: entry.instanceCount,
   });
+  expect(overlay.coldEdgeGpuCost.passes).toMatchObject({ "overlay-depth": 1, overlay: 1 });
   expect(overlay.largeSelection.targetCount).toBe(entry.uniqueElementCount);
   expect(overlay.largeSelection.interactionHighlightWriteBytes).toBeGreaterThan(0);
   expect(overlay.largeSelection.gpuCost.draws["nodes"]).toMatchObject({

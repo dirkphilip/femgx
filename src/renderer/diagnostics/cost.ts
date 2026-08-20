@@ -1,5 +1,12 @@
 /** Passes encoded by one visible frame or a pick snapshot. */
-export const GPU_COST_PASSES = ["opaque", "transparency", "composite", "pick"] as const;
+export const GPU_COST_PASSES = [
+  "opaque",
+  "transparency",
+  "composite",
+  "overlay-depth",
+  "overlay",
+  "pick",
+] as const;
 export type GpuCostPass = (typeof GPU_COST_PASSES)[number];
 
 /** Draw categories used to separate renderer features in a frame cost. */
@@ -16,6 +23,7 @@ export const GPU_COST_DRAWS = [
   "vector-glyph",
   "origin-triad",
   "pivot",
+  "overlay-depth",
   "pick",
 ] as const;
 export type GpuCostDraw = (typeof GPU_COST_DRAWS)[number];
@@ -65,6 +73,7 @@ export interface GpuTargetCost {
   readonly devicePixelRatio: number;
   readonly sampleCount: number;
   readonly weightedTransparency: boolean;
+  readonly presentationOverlay: boolean;
   readonly estimatedBytes: number;
 }
 
@@ -189,6 +198,7 @@ export class GpuCostAccumulator {
     height: number,
     devicePixelRatio: number,
     weightedTransparency = true,
+    presentationOverlay = false,
   ): void {
     const pixels = width * height;
     this.targetCost = {
@@ -197,10 +207,13 @@ export class GpuCostAccumulator {
       devicePixelRatio,
       sampleCount: 4,
       weightedTransparency,
+      presentationOverlay,
       // The no-weighted path retains only MSAA color and depth. The weighted
       // path adds the resolved opaque color, rgba16f accumulation, and r8
-      // revealage targets (81 bytes per physical pixel in total).
-      estimatedBytes: pixels * (weightedTransparency ? 81 : 32),
+      // revealage targets (81 bytes per physical pixel in total). Active native
+      // edge presentation additionally owns one single-sample depth target.
+      estimatedBytes:
+        pixels * (weightedTransparency ? 81 : 32) + (presentationOverlay ? pixels * 4 : 0),
     };
   }
 
@@ -254,6 +267,8 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
     opaque: 0,
     transparency: 0,
     composite: 0,
+    "overlay-depth": 0,
+    overlay: 0,
     pick: 0,
   };
 }
@@ -285,6 +300,7 @@ function emptyDrawCounts(): Record<GpuCostDraw, MutableDrawCost> {
     "selection-hidden": drawCost(),
     transparency: drawCost(),
     composite: drawCost(),
+    "overlay-depth": drawCost(),
     edges: drawCost(),
     nodes: drawCost(),
     "vector-glyph": drawCost(),
@@ -323,6 +339,7 @@ function cloneDrawCounts(
     "selection-hidden": { ...counts["selection-hidden"] },
     transparency: { ...counts.transparency },
     composite: { ...counts.composite },
+    "overlay-depth": { ...counts["overlay-depth"] },
     edges: { ...counts.edges },
     nodes: { ...counts.nodes },
     "vector-glyph": { ...counts["vector-glyph"] },

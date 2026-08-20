@@ -152,6 +152,44 @@ describe("GPU draw path", () => {
     }
   });
 
+  it("allocates resolved presentation depth only while native edge display is active", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const inactive = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: false,
+      });
+      expect(inactive.overlayDepth).toBeUndefined();
+      const active = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: false,
+        requiresOverlays: true,
+      });
+      expect(active.overlayDepth).toBeDefined();
+      expect(gpu.textureCreations).toBe(3);
+      const released = ensureColorTargets(draw, {
+        width: 800,
+        height: 600,
+        colorFormat: "bgra8unorm",
+        depthFormat: "depth24plus-stencil8",
+        requiresTransparency: false,
+      });
+      expect(released.overlayDepth).toBeUndefined();
+      expect(gpu.textures[2]?.destroyed).toBe(true);
+      destroyDrawResources(draw);
+    } finally {
+      restore();
+    }
+  });
+
   it("cleans partial visible-target allocation without publishing half-state", () => {
     const restore = installGpuGlobals();
     try {

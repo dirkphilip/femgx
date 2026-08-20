@@ -158,7 +158,11 @@ async function createEdgePipelines(
     edgeFragmentShader,
     validation,
   );
-  const create = (label: string, depthCompare: GPUCompareFunction): Promise<GPURenderPipeline> =>
+  const create = (
+    label: string,
+    depthCompare: GPUCompareFunction,
+    sampleCount: number,
+  ): Promise<GPURenderPipeline> =>
     createValidatedRenderPipeline(device, label, {
       layout,
       vertex: { module: vertexModule, entryPoint: "vertexMain", buffers: [vertexLayout] },
@@ -181,11 +185,11 @@ async function createEdgePipelines(
         depthWriteEnabled: false,
         depthCompare,
       },
-      multisample: { count: COLOR_SAMPLE_COUNT },
+      multisample: { count: sampleCount },
     });
   const [edgePipeline, edgeAlwaysPipeline] = await Promise.all([
-    create("edge overlay depth-tested", "less-equal"),
-    create("edge overlay always-visible", "always"),
+    create("edge overlay depth-tested", "less-equal", 1),
+    create("edge overlay always-visible", "always", COLOR_SAMPLE_COUNT),
   ]);
   return { edgePipeline, edgeAlwaysPipeline };
 }
