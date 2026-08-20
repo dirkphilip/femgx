@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
@@ -23,6 +22,14 @@ const MEANINGLESS_PUNCTUATION = new Set([
 
 function isStructuralChild(node) {
   if (ts.isIdentifier(node) || ts.isPrivateIdentifier(node)) return true;
+  if (
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isNumericLiteral(node) ||
+    ts.isRegularExpressionLiteral(node)
+  ) {
+    return true;
+  }
   if (!ts.isToken(node)) return true;
   const token = ts.tokenToString(node.kind);
   return token !== undefined && !MEANINGLESS_PUNCTUATION.has(token);
@@ -188,11 +195,6 @@ export function typeShapeFingerprintMembers(members) {
 /** Fingerprints a consecutive statement or member list as one fragment. */
 export function fingerprintNodes(nodes) {
   return nodes.map((node) => structuralFingerprint(node)).join("||");
-}
-
-/** Shortens a structural fingerprint to a stable identifier. */
-export function digestFingerprint(fingerprint) {
-  return createHash("sha256").update(fingerprint).digest("hex").slice(0, 16);
 }
 
 /** Parses a source file into a TypeScript AST for fingerprinting. */

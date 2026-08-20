@@ -1,11 +1,12 @@
 # Duplication checks
 
-Advisory lint tools that find duplicated TypeScript by **structure**, not text. Identifiers
+Advisory audit tools that find duplicated TypeScript by **structure**, not text. Identifiers
 are normalized away (`value`, `x`, `first` all become the same shape), but operators and
 control flow are kept (`+` vs `*`, `if` vs `while`, and so on).
 
-All commands print findings to stdout and exit `0`. They are meant for review and refactor
-planning, not as hard CI gates unless you opt in later.
+All commands print findings to stdout and exit `0`. They are occasional audit tools for review
+and refactor planning; they are not part of the default lint command or CI.
+Audits are uncapped by default and report every match that meets the selected thresholds.
 
 ## Layout
 
@@ -25,12 +26,12 @@ Tests: `test/scripts/duplicates/`.
 
 ```bash
 # All three checkers on src, test, and demo
-npm run lint:duplicates
+npm run audit:duplicates
 
 # One checker, one tree
-npm run lint:duplicate-names
-npm run lint:duplicate-bodies
-npm run lint:duplicate-fragments
+npm run audit:duplicate-names
+npm run audit:duplicate-bodies
+npm run audit:duplicate-fragments
 
 # Direct invocation (paths are relative to the scan root you pass)
 node scripts/duplicates/check-names.mjs src
@@ -59,6 +60,7 @@ node scripts/duplicates/check-fragments.mjs demo
 
 - Scans top-level `function`, `type`, and `interface` declarations.
 - Matches even when names differ (`clamp` vs `limit`).
+- Includes short and empty declaration bodies; use ignore entries to suppress intentional matches.
 - For interfaces and types, property names are ignored but **type names are kept**
   (`Vec3` vs `GPURenderPipeline` do not match).
 - Example output:
@@ -121,7 +123,7 @@ node scripts/duplicates/check-fragments.mjs src --ignore scripts/duplicates/frag
 | `--min-lines`      |                                    6 | Minimum source lines in a fragment                   |
 | `--min-statements` |                                    3 | Minimum consecutive statements in a window           |
 | `--min-files`      |                                    2 | Require matches in at least this many distinct files |
-| `--max-reports`    |                                  100 | Cap the number of reported clone clusters            |
+| `--max-reports`    |                            unlimited | Optionally cap the reported clone clusters           |
 | `--ignore`         | checker-specific JSON in this folder | Path to an ignore list                               |
 
 If you omit the scan root, all checkers default to the repository `src/` directory.
@@ -187,7 +189,7 @@ Suppress fragments overlapping a range. Omit `startLine` / `endLine` to ignore t
   and parallel abstractions (`validateElements`, `InstanceLayout`, local `ElementId` aliases).
 - Start with **fragments** at `--min-lines 10` on `src/` for the highest-value factor-out
   candidates; widen thresholds if you want a broader audit.
-- **Bodies** are fast; **fragments** scan every statement window and take longer on large trees.
+- **Bodies** are fast; **fragments** index every statement sequence and take longer on large trees.
 - Use all three together: a repeated **name** may need consolidation even when bodies differ;
   identical **bodies** with different names are refactor targets; long **fragments** are
   extract-helper candidates.

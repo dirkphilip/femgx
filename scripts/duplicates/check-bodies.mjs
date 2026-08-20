@@ -5,7 +5,6 @@ import ts from "typescript";
 import {
   collectSourceFiles,
   defaultScanRoot,
-  digestFingerprint,
   parseSourceFile,
   structuralFingerprint,
   typeShapeFingerprint,
@@ -13,8 +12,6 @@ import {
 } from "./fingerprint.mjs";
 
 const DEFAULT_IGNORE_PATH = resolve(import.meta.dirname, "body-ignores.json");
-const MIN_FINGERPRINT_LENGTH = 24;
-
 const HASHABLE_TOP_LEVEL = new Set([
   ts.SyntaxKind.FunctionDeclaration,
   ts.SyntaxKind.TypeAliasDeclaration,
@@ -29,7 +26,7 @@ const HASHABLE_TOP_LEVEL = new Set([
  * @property {DeclarationKind} kind The declaration kind.
  * @property {string} sourcePath Absolute path of the declaring file.
  * @property {number} line One-based declaration line.
- * @property {string} hash Structural digest of the declaration body.
+ * @property {string} fingerprint Structural fingerprint of the declaration body.
  */
 
 /**
@@ -73,15 +70,13 @@ function collectHashableDeclarations(sourcePath) {
     if (name === undefined || kind === undefined) continue;
 
     const fingerprint = declarationBodyFingerprint(statement, kind);
-    if (fingerprint.length < MIN_FINGERPRINT_LENGTH) continue;
-
     const position = source.getLineAndCharacterOfPosition(statement.getStart(source));
     declarations.push({
       name,
       kind,
       sourcePath,
       line: position.line + 1,
-      hash: digestFingerprint(fingerprint),
+      fingerprint,
     });
   }
 
@@ -136,18 +131,18 @@ function isIgnored(occurrence, root, ignoreEntries) {
 export function findDuplicateBodyViolations(root, ignorePath = DEFAULT_IGNORE_PATH) {
   const ignoreEntries = loadIgnoreEntries(ignorePath);
   /** @type {Map<string, DeclarationOccurrence[]>} */
-  const byHash = new Map();
+  const byFingerprint = new Map();
 
   for (const sourcePath of collectSourceFiles(root)) {
     for (const declaration of collectHashableDeclarations(sourcePath)) {
-      const occurrences = byHash.get(declaration.hash) ?? [];
+      const occurrences = byFingerprint.get(declaration.fingerprint) ?? [];
       occurrences.push(declaration);
-      byHash.set(declaration.hash, occurrences);
+      byFingerprint.set(declaration.fingerprint, occurrences);
     }
   }
 
   const violations = [];
-  for (const occurrences of byHash.values()) {
+  for (const occurrences of byFingerprint.values()) {
     const active = occurrences.filter((occurrence) => !isIgnored(occurrence, root, ignoreEntries));
     const distinctFiles = new Set(active.map(({ sourcePath }) => sourcePath));
     if (active.length < 2 || distinctFiles.size < 2) continue;

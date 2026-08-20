@@ -49,6 +49,14 @@ describe("duplicates/check-bodies", () => {
     expect(result.stdout).toBe("");
   });
 
+  it("keeps literal values in structural fingerprints", () => {
+    const root = makeRepo({
+      "src/a.ts": 'function first(): void { console.log("first", 1); }\n',
+      "src/b.ts": 'function second(): void { console.log("second", 2); }\n',
+    });
+    expect(runCheck(root).stdout).toBe("");
+  });
+
   it("reports identical function bodies with different names across files", () => {
     const root = makeRepo({
       "src/a.ts":
@@ -85,6 +93,15 @@ describe("duplicates/check-bodies", () => {
     expect(result.stdout).toContain("Same interface body in 2 file(s)");
     expect(result.stdout).toContain("src/a.ts:1 Alpha");
     expect(result.stdout).toContain("src/b.ts:1 Beta");
+  });
+
+  it("reports empty declaration bodies instead of applying a hidden size threshold", () => {
+    const root = makeRepo({
+      "src/a.ts": "interface Alpha {}\n",
+      "src/b.ts": "interface Beta {}\n",
+    });
+    const result = runCheck(root);
+    expect(result.stdout).toContain("Same interface body in 2 file(s)");
   });
 
   it("reports identical type alias bodies with different names", () => {

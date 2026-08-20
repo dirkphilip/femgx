@@ -11,65 +11,52 @@ each cluster).
 
 ## Data sources
 
-- `src` names: 44 repeated top-level declaration names across 2+ files.
-- `src` bodies: 40 identical-body clusters (functions + interfaces + types).
-- `src` fragments (`--min-lines 10`): 22 clone reports down to 10-line windows.
-- `test` names: 41 clusters; `test` bodies: 22 clusters; `test` fragments: 40.
-- `demo` names: 12 clusters; `demo` bodies: 11 clusters; `demo` fragments: 1.
+- `src` names: 54 repeated top-level declaration names across 2+ files.
+- `src` bodies: 68 identical-body clusters (functions + interfaces + types).
+- `src` fragments (`--min-lines 10`): 14 maximal clone reports.
+- `test` names: 44 clusters; `test` bodies: 19 clusters; `test` fragments: 10.
+- `demo` names: 10 clusters; `demo` bodies: 14 clusters; `demo` fragments: 1.
 
-## src type consolidation clusters (bodies checker, "Same type/interface body")
+## Current high-signal body clusters
 
-Highest-value, most repeated shapes (identical after identifier normalization):
-
-| Shape                                                    | Files                                                                                                                                                                                        |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ElementId` (`type` = number)                            | `elements/element.ts:7`, `geometry/packed/packed-semantic-index.ts:16`, `geometry/part-semantic-index.ts:17`, `geometry/part-semantic-types.ts:4`                                            |
-| `Bounds`-like (`{min,max}`)                              | `geometry/types.ts:33 Bounds`, `interaction/box-selection.ts:7 BoxSelectionRect`, `viewport/geometry-bounds.ts:26 MutableBounds`                                                             |
-| point/vector 3-cluster                                   | `camera/project-polygon.ts:12 ScreenPoint`, `math/vec3.ts:5 Vec3`, `viewport/orientation-gizmo-svg.ts:20 CubePoint` (+ `results/load-records.ts:7 Vec3`)                                     |
-| 8-file identical shape                                   | `RenderPixel`, `CanvasCssPoint`, `GesturePoint`, `Edge`, `SourcePosition`, `GpuWriteCost`, `MutableWriteCost`, `ValueRange`, `ProjectedPoint`, `ViewportStats`                               |
-| 8-file identical shape                                   | `CameraContentInset`, `ScreenBounds`, `RectBounds`, `OrthographicExtents`, `Color`, `FlattenOffsets`, `ResolvedPickIds`, `OrbitPivotMetrics`, `RenderPixelRect`, `RawIdentity`, `Quaternion` |
-| 4-file identical shape                                   | `ClipPoint`, `EdgeCondition`, `Rgba`, `TriangleOwnerPair`                                                                                                                                    |
-| Parallel dense-selection types                           | `element-selection.ts` `DenseElementLayout`/`DenseElementOccurrence` vs `node-selection.ts` `DenseNodeLayout`/`DenseNodeOccurrence`                                                          |
-| `HiddenInteractionIds`/`HiddenInteractionTuple`          | `renderer/attachment.ts:43-44` vs `renderer/attachment/interaction.ts:23-24` (same names AND bodies)                                                                                         |
-| `ElementModelOptions` ≡ `ElementModelConversionOptions`  | `elements/model-types.ts:23` vs `io/conversions/element-model.ts:13`                                                                                                                         |
-| `Body` ≡ `GeometryBody`                                  | `elements/model-types.ts:10` vs `geometry/types.ts:20`                                                                                                                                       |
-| `BoxSelectionModifiers` ≡ `ViewportInteractionModifiers` | `interaction/box-selection.ts:26` vs `interaction/viewport-interaction-types.ts:30`                                                                                                          |
-| `ModelSet` ≡ `PendingSet`                                | `io/fem-model.ts:52` vs `io/model-builder.ts:19`                                                                                                                                             |
-| `ElementPrimitiveRange` ≡ `SelectionDrawRange`           | `geometry/types.ts:69` vs `renderer/resources/draw-resources.ts:72`                                                                                                                          |
-
-## src identical function bodies
-
-| Cluster                                                         | Files                                                                                                                                      |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `clamp` ×2                                                      | `interaction/box-frustum.ts:168`, `interaction/box-selection.ts:290`                                                                       |
-| `modifiersOf` ×2                                                | `interaction/box-selection.ts:281`, `interaction/viewport-interaction-helpers.ts:18`                                                       |
-| `assertFinite`/`assertFiniteNumber` ×2                          | `camera/camera.ts:354`, `camera/navigation.ts:175`                                                                                         |
-| `validateNodePositions` ×2                                      | `geometry/packed/packed-validation.ts:95`, `geometry/part.ts:188`                                                                          |
-| `sameTables` + `invalidateBindGroups` + `createEmpty*Buffer` ×2 | `renderer/frame/deformation.ts:146,252,262`, `renderer/resources/result-colors.ts:36,175,184`                                              |
-| `contains` ×2 (byte-identical)                                  | `renderer/visibility/packed-skin.ts:65`, `renderer/visibility/skins.ts:352`                                                                |
-| `emptyRecords` ×2                                               | `results/load-records.ts:65`, `results/orientation-records.ts:343`                                                                         |
-| `formatPoint`/`finite` ×2                                       | `viewport/orientation-gizmo-axis.ts:127,141`, `viewport/orientation-gizmo-svg.ts:396,419`                                                  |
-| `sequentialIndices` ×2                                          | `renderer/resources/surface-geometry.ts:125`, `renderer/resources/triangle-upload.ts:64`                                                   |
-| `emptyEdgeData`/`emptyMeshEdgeData` ×2                          | `renderer/edges/dense-unowned-edge.ts:246`, `renderer/resources/geometry-buffers.ts:114`                                                   |
-| `nextPowerOfTwo` ×2                                             | `renderer/selection/highlight-table.ts:95`, `viewport/bounds/placed-index.ts:152`                                                          |
-| `finiteOrZero`/`finite` ×4                                      | `results/deform.ts:114`, `results/load-records.ts:197`, `results/orientation-records.ts:433`, `viewport/geometry-bounds.ts:403`            |
-| dense-selection mirrors                                         | `element-selection.ts` vs `node-selection.ts`: `instanceUsesDenseSelection`, `dense*OccurrenceAtSlot`, `sortedInstances`                   |
-| interaction setters (5 files, 10+ fns)                          | `interaction/{bodies,edges,faces,interaction,nodes}.ts` `set*Selected`/`set*Highlighted`/`set*Override` (thin delegates to shared helpers) |
+- Dense selection mirrors `Dense*Layout`, `Dense*Occurrence`, candidates,
+  `instanceUsesDenseSelection`, occurrence lookup, and sorting between element
+  and node selection.
+- Face/edge topology repeats sorting, pair-index lookup, edge-index lookup, and
+  canonical face comparison across `elements/faces.ts`,
+  `geometry/element-mesh-builders.ts`, `geometry/{edge,face}-validation.ts`, and
+  `geometry/semantic/`.
+- Deformation and result-color resources repeat `sameTables`, bind-group
+  invalidation, and empty-buffer creation.
+- `finiteOrZero`/`finite` occurs in four result/bounds modules; `emptyRecords`
+  occurs in load and orientation records.
+- `sequentialIndices`, `nextPowerOfTwo`, `emptyEdgeData`, `formatPoint`,
+  `clamp`, and `modifiersOf` each have two implementations.
+- `Body`/`GeometryBody`, box-selection modifiers, model/pending sets,
+  orientation record sources, bounds shapes, and attachment hidden-id types are
+  same-shape pairs worth semantic review.
+- Large same-shape interface clusters remain structural noise: coordinate
+  pairs, colors, ranges, costs, pick ids, and quaternions are not one domain
+  concept merely because their member types match.
 
 ## src fragment clones (10+ lines)
 
 | Size    | Clone                                                                                                                                            |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 16-line | `geometry/packed/packed-validation.ts:77-92 validateGeometry` vs `geometry/part.ts:245-261 validateGeometryArrays`                               |
+| 24-line | repeated windows in `renderer/interaction-sync.ts:85-100 interactionAffectedSlots` vs `viewport/interaction-diff.ts:47-70 changedInstanceSlots`  |
+| 16-line | face-row merging/sorting across `elements/faces.ts` and `geometry/{explicit-topology,semantic}/`                                                 |
+| 16-line | face-row merging/sorting across `geometry/element-mesh-builders.ts` and `geometry/semantic/surface-edge-fragments.ts`                            |
 | 14-line | `renderer/selection/element-selection.ts:65-78 collectDenseElementSelections` vs `node-selection.ts:63-76 collectDenseNodeSelections`            |
+| 14-line | semantic face-ordinal lookup in `face-subset-columns.ts` vs `part-semantic-graph.ts`                                                             |
 | 13-line | dense occurrence binary search (`dense*OccurrenceAtSlot`)                                                                                        |
-| 13-line | `elements/model-validation.ts:74-86 validateBodies` vs `geometry/part-validation.ts:234-246 collectBodyElements`                                 |
-| 12-line | `renderer/interaction-sync.ts:85-96 interactionAffectedSlots` vs `viewport/interaction-diff.ts:47-70 changedInstanceSlots`                       |
+| 13-line | canonical face writing in `elements/faces.ts` vs `geometry/element-mesh-builders.ts`                                                             |
+| 12-line | canonical face/node comparison across geometry builders                                                                                          |
+| 12-line | face-row merging/sorting across `elements/faces.ts` and `geometry/explicit-topology/identity.ts`                                                 |
 | 11-line | `invalidateBindGroups` (deformation vs result-colors)                                                                                            |
 | 11-line | `renderer/picking/pick.ts:389-399 resetPickTargets` vs `renderer/resources/color-targets.ts:246-256 destroyTransparencyTargets`                  |
+| 11-line | `renderer/visibility/graph-skin.ts:64-74 contains` vs `renderer/visibility/skins.ts:355-365 contains`                                            |
 | 10-line | `setBodyOverride` vs `setElementOverride`                                                                                                        |
 | 10-line | `renderer/resources/instance-storage.ts:446-455 invalidateBindGroups` vs `highlight-storage-allocation.ts:112-121 invalidateHighlightBindGroups` |
-| 10-line | `elements/model-validation.ts:59-68 validateBodies` vs `geometry/part-validation.ts:201-210 validateBodyOrder`                                   |
 
 ## test duplication
 
@@ -80,9 +67,8 @@ Highest-value, most repeated shapes (identical after identifier normalization):
   `deferred` ×2, `triangleGeometry` ×5, `ids` ×3, `rect` ×2.
 - `renderer/resources/draw-resources/*.test.ts` (batches/overlays/targets/
   geometry/selection): 10-14-line boilerplate clusters across 4+ files.
-- 47-line module-level clone: `check-bodies.test.ts:70-116` vs
-  `check-names.test.ts:44-87` (the two checker test suites share an entire
-  golden-output assertion block).
+- Module-level clone between `check-bodies.test.ts` and `check-names.test.ts`
+  (the two checker test suites share a large golden-output assertion block).
 - `scene-runtime/*.test.ts` module-level scene-boilerplate clones (17-line).
 
 ## demo duplication

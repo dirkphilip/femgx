@@ -61,6 +61,44 @@ describe("duplicates/check-fragments", () => {
     expect(result.stdout).toContain("src/b.ts:");
   });
 
+  it("reports only the maximal shared statement window", () => {
+    const root = makeRepo({
+      "src/a.ts":
+        "function alpha(): number {\n  const a = 1;\n  const b = 2;\n  const c = 3;\n  const d = a + b + c;\n  return d;\n}\n",
+      "src/b.ts":
+        "function beta(): number {\n  const w = 1;\n  const x = 2;\n  const y = 3;\n  const z = w + x + y;\n  return z;\n}\n",
+    });
+    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    expect(result.stdout.match(/^Fragment clone /gmu)).toHaveLength(1);
+    expect(result.stdout).toContain("Fragment clone (5 lines, 5 statements");
+  });
+
+  it("keeps a shorter clone when it also occurs outside the maximal pair", () => {
+    const shared = "  const a = 1;\n  const b = 2;\n  const c = 3;\n  const d = a + b + c;\n";
+    const root = makeRepo({
+      "src/a.ts": `function alpha(): number {\n${shared}  return d;\n}\n`,
+      "src/b.ts": `function beta(): number {\n${shared}  return d;\n}\n`,
+      "src/c.ts": `function gamma(): void {\n${shared}}\n`,
+    });
+    const result = runCheck(root, ["--min-lines", "3", "--min-statements", "3"]);
+    expect(result.stdout).toContain("5 statements, 2 files");
+    expect(result.stdout).toContain("4 statements, 3 files");
+  });
+
+  it("reports every qualifying cluster unless an explicit cap is requested", () => {
+    const functions = Array.from(
+      { length: 105 },
+      (_, index) =>
+        `function match${index}(): void {\n  const value = ${index};\n  const next = value + ${index + 1};\n  console.log(next);\n}\n`,
+    ).join("");
+    const root = makeRepo({ "src/a.ts": functions, "src/b.ts": functions });
+    const args = ["--min-lines", "3", "--min-statements", "3"];
+    expect(runCheck(root, args).stdout.match(/^Fragment clone /gmu)).toHaveLength(105);
+    expect(
+      runCheck(root, [...args, "--max-reports", "7"]).stdout.match(/^Fragment clone /gmu),
+    ).toHaveLength(7);
+  });
+
   it("sorts longer fragments before shorter ones and groups by line count", () => {
     const root = makeRepo({
       "src/a.ts":

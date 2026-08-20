@@ -5,18 +5,15 @@ import ts from "typescript";
 import {
   collectSourceFiles,
   defaultScanRoot,
-  digestFingerprint,
-  fingerprintNodes,
   lineSpan,
   parseSourceFile,
+  structuralFingerprint,
 } from "./fingerprint.mjs";
 
 const DEFAULT_IGNORE_PATH = resolve(import.meta.dirname, "fragment-ignores.json");
 const DEFAULT_MIN_LINES = 6;
 const DEFAULT_MIN_STATEMENTS = 3;
 const DEFAULT_MIN_FILES = 2;
-const DEFAULT_MAX_REPORTS = 100;
-const MIN_FINGERPRINT_LENGTH = 48;
 
 /**
  * @typedef {object} FragmentOccurrence
@@ -26,7 +23,6 @@ const MIN_FINGERPRINT_LENGTH = 48;
  * @property {number} lineCount Source lines covered by the window.
  * @property {number} statementCount Statements in the window.
  * @property {string} context Enclosing function or method name.
- * @property {string} hash Structural digest of the window.
  */
 
 /**
@@ -41,111 +37,102 @@ const MIN_FINGERPRINT_LENGTH = 48;
  * @property {number} minLines Minimum window line count.
  * @property {number} minStatements Minimum window statement count.
  * @property {number} minFiles Minimum distinct files to report.
- * @property {number} maxReports Maximum clone clusters to report.
+ * @property {number | undefined} maxReports Optional maximum clone clusters to report.
  * @property {string | undefined} ignorePath Path to the ignore JSON file.
  */
 
 /**
- * @typedef {object} FragmentScan
- * @property {import("typescript").SourceFile} sourceFile Parsed source file.
- * @property {string} sourcePath Absolute path of the declaring file.
- * @property {string} context Enclosing function or method name.
- * @property {FragmentScanOptions} options Active scan thresholds.
- * @property {FragmentOccurrence[]} fragments Collected fragment windows.
+ * @typedef {object} FragmentSequence
+ * @property {Map<string, FragmentSequence>} children Continuations keyed by statement shape.
+ * @property {FragmentOccurrence[]} occurrences Windows ending at this sequence.
  */
 
-function blockStatements(node) {
-  if (ts.isBlock(node)) return node.statements;
-  return undefined;
-}
+/**
+ * @typedef {object} FragmentIndex
+ * @property {import("typescript").SourceFile} sourceFile Parsed source file.
+ * @property {string} sourcePath Absolute path of the declaring file.
+ * @property {FragmentScanOptions} options Active scan thresholds.
+ * @property {FragmentSequence} rootSequence Shared sequence index root.
+ */
 
-function visitForFragments(node, scan) {
-  if (ts.isCaseBlock(node)) {
-    for (const clause of node.clauses) {
-      if (clause.statements.length >= scan.options.minStatements) {
-        collectFragmentWindows(clause.statements, scan);
-      }
-    }
+function contextForNode(node, context) {
+  if (ts.isFunctionDeclaration(node) && node.name !== undefined) return node.name.text;
+  if (ts.isMethodDeclaration(node) && node.name !== undefined) return node.name.getText();
+  if (ts.isConstructorDeclaration(node)) return "constructor";
+  if (ts.isGetAccessorDeclaration(node) && node.name !== undefined) {
+    return `get ${node.name.getText()}`;
   }
-
-  const statements = blockStatements(node);
-  if (statements !== undefined && statements.length >= scan.options.minStatements) {
-    collectFragmentWindows(statements, scan);
+  if (ts.isSetAccessorDeclaration(node) && node.name !== undefined) {
+    return `set ${node.name.getText()}`;
   }
-
-  if (ts.isFunctionDeclaration(node) && node.name !== undefined) {
-    scan.context = node.name.text;
-  } else if (ts.isMethodDeclaration(node) && node.name !== undefined) {
-    scan.context = node.name.text;
-  } else if (ts.isConstructorDeclaration(node)) {
-    scan.context = "constructor";
-  } else if (ts.isGetAccessorDeclaration(node) && node.name !== undefined) {
-    scan.context = `get ${node.name.text}`;
-  } else if (ts.isSetAccessorDeclaration(node) && node.name !== undefined) {
-    scan.context = `set ${node.name.text}`;
-  } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
     const initializer = node.initializer;
     if (
       initializer !== undefined &&
       (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer))
     ) {
-      scan.context = node.name.text;
-      const body = initializer.body;
-      if (ts.isBlock(body)) {
-        collectFragmentWindows(body.statements, scan);
+      return node.name.text;
+    }
+  }
+  return context;
+}
+
+function visitForFragments(node, context, index) {
+  const nextContext = contextForNode(node, context);
+  if (ts.isCaseBlock(node)) {
+    for (const clause of node.clauses) {
+      if (clause.statements.length >= index.options.minStatements) {
+        indexFragmentWindows(clause.statements, nextContext, index);
       }
     }
   }
 
+  if (ts.isBlock(node) && node.statements.length >= index.options.minStatements) {
+    indexFragmentWindows(node.statements, nextContext, index);
+  }
+
   ts.forEachChild(node, (child) => {
-    visitForFragments(child, scan);
+    visitForFragments(child, nextContext, index);
   });
 }
 
-function collectFragmentWindows(statements, scan) {
-  const { sourceFile, sourcePath, context, options, fragments } = scan;
+function indexFragmentWindows(statements, context, index) {
+  const { sourceFile, sourcePath, options, rootSequence } = index;
+  const fingerprints = statements.map((statement) => structuralFingerprint(statement));
   for (let start = 0; start <= statements.length - options.minStatements; start += 1) {
-    for (let end = start + options.minStatements; end <= statements.length; end += 1) {
-      if (!isMaximalStatementWindow(statements, start, end)) continue;
-
-      const window = statements.slice(start, end);
-      const span = lineSpan(sourceFile, window[0], window[window.length - 1]);
+    let sequence = rootSequence;
+    for (let end = start; end < statements.length; end += 1) {
+      sequence = childSequence(sequence, fingerprints[end]);
+      const statementCount = end - start + 1;
+      if (statementCount < options.minStatements) continue;
+      const span = lineSpan(sourceFile, statements[start], statements[end]);
       if (span.lineCount < options.minLines) continue;
-
-      const fingerprint = fingerprintNodes(window);
-      if (fingerprint.length < MIN_FINGERPRINT_LENGTH) continue;
-
-      fragments.push({
+      sequence.occurrences.push({
         sourcePath,
         startLine: span.startLine,
         endLine: span.endLine,
         lineCount: span.lineCount,
-        statementCount: window.length,
+        statementCount,
         context,
-        hash: digestFingerprint(fingerprint),
       });
     }
   }
 }
 
-function isMaximalStatementWindow(statements, start, end) {
-  const fingerprint = fingerprintNodes(statements.slice(start, end));
-  if (start > 0 && fingerprintNodes(statements.slice(start - 1, end)) === fingerprint) return false;
-  if (
-    end < statements.length &&
-    fingerprintNodes(statements.slice(start, end + 1)) === fingerprint
-  ) {
-    return false;
+function childSequence(sequence, fingerprint) {
+  let child = sequence.children.get(fingerprint);
+  if (child === undefined) {
+    child = { children: new Map(), occurrences: [] };
+    sequence.children.set(fingerprint, child);
   }
-  return true;
+  return child;
 }
 
-function collectFragments(sourcePath, options) {
+function indexFragments(sourcePath, options, rootSequence) {
   const sourceFile = parseSourceFile(sourcePath);
-  /** @type {FragmentScan} */
-  const scan = { sourceFile, sourcePath, context: "<module>", options, fragments: [] };
-  visitForFragments(sourceFile, scan);
-  return scan.fragments;
+  /** @type {FragmentIndex} */
+  const index = { sourceFile, sourcePath, options, rootSequence };
+  visitForFragments(sourceFile, "<module>", index);
 }
 
 /**
@@ -190,22 +177,53 @@ function isFragmentIgnored(occurrence, root, ignoreEntries) {
   });
 }
 
-function bestOccurrencePerFileAndContext(occurrences) {
-  /** @type {Map<string, typeof occurrences[number]>} */
-  const best = new Map();
+function uniqueOccurrences(occurrences) {
+  const unique = new Map();
   for (const occurrence of occurrences) {
-    const key = `${occurrence.sourcePath}\0${occurrence.context}`;
-    const existing = best.get(key);
-    if (
-      existing === undefined ||
-      occurrence.lineCount > existing.lineCount ||
-      (occurrence.lineCount === existing.lineCount &&
-        occurrence.statementCount > existing.statementCount)
-    ) {
-      best.set(key, occurrence);
-    }
+    const key = `${occurrence.sourcePath}\0${occurrence.startLine}\0${occurrence.endLine}`;
+    unique.set(key, occurrence);
   }
-  return [...best.values()];
+  return [...unique.values()];
+}
+
+function collectDuplicateClusters(sequence, root, ignoreEntries, minFiles, clusters) {
+  const active = uniqueOccurrences(
+    sequence.occurrences.filter(
+      (occurrence) => !isFragmentIgnored(occurrence, root, ignoreEntries),
+    ),
+  );
+  if (new Set(active.map(({ sourcePath }) => sourcePath)).size >= minFiles) clusters.push(active);
+  for (const child of sequence.children.values()) {
+    collectDuplicateClusters(child, root, ignoreEntries, minFiles, clusters);
+  }
+}
+
+function occurrenceContains(container, contained) {
+  return (
+    container.sourcePath === contained.sourcePath &&
+    container.context === contained.context &&
+    container.startLine <= contained.startLine &&
+    container.endLine >= contained.endLine
+  );
+}
+
+function isSubsumedCluster(cluster, longerClusters) {
+  return longerClusters.some((longer) =>
+    cluster.every((occurrence) =>
+      longer.some((candidate) => occurrenceContains(candidate, occurrence)),
+    ),
+  );
+}
+
+function maximalClusters(clusters) {
+  const ordered = clusters.sort(
+    (left, right) => (right[0]?.statementCount ?? 0) - (left[0]?.statementCount ?? 0),
+  );
+  const maximal = [];
+  for (const cluster of ordered) {
+    if (!isSubsumedCluster(cluster, maximal)) maximal.push(cluster);
+  }
+  return maximal;
 }
 
 /**
@@ -219,35 +237,28 @@ export function findDuplicateFragmentViolations(root, overrides = {}) {
     minLines: overrides.minLines ?? DEFAULT_MIN_LINES,
     minStatements: overrides.minStatements ?? DEFAULT_MIN_STATEMENTS,
     minFiles: overrides.minFiles ?? DEFAULT_MIN_FILES,
-    maxReports: overrides.maxReports ?? DEFAULT_MAX_REPORTS,
+    maxReports: overrides.maxReports,
     ignorePath: overrides.ignorePath ?? DEFAULT_IGNORE_PATH,
   };
 
   const ignoreEntries = loadFragmentIgnoreEntries(options.ignorePath);
-  /** @type {Map<string, FragmentOccurrence[]>} */
-  const byHash = new Map();
+  /** @type {FragmentSequence} */
+  const rootSequence = { children: new Map(), occurrences: [] };
 
   for (const sourcePath of collectSourceFiles(root)) {
-    for (const fragment of collectFragments(sourcePath, options)) {
-      const occurrences = byHash.get(fragment.hash) ?? [];
-      occurrences.push(fragment);
-      byHash.set(fragment.hash, occurrences);
-    }
+    indexFragments(sourcePath, options, rootSequence);
   }
 
+  const clusters = [];
+  collectDuplicateClusters(rootSequence, root, ignoreEntries, options.minFiles, clusters);
   /** @type {{ score: number, lines: number, statements: number, files: number, detail: string }[]} */
   const reports = [];
 
-  for (const occurrences of byHash.values()) {
-    const active = bestOccurrencePerFileAndContext(
-      occurrences.filter((occurrence) => !isFragmentIgnored(occurrence, root, ignoreEntries)),
-    );
-    const distinctFiles = new Set(active.map(({ sourcePath }) => sourcePath));
-    if (active.length < 2 || distinctFiles.size < options.minFiles) continue;
-
-    const lines = active[0]?.lineCount ?? 0;
+  for (const active of maximalClusters(clusters)) {
+    const files = new Set(active.map(({ sourcePath }) => sourcePath)).size;
+    const lines = Math.max(...active.map(({ lineCount }) => lineCount));
     const statements = active[0]?.statementCount ?? 0;
-    const score = lines * distinctFiles.size;
+    const score = lines * files;
     const detail = active
       .map(
         ({ sourcePath, startLine, endLine, context }) =>
@@ -259,8 +270,8 @@ export function findDuplicateFragmentViolations(root, overrides = {}) {
       score,
       lines,
       statements,
-      files: distinctFiles.size,
-      detail: `Fragment clone (${lines} lines, ${statements} statements, ${distinctFiles.size} files, score ${score}):\n${detail}`,
+      files,
+      detail: `Fragment clone (${lines} lines, ${statements} statements, ${files} files, score ${score}):\n${detail}`,
     });
   }
 
@@ -272,7 +283,9 @@ export function findDuplicateFragmentViolations(root, overrides = {}) {
       left.detail.localeCompare(right.detail),
   );
 
-  return formatReports(reports.slice(0, options.maxReports));
+  const selectedReports =
+    options.maxReports === undefined ? reports : reports.slice(0, options.maxReports);
+  return formatReports(selectedReports);
 }
 
 function formatReports(reports) {

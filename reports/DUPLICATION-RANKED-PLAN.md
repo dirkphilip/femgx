@@ -1,31 +1,31 @@
 # Duplication refactor plan — ranked
 
 Follow-up to the AST duplication scan (see [DUPLICATION-ANALYSIS.md](./DUPLICATION-ANALYSIS.md)
-for raw checker output). Every cluster below was verified by reading the actual
-source. Estimates are honest net line deltas: lines removed from N copies minus
-the new shared helper and import wiring. False positives are called out
-explicitly.
+for the audit summary). The candidate ordering combines the corrected current
+audit with source review. Earlier line estimates are directional only after the
+semantic-storage changes in #1199; remeasure each candidate before editing.
+False positives are called out explicitly.
 
-Two checkers are advisory (exit 0); findings are refactor candidates, not CI
+The checkers are advisory (exit 0); findings are refactor candidates, not CI
 gates. `scripts/duplicates/` and `test/scripts/duplicates/` are the tooling;
-`package.json` wires `npm run lint:duplicates` (names + bodies + fragments over
+`package.json` wires the occasional `npm run audit:duplicates` command (names + bodies + fragments over
 `src`, `test`, `demo`).
 
 ## Worst offenders
 
 The five biggest, verified duplicate clusters in production `src/`:
 
-| #   | Cluster                                                                                              | Location                                                                                                                                                                                                                                        | Net lines |
-| --- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------: |
-| 1   | Dense element/node selection parallel modules                                                        | `renderer/selection/element-selection.ts` (~255) vs `node-selection.ts` (~269)                                                                                                                                                                  |  **−200** |
-| 2   | Geometry validation, two authoritative copies                                                        | `geometry/packed/packed-validation.ts` vs `geometry/part.ts` + `part-validation.ts` (16-line clone + `validateElements`/`validateNodePositions`/`validateBodies`/`validateEdges`/`validateFaceNodes`/`validatePickIds`/`logicalPrimitiveCount`) |   **−45** |
-| 3   | Bind-group invalidation + `sameTables` + empty-buffer trio                                           | `renderer/frame/deformation.ts` vs `renderer/resources/result-colors.ts` (+ `instance-storage.ts` vs `highlight-storage-allocation.ts`)                                                                                                         |   **−33** |
-| 4   | Results helpers re-implemented (`finiteOrZero` ×6, `emptyRecords`, `normalize`/`crossUnit`)          | `results/{load-records,orientation-records,deform}.ts`, `viewport/geometry-bounds.ts`                                                                                                                                                           |   **−32** |
-| 5   | Small renderer/edges helpers (`sequentialIndices`, `emptyEdgeData`, `nextPowerOfTwo`, `triangleKey`) | `renderer/resources/*`, `renderer/edges/*`, `viewport/bounds/placed-index.ts`                                                                                                                                                                   |   **−18** |
+| #   | Cluster                                                                                              | Location                                                                                                                                     | Net lines |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------: |
+| 1   | Dense element/node selection parallel modules                                                        | `renderer/selection/element-selection.ts` (~255) vs `node-selection.ts` (~269)                                                               |  **−200** |
+| 2   | Face topology row construction, sorting, and comparison                                              | `elements/faces.ts`, `geometry/element-mesh-builders.ts`, `geometry/{edge,face}-validation.ts`, and `geometry/{explicit-topology,semantic}/` | remeasure |
+| 3   | Bind-group invalidation + `sameTables` + empty-buffer trio                                           | `renderer/frame/deformation.ts` vs `renderer/resources/result-colors.ts` (+ `instance-storage.ts` vs `highlight-storage-allocation.ts`)      |   **−33** |
+| 4   | Results helpers re-implemented (`finiteOrZero` ×4, `emptyRecords`, `normalize`/`crossUnit`)          | `results/{load-records,orientation-records,deform}.ts`, `viewport/geometry-bounds.ts`                                                        | remeasure |
+| 5   | Small renderer/edges helpers (`sequentialIndices`, `emptyEdgeData`, `nextPowerOfTwo`, `triangleKey`) | `renderer/resources/*`, `renderer/edges/*`, `viewport/bounds/placed-index.ts`                                                                |   **−18** |
 
-Top-5 production total: **≈ −320 to −340 lines**, all internal-helper
-consolidations with no public API change. The single largest win is the dense
-element/node selection core (−200).
+The single largest previously verified win remains the dense element/node
+selection core. Do not sum the older estimates until each candidate is
+remeasured against the current semantic-storage design.
 
 Biggest test-side offenders: the `renderer/resources/draw-resources/*.test.ts`
 GPU boilerplate (~−190, 42 repeated `installGpuGlobals` blocks) and the
@@ -38,18 +38,18 @@ Biggest demo offenders: `benchmark/percentiles` ×8 (−35) and `benchmark/rende
 
 ### Production `src/` (functions + fragments)
 
-| Rank | Opportunity                                                                                                                                                                          | Net lines | Feasibility | Risk                                                                                                     |
-| ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------: | ----------- | -------------------------------------------------------------------------------------------------------- |
-|    1 | Dense-selection generic core (element + node share cache/sort/binary-search/bitmap)                                                                                                  |      −200 | medium-high | medium (hot path; keep cost-hedge + `ordinal-1` vs `nodeId` semantics identical, rely on existing tests) |
-|    2 | Geometry validation: `part.ts`/`part-validation.ts` wins as authoritative; packed path delegates shared per-geometry/node checks; reuse `markPackedCoverage`/`requirePackedCoverage` |       −45 | medium      | low-medium                                                                                               |
-|    3 | Bind-group invalidation: one `clearCachedPartBindGroups` + generic `sameTables` + one empty-storage-buffer creator in `renderer/resources/bind-groups.ts`                            |       −33 | high        | low                                                                                                      |
-|    4 | Results helpers: `finiteOrZero` in `math/vec3.ts`, `emptyRecords` shared base, `load-records` uses `vec3.normalize`/`vec3.cross`                                                     |       −32 | high        | low                                                                                                      |
-|    5 | Small helpers: `sequentialIndices`, `emptyMeshEdgeData`, `nextPowerOfTwo`, `triangleKey`                                                                                             |       −18 | high        | ~zero                                                                                                    |
-|    6 | Visibility `contains` (packed-skin vs skins, byte-identical)                                                                                                                         |       −11 | high        | ~zero                                                                                                    |
-|    7 | Camera/gesture: `modifiersOf` (delete private copy), `assertFinite*`, `clamp`                                                                                                        |       −16 | high        | low                                                                                                      |
-|    8 | Interaction slot-diff walker shared by `interactionAffectedSlots` + `changedInstanceSlots`                                                                                           |       −14 | medium      | low                                                                                                      |
-|    9 | Gizmo `formatPoint`/`finite`                                                                                                                                                         |        −6 | high        | low                                                                                                      |
-|   10 | Interaction setters — mostly already factored onto `mechanics.ts` helpers; remaining glue is public API surface. Skip as a refactor                                                  |        −0 | —           | —                                                                                                        |
+| Rank | Opportunity                                                                                                                                               | Net lines | Feasibility | Risk                                                                                                     |
+| ---: | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------: | ----------- | -------------------------------------------------------------------------------------------------------- |
+|    1 | Dense-selection generic core (element + node share cache/sort/binary-search/bitmap)                                                                       |      −200 | medium-high | medium (hot path; keep cost-hedge + `ordinal-1` vs `nodeId` semantics identical, rely on existing tests) |
+|    2 | Face topology: consolidate only truly shared row merge/sort/compare mechanics while preserving ownership boundaries                                       | remeasure | medium      | medium (matches may encode distinct authoritative representations)                                       |
+|    3 | Bind-group invalidation: one `clearCachedPartBindGroups` + generic `sameTables` + one empty-storage-buffer creator in `renderer/resources/bind-groups.ts` |       −33 | high        | low                                                                                                      |
+|    4 | Results helpers: review `finiteOrZero`, `emptyRecords`, and vector operations for one existing canonical home                                             | remeasure | high        | low                                                                                                      |
+|    5 | Small helpers: `sequentialIndices`, `emptyMeshEdgeData`, `nextPowerOfTwo`, `triangleKey`                                                                  |       −18 | high        | ~zero                                                                                                    |
+|    6 | Visibility `contains` (`graph-skin.ts` vs `skins.ts`, byte-identical)                                                                                     |       −11 | high        | ~zero                                                                                                    |
+|    7 | Camera/gesture: `modifiersOf` (delete private copy), `assertFinite*`, `clamp`                                                                             |       −16 | high        | low                                                                                                      |
+|    8 | Interaction slot-diff walker shared by `interactionAffectedSlots` + `changedInstanceSlots`                                                                |       −14 | medium      | low                                                                                                      |
+|    9 | Gizmo `formatPoint`/`finite`                                                                                                                              |        −6 | high        | low                                                                                                      |
+|   10 | Interaction setters — mostly already factored onto `mechanics.ts` helpers; remaining glue is public API surface. Skip as a refactor                       |        −0 | —           | —                                                                                                        |
 
 Explicitly **not** worth it: `resetPickTargets`/`destroyTransparencyTargets`
 (idiomatic teardown, disjoint field lists), `boundsScale` (different math),
@@ -68,10 +68,9 @@ All public-facing renames are export-preserving aliases (zero API churn):
 |    4 | `BoxSelectionModifiers` ≡ `ViewportInteractionModifiers`                                         | `interaction/box-selection.ts`              |                      −9 |
 |    5 | `GpuWriteCost`/`MutableWriteCost` + Draw/Memory pairs (readonly/mutable)                         | `renderer/diagnostics/cost.ts`              |                      −9 |
 |    6 | `Bounds`/`MutableBounds` derived via mapped type                                                 | `geometry/types.ts`                         |                      −6 |
-|    7 | `ElementModelOptions` ≡ `ElementModelConversionOptions`                                          | `elements/model-types.ts`                   |                      −4 |
-|    8 | `ModelSet` ≡ `PendingSet`                                                                        | `io/fem-model.ts`                           |                      −4 |
-|    9 | `HiddenInteractionIds`/`Tuple` (same names + bodies)                                             | `renderer/attachment/interaction.ts`        |                      −2 |
-|   10 | `ElementId` locals ×3 → import canonical; `CubePoint`/`load-records Vec3` → `math/vec3.ts`       | `elements/element.ts`, `math/vec3.ts`       |    ~0 (consistency win) |
+|    7 | `ModelSet` ≡ `PendingSet`                                                                        | `io/fem-model.ts`                           |                      −4 |
+|    8 | `HiddenInteractionIds`/`Tuple` (same names + bodies)                                             | `renderer/attachment/interaction.ts`        |                      −2 |
+|    9 | Numeric identity aliases and point triples → review canonical imports without merging domains    | `elements/element.ts`, `math/vec3.ts`       |    ~0 (consistency win) |
 
 Do **not** consolidate same-shape-different-concept types (structural-noise
 matches from the checker): the two 8-file "identical" clusters
@@ -119,36 +118,29 @@ False positives (keep): `measureScenario`, `submittedTriangleCount` (different
 fidelity/APIs), the `parse*` trio (pattern clone; a generic would lose type
 narrowing).
 
-## Total estimated reduction
+## Execution order
 
-- `src/`: **−320…−340** (dominated by the dense-selection core at −200)
-- `test/`: **−400…−500** (dominated by draw-resources boilerplate ~−190 and the check-script harness ~−105)
-- `demo/`: **−115…−135**
-
-Order of execution recommendation: start with the low-risk, high-line clusters
-(bind-group trio, results helpers, small helpers, percentiles/renderFrame in
-demo), then the dense-selection core (biggest win, needs a focused regression
-test preserving the cost-hedge and bit semantics), then geometry validation.
+Start with the low-risk clusters (bind-group trio, small helpers,
+percentiles/renderFrame in demo), then the dense-selection core (the biggest
+previously verified win; preserve the cost hedge and bit semantics), then audit
+the face-topology matches individually. Re-run `npm run audit:duplicates` after
+each change and remeasure the actual net reduction rather than relying on the
+pre-#1199 totals.
 
 ## Recommendations for better tooling
 
-The AST checkers work well and are cheap to run; these are the gaps and next
+The AST checkers are audit-only tools; these are the gaps and next
 steps, in priority order.
 
 1. **Add a `--format json` / machine-readable mode.** The human-readable output
-   is fine for review but not for diffing against the last run. A JSON mode
-   (per-cluster: files, line ranges, score) would let a CI step or a script
-   compare runs and only surface _new_ clones, turning the advisory tools into
-   a drift guard. Suggested flag: `--json`, emitted to stdout with the same
-   ignore handling.
+   is fine for review but not for comparing occasional audits. A JSON mode
+   (per-cluster: files, line ranges, score) would support local result diffing.
+   Suggested flag: `--json`, emitted to stdout with the same ignore handling.
 
-2. **Wire the name checker into `lint` as an opt-in smoke, not a gate.**
-   `check-names` is fast and catches parallel abstractions early, but the
-   current findings include intentional repeats. Start by shrinking
-   `name-ignores.json` for the deliberate/consolidated cases, then decide
-   whether the residual count is small enough to fail `npm run lint` on new
-   collisions. Fragments/bodies stay advisory until the biggest clusters are
-   refactored.
+2. **Keep the commands audit-only.** `check-names` is fast and catches parallel
+   abstractions early, but all three reports include intentional repeats. Run
+   `npm run audit:duplicates` deliberately; do not add it to default linting or
+   CI.
 
 3. **Report `ElementId`-style type drift explicitly.** Because
    `typeShapeFingerprint` ignores property names, the checker flags
@@ -158,10 +150,9 @@ steps, in priority order.
    coincidental shapes. This is the highest-value enhancement for the
    factor-out-types effort.
 
-4. **Add a scan-root flag for single-file or subsystem drill-down.**
-   `check-fragments` on all of `test/` is the slow path; a `--path` filter
-   (e.g. `--path renderer/selection`) would make per-subsystem review during a
-   refactor faster than the current full-tree run.
+4. **Add a scan-root flag for single-file or subsystem drill-down.** A `--path`
+   filter (e.g. `--path renderer/selection`) would make focused refactor audits
+   easier even though the complete scan is now fast.
 
 5. **Hook the fragment `--min-lines 10` scan into the refactor PRs.** After
    each of the ranked clusters lands, re-run and expect the specific clone to
@@ -175,5 +166,5 @@ steps, in priority order.
    refactored, a one-off jscpd pass over `src/` would find any remaining
    literal clones the structural tools miss.
 
-Do not add these as hard CI gates until the ranked clusters are refactored;
-right now any gate would just report the same 40+ src clusters on every push.
+Keep these as deliberate audit commands rather than default lint or CI gates;
+the complete reports intentionally include repeated names and structural noise.
