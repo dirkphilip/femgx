@@ -385,3 +385,9 @@ export {
 export function installGpuTestGlobals() {
   restoreGpuGlobals = installGpuGlobals();
 }
+
+/** Shared renderer test helper. */
+export function installGpuTestEnvironment(device: GPUDevice): void {
+  installGpuTestGlobals();
+  installNavigator(device);
+}

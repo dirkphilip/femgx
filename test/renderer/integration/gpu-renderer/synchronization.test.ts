@@ -16,21 +16,19 @@ import {
   projectPoint,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   buildFaceScene,
   buildBodyScene,
   camera,
-  installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 
 describe("WebGPU renderer", () => {
   it("follows displayed GPU depth instead of the undeformed CPU face plane", async () => {
-    installGpuTestGlobals();
     const faceCamera = { ...camera, position: [0, 0, 5] as const, target: [0, 0, 0] as const };
     const displayedDepth = projectPoint(faceCamera, [0, 0, 1])?.[2] ?? 1;
     const gpu = fakeGpuDevice({ pickValue: 1, facePickValue: 1, ndcDepth: displayedDepth });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
     renderer.render(createPackedSceneRuntime(scene), faceCamera, scene.parts);
@@ -41,9 +39,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("patches affected GPU records and order ranges from packed deltas", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -88,9 +85,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("bounds interaction synchronization to changed slots and order scopes", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -150,9 +146,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("bounds body and element visibility synchronization to their owning slot", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildBodyScene();
     const runtime = createPackedSceneRuntime(scene);

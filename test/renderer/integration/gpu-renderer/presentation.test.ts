@@ -6,17 +6,15 @@ import {
   setPartOverride,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   camera,
-  installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 
 describe("WebGPU renderer", () => {
   it("cannot recover an externally provided device", async () => {
-    installGpuTestGlobals();
     const external = fakeGpuDevice();
-    installNavigator(external.device);
+    installGpuTestEnvironment(external.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas(), device: external.device });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -28,9 +26,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("draws the edge overlay only for edge-styled instances and honors the depth-test flag", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -67,9 +64,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("keeps transparent fragments in the OIT pass without removing opaque batches", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -87,9 +83,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("keeps zero-opacity geometry in the pick pass", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({ pickValue: 1, ndcDepth: 0.5 });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);

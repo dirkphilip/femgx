@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
+import { runCheck } from "./support/run-check";
 
 const SCRIPT_PATH = fileURLToPath(
   new URL("../../scripts/check-folder-structure.mjs", import.meta.url),
@@ -26,18 +26,13 @@ function makeRepo(files: readonly string[]): string {
   return root;
 }
 
-function runCheck(root: string): { readonly status: number; readonly stderr: string } {
-  const result = spawnSync(process.execPath, [SCRIPT_PATH, root], { encoding: "utf8" });
-  return { status: result.status ?? -1, stderr: result.stderr };
-}
-
 describe("check-folder-structure", () => {
   it("accepts a clear folder name at the combined direct-entry boundary", () => {
     const root = makeRepo([
       ...Array.from({ length: 24 }, (_, index) => `src/render-passes/file-${index}.ts`),
       "src/render-passes/geometry/index.ts",
     ]);
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 
   it("reports oversized folders with the structure policy", () => {
@@ -45,7 +40,7 @@ describe("check-folder-structure", () => {
       ...Array.from({ length: 25 }, (_, index) => `src/renderer/file-${index}.ts`),
       "src/renderer/geometry/index.ts",
     ]);
-    const result = runCheck(root);
+    const result = runCheck(SCRIPT_PATH, [root], root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       "src/renderer: 26 direct source entries exceeds 25; split this folder by clear responsibility using specific lowercase kebab-case child folder names",
@@ -54,7 +49,7 @@ describe("check-folder-structure", () => {
 
   it("rejects vague or non-kebab-case folder names", () => {
     const root = makeRepo(["src/Shared/thing.ts", "demo/utils/tool.ts"]);
-    const result = runCheck(root);
+    const result = runCheck(SCRIPT_PATH, [root], root);
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(
       /demo\/utils:[\s\S]*src\/Shared: folder names must be specific lowercase kebab-case domain names/u,
@@ -66,7 +61,7 @@ describe("check-folder-structure", () => {
       ...Array.from({ length: 25 }, (_, index) => `packages/new-renderer/file-${index}.cjs`),
       "packages/new-renderer/geometry/index.js",
     ]);
-    const result = runCheck(root);
+    const result = runCheck(SCRIPT_PATH, [root], root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("packages/new-renderer: 26 direct source entries exceeds 25");
   });
@@ -75,7 +70,7 @@ describe("check-folder-structure", () => {
     const root = makeRepo(
       Array.from({ length: 25 }, (_, index) => `packages/features/feature-${index}/index.ts`),
     );
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 
   it("reports folders whose combined source entries exceed the limit", () => {
@@ -84,7 +79,7 @@ describe("check-folder-structure", () => {
       "packages/features/readme.ts",
       "packages/features/extra/index.ts",
     ]);
-    const result = runCheck(root);
+    const result = runCheck(SCRIPT_PATH, [root], root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       "packages/features: 26 direct source entries exceeds 25; split this folder by clear responsibility using specific lowercase kebab-case child folder names",
@@ -99,11 +94,11 @@ describe("check-folder-structure", () => {
       "coverage/Shared/report.js",
       ".tooling/BadName/tool.js",
     ]);
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 
   it("exempts root-level configuration files from the folder limit", () => {
     const root = makeRepo(Array.from({ length: 26 }, (_, index) => `config-${index}.mjs`));
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 });

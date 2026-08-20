@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
+import { runCheck } from "./support/run-check";
 
 const SCRIPT_PATH = fileURLToPath(new URL("../../scripts/check-demo-size.mjs", import.meta.url));
 const tempDirs: string[] = [];
@@ -22,22 +22,17 @@ function makeRepo(files: Record<string, string>): string {
   return root;
 }
 
-function runCheck(root: string): { readonly status: number; readonly stderr: string } {
-  const result = spawnSync(process.execPath, [SCRIPT_PATH, root], { encoding: "utf8" });
-  return { status: result.status ?? -1, stderr: result.stderr };
-}
-
 describe("check-demo-size", () => {
   it("accepts a stylesheet at the effective-line boundary", () => {
     const root = makeRepo({ "boundary.css": ".x { color: red; }\n".repeat(400) });
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 
   it("ignores blank lines and block comments", () => {
     const root = makeRepo({
       "comments.css": "/* ignored\ncomment */\n\n.x { color: red; }\n".repeat(400),
     });
-    expect(runCheck(root).status).toBe(0);
+    expect(runCheck(SCRIPT_PATH, [root], root).status).toBe(0);
   });
 
   it("reports every stylesheet over the limit in sorted order", () => {
@@ -45,7 +40,7 @@ describe("check-demo-size", () => {
       "z-last.css": ".x { color: red; }\n".repeat(401),
       "a-first.css": ".x { color: red; }\n".repeat(402),
     });
-    const result = runCheck(root);
+    const result = runCheck(SCRIPT_PATH, [root], root);
     expect(result.status).toBe(1);
     expect(result.stderr).toMatch(/a-first\.css: 402[\s\S]*z-last\.css: 401/u);
   });

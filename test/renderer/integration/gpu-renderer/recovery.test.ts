@@ -12,19 +12,18 @@ import {
   fakeCanvas,
   fakeGpuDevice,
   installFreshDeviceNavigator,
-  installNavigator,
   buildScene,
   buildSectionScene,
   camera,
   installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 import { setRendererResultColors } from "@/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("culls hidden parts from the draw order without rewriting records", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -165,14 +164,13 @@ describe("WebGPU renderer", () => {
   });
 
   it("retains active cap geometry through the Viewport instance-then-element selection order", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({
       pickValue: 1,
       elementPickValue: 8,
       nodePickValue: 99,
       ndcDepth: 0.5,
     });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -195,9 +193,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("drops and restores caps through the Viewport instance-then-element visibility order", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -224,9 +221,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("applies section visibility from an instance-only renderer update", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -250,14 +246,13 @@ describe("WebGPU renderer", () => {
   });
 
   it("maps cap fragments to the owning element without fabricated node identityMatrix", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice({
       pickValue: 1,
       elementPickValue: 8,
       nodePickValue: 99,
       ndcDepth: 0.5,
     });
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
@@ -267,9 +262,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("shares a flat elemental result color with the owning section cap", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -281,9 +275,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("keeps an explicit element color above the result color on its section cap", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);

@@ -4,18 +4,16 @@ import {
   createPackedSceneRuntime,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   camera,
   uniformWrite,
-  installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 
 describe("WebGPU renderer deformation", () => {
   it("writes a disabled deformation uniform before any deformation is set", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -27,9 +25,8 @@ describe("WebGPU renderer deformation", () => {
   });
 
   it("uploads displacement buffers and writes the deformation uniform", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -51,9 +48,8 @@ describe("WebGPU renderer deformation", () => {
   });
 
   it("clears deformation buffers and disables the uniform when set to undefined", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -82,9 +78,8 @@ describe("WebGPU renderer deformation", () => {
   });
 
   it("reuses uploaded displacement buffers across frames until the array changes", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -109,9 +104,8 @@ describe("WebGPU renderer deformation", () => {
   });
 
   it("rejects an invalid deformation state", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     expect(() => {
       renderer.setDeformation({

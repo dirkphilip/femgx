@@ -15,14 +15,13 @@ import {
   translationMatrix,
   fakeCanvas,
   fakeGpuDevice,
-  installNavigator,
   buildScene,
   buildFaceScene,
   buildBodyScene,
   buildSelectablePart,
   buildSubsetPart,
   camera,
-  installGpuTestGlobals,
+  installGpuTestEnvironment,
 } from "./support";
 
 describe("WebGPU renderer", () => {
@@ -47,9 +46,8 @@ describe("WebGPU renderer", () => {
         ),
     ],
   ])("classifies fractional %s alpha in the transparent pass", async (level, createState) => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = level === "body" ? buildBodyScene() : buildFaceScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -67,9 +65,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("culls hidden instances from the edge overlay and restores them on show", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
@@ -99,9 +96,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("rebuilds the attachment when a runtime is replaced", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const geometry = {
       positions: new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]),
@@ -150,9 +146,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("clears stale selected primitive ranges when parts change for the same runtime", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const initialPart = buildSelectablePart([
       [0, 1],
@@ -191,9 +186,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("uses exterior selection geometry only for opaque unsectioned scenes", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const part = buildSubsetPart();
     const scene = createSceneBuilder()
@@ -240,9 +234,8 @@ describe("WebGPU renderer", () => {
   });
 
   it("submits a compact solid skin after element visibility exposes an interior", async () => {
-    installGpuTestGlobals();
     const gpu = fakeGpuDevice();
-    installNavigator(gpu.device);
+    installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const part = buildSubsetPart();
     const scene = createSceneBuilder()
