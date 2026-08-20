@@ -58,7 +58,7 @@ renderer CPU table encoding/mirror diff plus fake queue writes. It does not
 claim real GPU submission, upload completion, draw, first-frame, or
 post-operation frame smoothness; those metrics remain owned by the opt-in
 WebGPU phases in
-`demo/benchmark/selection.ts` and `demo/benchmark/measurement.ts`.
+`demo/benchmark/workflows/selection.ts` and `demo/benchmark/measurement.ts`.
 
 Body-level coloring is a required workload, not an optional stress feature.
 The matrix therefore retains the 256-body recolor-and-clear case and records

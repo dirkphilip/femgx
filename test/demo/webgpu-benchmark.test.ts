@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { submittedTriangleCount } from "../../demo/benchmark/measurement";
-import { authoredElementTargets } from "../../demo/benchmark/selection";
+import { authoredElementTargets } from "../../demo/benchmark/workflows/selection";
 import {
   benchmarkCaseSpecs,
   createBenchmarkCase,
