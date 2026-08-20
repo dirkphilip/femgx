@@ -213,7 +213,7 @@ describe("dense node selections", () => {
       const nodeBits = table[17] ?? 0;
       expect(table[3]).toBe(2);
       expect(table[15]).toBe(3);
-      expect(nodeOffset).toBe(elementBits + 2);
+      expect(nodeOffset).toBe(elementBits + 3);
       expect(table[payload + (table[4] ?? 0)]).toBe(0);
       expect(table[payload + (table[5] ?? 0)]).toBe(1);
       expect(table[payload + nodeOffset]).toBe(0);

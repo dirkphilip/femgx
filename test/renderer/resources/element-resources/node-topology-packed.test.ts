@@ -43,7 +43,7 @@ describe("packed node topology", () => {
     });
     const sprites = new Uint32Array([1, 1, 3, 5]);
 
-    expect(buildPackedNodeTopologyData(part, sprites)).toEqual(expectedMixedTopology(sprites));
+    expect(buildPackedNodeTopologyData(part, sprites)).toEqual(expectedMixedTopology());
   });
 
   it("preserves the generic empty sentinel layout", () => {
@@ -69,12 +69,17 @@ describe("packed node topology", () => {
   });
 });
 
-function expectedMixedTopology(sprites: Uint32Array): Uint32Array {
+function expectedMixedTopology(): Uint32Array {
   return packTopologyData(
     new Uint32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 5, 0, 0, 9, 0, 6, 0]),
     new Uint32Array([0, 2, 2, 2, 4, 1, 5, 1]),
     new Uint32Array([8, 0, 9, 0, 8, 0, 9, 0, 8, 0, 9, 0]),
     new Uint32Array([5, 0, 6, 0, 5, 0, 6, 0, 5, 0, 6, 0]),
-    { elementOrdinals: new Uint32Array(sprites.length), primitiveIds: [], edgeIds: [] },
+    {
+      elementOrdinals: new Uint32Array([0, 0, 2, 1]),
+      conditionElementOrdinals: new Uint32Array([2, 0, 1, 0, 2, 0, 1, 0, 2, 0, 1, 0]),
+      primitiveIds: [],
+      edgeIds: [],
+    },
   );
 }

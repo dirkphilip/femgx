@@ -25,6 +25,11 @@ export function assemblePartSemanticGraph(input: {
     ...faces,
     ...edges,
     faceGeometryOffsets: geometryOffsets(geometryCount, faces.faceGeometryOrdinals),
+    faceElementOffsets: elementFaceOffsets(
+      elements.elementIds.length,
+      faces.faceLookupOrdinals,
+      faces.faceOwnerElementOrdinals,
+    ),
     edgeGeometryOffsets: geometryOffsets(geometryCount, edges.edgeGeometryOrdinals),
     surfaceBodyIds: triangleBodyIds(elements, bodies),
     faceSubsetOffsets: faceSubset.offsets,
@@ -32,6 +37,28 @@ export function assemblePartSemanticGraph(input: {
     faceSubsetDefined: faceSubset.defined,
   };
 }
+
+function elementFaceOffsets(
+  elementCount: number,
+  faceLookupOrdinals: Uint32Array,
+  owners: Uint32Array,
+): Uint32Array {
+  if (faceLookupOrdinals.length === 0) return EMPTY_FACE_ELEMENT_OFFSETS;
+  const offsets = new Uint32Array(elementCount + 1);
+  let lookup = 0;
+  for (let element = 0; element < elementCount; element += 1) {
+    offsets[element] = lookup;
+    while (lookup < faceLookupOrdinals.length) {
+      const face = faceLookupOrdinals[lookup] ?? 0;
+      if ((owners[face] ?? elementCount) !== element) break;
+      lookup += 1;
+    }
+  }
+  offsets[elementCount] = lookup;
+  return offsets;
+}
+
+const EMPTY_FACE_ELEMENT_OFFSETS = new Uint32Array(0);
 
 function geometryOffsets(geometryCount: number, ordinals: Uint8Array): Uint32Array {
   const offsets = new Uint32Array(geometryCount + 1);

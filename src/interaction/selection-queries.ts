@@ -5,6 +5,7 @@ import {
   type InteractionState,
   type StyleOverride,
 } from "./state";
+import { updateNestedSets } from "./mechanics";
 import type { InteractionTarget } from "./target-types";
 
 /** Bounded aggregate selection metadata for presentation-level queries. */
@@ -12,6 +13,42 @@ export interface SelectedTargetSummary {
   readonly count: number;
   readonly partIds: ReadonlySet<number>;
   readonly partOccurrenceIds: ReadonlySet<string>;
+}
+
+/** Aggregate selected-element visibility without materializing interaction targets. */
+export interface SelectedElementVisibilitySummary {
+  readonly selectedCount: number;
+  readonly visibleCount: number;
+}
+
+/** Counts selected elements that remain visible across all occurrences. */
+export function selectedElementVisibilitySummary(
+  state: InteractionState,
+): SelectedElementVisibilitySummary {
+  const data = readInteractionState(state);
+  let selectedCount = 0;
+  let visibleCount = 0;
+  for (const [partOccurrenceId, selectedIds] of data.selectedElementIds) {
+    selectedCount += selectedIds.size;
+    const hiddenIds = data.hiddenElementIds.get(partOccurrenceId);
+    if (hiddenIds === undefined) {
+      visibleCount += selectedIds.size;
+      continue;
+    }
+    for (const elementId of selectedIds) {
+      if (!hiddenIds.has(elementId)) visibleCount += 1;
+    }
+  }
+  return { selectedCount, visibleCount };
+}
+
+/** Hides every selected element through one immutable nested-set transition. */
+export function hideSelectedElements(state: InteractionState): InteractionState {
+  const data = readInteractionState(state);
+  const hiddenElementIds = updateNestedSets(data.hiddenElementIds, data.selectedElementIds, true);
+  return hiddenElementIds === data.hiddenElementIds
+    ? state
+    : updateInteractionState(state, { hiddenElementIds });
 }
 
 /** Counts selected identities and occurrences without materializing or sorting them. */

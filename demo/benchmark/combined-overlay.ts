@@ -1,6 +1,7 @@
 import type { Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { hideSelectedElements } from "../../src/interaction/selection-queries";
 import {
   interactionTargetFromHit,
   setTargetHovered,
@@ -20,7 +21,7 @@ import {
 } from "./assertions";
 import { denseEdgeTypedMemory, estimateBenchmarkMemory } from "./memory";
 import type { WebGpuBenchmarkCase } from "./model";
-import { authoredElementTargets } from "./selection";
+import { authoredElementTargets } from "./workflows/selection";
 import type { CombinedOverlayBenchmarkReport, HoverBenchmarkReport } from "./types";
 
 const WIDTH = 800;
@@ -289,4 +290,55 @@ async function timedFrame(
   const cpuMs = performance.now() - start;
   await options.device.queue.onSubmittedWorkDone();
   return { queueMs: performance.now() - start, cpuMs };
+}
+
+interface HiddenInteriorCaptureOptions {
+  readonly renderer: WebGpuRenderer;
+  readonly device: GPUDevice;
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+  readonly runtime: PackedSceneRuntime;
+  readonly camera: Camera;
+  readonly hold: () => Promise<void>;
+}
+
+/** Holds a half-hidden solid with full authored edge and node presentation. */
+export async function captureHiddenInterior(options: HiddenInteriorCaptureOptions): Promise<void> {
+  if (
+    options.benchmarkCase.elementFamily !== "tet4" &&
+    options.benchmarkCase.elementFamily !== "hex8"
+  ) {
+    return;
+  }
+  const slots = Array.from(options.runtime.getDrawList());
+  const slot = slots[0];
+  if (slot === undefined) throw new Error(`${options.benchmarkCase.id} has no drawable occurrence`);
+  const part = options.benchmarkCase.scene.parts.get(options.runtime.getPartId(slot) ?? -1);
+  const elementCount = part?.elements?.count ?? 0;
+  if (elementCount < 2) throw new Error(`${options.benchmarkCase.id} has no solid interior`);
+
+  let interaction = overlayInteraction(options.benchmarkCase, true);
+  const targets = authoredElementTargets(
+    options.benchmarkCase,
+    options.runtime,
+    Math.floor(elementCount / 2),
+  );
+  interaction = hideSelectedElements(setTargetsSelected(interaction, targets, true));
+  options.renderer.updateInstances(options.runtime, interaction, slots);
+  options.renderer.updateElements(options.runtime, interaction, slots);
+  await renderHiddenInterior(options);
+  const draws = readGpuCostSnapshot(options.renderer).draws;
+  if (draws["edges"].indices === 0 || draws["nodes"].indices === 0) {
+    throw new Error(`${options.benchmarkCase.id} hidden interior omitted edge or node draws`);
+  }
+  await options.hold();
+
+  const restored = createInteractionState();
+  options.renderer.updateInstances(options.runtime, restored, slots);
+  options.renderer.updateElements(options.runtime, restored, slots);
+  await renderHiddenInterior(options);
+}
+
+async function renderHiddenInterior(options: HiddenInteriorCaptureOptions): Promise<void> {
+  options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
+  await options.device.queue.onSubmittedWorkDone();
 }

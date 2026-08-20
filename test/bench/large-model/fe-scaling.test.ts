@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState } from "@/interaction/interaction";
+import { readInteractionState, updateInteractionState } from "@/interaction/state";
 import { setTargetsSelected } from "@/interaction/targets";
 import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
 import { boundaryFaceRefsForModel } from "@/elements/faces";
 import { createPartFromElementModel } from "@/entries/model";
 import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
+import { buildElementSectionCap } from "@/geometry/section-cap";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { identityMatrix } from "@/math/mat4";
+import type { Part } from "@/geometry/part";
 import { buildInstanceLayout } from "@/renderer/runtime-state";
+import { SectionCapController } from "@/renderer/section-cap-controller";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 import {
   collectDenseElementSelections,
   denseSelectionContains,
@@ -13,6 +20,7 @@ import {
 import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
 import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "../measure";
+import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 
 const GRID_SIZES = [24, 35, 47] as const;
 const ELEMENT_COUNTS = GRID_SIZES.map((size) => size ** 3);
@@ -36,6 +44,7 @@ const tet4Layout = buildInstanceLayout(tet4Runtime);
 const tet4InstanceId = tet4Runtime.getInstanceId(0);
 if (tet4InstanceId === undefined) throw new Error("Tet4 benchmark instance is missing");
 const tet4Elements = [...(tet4Part.elements ?? [])];
+const hex8SectionPart = createPartFromElementModel(31_000, createStructuredFeModel("hex8", 51));
 const tet4Targets = tet4Elements.map((element) => ({
   kind: "element" as const,
   partOccurrenceId: tet4InstanceId,
@@ -44,6 +53,24 @@ const tet4Targets = tet4Elements.map((element) => ({
 getPartSemanticIndex(tet4Part);
 const tet4Interactions = Array.from({ length: 3 }, () =>
   setTargetsSelected(createInteractionState(), tet4Targets, true),
+);
+const halfTet4Interaction = setTargetsSelected(
+  createInteractionState(),
+  tet4Targets.slice(0, TET4_ELEMENT_COUNT / 2),
+  true,
+);
+const halfTet4HiddenInteraction = updateInteractionState(createInteractionState(), {
+  hiddenElementIds: new Map([
+    [
+      tet4InstanceId,
+      new Set(tet4Targets.slice(0, TET4_ELEMENT_COUNT / 2).map(({ elementId }) => elementId)),
+    ],
+  ]),
+});
+const halfTet4HiddenSelectedInteraction = setTargetsSelected(
+  halfTet4HiddenInteraction,
+  tet4Targets.slice(TET4_ELEMENT_COUNT / 2, TET4_ELEMENT_COUNT / 2 + 1),
+  true,
 );
 let tet4InteractionIndex = 0;
 
@@ -101,6 +128,103 @@ describe("large-model scaling", () => {
       },
     ]);
     expect(measured).toBeLessThanOrEqual(100);
+  });
+
+  it("keeps large Tet4 and Hex8 section-cap traversal linear and graph-owned", () => {
+    const cases = [
+      { name: "Tet4", part: tet4Part, plane: 14.5 },
+      { name: "Hex8", part: hex8SectionPart, plane: 25.5 },
+    ] as const;
+    for (const { name, part, plane } of cases) {
+      const graph = partSemanticGraph(part);
+      if (graph === undefined) throw new Error(`${name} section part lost semantic ownership`);
+      const measured = measureMs(() => sectionCapCount(part, plane), { warmup: 0, samples: 3 });
+      const capCount = sectionCapCount(part, plane);
+      report(`${part.elements?.count ?? 0}-element ${name} section-cap traversal`, [
+        {
+          size: part.elements?.count ?? 0,
+          measuredMs: measured,
+          millisecondsPerUnit: measured / (part.elements?.count ?? 1),
+        },
+      ]);
+      expect(capCount).toBeGreaterThan(0);
+      expect(graph.faceElementOffsets.byteLength).toBe(
+        (graph.elementIds.length + 1) * Uint32Array.BYTES_PER_ELEMENT,
+      );
+      expect(graph.faceElementOffsets.byteLength).toBeLessThanOrEqual(
+        graph.faceOwnerElementOrdinals.byteLength + Uint32Array.BYTES_PER_ELEMENT,
+      );
+      expect(measured).toBeLessThanOrEqual(1_000);
+    }
+  });
+
+  it("updates half-selected active Tet4 caps in place", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const controller = new SectionCapController();
+      const visible = createInteractionState();
+      controller.sync({
+        runtime: tet4Runtime,
+        parts: tet4Case.scene.parts,
+        plane: { normal: [1, 0, 0], distance: -14.5 },
+        interaction: visible,
+        deformation: undefined,
+        resultColors: undefined,
+        draw: bundle.draw,
+      });
+      const frame = controller.currentFrame;
+      if (frame === undefined) throw new Error("Tet4 section frame is missing");
+      const bufferCount = gpu.buffers.length;
+      let interaction = halfTet4Interaction;
+      const measured = measureMs(
+        () => {
+          controller.syncStyles(tet4Runtime, tet4Case.scene.parts, interaction, bundle.draw);
+          interaction = interaction === visible ? halfTet4Interaction : visible;
+        },
+        { warmup: 0, samples: 3 },
+      );
+      report("131,712-element Tet4 half-selection active-cap style sync", [
+        {
+          size: frame.parts.size,
+          measuredMs: measured,
+          millisecondsPerUnit: measured / frame.parts.size,
+        },
+      ]);
+      expect(frame.parts.size).toBeGreaterThan(0);
+      expect(controller.currentFrame).toBe(frame);
+      expect(gpu.buffers).toHaveLength(bufferCount);
+      expect(measured).toBeLessThanOrEqual(1_000);
+
+      const hiddenController = new SectionCapController();
+      hiddenController.sync({
+        runtime: tet4Runtime,
+        parts: tet4Case.scene.parts,
+        plane: { normal: [1, 0, 0], distance: -14.5 },
+        interaction: halfTet4HiddenInteraction,
+        deformation: undefined,
+        resultColors: undefined,
+        draw: bundle.draw,
+      });
+      const hiddenFrame = hiddenController.currentFrame;
+      if (hiddenFrame === undefined) throw new Error("hidden Tet4 section frame is missing");
+      const hiddenBuffers = gpu.buffers.length;
+      hiddenController.syncStyles(
+        tet4Runtime,
+        tet4Case.scene.parts,
+        halfTet4HiddenSelectedInteraction,
+        bundle.draw,
+      );
+      expect(readInteractionState(halfTet4HiddenSelectedInteraction).hiddenElementIds).toBe(
+        readInteractionState(halfTet4HiddenInteraction).hiddenElementIds,
+      );
+      expect(hiddenController.currentFrame).toBe(hiddenFrame);
+      expect(gpu.buffers).toHaveLength(hiddenBuffers);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
   });
 
   it("keeps 257,250-element Tet4 boundary extraction bounded", () => {
@@ -172,6 +296,20 @@ describe("large-model scaling", () => {
     ).toBeLessThanOrEqual(3);
   });
 });
+
+function sectionCapCount(part: Part, plane: number): number {
+  let count = 0;
+  for (const element of part.elements ?? []) {
+    const cap = buildElementSectionCap({
+      part,
+      element,
+      plane: { normal: [1, 0, 0], distance: -plane },
+      transform: identityMatrix(),
+    });
+    if (cap !== undefined) count += 1;
+  }
+  return count;
+}
 
 function report(name: string, measurements: readonly ScalingMeasurement[]): void {
   console.log(

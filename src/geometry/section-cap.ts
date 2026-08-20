@@ -70,10 +70,7 @@ export function buildElementSectionCap(input: SectionCapBuildInput): SectionCap 
   const positions = part.nodePositions;
   if (triangles?.primitive !== "triangles" || positions === undefined) return undefined;
   const semantic = geometrySemanticGraph(triangles);
-  const edges =
-    semantic === undefined
-      ? authoredEdges(triangles.faces, element.id)
-      : authoredGraphEdges(semantic.graph, element.id);
+  const edges = graphEdges(input, semantic?.graph, triangles.faces, positions);
   if (edges.length === 0) return undefined;
   const world = (nodeId: number): Vec3 | undefined =>
     worldNode(positions, nodeId, transform, input.displacements, input.deformationScale ?? 1);
@@ -163,14 +160,68 @@ function authoredEdges(
   );
 }
 
-function authoredGraphEdges(graph: PartSemanticGraph, elementId: number): readonly Edge[] {
-  const ordinal = graphElementOrdinal(graph, elementId);
-  if (ordinal === undefined) return [];
-  const first = faceStartForElement(graph, ordinal);
-  const last = faceEndForElement(graph, ordinal);
+interface GraphFaceRange {
+  readonly first: number;
+  readonly last: number;
+}
+
+function graphEdges(
+  input: SectionCapBuildInput,
+  graph: PartSemanticGraph | undefined,
+  faces: Iterable<{ readonly elementId: number; readonly nodeIds: readonly number[] }> | undefined,
+  positions: Float32Array,
+): readonly Edge[] {
+  if (graph === undefined) return authoredEdges(faces, input.element.id);
+  const range = intersectingGraphFaces(graph, input, positions);
+  return range === undefined ? [] : authoredGraphEdges(graph, range);
+}
+
+function intersectingGraphFaces(
+  graph: PartSemanticGraph,
+  input: SectionCapBuildInput,
+  positions: Float32Array,
+): GraphFaceRange | undefined {
+  const ordinal = graphElementOrdinal(graph, input.element.id);
+  if (ordinal === undefined) return undefined;
+  const first = graph.faceElementOffsets[ordinal] ?? 0;
+  const last = graph.faceElementOffsets[ordinal + 1] ?? first;
+  let minimum = Number.POSITIVE_INFINITY;
+  let maximum = Number.NEGATIVE_INFINITY;
+  let minimumDistance = Number.POSITIVE_INFINITY;
+  let maximumDistance = Number.NEGATIVE_INFINITY;
+  for (let lookupOrdinal = first; lookupOrdinal < last; lookupOrdinal += 1) {
+    const faceOrdinal = graph.faceLookupOrdinals[lookupOrdinal] ?? 0;
+    const nodeStart = graph.faceNodeOffsets[faceOrdinal] ?? 0;
+    const nodeEnd = graph.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
+    for (let index = nodeStart; index < nodeEnd; index += 1) {
+      const node = graph.faceNodeIds[index];
+      if (node === undefined) return undefined;
+      const point = worldNode(
+        positions,
+        node,
+        input.transform,
+        input.displacements,
+        input.deformationScale ?? 1,
+      );
+      if (point === undefined) return undefined;
+      for (const value of point) {
+        minimum = Math.min(minimum, value);
+        maximum = Math.max(maximum, value);
+      }
+      const distance = signedDistance(input.plane, point);
+      minimumDistance = Math.min(minimumDistance, distance);
+      maximumDistance = Math.max(maximumDistance, distance);
+    }
+  }
+  const epsilon = Math.max(1, maximum - minimum) * 1e-6;
+  if (maximumDistance <= epsilon || minimumDistance >= -epsilon) return undefined;
+  return { first, last };
+}
+
+function authoredGraphEdges(graph: PartSemanticGraph, faces: GraphFaceRange): readonly Edge[] {
   const unique = new Map<string, Edge>();
-  for (let faceOrdinal = first; faceOrdinal < last; faceOrdinal += 1) {
-    if ((graph.faceOwnerElementOrdinals[faceOrdinal] ?? -1) !== ordinal) continue;
+  for (let lookupOrdinal = faces.first; lookupOrdinal < faces.last; lookupOrdinal += 1) {
+    const faceOrdinal = graph.faceLookupOrdinals[lookupOrdinal] ?? 0;
     const nodeStart = graph.faceNodeOffsets[faceOrdinal] ?? 0;
     const nodeEnd = graph.faceNodeOffsets[faceOrdinal + 1] ?? nodeStart;
     for (let index = nodeStart; index < nodeEnd; index += 1) {
@@ -184,28 +235,6 @@ function authoredGraphEdges(graph: PartSemanticGraph, elementId: number): readon
   return [...unique.values()].sort((left, right) =>
     edgeKey(left.a, left.b).localeCompare(edgeKey(right.a, right.b)),
   );
-}
-
-function faceStartForElement(graph: PartSemanticGraph, elementOrdinal: number): number {
-  let first = graph.faceOwnerElementOrdinals.length;
-  for (let face = 0; face < graph.faceOwnerElementOrdinals.length; face += 1) {
-    if (graph.faceOwnerElementOrdinals[face] === elementOrdinal) {
-      first = face;
-      break;
-    }
-  }
-  return first;
-}
-
-function faceEndForElement(graph: PartSemanticGraph, elementOrdinal: number): number {
-  let last = 0;
-  for (let face = graph.faceOwnerElementOrdinals.length - 1; face >= 0; face -= 1) {
-    if (graph.faceOwnerElementOrdinals[face] === elementOrdinal) {
-      last = face + 1;
-      break;
-    }
-  }
-  return last;
 }
 
 function edgeKey(a: number, b: number): string {

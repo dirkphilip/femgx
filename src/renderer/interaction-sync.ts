@@ -45,6 +45,7 @@ export interface InteractionEmphasisSyncOptions {
   readonly changedSlots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
   readonly denseSelections: DenseElementSelections;
+  readonly denseVisibility: DenseElementSelections;
   readonly denseNodeSelections: DenseNodeSelections;
 }
 
@@ -246,6 +247,7 @@ export function syncInteractionEmphasis(
       parts: options.parts,
       interaction: options.interaction,
       denseSelections: options.denseSelections,
+      denseHidden: options.denseVisibility,
       denseNodeSelections: options.denseNodeSelections,
       edgeKeysByPart: renderedEdgeKeys(options.bundle.draw, options.affectedParts),
     },
@@ -259,6 +261,7 @@ export function syncInteractionEmphasis(
       slotByInstanceId: options.slotByInstanceId,
       parts: options.parts,
       denseSelections: options.denseSelections,
+      denseVisibility: options.denseVisibility,
       denseNodeSelections: options.denseNodeSelections,
     },
     options.interaction,
@@ -273,8 +276,11 @@ export function syncInteractionEmphasis(
     },
     emphasisUpdates,
     options.affectedParts,
-    options.denseSelections,
-    options.denseNodeSelections,
+    {
+      elements: options.denseSelections,
+      nodes: options.denseNodeSelections,
+      hidden: options.denseVisibility,
+    },
   );
   return refreshTransparencyFlags({
     runtime: options.runtime,

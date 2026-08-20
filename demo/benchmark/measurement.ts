@@ -27,12 +27,13 @@ import {
   measureOverlayInteractiveSamples,
 } from "./interactive";
 import { estimateBenchmarkMemory, type WebGpuBenchmarkCase } from "./model";
-import { measureSelectionBenchmark } from "./selection";
+import { measureSelectionBenchmark } from "./workflows/selection";
 import { measureNodeSelectionBenchmark } from "./node-selection";
 import { measureHoverBenchmark } from "./hover";
 import { measureVisibilityBenchmark } from "./visibility";
+import { measureSelectionHideWorkflow } from "./workflows/selection-hide-workflow";
 import { measureManyPieceBenchmark } from "./many-piece";
-import { measureCombinedOverlayBenchmark } from "./combined-overlay";
+import { captureHiddenInterior, measureCombinedOverlayBenchmark } from "./combined-overlay";
 import type {
   BenchmarkTimings,
   NodeSelectionBenchmarkReport,
@@ -81,6 +82,7 @@ export async function measureBenchmarkCase(
       phase: "all-but-one" | "all-authored",
     ) => Promise<void>;
     readonly holdCombinedOverlayForCapture?: () => Promise<void>;
+    readonly holdHiddenInteriorForCapture?: () => Promise<void>;
   } = {},
 ): Promise<WebGpuBenchmarkCaseResult> {
   const runtimeCompileStart = performance.now();
@@ -97,6 +99,7 @@ export async function measureBenchmarkCase(
   let nodeSelection: NodeSelectionBenchmarkReport | undefined;
   let hover: WebGpuBenchmarkCaseResult["hover"];
   let visibility: WebGpuBenchmarkCaseResult["visibility"];
+  let selectionHideWorkflow: WebGpuBenchmarkCaseResult["selectionHideWorkflow"];
   let manyPiece: WebGpuBenchmarkCaseResult["manyPiece"];
   let combinedOverlay: WebGpuBenchmarkCaseResult["combinedOverlay"];
   let rendererCreateMs: number;
@@ -217,6 +220,25 @@ export async function measureBenchmarkCase(
       runtime,
       camera,
     });
+    phase = "selection-hide workflow sample";
+    selectionHideWorkflow = await measureSelectionHideWorkflow({
+      renderer,
+      device,
+      benchmarkCase,
+      runtime,
+      camera,
+    });
+    if (options.holdHiddenInteriorForCapture !== undefined) {
+      phase = "half-hidden interior capture";
+      await captureHiddenInterior({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        hold: options.holdHiddenInteriorForCapture,
+      });
+    }
     phase = "many-piece interaction sample";
     manyPiece = await measureManyPieceBenchmark({
       renderer,
@@ -264,6 +286,7 @@ export async function measureBenchmarkCase(
     ...(nodeSelection === undefined ? {} : { nodeSelection }),
     ...(hover === undefined ? {} : { hover }),
     ...(visibility === undefined ? {} : { visibility }),
+    ...(selectionHideWorkflow === undefined ? {} : { selectionHideWorkflow }),
     ...(manyPiece === undefined ? {} : { manyPiece }),
     ...(combinedOverlay === undefined ? {} : { combinedOverlay }),
     estimatedMemory: estimateBenchmarkMemory(

@@ -218,6 +218,48 @@ export interface VisibilityBenchmarkReport {
   readonly phases: readonly VisibilityBenchmarkPhase[];
 }
 
+export interface SelectionHideWorkflowFrames {
+  readonly firstFrameMs: number;
+  readonly steadyFrameMs: BenchmarkPercentiles;
+  readonly movingFirstFrameMs: number;
+  readonly movingSteadyFrameMs: BenchmarkPercentiles;
+}
+
+export interface SelectionHideWorkflowPhase {
+  /** Immutable selection or element-visibility state construction wall time. */
+  readonly interactionStateMs: number;
+  /** CPU-only renderer element-state synchronization wall time. */
+  readonly interactionSyncMs: number;
+  readonly frames: SelectionHideWorkflowFrames;
+  /** Exact dense selection/visibility storage required by this interaction state. */
+  readonly highlightRetainedBytes: number;
+  /** Estimated retained topology buffers materialized for authored edge presentation. */
+  readonly topologyRetainedBytes: number;
+  /** Buffer allocation minus releases recorded while synchronizing this phase. */
+  readonly rendererMemoryDeltaBytes: number;
+}
+
+export interface SelectionHideWorkflowVariant {
+  readonly id: "unsectioned" | "active-section";
+  readonly presentationGpuCost: BenchmarkGpuCostSnapshot;
+  readonly presentationStateMs: number;
+  readonly presentationSyncMs: number;
+  readonly selection: SelectionHideWorkflowPhase;
+  readonly hide: SelectionHideWorkflowPhase;
+  readonly restoreStateMs: number;
+  readonly restoreSyncMs: number;
+  readonly restoredVisibleElementCount: number;
+}
+
+/** Real-WebGPU half-element select/hide workflow with node and edge presentation enabled. */
+export interface SelectionHideWorkflowReport {
+  readonly nodes: true;
+  readonly authoredEdges: true;
+  readonly selectedElementCount: number;
+  readonly selectedOccurrenceCount: number;
+  readonly variants: readonly SelectionHideWorkflowVariant[];
+}
+
 export interface ManyPieceInteractionPhase {
   readonly id: "one" | "half" | "all";
   readonly targetCount: number;
@@ -336,6 +378,7 @@ export interface WebGpuBenchmarkCaseResult {
   readonly nodeSelection?: NodeSelectionBenchmarkReport;
   readonly hover?: HoverBenchmarkReport;
   readonly visibility?: VisibilityBenchmarkReport;
+  readonly selectionHideWorkflow?: SelectionHideWorkflowReport;
   readonly manyPiece?: ManyPieceBenchmarkReport;
   readonly combinedOverlay?: CombinedOverlayBenchmarkReport;
   readonly estimatedMemory: BenchmarkMemoryEstimate;

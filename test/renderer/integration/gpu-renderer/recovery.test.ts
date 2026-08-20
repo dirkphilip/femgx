@@ -4,6 +4,8 @@ import {
   readGpuCostSnapshot,
   createPackedSceneRuntime,
   createInteractionState,
+  setElementSelected,
+  setElementVisible,
   setPartOverride,
   setTargetHovered,
   setElementOverride,
@@ -159,6 +161,91 @@ describe("WebGPU renderer", () => {
     expect(
       recovered.drawCalls.slice(offStart).filter((call) => call.indexCount === 3),
     ).toHaveLength(0);
+    renderer.destroy();
+  });
+
+  it("retains active cap geometry through the Viewport instance-then-element selection order", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice({
+      pickValue: 1,
+      elementPickValue: 8,
+      nodePickValue: 99,
+      ndcDepth: 0.5,
+    });
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+    const buffers = [...gpu.buffers];
+
+    const selected = setElementSelected(
+      createInteractionState(),
+      { partOccurrenceId: "1/0", elementId: 7 },
+      true,
+    );
+    renderer.updateInstances(runtime, selected, [0]);
+    renderer.updateElements(runtime, selected);
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(buffers.every((buffer) => !buffer.destroyed)).toBe(true);
+    await expect(renderer.pick(2, 2)).resolves.toMatchObject({ kind: "element", elementId: 7 });
+    renderer.destroy();
+  });
+
+  it("drops and restores caps through the Viewport instance-then-element visibility order", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const visible = createInteractionState();
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.drawCalls.filter((call) => call.indexCount === 3)).not.toHaveLength(0);
+
+    const hidden = setElementVisible(visible, { partOccurrenceId: "1/0", elementId: 7 }, false);
+    renderer.updateInstances(runtime, hidden, [0]);
+    renderer.updateElements(runtime, hidden, [0]);
+    const hideStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(gpu.drawCalls.slice(hideStart).filter((call) => call.indexCount === 3)).toHaveLength(0);
+
+    renderer.updateInstances(runtime, visible, [0]);
+    renderer.updateElements(runtime, visible, [0]);
+    const restoreStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(
+      gpu.drawCalls.slice(restoreStart).filter((call) => call.indexCount === 3),
+    ).not.toHaveLength(0);
+    renderer.destroy();
+  });
+
+  it("applies section visibility from an instance-only renderer update", async () => {
+    installGpuTestGlobals();
+    const gpu = fakeGpuDevice();
+    installNavigator(gpu.device);
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const visible = createInteractionState();
+    renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    renderer.render(runtime, camera, scene.parts);
+
+    const hidden = setElementVisible(visible, { partOccurrenceId: "1/0", elementId: 7 }, false);
+    renderer.updateInstances(runtime, hidden, [0]);
+    const hideStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(gpu.drawCalls.slice(hideStart).filter((call) => call.indexCount === 3)).toHaveLength(0);
+    renderer.updateInstances(runtime, visible, [0]);
+    const restoreStart = gpu.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(
+      gpu.drawCalls.slice(restoreStart).filter((call) => call.indexCount === 3),
+    ).not.toHaveLength(0);
     renderer.destroy();
   });
 

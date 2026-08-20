@@ -132,6 +132,17 @@ export function writeBackgroundColors(
   device.queue.writeBuffer(resources.buffer, 0, values);
 }
 
+/** Writes a preset into the background resource owned by one renderer bundle. */
+export function writeBundleBackgroundColors(
+  bundle: {
+    readonly device: GPUDevice;
+    readonly resources: { readonly background: BackgroundResources };
+  },
+  background: ViewportBackground,
+): void {
+  writeBackgroundColors(bundle.device, bundle.resources.background, background);
+}
+
 /** Releases the background buffer owned by the renderer resource bundle. */
 export function destroyBackgroundResources(resources: BackgroundResources): void {
   resources.buffer.destroy();

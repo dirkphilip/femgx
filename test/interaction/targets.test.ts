@@ -18,10 +18,13 @@ import {
 } from "../../src/interaction/targets";
 import {
   clearSelection,
+  hideSelectedElements,
+  selectedElementVisibilitySummary,
   selectedTargetCount,
   selectedTargetSummary,
   selectedTargets,
 } from "../../src/interaction/selection-queries";
+import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import type { PickHit } from "../../src/picking/types";
 import { identityMatrix } from "../../src/math/mat4";
 import type { PartOccurrence } from "../../src/scene/types";
@@ -110,6 +113,24 @@ describe("InteractionTarget helpers", () => {
     expect(initialData.selectedBodyIds.size).toBe(0);
     expect(initialData.selectedElementIds.size).toBe(0);
     expect(setTargetsSelected(initial, [], true)).toBe(initial);
+  });
+
+  it("hides selected elements in one immutable transition and reports visible eligibility", () => {
+    const first = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 3 };
+    const second = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 4 };
+    const selected = setTargetsSelected(createInteractionState(), [first, second], true);
+    const partlyHidden = setElementVisible(selected, first, false);
+
+    expect(selectedElementVisibilitySummary(partlyHidden)).toEqual({
+      selectedCount: 2,
+      visibleCount: 1,
+    });
+
+    const hidden = hideSelectedElements(partlyHidden);
+    expect(isElementVisible(hidden, first)).toBe(false);
+    expect(isElementVisible(hidden, second)).toBe(false);
+    expect(isElementVisible(partlyHidden, second)).toBe(true);
+    expect(hideSelectedElements(hidden)).toBe(hidden);
   });
 
   it("clears only selection state and preserves every other layer", () => {

@@ -145,7 +145,8 @@ fn geometryPositionVec(index: u32) -> vec3<f32> {
 }
 
 fn geometrySourceIndex(index: u32) -> u32 {
-  let primitiveBase = topologyConditionBase() + topologyConditionCount() * 4u + topologyData[3];
+  let primitiveBase =
+    topologyConditionBase() + topologyConditionCount() * 6u + topologyData[3] + topologyData[4];
   let cornerBase = primitiveBase + 1u + topologyData[primitiveBase];
   return topologyData[cornerBase + index];
 }

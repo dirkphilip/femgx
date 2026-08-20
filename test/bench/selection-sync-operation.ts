@@ -152,7 +152,11 @@ function buildDensePayloadOperation(
       );
       const selection = dense.get(PART_ID);
       assertDenseSelection(selection, selected.selectedCount);
-      writeDenseSelectionData(storage.data, storage, selection);
+      writeDenseSelectionData(storage.data, storage, {
+        selection,
+        visibility: undefined,
+        nodeSelection: undefined,
+      });
       assertDensePayload(storage.data, selected.selectedCount);
     },
   };
@@ -232,9 +236,18 @@ function createSelectionStorage(selected: SelectionCase) {
   });
   const header = new Uint8Array(HIGHLIGHT_HEADER);
   const dense = selected.denseSelections.get(PART_ID);
-  writeSelectionHeader(new Uint32Array(header.buffer), storage, dense, undefined);
+  writeSelectionHeader(
+    new Uint32Array(header.buffer),
+    storage,
+    { selection: dense, visibility: undefined, nodeSelection: undefined },
+    undefined,
+  );
   storage.data.set(header);
-  writeDenseSelectionData(storage.data, storage, dense);
+  writeDenseSelectionData(storage.data, storage, {
+    selection: dense,
+    visibility: undefined,
+    nodeSelection: undefined,
+  });
   return storage;
 }
 
