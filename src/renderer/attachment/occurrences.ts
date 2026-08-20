@@ -12,28 +12,6 @@ import {
 import { instanceAt, type InstanceLayout } from "../runtime-state";
 import type { AttachmentOrderParts, AttachmentState } from "./reconciliation";
 
-/** Releases renderer-local placement state after a part has no live occurrences. */
-export function releasePartAttachment(options: {
-  readonly runtime: PackedSceneRuntime | undefined;
-  readonly layout: InstanceLayout | undefined;
-  readonly partId: PartId;
-  readonly draw: DrawResources;
-}): void {
-  const runtimeSlots = options.runtime?.getPartInstanceSlots(options.partId);
-  if (runtimeSlots !== undefined && runtimeSlots.length > 0) {
-    throw new Error(`Cannot retire part ${options.partId} while occurrences remain attached`);
-  }
-  const { layout } = options;
-  if (layout !== undefined) {
-    layout.partSlots.delete(options.partId);
-    layout.partLocalSlots.delete(options.partId);
-    const orderIndex = layout.partOrder.indexOf(options.partId);
-    if (orderIndex >= 0) layout.partOrder.splice(orderIndex, 1);
-    for (const counts of partCountMaps(layout)) counts.delete(options.partId);
-  }
-  destroyInstancePartResources(options.draw, options.partId);
-}
-
 /** Retires exact removed definitions and reports whether attached resources changed. */
 export function releasePartDefinitions(options: {
   readonly runtime: PackedSceneRuntime | undefined;
@@ -44,15 +22,49 @@ export function releasePartDefinitions(options: {
   readonly draw: DrawResources;
 }): boolean {
   let removed = false;
+  for (const partId of options.partIds) assertPartRetirable(options.runtime, partId);
+  if (options.layout !== undefined) {
+    removePartOrderEntries(options.layout.partOrder, options.partIds);
+  }
   for (const partId of options.partIds) {
     options.sourceParts.delete(partId);
     if (!options.attachedParts.has(partId)) continue;
-    releasePartAttachment({ ...options, partId });
+    releasePartState({ ...options, partId });
     destroyPartResources(options.draw, partId);
     options.attachedParts.delete(partId);
     removed = true;
   }
   return removed;
+}
+
+function assertPartRetirable(runtime: PackedSceneRuntime | undefined, partId: PartId): void {
+  const runtimeSlots = runtime?.getPartInstanceSlots(partId);
+  if (runtimeSlots !== undefined && runtimeSlots.length > 0) {
+    throw new Error(`Cannot retire part ${partId} while occurrences remain attached`);
+  }
+}
+
+function releasePartState(options: {
+  readonly layout: InstanceLayout | undefined;
+  readonly partId: PartId;
+  readonly draw: DrawResources;
+}): void {
+  const { layout } = options;
+  if (layout !== undefined) {
+    layout.partSlots.delete(options.partId);
+    layout.partLocalSlots.delete(options.partId);
+    for (const counts of partCountMaps(layout)) counts.delete(options.partId);
+  }
+  destroyInstancePartResources(options.draw, options.partId);
+}
+
+function removePartOrderEntries(order: PartId[], removed: ReadonlySet<PartId>): void {
+  let target = 0;
+  for (let source = 0; source < order.length; source += 1) {
+    const partId = order[source];
+    if (partId !== undefined && !removed.has(partId)) order[target++] = partId;
+  }
+  order.length = target;
 }
 
 function partCountMaps(layout: InstanceLayout): readonly Map<PartId, number>[] {
@@ -79,7 +91,12 @@ export function applyOccurrenceAttachment(options: {
   reserveGlobalSlots(options.layout, options.runtime.instanceCount);
   removePreviousLocals(options.layout, options.delta);
   assignCurrentLocals(options.runtime, options.layout, options.delta);
-  updatePartMembership(options.runtime, options.layout, options.delta.affectedPartIds);
+  updatePartMembership(
+    options.runtime,
+    options.layout,
+    options.delta.affectedPartIds,
+    options.delta.removedPartIds,
+  );
   updateSnapshot(options.runtime, options.delta, options.state);
   const changedSlots = options.delta.slots
     .filter(({ afterPartId }) => afterPartId !== undefined)
@@ -155,6 +172,11 @@ function assignCurrentLocals(
   for (const { afterPartId } of delta.slots) {
     if (afterPartId !== undefined) required.set(afterPartId, (required.get(afterPartId) ?? 0) + 1);
   }
+  const newParts = new Set<PartId>();
+  for (const partId of required.keys()) {
+    if (!layout.partLocalSlots.has(partId)) newParts.add(partId);
+  }
+  mergePartOrder(layout.partOrder, newParts);
   const allocators = new Map<PartId, PartLocalAllocator>();
   for (const [partId, count] of required) {
     allocators.set(partId, preparePartLocalAllocator(layout, partId, count));
@@ -189,7 +211,6 @@ function preparePartLocalAllocator(
   if (slots === undefined) {
     slots = new Int32Array();
     initializePartCounts(layout, partId);
-    insertPartOrder(layout.partOrder, partId);
   }
   const free: number[] = [];
   for (let local = 0; local < slots.length && free.length < required; local += 1) {
@@ -213,11 +234,45 @@ function updatePartMembership(
   runtime: PackedSceneRuntime,
   layout: InstanceLayout,
   partIds: ReadonlySet<PartId>,
+  removedPartIds: ReadonlySet<PartId>,
 ): void {
   for (const partId of partIds) {
+    if (removedPartIds.has(partId)) continue;
     const slots = runtime.getPartInstanceSlots(partId);
     slots.sort();
     layout.partSlots.set(partId, slots);
+  }
+}
+
+function mergePartOrder(order: PartId[], added: ReadonlySet<PartId>): void {
+  if (added.size === 0) return;
+  const previous = order.slice();
+  const additions = [...added].sort((left, right) => left - right);
+  order.length = previous.length + additions.length;
+  let left = 0;
+  let right = 0;
+  let target = 0;
+  while (left < previous.length && right < additions.length) {
+    const existing = previous[left];
+    const addition = additions[right];
+    if (existing === undefined || addition === undefined) throw new Error("Part order is sparse");
+    if (existing < addition) {
+      order[target++] = existing;
+      left += 1;
+    } else {
+      order[target++] = addition;
+      right += 1;
+    }
+  }
+  while (left < previous.length) {
+    const partId = previous[left++];
+    if (partId === undefined) throw new Error("Part order is sparse");
+    order[target++] = partId;
+  }
+  while (right < additions.length) {
+    const partId = additions[right++];
+    if (partId === undefined) throw new Error("Added part order is sparse");
+    order[target++] = partId;
   }
 }
 
@@ -265,10 +320,4 @@ function initializePartCounts(layout: InstanceLayout, partId: PartId): void {
     layout.partSelectedNodeCounts,
   ])
     counts.set(partId, 0);
-}
-
-function insertPartOrder(order: PartId[], partId: PartId): void {
-  let index = 0;
-  while (index < order.length && (order[index] ?? 0) < partId) index += 1;
-  if (order[index] !== partId) order.splice(index, 0, partId);
 }

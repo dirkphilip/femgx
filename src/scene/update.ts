@@ -61,10 +61,13 @@ class SceneUpdateDraft implements SceneUpdate {
   private readonly touchedAssemblies = new Set<AssemblyId>();
   private readonly placementChanges: PlacementChange[] = [];
   private readonly placementDrafts: ScenePlacementDrafts;
+  private readonly pendingPartPlacementRemovals = new Set<PartId>();
+  private partReferenceCounts: Map<PartId, number> | undefined;
 
   constructor(private readonly source: Scene) {
     this.placementDrafts = new ScenePlacementDrafts((id, assembly) => {
       this.mutableAssemblies().set(id, assembly);
+      this.partReferenceCounts = undefined;
     });
   }
 
@@ -98,10 +101,7 @@ class SceneUpdateDraft implements SceneUpdate {
     if (references > 0 && options?.placements !== "remove") {
       throw new Error(`Part ${partId} is still referenced by ${references} placement(s)`);
     }
-    if (references > 0)
-      this.removePlacements(
-        (placement) => placement.kind === "part" && placement.partId === partId,
-      );
+    if (references > 0) this.pendingPartPlacementRemovals.add(partId);
     this.mutableParts().delete(partId);
     this.mutableVisibleParts().delete(partId);
     this.touchedParts.add(partId);
@@ -190,6 +190,7 @@ class SceneUpdateDraft implements SceneUpdate {
   }
 
   finish(): PreparedSceneUpdate | undefined {
+    this.flushPartPlacementRemovals();
     const transformOnly = hasOnlyTransformChanges(
       this.touchedParts,
       this.touchedAssemblies,
@@ -254,10 +255,17 @@ class SceneUpdateDraft implements SceneUpdate {
   }
 
   private partReferences(partId: PartId): number {
-    return countReferences(
-      this.currentAssemblies(),
-      (placement) => placement.kind === "part" && placement.partId === partId,
-    );
+    if (this.partReferenceCounts === undefined) {
+      const counts = new Map<PartId, number>();
+      for (const assembly of this.rawAssemblies().values()) {
+        for (const placement of assembly.placements) {
+          if (placement.kind !== "part") continue;
+          counts.set(placement.partId, (counts.get(placement.partId) ?? 0) + 1);
+        }
+      }
+      this.partReferenceCounts = counts;
+    }
+    return this.partReferenceCounts.get(partId) ?? 0;
   }
 
   private assemblyReferences(assemblyId: AssemblyId): number {
@@ -294,6 +302,11 @@ class SceneUpdateDraft implements SceneUpdate {
   }
 
   private currentAssemblies(): ReadonlyMap<AssemblyId, AssemblyDefinition> {
+    this.flushPartPlacementRemovals();
+    return this.rawAssemblies();
+  }
+
+  private rawAssemblies(): ReadonlyMap<AssemblyId, AssemblyDefinition> {
     return this.assemblies ?? this.source.assemblies;
   }
 
@@ -311,6 +324,24 @@ class SceneUpdateDraft implements SceneUpdate {
 
   private mutableVisibleAssemblies(): Set<AssemblyId> {
     return (this.visibleAssemblies ??= new Set(this.source.visibleAssemblyIds));
+  }
+
+  private flushPartPlacementRemovals(): void {
+    if (this.pendingPartPlacementRemovals.size === 0) return;
+    const removed = this.pendingPartPlacementRemovals;
+    for (const [id, assembly] of this.rawAssemblies()) {
+      const placements: Placement[] = [];
+      for (const placement of assembly.placements) {
+        if (placement.kind === "part" && removed.has(placement.partId)) {
+          this.placementChanges.push({ ownerAssemblyId: id, before: placement, after: undefined });
+        } else placements.push(placement);
+      }
+      if (placements.length !== assembly.placements.length) {
+        this.placementDrafts.replaceAll(id, assembly, placements);
+      }
+    }
+    removed.clear();
+    this.partReferenceCounts = undefined;
   }
 }
 
