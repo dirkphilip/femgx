@@ -110,6 +110,7 @@
     "bench:budget": "vitest run --config config/vitest.budget.config.ts",
     "bench:operations": "vitest run --config config/vitest.operations.config.ts",
     "bench:scaling:large": "vitest run --config config/vitest.large-scaling.config.ts",
+    "bench:interaction-state": "vitest run --config config/vitest.interaction-state-scaling.config.ts",
     "bench:selection-sync": "vitest run --config config/vitest.selection-sync.config.ts",
     "bench:selection-hide-workflow": "vitest run --config config/vitest.selection-hide-workflow.config.ts",
     "bench:node-selection-sync": "vitest run --config config/vitest.node-selection-sync.config.ts",

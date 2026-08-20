@@ -115,6 +115,80 @@ describe("InteractionTarget helpers", () => {
     expect(setTargetsSelected(initial, [], true)).toBe(initial);
   });
 
+  it("keeps branched mixed node and element selections immutable while removing full groups", () => {
+    const firstOccurrenceElements = [
+      { kind: "element" as const, partOccurrenceId: "occurrence/a", elementId: 41 },
+      { kind: "element" as const, partOccurrenceId: "occurrence/a", elementId: 42 },
+    ] as const;
+    const secondOccurrenceElements = [
+      { kind: "element" as const, partOccurrenceId: "occurrence/b", elementId: 41 },
+      { kind: "element" as const, partOccurrenceId: "occurrence/b", elementId: 42 },
+    ] as const;
+    const firstOccurrenceNodes = [
+      { kind: "node" as const, partOccurrenceId: "occurrence/a", nodeId: 41 },
+      { kind: "node" as const, partOccurrenceId: "occurrence/a", nodeId: 42 },
+    ] as const;
+    const selected = setTargetsSelected(
+      createInteractionState(),
+      [...firstOccurrenceElements, ...firstOccurrenceNodes],
+      true,
+    );
+    const branched = setTargetsSelected(selected, secondOccurrenceElements, true);
+    const partiallyCleared = setTargetsSelected(
+      branched,
+      [firstOccurrenceElements[0], firstOccurrenceNodes[1]],
+      false,
+    );
+    const cleared = setTargetsSelected(
+      partiallyCleared,
+      [firstOccurrenceElements[1], firstOccurrenceNodes[0], ...secondOccurrenceElements],
+      false,
+    );
+
+    expect(selectedTargets(selected)).toEqual([
+      ...firstOccurrenceElements,
+      ...firstOccurrenceNodes,
+    ]);
+    expect(selectedTargets(branched)).toEqual([
+      ...firstOccurrenceElements,
+      ...secondOccurrenceElements,
+      ...firstOccurrenceNodes,
+    ]);
+    expect(selectedTargets(partiallyCleared)).toEqual([
+      firstOccurrenceElements[1],
+      ...secondOccurrenceElements,
+      firstOccurrenceNodes[0],
+    ]);
+    expect(selectedTargets(cleared)).toEqual([]);
+    expect(readInteractionState(cleared).selectedElementIds.size).toBe(0);
+    expect(readInteractionState(cleared).selectedNodeIds.size).toBe(0);
+    expect(
+      setTargetsSelected(
+        cleared,
+        [...firstOccurrenceElements, ...secondOccurrenceElements, ...firstOccurrenceNodes],
+        false,
+      ),
+    ).toBe(cleared);
+  });
+
+  it("removes complete face and edge groups without retaining empty nested entries", () => {
+    const faces = [
+      { kind: "face" as const, partOccurrenceId: "occurrence/a", elementId: 41, faceIndex: 0 },
+      { kind: "face" as const, partOccurrenceId: "occurrence/b", elementId: 41, faceIndex: 0 },
+    ] as const;
+    const edges = [
+      { kind: "edge" as const, partOccurrenceId: "occurrence/a", key: "1,2" },
+      { kind: "edge" as const, partOccurrenceId: "occurrence/b", key: "1,2" },
+    ] as const;
+    const selected = setTargetsSelected(createInteractionState(), [...faces, ...edges], true);
+    const cleared = setTargetsSelected(selected, [...faces, ...edges], false);
+
+    expect(selectedTargets(selected)).toEqual([...faces, ...edges]);
+    expect(selectedTargets(cleared)).toEqual([]);
+    expect(readInteractionState(cleared).selectedFaces.size).toBe(0);
+    expect(readInteractionState(cleared).selectedEdges.size).toBe(0);
+  });
+
   it("hides selected elements in one immutable transition and reports visible eligibility", () => {
     const first = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 3 };
     const second = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 4 };

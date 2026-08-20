@@ -27,7 +27,7 @@ import {
   bulkSelectionTargets,
   duplicateBulkSelectionTargets,
   bulkHighlightTargets,
-  tet4SelectionTargets,
+  largeElementSelectionTargets,
   phaseSelectionTargets,
   phaseSelectionStates,
   sceneBuilderParts,
@@ -69,11 +69,11 @@ export const interactionBudgets: readonly BudgetCase[] = [
     },
   },
   {
-    name: "setTargetsSelected (131,712 Tet4 elements)",
-    description: "one immutable bulk transition for the bounded Tet4 selection result",
+    name: "setTargetsSelected (131,712 mixed-occurrence elements)",
+    description: "one immutable bulk transition independent of FE element topology",
     budgetMs: 35,
     run: () => {
-      setTargetsSelected(createInteractionState(), tet4SelectionTargets, true);
+      setTargetsSelected(createInteractionState(), largeElementSelectionTargets, true);
     },
   },
   {
