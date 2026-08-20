@@ -10,6 +10,7 @@ import {
   buildSelectionOrder,
   buildInstanceLayout,
   createInteractionState,
+  setElementSelected,
   setNodeSelected,
   setTargetsSelected,
   buildSelectionDrawCallsForTest,
@@ -122,6 +123,115 @@ describe("renderer runtime state", () => {
     expect(
       buildNodeOrder({ layout, runtime, partId: 1, nodeFlags: [true, false, true], parts }),
     ).toEqual(new Uint32Array());
+  });
+
+  it("does not admit a non-Point occurrence into surface selection for node-only targets", () => {
+    const nodePositions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const triangle = createPart(3, {
+      geometries: [
+        {
+          positions: nodePositions,
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+        },
+      ],
+      elements: [
+        {
+          id: 1,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+      ],
+      nodePositions,
+    });
+    const line = createPart(4, {
+      geometries: [
+        {
+          positions: nodePositions,
+          indices: new Uint32Array([0, 1]),
+          primitive: "lines",
+        },
+      ],
+      nodePositions,
+    });
+    const mixed = createPart(5, {
+      geometries: [
+        {
+          positions: nodePositions,
+          indices: new Uint32Array([0, 1, 2]),
+          primitive: "triangles",
+        },
+        {
+          positions: nodePositions,
+          indices: new Uint32Array([0, 1]),
+          primitive: "lines",
+        },
+        {
+          positions: nodePositions,
+          indices: new Uint32Array([0]),
+          primitive: "points",
+        },
+      ],
+      nodePositions,
+    });
+    const scene = createSceneBuilder()
+      .addPart(triangle)
+      .addPart(line)
+      .addPart(mixed)
+      .addAssembly({
+        id: 1,
+        name: "root",
+        placements: [
+          { kind: "part", partId: triangle.id, transform: identityMatrix() },
+          { kind: "part", partId: line.id, transform: identityMatrix() },
+          { kind: "part", partId: mixed.id, transform: identityMatrix() },
+        ],
+      })
+      .setRootAssembly(1)
+      .build();
+    const runtime = createPackedSceneRuntime(scene);
+    const layout = buildInstanceLayout(runtime);
+    const parts = new Map([
+      [triangle.id, triangle],
+      [line.id, line],
+      [mixed.id, mixed],
+    ]);
+    const interaction = setNodeSelected(
+      createInteractionState(),
+      { partOccurrenceId: "1/0", nodeId: 1 },
+      true,
+    );
+
+    expect(buildSelectionOrder(layout, runtime, triangle.id, interaction, parts)).toEqual(
+      new Uint32Array(),
+    );
+
+    expect(
+      buildSelectionOrder(
+        layout,
+        runtime,
+        line.id,
+        setNodeSelected(createInteractionState(), { partOccurrenceId: "1/1", nodeId: 1 }, true),
+        parts,
+      ),
+    ).toEqual(new Uint32Array());
+    expect(
+      buildSelectionOrder(
+        layout,
+        runtime,
+        mixed.id,
+        setNodeSelected(createInteractionState(), { partOccurrenceId: "1/2", nodeId: 1 }, true),
+        parts,
+      ),
+    ).toEqual(new Uint32Array());
+
+    const nodeAndElement = setElementSelected(
+      interaction,
+      { partOccurrenceId: "1/0", elementId: 1 },
+      true,
+    );
+    expect(buildSelectionOrder(layout, runtime, triangle.id, nodeAndElement, parts)).toEqual(
+      new Uint32Array([0]),
+    );
   });
 
   it("keeps hidden slots addressable and omits parts without visible slots", () => {

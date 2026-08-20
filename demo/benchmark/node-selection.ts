@@ -244,11 +244,11 @@ function assertAggregateSelectedWork(
     const draw = cost.draws[pass];
     if (
       draw === undefined ||
-      draw.calls === 0 ||
-      draw.indices < nodeWork.indices ||
-      draw.instances < nodeWork.instances
+      draw.calls !== 1 ||
+      draw.indices !== nodeWork.indices ||
+      draw.instances !== nodeWork.instances
     ) {
-      throw new Error(`${pass} aggregate omitted submitted selected-node work`);
+      throw new Error(`${pass} aggregate included unexpected non-node selection work`);
     }
   }
 }

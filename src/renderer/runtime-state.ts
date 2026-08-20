@@ -2,6 +2,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Part, PartId } from "../geometry/part";
 import type { PartOccurrence, PartOccurrenceId } from "../scene/types";
 import type { DrawCall } from "./resources/draw-resources";
+import { isPointOnlyPart } from "./selection/order";
 
 export { buildSelectionOrder } from "./selection/order";
 
@@ -178,11 +179,7 @@ export function buildNodeOrder(options: {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly selectedNodeFlags?: readonly boolean[];
 }): Uint32Array {
-  if (
-    options.parts
-      .get(options.partId)
-      ?.geometries.every((geometry) => geometry.primitive === "points")
-  ) {
+  if (isPointOnlyPart(options.parts.get(options.partId))) {
     return new Uint32Array();
   }
   return buildCompactedOrder(
@@ -202,8 +199,7 @@ export function buildNodeSelectionOrder(
   selectedNodeFlags: readonly boolean[],
   parts: ReadonlyMap<PartId, Part>,
 ): Uint32Array {
-  if (parts.get(partId)?.geometries.every((geometry) => geometry.primitive === "points"))
-    return new Uint32Array();
+  if (isPointOnlyPart(parts.get(partId))) return new Uint32Array();
   return buildCompactedOrder(
     layout,
     partId,

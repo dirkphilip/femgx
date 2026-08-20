@@ -23,6 +23,11 @@ interface SelectionOrderLayout {
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
 }
 
+/** Returns whether a part's primary geometry is entirely authored point sprites. */
+export function isPointOnlyPart(part: Part | undefined): boolean {
+  return part?.geometries.every((geometry) => geometry.primitive === "points") ?? false;
+}
+
 /** Returns visible part-local slots carrying any selected target for each requested part. */
 export function buildSelectionOrders(options: {
   readonly layout: SelectionOrderLayout;
@@ -96,7 +101,10 @@ function collectCandidates(
     const slot = context.runtime.getInstanceSlot(instanceId);
     const partId = slot === undefined ? undefined : context.runtime.instancePartIds[slot];
     const part = partId === undefined ? undefined : parts.get(partId);
-    if (part !== undefined && hasValidNodeSelection(nodeIds, partNodeCount(part))) {
+    if (
+      isPointOnlyPart(part) &&
+      hasValidNodeSelection(nodeIds, part === undefined ? 0 : partNodeCount(part))
+    ) {
       addCandidate(context, instanceId);
     }
   }
@@ -186,10 +194,11 @@ function hasSelectedTarget(
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||
-    hasValidNodeSelection(
-      data.selectedNodeIds.get(instanceId),
-      part === undefined ? 0 : partNodeCount(part),
-    )
+    (isPointOnlyPart(part) &&
+      hasValidNodeSelection(
+        data.selectedNodeIds.get(instanceId),
+        part === undefined ? 0 : partNodeCount(part),
+      ))
   );
 }
 
