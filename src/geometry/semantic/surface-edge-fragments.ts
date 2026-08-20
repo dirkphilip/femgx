@@ -1,4 +1,5 @@
 import type { SurfaceFacetColumns, SurfaceLineColumns } from "../explicit-topology/input";
+import { sortIndexRows } from "../../math/index-merge-sort";
 import type { DirectEdgeSources } from "./direct-edge-columns";
 
 export interface DirectEdgeCandidates {
@@ -197,33 +198,9 @@ function appendSequence(
 }
 
 function sortedCandidates(candidates: DirectEdgeCandidates): Uint32Array {
-  const result = new Uint32Array(candidates.incidentElementIds.length);
-  const scratch = new Uint32Array(result.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2) {
-      const middle = Math.min(start + width, result.length);
-      const end = Math.min(start + width * 2, result.length);
-      let left = start;
-      let right = middle;
-      for (let output = start; output < end; output += 1) {
-        const leftValue = result[left] ?? 0;
-        const rightValue = result[right] ?? 0;
-        if (
-          left < middle &&
-          (right >= end || compareCandidates(candidates, leftValue, rightValue) <= 0)
-        ) {
-          scratch[output] = leftValue;
-          left += 1;
-        } else {
-          scratch[output] = rightValue;
-          right += 1;
-        }
-      }
-    }
-    result.set(scratch);
-  }
-  return result;
+  return sortIndexRows(candidates.incidentElementIds.length, (left, right) =>
+    compareCandidates(candidates, left, right),
+  );
 }
 
 function compareCandidates(candidates: DirectEdgeCandidates, left: number, right: number): number {

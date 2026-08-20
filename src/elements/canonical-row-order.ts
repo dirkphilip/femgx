@@ -1,3 +1,5 @@
+import { sortIndexRows } from "../math/index-merge-sort";
+
 const RADIX_SIZE = 1 << 16;
 const RADIX_MASK = RADIX_SIZE - 1;
 
@@ -57,46 +59,9 @@ function radixPass(
 
 /** Orders variable-width canonical Uint32 rows exactly with bounded dense storage. */
 export function sortVariableCanonicalRows(offsets: Uint32Array, nodes: Uint32Array): Uint32Array {
-  const result = new Uint32Array(offsets.length - 1);
-  const scratch = new Uint32Array(result.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2) {
-      mergeVariableRows(offsets, nodes, result, scratch, {
-        start,
-        middle: Math.min(start + width, result.length),
-        end: Math.min(start + width * 2, result.length),
-      });
-    }
-    result.set(scratch);
-  }
-  return result;
-}
-
-function mergeVariableRows(
-  offsets: Uint32Array,
-  nodes: Uint32Array,
-  source: Uint32Array,
-  target: Uint32Array,
-  range: { readonly start: number; readonly middle: number; readonly end: number },
-): void {
-  const { start, middle, end } = range;
-  let left = start;
-  let right = middle;
-  for (let output = start; output < end; output += 1) {
-    const leftRow = source[left] ?? 0;
-    const rightRow = source[right] ?? 0;
-    if (
-      left < middle &&
-      (right >= end || compareVariableCanonicalRows(offsets, nodes, leftRow, rightRow) <= 0)
-    ) {
-      target[output] = leftRow;
-      left += 1;
-    } else {
-      target[output] = rightRow;
-      right += 1;
-    }
-  }
+  return sortIndexRows(offsets.length - 1, (left, right) =>
+    compareVariableCanonicalRows(offsets, nodes, left, right),
+  );
 }
 
 /** Compares two variable-width canonical rows lexicographically. */

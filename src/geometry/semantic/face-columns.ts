@@ -1,4 +1,5 @@
 import { ordinalForId } from "../../elements/model-storage";
+import { sortIndexRows } from "../../math/index-merge-sort";
 import type { GeometryInput } from "../types";
 
 export interface FaceColumns {
@@ -34,42 +35,21 @@ export function completeFaceColumns(columns: Omit<FaceColumns, "faceLookupOrdina
 }
 
 function sortedFaceOrdinals(columns: Omit<FaceColumns, "faceLookupOrdinals">): Uint32Array {
-  const result = new Uint32Array(columns.faceIndices.length);
-  const scratch = new Uint32Array(result.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2) {
-      const middle = Math.min(start + width, result.length);
-      const end = Math.min(start + width * 2, result.length);
-      let left = start;
-      let right = middle;
-      for (let output = start; output < end; output += 1) {
-        const leftOrdinal = result[left] ?? 0;
-        const rightOrdinal = result[right] ?? 0;
-        if (left < middle && (right >= end || beforeFace(columns, leftOrdinal, rightOrdinal))) {
-          scratch[output] = leftOrdinal;
-          left += 1;
-        } else {
-          scratch[output] = rightOrdinal;
-          right += 1;
-        }
-      }
-    }
-    result.set(scratch);
-  }
-  return result;
+  return sortIndexRows(columns.faceIndices.length, (left, right) =>
+    compareFaces(columns, left, right),
+  );
 }
 
-function beforeFace(
+function compareFaces(
   columns: Omit<FaceColumns, "faceLookupOrdinals">,
   left: number,
   right: number,
-): boolean {
+): number {
   const leftOwner = columns.faceOwnerElementOrdinals[left] ?? 0;
   const rightOwner = columns.faceOwnerElementOrdinals[right] ?? 0;
   return leftOwner === rightOwner
-    ? (columns.faceIndices[left] ?? 0) <= (columns.faceIndices[right] ?? 0)
-    : leftOwner < rightOwner;
+    ? (columns.faceIndices[left] ?? 0) - (columns.faceIndices[right] ?? 0)
+    : leftOwner - rightOwner;
 }
 
 function faceColumnSizes(geometries: readonly GeometryInput[]): {

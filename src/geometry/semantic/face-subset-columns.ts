@@ -1,5 +1,6 @@
 import { FaceSelectionError, type FaceIdRef } from "../../elements/faces";
 import { ordinalForId } from "../../elements/model-storage";
+import { sortIndexRows } from "../../math/index-merge-sort";
 import type { DirectFaceSources } from "./direct-face-columns";
 import type { FaceColumns } from "./face-columns";
 import type { GeometryInput } from "../types";
@@ -180,49 +181,7 @@ function rejectUnknownSelection(
 }
 
 function sortedPairRows(ids: Uint32Array, indices: Uint32Array): Uint32Array {
-  const result = new Uint32Array(ids.length);
-  const scratch = new Uint32Array(ids.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2)
-      mergePairRows(
-        ids,
-        indices,
-        result,
-        scratch,
-        start,
-        Math.min(start + width, result.length),
-        Math.min(start + width * 2, result.length),
-      );
-    result.set(scratch);
-  }
-  return result;
-}
-
-// This is the linear merge kernel for the two typed pair columns.
-// eslint-disable-next-line max-params
-function mergePairRows(
-  ids: Uint32Array,
-  indices: Uint32Array,
-  source: Uint32Array,
-  target: Uint32Array,
-  start: number,
-  middle: number,
-  end: number,
-): void {
-  let left = start;
-  let right = middle;
-  for (let output = start; output < end; output += 1) {
-    const leftRow = source[left] ?? 0;
-    const rightRow = source[right] ?? 0;
-    if (left < middle && (right >= end || pairCompare(ids, indices, leftRow, rightRow) <= 0)) {
-      target[output] = leftRow;
-      left += 1;
-    } else {
-      target[output] = rightRow;
-      right += 1;
-    }
-  }
+  return sortIndexRows(ids.length, (left, right) => pairCompare(ids, indices, left, right));
 }
 
 function pairBefore(
