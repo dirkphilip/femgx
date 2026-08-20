@@ -80,6 +80,85 @@ describe("section-cap part retirement", () => {
     }
   });
 
+  it("reuses uploaded cap resources across hide and restore", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = sectionScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const controller = new SectionCapController();
+      const visible = createInteractionState();
+      controller.sync(sectionOptions(runtime, scene, visible, bundle.draw));
+      const initial = controller.currentFrame;
+      const occurrenceId = runtime.getInstanceId(0);
+      if (initial === undefined || occurrenceId === undefined)
+        throw new Error("section caps are missing");
+      for (const part of initial.parts.values()) uploadPart(bundle.draw, part);
+      const buffers = gpu.buffers.length;
+      const writes = gpu.writes.length;
+      controller.syncInteraction(visible, runtime, scene.parts, bundle.draw);
+      expect(gpu.writes).toHaveLength(writes);
+      const hidden = setElementVisible(
+        visible,
+        { partOccurrenceId: occurrenceId, elementId: 7 },
+        false,
+      );
+
+      controller.syncInteraction(hidden, runtime, scene.parts, bundle.draw);
+
+      expect(controller.currentFrame?.parts).toHaveLength(1);
+      expect(gpu.buffers).toHaveLength(buffers);
+      controller.syncInteraction(visible, runtime, scene.parts, bundle.draw);
+      controller.sync(sectionOptions(runtime, scene, visible, bundle.draw));
+
+      expect(controller.currentFrame?.parts).toEqual(initial.parts);
+      expect(gpu.buffers).toHaveLength(buffers);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
+
+  it("keeps an inactive section allocation-free through visibility updates", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = sectionScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const controller = new SectionCapController();
+      const visible = createInteractionState();
+      const occurrenceId = runtime.getInstanceId(0);
+      if (occurrenceId === undefined) throw new Error("section occurrence is missing");
+      controller.sync({
+        ...sectionOptions(runtime, scene, visible, bundle.draw),
+        plane: undefined,
+      });
+      const buffers = gpu.buffers.length;
+      const hidden = setElementVisible(
+        visible,
+        { partOccurrenceId: occurrenceId, elementId: 7 },
+        false,
+      );
+
+      controller.syncInteraction(hidden, runtime, scene.parts, bundle.draw);
+      controller.sync({ ...sectionOptions(runtime, scene, hidden, bundle.draw), plane: undefined });
+      controller.syncInteraction(visible, runtime, scene.parts, bundle.draw);
+      controller.sync({
+        ...sectionOptions(runtime, scene, visible, bundle.draw),
+        plane: undefined,
+      });
+
+      expect(controller.currentFrame).toBeUndefined();
+      expect(controller.parts).toBe(scene.parts);
+      expect(gpu.buffers).toHaveLength(buffers);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
+
   it("destroys only cap fragments sourced from a removed definition", async () => {
     const restore = installGpuGlobals();
     const gpu = fakeGpuDevice();

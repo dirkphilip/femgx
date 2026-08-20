@@ -34,7 +34,6 @@ import {
   type GpuTimestampSnapshot,
 } from "./diagnostics/timestamps";
 import type { GpuRendererConstruction } from "./renderer-construction";
-import { sectionCapVisibilityChanged } from "./section-cap-interaction";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer {
@@ -211,15 +210,15 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds: readonly number[],
   ): void {
     this.ensureAlive();
+    this.interaction = interaction;
     const changed = this.attachment.updateInstances(
       runtime,
       interaction,
       changedInstanceIds,
       this.lifecycle.bundle,
     );
-    if (changed || sectionCapVisibilityChanged(this.interaction, interaction))
-      this.sectionCaps.invalidate();
-    this.interaction = interaction;
+    if (changed) this.sectionCaps.invalidate();
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
   }
 
@@ -247,7 +246,6 @@ export class GpuRenderer implements WebGpuRenderer {
     changedInstanceIds?: readonly number[],
   ): void {
     this.ensureAlive();
-    const previousInteraction = this.interaction;
     this.interaction = interaction;
     const changed = this.attachment.updateElements(
       runtime,
@@ -256,15 +254,7 @@ export class GpuRenderer implements WebGpuRenderer {
       this.parts,
       changedInstanceIds,
     );
-    if (changed) this.sectionCaps.invalidate();
-    else
-      this.sectionCaps.syncInteraction(
-        previousInteraction,
-        interaction,
-        runtime,
-        this.parts,
-        this.lifecycle.bundle.draw,
-      );
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
   }
 
