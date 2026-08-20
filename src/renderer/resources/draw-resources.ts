@@ -1,6 +1,5 @@
 import type { Part, PartId } from "../../geometry/part";
 import type { Geometry, Primitive } from "../../geometry/part";
-import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { DeformationState } from "../../results/deform";
 import type { ResultColorMap } from "../../results/colors";
 import type { SectionPlane } from "../../math/section-plane";
@@ -10,7 +9,7 @@ import { createHighlightStorage } from "../selection/highlight-storage";
 import { buildNodeSpritePickIds, buildPackedNodeTopologyData } from "../picking/node-topology";
 import type { DrawPipelines } from "../frame/pipelines";
 import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometry";
-import { createBuffer, type PartResource } from "./foundation";
+import { createBuffer, type PartResource, type SelectionDrawRange } from "./foundation";
 import { createEmptyResultColorBuffer } from "./result-colors";
 import {
   buildPartSubsetGeometryData,
@@ -22,6 +21,7 @@ import {
   triangleUploadData,
   type UploadVertexData,
 } from "../resources/geometry-upload";
+import { buildPartSelectionGeometryData } from "../selection/replay-data";
 import { createColorTargets } from "../resources/color-targets";
 import { GpuCostAccumulator } from "../diagnostics/cost";
 import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
@@ -30,8 +30,14 @@ import type { VisibilitySkin } from "../visibility/types";
 import { compactNodeSpriteData, expandPointGeometry, type PointVertexData } from "./point-sprites";
 
 export type { DrawResources } from "./draw-types";
+export type { SelectionDrawRange } from "./foundation";
 
-export { destroyDrawResources, destroyPartResource, destroyPartResources } from "./draw-lifecycle";
+export {
+  clearSelectionReplay,
+  destroyDrawResources,
+  destroyPartResource,
+  destroyPartResources,
+} from "./draw-lifecycle";
 
 export { destroyInstancePartResources, destroyInstanceResources } from "./instance-lifecycle";
 
@@ -71,13 +77,6 @@ export interface DrawCall {
   readonly selectedNodeMode?: "compact";
 }
 
-/** One index-buffer range for a selected primitive group. */
-export interface SelectionDrawRange {
-  readonly primitive: Primitive;
-  readonly firstIndex: number;
-  readonly indexCount: number;
-}
-
 /** Per-frame inputs shared by every draw batch of a pass. */
 export interface DrawCallContext {
   readonly frameBindGroup: GPUBindGroup;
@@ -111,6 +110,7 @@ export function createDrawResources(
     destroyed: false,
     parts: new Map(),
     primitiveParts: new Map(),
+    selectionReplays: new Map(),
     nodeParts: new Map(),
     storages: new Map(),
     visibilitySkins: new Map(),
@@ -179,7 +179,6 @@ export function uploadGeometryPart(
         subset.subsetIndices.length,
         primitiveColorBuffer,
       );
-      prepareBoundarySolidGeometry(draw, part, geometry, resource);
       resources.set(geometry.primitive, resource);
       draw.primitiveParts.set(part.id, resources);
       if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
@@ -244,17 +243,6 @@ function uploadFullGeometry(
   return resource;
 }
 
-function prepareBoundarySolidGeometry(
-  draw: DrawResources,
-  part: Part,
-  geometry: Extract<Geometry, { readonly primitive: "triangles" }>,
-  resource: PartResource,
-): void {
-  if (getPartSemanticIndex(part).hasBoundaryFaceSubset) {
-    materializeFullGeometry(draw.device, part, geometry, resource);
-  }
-}
-
 function geometryColorBuffer(device: GPUDevice, geometry: Geometry): GPUBuffer | undefined {
   return geometry.primitive === "triangles"
     ? createPrimitiveColorBuffer(device, geometry)
@@ -310,6 +298,39 @@ function subsetResource(
         }),
     subsetIndexCount: indexCount,
   };
+}
+
+/** Returns a compact selected-triangle replay for one current selection identity. */
+export function selectionReplayResource(
+  draw: DrawResources,
+  part: Part,
+  geometry: Extract<Geometry, { readonly primitive: "triangles" }>,
+  ranges: readonly SelectionDrawRange[],
+): PartResource | undefined {
+  const key = selectionReplayKey(ranges);
+  const existing = draw.selectionReplays.get(part.id)?.get(geometry.primitive)?.get(key);
+  if (existing !== undefined) return existing;
+  const replay = buildPartSelectionGeometryData(draw.device, part, geometry, ranges);
+  if (replay === undefined) return undefined;
+  const resource = subsetResource(replay.subsetBuffers, replay.subsetIndices.length, undefined);
+  let primitiveReplays = draw.selectionReplays.get(part.id);
+  if (primitiveReplays === undefined) {
+    primitiveReplays = new Map();
+    draw.selectionReplays.set(part.id, primitiveReplays);
+  }
+  let replays = primitiveReplays.get(geometry.primitive);
+  if (replays === undefined) {
+    replays = new Map();
+    primitiveReplays.set(geometry.primitive, replays);
+  }
+  replays.set(key, resource);
+  return resource;
+}
+
+function selectionReplayKey(ranges: readonly SelectionDrawRange[]): string {
+  return ranges
+    .map((range) => `${range.primitive}:${range.firstIndex}:${range.indexCount}`)
+    .join(",");
 }
 
 /** Returns a cached resource for one primitive leaf, when it has been uploaded. */

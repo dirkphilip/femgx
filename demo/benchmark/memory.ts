@@ -1,5 +1,4 @@
 import { logicalPrimitiveCount, type Part } from "../../src/geometry/part";
-import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { geometrySemanticGraph } from "../../src/geometry/semantic/part-semantic-graph";
 import { DEFORMATION_UNIFORM_SIZE } from "../../src/renderer/frame/deformation";
 import { CAMERA_UNIFORM_SIZE } from "../../src/renderer/frame/pipelines";
@@ -19,6 +18,8 @@ export interface BenchmarkMemoryEstimate {
   readonly edgeIndexBytes: number;
   /** Exterior-subset buffers retained as the ordinary surface path. */
   readonly subsetBytes: number;
+  /** Bounded compact replay buffers for one selected authored element. */
+  readonly selectionReplayBytes: number;
   /** One device-scoped empty deformation storage buffer. */
   readonly deformationBytes: number;
   readonly instanceBytes: number;
@@ -35,6 +36,10 @@ export interface BenchmarkMemoryEstimate {
   readonly retainedBufferBytes: number;
   /** Retained buffers plus the upload-staging upper bound. */
   readonly peakRendererBytes: number;
+  /** Retained bytes after the configured first selected-primitive replay. */
+  readonly firstInteractionRetainedBufferBytes: number;
+  /** Retained bytes plus the compact replay's upload upper bound. */
+  readonly firstInteractionPeakRendererBytes: number;
   /** Weighted visible color targets for the default triad-enabled path. */
   readonly visibleColorBytes: number;
   readonly visibleDepthBytes: number;
@@ -46,6 +51,8 @@ export interface BenchmarkMemoryEstimate {
 export interface BenchmarkMemoryOptions {
   /** Part ids whose optional edge resources have already been materialized. */
   readonly materializedEdgePartIds?: ReadonlySet<number>;
+  /** Optional selected triangle counts by part for the first-interaction replay estimate. */
+  readonly selectionReplayPrimitiveCounts?: ReadonlyMap<number, number>;
 }
 
 export interface DenseEdgeTypedMemoryEstimate {
@@ -120,6 +127,7 @@ export function estimateBenchmarkMemory(
   let pickMetadataBytes = 0;
   let edgeIndexBytes = 0;
   let subsetBytes = 0;
+  let selectionReplayBytes = 0;
   let cpuSceneTypedArrayBytes = 0;
   for (const part of scene.parts.values()) {
     for (const geometry of part.geometries) {
@@ -140,11 +148,13 @@ export function estimateBenchmarkMemory(
         geometry.primitive === "triangles" ? expandedIndexCountFor(geometry) : 0,
       );
       const subset = subsetEstimate(geometry, edgeMaterialized);
-      const retainsFullGeometry = getPartSemanticIndex(part).hasBoundaryFaceSubset;
+      const replayPrimitiveCount =
+        options.selectionReplayPrimitiveCounts?.get(part.id) ??
+        firstElementReplayPrimitiveCount(part, geometry);
       if (subset.bufferBytes > 0) {
         subsetBytes += subset.bufferBytes;
       }
-      if (subset.bufferBytes === 0 || retainsFullGeometry) {
+      if (subset.bufferBytes === 0) {
         geometryBytes +=
           gpuBufferBytes(mainPositionBytes) +
           gpuBufferBytes(mainIndexBytes) +
@@ -160,6 +170,9 @@ export function estimateBenchmarkMemory(
           topologyUpperBound;
         edgeIndexBytes +=
           canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
+      }
+      if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
+        selectionReplayBytes += selectionReplayEstimate(replayPrimitiveCount);
       }
     }
     cpuSceneTypedArrayBytes += scenePartTypedArrayBytes(part);
@@ -208,6 +221,7 @@ export function estimateBenchmarkMemory(
     pickMetadataBytes,
     edgeIndexBytes,
     subsetBytes,
+    selectionReplayBytes,
     deformationBytes,
     instanceBytes,
     highlightBytes,
@@ -218,6 +232,8 @@ export function estimateBenchmarkMemory(
     uploadStagingBytes,
     retainedBufferBytes: totalBufferBytes,
     peakRendererBytes: totalBufferBytes + uploadStagingBytes,
+    firstInteractionRetainedBufferBytes: totalBufferBytes + selectionReplayBytes,
+    firstInteractionPeakRendererBytes: totalBufferBytes + selectionReplayBytes * 2,
     visibleColorBytes,
     visibleDepthBytes,
     pickIdTargetBytes,
@@ -225,6 +241,33 @@ export function estimateBenchmarkMemory(
     totalRenderTargetBytes:
       visibleColorBytes + visibleDepthBytes + pickIdTargetBytes + pickDepthBytes,
   };
+}
+
+function selectionReplayEstimate(primitiveCount: number): number {
+  if (!Number.isSafeInteger(primitiveCount) || primitiveCount <= 0) return 0;
+  const vertexCount = primitiveCount * 3;
+  return (
+    gpuBufferBytes(vertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+    topologyBytesUpperBound(primitiveCount, vertexCount, 0, vertexCount)
+  );
+}
+
+function firstElementReplayPrimitiveCount(
+  part: Part,
+  geometry: Part["geometries"][number],
+): number {
+  if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) return 0;
+  let maximum = 0;
+  for (const element of part.elements ?? []) {
+    let count = 0;
+    for (const range of element.primitiveRanges) {
+      if (range.primitive === "triangles") count += range.primitiveCount;
+    }
+    maximum = Math.max(maximum, count);
+  }
+  return maximum;
 }
 
 function gpuBufferBytes(bytes: number): number {

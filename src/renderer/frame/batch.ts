@@ -13,6 +13,7 @@ import type { Geometry, Part } from "../../geometry/part";
 import {
   uploadNodePart,
   uploadGeometryPart,
+  selectionReplayResource,
   ensureEdgeResources,
   ensureEdgePickResources,
   type DrawCall,
@@ -25,6 +26,7 @@ import type { PartResource } from "../resources/foundation";
 import { bindDrawGeometry } from "./geometry-binding";
 import { buildNodeDraws } from "./node-draw";
 import { createBatchBindGroup } from "./batch-bind-group";
+import { canReplaySelection, inactiveSelectionSkinRange, usesFaceSubset } from "./batch-selection";
 
 /** Issues all instanced draws for the cached per-part calls. */
 export function drawBatches(
@@ -42,37 +44,75 @@ export function drawBatches(
     pass.setStencilReference(2);
   }
   let current: GPURenderPipeline | undefined;
-  for (const call of calls) {
-    const part = context.parts.get(call.partId);
-    if (part === undefined) continue;
-    const geometries = geometriesForIntent(part, options);
-    const ranges = selectionRangesForIntent(call, options);
-    if (ranges !== undefined) {
-      for (const range of ranges) {
-        const geometry = geometryForPrimitive(geometries, range.primitive);
-        current = drawOneBatch(pass, {
-          draw,
-          context,
-          call,
-          geometry,
-          intent: options,
-          current,
-          range,
-        });
-      }
-      continue;
-    }
-    for (const geometry of geometries) {
+  for (const call of calls)
+    current = drawCallBatches({ pass, draw, context, call, options, current });
+}
+
+function drawCallBatches(options: {
+  readonly pass: GPURenderPassEncoder;
+  readonly draw: DrawResources;
+  readonly context: DrawCallContext;
+  readonly call: DrawCall;
+  readonly options: DrawIntent;
+  readonly current: GPURenderPipeline | undefined;
+}): GPURenderPipeline | undefined {
+  const { pass, draw, context, call, options: intent } = options;
+  const part = context.parts.get(call.partId);
+  if (part === undefined) return options.current;
+  const geometries = geometriesForIntent(part, intent);
+  const ranges = selectionRangesForIntent(call, intent);
+  const replay = replaySelectionBatch({ ...options, part, geometries, intent });
+  if (replay.handled) return replay.current;
+  let current = options.current;
+  if (ranges !== undefined) {
+    for (const range of ranges) {
       current = drawOneBatch(pass, {
         draw,
         context,
         call,
-        geometry,
-        intent: options,
+        geometry: geometryForPrimitive(geometries, range.primitive),
+        intent,
         current,
+        range,
       });
     }
+    return current;
   }
+  for (const geometry of geometries) {
+    current = drawOneBatch(pass, { draw, context, call, geometry, intent, current });
+  }
+  return current;
+}
+
+function replaySelectionBatch(options: {
+  readonly pass: GPURenderPassEncoder;
+  readonly draw: DrawResources;
+  readonly context: DrawCallContext;
+  readonly call: DrawCall;
+  readonly part: Part;
+  readonly geometries: readonly (Geometry | undefined)[];
+  readonly intent: DrawIntent;
+  readonly current: GPURenderPipeline | undefined;
+}): { readonly handled: boolean; readonly current: GPURenderPipeline | undefined } {
+  const { pass, draw, context, call, part, geometries, intent, current } = options;
+  const ranges = selectionRangesForIntent(call, intent);
+  if (!canReplaySelection(geometries, ranges)) return { handled: false, current };
+  const geometry = geometries[0];
+  if (geometry?.primitive !== "triangles") return { handled: false, current };
+  const resource = selectionReplayResource(draw, part, geometry, ranges);
+  if (resource === undefined) return { handled: false, current };
+  return {
+    handled: true,
+    current: drawOneBatch(pass, {
+      draw,
+      context,
+      call,
+      geometry,
+      intent,
+      current,
+      replay: resource,
+    }),
+  };
 }
 
 /** Uploads and draws one part batch, retaining the previous pipeline when skipped. */
@@ -86,6 +126,7 @@ function drawOneBatch(
     readonly intent: DrawIntent;
     readonly current: GPURenderPipeline | undefined;
     readonly range?: SelectionDrawRange;
+    readonly replay?: PartResource;
   },
 ): GPURenderPipeline | undefined {
   const preparedBatch = prepareBatch(batch);
@@ -178,8 +219,9 @@ function prepareBatch(batch: {
   readonly intent: DrawIntent;
   readonly current: GPURenderPipeline | undefined;
   readonly range?: SelectionDrawRange;
+  readonly replay?: PartResource;
 }): PreparedBatch | undefined {
-  const { draw, context, call, geometry, intent, range } = batch;
+  const { draw, context, call, geometry, intent, range, replay } = batch;
   const { overlay, edgePick, nodes } = drawIntentState(intent);
   if (range !== undefined && range.primitive !== geometry?.primitive) return undefined;
   if (inactiveSelectionSkinRange(call, intent, context, range)) return undefined;
@@ -199,7 +241,7 @@ function prepareBatch(batch: {
       exteriorSubsets: context.usesExteriorFaceSubsets,
       callSurfaceSubset: call.surfaceSubset,
     });
-  const resource = uploadBatchGeometry(draw, part, geometry, nodes, subset);
+  const resource = replay ?? uploadBatchGeometry(draw, part, geometry, nodes, subset);
   if (
     !hasBatchResources({
       draw,
@@ -224,19 +266,6 @@ function prepareBatch(batch: {
     visibilitySkin,
     range,
   };
-}
-
-function inactiveSelectionSkinRange(
-  call: DrawCall,
-  intent: DrawIntent,
-  context: DrawCallContext,
-  range: SelectionDrawRange | undefined,
-): boolean {
-  return (
-    range !== undefined &&
-    call.surfaceSubset === true &&
-    (intent.kind !== "surface" || intent.surfaceSubset !== true || !context.usesExteriorFaceSubsets)
-  );
 }
 
 function prepareBatchDraw(
@@ -353,42 +382,6 @@ function drawCostCategory(
   if (intent.pass === "selection-visible") return "selection-visible";
   if (intent.pass === "selection-hidden") return "selection-hidden";
   return intent.primitive === "points" ? "point-replay" : "opaque";
-}
-
-function usesFaceSubset(options: {
-  readonly intent: DrawIntent;
-  readonly geometry: Geometry | undefined;
-  readonly nodes: boolean;
-  readonly range: SelectionDrawRange | undefined;
-  readonly exteriorSubsets: boolean;
-  readonly callSurfaceSubset: boolean | undefined;
-}): boolean {
-  const { intent, geometry, nodes, range, exteriorSubsets, callSurfaceSubset } = options;
-  const useExteriorSubset = callSurfaceSubset ?? exteriorSubsets;
-  const selectedVisibleSubset =
-    intent.kind === "surface" &&
-    intent.pass === "selection-visible" &&
-    intent.surfaceSubset === true &&
-    useExteriorSubset &&
-    exteriorSubsets;
-  const selectedHiddenSubset =
-    intent.kind === "surface" &&
-    intent.pass === "selection-hidden" &&
-    intent.surfaceSubset === true &&
-    callSurfaceSubset === true &&
-    exteriorSubsets;
-  const ordinarySubset =
-    intent.kind === "surface" &&
-    !intent.pass.startsWith("selection-") &&
-    useExteriorSubset &&
-    intent.surfaceSubset !== false;
-  return (
-    !nodes &&
-    range === undefined &&
-    (selectedVisibleSubset || selectedHiddenSubset || ordinarySubset) &&
-    geometry?.primitive === "triangles" &&
-    geometry.faceSubset !== undefined
-  );
 }
 
 function uploadBatchGeometry(

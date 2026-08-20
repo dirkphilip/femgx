@@ -32,6 +32,8 @@ export interface DrawResources {
   readonly parts: Map<PartId, PartResource>;
   /** Per-primitive resources for parts that contain more than one topology. */
   readonly primitiveParts: Map<PartId, Map<Primitive, PartResource>>;
+  /** Compact selected-primitive replays keyed by the current selection identities. */
+  readonly selectionReplays: Map<PartId, Map<Primitive, Map<string, PartResource>>>;
   readonly nodeParts: Map<PartId, PartResource>;
   readonly storages: Map<PartId, InstanceStorage>;
   /** Compact surface skins keyed by visibility; retained bytes are bounded per Part. */

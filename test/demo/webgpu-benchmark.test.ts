@@ -267,6 +267,7 @@ describe("WebGPU benchmark models", () => {
     expect(memory.pickMetadataBytes).toBe(436);
     expect(memory.edgeIndexBytes).toBe(0);
     expect(memory.subsetBytes).toBe(0);
+    expect(memory.selectionReplayBytes).toBe(0);
     expect(memory.deformationBytes).toBe(4);
     expect(memory.pickReadbackBytes).toBe(1280);
     expect(memory.cpuSceneTypedArrayBytes).toBe(412);
@@ -309,9 +310,29 @@ describe("WebGPU benchmark models", () => {
       800,
       600,
     );
-    expect(tet4Memory.geometryBytes).toBeGreaterThan(0);
-    expect(tet4Memory.pickMetadataBytes).toBeGreaterThan(0);
+    expect(tet4Memory.geometryBytes).toBe(0);
+    expect(tet4Memory.pickMetadataBytes).toBe(0);
     expect(tet4Memory.subsetBytes).toBeGreaterThan(0);
+    expect(tet4Memory.selectionReplayBytes).toBeGreaterThan(0);
+    const tet4PartId = [
+      ...createBenchmarkCase({ ...tet4Spec, gridCells: 2 }).scene.parts.keys(),
+    ][0];
+    if (tet4PartId === undefined) throw new Error("Tet4 benchmark part is missing");
+    const selectedTet4Memory = estimateBenchmarkMemory(
+      createBenchmarkCase({ ...tet4Spec, gridCells: 2 }).scene,
+      1,
+      800,
+      600,
+      { selectionReplayPrimitiveCounts: new Map([[tet4PartId, 4]]) },
+    );
+    expect(selectedTet4Memory.selectionReplayBytes).toBe(tet4Memory.selectionReplayBytes);
+    expect(selectedTet4Memory.firstInteractionRetainedBufferBytes).toBe(
+      selectedTet4Memory.retainedBufferBytes + selectedTet4Memory.selectionReplayBytes,
+    );
+    expect(selectedTet4Memory.firstInteractionPeakRendererBytes).toBe(
+      selectedTet4Memory.firstInteractionRetainedBufferBytes +
+        selectedTet4Memory.selectionReplayBytes,
+    );
   });
 
   it("keeps the matrix dimensions and scaling dimensions explicit", () => {

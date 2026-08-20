@@ -298,7 +298,10 @@ function createDevice(options: FakeGpuOptions, state: FakeGpuState): FakeDevice 
     lost: state.lost,
     queue: createQueue(state),
     features: new Set(options.features ?? []),
-    limits: { timestampPeriod: options.timestampPeriod ?? 1 },
+    limits: {
+      timestampPeriod: options.timestampPeriod ?? 1,
+      maxStorageBufferBindingSize: options.maxStorageBufferBindingSize ?? Number.MAX_SAFE_INTEGER,
+    },
     createBuffer: (descriptor: GPUBufferDescriptor) => createBuffer(state, options, descriptor),
     createBindGroupLayout: (descriptor: GPUBindGroupLayoutDescriptor) => {
       state.bindGroupLayoutDescriptors.push(descriptor);

@@ -285,7 +285,7 @@ describe("GPU draw path", () => {
     }
   });
 
-  it("prepares full solid geometry with its first exterior-subset draw", () => {
+  it("defers full solid geometry until a full-surface draw needs it", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -308,9 +308,9 @@ describe("GPU draw path", () => {
       const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
       if (resource === undefined) throw new Error("Subset resource was not uploaded");
       expect(resource.indexCount).toBe(3);
-      expect(resource.fullVertexBuffer).toBeDefined();
-      expect(resource.fullIndexCount).toBe(6);
-      expect(gpu.buffers).toHaveLength(14);
+      expect(resource.fullVertexBuffer).toBeUndefined();
+      expect(resource.fullIndexCount).toBeUndefined();
+      expect(gpu.buffers).toHaveLength(10);
 
       drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }], {
         kind: "surface",
@@ -318,6 +318,8 @@ describe("GPU draw path", () => {
         surfaceSubset: false,
       });
       pass.end();
+      expect(resource.fullVertexBuffer).toBeDefined();
+      expect(resource.fullIndexCount).toBe(6);
       expect(gpu.drawCalls.map((call) => call.indexCount)).toEqual([3, 6]);
       expect(gpu.buffers).toHaveLength(14);
     } finally {

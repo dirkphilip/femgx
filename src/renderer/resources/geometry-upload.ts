@@ -62,7 +62,8 @@ interface FullGeometryBuffers {
   readonly cornerIndexOffset?: number;
 }
 
-function partTopologyData(
+/** Resolves source-primitive ownership columns used by GPU topology buffers. */
+export function partTopologyData(
   part: Part,
   geometry: Geometry,
   includeNeighborOrdinals = false,
@@ -372,11 +373,13 @@ function createTopologyBuffer(
   };
 }
 
-function createSubsetBuffers(
+/** Uploads a compact triangle vertex/topology view. */
+export function createSubsetBuffers(
   device: GPUDevice,
   vertexData: UploadVertexData | undefined,
   faceBodyPickIds: Uint32Array,
   elementOrdinals: Uint32Array,
+  neighborElementOrdinals?: Uint32Array,
 ): {
   readonly subsetIndexBuffer?: GPUBuffer;
   readonly subsetVertexBuffer?: GPUBuffer;
@@ -393,6 +396,7 @@ function createSubsetBuffers(
   );
   const topology = createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
     elementOrdinals,
+    ...(neighborElementOrdinals === undefined ? {} : { neighborElementOrdinals }),
     primitiveIds: vertexData.primitiveIds,
     edgeIds: [],
     ...(vertexData.cornerIndices === undefined ? {} : { cornerIndices: vertexData.cornerIndices }),

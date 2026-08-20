@@ -56,6 +56,7 @@ export interface FakeGpuOptions {
   readonly features?: readonly GPUFeatureName[];
   readonly timestampValues?: readonly bigint[];
   readonly timestampPeriod?: number;
+  readonly maxStorageBufferBindingSize?: number;
 }
 
 export interface FakeGpu {
