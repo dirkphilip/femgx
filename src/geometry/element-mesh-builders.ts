@@ -14,6 +14,7 @@ import { appendModelFace } from "./face-tessellation";
 import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-builder";
 import { elementNodePosition } from "./node-position";
 import { authoredEdgeSourcesForOrdinals } from "./authored-edges";
+import { edgeIndexOf, sortUint32Range } from "../elements/topology-helpers";
 
 /** Inputs for one validated triangle-group geometry build. */
 interface VolumeGeometryInput {
@@ -210,7 +211,7 @@ function faceLayout(model: ElementModel, ordinals: Uint32Array): FaceLayout {
       const input = { model, ordinal, topology, corners: loop };
       writeFaceNodeIds(source.nodeIds, node, input);
       writeFaceNodeIds(canonicalNodeIds, node, input);
-      sortSmallRange(canonicalNodeIds, node, count);
+      sortUint32Range(canonicalNodeIds, node, count);
       node += count;
       face += 1;
     }
@@ -258,28 +259,11 @@ function writeFaceNodeIds(
     if (corner === undefined || next === undefined) throw new Error("Element face has no corner");
     target[offset + index * stride] = elementModelNodeIdAt(model, ordinal, corner);
     if (stride === 2) {
-      const mid = topology.edgeNodes[faceEdgeIndex(topology, corner, next)];
+      const mid = topology.edgeNodes[edgeIndexOf(topology, corner, next)];
       if (mid === undefined) throw new Error("Quadratic face has no mid-edge node");
       target[offset + index * stride + 1] = elementModelNodeIdAt(model, ordinal, mid);
     }
   }
-}
-
-function faceEdgeIndex(
-  topology: ReturnType<typeof elementModelTopologyAt>,
-  first: number,
-  last: number,
-): number {
-  for (let index = 0; index < topology.edges.length; index += 1) {
-    const edge = topology.edges[index];
-    if (
-      edge !== undefined &&
-      ((edge[0] === first && edge[1] === last) || (edge[0] === last && edge[1] === first))
-    ) {
-      return index;
-    }
-  }
-  throw new Error(`Face edge ${first}-${last} is not a topology edge`);
 }
 
 function createFaceSourceColumns(faces: number, nodes: number): DirectFaceSources {
@@ -294,18 +278,6 @@ function createFaceSourceColumns(faces: number, nodes: number): DirectFaceSource
     nodeOffsets: new Uint32Array(faces + 1),
     nodeIds: new Uint32Array(nodes),
   };
-}
-
-function sortSmallRange(values: Uint32Array, start: number, count: number): void {
-  for (let index = start + 1; index < start + count; index += 1) {
-    const value = values[index] ?? 0;
-    let cursor = index;
-    while (cursor > start && (values[cursor - 1] ?? 0) > value) {
-      values[cursor] = values[cursor - 1] ?? 0;
-      cursor -= 1;
-    }
-    values[cursor] = value;
-  }
 }
 
 function resolveFaceNeighbors(layout: FaceLayout): void {

@@ -3,6 +3,7 @@ import type { ResultColorMap, ResultColorTable } from "../../results/colors";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { partResultBindings, type ResultBindingLayout } from "./result-binding-layout";
+import { invalidateBindGroups, sameTables } from "./foundation";
 
 /** One renderer-owned dense scalar table shared by every draw of a reusable part. */
 export interface ResultColorStorage {
@@ -130,7 +131,7 @@ function uploadResultColors(
   draw.cost?.allocateBuffer(buffer.size);
   draw.device.queue.writeBuffer(buffer, 0, data);
   draw.cost?.write("result", data.byteLength);
-  invalidateBindGroups(draw, partId);
+  invalidateBindGroups(draw.storages.get(partId));
 }
 
 function releaseResultColors(
@@ -141,7 +142,7 @@ function releaseResultColors(
   draw.cost?.releaseBuffer(storage.buffer.size);
   storage.buffer.destroy();
   draw.resultColors.delete(partId);
-  invalidateBindGroups(draw, partId);
+  invalidateBindGroups(draw.storages.get(partId));
 }
 
 function resultColorData(tables: readonly (ResultColorTable | undefined)[]): Float32Array {
@@ -170,27 +171,4 @@ function resultColorData(tables: readonly (ResultColorTable | undefined)[]): Flo
     words[local + 1] = tableOffset;
   }
   return data;
-}
-
-function sameTables(
-  previous: readonly (ResultColorTable | undefined)[] | undefined,
-  next: readonly (ResultColorTable | undefined)[],
-): boolean {
-  return (
-    previous?.length === next.length && previous.every((value, index) => value === next[index])
-  );
-}
-
-function invalidateBindGroups(draw: ResultColorDrawResources, partId: PartId): void {
-  const storage = draw.storages.get(partId);
-  if (storage === undefined) return;
-  storage.bindGroup = undefined;
-  storage.nodeBindGroup = undefined;
-  storage.transparentBindGroup = undefined;
-  storage.edgeBindGroup = undefined;
-  storage.selectionBindGroup = undefined;
-  storage.subsetSelectionBindGroup = undefined;
-  storage.nodeSelectionBindGroup = undefined;
-  storage.subsetBindGroup = undefined;
-  storage.subsetTransparentBindGroup = undefined;
 }

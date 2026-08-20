@@ -1,30 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { cleanupRepos, makeRepo } from "./support";
 
 const SCRIPT_PATH = fileURLToPath(
   new URL("../../../scripts/duplicates/check-fragments.mjs", import.meta.url),
 );
 
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const directory of tempDirs.splice(0)) rmSync(directory, { recursive: true, force: true });
-});
-
-function makeRepo(files: Readonly<Record<string, string>>): string {
-  const root = mkdtempSync(join(tmpdir(), "check-duplicate-fragments-"));
-  tempDirs.push(root);
-  for (const [file, content] of Object.entries(files)) {
-    const path = join(root, file);
-    mkdirSync(join(path, ".."), { recursive: true });
-    writeFileSync(path, content);
-  }
-  return root;
-}
+afterEach(cleanupRepos);
 
 function runCheck(
   root: string,

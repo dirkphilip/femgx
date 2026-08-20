@@ -1,20 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createSceneBuilder } from "../../src/scene/scene";
-import { createPart, type Part } from "../../src/geometry/part";
-
-function part(id: number): Part {
-  const geometry = {
-    positions: new Float32Array([0, 0, 0]),
-    indices: new Uint32Array(),
-    primitive: "triangles" as const,
-  };
-  return createPart(id, { geometries: [geometry] });
-}
+import { emptyPart } from "../support/scene-fixtures";
 
 describe("createSceneBuilder", () => {
   it("builds a scene with parts, assemblies, and visibility state", () => {
     const scene = createSceneBuilder()
-      .addPart(part(1))
+      .addPart(emptyPart(1))
       .addAssembly({
         id: 1,
         name: "root",
@@ -31,11 +22,11 @@ describe("createSceneBuilder", () => {
 
   it("keeps built scene snapshots isolated from later builder updates", () => {
     const builder = createSceneBuilder()
-      .addPart(part(1))
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
       .setRootAssembly(1);
     const first = builder.build();
-    builder.addPart(part(2)).setPartVisible(1, false);
+    builder.addPart(emptyPart(2)).setPartVisible(1, false);
     const second = builder.build();
 
     expect(first.parts.has(2)).toBe(false);
@@ -46,12 +37,12 @@ describe("createSceneBuilder", () => {
 
   it("records part and assembly visibility in built scenes", () => {
     const scene = createSceneBuilder()
-      .addPart(part(1))
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
       .setRootAssembly(1)
       .build();
     const hidden = createSceneBuilder()
-      .addPart(part(1))
+      .addPart(emptyPart(1))
       .addAssembly({ id: 1, name: "root", placements: [] })
       .setRootAssembly(1)
       .setPartVisible(1, false)
@@ -73,7 +64,7 @@ describe("createSceneBuilder", () => {
   });
 
   it("rejects duplicate registrations and missing references", () => {
-    const firstPart = part(1);
+    const firstPart = emptyPart(1);
     expect(() => createSceneBuilder().addPart(firstPart).addPart(firstPart)).toThrow(
       "already registered",
     );

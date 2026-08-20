@@ -60,6 +60,19 @@ interface FullGeometryBuffers {
   readonly cornerIndexOffset?: number;
 }
 
+function partTopologyData(
+  part: Part,
+  geometry: Geometry,
+): { readonly elementOrdinals: Uint32Array; readonly faceBodyPickIds: Uint32Array } {
+  const elements = elementsForPart(part) ?? [];
+  return {
+    elementOrdinals: buildElementPrimitiveOrdinals(geometry, elements, (elementId) =>
+      getPartSemanticIndex(part).elementOrdinal(elementId),
+    ),
+    faceBodyPickIds: buildPrimitiveFaceBodyPickData(geometry, elements),
+  };
+}
+
 /** Builds all non-position buffers and appended result-color bindings for a part. */
 export function buildPartGeometryData(
   device: GPUDevice,
@@ -69,12 +82,7 @@ export function buildPartGeometryData(
 ): PartGeometryData {
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
-  const elementOrdinals = buildElementPrimitiveOrdinals(
-    geometry,
-    elementsForPart(part) ?? [],
-    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
-  );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
+  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
@@ -121,12 +129,7 @@ export function buildPartSubsetGeometryData(
 ): PartSubsetGeometryData | undefined {
   const subsetIndices = getSubsetIndices(geometry);
   if (subsetIndices === undefined || subsetIndices.length === 0) return undefined;
-  const elementOrdinals = buildElementPrimitiveOrdinals(
-    geometry,
-    elementsForPart(part) ?? [],
-    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
-  );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
+  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
   const subsetVertexData = triangleSubsetUploadData(geometry, subsetIndices);
   return {
     subsetBuffers: createSubsetBuffers(device, subsetVertexData, faceBodyPickIds, elementOrdinals),
@@ -146,12 +149,7 @@ export function materializeFullGeometry(
     geometry.primitive === "triangles"
       ? triangleUploadData(geometry)
       : expandSurfaceGeometry(geometry);
-  const elementOrdinals = buildElementPrimitiveOrdinals(
-    geometry,
-    elementsForPart(part) ?? [],
-    (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
-  );
-  const faceBodyPickIds = buildPrimitiveFaceBodyPickData(geometry, elementsForPart(part) ?? []);
+  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,

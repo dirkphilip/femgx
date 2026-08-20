@@ -7,6 +7,7 @@ import { topologyFor } from "../elements/shapes";
 import type { MeshVertex, TriangleMeshAssembler } from "./mesh-builder";
 import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 import { elementNodePosition } from "./node-position";
+import { edgeIndexOf } from "../elements/topology-helpers";
 
 /**
  * Subdivides an oriented element face into triangles, each wound to face
@@ -144,7 +145,7 @@ export function appendModelFace(
     if (stride === 2) {
       const next = faceCorners[(index + 1) % faceCorners.length];
       if (next === undefined) throw new Error("Element face has no corner");
-      const edge = edgeIndex(topology, corner, next);
+      const edge = edgeIndexOf(topology, corner, next);
       const middle = topology.edgeNodes[edge];
       if (middle === undefined) throw new Error("Quadratic face has no mid-edge node");
       const middleId = elementModelNodeIdAt(model, ordinal, middle);
@@ -175,23 +176,6 @@ export function appendModelFace(
   for (const triangle of quadraticSubdivision<MeshVertex>(vertices)) {
     mesh.append(orient(outward, triangle[0], triangle[1], triangle[2]));
   }
-}
-
-function edgeIndex(
-  topology: ReturnType<typeof elementModelTopologyAt>,
-  first: number,
-  last: number,
-): number {
-  for (let index = 0; index < topology.edges.length; index += 1) {
-    const edge = topology.edges[index];
-    if (
-      edge !== undefined &&
-      ((edge[0] === first && edge[1] === last) || (edge[0] === last && edge[1] === first))
-    ) {
-      return index;
-    }
-  }
-  throw new Error(`Face edge ${first}-${last} is not a topology edge`);
 }
 
 function outwardDirectionForRow(

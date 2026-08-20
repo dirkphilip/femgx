@@ -1,4 +1,5 @@
 import type { Geometry } from "../../geometry/part";
+import { sequentialIndices } from "./sequential-indices";
 
 /** Expanded surface data whose draw vertices have explicit primitive owners. */
 export interface SurfaceVertexData {
@@ -120,8 +121,4 @@ export function primitiveIdsForSourceIndices(
 
 function triangleKey(indices: Uint32Array, base: number): string {
   return `${indices[base] ?? 0},${indices[base + 1] ?? 0},${indices[base + 2] ?? 0}`;
-}
-
-function sequentialIndices(count: number): Uint32Array {
-  return Uint32Array.from({ length: count }, (_, index) => index);
 }

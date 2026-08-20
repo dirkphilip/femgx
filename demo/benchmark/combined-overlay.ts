@@ -1,4 +1,5 @@
 import type { Camera } from "../../src/camera/camera";
+import { percentiles } from "./statistics";
 import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import {
   interactionTargetFromHit,
@@ -288,10 +289,4 @@ async function timedFrame(
   const cpuMs = performance.now() - start;
   await options.device.queue.onSubmittedWorkDone();
   return { queueMs: performance.now() - start, cpuMs };
-}
-
-function percentiles(values: readonly number[]) {
-  const sorted = [...values].sort((left, right) => left - right);
-  const at = (fraction: number): number => sorted[Math.ceil(sorted.length * fraction) - 1] ?? 0;
-  return { p50: at(0.5), p95: at(0.95) };
 }
