@@ -17,6 +17,7 @@ import {
   type WebGpuRenderer,
 } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
+import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { resolveElementalOrientationRecords } from "../../src/results/orientation-records";
 import type { OrientationGlyphState } from "../../src/renderer/orientation-glyphs/orientation-glyph";
 import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
@@ -580,6 +581,22 @@ export async function measureIteration(options: IterationOptions): Promise<Itera
     },
     gpuCost: visibleCost,
   };
+}
+
+interface BenchmarkFrameOptions {
+  readonly renderer: WebGpuRenderer;
+  readonly device: GPUDevice;
+  readonly runtime: PackedSceneRuntime;
+  readonly camera: Camera;
+  readonly benchmarkCase: WebGpuBenchmarkCase;
+}
+
+/** Renders one benchmark frame and waits for its queue work to complete. */
+export async function renderBenchmarkFrame(options: BenchmarkFrameOptions): Promise<number> {
+  const start = performance.now();
+  options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
+  await options.device.queue.onSubmittedWorkDone();
+  return performance.now() - start;
 }
 
 function withBenchmarkPhase(phase: string, error: unknown): Error {

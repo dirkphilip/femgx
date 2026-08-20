@@ -4,6 +4,7 @@ import { completeEdgeColumns } from "../../src/geometry/semantic/edge-columns";
 import { completeFaceColumns } from "../../src/geometry/semantic/face-columns";
 import { assemblePartSemanticGraph } from "../../src/geometry/semantic/graph-assembly";
 import type { DenseTet4Payload } from "./tet4-transfer";
+import { tet4ElementNodeIds } from "./structured-fe";
 
 const TET_FACE_CORNERS: readonly (readonly [number, number, number])[] = [
   [0, 1, 3],
@@ -189,7 +190,7 @@ function payloadCounts(payload: DenseTet4Payload): {
 function createFaceNodeIds(payload: DenseTet4Payload, faceCount: number): Uint32Array {
   const nodes = new Uint32Array(faceCount * 3);
   for (let elementOrdinal = 0; elementOrdinal < payload.elementCount; elementOrdinal += 1) {
-    const elementNodes = tetNodes(payload, elementOrdinal);
+    const elementNodes = tet4ElementNodeIds(elementOrdinal, payload.gridSize);
     for (let faceIndex = 0; faceIndex < TET_FACE_CORNERS.length; faceIndex += 1) {
       const corners = TET_FACE_CORNERS[faceIndex];
       if (corners === undefined) throw new Error("Tet4 face topology is incomplete");
@@ -223,7 +224,7 @@ function createPackedEdges(
   const edgeB: number[] = [];
   const nodeCount = payload.nodePositions.length / 3;
   for (let elementOrdinal = 0; elementOrdinal < payload.elementCount; elementOrdinal += 1) {
-    const nodes = tetNodes(payload, elementOrdinal);
+    const nodes = tet4ElementNodeIds(elementOrdinal, payload.gridSize);
     for (let edgeIndex = 0; edgeIndex < TET_EDGES.length; edgeIndex += 1) {
       const pair = TET_EDGES[edgeIndex];
       if (pair === undefined) throw new Error("Tet4 edge topology is incomplete");
@@ -340,41 +341,4 @@ function prefixOffsets(counts: Uint32Array): Uint32Array {
     offsets[index + 1] = (offsets[index] ?? 0) + (counts[index] ?? 0);
   }
   return offsets;
-}
-
-function tetNodes(
-  payload: DenseTet4Payload,
-  elementOrdinal: number,
-): readonly [number, number, number, number] {
-  const gridSize = payload.gridSize;
-  const side = gridSize + 1;
-  const layer = side * side;
-  const cell = Math.floor(elementOrdinal / 6);
-  const local = elementOrdinal % 6;
-  const x = cell % gridSize;
-  const y = Math.floor(cell / gridSize) % gridSize;
-  const z = Math.floor(cell / (gridSize * gridSize));
-  const base = z * layer + y * side + x;
-  const n000 = base;
-  const n100 = base + 1;
-  const n010 = base + side;
-  const n110 = n010 + 1;
-  const n001 = base + layer;
-  const n101 = n001 + 1;
-  const n011 = n001 + side;
-  const n111 = n011 + 1;
-  switch (local) {
-    case 0:
-      return [n000, n100, n110, n111];
-    case 1:
-      return [n000, n110, n010, n111];
-    case 2:
-      return [n000, n010, n011, n111];
-    case 3:
-      return [n000, n011, n001, n111];
-    case 4:
-      return [n000, n001, n101, n111];
-    default:
-      return [n000, n101, n100, n111];
-  }
 }

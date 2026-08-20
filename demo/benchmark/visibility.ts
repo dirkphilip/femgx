@@ -1,5 +1,6 @@
 import type { Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
+import { renderBenchmarkFrame } from "./measurement";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";
@@ -39,7 +40,7 @@ async function measureScenario(
   id: VisibilityBenchmarkPhase["id"],
 ): Promise<VisibilityBenchmarkPhase> {
   const { renderer, benchmarkCase, runtime } = options;
-  await renderFrame(options);
+  await renderBenchmarkFrame(options);
   const visibleBefore = assertOpaqueSubmission(options, readGpuCostSnapshot(renderer));
   const hiddenCount =
     id === "one" ? 1 : id === "half" ? Math.ceil(runtime.instanceCount / 2) : runtime.instanceCount;
@@ -51,7 +52,7 @@ async function measureScenario(
   const syncStart = performance.now();
   renderer.updateVisibility(runtime, slots);
   const rendererSyncMs = performance.now() - syncStart;
-  const firstHiddenFrameMs = await renderFrame(options);
+  const firstHiddenFrameMs = await renderBenchmarkFrame(options);
   const hiddenGpuCost = readGpuCostSnapshot(renderer);
   const visibleSurfaceSubmittedIndices = assertOpaqueSubmission(options, hiddenGpuCost);
   const remainingVisibleTriangles = expectedVisibleSubmittedIndices / 3;
@@ -61,11 +62,12 @@ async function measureScenario(
     );
   }
   const steady: number[] = [];
-  for (let index = 0; index < STEADY_SAMPLES; index += 1) steady.push(await renderFrame(options));
+  for (let index = 0; index < STEADY_SAMPLES; index += 1)
+    steady.push(await renderBenchmarkFrame(options));
   const restoreStart = performance.now();
   for (const slot of slots) runtime.setInstanceVisible(slot, true);
   renderer.updateVisibility(runtime, slots);
-  await renderFrame(options);
+  await renderBenchmarkFrame(options);
   const restoreMs = performance.now() - restoreStart;
   const restoredSurfaceSubmittedIndices = assertOpaqueSubmission(
     options,
@@ -152,11 +154,4 @@ function expectedOpaqueSubmission(options: VisibilityMeasureOptions): {
     submittedIndices += partIndices * count;
   }
   return { calls: visibleByPart.size, indices, instances, submittedIndices };
-}
-
-async function renderFrame(options: VisibilityMeasureOptions): Promise<number> {
-  const start = performance.now();
-  options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
-  await options.device.queue.onSubmittedWorkDone();
-  return performance.now() - start;
 }

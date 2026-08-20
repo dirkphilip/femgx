@@ -1,5 +1,8 @@
 import { at } from "../../src/elements/indices";
 import { sortFixedCanonicalRows } from "../../src/elements/canonical-row-order";
+import { createStructuredTet4NodePositions, tet4ElementNodeIds } from "./structured-fe";
+
+export { tet4ElementNodeIds } from "./structured-fe";
 
 const TET_FACE_CORNERS: readonly (readonly [number, number, number])[] = [
   [0, 1, 3],
@@ -42,10 +45,9 @@ export function buildDenseTet4Payload(
   const generationStart = performance.now();
   const side = gridSize + 1;
   const layer = side * side;
-  const nodeCount = side * side * side;
   const elementCount = gridSize ** 3 * 6;
   const faceCount = elementCount * TET_FACE_CORNERS.length;
-  const nodePositions = createNodePositions(gridSize, side, layer, nodeCount);
+  const nodePositions = createStructuredTet4NodePositions(gridSize);
   const generationMs = performance.now() - generationStart;
 
   onPhase?.("topology");
@@ -85,16 +87,6 @@ export function tet4FaceNodeIds(
   return tet4FaceNodeIdsFromNodes(nodes, faceIndex);
 }
 
-/** Returns one structured Tet4 element's authored node ids. */
-export function tet4ElementNodeIds(
-  elementIndex: number,
-  gridSize: number,
-  side = gridSize + 1,
-  layer = side * side,
-): readonly [number, number, number, number] {
-  return tetNodes(elementIndex, gridSize, side, layer);
-}
-
 /** Returns one face loop from an already-resolved Tet4 connectivity tuple. */
 export function tet4FaceNodeIdsFromNodes(
   nodes: readonly [number, number, number, number],
@@ -116,33 +108,13 @@ interface Topology {
   readonly boundaryFaceIndices: Uint32Array;
 }
 
-function createNodePositions(
-  gridSize: number,
-  side: number,
-  layer: number,
-  nodeCount: number,
-): Float32Array {
-  const nodes = new Float32Array(nodeCount * 3);
-  for (let z = 0; z <= gridSize; z += 1) {
-    for (let y = 0; y <= gridSize; y += 1) {
-      for (let x = 0; x <= gridSize; x += 1) {
-        const offset = (z * layer + y * side + x) * 3;
-        nodes[offset] = x;
-        nodes[offset + 1] = y;
-        nodes[offset + 2] = z;
-      }
-    }
-  }
-  return nodes;
-}
-
 function createTopology(gridSize: number, elementCount: number, faceCount: number): Topology {
   const faceNeighborIds = new Uint32Array(faceCount);
   const side = gridSize + 1;
   const layer = side * side;
   const faceNodes = new Uint32Array(faceCount * 3);
   for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
-    const nodes = tetNodes(elementIndex, gridSize, side, layer);
+    const nodes = tet4ElementNodeIds(elementIndex, gridSize, side, layer);
     for (let faceIndex = 0; faceIndex < TET_FACE_CORNERS.length; faceIndex += 1) {
       const faceNumber = elementIndex * TET_FACE_CORNERS.length + faceIndex;
       const corners = TET_FACE_CORNERS[faceIndex];
@@ -218,7 +190,7 @@ function createTessellation(
   const indices = new Uint32Array(elementCount * TET_FACE_CORNERS.length * 3);
   let indexOffset = 0;
   for (let elementIndex = 0; elementIndex < elementCount; elementIndex += 1) {
-    const elementNodes = tetNodes(elementIndex, gridSize, side, layer);
+    const elementNodes = tet4ElementNodeIds(elementIndex, gridSize, side, layer);
     let elementX = 0;
     let elementY = 0;
     let elementZ = 0;
@@ -272,42 +244,4 @@ function faceIsReversed(
   const outwardY = (ay + by + cy) / 3 - elementCenter[1];
   const outwardZ = (az + bz + cz) / 3 - elementCenter[2];
   return nx * outwardX + ny * outwardY + nz * outwardZ < 0;
-}
-
-function tetNodes(
-  elementIndex: number,
-  gridSize: number,
-  side: number,
-  layer: number,
-): readonly [number, number, number, number] {
-  const cellIndex = Math.floor(elementIndex / 6);
-  const local = elementIndex % 6;
-  const x = cellIndex % gridSize;
-  const y = Math.floor(cellIndex / gridSize) % gridSize;
-  const z = Math.floor(cellIndex / (gridSize * gridSize));
-  const base = z * layer + y * side + x;
-  const n000 = base;
-  const n100 = base + 1;
-  const n010 = base + side;
-  const n110 = n010 + 1;
-  const n001 = base + layer;
-  const n101 = n001 + 1;
-  const n011 = n001 + side;
-  const n111 = n011 + 1;
-  switch (local) {
-    case 0:
-      return [n000, n100, n110, n111];
-    case 1:
-      return [n000, n110, n010, n111];
-    case 2:
-      return [n000, n010, n011, n111];
-    case 3:
-      return [n000, n011, n001, n111];
-    case 4:
-      return [n000, n001, n101, n111];
-    case 5:
-      return [n000, n101, n100, n111];
-    default:
-      throw new Error("Tet4 element topology is incomplete");
-  }
 }

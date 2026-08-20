@@ -1,5 +1,6 @@
 import type { Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
+import { renderBenchmarkFrame } from "./measurement";
 import type { PartId } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
 import { readInteractionState, type InteractionState } from "../../src/interaction/state";
@@ -106,7 +107,7 @@ async function measureNodeScenario(
   targetCount: number,
 ): Promise<NodeSelectionBenchmarkPhase> {
   const targets = authoredNodeTargets(context.partOccurrenceId, targetCount);
-  await renderFrame(context);
+  await renderBenchmarkFrame(context);
   const stateStart = performance.now();
   const selected = setTargetsSelected(createInteractionState(), targets, true);
   const interactionStateMs = performance.now() - stateStart;
@@ -114,7 +115,7 @@ async function measureNodeScenario(
   const syncStart = performance.now();
   context.renderer.updateElements(context.runtime, selected, [context.slot]);
   const interactionSyncMs = performance.now() - syncStart;
-  const firstSelectedFrameMs = await renderFrame(context);
+  const firstSelectedFrameMs = await renderBenchmarkFrame(context);
   const interactionGpuCost = readGpuCostSnapshot(context.renderer);
   const selectedNodeDraw = selectedNodeDrawWork(
     context.nodeCount,
@@ -123,11 +124,11 @@ async function measureNodeScenario(
   assertAggregateSelectedWork(interactionGpuCost, selectedNodeDraw);
   const steadyFrames: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) {
-    steadyFrames.push(await renderFrame(context));
+    steadyFrames.push(await renderBenchmarkFrame(context));
   }
   const clearStart = performance.now();
   context.renderer.updateElements(context.runtime, createInteractionState(), [context.slot]);
-  await renderFrame(context);
+  await renderBenchmarkFrame(context);
   const clearSelectionMs = performance.now() - clearStart;
   return {
     id,
@@ -219,14 +220,7 @@ async function presentFinalSelection(context: NodeSelectionContext): Promise<voi
   const targets = authoredNodeTargets(context.partOccurrenceId, context.nodeCount);
   const selected = setTargetsSelected(createInteractionState(), targets, true);
   context.renderer.updateElements(context.runtime, selected, [context.slot]);
-  await renderFrame(context);
-}
-
-async function renderFrame(context: NodeSelectionMeasureOptions): Promise<number> {
-  const start = performance.now();
-  context.renderer.render(context.runtime, context.camera, context.benchmarkCase.scene.parts);
-  await context.device.queue.onSubmittedWorkDone();
-  return performance.now() - start;
+  await renderBenchmarkFrame(context);
 }
 
 function selectedNodeDrawWork(

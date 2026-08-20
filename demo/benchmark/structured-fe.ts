@@ -76,6 +76,22 @@ export function createStructuredFeModel(
 function createStructuredTet4Model(gridSize: number): ElementModel {
   const side = gridSize + 1;
   const layer = side * side;
+  const nodes = createStructuredTet4NodePositions(gridSize);
+  const elements = new Array<Element>(gridSize ** 3 * 6);
+  for (let elementIndex = 0; elementIndex < elements.length; elementIndex += 1) {
+    elements[elementIndex] = createElement(
+      elementIndex + 1,
+      ElementShape.Tet4,
+      tet4ElementNodeIds(elementIndex, gridSize, side, layer),
+    );
+  }
+  return createElementModel(nodes, elements);
+}
+
+/** Builds the shared node positions for a structured Tet4 grid. */
+export function createStructuredTet4NodePositions(gridSize: number): Float32Array {
+  const side = gridSize + 1;
+  const layer = side * side;
   const nodes = new Float32Array(layer * side * 3);
   for (let z = 0; z <= gridSize; z += 1) {
     for (let y = 0; y <= gridSize; y += 1) {
@@ -88,74 +104,46 @@ function createStructuredTet4Model(gridSize: number): ElementModel {
       }
     }
   }
+  return nodes;
+}
 
-  const elements = new Array<Element>(gridSize ** 3 * 6);
-  let elementIndex = 0;
-  let elementId = 1;
-  for (let z = 0; z < gridSize; z += 1) {
-    for (let y = 0; y < gridSize; y += 1) {
-      for (let x = 0; x < gridSize; x += 1) {
-        const base = z * layer + y * side + x;
-        const n000 = base;
-        const n100 = base + 1;
-        const n010 = base + side;
-        const n110 = n010 + 1;
-        const n001 = base + layer;
-        const n101 = n001 + 1;
-        const n011 = n001 + side;
-        const n111 = n011 + 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n100,
-          n110,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n110,
-          n010,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n010,
-          n011,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n011,
-          n001,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n001,
-          n101,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-        elements[elementIndex] = createElement(elementId, ElementShape.Tet4, [
-          n000,
-          n101,
-          n100,
-          n111,
-        ]);
-        elementIndex += 1;
-        elementId += 1;
-      }
-    }
+/** Returns one structured Tet4 element's authored node ids. */
+export function tet4ElementNodeIds(
+  elementIndex: number,
+  gridSize: number,
+  side = gridSize + 1,
+  layer = side * side,
+): readonly [number, number, number, number] {
+  const cell = Math.floor(elementIndex / 6);
+  const local = elementIndex % 6;
+  const x = cell % gridSize;
+  const y = Math.floor(cell / gridSize) % gridSize;
+  const z = Math.floor(cell / (gridSize * gridSize));
+  const base = z * layer + y * side + x;
+  const n000 = base;
+  const n100 = base + 1;
+  const n010 = base + side;
+  const n110 = n010 + 1;
+  const n001 = base + layer;
+  const n101 = n001 + 1;
+  const n011 = n001 + side;
+  const n111 = n011 + 1;
+  switch (local) {
+    case 0:
+      return [n000, n100, n110, n111];
+    case 1:
+      return [n000, n110, n010, n111];
+    case 2:
+      return [n000, n010, n011, n111];
+    case 3:
+      return [n000, n011, n001, n111];
+    case 4:
+      return [n000, n001, n101, n111];
+    case 5:
+      return [n000, n101, n100, n111];
+    default:
+      throw new Error("Tet4 element topology is incomplete");
   }
-  return createElementModel(nodes, elements);
 }
 
 class StructuredNodeBuilder {

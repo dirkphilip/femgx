@@ -3,6 +3,7 @@ import {
   setPartOccurrenceOverrides,
 } from "../../src/interaction/interaction";
 import { percentiles } from "./statistics";
+import { renderBenchmarkFrame } from "./measurement";
 import { setTargetsSelected } from "../../src/interaction/targets";
 import type { InteractionTarget } from "../../src/interaction/target-types";
 import type { InteractionState } from "../../src/interaction/state";
@@ -110,19 +111,19 @@ async function measureInteraction(
   if (changedSlots.length !== targetCountValue) {
     throw new Error(`${options.benchmarkCase.id} ${id} resolved ${changedSlots.length} slots`);
   }
-  await renderFrame(options);
+  await renderBenchmarkFrame(options);
   const before = readGpuCostSnapshot(options.renderer);
   const syncStart = performance.now();
   syncInteraction(options, interaction, changedSlots);
   const interactionSyncMs = performance.now() - syncStart;
   const after = readGpuCostSnapshot(options.renderer);
   const instanceWriteBytes = writeBytesSince(before, after, options, id, targetCountValue);
-  const firstFrameMs = await renderFrame(options);
+  const firstFrameMs = await renderBenchmarkFrame(options);
   const gpuCost = readGpuCostSnapshot(options.renderer);
   setup.assertFrame(gpuCost);
   const steady: number[] = [];
   for (let sample = 0; sample < STEADY_SAMPLES; sample += 1) {
-    steady.push(await renderFrame(options));
+    steady.push(await renderBenchmarkFrame(options));
   }
   const clearStart = performance.now();
   const beforeClear = readGpuCostSnapshot(options.renderer);
@@ -135,7 +136,7 @@ async function measureInteraction(
     id,
     targetCountValue,
   );
-  await renderFrame(options);
+  await renderBenchmarkFrame(options);
   assertNoElementEmphasisDraw(
     readGpuCostSnapshot(options.renderer),
     `${options.benchmarkCase.id} clear`,
@@ -254,11 +255,4 @@ function assertOpaqueDraw(options: ManyPieceMeasureOptions, cost: BenchmarkGpuCo
   ) {
     throw new Error(`${options.benchmarkCase.id} recolor omitted opaque work`);
   }
-}
-
-async function renderFrame(options: ManyPieceMeasureOptions): Promise<number> {
-  const start = performance.now();
-  options.renderer.render(options.runtime, options.camera, options.benchmarkCase.scene.parts);
-  await options.device.queue.onSubmittedWorkDone();
-  return performance.now() - start;
 }
