@@ -5,9 +5,13 @@ import { graphBodyAt } from "./semantic/part-semantic-views";
 
 /** Optional query capability for bodies retained in the Part semantic graph. */
 export interface PartBodies extends Iterable<GeometryBody> {
+  /** Number of bodies retained by the Part. */
   readonly count: number;
+  /** Returns a fresh body descriptor for one stable body id. */
   get(bodyId: number): GeometryBody | undefined;
+  /** Returns a fresh body descriptor by retained ordinal. */
   at(ordinal: number): GeometryBody | undefined;
+  /** Iterates retained ordinals and fresh body descriptors. */
   entries(): IterableIterator<[number, GeometryBody]>;
 }
 

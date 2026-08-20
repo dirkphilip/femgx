@@ -5,6 +5,8 @@ export {
   type Body,
   type BodyId,
   type ElementModel,
+  type ElementModelBodies,
+  type ElementModelElements,
   type ElementModelOptions,
   ElementModelValidationError,
   type ElementModelValidationCode,

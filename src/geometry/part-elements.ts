@@ -10,9 +10,13 @@ import { graphElementAt } from "./semantic/part-semantic-views";
  * array. The canonical columns remain private to the Part semantic graph.
  */
 export interface PartElements extends Iterable<ElementTessellation> {
+  /** Number of finite-element rows retained by the Part. */
   readonly count: number;
+  /** Returns a fresh tessellation descriptor for one stable element id. */
   get(elementId: number): ElementTessellation | undefined;
+  /** Returns a fresh tessellation descriptor by retained ordinal. */
   at(ordinal: number): ElementTessellation | undefined;
+  /** Iterates retained ordinals and fresh tessellation descriptors. */
   entries(): IterableIterator<[number, ElementTessellation]>;
 }
 

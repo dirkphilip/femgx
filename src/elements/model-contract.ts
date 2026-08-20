@@ -23,16 +23,24 @@ export interface ElementModel {
 
 /** Query capability over packed authored-element columns. */
 export interface ElementModelElements extends Iterable<Element> {
+  /** Number of authored element rows. */
   readonly count: number;
+  /** Returns a fresh descriptor for one stable element id. */
   get(id: ElementId): Element | undefined;
+  /** Returns a fresh descriptor for one dense authored ordinal. */
   at(ordinal: number): Element | undefined;
+  /** Iterates dense ordinals and fresh element descriptors in authored order. */
   entries(): IterableIterator<[number, Element]>;
 }
 
 /** Query capability over packed authored-body columns. */
 export interface ElementModelBodies extends Iterable<Body> {
+  /** Number of authored bodies. */
   readonly count: number;
+  /** Returns a fresh descriptor for one stable body id. */
   get(id: BodyId): Body | undefined;
+  /** Returns a fresh descriptor for one dense authored ordinal. */
   at(ordinal: number): Body | undefined;
+  /** Iterates dense ordinals and fresh body descriptors in authored order. */
   entries(): IterableIterator<[number, Body]>;
 }
