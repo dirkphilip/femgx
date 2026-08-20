@@ -32,11 +32,11 @@ failures. The focused `npm run check:svelte` command remains available for
 targeted diagnosis, while aggregate builds rely on `typecheck` rather than
 invoking a second Svelte check.
 
-`npm run bench:budget` runs the performance budget gate standalone (see
+`npm run bench:budget` runs the local performance budget gate standalone (see
 [[engineering/benchmarks|Benchmarks]]) because v8 coverage instrumentation distorts wall
-clock timing; CI runs it as its own step. `PERF_REPORT=1 npm run bench:budget`
-is the opt-in trend report, while `npm run bench` remains the local body-batch
-comparison; neither is part of the merge gate. Merge CI runs `npm run test:e2e:ci` (no-GPU
+clock timing. `PERF_REPORT=1 npm run bench:budget` is the opt-in trend report,
+while `npm run bench` remains the local body-batch comparison; neither is part
+of the merge gate. Merge CI runs `npm run test:e2e:ci` (no-GPU
 unsupported contract only) until a GPU runner hosts the full Chrome lane.
 
 `npm run lint:actionlint` is the focused semantic GitHub Actions workflow check.

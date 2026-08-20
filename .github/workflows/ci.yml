@@ -92,9 +92,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Performance budgets
-        run: npm run bench:budget
-
       - name: Package smoke tests
         run: npm run test:package
 

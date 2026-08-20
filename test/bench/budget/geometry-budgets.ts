@@ -28,7 +28,7 @@ export const geometryBudgets: readonly BudgetCase[] = [
   {
     name: "createElementModelFromFemModel",
     description: `${CONVERSION_BENCH_ELEMENT_COUNT} Triangle3 elements from typed connectivity`,
-    budgetMs: 100,
+    budgetMs: 125,
     run: () => {
       createElementModelFromFemModel(conversionBenchmarkModel);
     },

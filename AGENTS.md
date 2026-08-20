@@ -219,8 +219,10 @@ Prettier check, `git diff --check`, and `npm run review:diff` are sufficient.
 Leave no unrelated or generated changes behind. See
 [[engineering/pre-commit-hooks|pre-commit hooks]] for commit setup.
 
-CI runs formatting, typecheck, lint, coverage, performance budgets, builds,
-package smoke tests, and the no-GPU unsupported-contract e2e smoke. It does not
+CI runs formatting, typecheck, lint, coverage, builds, package smoke tests, and
+the no-GPU unsupported-contract e2e smoke. Performance budgets remain local
+validation because shared CI timing is too variable for a useful merge signal.
+It does not
 replace hardware-WebGPU visual validation; see
 [[operations/ci-authority|CI authority]].
 

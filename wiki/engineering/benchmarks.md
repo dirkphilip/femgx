@@ -106,11 +106,11 @@ model, and samples continuous surface, edge, and node-toggle presentation. The
 default large CPU scaling lane separately verifies that flat-part import and
 coalescing remain approximately linear at 25k, 50k, and 100k source parts.
 
-## Budget gate (runs in default CI)
+## Local budget gate
 
 `npm run bench:budget` runs `test/bench/budget.test.ts` and fails if any
-measured workload exceeds its documented ceiling. It is a dedicated CI step in
-`.github/workflows/ci.yml` and is deliberately **not** part of
+measured workload exceeds its documented ceiling. It is a local validation step
+and is deliberately **not** part of
 `npm run test:coverage`: v8 coverage instrumentation slows execution by
 several multiples, so budgets are only meaningful on clean timing runs.
 
@@ -335,10 +335,9 @@ sprite-buffer, GPU-buffer, and bind-group preparation; the following all-node
 phase is resident and must not be compared as another cold upload.
 
 `PERF_REPORT=1 npm run bench:budget` runs the calibrated budget workloads and
-prints their measured medians for human review and trend comparison. The
-opt-in `.github/workflows/perf.yml` (`workflow_dispatch`) runs this same report
-on GitHub-hosted infrastructure. The report does not claim real-WebGPU
-measurements and is separate from the required default-CI budget gate.
+prints their measured medians for local human review and trend comparison. The
+report does not claim real-WebGPU measurements and is separate from the
+required default-CI gate.
 
 ### Distinct-part scene churn
 
