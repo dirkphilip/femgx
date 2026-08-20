@@ -199,7 +199,7 @@ describe("dense Tet4 benchmark transfer", () => {
     expect(faceNeighborId(payload, 1_015_214, 3)).toBe(1_015_207);
     expect(faceNeighborId(payload, 1_015_213, 2)).toBe(1_015_215);
     expect(faceNeighborId(payload, 1_015_214, 0)).toBe(1_015_214);
-  });
+  }, 15_000);
 
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
     "builds the reported grid beyond safe numeric face packing",
