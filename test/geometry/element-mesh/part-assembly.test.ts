@@ -77,7 +77,8 @@ describe("createPartFromElementModel", () => {
       "points",
     ]);
     const elements = part.elements;
-    if (elements === undefined) throw new Error("createPartFromElementModel did not publish elements");
+    if (elements === undefined)
+      throw new Error("createPartFromElementModel did not publish elements");
     expect([...elements].map((element) => element.id)).toEqual([1, 2, 3, 4, 5, 6]);
     expect([...elements].map((element) => element.primitiveRanges[0]?.primitive)).toEqual([
       "triangles",

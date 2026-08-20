@@ -32,8 +32,14 @@ describe("GPU face subsets", () => {
     const part = createPart(1, {
       geometries: [geometry],
       elements: [
-        { id: 10, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
-        { id: 20, primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }] },
+        {
+          id: 10,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 20,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
       ],
     });
     const retained = part.geometries[0];

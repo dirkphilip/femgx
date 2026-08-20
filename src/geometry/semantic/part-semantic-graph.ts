@@ -192,9 +192,7 @@ function hashEdgeKey(key: string): number {
   return Math.imul(hash ^ parsed.high, 16_777_619) >>> 0;
 }
 
-function parseEdgeKey(
-  key: string,
-):
+function parseEdgeKey(key: string):
   | {
       readonly count: number;
       readonly low: number;

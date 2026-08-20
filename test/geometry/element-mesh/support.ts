@@ -6,7 +6,10 @@ import { boundaryFaceRefs, FaceSelectionError } from "../../../src/elements/face
 
 import { ElementShape, topologyFor, type ElementFamily } from "../../../src/elements/shapes";
 
-import { type CreatePartFromElementModelOptions, createPartFromElementModel } from "../../../src/geometry/element-model-part";
+import {
+  type CreatePartFromElementModelOptions,
+  createPartFromElementModel,
+} from "../../../src/geometry/element-model-part";
 
 import {
   validateElements,

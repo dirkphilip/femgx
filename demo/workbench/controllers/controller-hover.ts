@@ -138,7 +138,10 @@ function displayedInteraction(owner: WorkbenchHoverController): InteractionState
   }
   return setTargetsHighlighted(
     owner.interaction,
-    interactionTargetsForRow(activeViewport(owner)?.occurrences ?? ownerRuntime(owner), hoverOwner.row),
+    interactionTargetsForRow(
+      activeViewport(owner)?.occurrences ?? ownerRuntime(owner),
+      hoverOwner.row,
+    ),
     true,
   );
 }

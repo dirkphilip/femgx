@@ -57,7 +57,9 @@ async function visibilityFixture(part: ReturnType<typeof createPackedTet4Part>, 
     .addAssembly({
       id: 1,
       name: "visibility",
-      placements: [{ kind: "part", placementId: "tet4", partId: part.id, transform: identityMatrix() }],
+      placements: [
+        { kind: "part", placementId: "tet4", partId: part.id, transform: identityMatrix() },
+      ],
     })
     .setRootAssembly(1)
     .build();

@@ -20,7 +20,10 @@ beforeAll(async () => {
     configurable: true,
     value: { gpu: { getPreferredCanvasFormat: () => "bgra8unorm" } },
   });
-  const scene = createSceneBuilder().addAssembly({ id: 1, placements: [] }).setRootAssembly(1).build();
+  const scene = createSceneBuilder()
+    .addAssembly({ id: 1, placements: [] })
+    .setRootAssembly(1)
+    .build();
   viewports = await Promise.all(
     COUNTS.map(() =>
       createViewport({ canvas: fakeCanvas(), scene, device: fakeGpuDevice().device }),

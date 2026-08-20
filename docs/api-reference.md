@@ -15,7 +15,12 @@ its generated TypeDoc declaration.
 
 ```ts
 import { createSceneBuilder, createViewport, identityMatrix } from "femgx";
-import { ElementShape, createElement, createElementModel, createPartFromElementModel } from "femgx/model";
+import {
+  ElementShape,
+  createElement,
+  createElementModel,
+  createPartFromElementModel,
+} from "femgx/model";
 
 const model = createElementModel(new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0]), [
   createElement(100, ElementShape.Triangle, [0, 1, 2]),
@@ -43,16 +48,16 @@ environments receive a typed result or error; there is no CPU renderer. Call
 
 ## Choose the entrypoint
 
-| Entry               | Use it for                                                                        |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `femgx`             | Parts, scenes, viewport lifecycle, common math, picking, and support probing      |
+| Entry               | Use it for                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `femgx`             | Parts, scenes, viewport lifecycle, common math, picking, and support probing                                        |
 | `femgx/model`       | FE elements, typed models, `createPartFromElementModel`, `createPartFromExplicitTopology`, shapes, faces, and edges |
-| `femgx/io`          | Serializable FEM models, validation, diagnostics, and result conversion           |
-| `femgx/io/glb`      | Self-contained GLB 2.0 display-scene import                                       |
-| `femgx/camera`      | Camera construction, fitting, projection, and custom controls                     |
-| `femgx/interaction` | Interaction state, target mapping, and host-owned selection policy                |
-| `femgx/results`     | Authored fields, ranges, color mapping, and deformation                           |
-| `femgx/platform`    | Explicit supported-path WebGPU adapter/device ownership                           |
+| `femgx/io`          | Serializable FEM models, validation, diagnostics, and result conversion                                             |
+| `femgx/io/glb`      | Self-contained GLB 2.0 display-scene import                                                                         |
+| `femgx/camera`      | Camera construction, fitting, projection, and custom controls                                                       |
+| `femgx/interaction` | Interaction state, target mapping, and host-owned selection policy                                                  |
+| `femgx/results`     | Authored fields, ranges, color mapping, and deformation                                                             |
+| `femgx/platform`    | Explicit supported-path WebGPU adapter/device ownership                                                             |
 
 Do not import `importGlb` from `femgx`; it is published only from
 `femgx/io/glb`.

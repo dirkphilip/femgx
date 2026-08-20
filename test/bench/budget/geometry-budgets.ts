@@ -107,11 +107,7 @@ export const geometryBudgets: readonly BudgetCase[] = [
     description: `${BENCH_BODY_ELEMENT_COUNT} elements across ${BENCH_BODY_COUNT} bodies`,
     budgetMs: 600,
     run: () => {
-      buildMeshEdgeData(
-        bodyRetainedGeometry,
-        bodyRetainedGeometry.indices,
-        bodyGeometry.elements,
-      );
+      buildMeshEdgeData(bodyRetainedGeometry, bodyRetainedGeometry.indices, bodyGeometry.elements);
     },
   },
   {

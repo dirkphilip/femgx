@@ -11,11 +11,11 @@ authoring]], [[rendering/face-subsets|Face subsets]], and
 The product supports three host data contracts. They are expressed by the data
 and update lifecycle, not by a renderer quality enum.
 
-| Contract             | Client state                                                           | Interior behavior                                                      |
-| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Contract             | Client state                                                                              | Interior behavior                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
 | Surface snapshot     | One authoritative `createPartFromExplicitTopology()` payload                              | Omitted geometry is unavailable. Local hiding may leave a hole.        |
 | Host-updated surface | The latest authoritative `createPartFromExplicitTopology()` revision supplied by the host | Newly exposed geometry appears only when the host publishes new state. |
-| Fully resident model | Complete `ElementModel` topology and reusable geometry                 | Body/element visibility can reveal retained interiors locally.         |
+| Fully resident model | Complete `ElementModel` topology and reusable geometry                                    | Body/element visibility can reveal retained interiors locally.         |
 
 In both surface contracts, the supplied payload is complete from femgx's point
 of view. femgx never infers an omitted neighbor, creates an interior identity,

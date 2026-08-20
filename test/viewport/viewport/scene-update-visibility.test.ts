@@ -158,7 +158,12 @@ function nestedScene() {
     .addAssembly({
       id: 1,
       placements: [
-        { kind: "assembly", placementId: "child", assemblyId: 2, transform: translationMatrix(0, 0, 0) },
+        {
+          kind: "assembly",
+          placementId: "child",
+          assemblyId: 2,
+          transform: translationMatrix(0, 0, 0),
+        },
       ],
     })
     .setRootAssembly(1)

@@ -48,8 +48,16 @@ export function selectionScene(reverse: boolean, behind: boolean) {
       id: 1,
       name: "selection-precedence",
       placements: [
-        { kind: "part", partId: 1, transform: selectedId === 1 ? selectedTransform : identityMatrix() },
-        { kind: "part", partId: 2, transform: selectedId === 2 ? selectedTransform : identityMatrix() },
+        {
+          kind: "part",
+          partId: 1,
+          transform: selectedId === 1 ? selectedTransform : identityMatrix(),
+        },
+        {
+          kind: "part",
+          partId: 2,
+          transform: selectedId === 2 ? selectedTransform : identityMatrix(),
+        },
       ],
     })
     .setRootAssembly(1)

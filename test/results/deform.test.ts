@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createPart } from "../../src/geometry/part";
-import { deformGeometry, deformPositions, createNodalDisplacementBuffer } from "../../src/results/deform";
+import {
+  deformGeometry,
+  deformPositions,
+  createNodalDisplacementBuffer,
+} from "../../src/results/deform";
 import { createResultField } from "../../src/results/fields";
 import type { VectorField } from "../../src/results/fields";
 

@@ -1,4 +1,10 @@
-import { identityMatrix, multiplyMatrices, transformPoint, type Bounds, type Scene } from "../src/entries/root";
+import {
+  identityMatrix,
+  multiplyMatrices,
+  transformPoint,
+  type Bounds,
+  type Scene,
+} from "../src/entries/root";
 
 /** Returns the union of all placed part bounds in a demo scene. */
 export function sceneBounds(

@@ -284,7 +284,9 @@ async function createVisibilityFixture(faceCount: number): Promise<VisibilityFix
     .addAssembly({
       id: 1,
       name: "visibility",
-      placements: [{ kind: "part", placementId: "0", partId: part.id, transform: identityMatrix() }],
+      placements: [
+        { kind: "part", placementId: "0", partId: part.id, transform: identityMatrix() },
+      ],
     })
     .setRootAssembly(1)
     .build();

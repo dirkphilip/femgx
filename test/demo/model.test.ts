@@ -94,13 +94,18 @@ describe("demo workbench model boundary", () => {
     const createPartFromExplicitTopology = [...gallery.scene.parts.values()].find(
       (part) => part.geometries[0]?.primitive !== "points",
     );
-    if (pointPart === undefined || createPartFromExplicitTopology === undefined) throw new Error("gallery incomplete");
+    if (pointPart === undefined || createPartFromExplicitTopology === undefined)
+      throw new Error("gallery incomplete");
     expect(partStyleOverride(gallery, pointPart.id, true, true)).not.toHaveProperty("nodes");
-    expect(partStyleOverride(gallery, createPartFromExplicitTopology.id, true, true)).toMatchObject({
-      edge: true,
-      nodes: true,
-    });
-    expect(partStyleOverride(gallery, createPartFromExplicitTopology.id, false, false)).not.toHaveProperty("edge");
+    expect(partStyleOverride(gallery, createPartFromExplicitTopology.id, true, true)).toMatchObject(
+      {
+        edge: true,
+        nodes: true,
+      },
+    );
+    expect(
+      partStyleOverride(gallery, createPartFromExplicitTopology.id, false, false),
+    ).not.toHaveProperty("edge");
   });
 
   it("preserves actionable error text for Error and non-Error failures", () => {

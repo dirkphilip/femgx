@@ -1,8 +1,4 @@
-import type {
-  FaceTessellation,
-  GeometryEdge,
-  Primitive,
-} from "./part";
+import type { FaceTessellation, GeometryEdge, Primitive } from "./part";
 import type { GeometryInput, LineGeometryInput, TriangleGeometryInput } from "./types";
 import type { Vec3 } from "../math/vec3";
 

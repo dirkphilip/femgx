@@ -67,12 +67,16 @@ describe("createSceneBuilder", () => {
   });
 
   it("rejects an unregistered root", () => {
-    expect(() => createSceneBuilder().setRootAssembly(99).build()).toThrow("root assembly 99 is not registered");
+    expect(() => createSceneBuilder().setRootAssembly(99).build()).toThrow(
+      "root assembly 99 is not registered",
+    );
   });
 
   it("rejects duplicate registrations and missing references", () => {
     const firstPart = part(1);
-    expect(() => createSceneBuilder().addPart(firstPart).addPart(firstPart)).toThrow("already registered");
+    expect(() => createSceneBuilder().addPart(firstPart).addPart(firstPart)).toThrow(
+      "already registered",
+    );
     expect(() =>
       createSceneBuilder()
         .addAssembly({

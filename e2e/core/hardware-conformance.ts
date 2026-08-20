@@ -1,4 +1,9 @@
-import { createSceneBuilder, translationMatrix, type Scene, type Viewport } from "../../src/entries/root";
+import {
+  createSceneBuilder,
+  translationMatrix,
+  type Scene,
+  type Viewport,
+} from "../../src/entries/root";
 import { projectPoint, setProjection } from "../../src/entries/camera";
 import {
   createInteractionState,

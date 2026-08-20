@@ -3,7 +3,12 @@ import { createElement, type Element } from "../../../src/elements/element";
 import { createElementModel } from "../../../src/elements/model";
 import { FEMGX_FORMAT_VERSION, type FemModel } from "../../../src/io/fem-model";
 import { ElementShape } from "../../../src/elements/shapes";
-import { createPart, type Part, type TriangleGeometry, type TriangleGeometryInput } from "../../../src/entries/root";
+import {
+  createPart,
+  type Part,
+  type TriangleGeometry,
+  type TriangleGeometryInput,
+} from "../../../src/entries/root";
 import { BENCH_BODY_COUNT, BENCH_BODY_GRID_CELLS, makeBodies, makeBodyGeometry } from "../fixtures";
 
 const CONVERSION_BENCH_ELEMENT_COUNT = 250_000;
@@ -135,7 +140,9 @@ function makeFaceSubsetBenchmarkPart(geometry: TriangleGeometryInput): Part {
     geometries: [geometry],
     elements: Array.from({ length: faceCount }, (_, index) => ({
       id: index + 1,
-      primitiveRanges: [{ primitive: "triangles" as const, primitiveStart: index, primitiveCount: 1 }],
+      primitiveRanges: [
+        { primitive: "triangles" as const, primitiveStart: index, primitiveCount: 1 },
+      ],
     })),
   });
 }

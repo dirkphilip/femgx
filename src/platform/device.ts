@@ -1,4 +1,8 @@
-import { requestWebGpuAdapter, WebGpuUnsupportedError, webGpuUnsupportedMessage } from "./capabilities";
+import {
+  requestWebGpuAdapter,
+  WebGpuUnsupportedError,
+  webGpuUnsupportedMessage,
+} from "./capabilities";
 import type { WebGpuQueryOptions } from "./capabilities";
 
 /**

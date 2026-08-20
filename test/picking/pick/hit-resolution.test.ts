@@ -208,8 +208,14 @@ describe("resolvePickHit", () => {
     const pointElement = model.elements.at(1);
     if (lineElement === undefined || pointElement === undefined)
       throw new Error("elements missing");
-    const linePart = createPartFromElementModel(2, createElementModel([...model.nodes], [lineElement]));
-    const pointPart = createPartFromElementModel(3, createElementModel([...model.nodes], [pointElement]));
+    const linePart = createPartFromElementModel(
+      2,
+      createElementModel([...model.nodes], [lineElement]),
+    );
+    const pointPart = createPartFromElementModel(
+      3,
+      createElementModel([...model.nodes], [pointElement]),
+    );
     const mixedContext: PickContext = {
       instances: [instanceAt(0, 2), instanceAt(1, 3)],
       parts: new Map([

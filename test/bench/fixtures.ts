@@ -158,7 +158,11 @@ export function makeHierarchyScene(options: {
       for (let i = 0; i < fanout; i++) {
         const childId = nextId;
         nextId += 1;
-        placements.push({ kind: "assembly", assemblyId: childId, transform: translationMatrix(i, 0, 0) });
+        placements.push({
+          kind: "assembly",
+          assemblyId: childId,
+          transform: translationMatrix(i, 0, 0),
+        });
         buildNode(currentDepth - 1, childId);
       }
     }

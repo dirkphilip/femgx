@@ -146,7 +146,9 @@ describe("Viewport", () => {
       {
         geometries: sourcePart.geometries,
         ...(sourcePart.elements === undefined ? {} : { elements: sourcePart.elements }),
-        ...(sourcePart.nodePositions === undefined ? {} : { nodePositions: sourcePart.nodePositions }),
+        ...(sourcePart.nodePositions === undefined
+          ? {}
+          : { nodePositions: sourcePart.nodePositions }),
         ...(sourcePart.bodies === undefined ? {} : { bodies: sourcePart.bodies }),
       },
       sourcePart.bounds,

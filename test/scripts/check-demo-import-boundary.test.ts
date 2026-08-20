@@ -63,7 +63,9 @@ describe("check-demo-import-boundary", () => {
   });
 
   it("rejects deep imports from ordinary demo code", () => {
-    const root = makeDemo({ "ordinary.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n' });
+    const root = makeDemo({
+      "ordinary.ts": 'import { createSceneBuilder } from "../src/scene/scene";\n',
+    });
     const result = runCheck(root);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("unauthorized deep demo import ../src/scene/scene");

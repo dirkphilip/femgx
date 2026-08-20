@@ -448,7 +448,11 @@ function centeredTransform(
   const centerZ = ((bounds.minZ + bounds.maxZ) / 2) * displayScale;
   const target = cellOriginX + blockSize / 2;
   return multiplyMatrices(
-    translationMatrix(target - centerX, cellOriginY + blockSize / 2 - centerY, blockSize / 2 - centerZ),
+    translationMatrix(
+      target - centerX,
+      cellOriginY + blockSize / 2 - centerY,
+      blockSize / 2 - centerZ,
+    ),
     scalingMatrix(displayScale),
   );
 }

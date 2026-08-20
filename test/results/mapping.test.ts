@@ -134,7 +134,9 @@ describe("mapScalarToColor", () => {
 
   it("maps missing values to the missing color", () => {
     expect(mapScalarToColor(map, NaN)).toEqual(map.missingColor);
-    expect(mapScalarToColor(createScalarColorMap({ min: 0, max: 1 }), NaN)).toEqual(map.missingColor);
+    expect(mapScalarToColor(createScalarColorMap({ min: 0, max: 1 }), NaN)).toEqual(
+      map.missingColor,
+    );
   });
 
   it("interpolates linearly between two stops", () => {

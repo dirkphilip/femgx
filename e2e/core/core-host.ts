@@ -92,7 +92,9 @@ function coreScene(placementCount = 1, separated = false) {
         kind: "part" as const,
         partId: part.id,
         transform:
-          index === 0 ? identityMatrix() : translationMatrix(separated ? 0 : index * 2.5, 0, -0.2 * index),
+          index === 0
+            ? identityMatrix()
+            : translationMatrix(separated ? 0 : index * 2.5, 0, -0.2 * index),
       })),
     })
     .setRootAssembly(1)

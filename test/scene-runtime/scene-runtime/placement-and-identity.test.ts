@@ -45,7 +45,12 @@ describe("createPackedSceneRuntime", () => {
           id: 1,
           placements: [
             { kind: "part", placementId: "left", partId: 1, transform: translationMatrix(1, 0, 0) },
-            { kind: "part", placementId: "right", partId: 2, transform: translationMatrix(2, 0, 0) },
+            {
+              kind: "part",
+              placementId: "right",
+              partId: 2,
+              transform: translationMatrix(2, 0, 0),
+            },
           ],
         },
       ],
@@ -57,8 +62,18 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", placementId: "right", partId: 2, transform: translationMatrix(20, 0, 0) },
-            { kind: "part", placementId: "left", partId: 1, transform: translationMatrix(10, 0, 0) },
+            {
+              kind: "part",
+              placementId: "right",
+              partId: 2,
+              transform: translationMatrix(20, 0, 0),
+            },
+            {
+              kind: "part",
+              placementId: "left",
+              partId: 1,
+              transform: translationMatrix(10, 0, 0),
+            },
           ],
         },
       ],
@@ -155,11 +170,17 @@ describe("createPackedSceneRuntime", () => {
             assemblies: new Map([
               [
                 1,
-                { id: 1, placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }] },
+                {
+                  id: 1,
+                  placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
+                },
               ],
               [
                 2,
-                { id: 2, placements: [{ kind: "assembly", assemblyId: 1, transform: identityMatrix() }] },
+                {
+                  id: 2,
+                  placements: [{ kind: "assembly", assemblyId: 1, transform: identityMatrix() }],
+                },
               ],
             ]),
           }),

@@ -173,7 +173,11 @@ function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]):
     name: selected.getName().trim() || "GLB scene",
     placements,
   };
-  return { scene: builder.addAssembly(root).setRootAssembly(root.id).build(), partNames, partStyles };
+  return {
+    scene: builder.addAssembly(root).setRootAssembly(root.id).build(),
+    partNames,
+    partStyles,
+  };
 }
 
 function flatSingleUseRootParts(

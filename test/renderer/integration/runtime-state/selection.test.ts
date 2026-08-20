@@ -251,7 +251,9 @@ describe("renderer runtime state", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() }],
+        placements: [
+          { kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() },
+        ],
       })
       .setRootAssembly(1)
       .build();

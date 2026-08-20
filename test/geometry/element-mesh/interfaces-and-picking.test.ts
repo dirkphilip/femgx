@@ -44,13 +44,17 @@ describe("createPartFromElementModel geometry", () => {
       bodies: [{ id: 1, elementIds: [1, 2] }],
     });
     expect(sameBody.indices.length).toBe(8 * 3);
-    expect(Array.from(sameBody.faces ?? []).some((face) => face.neighborElementId !== undefined)).toBe(true);
+    expect(
+      Array.from(sameBody.faces ?? []).some((face) => face.neighborElementId !== undefined),
+    ).toBe(true);
 
     const namedAndUnowned = geometryFor(model, "triangle", {
       bodies: [{ id: 1, elementIds: [1] }],
     });
     expect(namedAndUnowned.indices.length).toBe(8 * 3);
-    expect(Array.from(namedAndUnowned.faces ?? []).some((face) => face.neighborElementId !== undefined)).toBe(true);
+    expect(
+      Array.from(namedAndUnowned.faces ?? []).some((face) => face.neighborElementId !== undefined),
+    ).toBe(true);
   });
 
   it("records element tessellations so every triangle is element-pickable", () => {

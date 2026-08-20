@@ -168,14 +168,20 @@ function toggleVisibility(owner: WorkbenchCommandOwner, target: VisibilityRowTar
     case "assembly": {
       const occurrence = owner.runtime.getAssemblyOccurrence(target.occurrenceId);
       if (occurrence !== undefined) {
-        owner.visibilityActions.setAssemblyOccurrenceVisible(target.occurrenceId, !occurrence.visible);
+        owner.visibilityActions.setAssemblyOccurrenceVisible(
+          target.occurrenceId,
+          !occurrence.visible,
+        );
       }
       break;
     }
     case "partOccurrence": {
       const instance = owner.runtime.getPartOccurrence(target.partOccurrenceId);
       if (instance !== undefined) {
-        owner.visibilityActions.setPartOccurrenceVisible(target.partOccurrenceId, !instance.visible);
+        owner.visibilityActions.setPartOccurrenceVisible(
+          target.partOccurrenceId,
+          !instance.visible,
+        );
       }
       break;
     }

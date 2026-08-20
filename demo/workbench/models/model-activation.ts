@@ -168,7 +168,8 @@ function resetSlotVisibility(slots: readonly WorkbenchViewportSlot[], model: Wor
         const occurrenceId = occurrence.assemblyOccurrenceId;
         slot.viewport.visibility.setAssemblyOccurrenceVisible(occurrenceId, true);
       }
-      for (const partId of model.scene.parts.keys()) slot.viewport.visibility.setPartVisible(partId, true);
+      for (const partId of model.scene.parts.keys())
+        slot.viewport.visibility.setPartVisible(partId, true);
       for (const instance of runtime.partOccurrences()) {
         const partOccurrenceId = instance.partOccurrenceId;
         slot.viewport.visibility.setPartOccurrenceVisible(partOccurrenceId, true);

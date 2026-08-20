@@ -31,7 +31,11 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identityMatrix() };
+const item: PartOccurrence = {
+  partOccurrenceId: "1/0",
+  partId: 1,
+  worldTransform: identityMatrix(),
+};
 
 const nodeRef = { partOccurrenceId: "1/0", nodeId: 7 };
 const otherNodeRef = { partOccurrenceId: "1/0", nodeId: 8 };

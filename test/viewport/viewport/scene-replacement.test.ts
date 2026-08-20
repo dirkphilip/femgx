@@ -139,7 +139,12 @@ describe("Viewport", () => {
     expect(viewport.scene).not.toBe(initial);
     expect(viewport.scene.parts.get(1)).toBe(replacementPart);
     expect(viewport.view.camera).toBe(camera);
-    expect(Array.from(viewport.occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId)).toEqual(["1/keep"]);
+    expect(
+      Array.from(
+        viewport.occurrences.partOccurrences(),
+        ({ partOccurrenceId }) => partOccurrenceId,
+      ),
+    ).toEqual(["1/keep"]);
     expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
     expect(
       isTargetSelected(viewport.interaction.state, {
@@ -322,7 +327,12 @@ describe("Viewport", () => {
     viewport.replaceScene(replacement);
 
     expect(viewport.view.camera).toBe(camera);
-    expect(Array.from(viewport.occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId)).toEqual(["1/keep", "1/added"]);
+    expect(
+      Array.from(
+        viewport.occurrences.partOccurrences(),
+        ({ partOccurrenceId }) => partOccurrenceId,
+      ),
+    ).toEqual(["1/keep", "1/added"]);
     expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
     expect(
       isTargetSelected(viewport.interaction.state, {

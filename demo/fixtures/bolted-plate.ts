@@ -229,8 +229,10 @@ function bodyGroups(model: ElementModel, names: readonly string[]): readonly Bod
     return {
       id: index + 1,
       name,
-      elementIds: Array.from({ length: end - start }, (_, ordinal) => model.elements.at(start + ordinal)?.id)
-        .filter((id): id is number => id !== undefined),
+      elementIds: Array.from(
+        { length: end - start },
+        (_, ordinal) => model.elements.at(start + ordinal)?.id,
+      ).filter((id): id is number => id !== undefined),
     };
   });
 }

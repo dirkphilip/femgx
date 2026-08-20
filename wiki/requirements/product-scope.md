@@ -102,11 +102,11 @@ connectivity, identity, memory, and negative-space contract is defined in
 “Show the surface” is presentation, not a statement about which topology the
 client or GPU owns. A host must choose an explicit data contract for each part:
 
-| Contract             | Client owns                                               | Update owner | Local interior reveal                                                           | Status       |
-| -------------------- | --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- | ------------ |
+| Contract             | Client owns                                                                  | Update owner | Local interior reveal                                                           | Status       |
+| -------------------- | ---------------------------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------- | ------------ |
 | Surface snapshot     | One complete display-relevant `createPartFromExplicitTopology()` payload     | Host         | No. Omitted topology cannot be rendered or selected.                            | **Core now** |
 | Host-updated surface | The latest complete authoritative `createPartFromExplicitTopology()` payload | Host/server  | Only after the host supplies a replacement part revision or occurrence binding. | **Core now** |
-| Fully resident model | Complete `ElementModel` topology and reusable geometry    | femgx/host   | Yes, because the client retains the relevant faces and identities.              | **Core now** |
+| Fully resident model | Complete `ElementModel` topology and reusable geometry                       | femgx/host   | Yes, because the client retains the relevant faces and identities.              | **Core now** |
 
 The first two contracts are transfer-minimizing paths. In both, femgx treats the
 current surface payload as complete and never infers omitted topology. The

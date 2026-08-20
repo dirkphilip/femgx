@@ -93,8 +93,14 @@ describe("viewport scene bounds", () => {
         },
       ],
       elements: [
-        { id: 1, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
-        { id: 2, primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }] },
+        {
+          id: 1,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }],
+        },
+        {
+          id: 2,
+          primitiveRanges: [{ primitive: "triangles", primitiveStart: 1, primitiveCount: 1 }],
+        },
       ],
     });
 

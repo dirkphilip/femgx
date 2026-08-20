@@ -31,8 +31,16 @@ const base: ResolvedStyle = {
   edge: false,
   nodes: false,
 };
-const item: PartOccurrence = { partOccurrenceId: "1/0", partId: 1, worldTransform: identityMatrix() };
-const other: PartOccurrence = { partOccurrenceId: "2/0", partId: 2, worldTransform: identityMatrix() };
+const item: PartOccurrence = {
+  partOccurrenceId: "1/0",
+  partId: 1,
+  worldTransform: identityMatrix(),
+};
+const other: PartOccurrence = {
+  partOccurrenceId: "2/0",
+  partId: 2,
+  worldTransform: identityMatrix(),
+};
 
 function filledState(): InteractionState {
   let state = createInteractionState();

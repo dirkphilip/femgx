@@ -177,7 +177,10 @@ export function scene(offset = 0) {
 export function explicitScene(parts: readonly Part[], placements: readonly Placement[]): Scene {
   let builder = createSceneBuilder();
   for (const part of parts) builder = builder.addPart(part);
-  return builder.addAssembly({ id: 1, name: "explicit-root", placements }).setRootAssembly(1).build();
+  return builder
+    .addAssembly({ id: 1, name: "explicit-root", placements })
+    .setRootAssembly(1)
+    .build();
 }
 
 /** Shared core test helper. */

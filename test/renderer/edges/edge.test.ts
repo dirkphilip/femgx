@@ -8,7 +8,11 @@ import {
   expandMeshEdgeData,
   meshEdgeEndpointData,
 } from "../../../src/renderer/edges/edge-expansion";
-import { createPart, type ElementTessellation, type GeometryInput } from "../../../src/geometry/part";
+import {
+  createPart,
+  type ElementTessellation,
+  type GeometryInput,
+} from "../../../src/geometry/part";
 
 type SemanticGeometry = GeometryInput & {
   readonly elements?: readonly ElementTessellation[];
@@ -110,7 +114,12 @@ describe("buildMeshEdgeData", () => {
         },
       ],
       elements: [
-        { id: 1, primitiveRanges: [{ primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 2 }] },
+        {
+          id: 1,
+          primitiveRanges: [
+            { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 2 },
+          ],
+        },
       ],
     };
 

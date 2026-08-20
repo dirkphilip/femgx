@@ -63,8 +63,18 @@ function buildScene() {
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, placementId: "left", partId: part.id, transform: identityMatrix() },
-        { kind: "part" as const, placementId: "right", partId: part.id, transform: identityMatrix() },
+        {
+          kind: "part" as const,
+          placementId: "left",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
+        {
+          kind: "part" as const,
+          placementId: "right",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
       ],
     })
     .setRootAssembly(1)
@@ -162,7 +172,9 @@ function buildOversizeScene() {
     .addAssembly({
       id: 1,
       name: "oversize",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -217,7 +229,9 @@ function buildMixedPrimitiveScene() {
     .addAssembly({
       id: 1,
       name: "mixed",
-      placements: [{ kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() }],
+      placements: [
+        { kind: "part", placementId: "only", partId: part.id, transform: identityMatrix() },
+      ],
     })
     .setRootAssembly(1)
     .build();

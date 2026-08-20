@@ -312,8 +312,10 @@ export function createBenchmarkCase(spec: WebGpuBenchmarkSpec): WebGpuBenchmarkC
 
 function createOrientationField(parts: readonly Part[]): VectorField<"elemental"> {
   const count =
-    Math.max(0, ...parts.flatMap((part) => [...(part.elements ?? [])].map((element) => element.id))) +
-    1;
+    Math.max(
+      0,
+      ...parts.flatMap((part) => [...(part.elements ?? [])].map((element) => element.id)),
+    ) + 1;
   const values = new Float32Array(count * 3);
   for (let element = 0; element < count; element += 1) {
     values[element * 3] = element % 2 === 0 ? 1 : -1;

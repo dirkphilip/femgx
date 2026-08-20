@@ -1,4 +1,9 @@
-import { createSceneBuilder, type Bounds, type PartId, type Scene } from "../../../src/entries/root";
+import {
+  createSceneBuilder,
+  type Bounds,
+  type PartId,
+  type Scene,
+} from "../../../src/entries/root";
 import type { Color } from "../../../src/entries/interaction";
 import { type StyleOverride } from "../../../src/entries/interaction";
 import {

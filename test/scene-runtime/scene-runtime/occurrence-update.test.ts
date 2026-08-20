@@ -5,7 +5,13 @@ import {
   prepareOccurrenceMutations,
 } from "../../../src/scene-runtime/occurrence-update";
 import { prepareSceneTransition } from "../../../src/scene/update";
-import { buildScene, createPackedSceneRuntime, identityMatrix, part, translationMatrix } from "./support";
+import {
+  buildScene,
+  createPackedSceneRuntime,
+  identityMatrix,
+  part,
+  translationMatrix,
+} from "./support";
 
 describe("incremental part occurrence storage", () => {
   it("reuses removed slots without moving surviving identities or exposing holes", () => {
@@ -45,10 +51,9 @@ describe("incremental part occurrence storage", () => {
     expect(delta.slots).toEqual([{ slot: 0, beforePartId: 1, afterPartId: 2 }]);
     const occurrences = createSceneOccurrences(() => runtime);
     expect(occurrences.partOccurrenceCount).toBe(2);
-    expect(Array.from(occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId)).toEqual([
-      "1/added",
-      "1/keep",
-    ]);
+    expect(
+      Array.from(occurrences.partOccurrences(), ({ partOccurrenceId }) => partOccurrenceId),
+    ).toEqual(["1/added", "1/keep"]);
   });
 
   it("coalesces remove plus add of one placement identityMatrix into a retained-slot replacement", () => {
@@ -57,7 +62,9 @@ describe("incremental part occurrence storage", () => {
       [
         {
           id: 1,
-          placements: [{ kind: "part", placementId: "item", partId: 1, transform: identityMatrix() }],
+          placements: [
+            { kind: "part", placementId: "item", partId: 1, transform: identityMatrix() },
+          ],
         },
       ],
       [1, 2],

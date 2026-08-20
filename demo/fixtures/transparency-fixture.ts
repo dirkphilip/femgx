@@ -61,7 +61,11 @@ function transparencyScene(parts: readonly Part[]): Scene {
     id: ROOT_ASSEMBLY_ID,
     name: "transparency-fixture",
     placements: [
-      { kind: "part" as const, partId: INTERIOR_PART_ID, transform: translationMatrix(0.5, 0.5, 0.5) },
+      {
+        kind: "part" as const,
+        partId: INTERIOR_PART_ID,
+        transform: translationMatrix(0.5, 0.5, 0.5),
+      },
       { kind: "part" as const, partId: SHELL_PART_ID, transform: identityMatrix() },
       {
         kind: "part" as const,
