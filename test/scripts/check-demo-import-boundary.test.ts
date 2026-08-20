@@ -90,7 +90,8 @@ describe("check-demo-import-boundary", () => {
       "demo/benchmark/many-piece-replacement.ts",
       "demo/benchmark/many-piece.ts",
       "demo/benchmark/node-selection.ts",
-      "demo/benchmark/selection.ts",
+      "demo/benchmark/workflows/selection.ts",
+      "demo/benchmark/workflows/selection-hide-workflow.ts",
       "demo/benchmark/structured-fe.ts",
       "demo/benchmark/tet4-transfer.ts",
       "demo/benchmark/packed-tet4.ts",
@@ -119,7 +120,10 @@ describe("check-demo-import-boundary", () => {
       "benchmark/many-piece.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/node-selection.ts":
         'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
-      "benchmark/selection.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/selection.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
+      "benchmark/workflows/selection-hide-workflow.ts":
+        'import { createRenderer } from "../../src/renderer/gpu-renderer";\n',
       "benchmark/structured-fe.ts": 'import { createElement } from "../src/elements/element";\n',
       "benchmark/memory.ts": 'import { createRenderer } from "../src/renderer/gpu-renderer";\n',
       "benchmark/model.ts": 'import { createPart } from "../src/geometry/part";\n',

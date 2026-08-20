@@ -92,7 +92,7 @@ model normal host usage:
 
 - `demo/benchmark/interactive.ts`
 - `demo/benchmark/measurement.ts`
-- `demo/benchmark/selection.ts`
+- `demo/benchmark/workflows/selection.ts`
 - `demo/benchmark/structured-fe.ts`
 - `demo/benchmark/tet4-transfer.ts`
 - `demo/benchmark/memory.ts`

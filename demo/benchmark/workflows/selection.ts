@@ -1,29 +1,29 @@
-import { orbitCamera, projectPoint, type Camera } from "../../src/camera/camera";
-import { percentiles } from "./statistics";
-import { transformPoint } from "../../src/math/mat4";
-import { createInteractionState } from "../../src/interaction/interaction";
-import { setTargetsSelected } from "../../src/interaction/targets";
-import type { BoxSelectionRect } from "../../src/interaction/box-selection";
-import type { InteractionTarget } from "../../src/interaction/target-types";
-import type { Part, PartId } from "../../src/geometry/part";
-import { partSemanticGraph } from "../../src/geometry/semantic/part-semantic-graph";
-import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
-import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
-import { buildInstanceLayout } from "../../src/renderer/runtime-state";
-import { collectDenseElementSelections } from "../../src/renderer/selection/element-selection";
-import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
-import type { PartOccurrenceId } from "../../src/scene/types";
-import type { WebGpuBenchmarkCase } from "./model";
+import { orbitCamera, projectPoint, type Camera } from "../../../src/camera/camera";
+import { percentiles } from "../statistics";
+import { transformPoint } from "../../../src/math/mat4";
+import { createInteractionState } from "../../../src/interaction/interaction";
+import { setTargetsSelected } from "../../../src/interaction/targets";
+import type { BoxSelectionRect } from "../../../src/interaction/box-selection";
+import type { InteractionTarget } from "../../../src/interaction/target-types";
+import type { Part, PartId } from "../../../src/geometry/part";
+import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
+import { ELEMENT_RECORD_STRIDE } from "../../../src/renderer/resources/element-resources";
+import { readGpuCostSnapshot, type WebGpuRenderer } from "../../../src/renderer/gpu-renderer";
+import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
+import { collectDenseElementSelections } from "../../../src/renderer/selection/element-selection";
+import type { PackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+import type { PartOccurrenceId } from "../../../src/scene/types";
+import type { WebGpuBenchmarkCase } from "../model";
 import type {
   SelectionBenchmarkPhase,
   SelectionBenchmarkReport,
   SelectionCameraTransition,
-} from "./types";
+} from "../types";
 import {
   assertElementEmphasisDraw,
   assertNoElementEmphasisDraw,
   highlightWriteBytesSince,
-} from "./assertions";
+} from "../assertions";
 
 const WIDTH = 800;
 const HEIGHT = 600;

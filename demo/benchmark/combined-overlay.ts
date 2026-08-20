@@ -21,7 +21,7 @@ import {
 } from "./assertions";
 import { denseEdgeTypedMemory, estimateBenchmarkMemory } from "./memory";
 import type { WebGpuBenchmarkCase } from "./model";
-import { authoredElementTargets } from "./selection";
+import { authoredElementTargets } from "./workflows/selection";
 import type { CombinedOverlayBenchmarkReport, HoverBenchmarkReport } from "./types";
 
 const WIDTH = 800;
