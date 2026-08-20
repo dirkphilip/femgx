@@ -61,6 +61,11 @@ export {
   type InstanceUpdate,
 } from "../resources/instance-storage";
 
+export {
+  cloneInstanceStorage,
+  destroyDetachedInstanceStorage,
+} from "../resources/staging/instance-storage";
+
 /** A single instanced draw for one part. */
 export interface DrawCall {
   readonly partId: PartId;

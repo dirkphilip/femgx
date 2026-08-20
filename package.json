@@ -116,6 +116,7 @@
     "bench:node-selection-sync": "vitest run --config config/vitest.node-selection-sync.config.ts",
     "bench:tet4-visibility-sync": "vitest run --config config/vitest.tet4-visibility-sync.config.ts",
     "bench:affected-part-sync": "vitest run --config config/vitest.affected-part-sync.config.ts",
+    "bench:part-revision": "vitest run --config config/vitest.part-revision.config.ts",
     "bench:cold-attachment": "vitest run --config config/vitest.cold-attachment.config.ts",
     "bench:distinct-part-churn": "vitest run --config config/vitest.distinct-part-churn.config.ts",
     "bench:webgpu": "npm run test:e2e:performance",

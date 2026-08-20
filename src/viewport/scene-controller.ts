@@ -9,19 +9,29 @@ import {
 } from "../scene-runtime/occurrence-update";
 import type { Scene } from "../scene/scene";
 import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
+import { hasOnlyPartReplacementChanges } from "../scene/update-validation";
 import { originTriadScaleFromBounds } from "./bounds/origin-triad";
 import { PlacedBoundsIndex } from "./bounds/placed-index";
 import {
+  resolveViewportPartRevisionResults,
   resolveViewportResults,
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "./results";
-import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
+import {
+  applyResolvedPartRevisionResults,
+  applyResolvedViewportResults,
+  applyViewportResults,
+} from "./results/application";
 import { reconcileInteractionState } from "./scene-reconciliation";
 import { ViewportVisibilityState } from "./visibility/state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
-import { prepareRendererPartAdditions, updateRendererOccurrences } from "../renderer/gpu-renderer";
+import {
+  prepareRendererPartAdditions,
+  updateRendererOccurrences,
+  updateRendererPartRevisions,
+} from "../renderer/gpu-renderer";
 
 interface PreparedSceneReplacement {
   readonly scene: Scene;
@@ -133,6 +143,9 @@ export class ViewportSceneController {
     if (occurrenceMutations !== undefined) {
       return this.applyOccurrenceUpdate(prepared.scene, occurrenceMutations, cancelCamera);
     }
+    if (hasOnlyPartReplacementChanges(prepared.changes)) {
+      return this.applyPartRevision(prepared.scene, prepared.changes.parts.replaced, cancelCamera);
+    }
     return {
       committed: true,
       outcome: this.applySceneReplacement(prepared.scene, true, false, cancelCamera),
@@ -214,6 +227,39 @@ export class ViewportSceneController {
     return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
   }
 
+  private applyPartRevision(
+    scene: Scene,
+    partIds: ReadonlySet<number>,
+    cancelCamera: () => void,
+  ): SceneUpdateResult {
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      this.currentRuntime,
+      scene.parts,
+    );
+    const resultUpdate = this.preparePartRevisionResults(scene, this.currentRuntime, partIds);
+    updateRendererPartRevisions(
+      this.options.renderer,
+      this.currentRuntime,
+      nextInteraction,
+      scene.parts,
+      partIds,
+    );
+    cancelCamera();
+    this.currentScene = scene;
+    this.baseInteraction = nextInteraction;
+    this.currentResults = resultUpdate.results;
+    this.placedBounds.updateParts(scene.parts, partIds);
+    const changedSlots: number[] = [];
+    for (const partId of partIds) {
+      for (const slot of this.currentRuntime.getPartInstanceSlots(partId)) changedSlots.push(slot);
+    }
+    this.placedBounds.update(this.currentRuntime, changedSlots);
+    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
+    applyResolvedPartRevisionResults(this.options.renderer, resultUpdate.results);
+    return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
+  }
+
   private applySceneReplacement(
     scene: Scene,
     preserveResults: boolean,
@@ -279,6 +325,33 @@ export class ViewportSceneController {
         results,
         outcome: { results: "preserved" },
       };
+    } catch (error: unknown) {
+      return {
+        results: undefined,
+        outcome: { results: "cleared", reason: errorMessage(error) },
+      };
+    }
+  }
+
+  private preparePartRevisionResults(
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    partIds: ReadonlySet<number>,
+  ): {
+    readonly results: ViewportResultsState | undefined;
+    readonly outcome: SceneUpdateOutcome;
+  } {
+    const previous = this.currentResults;
+    if (previous === undefined) return { results: undefined, outcome: { results: "none" } };
+    try {
+      const results = resolveViewportPartRevisionResults(
+        previous.config,
+        scene,
+        runtime,
+        previous,
+        partIds,
+      );
+      return { results, outcome: { results: "preserved" } };
     } catch (error: unknown) {
       return {
         results: undefined,

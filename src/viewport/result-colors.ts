@@ -28,6 +28,35 @@ export function viewportResultColors(state: ViewportResultsState): ResultColorMa
   return colorsByState.get(state);
 }
 
+/** Retains unchanged per-binding table identities across an immutable part revision. */
+export function reconcileViewportResultColors(
+  state: ViewportResultsState,
+  previous: ViewportResultsState,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): void {
+  const current = colorsByState.get(state);
+  const prior = colorsByState.get(previous);
+  if (current === undefined || prior === undefined) return;
+  const colors = new Map(current);
+  for (const [bindingId, table] of prior) {
+    if (!current.has(bindingId) || bindingUsesRevisedPart(bindingId, runtime, revisedPartIds)) {
+      continue;
+    }
+    colors.set(bindingId, table);
+  }
+  colorsByState.set(state, colors);
+}
+
+/** Moves internal resolved color metadata to an equivalent immutable result state. */
+export function transferViewportResultColors(
+  source: ViewportResultsState,
+  target: ViewportResultsState,
+): void {
+  colorsByState.set(target, colorsByState.get(source));
+  partsByState.set(target, partsByState.get(source));
+}
+
 /** Derives or reuses one dense color table per reusable rendered part. */
 export function resolveViewportResultColors(
   state: ViewportResultsState,
@@ -165,6 +194,17 @@ function sameRenderedParts(
     if (sources.get(partId) !== scene.parts.get(partId)) return false;
   }
   return true;
+}
+
+function bindingUsesRevisedPart(
+  bindingId: PartId | PartOccurrenceId,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): boolean {
+  if (typeof bindingId === "number") return revisedPartIds.has(bindingId);
+  const slot = runtime.getInstanceSlot(bindingId);
+  const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+  return partId === undefined || revisedPartIds.has(partId);
 }
 
 function renderedParts(

@@ -1,6 +1,6 @@
-import type { HighlightStorage } from "../selection/highlight-storage";
 import { writeChangedRecordRanges, writeOrderBuffer } from "./buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import type { HighlightStorage } from "../selection/highlight-storage";
 import { invalidateBindGroups as clearBindGroups } from "./foundation";
 import {
   INSTANCE_EDGE_EMPHASIS_FLAG,

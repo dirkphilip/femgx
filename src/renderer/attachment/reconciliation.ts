@@ -115,6 +115,33 @@ export interface AttachmentFlagState {
   selectedNodeFlags: boolean[];
 }
 
+/** Copies one independent flag mirror for a staged attachment update. */
+export function cloneAttachmentFlags(flags: AttachmentFlagState): AttachmentFlagState {
+  return {
+    edgeFlags: flags.edgeFlags.slice(),
+    edgeEmphasisFlags: flags.edgeEmphasisFlags.slice(),
+    nodeFlags: flags.nodeFlags.slice(),
+    transparentFlags: flags.transparentFlags.slice(),
+    selectedNodeFlags: flags.selectedNodeFlags.slice(),
+  };
+}
+
+/** Replaces each live flag mirror after its staged update commits. */
+export function copyAttachmentFlags(
+  target: AttachmentFlagState,
+  source: AttachmentFlagState,
+): void {
+  copyFlags(target.edgeFlags, source.edgeFlags);
+  copyFlags(target.edgeEmphasisFlags, source.edgeEmphasisFlags);
+  copyFlags(target.nodeFlags, source.nodeFlags);
+  copyFlags(target.transparentFlags, source.transparentFlags);
+  copyFlags(target.selectedNodeFlags, source.selectedNodeFlags);
+}
+
+function copyFlags(target: boolean[], source: readonly boolean[]): void {
+  target.splice(0, target.length, ...source);
+}
+
 export interface AttachmentState {
   flags: AttachmentFlagState;
   instances: Array<PartOccurrence | undefined>;

@@ -41,6 +41,7 @@ import {
   prepareAddedAttachmentParts,
   prepareAttachmentParts,
   removeAttachmentParts,
+  replaceAttachedPartDefinitions,
 } from "./attachment/part-definitions";
 
 /**
@@ -67,11 +68,11 @@ export class RendererAttachment {
   private edgeEmphasisFlags: boolean[] = [];
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
-  private readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
-  private interactionState = createInteractionState();
-  private interactionBeforeLastInstanceUpdate: InteractionState | undefined;
-  private appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
-  private attachedParts = new Map<PartId, Part>();
+  readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
+  interactionState = createInteractionState();
+  interactionBeforeLastInstanceUpdate: InteractionState | undefined;
+  appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
+  attachedParts = new Map<PartId, Part>();
 
   public usesExteriorFaceSubsets = true;
 
@@ -97,14 +98,14 @@ export class RendererAttachment {
     if (sourceParts !== undefined) addAttachmentParts(sourceParts, parts, partIds);
   }
 
-  /** Retires exact removed definitions without scanning the retained part registry. */
-  public removeParts(
+  /** Replaces only changed immutable part resources while retaining occurrence storage. */
+  public replaceParts(
+    parts: ReadonlyMap<PartId, Part>,
     partIds: ReadonlySet<PartId>,
-    sourceParts: Map<PartId, Part>,
+    interaction: InteractionState,
     bundle: GpuBundle,
   ): void {
-    const calls = removeAttachmentParts(this.partAttachmentOptions(bundle), sourceParts, partIds);
-    if (calls !== undefined) Object.assign(this, calls);
+    replaceAttachedPartDefinitions(this, parts, partIds, interaction, bundle);
   }
 
   /**
@@ -402,7 +403,7 @@ export class RendererAttachment {
     this.applyAttachmentOrders(runtime, layout, parts, bundle);
   }
 
-  private styleFlags(): AttachmentFlagState {
+  styleFlags(): AttachmentFlagState {
     return {
       edgeFlags: this.edgeFlags,
       edgeEmphasisFlags: this.edgeEmphasisFlags,

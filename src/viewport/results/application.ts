@@ -1,10 +1,11 @@
 import {
   setRendererOrientationGlyphs,
+  setRendererPartRevisionResults,
   setRendererResultColors,
   type WebGpuRenderer,
-} from "../renderer/gpu-renderer";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { Scene } from "../scene/scene";
+} from "../../renderer/gpu-renderer";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
+import type { Scene } from "../../scene/scene";
 import {
   resolveViewportResults,
   viewportOrientationRecords,
@@ -12,7 +13,7 @@ import {
   viewportResultColors,
   type ViewportResultsConfig,
   type ViewportResultsState,
-} from "./results";
+} from "../results";
 
 interface ViewportResultsApplication {
   readonly results: ViewportResultsConfig;
@@ -41,24 +42,37 @@ export function applyResolvedViewportResults(
   renderer: WebGpuRenderer,
   results: ViewportResultsState | undefined,
 ): void {
-  const orientation = results?.orientation;
-  const load = results?.loads;
-  const records = results === undefined ? undefined : viewportOrientationRecords(results);
-  setRendererOrientationGlyphs(
-    renderer,
-    records === undefined
-      ? undefined
-      : {
-          parts: records,
-          mode: orientation === undefined || load !== undefined ? "arrow" : orientation.glyph,
-          transform: orientation?.transform ?? "direction",
-          lengthScale: 1,
-          widthPixels: results === undefined ? 1 : viewportOrientationWidth(results),
-        },
-  );
+  setRendererOrientationGlyphs(renderer, glyphState(results));
   renderer.setDeformation(results?.deformation);
   setRendererResultColors(
     renderer,
     results === undefined ? undefined : viewportResultColors(results),
   );
+}
+
+/** Applies compatible result data after a definition-only scene revision. */
+export function applyResolvedPartRevisionResults(
+  renderer: WebGpuRenderer,
+  results: ViewportResultsState | undefined,
+): void {
+  setRendererPartRevisionResults(renderer, {
+    deformation: results?.deformation,
+    colors: results === undefined ? undefined : viewportResultColors(results),
+    glyphs: glyphState(results),
+  });
+}
+
+function glyphState(results: ViewportResultsState | undefined) {
+  const orientation = results?.orientation;
+  const load = results?.loads;
+  const records = results === undefined ? undefined : viewportOrientationRecords(results);
+  return records === undefined
+    ? undefined
+    : {
+        parts: records,
+        mode: orientation === undefined || load !== undefined ? "arrow" : orientation.glyph,
+        transform: orientation?.transform ?? "direction",
+        lengthScale: 1,
+        widthPixels: results === undefined ? 1 : viewportOrientationWidth(results),
+      };
 }

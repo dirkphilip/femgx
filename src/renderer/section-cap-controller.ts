@@ -98,6 +98,10 @@ export class SectionCapController {
       return;
     }
     if (!this.canReuseInteractionFrame(previous, runtime)) {
+      if (this.dirty && this.rebuildUsingRetained) {
+        this.interaction = interaction;
+        return;
+      }
       this.invalidate();
       return;
     }
@@ -121,6 +125,17 @@ export class SectionCapController {
     if ([...delta.affectedPartIds].some((partId) => !delta.removedPartIds.has(partId))) {
       this.invalidate();
     }
+  }
+
+  /** Rebuilds only cap fragments whose source immutable part definition changed. */
+  public replaceParts(
+    partIds: ReadonlySet<PartId>,
+    parts: ReadonlyMap<PartId, Part>,
+    draw: DrawResources,
+  ): void {
+    this.removeParts(partIds, parts, draw);
+    this.dirty = true;
+    this.rebuildUsingRetained = true;
   }
 
   public sync(options: SectionCapSyncOptions): void {

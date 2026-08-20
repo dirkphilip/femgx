@@ -114,10 +114,18 @@ function buildVisibleOrder(
 export function destroyVisibilitySkinCache(draw: VisibilityDrawOwner, partId: number): void {
   const cache = draw.visibilitySkins.get(partId);
   if (cache === undefined) return;
+  destroyDetachedVisibilitySkinCache(draw, cache);
+  draw.visibilitySkins.delete(partId);
+}
+
+/** Releases a prepared cache that has not been installed in the live cache map. */
+export function destroyDetachedVisibilitySkinCache(
+  draw: VisibilityDrawOwner,
+  cache: VisibilitySkinCache,
+): void {
   for (const entries of cache.entries.values()) {
     for (const entry of entries) destroySkin(draw, entry.skin);
   }
-  draw.visibilitySkins.delete(partId);
 }
 
 /** Releases all cached skins, used when a scene or device is reset. */

@@ -14,11 +14,21 @@ import {
 } from "./results-roles";
 import {
   mergedNodePickIds,
+  reconcileViewportResultColors,
   resolveViewportResultColors,
+  transferViewportResultColors,
   sameFieldSource,
   validateResultCoverage,
   type OccurrenceScalarBinding,
 } from "./result-colors";
+import { validateViewportDeformationCoverage } from "./results/deformation";
+import {
+  reconcilePartRevisionDeformation,
+  reconcilePartRevisionRecords,
+  reconcileSharedPartRevisionDeformation,
+  replacePartRevisionDeformation,
+  reusablePartDeformation,
+} from "./results/revision";
 import { mergeResultRecords } from "./result-records";
 import type {
   ViewportDeformationConfig,
@@ -111,6 +121,36 @@ export function resolveViewportResults(
     ),
   );
   return state;
+}
+
+/** Resolves a retained snapshot while retaining untouched renderer-table identities. */
+export function resolveViewportPartRevisionResults(
+  config: ViewportResultsConfig,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  previous: ViewportResultsState,
+  revisedPartIds: ReadonlySet<PartId>,
+): ViewportResultsState {
+  const state = resolveViewportResults(config, scene, runtime, previous);
+  if (previous.config !== config) return state;
+  const shared = reconcileSharedPartRevisionDeformation(
+    sharedDeformations.get(state),
+    revisedPartIds,
+    (partId) => resolveDeformation(config.deformation, scene, runtime, undefined, partId),
+  );
+  const reconciled = {
+    ...state,
+    deformation: reconcilePartRevisionDeformation(
+      replacePartRevisionDeformation(state.deformation, shared, config, revisedPartIds),
+      previous.deformation,
+      runtime,
+      revisedPartIds,
+    ),
+  };
+  sharedDeformations.set(reconciled, shared);
+  reconcileViewportResultColors(state, previous, runtime, revisedPartIds);
+  transferResultMetadata(state, reconciled, previous, runtime, revisedPartIds);
+  return reconciled;
 }
 
 interface OccurrenceTarget {
@@ -331,7 +371,15 @@ function resolveDeformation(
   if (!Number.isFinite(scale)) {
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
-  const reusable = targetPartId === undefined ? reusableDeformation(previous, config) : undefined;
+  validateViewportDeformationCoverage(config, scene, runtime, targetPartId);
+  const reusable =
+    targetPartId === undefined
+      ? reusablePartDeformation(
+          previous,
+          previous === undefined ? undefined : sharedDeformations.get(previous),
+          config,
+        )
+      : undefined;
   if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
   for (const partId of targetPartId === undefined ? renderedPartIds(runtime) : [targetPartId]) {
@@ -359,23 +407,20 @@ function resolveDeformation(
   return { scale, displacements };
 }
 
-function reusableDeformation(
-  previous: ViewportResultsState | undefined,
-  config: ViewportDeformationConfig,
-): ReadonlyMap<PartId, Float32Array> | undefined {
-  const previousConfig = previous?.config.deformation;
-  const previousState = previous === undefined ? undefined : sharedDeformations.get(previous);
-  if (
-    previousConfig === undefined ||
-    previousState === undefined ||
-    previousConfig.field.count !== config.field.count ||
-    previousConfig.field.values !== config.field.values
-  ) {
-    return undefined;
-  }
-  return new Map(
-    [...previousState.displacements].filter(
-      (entry): entry is [PartId, Float32Array] => typeof entry[0] === "number",
-    ),
+function transferResultMetadata(
+  source: ViewportResultsState,
+  target: ViewportResultsState,
+  previous: ViewportResultsState,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): void {
+  transferViewportResultColors(source, target);
+  const records = reconcilePartRevisionRecords(
+    orientationRecords.get(source),
+    orientationRecords.get(previous),
+    runtime,
+    revisedPartIds,
   );
+  orientationRecords.set(target, records);
+  orientationWidths.set(target, orientationWidths.get(source) ?? 1);
 }
