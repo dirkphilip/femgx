@@ -1,6 +1,7 @@
 import type { ElementModel } from "./model-contract";
 import { ElementShape } from "./shapes";
 import type { ElementShape as ElementShapeValue } from "./shapes";
+import { sortIndexRows } from "../math/index-merge-sort";
 
 const shapes = Object.values(ElementShape) as readonly ElementShapeValue[];
 const codeByShape = new Map(shapes.map((shape, code) => [shape, code]));
@@ -42,19 +43,9 @@ export function sortedOrdinals(
   label: string,
   rejectDuplicates = true,
 ): Uint32Array {
-  const result = new Uint32Array(ids.length);
-  const scratch = new Uint32Array(ids.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2) {
-      merge(ids, result, scratch, {
-        start,
-        middle: Math.min(start + width, result.length),
-        end: Math.min(start + width * 2, result.length),
-      });
-    }
-    result.set(scratch);
-  }
+  const result = sortIndexRows(ids.length, (left, right) => {
+    return (ids[left] ?? 0) - (ids[right] ?? 0);
+  });
   if (rejectDuplicates) {
     for (let index = 1; index < result.length; index += 1) {
       if (ids[result[index - 1] ?? 0] === ids[result[index] ?? 0]) {
@@ -96,29 +87,4 @@ export function elementShapeForCode(code: number): ElementShapeValue {
   const shape = shapes[code];
   if (shape === undefined) throw new Error(`Unknown internal element shape code ${code}`);
   return shape;
-}
-
-function merge(
-  ids: Uint32Array,
-  source: Uint32Array,
-  target: Uint32Array,
-  range: { readonly start: number; readonly middle: number; readonly end: number },
-): void {
-  const { start, middle, end } = range;
-  let left = start;
-  let right = middle;
-  for (let output = start; output < end; output += 1) {
-    const leftOrdinal = source[left];
-    const rightOrdinal = source[right];
-    if (
-      left < middle &&
-      (right >= end || (ids[leftOrdinal ?? 0] ?? 0) <= (ids[rightOrdinal ?? 0] ?? 0))
-    ) {
-      target[output] = leftOrdinal ?? 0;
-      left += 1;
-    } else {
-      target[output] = rightOrdinal ?? 0;
-      right += 1;
-    }
-  }
 }

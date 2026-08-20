@@ -2,7 +2,7 @@
 
 const subsystemDependencies = {
   math: [],
-  elements: [],
+  elements: ["math"],
   platform: [],
   geometry: ["math", "elements"],
   io: ["elements", "geometry", "interaction", "math", "results", "scene"],

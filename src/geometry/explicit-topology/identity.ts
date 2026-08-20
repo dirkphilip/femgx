@@ -1,4 +1,5 @@
 import { ExplicitTopologyError } from "../polygon-triangulation";
+import { sortIndexRows } from "../../math/index-merge-sort";
 
 /** Rejects repeated oriented faces with typed sorting instead of string keys. */
 export function validateUniqueSurfaceFaces(
@@ -47,33 +48,9 @@ export function validateUniqueSurfaceFaces(
 }
 
 function sortedFaceRows(elementIds: Uint32Array, faceIndices: Uint32Array): Uint32Array {
-  const order = new Uint32Array(elementIds.length);
-  const scratch = new Uint32Array(order.length);
-  for (let index = 0; index < order.length; index += 1) order[index] = index;
-  for (let width = 1; width < order.length; width *= 2) {
-    for (let start = 0; start < order.length; start += width * 2) {
-      const middle = Math.min(start + width, order.length);
-      const end = Math.min(start + width * 2, order.length);
-      let left = start;
-      let right = middle;
-      for (let output = start; output < end; output += 1) {
-        const leftRow = order[left] ?? 0;
-        const rightRow = order[right] ?? 0;
-        if (
-          left < middle &&
-          (right >= end || faceRowOrder(elementIds, faceIndices, leftRow, rightRow) <= 0)
-        ) {
-          scratch[output] = leftRow;
-          left += 1;
-        } else {
-          scratch[output] = rightRow;
-          right += 1;
-        }
-      }
-    }
-    order.set(scratch);
-  }
-  return order;
+  return sortIndexRows(elementIds.length, (left, right) =>
+    faceRowOrder(elementIds, faceIndices, left, right),
+  );
 }
 
 function faceRowOrder(
