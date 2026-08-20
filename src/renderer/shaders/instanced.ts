@@ -391,4 +391,18 @@ fn nodeOverlayVertexMain(@builtin(instance_index) flatInstance: u32, @builtin(ve
   );
   return pointVertex(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true);
 }
+
+@vertex
+fn compactSelectedNodeOverlayVertexMain(@builtin(instance_index) flatInstance: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+  let pair = flatInstance * 2u;
+  let instanceIndex = drawOrder[pair];
+  let spriteIndex = drawOrder[pair + 1u];
+  let positionBase = spriteIndex * 3u;
+  let position = vec3<f32>(
+    geometryPosition(positionBase),
+    geometryPosition(positionBase + 1u),
+    geometryPosition(positionBase + 2u),
+  );
+  return pointVertex(position, instanceIndex, spriteIndex, spriteIndex, vertexIndex % 4u, true);
+}
 `;

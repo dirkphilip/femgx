@@ -78,7 +78,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [1]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-20",
+      pipeline: "pipeline-22",
       indexCount: 6,
       instanceCount: 2,
     });
@@ -87,7 +87,7 @@ describe("WebGPU renderer", () => {
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
-      pipeline: "pipeline-20",
+      pipeline: "pipeline-22",
       indexCount: 6,
       instanceCount: 3,
     });

@@ -9,6 +9,7 @@ import type { InteractionTarget } from "../../src/interaction/target-types";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { buildInstanceLayout, type InstanceLayout } from "../../src/renderer/runtime-state";
+import { buildSelectedNodeOrder } from "../../src/renderer/selection/selected-node-order";
 import { HIGHLIGHT_HEADER } from "../../src/renderer/selection/highlight-layout";
 import {
   collectDenseNodeSelections,
@@ -123,10 +124,14 @@ async function measureNodeScenario(
   const interactionSyncMs = performance.now() - syncStart;
   const firstSelectedFrameMs = await renderBenchmarkFrame(context);
   const interactionGpuCost = readGpuCostSnapshot(context.renderer);
-  const selectedNodeDraw = selectedNodeDrawWork(
-    context.nodeCount,
-    facts.selection.occurrences.length,
-  );
+  const selectedNodeOrder = buildSelectedNodeOrder({
+    runtime: context.runtime,
+    layout: context.layout,
+    partId: context.partId,
+    parts: context.benchmarkCase.scene.parts,
+    interaction: selected,
+  });
+  const selectedNodeDraw = selectedNodeDrawWork(context.nodeCount, selectedNodeOrder);
   assertAggregateSelectedWork(interactionGpuCost, selectedNodeDraw);
   const steadyFrames: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) {
@@ -143,6 +148,8 @@ async function measureNodeScenario(
     selectedOccurrenceCount: facts.selection.occurrences.length,
     selectedNodeDrawVertices: selectedNodeDraw.vertices,
     selectedNodeDrawInstances: selectedNodeDraw.instances,
+    selectedNodeCalls: selectedNodeDraw.calls,
+    selectedNodeOrderBytes: selectedNodeDraw.orderBytes,
     interactionStateMs,
     interactionSyncMs,
     firstSelectedFrameMs,
@@ -231,20 +238,32 @@ async function presentFinalSelection(context: NodeSelectionContext): Promise<voi
 
 function selectedNodeDrawWork(
   nodeCount: number,
-  occurrenceCount: number,
-): { readonly vertices: number; readonly instances: number } {
-  return { vertices: 4, instances: nodeCount * occurrenceCount };
+  order: ReturnType<typeof buildSelectedNodeOrder>,
+): {
+  readonly vertices: number;
+  readonly instances: number;
+  readonly calls: number;
+  readonly orderBytes: number;
+} {
+  const dense = order.denseOccurrences.length;
+  const sparse = order.sparseNodeIds.length;
+  return {
+    vertices: 4,
+    instances: dense * nodeCount + sparse,
+    calls: Number(dense > 0) + Number(sparse > 0),
+    orderBytes: dense * Uint32Array.BYTES_PER_ELEMENT + sparse * 2 * Uint32Array.BYTES_PER_ELEMENT,
+  };
 }
 
 function assertAggregateSelectedWork(
   cost: NodeSelectionBenchmarkPhase["interactionGpuCost"],
-  nodeWork: { readonly vertices: number; readonly instances: number },
+  nodeWork: { readonly vertices: number; readonly instances: number; readonly calls: number },
 ): void {
   for (const pass of ["selection-visible", "selection-hidden"] as const) {
     const draw = cost.draws[pass];
     if (
       draw === undefined ||
-      draw.calls !== 1 ||
+      draw.calls !== nodeWork.calls ||
       draw.indices !== nodeWork.vertices ||
       draw.instances !== nodeWork.instances
     ) {

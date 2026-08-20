@@ -105,6 +105,7 @@ export interface BindGroupState {
   selectionBindGroup?: GPUBindGroup | undefined;
   subsetSelectionBindGroup?: GPUBindGroup | undefined;
   nodeSelectionBindGroup?: GPUBindGroup | undefined;
+  nodeSelectionCompactBindGroup?: GPUBindGroup | undefined;
   subsetBindGroup?: GPUBindGroup | undefined;
   subsetTransparentBindGroup?: GPUBindGroup | undefined;
 }
@@ -119,6 +120,7 @@ const BIND_GROUP_KEYS = [
   "selectionBindGroup",
   "subsetSelectionBindGroup",
   "nodeSelectionBindGroup",
+  "nodeSelectionCompactBindGroup",
   "subsetBindGroup",
   "subsetTransparentBindGroup",
 ] as const satisfies readonly (keyof BindGroupState)[];

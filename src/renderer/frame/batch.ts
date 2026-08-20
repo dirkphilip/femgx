@@ -95,10 +95,11 @@ function drawOneBatch(
   const prepared = prepareBatchDraw(pass, preparedBatch);
   if (intent.kind === "nodes") {
     for (const nodeDraw of buildNodeDraws(
-      resource.nodeCount ?? 0,
+      call.selectedNodeMode === "compact" ? 1 : (resource.nodeCount ?? 0),
       call.instanceCount,
       call.firstInstance,
       draw.device.limits.minStorageBufferOffsetAlignment,
+      call.selectedNodeMode === "compact" ? 2 : 1,
     )) {
       if (nodeDraw.orderByteOffset !== 0) {
         bindNodeDrawOrder(pass, preparedBatch, prepared.admission, nodeDraw.orderByteOffset);
@@ -137,7 +138,7 @@ function bindNodeDrawOrder(
   admission: GpuCostAdmission,
   orderByteOffset: number,
 ): void {
-  const { orderKind, overlay, edgePick } = drawIntentState(batch.intent);
+  const { orderKind, overlay, edgePick } = drawIntentState(batch.intent, batch.call);
   pass.setBindGroup(
     1,
     createBatchBindGroup({
@@ -255,7 +256,7 @@ function prepareBatchDraw(
 ): { readonly pipeline: GPURenderPipeline; readonly admission: GpuCostAdmission } {
   const { draw, context, call, part, geometry, intent, current, storage, resource, subset } =
     options;
-  const { orderKind, overlay, edgePick } = drawIntentState(intent);
+  const { orderKind, overlay, edgePick } = drawIntentState(intent, call);
   const admission = pipelineAdmission({
     context,
     storage,
@@ -270,7 +271,14 @@ function prepareBatchDraw(
       ? context.minimalFrameBindGroup
       : context.frameBindGroup,
   );
-  const pipeline = pipelineForIntent(intent, geometry, context.pipelines, admission, storage);
+  const pipeline = pipelineForIntent({
+    intent,
+    geometry,
+    pipelines: context.pipelines,
+    admission,
+    storage,
+    call,
+  });
   if (current !== pipeline) pass.setPipeline(pipeline);
   pass.setBindGroup(
     1,

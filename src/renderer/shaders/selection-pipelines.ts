@@ -24,6 +24,8 @@ export interface SelectionPipelines {
   readonly pointsSelectionHidden: GPURenderPipeline;
   readonly nodesSelectionVisible: GPURenderPipeline;
   readonly nodesSelectionHidden: GPURenderPipeline;
+  readonly nodesSelectionCompactVisible: GPURenderPipeline;
+  readonly nodesSelectionCompactHidden: GPURenderPipeline;
 }
 
 interface SelectionPipelineOptions {
@@ -62,7 +64,30 @@ export async function createSelectionPipelines(
   options: SelectionPipelineOptions,
 ): Promise<SelectionPipelines> {
   const [selection, selectionTransparency] = await compileSelectionFragments(options);
-  const variants = await Promise.all([
+  const variants = await Promise.all(
+    selectionPipelineVariants(options, selection, selectionTransparency),
+  );
+  const [triangle, line, point, node, compactNode] = variants;
+  return {
+    trianglesSelectionVisible: triangle.visible,
+    trianglesSelectionHidden: triangle.hidden,
+    linesSelectionVisible: line.visible,
+    linesSelectionHidden: line.hidden,
+    pointsSelectionVisible: point.visible,
+    pointsSelectionHidden: point.hidden,
+    nodesSelectionVisible: node.visible,
+    nodesSelectionHidden: node.hidden,
+    nodesSelectionCompactVisible: compactNode.visible,
+    nodesSelectionCompactHidden: compactNode.hidden,
+  };
+}
+
+function selectionPipelineVariants(
+  options: SelectionPipelineOptions,
+  selection: GPUShaderModule,
+  selectionTransparency: GPUShaderModule,
+) {
+  return [
     createPrimitiveSelectionPipelines({
       ...options,
       label: "triangle",
@@ -101,18 +126,17 @@ export async function createSelectionPipelines(
       hiddenFragment: selectionTransparency,
       vertexBuffers: [],
     }),
-  ]);
-  const [triangle, line, point, node] = variants;
-  return {
-    trianglesSelectionVisible: triangle.visible,
-    trianglesSelectionHidden: triangle.hidden,
-    linesSelectionVisible: line.visible,
-    linesSelectionHidden: line.hidden,
-    pointsSelectionVisible: point.visible,
-    pointsSelectionHidden: point.hidden,
-    nodesSelectionVisible: node.visible,
-    nodesSelectionHidden: node.hidden,
-  };
+    createPrimitiveSelectionPipelines({
+      ...options,
+      label: "compact node",
+      vertexModule: options.pointVertex,
+      vertexEntry: "compactSelectedNodeOverlayVertexMain",
+      primitive: "triangle-strip",
+      visibleFragment: selection,
+      hiddenFragment: selectionTransparency,
+      vertexBuffers: [],
+    }),
+  ] as const;
 }
 
 async function compileSelectionFragments(

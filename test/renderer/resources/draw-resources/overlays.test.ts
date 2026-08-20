@@ -6,6 +6,7 @@ import {
   writeDrawOrder,
   writeEdgeOrder,
   writeNodeOrder,
+  writeSelectedNodeCompactOrder,
   drawBatches,
   beginColorPass,
   fakeGpuDevice,
@@ -139,6 +140,55 @@ describe("GPU draw path", () => {
         { vertexCount: 4, instanceCount: 6 },
       ]);
       expect(gpu.bindGroupCreations).toBe(1);
+    } finally {
+      restore();
+    }
+  });
+
+  it("draws sparse selected nodes once per exact membership in both selection passes", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, nodePart.id, [
+        { slot: 0, data: record(0) },
+        { slot: 1, data: record(1) },
+      ]);
+      writeSelectedNodeCompactOrder(
+        draw,
+        nodePart.id,
+        new Uint32Array([1, 0]),
+        new Uint32Array([2, 1]),
+      );
+      const context = { ...drawContext(), parts: new Map([[nodePart.id, nodePart]]) };
+      const calls = [
+        { partId: nodePart.id, instanceCount: 2, selectedNodeMode: "compact" as const },
+      ];
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      drawBatches(pass, draw, context, calls, {
+        kind: "nodes",
+        pipeline: {} as GPURenderPipeline,
+        selection: "visible",
+      });
+      drawBatches(pass, draw, context, calls, {
+        kind: "nodes",
+        pipeline: {} as GPURenderPipeline,
+        selection: "hidden",
+      });
+      pass.end();
+      expect(gpu.drawCalls).toEqual([
+        { vertexCount: 4, instanceCount: 2 },
+        { vertexCount: 4, instanceCount: 2 },
+      ]);
+      const storage = draw.storages.get(nodePart.id);
+      expect(storage?.sidecars.nodeSelection).toBeUndefined();
+      expect(storage?.sidecars.nodeSelectionCompact?.data).toEqual(new Uint32Array([1, 2, 0, 1]));
     } finally {
       restore();
     }

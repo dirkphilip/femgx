@@ -33,6 +33,8 @@ export interface InstanceLayout {
   readonly partSelectionCounts: Map<PartId, number>;
   /** Visible selected-node-instance count per part. */
   readonly partSelectedNodeCounts: Map<PartId, number>;
+  /** Selected-node calls, split between compact sparse and dense replay orders. */
+  readonly partSelectedNodeDrawCalls: Map<PartId, readonly DrawCall[]>;
   /** Ranged selected calls, when all selected targets map to authored ranges. */
   readonly partSelectionDrawCalls: Map<PartId, readonly DrawCall[]>;
   /** Surface calls split by active visibility signature when compact skins exist. */
@@ -72,6 +74,7 @@ export function buildInstanceLayout(
   const partTransparentCounts = new Map<PartId, number>();
   const partSelectionCounts = new Map<PartId, number>();
   const partSelectedNodeCounts = new Map<PartId, number>();
+  const partSelectedNodeDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const partSelectionDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const partSurfaceDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const drawList = runtime.getDrawList();
@@ -99,6 +102,7 @@ export function buildInstanceLayout(
     partTransparentCounts,
     partSelectionCounts,
     partSelectedNodeCounts,
+    partSelectedNodeDrawCalls,
     partSelectionDrawCalls,
     partSurfaceDrawCalls,
     visibleCount: drawList.length,
@@ -177,7 +181,6 @@ export function buildNodeOrder(options: {
   readonly partId: PartId;
   readonly nodeFlags: readonly boolean[];
   readonly parts: ReadonlyMap<PartId, Part>;
-  readonly selectedNodeFlags?: readonly boolean[];
 }): Uint32Array {
   if (isPointOnlyPart(options.parts.get(options.partId))) {
     return new Uint32Array();
@@ -185,25 +188,7 @@ export function buildNodeOrder(options: {
   return buildCompactedOrder(
     options.layout,
     options.partId,
-    (slot) =>
-      (options.nodeFlags[slot] === true || options.selectedNodeFlags?.[slot] === true) &&
-      options.runtime.isInstanceVisible(slot),
-  );
-}
-
-/** Returns visible part-local slots with an explicitly selected node. */
-export function buildNodeSelectionOrder(
-  layout: InstanceLayout,
-  runtime: PackedSceneRuntime,
-  partId: PartId,
-  selectedNodeFlags: readonly boolean[],
-  parts: ReadonlyMap<PartId, Part>,
-): Uint32Array {
-  if (isPointOnlyPart(parts.get(partId))) return new Uint32Array();
-  return buildCompactedOrder(
-    layout,
-    partId,
-    (slot) => selectedNodeFlags[slot] === true && runtime.isInstanceVisible(slot),
+    (slot) => options.nodeFlags[slot] === true && options.runtime.isInstanceVisible(slot),
   );
 }
 
@@ -352,7 +337,8 @@ export function appendPartDrawCalls(
       target.selectionCalls.push({ partId, instanceCount: selectionCount });
     } else target.selectionCalls.push(...rangedCalls);
   }
-  appendCountCall(target.selectedNodeCalls, partId, layout.partSelectedNodeCounts.get(partId));
+  const selectedNodeCalls = layout.partSelectedNodeDrawCalls.get(partId);
+  if (selectedNodeCalls !== undefined) target.selectedNodeCalls.push(...selectedNodeCalls);
 }
 
 function appendCountCall(target: DrawCall[], partId: PartId, count: number | undefined): void {

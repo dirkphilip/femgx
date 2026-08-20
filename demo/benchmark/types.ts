@@ -161,6 +161,10 @@ export interface NodeSelectionBenchmarkPhase {
   readonly selectedNodeDrawVertices: number;
   /** Exact flattened node-occurrence instances in one procedural node-sprite draw. */
   readonly selectedNodeDrawInstances: number;
+  /** Number of selected-node draw calls in each visible or x-ray pass. */
+  readonly selectedNodeCalls: number;
+  /** Shared dense-occurrence or compact sparse-pair sidecar bytes. */
+  readonly selectedNodeOrderBytes: number;
   /** Immutable interaction-state construction wall time. */
   readonly interactionStateMs: number;
   /** CPU-only renderer interaction synchronization wall time. */

@@ -22,7 +22,11 @@ export function expectDenseNodeSelectionReport(entry: WebGpuBenchmarkCaseResult)
     expect(phase.uniqueNodeCount).toBe(expectedNodes);
     expect(phase.selectedOccurrenceCount).toBe(1);
     expect(phase.selectedNodeDrawVertices).toBe(NODE_DRAW_VERTICES);
-    expect(phase.selectedNodeDrawInstances).toBe(NODE_COUNT);
+    const expectedInstances = phase.id === "half" ? HALF_NODE_COUNT : NODE_COUNT;
+    const expectedOrderBytes = phase.id === "half" ? HALF_NODE_COUNT * 8 : 4;
+    expect(phase.selectedNodeDrawInstances).toBe(expectedInstances);
+    expect(phase.selectedNodeCalls).toBe(1);
+    expect(phase.selectedNodeOrderBytes).toBe(expectedOrderBytes);
     expect(phase.interactionStateMs).toBeGreaterThanOrEqual(0);
     expect(phase.interactionSyncMs).toBeGreaterThanOrEqual(0);
     expect(phase.firstSelectedFrameMs).toBeGreaterThanOrEqual(0);

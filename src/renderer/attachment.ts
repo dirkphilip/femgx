@@ -219,7 +219,14 @@ export class RendererAttachment {
     const runtime = this.runtime;
     const layout = this.layout;
     if (runtime === undefined || layout === undefined) return;
-    writeNodeOrders({ runtime, layout, parts, selection: this.selection, bundle });
+    writeNodeOrders({
+      runtime,
+      layout,
+      parts,
+      selection: this.selection,
+      interaction: this.interactionState,
+      bundle,
+    });
     this.rebuildCalls(bundle.draw.cost);
   }
 
@@ -378,7 +385,13 @@ export class RendererAttachment {
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): void {
-    this.applyAttachmentOrders(runtime, layout, affectedParts(runtime, changedInstanceIds), bundle);
+    const parts = new Set<PartId>();
+    for (const slot of changedInstanceIds) {
+      const partId =
+        slot < 0 || slot >= runtime.instanceCount ? undefined : runtime.instancePartIds[slot];
+      if (partId !== undefined) parts.add(partId);
+    }
+    this.applyAttachmentOrders(runtime, layout, parts, bundle);
   }
 
   private styleFlags(): AttachmentFlagState {
@@ -424,17 +437,4 @@ export class RendererAttachment {
     }
     this.rebuildCalls(bundle.draw.cost);
   }
-}
-
-function affectedParts(
-  runtime: PackedSceneRuntime,
-  changedInstanceIds: readonly number[],
-): Set<PartId> {
-  const affected = new Set<PartId>();
-  for (const slot of changedInstanceIds) {
-    if (slot < 0 || slot >= runtime.instanceCount) continue;
-    const partId = runtime.instancePartIds[slot];
-    if (partId !== undefined) affected.add(partId);
-  }
-  return affected;
 }

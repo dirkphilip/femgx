@@ -3,11 +3,12 @@ import { readInteractionState, type InteractionState } from "../interaction/stat
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
   writeNodeOrder,
+  writeSelectedNodeCompactOrder,
   writeNodeSelectionOrder,
   writeSelectionOrder,
   type DrawResources,
 } from "./resources/draw-resources";
-import { buildNodeOrder, buildNodeSelectionOrder, type InstanceLayout } from "./runtime-state";
+import { buildNodeOrder, type InstanceLayout } from "./runtime-state";
 import { buildSelectionOrders } from "./selection/order";
 import { buildSelectionDrawCalls } from "./selection/draw-ranges";
 import {
@@ -20,6 +21,7 @@ import {
   partNodeCount,
   type DenseNodeSelections,
 } from "./selection/node-selection";
+import { buildSelectedNodeOrder } from "./selection/selected-node-order";
 import type { GpuBundle } from "./recovery";
 
 /** Mutable selection-only mirrors owned by the renderer attachment. */
@@ -72,7 +74,9 @@ export function syncSelectionState(options: {
       partDefinitions: options.parts,
       denseSelections: options.denseSelections,
     });
-  const nodeChanged = options.nodeParts.size > 0 && writeNodeOrders(options, options.nodeParts);
+  const nodeChanged =
+    options.nodeParts.size > 0 &&
+    writeNodeOrders({ ...options, interaction: options.interaction }, options.nodeParts);
   return nodeChanged || selectionChanged;
 }
 
@@ -111,6 +115,7 @@ export function writeNodeOrders(
     readonly parts: ReadonlyMap<PartId, Part>;
     readonly selection: SelectionState;
     readonly bundle: GpuBundle;
+    readonly interaction: InteractionState;
   },
   affectedParts?: ReadonlySet<PartId>,
 ): boolean {
@@ -124,23 +129,42 @@ export function writeNodeOrders(
       partId,
       nodeFlags: options.selection.nodeFlags,
       parts: options.parts,
-      selectedNodeFlags: options.selection.selectedNodeFlags,
     });
     if (options.layout.partNodeCounts.get(partId) !== order.length) changed = true;
     writeNodeOrder(options.bundle.draw, partId, order);
     options.layout.partNodeCounts.set(partId, order.length);
-    const selectedNodeOrder = buildNodeSelectionOrder(
-      options.layout,
-      options.runtime,
+    const selectedNodeOrder = buildSelectedNodeOrder({
+      runtime: options.runtime,
+      layout: options.layout,
       partId,
-      options.selection.selectedNodeFlags,
-      options.parts,
-    );
-    if (options.layout.partSelectedNodeCounts.get(partId) !== selectedNodeOrder.length) {
+      parts: options.parts,
+      interaction: options.interaction,
+    });
+    const selectedNodeCount =
+      selectedNodeOrder.denseOccurrences.length + selectedNodeOrder.sparseNodeIds.length;
+    if (options.layout.partSelectedNodeCounts.get(partId) !== selectedNodeCount) {
       changed = true;
     }
-    writeNodeSelectionOrder(options.bundle.draw, partId, selectedNodeOrder);
-    options.layout.partSelectedNodeCounts.set(partId, selectedNodeOrder.length);
+    writeNodeSelectionOrder(options.bundle.draw, partId, selectedNodeOrder.denseOccurrences);
+    writeSelectedNodeCompactOrder(
+      options.bundle.draw,
+      partId,
+      selectedNodeOrder.sparseOccurrences,
+      selectedNodeOrder.sparseNodeIds,
+    );
+    options.layout.partSelectedNodeCounts.set(partId, selectedNodeCount);
+    const calls = [];
+    if (selectedNodeOrder.denseOccurrences.length > 0) {
+      calls.push({ partId, instanceCount: selectedNodeOrder.denseOccurrences.length });
+    }
+    if (selectedNodeOrder.sparseNodeIds.length > 0) {
+      calls.push({
+        partId,
+        instanceCount: selectedNodeOrder.sparseNodeIds.length,
+        selectedNodeMode: "compact" as const,
+      });
+    }
+    options.layout.partSelectedNodeDrawCalls.set(partId, calls);
   }
   return changed;
 }

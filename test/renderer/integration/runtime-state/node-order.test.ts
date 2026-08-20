@@ -6,7 +6,6 @@ import {
   createSceneBuilder,
   buildDrawOrder,
   buildNodeOrder,
-  buildNodeSelectionOrder,
   buildSelectionOrder,
   buildInstanceLayout,
   createInteractionState,
@@ -116,9 +115,6 @@ describe("renderer runtime state", () => {
       true,
     );
     expect(Array.from(buildSelectionOrder(layout, runtime, 2, selectedPoint, parts))).toEqual([0]);
-    expect(buildNodeSelectionOrder(layout, runtime, 2, [false, false, true], parts)).toEqual(
-      new Uint32Array(),
-    );
     runtime.setInstanceVisible(0, false);
     expect(
       buildNodeOrder({ layout, runtime, partId: 1, nodeFlags: [true, false, true], parts }),

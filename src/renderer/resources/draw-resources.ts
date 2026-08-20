@@ -48,6 +48,7 @@ export {
   writeTransparentOrder,
   writeSelectionOrder,
   writeNodeSelectionOrder,
+  writeSelectedNodeCompactOrder,
   writeEdgeOrder,
   writeNodeOrder,
   type InstanceStorage,
@@ -66,6 +67,8 @@ export interface DrawCall {
   readonly visibilitySkin?: VisibilitySkin;
   /** Per-call exterior subset override when another occurrence needs a skin. */
   readonly surfaceSubset?: boolean;
+  /** Uses the sparse selected-node occurrence/node sidecar rather than full replay. */
+  readonly selectedNodeMode?: "compact";
 }
 
 /** One index-buffer range for a selected primitive group. */
