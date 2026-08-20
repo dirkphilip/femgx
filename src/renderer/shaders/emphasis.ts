@@ -108,15 +108,6 @@ fn denseElementHidden(slot: u32, ordinal: u32) -> bool {
   ] & mask) != 0u;
 }
 
-fn denseVisibilityActive(slot: u32) -> bool {
-  if (slot >= elementHighlights.selectionSlotCapacity ||
-      elementHighlights.visibilityRecordCount == 0u) {
-    return false;
-  }
-  let record = elementHighlights.data[elementHighlights.visibilityOffsetWord + slot];
-  return record != 0xffffffffu && record < elementHighlights.visibilityRecordCount;
-}
-
 fn denseNodeSelected(slot: u32, nodePickId: u32) -> bool {
   if (nodePickId == 0u || slot >= elementHighlights.nodeSelectionSlotCapacity ||
       elementHighlights.nodeSelectionRecordCount == 0u ||

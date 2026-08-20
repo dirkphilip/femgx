@@ -23,18 +23,19 @@ export function buildPackedNodeTopologyData(
   const rangeLength = rangeCount * 2;
   const ownerLength = ownerCount * 2;
   const metadataLength = build.sprites.length;
-  const data = new Uint32Array(4 + faceLength + rangeLength + ownerLength * 3 + metadataLength + 1);
+  const data = new Uint32Array(5 + faceLength + rangeLength + ownerLength * 3 + metadataLength + 1);
   data[0] = faceCount;
   data[1] = rangeCount;
   data[2] = ownerCount;
   data[3] = metadataLength;
-  const bodyRangeOffset = 4 + faceLength;
+  data[4] = 0;
+  const bodyRangeOffset = 5 + faceLength;
   const bodyIdOffset = bodyRangeOffset + rangeLength;
   const elementIdOffset = bodyIdOffset + ownerLength;
   const elementOrdinalOffset = elementIdOffset + ownerLength;
   const metadataOffset = elementOrdinalOffset + ownerLength;
   const output = {
-    faceBodyPickIds: data.subarray(4, bodyRangeOffset),
+    faceBodyPickIds: data.subarray(5, bodyRangeOffset),
     bodyRanges: data.subarray(bodyRangeOffset, bodyIdOffset),
     bodyIds: data.subarray(bodyIdOffset, elementIdOffset),
     elementIds: data.subarray(elementIdOffset, elementIdOffset + ownerLength),

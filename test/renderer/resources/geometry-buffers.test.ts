@@ -19,7 +19,7 @@ describe("packed topology data", () => {
     );
 
     expect(Array.from(data)).toEqual([
-      1, 1, 1, 2, 10, 11, 12, 13, 14, 0, 1, 20, 21, 30, 31, 0, 0, 41, 42, 2, 51, 52, 61, 62,
+      1, 1, 1, 2, 0, 10, 11, 12, 13, 14, 0, 1, 20, 21, 30, 31, 0, 0, 41, 42, 2, 51, 52, 61, 62,
     ]);
   });
 
@@ -98,6 +98,6 @@ describe("packed topology data", () => {
       },
     );
 
-    expect(Array.from(data)).toEqual([1, 1, 0, 1, 0, 0, 0, 7, 0, 0, 1, 2, 1, 3, 4, 5, 6]);
+    expect(Array.from(data)).toEqual([1, 1, 0, 1, 0, 0, 0, 0, 7, 0, 0, 1, 2, 1, 3, 4, 5, 6]);
   });
 });

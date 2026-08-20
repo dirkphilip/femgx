@@ -12,7 +12,9 @@ import {
 } from "../edges/edge-expansion";
 import { buildFaceSubsetIndices } from "../selection/face-subset";
 import {
+  conditionElementOrdinals,
   emptyMeshEdgeData,
+  neighborElementOrdinals,
   packTopologyData,
   packUnownedEdgeTopologyData,
 } from "./geometry-buffers";
@@ -63,8 +65,10 @@ interface FullGeometryBuffers {
 function partTopologyData(
   part: Part,
   geometry: Geometry,
+  includeNeighborOrdinals = false,
 ): {
   readonly elementOrdinals: Uint32Array;
+  readonly neighborElementOrdinals?: Uint32Array;
   readonly faceBodyPickIds: Uint32Array;
 } {
   const elements = elementsForPart(part) ?? [];
@@ -74,6 +78,13 @@ function partTopologyData(
     elementOrdinals: buildElementPrimitiveOrdinals(geometry, elements, (elementId) =>
       metadata.elementOrdinal(elementId),
     ),
+    ...(includeNeighborOrdinals
+      ? {
+          neighborElementOrdinals: neighborElementOrdinals(faceBodyPickIds, (elementId) =>
+            metadata.elementOrdinal(elementId),
+          ),
+        }
+      : {}),
     faceBodyPickIds,
   };
 }
@@ -87,12 +98,17 @@ export function buildPartGeometryData(
 ): PartGeometryData {
   const triangleGeometry = geometry.primitive === "triangles" ? geometry : undefined;
   const subsetIndices = getSubsetIndices(triangleGeometry);
-  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
+  const { elementOrdinals, neighborElementOrdinals, faceBodyPickIds } = partTopologyData(
+    part,
+    geometry,
+    true,
+  );
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
     faceBodyPickIds,
     elementOrdinals,
+    neighborElementOrdinals ?? new Uint32Array(),
   );
   const subsetVertexData =
     triangleGeometry === undefined || subsetIndices === undefined
@@ -154,12 +170,17 @@ export function materializeFullGeometry(
     geometry.primitive === "triangles"
       ? triangleUploadData(geometry)
       : expandSurfaceGeometry(geometry);
-  const { elementOrdinals, faceBodyPickIds } = partTopologyData(part, geometry);
+  const { elementOrdinals, neighborElementOrdinals, faceBodyPickIds } = partTopologyData(
+    part,
+    geometry,
+    true,
+  );
   const fullBuffers = buildFullGeometryBuffers(
     device,
     vertexData,
     faceBodyPickIds,
     elementOrdinals,
+    neighborElementOrdinals ?? new Uint32Array(),
   );
   resource.fullVertexBuffer = createBuffer(
     device,
@@ -181,11 +202,13 @@ function buildFullGeometryBuffers(
   vertexData: UploadVertexData,
   faceBodyPickIds: Uint32Array,
   elementOrdinals: Uint32Array,
+  neighborElementOrdinals: Uint32Array,
 ): FullGeometryBuffers {
   const emptyEdgeData = emptyMeshEdgeData();
   const nodePickIdsBuffer = createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE);
   const topology = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
     elementOrdinals,
+    neighborElementOrdinals,
     primitiveIds: vertexData.primitiveIds,
     edgeIds: emptyEdgeData.edgeIds,
     ...(vertexData.cornerIndices === undefined ? {} : { cornerIndices: vertexData.cornerIndices }),
@@ -275,7 +298,7 @@ function uploadEdgeResourceData(
     (elementId) => getPartSemanticIndex(part).elementOrdinal(elementId),
   );
   const metadata = getPartSemanticIndex(part);
-  const conditionElementOrdinals = conditionOrdinals(edgeData.elementIds, (elementId) =>
+  const edgeConditionElementOrdinals = conditionElementOrdinals(edgeData.elementIds, (elementId) =>
     metadata.elementOrdinal(elementId - 1),
   );
   return {
@@ -292,7 +315,7 @@ function uploadEdgeResourceData(
             edgeData.elementIds,
             {
               elementOrdinals,
-              conditionElementOrdinals,
+              conditionElementOrdinals: edgeConditionElementOrdinals,
               primitiveIds: [],
               edgeIds: drawData.edgeIds,
             },
@@ -324,6 +347,7 @@ function createTopologyBuffer(
   edgeData: MeshEdgeData,
   metadata: {
     readonly elementOrdinals: ArrayLike<number>;
+    readonly neighborElementOrdinals?: ArrayLike<number>;
     readonly conditionElementOrdinals?: ArrayLike<number>;
     readonly primitiveIds: ArrayLike<number>;
     readonly edgeIds: ArrayLike<number>;
@@ -393,16 +417,4 @@ function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {
     indices.length > 0 ? indices : new Uint32Array(1),
     GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE,
   );
-}
-
-function conditionOrdinals(
-  elementPickIds: Uint32Array,
-  ordinal: (elementPickId: number) => number | undefined,
-): Uint32Array {
-  const ordinals = new Uint32Array(elementPickIds.length);
-  for (let index = 0; index < elementPickIds.length; index += 1) {
-    const pickId = elementPickIds[index] ?? 0;
-    if (pickId !== 0) ordinals[index] = ordinal(pickId) ?? 0;
-  }
-  return ordinals;
 }
