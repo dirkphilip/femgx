@@ -1023,14 +1023,14 @@
                   "instances": 0
                 },
                 "selection-visible": {
-                  "calls": 2,
-                  "indices": 174558,
-                  "instances": 2
+                  "calls": 1,
+                  "indices": 146334,
+                  "instances": 1
                 },
                 "selection-hidden": {
-                  "calls": 2,
-                  "indices": 1726878,
-                  "instances": 2
+                  "calls": 1,
+                  "indices": 146334,
+                  "instances": 1
                 },
                 "transparency": {
                   "calls": 0,
@@ -1187,14 +1187,14 @@
                   "instances": 0
                 },
                 "selection-visible": {
-                  "calls": 2,
-                  "indices": 174558,
-                  "instances": 2
+                  "calls": 1,
+                  "indices": 146334,
+                  "instances": 1
                 },
                 "selection-hidden": {
-                  "calls": 2,
-                  "indices": 1726878,
-                  "instances": 2
+                  "calls": 1,
+                  "indices": 146334,
+                  "instances": 1
                 },
                 "transparency": {
                   "calls": 0,
