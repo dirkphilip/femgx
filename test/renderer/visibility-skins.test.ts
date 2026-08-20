@@ -298,7 +298,7 @@ describe("bounded visibility skins", () => {
     }
   });
 
-  it("retains every required active skin when their total exceeds the part budget", async () => {
+  it("uses the full topology path when active signatures exceed the retained skin budget", async () => {
     const restore = installGpuGlobals();
     try {
       const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -318,16 +318,23 @@ describe("bounded visibility skins", () => {
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
 
       const cache = bundle.draw.visibilitySkins.get(part.id);
+      const skins = attachment.calls.flatMap((call) =>
+        call.visibilitySkin === undefined ? [] : [call.visibilitySkin],
+      );
       expect(cache).toBeDefined();
-      expect(cache?.residentBytes).toBeGreaterThan(cache?.budgetBytes ?? Infinity);
-      expect(attachment.calls.filter((call) => call.visibilitySkin !== undefined)).toHaveLength(3);
+      expect(cache?.residentBytes).toBeLessThanOrEqual(cache?.budgetBytes ?? -1);
+      expect(cache?.residentBytes).toBe(skins.reduce((total, skin) => total + skin.byteLength, 0));
+      expect(skins).toHaveLength(2);
+      expect(attachment.calls.filter((call) => call.visibilitySkin === undefined)).toMatchObject([
+        { partId: part.id, instanceCount: 1 },
+      ]);
       destroyGpuBundle(bundle);
     } finally {
       restore();
     }
   });
 
-  it("admits one required hidden skin larger than the normal 16 MiB cache budget", async () => {
+  it("does not retain an oversized skin", async () => {
     const restore = installGpuGlobals();
     try {
       const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
@@ -342,7 +349,10 @@ describe("bounded visibility skins", () => {
       );
       attachment.updateElements(runtime, hidden, bundle, scene.parts);
 
-      expect(attachment.calls[0]?.visibilitySkin?.byteLength).toBeGreaterThan(16 * 1024 * 1024);
+      const cache = bundle.draw.visibilitySkins.get(88);
+      expect(cache?.budgetBytes).toBe(16 * 1024 * 1024);
+      expect(cache?.residentBytes).toBe(0);
+      expect(attachment.calls).toMatchObject([{ partId: 88, instanceCount: 1 }]);
       destroyGpuBundle(bundle);
     } finally {
       restore();
