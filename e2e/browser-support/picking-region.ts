@@ -115,19 +115,13 @@ async function locateRegionCell(
 }
 
 function regionProbePoints(region: RegionRect): readonly (readonly [number, number])[] {
-  const insetX = Math.min(1, region.width / 4);
-  const insetY = Math.min(1, region.height / 4);
-  const left = region.left + insetX;
-  const right = region.right - insetX;
-  const top = region.top + insetY;
-  const bottom = region.bottom - insetY;
-  return [
-    [Math.round((left + right) / 2), Math.round((top + bottom) / 2)],
-    [Math.round(left), Math.round(top)],
-    [Math.round(right), Math.round(top)],
-    [Math.round(left), Math.round(bottom)],
-    [Math.round(right), Math.round(bottom)],
-  ];
+  const points: Array<readonly [number, number]> = [];
+  for (let y = Math.floor(region.top); y <= Math.ceil(region.bottom); y += 1) {
+    for (let x = Math.floor(region.left); x <= Math.ceil(region.right); x += 1) {
+      points.push([x, y]);
+    }
+  }
+  return points;
 }
 
 /** Narrows a region-query hit to a small pointer-probe rectangle. */

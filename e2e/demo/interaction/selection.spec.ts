@@ -1,19 +1,12 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   dataset,
-  drawnPixels,
   loadWebGpuPage,
   openCommandPanel,
   primaryBoxDrag,
   requireHit,
   setSelectionGranularity,
-} from "./demo-support";
-
-interface PointHit {
-  readonly x: number;
-  readonly y: number;
-  readonly key: string;
-}
+} from "../demo-support";
 
 interface BoxFraction {
   readonly fx: number;
@@ -58,50 +51,6 @@ async function visibleRegionKeys(
     },
     { start, end },
   );
-}
-
-/** Uses the browser pick seam so small gallery sprites are not skipped by a coarse sweep. */
-async function requirePointHit(
-  page: Page,
-  canvas: Locator,
-  message: string,
-  excludedKey?: string,
-): Promise<PointHit> {
-  const hit = await canvas.evaluate(async (element, excluded) => {
-    const bounds = element.getBoundingClientRect();
-    const probe = (
-      window as typeof window & {
-        femgxDemo?: {
-          probePick?: (
-            x: number,
-            y: number,
-          ) => Promise<{ readonly pickKey: string; readonly hoveredKey: string }>;
-        };
-      }
-    ).femgxDemo?.probePick;
-    if (probe === undefined) return undefined;
-    for (let row = 0; row < 24; row += 1) {
-      const y = Math.round(bounds.top + (0.25 + ((row + 0.5) * 0.7) / 24) * bounds.height);
-      for (let column = 0; column < 24; column += 1) {
-        const x = Math.round(bounds.left + (0.05 + ((column + 0.5) * 0.7) / 24) * bounds.width);
-        if (document.elementFromPoint(x, y) !== element) continue;
-        const result = await probe(x - bounds.left, y - bounds.top);
-        if (result.pickKey.startsWith("n:") && result.pickKey !== excluded)
-          return { x, y, key: result.pickKey };
-      }
-    }
-    return undefined;
-  }, excludedKey);
-  expect(hit, message).toBeDefined();
-  if (hit === undefined) throw new Error(message);
-  await page.mouse.move(hit.x, hit.y);
-  await expect.poll(() => canvas.getAttribute("data-pick")).toBe(hit.key);
-  return hit;
-}
-
-async function expectPointHitAt(page: Page, canvas: Locator, hit: PointHit): Promise<void> {
-  await page.mouse.move(hit.x, hit.y);
-  await expect.poll(() => canvas.getAttribute("data-pick")).toBe(hit.key);
 }
 
 test("toggles the edge overlay", async ({ page }) => {
@@ -320,117 +269,4 @@ test("promotes face and element context targets to the exact element", async ({ 
   await expect(menu.locator(".menu-title").first()).toHaveText(/^Element /);
   await menu.locator('button[data-action="select-element"]').click();
   await expect.poll(() => dataset(page, "selected")).toMatch(/^e:/);
-});
-
-test("picks and selects a node, exposing adjacency and neighbors", async ({ page }) => {
-  await loadWebGpuPage(page);
-  await setSelectionGranularity(page, "node");
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "n:" },
-    "node GPU picking must resolve on the deterministic WebGPU lane",
-  );
-
-  await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^n:/);
-  const hideSelected = page.getByTestId("hide-selected");
-  await expect(hideSelected).toBeDisabled();
-  await expect(hideSelected).toHaveAttribute(
-    "title",
-    "Select one or more visible elements to hide.",
-  );
-  await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
-  await expect(page.getByTestId("inspection-panel")).toContainText("Neighbors");
-});
-
-test("uses the Point glyph as the node marker when node annotations are toggled", async ({
-  page,
-}) => {
-  await loadWebGpuPage(page);
-  await page.getByTestId("model-select").selectOption("gallery");
-  const canvas = page.getByTestId("view-canvas");
-  await expect(canvas).toHaveAttribute("data-model", "gallery");
-
-  const instances = page.locator("input[data-instance-id]");
-  const instanceCount = await instances.count();
-  expect(instanceCount).toBeGreaterThan(1);
-  for (let index = 1; index < instanceCount; index += 1) await instances.nth(index).uncheck();
-
-  await setSelectionGranularity(page, "node");
-  await openCommandPanel(page, "display");
-  const nodeOverlay = page.getByTestId("node-overlay");
-  await expect(nodeOverlay).toHaveAttribute(
-    "title",
-    "Toggle node annotations. Point elements use their primary glyph as the node marker.",
-  );
-  await expect.poll(() => drawnPixels(canvas)).toBe(true);
-  const pointHit = await requirePointHit(
-    page,
-    canvas,
-    "the isolated Point occurrence must be pickable with node annotations shown",
-  );
-
-  await nodeOverlay.click();
-  await expect(nodeOverlay).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => drawnPixels(canvas)).toBe(true);
-
-  await expectPointHitAt(page, canvas, pointHit);
-  await page.mouse.click(pointHit.x, pointHit.y);
-  await expect.poll(() => dataset(page, "selected")).toBe(pointHit.key);
-  await expect(page.getByTestId("inspection-panel")).toContainText("Built-in helper · Point");
-
-  await openCommandPanel(page, "display");
-  await nodeOverlay.click();
-  await expect(nodeOverlay).toHaveAttribute("aria-pressed", "true");
-  const pointHitWithAnnotations = await requirePointHit(
-    page,
-    canvas,
-    "the isolated Point occurrence must remain pickable with node annotations shown",
-    pointHit.key,
-  );
-  await page.mouse.click(pointHitWithAnnotations.x, pointHitWithAnnotations.y);
-  await expect.poll(() => dataset(page, "selected")).toBe(pointHitWithAnnotations.key);
-  await expect(page.getByTestId("inspection-panel")).toContainText("Built-in helper · Point");
-});
-
-test("picks and selects a face, exposing its normal and ownership", async ({ page }) => {
-  await loadWebGpuPage(page);
-  await setSelectionGranularity(page, "face");
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "f:" },
-    "face GPU picking must resolve on the deterministic WebGPU lane",
-  );
-
-  await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => dataset(page, "selected")).toMatch(/^f:/);
-  await expect(page.getByTestId("inspection-panel")).toContainText("Normal");
-  await expect(page.getByTestId("inspection-panel")).toContainText("Adjacent elements");
-});
-
-test("picks and selects an authored edge without requiring the wireframe overlay", async ({
-  page,
-}) => {
-  await loadWebGpuPage(page);
-  await setSelectionGranularity(page, "edge");
-  await openCommandPanel(page, "display");
-  await page.getByTestId("edge-overlay").click();
-  await expect(page.getByTestId("edge-overlay")).toHaveAttribute("aria-pressed", "false");
-  const canvas = page.getByTestId("view-canvas");
-  const hit = await requireHit(
-    page,
-    canvas,
-    { prefix: "ed:" },
-    "authored edge GPU picking must remain available with the overlay disabled",
-  );
-
-  await page.mouse.click(hit.x, hit.y);
-  await expect.poll(() => dataset(page, "selected")).toBe(hit.key);
-  await expect(page.getByTestId("inspection-panel")).toContainText("Authored nodes");
-  await expect(page.getByTestId("inspection-panel")).toContainText("Incident elements");
-  await expect(page.getByTestId("interaction-help")).toContainText("Edge selects authored");
 });

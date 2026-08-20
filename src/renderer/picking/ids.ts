@@ -217,8 +217,6 @@ export function buildPrimitiveFaceBodyPickData(
   geometry: Geometry,
   elements: ElementTessellations = noElements,
 ): Uint32Array {
-  const graphOwner = geometrySemanticGraph(geometry);
-  if (graphOwner !== undefined) return buildGraphPrimitiveFaceBodyPickData(geometry, graphOwner);
   if (
     geometry.primitive === "triangles" &&
     geometry.faces === undefined &&
@@ -239,35 +237,6 @@ export function buildPrimitiveFaceBodyPickData(
     data[base + 2] = neighbor;
     data[base + 3] = element;
     data[base + 4] = neighborElement;
-  }
-  return data;
-}
-
-function buildGraphPrimitiveFaceBodyPickData(
-  geometry: Geometry,
-  owner: NonNullable<ReturnType<typeof geometrySemanticGraph>>,
-): Uint32Array {
-  const data = new Uint32Array(logicalPrimitiveCount(geometry) * 5);
-  if (geometry.primitive !== "triangles") return data;
-  const { graph, geometryOrdinal } = owner;
-  const first = graph.faceGeometryOffsets[geometryOrdinal] ?? 0;
-  const last = graph.faceGeometryOffsets[geometryOrdinal + 1] ?? first;
-  for (let face = first; face < last; face += 1) {
-    const ownerOrdinal = graph.faceOwnerElementOrdinals[face] ?? 0;
-    const ownerBody = graph.faceBodyIds[face] ?? graph.elementBodyIds[ownerOrdinal] ?? 0;
-    const neighborOrdinal = graph.faceNeighborElementOrdinals[face] ?? 0;
-    const neighborBody =
-      neighborOrdinal === 0 ? 0 : (graph.elementBodyIds[neighborOrdinal - 1] ?? 0);
-    const firstPrimitive = graph.facePrimitiveStarts[face] ?? 0;
-    const lastPrimitive = firstPrimitive + (graph.facePrimitiveCounts[face] ?? 0);
-    for (let primitive = firstPrimitive; primitive < lastPrimitive; primitive += 1) {
-      const base = primitive * 5;
-      data[base] = face - first + 1;
-      data[base + 1] = ownerBody === 0 ? 0 : ownerBody + 1;
-      data[base + 2] = neighborBody === 0 || neighborBody === ownerBody ? 0 : neighborBody + 1;
-      data[base + 3] = (graph.elementIds[ownerOrdinal] ?? 0) + 1;
-      data[base + 4] = neighborOrdinal === 0 ? 0 : (graph.elementIds[neighborOrdinal - 1] ?? 0) + 1;
-    }
   }
   return data;
 }
