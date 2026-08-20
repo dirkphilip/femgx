@@ -202,6 +202,22 @@ describe("dense Tet4 benchmark transfer", () => {
   });
 
   it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
+    "builds the reported grid beyond safe numeric face packing",
+    () => {
+      const gridSize = 60;
+      const result = buildDenseTet4Payload(gridSize);
+      console.log(
+        `dense Tet4 grid ${gridSize}: topology ${result.timings.topologyMs.toFixed(0)} ms, ` +
+          `total ${(result.timings.generationMs + result.timings.topologyMs + result.timings.tessellationMs).toFixed(0)} ms`,
+      );
+      expect(result.payload.elementCount).toBe(6 * gridSize ** 3);
+      expect(result.payload.boundaryFaceIndices).toHaveLength(12 * gridSize ** 2);
+      expect(result.payload.faceNeighborIds[4_060_854]).toBe(1_015_215);
+      expect(result.payload.faceNeighborIds[4_060_856]).toBe(1_015_214);
+    },
+  );
+
+  it.skipIf(process.env["FEMGX_RUN_HEAVY_TRANSFER"] !== "1")(
     "builds the full worker payload within the bounded dense path",
     () => {
       const gridSize = Number(process.env["FEMGX_HEAVY_GRID"] ?? 28);
@@ -213,6 +229,7 @@ describe("dense Tet4 benchmark transfer", () => {
       const reconstructionMs = performance.now() - reconstructionStart;
       console.log(
         `dense Tet4 transfer: ${elapsed.toFixed(0)} ms build + ${reconstructionMs.toFixed(0)} ms reconstruction, ` +
+          `${result.timings.topologyMs.toFixed(0)} ms topology, ` +
           `${reconstructed.finalRetainedTypedBytes} retained typed bytes, ${transferredByteLength(
             result.payload,
           )} transferred bytes`,

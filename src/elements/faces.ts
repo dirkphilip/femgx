@@ -17,6 +17,7 @@ import { topologyFor, type ElementFamily, type ElementTopology } from "./shapes"
 import { at } from "./indices";
 import { canonicalKey } from "./keys";
 import { edgeIndexOf, sortUint32Range } from "./topology-helpers";
+import { compareVariableCanonicalRows, sortVariableCanonicalRows } from "./canonical-row-order";
 
 /**
  * Deterministic canonical identity of a face, independent of orientation.
@@ -267,7 +268,7 @@ export function boundaryFaceRefsForModel(model: ElementModel): readonly FaceIdRe
     nodes: new Uint32Array(sizes.nodes),
   };
   fillModelFaces(model, columns);
-  const order = sortModelFaceRows(columns.offsets, columns.nodes);
+  const order = sortVariableCanonicalRows(columns.offsets, columns.nodes);
   const boundary = boundaryModelFaceRows(order, columns.offsets, columns.nodes);
   const count = boundaryFaceCount(boundary);
   const result = new Array<FaceIdRef>(count);
@@ -344,65 +345,6 @@ function writeCanonicalModelFace(
   return offset + loop.length * stride;
 }
 
-function sortModelFaceRows(offsets: Uint32Array, nodes: Uint32Array): Uint32Array {
-  const result = new Uint32Array(offsets.length - 1);
-  const scratch = new Uint32Array(result.length);
-  for (let index = 0; index < result.length; index += 1) result[index] = index;
-  for (let width = 1; width < result.length; width *= 2) {
-    for (let start = 0; start < result.length; start += width * 2) {
-      const middle = Math.min(start + width, result.length);
-      const end = Math.min(start + width * 2, result.length);
-      mergeModelFaceRows(offsets, nodes, result, scratch, { start, middle, end });
-    }
-    result.set(scratch);
-  }
-  return result;
-}
-
-function mergeModelFaceRows(
-  offsets: Uint32Array,
-  nodes: Uint32Array,
-  source: Uint32Array,
-  target: Uint32Array,
-  range: { readonly start: number; readonly middle: number; readonly end: number },
-): void {
-  const { start, middle, end } = range;
-  let left = start;
-  let right = middle;
-  for (let output = start; output < end; output += 1) {
-    const leftRow = source[left] ?? 0;
-    const rightRow = source[right] ?? 0;
-    if (
-      left < middle &&
-      (right >= end || compareModelFaceRows(offsets, nodes, leftRow, rightRow) <= 0)
-    ) {
-      target[output] = leftRow;
-      left += 1;
-    } else {
-      target[output] = rightRow;
-      right += 1;
-    }
-  }
-}
-
-function compareModelFaceRows(
-  offsets: Uint32Array,
-  nodes: Uint32Array,
-  left: number,
-  right: number,
-): number {
-  const leftStart = offsets[left] ?? 0;
-  const leftEnd = offsets[left + 1] ?? leftStart;
-  const rightStart = offsets[right] ?? 0;
-  const rightEnd = offsets[right + 1] ?? rightStart;
-  const shared = Math.min(leftEnd - leftStart, rightEnd - rightStart);
-  for (let offset = 0; offset < shared; offset += 1) {
-    const difference = (nodes[leftStart + offset] ?? 0) - (nodes[rightStart + offset] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return leftEnd - leftStart - (rightEnd - rightStart);
-}
-
 function boundaryModelFaceRows(
   order: Uint32Array,
   offsets: Uint32Array,
@@ -413,7 +355,7 @@ function boundaryModelFaceRows(
     let end = start + 1;
     while (
       end < order.length &&
-      compareModelFaceRows(offsets, nodes, order[start] ?? 0, order[end] ?? 0) === 0
+      compareVariableCanonicalRows(offsets, nodes, order[start] ?? 0, order[end] ?? 0) === 0
     )
       end += 1;
     if (end - start === 1) result[order[start] ?? 0] = 1;
