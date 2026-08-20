@@ -1,12 +1,12 @@
-import { createPart } from "../../../src/entries/root";
-import { createElementModelFromFemModel } from "../../../src/io/conversions/element-model";
-import { createPartFromElementModel } from "../../../src/entries/model";
-import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
-import { buildPrimitiveFaceBodyPickData } from "../../../src/renderer/picking/ids";
-import { expandSurfaceGeometry } from "../../../src/renderer/resources/surface-geometry";
-import { triangleUploadData } from "../../../src/renderer/resources/geometry-upload";
-import { displayedPartBounds } from "../../../src/viewport/geometry-bounds";
-import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
+import { createPart } from "@/entries/root";
+import { createElementModelFromFemModel } from "@/io/conversions/element-model";
+import { createPartFromElementModel } from "@/entries/model";
+import { buildMeshEdgeData } from "@/renderer/edges/mesh-edge";
+import { buildPrimitiveFaceBodyPickData } from "@/renderer/picking/ids";
+import { expandSurfaceGeometry } from "@/renderer/resources/surface-geometry";
+import { triangleUploadData } from "@/renderer/resources/geometry-upload";
+import { displayedPartBounds } from "@/viewport/geometry-bounds";
+import { buildFaceSubsetIndices } from "@/renderer/selection/face-subset";
 import { BENCH_BODY_COUNT, BENCH_BODY_ELEMENT_COUNT } from "../fixtures";
 import type { BudgetCase, ScalingCase } from "./types";
 import {

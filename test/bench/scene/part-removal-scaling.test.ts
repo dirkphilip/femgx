@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createViewport, type Viewport } from "../../../src/entries/root";
+import { createViewport, type Viewport } from "@/entries/root";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import { buildTinyManyPieceScene } from "../fixtures";
 

@@ -4,7 +4,7 @@ import {
   encodePickId,
   MAX_PICK_ID,
   PICK_TEXTURE_FORMAT,
-} from "../../../src/renderer/picking/pick-format";
+} from "@/renderer/picking/pick-format";
 
 describe("pick format", () => {
   it("targets an rgba8unorm attachment", () => {

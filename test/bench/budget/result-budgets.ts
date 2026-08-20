@@ -1,4 +1,4 @@
-import { partResultBindings } from "../../../src/renderer/resources/result-binding-layout";
+import { partResultBindings } from "@/renderer/resources/result-binding-layout";
 import type { BudgetCase } from "./types";
 
 const OCCURRENCE_COUNT = 50_000;

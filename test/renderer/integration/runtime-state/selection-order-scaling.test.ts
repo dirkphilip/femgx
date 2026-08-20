@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createPart } from "../../../../src/geometry/part";
-import { createInteractionState } from "../../../../src/interaction/interaction";
-import { setTargetsSelected, setTargetSelected } from "../../../../src/interaction/targets";
-import { identityMatrix } from "../../../../src/math/mat4";
-import { buildInstanceLayout, buildSelectionOrder } from "../../../../src/renderer/runtime-state";
-import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../../src/scene/scene";
+import { createPart } from "@/geometry/part";
+import { createInteractionState } from "@/interaction/interaction";
+import { setTargetsSelected, setTargetSelected } from "@/interaction/targets";
+import { identityMatrix } from "@/math/mat4";
+import { buildInstanceLayout, buildSelectionOrder } from "@/renderer/runtime-state";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
 
 const PLACEMENTS = 4_096;
 

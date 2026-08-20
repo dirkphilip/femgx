@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  createElementModelFromFemModel,
-  createFemModelBuilder,
-  IoError,
-} from "../../../src/entries/io";
-import { ElementShape } from "../../../src/entries/model";
+import { createElementModelFromFemModel, createFemModelBuilder, IoError } from "@/entries/io";
+import { ElementShape } from "@/entries/model";
 
 describe("createElementModelFromFemModel", () => {
   it("converts an empty interchange model", () => {

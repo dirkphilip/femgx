@@ -126,6 +126,23 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.{ts,tsx,svelte}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^(?:\\.\\./){3,}src/",
+              message:
+                "Use the @/ source-root alias for imports that cross three or more directories into src.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["demo/workbench/**/*.ts"],
     rules: {
       "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],

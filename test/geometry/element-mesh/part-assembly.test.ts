@@ -9,7 +9,7 @@ import {
   createPartFromElementModel,
   topologyFor,
 } from "./support";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
 
 describe("createPartFromElementModel metadata", () => {
   it("preserves body membership through typed volume tessellation", () => {

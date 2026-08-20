@@ -1,4 +1,4 @@
-import { type ElementTessellation, type Viewport, type Part } from "../../../src/entries/root";
+import { type ElementTessellation, type Viewport, type Part } from "@/entries/root";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import { isElementOccurrenceVisible } from "./element-visibility";
 import type { SelectionGranularity, SelectTarget } from "./pick";

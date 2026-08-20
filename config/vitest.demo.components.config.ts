@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { sourceAlias } from "./source-alias.ts";
 
 export default defineConfig({
   plugins: [svelte()],
   resolve: {
+    alias: sourceAlias,
     conditions: ["browser"],
   },
   test: {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { importGlb } from "../../../src/io/glb/importer";
+import { importGlb } from "@/io/glb/importer";
 import { createImportedModel } from "../../../demo/workbench/models/model";
 import { createModelInteraction } from "../../../demo/workbench/state/preset";
 import { createDefaultDisplayToggles } from "../../../demo/workbench/types";

@@ -1,6 +1,6 @@
 import { tick, mount, unmount } from "svelte";
-import { createInteractionState } from "../../../src/entries/interaction";
-import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
+import { createInteractionState } from "@/entries/interaction";
+import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createExampleModel } from "../../../demo/workbench/models/model";

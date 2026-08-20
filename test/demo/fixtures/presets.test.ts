@@ -9,15 +9,15 @@ import {
   createTransparencyPreset,
 } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
-import { deformGeometry } from "../../../src/results/deform";
-import { computeBounds } from "../../../src/geometry/part";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { mapScalarToColor } from "../../../src/results/mapping";
-import { resolveViewportResults, viewportOrientationRecords } from "../../../src/viewport/results";
+import { deformGeometry } from "@/results/deform";
+import { computeBounds } from "@/geometry/part";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { mapScalarToColor } from "@/results/mapping";
+import { resolveViewportResults, viewportOrientationRecords } from "@/viewport/results";
 import { createPresetInteraction } from "../../../demo/workbench/state/preset";
-import { readInteractionState } from "../../../src/interaction/state";
-import { transformPoint } from "../../../src/math/mat4";
-import { cross, dot, normalize } from "../../../src/math/vec3";
+import { readInteractionState } from "@/interaction/state";
+import { transformPoint } from "@/math/mat4";
+import { cross, dot, normalize } from "@/math/vec3";
 
 describe("createModelPresets", () => {
   it("offers the six supported product stories in stable order", () => {

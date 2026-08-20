@@ -1,19 +1,19 @@
-import { createSceneBuilder, translationMatrix } from "../../../src/entries/root";
+import { createSceneBuilder, translationMatrix } from "@/entries/root";
 import {
   createInteractionState,
   selectedTargets,
   setPartOverrides,
   setTargetsHighlighted,
   setTargetsSelected,
-} from "../../../src/entries/interaction";
-import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
-import { buildHighlightTable } from "../../../src/renderer/selection/highlight-table";
+} from "@/entries/interaction";
+import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
+import { buildHighlightTable } from "@/renderer/selection/highlight-table";
 import {
   collectEmphasisUpdates,
   encodeEmphasisRecord,
-} from "../../../src/renderer/resources/element-resources";
-import { defaultStyle } from "../../../src/renderer/resources/foundation";
-import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
+} from "@/renderer/resources/element-resources";
+import { defaultStyle } from "@/renderer/resources/foundation";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
 import type { BudgetCase, ScalingCase } from "./types";
 import {
   emphasisPart,

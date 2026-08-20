@@ -1,5 +1,5 @@
-import { type Viewport } from "../../src/entries/root";
-import { installViewportInteraction } from "../../src/entries/interaction";
+import { type Viewport } from "@/entries/root";
+import { installViewportInteraction } from "@/entries/interaction";
 import type { WorkbenchPane } from "./viewport/view";
 import type { WorkbenchBoxPreview } from "./selection/box-preview";
 import type { WorkbenchInteraction } from "./interaction/interaction";

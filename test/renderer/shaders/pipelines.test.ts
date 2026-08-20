@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  createRenderResources,
-  destroyRenderResources,
-} from "../../../src/renderer/frame/pipelines";
-import { SECTION_PLANE_UNIFORM_SIZE } from "../../../src/renderer/frame/section-plane";
-import { COLOR_SAMPLE_COUNT } from "../../../src/renderer/resources/foundation";
-import { pipelineFor } from "../../../src/renderer/frame/draw-admission";
+import { createRenderResources, destroyRenderResources } from "@/renderer/frame/pipelines";
+import { SECTION_PLANE_UNIFORM_SIZE } from "@/renderer/frame/section-plane";
+import { COLOR_SAMPLE_COUNT } from "@/renderer/resources/foundation";
+import { pipelineFor } from "@/renderer/frame/draw-admission";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
-import type { DrawPipelines } from "../../../src/renderer/shaders/pipeline-builders";
+import type { DrawPipelines } from "@/renderer/shaders/pipeline-builders";
 
 it("admits the native depth-bias pipeline only for active dense selection", () => {
   const ordinary = { name: "ordinary" } as unknown as GPURenderPipeline;

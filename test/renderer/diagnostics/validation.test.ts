@@ -4,9 +4,9 @@ import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
   GpuValidationError,
-} from "../../../src/renderer/diagnostics/validation";
-import { createGpuBundle } from "../../../src/renderer/recovery";
-import { cameraStruct } from "../../../src/renderer/shaders/scene";
+} from "@/renderer/diagnostics/validation";
+import { createGpuBundle } from "@/renderer/recovery";
+import { cameraStruct } from "@/renderer/shaders/scene";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 describe("GPU validation", () => {

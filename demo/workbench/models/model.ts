@@ -1,18 +1,9 @@
-import {
-  createSceneBuilder,
-  type Bounds,
-  type PartId,
-  type Scene,
-} from "../../../src/entries/root";
-import type { Color } from "../../../src/entries/interaction";
-import { type StyleOverride } from "../../../src/entries/interaction";
-import {
-  type ElementFrameField,
-  type ScalarField,
-  type VectorField,
-} from "../../../src/entries/results";
-import type { ElementModel } from "../../../src/entries/model";
-import type { Issue } from "../../../src/entries/io";
+import { createSceneBuilder, type Bounds, type PartId, type Scene } from "@/entries/root";
+import type { Color } from "@/entries/interaction";
+import { type StyleOverride } from "@/entries/interaction";
+import { type ElementFrameField, type ScalarField, type VectorField } from "@/entries/results";
+import type { ElementModel } from "@/entries/model";
+import type { Issue } from "@/entries/io";
 import type { ModelPreset } from "../../fixtures/presets";
 import { sceneBounds } from "../../scene-bounds";
 import {

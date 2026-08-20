@@ -10,10 +10,10 @@ import {
   makeHierarchyScene,
   makeScene,
 } from "../fixtures";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
-import { translationMatrix, createPart } from "../../../src/entries/root";
-import { SceneNavigationBoundsCache, sceneWorldBounds } from "../../../src/viewport/scene-bounds";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
+import { translationMatrix, createPart } from "@/entries/root";
+import { SceneNavigationBoundsCache, sceneWorldBounds } from "@/viewport/scene-bounds";
 import type { BudgetCase, ScalingCase } from "./types";
 import { bodyGeometry } from "./geometry-fixtures";
 

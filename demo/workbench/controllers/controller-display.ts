@@ -1,5 +1,5 @@
 import { applyDisplayState, applyResultState } from "../state/display-state";
-import type { Viewport } from "../../../src/entries/root";
+import type { Viewport } from "@/entries/root";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { ResultDisplayMode } from "../types";
 import {
@@ -9,7 +9,7 @@ import {
 } from "../results/result-controls";
 import type { WorkbenchPresentation } from "../viewport/presentation";
 import type { WorkbenchViewportOwner } from "./controller-viewport";
-import type { InteractionState } from "../../../src/entries/interaction";
+import type { InteractionState } from "@/entries/interaction";
 import { resultPlaybackStepForState } from "../results/result-playback";
 import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";

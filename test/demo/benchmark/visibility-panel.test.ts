@@ -4,16 +4,9 @@ import {
   identityMatrix,
   type PartOccurrenceId,
   type Viewport,
-} from "../../../src/entries/root";
-import {
-  createInteractionState,
-  isBodyVisible,
-  isTargetHighlighted,
-} from "../../../src/entries/interaction";
-import {
-  createSceneOccurrenceSnapshot,
-  type SceneOccurrences,
-} from "../../../src/scene-runtime/occurrences";
+} from "@/entries/root";
+import { createInteractionState, isBodyVisible, isTargetHighlighted } from "@/entries/interaction";
+import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";
 import { VisibilityPanelController } from "../../../demo/workbench/state/visibility-panel";

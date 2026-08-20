@@ -3,7 +3,7 @@ import {
   type Scene,
   type ViewportLoadConfig,
   type ViewportResultsConfig,
-} from "../../src/entries/root";
+} from "@/entries/root";
 import {
   createElementFrameField,
   createNodalLoadField,
@@ -11,7 +11,7 @@ import {
   type ElementFrameField,
   type ScalarField,
   type VectorField,
-} from "../../src/entries/results";
+} from "@/entries/results";
 
 export interface GalleryResults {
   readonly active: ViewportResultsConfig;

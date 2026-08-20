@@ -4,8 +4,8 @@ import {
   type ViewportElementVectorConfig,
   type PartId,
   type ViewportResultsConfig,
-} from "../../../src/entries/root";
-import { setPartOverrides, type InteractionState } from "../../../src/entries/interaction";
+} from "@/entries/root";
+import { setPartOverrides, type InteractionState } from "@/entries/interaction";
 import { modelPartStyleOverrides, type WorkbenchModel } from "../models/model";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
 import type { WorkbenchScalarField } from "../results/result-controls";

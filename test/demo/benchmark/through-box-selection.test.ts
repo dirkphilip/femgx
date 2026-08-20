@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { identityMatrix, type Scene, type Viewport } from "../../../src/entries/root";
-import { createInteractionState } from "../../../src/entries/interaction";
-import { createCamera } from "../../../src/entries/camera";
-import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
+import { identityMatrix, type Scene, type Viewport } from "@/entries/root";
+import { createInteractionState } from "@/entries/interaction";
+import { createCamera } from "@/entries/camera";
+import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
 import type { BoxSelectionRequest } from "../../../demo/workbench/selection/box-selection-resolver";
 import { throughIntersectionBoxSelectionResolver } from "../../../demo/workbench/selection/through-box-selection";

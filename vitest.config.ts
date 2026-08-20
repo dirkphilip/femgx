@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
+import { sourceAlias } from "./config/source-alias.ts";
 
 export default defineConfig({
+  resolve: { alias: sourceAlias },
   test: {
     include: ["test/**/*.test.ts"],
     // The performance budget gate runs standalone (see config/vitest.budget.config.ts)

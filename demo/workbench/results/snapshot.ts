@@ -1,8 +1,8 @@
-import type { PartOccurrenceId, ViewportBackground } from "../../../src/entries/root";
-import type { InteractionState } from "../../../src/entries/interaction";
-import type { BodyId, ElementId } from "../../../src/entries/model";
-import type { Camera } from "../../../src/entries/camera";
-import type { SceneOccurrences } from "../../../src/entries/root";
+import type { PartOccurrenceId, ViewportBackground } from "@/entries/root";
+import type { InteractionState } from "@/entries/interaction";
+import type { BodyId, ElementId } from "@/entries/model";
+import type { Camera } from "@/entries/camera";
+import type { SceneOccurrences } from "@/entries/root";
 import type { WorkbenchModel } from "../models/model";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";

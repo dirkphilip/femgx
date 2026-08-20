@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { sourceAlias } from "./source-alias.ts";
 
 /** Vite configuration for the static demo site, including GitHub Pages. */
 export default defineConfig({
+  resolve: { alias: sourceAlias },
   plugins: [svelte()],
   base: process.env["PAGES_BASE_PATH"] ?? "/",
   define: {

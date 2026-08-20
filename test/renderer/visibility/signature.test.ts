@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import type {
   PartGeometrySemantic,
   PartSemanticGraph,
-} from "../../../src/geometry/semantic/part-semantic-graph";
-import { setBodyVisible } from "../../../src/interaction/bodies";
-import { setElementVisible } from "../../../src/interaction/elements";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { readInteractionState } from "../../../src/interaction/state";
-import { buildGraphVisibilitySkinIndices } from "../../../src/renderer/visibility/graph-skin";
-import { buildVisibilityTriangleIndices } from "../../../src/renderer/visibility/skin-indices";
-import { visibilitySignature } from "../../../src/renderer/visibility/signature";
+} from "@/geometry/semantic/part-semantic-graph";
+import { setBodyVisible } from "@/interaction/bodies";
+import { setElementVisible } from "@/interaction/elements";
+import { createInteractionState } from "@/interaction/interaction";
+import { readInteractionState } from "@/interaction/state";
+import { buildGraphVisibilitySkinIndices } from "@/renderer/visibility/graph-skin";
+import { buildVisibilityTriangleIndices } from "@/renderer/visibility/skin-indices";
+import { visibilitySignature } from "@/renderer/visibility/signature";
 
 describe("visibility signatures and skin construction", () => {
   it("keeps arbitrary generic ids exact and bounds boxed index growth", () => {

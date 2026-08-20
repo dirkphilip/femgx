@@ -4,7 +4,7 @@ import {
   transparencyOutput,
   triangleTransparencyFragmentShader,
   TRANSPARENCY_REVEALAGE_FORMAT,
-} from "../../../src/renderer/frame/transparency";
+} from "@/renderer/frame/transparency";
 
 const MIN_WEIGHT = 0.01;
 const MAX_WEIGHT = 8;

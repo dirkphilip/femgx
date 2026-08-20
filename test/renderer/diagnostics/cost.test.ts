@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GpuCostAccumulator } from "../../../src/renderer/diagnostics/cost";
+import { GpuCostAccumulator } from "@/renderer/diagnostics/cost";
 
 describe("GPU cost accounting", () => {
   it("keeps detached counters and physical target estimates in its snapshot", () => {

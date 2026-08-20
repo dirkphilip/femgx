@@ -1,24 +1,24 @@
 import { afterEach } from "vitest";
 
-import { createWebGpuRenderer, readGpuCostSnapshot } from "../../../../src/renderer/gpu-renderer";
+import { createWebGpuRenderer, readGpuCostSnapshot } from "@/renderer/gpu-renderer";
 
-import { createGpuBundle, destroyGpuBundle } from "../../../../src/renderer/recovery";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 
-import { RendererAttachment } from "../../../../src/renderer/attachment";
+import { RendererAttachment } from "@/renderer/attachment";
 
-import { uploadPart } from "../../../../src/renderer/resources/draw-resources";
+import { uploadPart } from "@/renderer/resources/draw-resources";
 
-import { createPart } from "../../../../src/geometry/part";
+import { createPart } from "@/geometry/part";
 
-import { createElement } from "../../../../src/elements/element";
+import { createElement } from "@/elements/element";
 
-import { createElementModel } from "../../../../src/elements/model";
+import { createElementModel } from "@/elements/model";
 
-import { ElementShape } from "../../../../src/elements/shapes";
+import { ElementShape } from "@/elements/shapes";
 
-import { createPartFromElementModel } from "../../../../src/geometry/element-model-part";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
 
-import { createPackedSceneRuntime } from "../../../../src/scene-runtime/runtime";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 
 import {
   createInteractionState,
@@ -27,31 +27,26 @@ import {
   setPartOccurrenceOverride,
   setPartOccurrenceSelected,
   setPartOverride,
-} from "../../../../src/interaction/interaction";
+} from "@/interaction/interaction";
 
 import {
   setBodyHighlighted,
   setBodyOverride,
   setBodySelected,
   setBodyVisible,
-} from "../../../../src/interaction/bodies";
+} from "@/interaction/bodies";
 
-import { setElementVisible } from "../../../../src/interaction/elements";
+import { setElementVisible } from "@/interaction/elements";
 
-import { setNodeSelected } from "../../../../src/interaction/nodes";
+import { setNodeSelected } from "@/interaction/nodes";
 
-import { setTargetHovered } from "../../../../src/interaction/targets";
+import { setTargetHovered } from "@/interaction/targets";
 
-import { createSceneBuilder, type Scene } from "../../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "@/scene/scene";
 
-import { identityMatrix, translationMatrix } from "../../../../src/math/mat4";
+import { identityMatrix, translationMatrix } from "@/math/mat4";
 
-import {
-  projectPoint,
-  unprojectPoint,
-  type Camera,
-  zoomCamera,
-} from "../../../../src/camera/camera";
+import { projectPoint, unprojectPoint, type Camera, zoomCamera } from "@/camera/camera";
 
 import {
   fakeCanvas,

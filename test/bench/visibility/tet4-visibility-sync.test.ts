@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { createPackedTet4Part } from "../../../demo/benchmark/packed-tet4";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { updateInteractionState } from "../../../src/interaction/state";
-import { identityMatrix } from "../../../src/math/mat4";
-import { RendererAttachment } from "../../../src/renderer/attachment";
-import { createGpuBundle, destroyGpuBundle } from "../../../src/renderer/recovery";
-import { buildGraphVisibilitySkinIndices } from "../../../src/renderer/visibility/graph-skin";
-import { destroyVisibilitySkinCache } from "../../../src/renderer/visibility/skins";
-import type { VisibilitySignature } from "../../../src/renderer/visibility/types";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { createSceneBuilder } from "../../../src/scene/scene";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { createInteractionState } from "@/interaction/interaction";
+import { updateInteractionState } from "@/interaction/state";
+import { identityMatrix } from "@/math/mat4";
+import { RendererAttachment } from "@/renderer/attachment";
+import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
+import { buildGraphVisibilitySkinIndices } from "@/renderer/visibility/graph-skin";
+import { destroyVisibilitySkinCache } from "@/renderer/visibility/skins";
+import type { VisibilitySignature } from "@/renderer/visibility/types";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { createSceneBuilder } from "@/scene/scene";
 import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import {
   buildOperationsReport,

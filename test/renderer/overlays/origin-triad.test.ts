@@ -7,12 +7,12 @@ import {
   type Camera,
   zoomCamera,
   zoomCameraAtPoint,
-} from "../../../src/camera/camera";
+} from "@/camera/camera";
 import {
   originTriadDimensions,
   originTriadNominalScale,
   originTriadScale,
-} from "../../../src/renderer/overlays/origin-triad";
+} from "@/renderer/overlays/origin-triad";
 
 describe("world-origin triad", () => {
   it("derives finite dimensions from one camera scale", () => {

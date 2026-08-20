@@ -3,7 +3,7 @@ import type {
   ElementTessellation,
   FaceTessellation,
   TriangleGeometryInput,
-} from "../../src/entries/root";
+} from "@/entries/root";
 
 export type PlanarGridElementFamily = "triangle" | "quad";
 

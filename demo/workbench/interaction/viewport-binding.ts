@@ -1,4 +1,4 @@
-import { type InteractionGranularity, type PickHit } from "../../../src/entries/root";
+import { type InteractionGranularity, type PickHit } from "@/entries/root";
 import {
   clearSelection,
   isTargetSelected,
@@ -9,7 +9,7 @@ import {
   type InteractionTarget,
   type ViewportInteractionApplyRequest,
   type ViewportInteractionBoxEvent,
-} from "../../../src/entries/interaction";
+} from "@/entries/interaction";
 import type { BoxSelectionResolver } from "../selection/box-selection-resolver";
 import {
   selectTarget,
@@ -17,7 +17,7 @@ import {
   type SelectTarget,
   type SelectionGranularity,
 } from "../selection/pick";
-import { selectedTargetCount } from "../../../src/interaction/selection-queries";
+import { selectedTargetCount } from "@/interaction/selection-queries";
 import type { WorkbenchInteractionOptions } from "./interaction";
 
 /** Resolves one point with the workbench's modifier-aware target policy. */

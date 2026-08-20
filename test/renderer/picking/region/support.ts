@@ -1,16 +1,16 @@
-import { createPart, type Geometry, type GeometryInput } from "../../../../src/geometry/part";
+import { createPart, type Geometry, type GeometryInput } from "@/geometry/part";
 
-import { identityMatrix } from "../../../../src/math/mat4";
+import { identityMatrix } from "@/math/mat4";
 
 import {
   pickEdgeTargetsFromRegion,
   pickTargetsFromRegion,
   renderPixelRect,
-} from "../../../../src/renderer/picking/region";
+} from "@/renderer/picking/region";
 
-import { createPickRegionTargetResolver } from "../../../../src/renderer/picking/region-resolver";
+import { createPickRegionTargetResolver } from "@/renderer/picking/region-resolver";
 
-import { createPickRegionTargetCollector } from "../../../../src/renderer/picking/region-targets";
+import { createPickRegionTargetCollector } from "@/renderer/picking/region-targets";
 
 import {
   createPickTargets,
@@ -18,23 +18,23 @@ import {
   ensurePickTargets,
   resetPickTargets,
   type PickTargets,
-} from "../../../../src/renderer/picking/pick";
+} from "@/renderer/picking/pick";
 
-import type { DrawResources } from "../../../../src/renderer/resources/draw-resources";
+import type { DrawResources } from "@/renderer/resources/draw-resources";
 
-import type { InteractionGranularity } from "../../../../src/picking/types";
+import type { InteractionGranularity } from "@/picking/types";
 
-import type { PickContext, ResolvedPickIds } from "../../../../src/picking/pick";
+import type { PickContext, ResolvedPickIds } from "@/picking/pick";
 
-import type { PartOccurrence } from "../../../../src/scene/types";
+import type { PartOccurrence } from "@/scene/types";
 
-import type { BoxSelectionRect } from "../../../../src/interaction/box-selection";
+import type { BoxSelectionRect } from "@/interaction/box-selection";
 
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../fake-gpu";
 
-import { createPickDepthReadback } from "../../../../src/renderer/picking/depth";
+import { createPickDepthReadback } from "@/renderer/picking/depth";
 
-import { getPartSemanticIndex } from "../../../../src/geometry/part-semantic-index";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
 
 /** Shared renderer test helper. */
 export function rect(overrides: Partial<BoxSelectionRect> = {}): BoxSelectionRect {

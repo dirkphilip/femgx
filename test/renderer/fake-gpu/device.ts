@@ -1,5 +1,5 @@
-import { encodePickId } from "../../../src/renderer/picking/pick-format";
-import { READBACK_BYTE_STRIDE } from "../../../src/renderer/picking/pick";
+import { encodePickId } from "@/renderer/picking/pick-format";
+import { READBACK_BYTE_STRIDE } from "@/renderer/picking/pick";
 import type {
   BufferCopy,
   DrawCall,

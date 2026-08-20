@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createBuffer } from "../../../src/renderer/resources/foundation";
-import { createInteractionState } from "../../../src/interaction/interaction";
+import { createBuffer } from "@/renderer/resources/foundation";
+import { createInteractionState } from "@/interaction/interaction";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
-import { readInteractionState } from "../../../src/interaction/state";
+import { readInteractionState } from "@/interaction/state";
 
 describe("GPU support helpers", () => {
   it("creates an empty interaction state with all overrides unset", () => {

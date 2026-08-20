@@ -1,5 +1,5 @@
-import type { ViewportBackground } from "../../../src/entries/root";
-import type { InteractionState } from "../../../src/entries/interaction";
+import type { ViewportBackground } from "@/entries/root";
+import type { InteractionState } from "@/entries/interaction";
 import type { WorkbenchModel } from "../models/model";
 import {
   activeScalarFieldIdForModel,

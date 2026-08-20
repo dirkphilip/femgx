@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createGpuTimestampRecorder,
   type GpuTimestampRecorder,
-} from "../../../src/renderer/diagnostics/timestamps";
-import { GPU_COST_PASSES } from "../../../src/renderer/diagnostics/cost";
+} from "@/renderer/diagnostics/timestamps";
+import { GPU_COST_PASSES } from "@/renderer/diagnostics/cost";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 let restoreGlobals: (() => void) | undefined;

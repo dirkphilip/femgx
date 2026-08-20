@@ -17,8 +17,8 @@ import {
   fakeGpuDevice,
   installTestGpuGlobals,
 } from "./support";
-import { createElementFrameField, createNodalLoadField } from "../../../src/results/fields";
-import type { ViewportElementVectorConfig } from "../../../src/viewport/results";
+import { createElementFrameField, createNodalLoadField } from "@/results/fields";
+import type { ViewportElementVectorConfig } from "@/viewport/results";
 
 describe("viewport results workflow", () => {
   it("accepts every non-empty combination of independent result roles", () => {

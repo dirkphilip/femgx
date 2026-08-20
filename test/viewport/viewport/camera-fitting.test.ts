@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createCamera, projectPoint } from "../../../src/camera/camera";
-import { boundsCorners, createPart } from "../../../src/geometry/part";
-import { translationMatrix } from "../../../src/math/mat4";
+import { createCamera, projectPoint } from "@/camera/camera";
+import { boundsCorners, createPart } from "@/geometry/part";
+import { translationMatrix } from "@/math/mat4";
 import {
   explicitScene,
   installNavigator,

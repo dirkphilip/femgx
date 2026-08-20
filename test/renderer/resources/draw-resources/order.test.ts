@@ -16,8 +16,8 @@ import {
   uploadPart,
   writeRanges,
 } from "./support";
-import { orderBindGroup } from "../../../../src/renderer/resources/bind-groups";
-import { reconcilePartResources } from "../../../../src/renderer/resources/part-resources";
+import { orderBindGroup } from "@/renderer/resources/bind-groups";
+import { reconcilePartResources } from "@/renderer/resources/part-resources";
 
 describe("GPU draw path", () => {
   it.each([1, 100, 1000])(

@@ -1,8 +1,5 @@
 import { expect, it, describe } from "vitest";
-import {
-  displayedColorFunction,
-  resultColorFunctions,
-} from "../../../../src/renderer/shaders/scene";
+import { displayedColorFunction, resultColorFunctions } from "@/renderer/shaders/scene";
 import {
   EMISSIVE_BYTE_OFFSET,
   INSTANCE_STRIDE,

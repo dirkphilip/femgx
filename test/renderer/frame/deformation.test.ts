@@ -7,8 +7,8 @@ import {
   writeDeformationUniform,
   type DeformationStorage,
   type DeformationSync,
-} from "../../../src/renderer/frame/deformation";
-import type { DeformationState } from "../../../src/results/deform";
+} from "@/renderer/frame/deformation";
+import type { DeformationState } from "@/results/deform";
 import { fakeGpuDevice, installGpuGlobals, type FakeGpu } from "../fake-gpu";
 
 type StorageMap = Map<

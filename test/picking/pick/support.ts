@@ -1,10 +1,10 @@
-import { createElement } from "../../../src/elements/element";
+import { createElement } from "@/elements/element";
 
-import { createElementModel, type ElementModel } from "../../../src/elements/model";
+import { createElementModel, type ElementModel } from "@/elements/model";
 
-import { ElementShape } from "../../../src/elements/shapes";
+import { ElementShape } from "@/elements/shapes";
 
-import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
 
 import {
   createPart,
@@ -14,9 +14,9 @@ import {
   type TriangleGeometryInput,
   type Part,
   type TriangleGeometry,
-} from "../../../src/geometry/part";
+} from "@/geometry/part";
 
-import { identityMatrix, type Mat4 } from "../../../src/math/mat4";
+import { identityMatrix, type Mat4 } from "@/math/mat4";
 
 import {
   geometryAdjacency,
@@ -25,13 +25,13 @@ import {
   resolvePickHit,
   type PickContext,
   type ResolvedPickIds,
-} from "../../../src/picking/pick";
+} from "@/picking/pick";
 
-import type { PartOccurrence } from "../../../src/scene/types";
+import type { PartOccurrence } from "@/scene/types";
 
-import type { PickHit } from "../../../src/picking/types";
+import type { PickHit } from "@/picking/types";
 
-import { interactionTargetFromHit } from "../../../src/interaction/targets";
+import { interactionTargetFromHit } from "@/interaction/targets";
 
 export const TET_NODES: readonly number[] = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];
 

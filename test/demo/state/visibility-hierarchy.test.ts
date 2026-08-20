@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SceneOccurrences } from "../../../src/entries/root";
+import type { SceneOccurrences } from "@/entries/root";
 import { VisibilityHierarchy } from "../../../demo/workbench/state/visibility-hierarchy";
 
 describe("VisibilityHierarchy", () => {

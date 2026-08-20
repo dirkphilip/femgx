@@ -1,36 +1,36 @@
 import { afterEach } from "vitest";
 
-import { createElement } from "../../../src/elements/element";
+import { createElement } from "@/elements/element";
 
-import { createElementModel } from "../../../src/elements/model";
+import { createElementModel } from "@/elements/model";
 
-import { ElementShape } from "../../../src/elements/shapes";
+import { ElementShape } from "@/elements/shapes";
 
-import { createPartFromElementModel } from "../../../src/geometry/element-model-part";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
 
-import { createPart } from "../../../src/geometry/part";
+import { createPart } from "@/geometry/part";
 
-import { createInteractionState, setPartOverride } from "../../../src/interaction/interaction";
+import { createInteractionState, setPartOverride } from "@/interaction/interaction";
 
-import { readInteractionState } from "../../../src/interaction/state";
+import { readInteractionState } from "@/interaction/state";
 
-import { identityMatrix, scalingMatrix } from "../../../src/math/mat4";
+import { identityMatrix, scalingMatrix } from "@/math/mat4";
 
-import { GpuRenderer } from "../../../src/renderer/renderer-core";
+import { GpuRenderer } from "@/renderer/renderer-core";
 
-import { createResultField } from "../../../src/results/fields";
+import { createResultField } from "@/results/fields";
 
-import { createSceneBuilder } from "../../../src/scene/scene";
+import { createSceneBuilder } from "@/scene/scene";
 
-import { createViewport } from "../../../src/viewport/viewport";
+import { createViewport } from "@/viewport/viewport";
 
-import type { ViewportResultsConfig } from "../../../src/viewport/results";
+import type { ViewportResultsConfig } from "@/viewport/results";
 
 import {
   resolveViewportResults,
   viewportOrientationRecords,
   viewportResultColors,
-} from "../../../src/viewport/results";
+} from "@/viewport/results";
 
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 

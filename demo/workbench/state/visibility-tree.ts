@@ -1,4 +1,4 @@
-import type { AssemblyDefinition } from "../../../src/entries/root";
+import type { AssemblyDefinition } from "@/entries/root";
 
 /** The display name of a registered assembly, when it carries one. */
 export function assemblyName(assembly: AssemblyDefinition | undefined): string | undefined {

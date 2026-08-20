@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { ElementShape } from "../../../src/elements/shapes";
-import { createFemModelBuilder } from "../../../src/io/model-builder";
-import { createResultFieldFromModelResult } from "../../../src/io/conversions/result-field";
-import { IoError } from "../../../src/io/diagnostics";
-import type { FemModel, ModelResultField } from "../../../src/io/fem-model";
+import { ElementShape } from "@/elements/shapes";
+import { createFemModelBuilder } from "@/io/model-builder";
+import { createResultFieldFromModelResult } from "@/io/conversions/result-field";
+import { IoError } from "@/io/diagnostics";
+import type { FemModel, ModelResultField } from "@/io/fem-model";
 
 function model(): FemModel {
   const builder = createFemModelBuilder();

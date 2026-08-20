@@ -4,7 +4,7 @@ import {
   destroyBackgroundResources,
   resolveBackgroundColors,
   writeBackgroundColors,
-} from "../../../src/renderer/frame/background";
+} from "@/renderer/frame/background";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 describe("viewport background", () => {

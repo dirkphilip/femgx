@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState } from "../../../src/interaction/interaction";
-import { setTargetsSelected } from "../../../src/interaction/targets";
+import { createInteractionState } from "@/interaction/interaction";
+import { setTargetsSelected } from "@/interaction/targets";
 import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
-import { boundaryFaceRefsForModel } from "../../../src/elements/faces";
-import { createPartFromElementModel } from "../../../src/entries/model";
-import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
-import { buildInstanceLayout } from "../../../src/renderer/runtime-state";
+import { boundaryFaceRefsForModel } from "@/elements/faces";
+import { createPartFromElementModel } from "@/entries/model";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
+import { buildInstanceLayout } from "@/renderer/runtime-state";
 import {
   collectDenseElementSelections,
   denseSelectionContains,
-} from "../../../src/renderer/selection/element-selection";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
+} from "@/renderer/selection/element-selection";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
 import { measureMs, measureScaling, type ScalingMeasurement, type ScalingPoint } from "../measure";
 

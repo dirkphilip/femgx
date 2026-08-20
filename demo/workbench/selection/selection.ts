@@ -7,13 +7,10 @@ import {
   setTargetSelected,
   setTargetsSelected,
   type InteractionState,
-} from "../../../src/entries/interaction";
-import {
-  selectedTargetCount,
-  selectedTargetSummary,
-} from "../../../src/interaction/selection-queries";
-import type { PartId } from "../../../src/entries/root";
-import type { SceneOccurrences } from "../../../src/entries/root";
+} from "@/entries/interaction";
+import { selectedTargetCount, selectedTargetSummary } from "@/interaction/selection-queries";
+import type { PartId } from "@/entries/root";
+import type { SceneOccurrences } from "@/entries/root";
 import { elementTarget, targetKey, type SelectTarget } from "./pick";
 
 const MAX_EXACT_SELECTION_DATASET_TARGETS = 256;

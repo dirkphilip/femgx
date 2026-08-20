@@ -1,12 +1,12 @@
-import { type Viewport, type PartId, type PickHit } from "../../../src/entries/root";
+import { type Viewport, type PartId, type PickHit } from "@/entries/root";
 import {
   setTargetHovered,
   type InteractionState,
   type ViewportInteractionApplyRequest,
   type ViewportInteractionOptions,
-} from "../../../src/entries/interaction";
-import { clientToCanvasCss } from "../../../src/entries/camera";
-import type { BoxSelectionEvent } from "../../../src/entries/interaction";
+} from "@/entries/interaction";
+import { clientToCanvasCss } from "@/entries/camera";
+import type { BoxSelectionEvent } from "@/entries/interaction";
 import { describePick } from "../selection/inspect";
 import {
   visibleSurfaceBoxSelectionResolver,

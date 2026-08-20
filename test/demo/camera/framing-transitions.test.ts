@@ -6,8 +6,8 @@ import {
   projectPoint,
   resizeCamera,
   setProjection,
-} from "../../../src/entries/camera";
-import { cameraKeyLightDirection } from "../../../src/renderer/frame/frame";
+} from "@/entries/camera";
+import { cameraKeyLightDirection } from "@/renderer/frame/frame";
 import type { Vec3 } from "./support";
 
 describe("camera framing-transitions", () => {

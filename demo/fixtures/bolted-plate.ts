@@ -9,13 +9,13 @@ import {
   type PartId,
   type Placement,
   type Scene,
-} from "../../src/entries/root";
+} from "@/entries/root";
 import {
   createElementModel,
   createPartFromElementModel,
   type Body,
   type ElementModel,
-} from "../../src/entries/model";
+} from "@/entries/model";
 import {
   createBoltModel,
   createNutModel,

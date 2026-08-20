@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  createInteractionState,
-  isBodyVisible,
-  isTargetHighlighted,
-} from "../../../src/entries/interaction";
-import {
-  createSceneOccurrenceSnapshot,
-  type SceneOccurrences,
-} from "../../../src/scene-runtime/occurrences";
+import { createInteractionState, isBodyVisible, isTargetHighlighted } from "@/entries/interaction";
+import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";

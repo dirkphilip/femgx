@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Accessor } from "@gltf-transform/core";
 import { describe, expect, it, vi } from "vitest";
-import { createSceneOccurrenceSnapshot } from "../../../src/scene-runtime/occurrences";
-import type { IoError } from "../../../src/io/diagnostics";
-import { importGlb } from "../../../src/io/glb/importer";
+import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
+import type { IoError } from "@/io/diagnostics";
+import { importGlb } from "@/io/glb/importer";
 import { makeManyPartGlb, makeMechanicalAssemblyGlb } from "../../../demo/benchmark/glb-fixture";
 
 const ONShapeCylinder = readFileSync(

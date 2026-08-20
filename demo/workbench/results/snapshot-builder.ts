@@ -1,4 +1,4 @@
-import { selectedTargetSummary } from "../../../src/interaction/selection-queries";
+import { selectedTargetSummary } from "@/interaction/selection-queries";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,

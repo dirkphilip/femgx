@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../../demo/benchmark/model";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
 import { reconstructBenchmarkScene, transferredByteLength } from "../../../demo/benchmark/transfer";
-import { getPartSemanticIndex } from "../../../src/geometry/part-semantic-index";
-import { partSemanticGraph } from "../../../src/geometry/semantic/part-semantic-graph";
-import { buildFaceSubsetIndices } from "../../../src/renderer/selection/face-subset";
+import { getPartSemanticIndex } from "@/geometry/part-semantic-index";
+import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
+import { buildFaceSubsetIndices } from "@/renderer/selection/face-subset";
 import {
   buildElementPrimitiveOrdinals,
   buildPrimitiveFaceBodyPickData,
-} from "../../../src/renderer/picking/ids";
+} from "@/renderer/picking/ids";
 
 describe("dense Tet4 benchmark transfer", () => {
   it("reconstructs the canonical topology, skin, and authored edge metadata", () => {

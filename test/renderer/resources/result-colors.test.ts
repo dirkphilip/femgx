@@ -4,7 +4,7 @@ import {
   syncResultColors,
   type ResultColorDrawResources,
   type ResultColorStorage,
-} from "../../../src/renderer/resources/result-colors";
+} from "@/renderer/resources/result-colors";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 type TestInstanceStorage = {

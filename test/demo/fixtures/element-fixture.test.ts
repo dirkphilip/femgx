@@ -5,11 +5,11 @@ import {
   createHex20CylinderFixture,
   type ElementFixture,
 } from "../../../demo/fixtures/element-fixture";
-import { buildMeshEdgeData } from "../../../src/renderer/edges/mesh-edge";
-import { createPackedSceneRuntime } from "../../../src/scene-runtime/runtime";
-import { transformPoint, type Bounds, type Part } from "../../../src/entries/root";
-import type { PartOccurrence } from "../../../src/scene/types";
-import { ElementShape } from "../../../src/elements/shapes";
+import { buildMeshEdgeData } from "@/renderer/edges/mesh-edge";
+import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
+import { transformPoint, type Bounds, type Part } from "@/entries/root";
+import type { PartOccurrence } from "@/scene/types";
+import { ElementShape } from "@/elements/shapes";
 
 function runtimeInstances(fixture: Pick<ElementFixture, "scene">): readonly PartOccurrence[] {
   const runtime = createPackedSceneRuntime(fixture.scene);

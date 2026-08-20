@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { sourceAlias } from "./source-alias.ts";
 
 /**
  * Standalone runner for the performance budget gate. It intentionally does not
@@ -7,6 +8,7 @@ import { defineConfig } from "vitest/config";
  * step (`npm run bench:budget`) instead of inside `npm run test:coverage`.
  */
 export default defineConfig({
+  resolve: { alias: sourceAlias },
   test: {
     include: [
       "test/bench/budget/budget.test.ts",

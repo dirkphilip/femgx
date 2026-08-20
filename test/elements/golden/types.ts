@@ -1,4 +1,4 @@
-import type { ElementShape } from "../../../src/elements/shapes";
+import type { ElementShape } from "@/elements/shapes";
 
 /**
  * Golden element conventions: the canonical node ordering, reference geometry,

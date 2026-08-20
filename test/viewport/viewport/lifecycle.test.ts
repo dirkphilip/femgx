@@ -13,8 +13,8 @@ import {
   installTestGpuGlobals,
   translationMatrix,
 } from "./support";
-import { UnknownSceneIdentityError } from "../../../src/entries/root";
-import { createPartRecord } from "../../../src/geometry/part";
+import { UnknownSceneIdentityError } from "@/entries/root";
+import { createPartRecord } from "@/geometry/part";
 
 describe("Viewport", () => {
   it("rejects an orientation gizmo container that does not contain the canvas before setup", async () => {

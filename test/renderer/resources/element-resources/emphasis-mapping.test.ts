@@ -1,5 +1,5 @@
 import { expect, it, describe } from "vitest";
-import { setBodyHighlighted } from "../../../../src/interaction/bodies";
+import { setBodyHighlighted } from "@/interaction/bodies";
 import {
   createPart,
   createInteractionState,

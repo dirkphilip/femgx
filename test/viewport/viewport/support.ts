@@ -6,33 +6,33 @@ import {
   type GeometryInput,
   type GeometryBody,
   type Part,
-} from "../../../src/geometry/part";
+} from "@/geometry/part";
 
-import { createResultField } from "../../../src/results/fields";
+import { createResultField } from "@/results/fields";
 
-import { setBodyOverride, setBodyVisible } from "../../../src/interaction/bodies";
+import { setBodyOverride, setBodyVisible } from "@/interaction/bodies";
 
-import { setPartOverride } from "../../../src/interaction/interaction";
+import { setPartOverride } from "@/interaction/interaction";
 
-import { isTargetSelected, setTargetSelected } from "../../../src/interaction/targets";
+import { isTargetSelected, setTargetSelected } from "@/interaction/targets";
 
-import { translationMatrix } from "../../../src/math/mat4";
+import { translationMatrix } from "@/math/mat4";
 
-import type { Placement } from "../../../src/scene/assembly";
+import type { Placement } from "@/scene/assembly";
 
-import { createSceneBuilder, type Scene } from "../../../src/scene/scene";
+import { createSceneBuilder, type Scene } from "@/scene/scene";
 
-import { createViewport } from "../../../src/viewport/viewport";
+import { createViewport } from "@/viewport/viewport";
 
-import { RendererAttachment } from "../../../src/renderer/attachment";
+import { RendererAttachment } from "@/renderer/attachment";
 
-import { GpuRenderer } from "../../../src/renderer/renderer-core";
+import { GpuRenderer } from "@/renderer/renderer-core";
 
-import type { Viewport } from "../../../src/viewport/types";
+import type { Viewport } from "@/viewport/types";
 
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 
-import * as geometryBounds from "../../../src/viewport/geometry-bounds";
+import * as geometryBounds from "@/viewport/geometry-bounds";
 
 export let restoreGpuGlobals: (() => void) | undefined;
 

@@ -1,6 +1,6 @@
-import type { Viewport } from "../../../src/entries/root";
-import type { InteractionState } from "../../../src/entries/interaction";
-import type { SceneOccurrences } from "../../../src/entries/root";
+import type { Viewport } from "@/entries/root";
+import type { InteractionState } from "@/entries/interaction";
+import type { SceneOccurrences } from "@/entries/root";
 import type { DemoView } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import { WorkbenchBoxPreview } from "../selection/box-preview";

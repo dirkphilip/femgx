@@ -1,6 +1,6 @@
-import { createPart, MAX_PART_ID, type Part } from "../../../../src/geometry/part";
+import { createPart, MAX_PART_ID, type Part } from "@/geometry/part";
 
-import { translationMatrix } from "../../../../src/math/mat4";
+import { translationMatrix } from "@/math/mat4";
 
 import {
   createDrawResources,
@@ -18,28 +18,25 @@ import {
   writeSelectionOrder,
   writeTransparentOrder,
   type DrawCallContext,
-} from "../../../../src/renderer/resources/draw-resources";
+} from "@/renderer/resources/draw-resources";
 
-import { drawBatches } from "../../../../src/renderer/frame/batch";
+import { drawBatches } from "@/renderer/frame/batch";
 
-import { ensureColorTargets } from "../../../../src/renderer/frame/pipelines";
+import { ensureColorTargets } from "@/renderer/frame/pipelines";
 
-import { beginColorPass } from "../../../../src/renderer/frame/passes";
+import { beginColorPass } from "@/renderer/frame/passes";
 
-import { defaultStyle } from "../../../../src/renderer/resources/foundation";
+import { defaultStyle } from "@/renderer/resources/foundation";
 
-import {
-  ELEMENT_RECORD_STRIDE,
-  HIGHLIGHT_HEADER,
-} from "../../../../src/renderer/resources/element-resources";
+import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "@/renderer/resources/element-resources";
 
-import type { DrawPipelines } from "../../../../src/renderer/frame/pipelines";
+import type { DrawPipelines } from "@/renderer/frame/pipelines";
 
 import { fakeGpuDevice, installGpuGlobals } from "../../fake-gpu";
 
-import { syncInstanceEmphasisAdmission } from "../../../../src/renderer/selection/instance-emphasis";
+import { syncInstanceEmphasisAdmission } from "@/renderer/selection/instance-emphasis";
 
-import type { DenseElementSelections } from "../../../../src/renderer/selection/element-selection";
+import type { DenseElementSelections } from "@/renderer/selection/element-selection";
 
 export const part: Part = createPart(1, {
   geometries: [

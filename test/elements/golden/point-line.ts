@@ -1,4 +1,4 @@
-import { ElementShape } from "../../../src/elements/shapes";
+import { ElementShape } from "@/elements/shapes";
 
 import type { GoldenElementConvention } from "./types";
 
