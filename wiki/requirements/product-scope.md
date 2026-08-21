@@ -43,7 +43,7 @@ Line counts are rough `wc -l` totals (source / test) at the time of the audit.
 | Authored semantic element blocks                                                                                                                                                        | elements/interaction | same       | **Remove**   | Blocks duplicate body/element grouping without providing independently replaceable geometry. Remove block authoring, editing, identity, picking, interaction, visibility, topology ownership, and GPU records. Transfer or upload chunks remain private implementation details rather than semantic targets.                                                                                                                                                                                                                                                                                                                                                        |
 | FE node annotations                                                                                                                                                                     | renderer + demo      | same       | **Core now** | Depth testing hides occluded node samples; translucent front circles default to 6 CSS px and are configurable independently from the 8 CSS-px point glyphs in the inclusive `[1,64]` range (DPR-scaled), preserving surfaces without overlap accumulation or zoom-dependent depth offsets.                                                                                                                                                                                                                                                                                                                                                                          |
 | Optional edge / face display overlays                                                                                                                                                   | renderer + demo      | same       | **Deferred** | Display polish beyond the renderer-owned edge overlay and core node annotations is not the minimum product.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| GPU picking (element + node strict; face Core) with host-mappable ids                                                                                                                   | viewport + picking   | same       | **Core now** | `ViewportInteraction.pick` returns a complete `PickHit`; hosts map it with `interactionTargetFromHit`. Node ids are strict; element ownership is present when the hit has an authored element and omitted for truthful node-only point geometry. Face is Core. Multi-hit `pickMany` is future (below), not Core-now.                                                                                                                                                                                                                                                                                                                                                |
+| GPU picking (element + node strict; face Core) with host-mappable ids                                                                                                                   | viewport + picking   | same       | **Core now** | `ViewportInteraction.pick` returns a complete physical `PickHit` plus its root-to-direct-owner assembly path; hosts map it with `interactionTargetFromHit`. Node ids are strict; element ownership is present when the hit has an authored element and omitted for truthful node-only point geometry. Face is Core. Multi-hit `pickMany` is future (below), not Core-now.                                                                                                                                                                                                                                                                                           |
 | Stable authored FE-edge interaction                                                                                                                                                     | interaction + GPU    | same       | **Core now** | Occurrence-scoped authored edges support exact picking, hover, selection, highlight, and nearest-visible region selection. Edge-only GPU resources are lazy and absent outside edge granularity; ordinary picking retains its four attachments and inactive cost.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | CPU raycast picking (`createPickScene` / `pick()`)                                                                                                                                      | —                    | —          | **Remove**   | Replaced by the GPU pick path; deleted with the flat-compile cleanup.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Adjacency inspection overlays / pick-list UI polish                                                                                                                                     | demo                 | e2e        | **Deferred** | Host-mappable neighbor ids on `PickHit` stay; rich adjacency workbench polish is optional.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -76,8 +76,8 @@ surface-derived mixed part, then compiled into reusable part geometry
 (Point, Line, Line3, Triangle, Tri6, Quad,
 Quad8, Tet4, Tet10, Wedge6, Pyramid5, Hex8, and Hex20) placed by hierarchical assemblies, compiled once
 into a packed scene runtime, and drawn with instanced WebGPU draws batched by
-part. The renderer provides GPU picking with host-mappable part/instance/
-element/face/node ids (node and element strict; face Core), stable authored
+part. The renderer provides GPU picking with a host-mappable assembly path and
+part/instance/element/face/node ids (node and element strict; face Core), stable authored
 FE-edge interaction, readable
 depth-tested node annotations, selection/
 highlight/hover, visibility, camera control, authored nodal/elemental scalar
@@ -342,6 +342,41 @@ layer, optional mode, or scope expansion) must pass before work starts:
 A change that grows line count, module count, or abstraction count without
 justifying itself against these questions is rejected. A successful
 implementation may delete code; deletion-first is the default stance.
+
+### Hierarchical interaction decision (2026-08)
+
+Users must be able to act on reusable assembly and part definitions, exact
+assembly and part occurrences, bodies, and individual elements, faces, nodes,
+or authored edges through one stable `InteractionTarget` vocabulary. An
+assembly-definition target covers every occurrence of that reusable definition;
+an assembly-occurrence target covers exactly its expanded subtree, including
+the root occurrence. Hierarchical selection remains one logical target and is
+projected privately to effective visible descendants. It never materializes one
+public target per descendant element, and hidden descendants remain hidden.
+
+Selection, persistent highlight, and transient hover use the same target helper
+family, hierarchy projection, affected-slot derivation, emphasis storage, and
+shader composition. They remain distinct state and appearance semantics:
+hover and persistent highlight share the highlighted theme, while selection at
+every target scope uses the selected theme. Part or part-occurrence selection
+must never be encoded as highlight. When selection overlaps hover/highlight,
+selected properties remain authoritative while non-conflicting highlighted
+feedback, such as emissive emphasis, stays visible. A selected theme color
+overrides authored scalar color; a selected theme that omits color may retain
+the result field. Fast and general renderer paths must resolve this contract
+identically.
+
+Every physical `PickHit` carries an immutable root-to-direct-owner assembly path
+whose entries include both reusable assembly id and exact assembly-occurrence
+id. The hit kind remains the deepest rasterized entity. Hosts may promote it to
+the direct assembly, part, or subentity target, or explicitly choose a higher
+ancestor from the path. The path is resolved on the CPU from authoritative
+runtime hierarchy after the existing pick ids are read; it adds no GPU
+attachment, pass, buffer, shader output, or readback byte. Generic groups,
+negative child exclusions, automatic hierarchy-to-element expansion, and a
+second picking path remain out of scope. Delivery and regression evidence are
+tracked in [issues #1261](https://github.com/dirkphilip/femgx/issues/1261) and
+[#1262](https://github.com/dirkphilip/femgx/issues/1262).
 
 ### Element-frame decision (2026-08)
 
