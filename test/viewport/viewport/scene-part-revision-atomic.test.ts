@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { setElementVisible } from "@/interaction/elements";
 import { setTargetSelected } from "@/interaction/targets";
+import { ElementShape } from "@/elements/shapes";
+import { createElement } from "@/elements/element";
+import { createElementModel } from "@/elements/model";
+import { createPartFromElementModel } from "@/geometry/element-model-part";
 import {
   createPart,
   createResultField,
@@ -116,6 +120,66 @@ describe("Viewport atomic part revision staging", () => {
       viewport.destroy();
     }
   });
+
+  it("keeps the active cap frame usable and cleans staged caps exactly once", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    let fail = false;
+    let stagedCapStorages = 0;
+    const gpu = fakeGpuDevice({
+      onCreateBuffer: (_creation, descriptor) => {
+        if (fail && descriptor.label === "femgx instance storage") {
+          stagedCapStorages += 1;
+          if (stagedCapStorages === 2) throw new Error("failed second staged cap");
+        }
+      },
+    });
+    const original = capTetraPart(1, 1);
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: explicitScene(
+        [original],
+        [
+          { kind: "part", placementId: "first", partId: 1, transform: translationMatrix(0, 0, 0) },
+          { kind: "part", placementId: "second", partId: 1, transform: translationMatrix(2, 0, 0) },
+        ],
+      ),
+      device: gpu.device,
+    });
+    viewport.presentation.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+    viewport.render();
+    const renderer = capRenderer(viewport);
+    const frame = renderer.sectionCaps.currentFrame;
+    if (frame === undefined) throw new Error("active cap frame missing");
+    const capIds = [...frame.parts.keys()];
+    expect(capIds).toHaveLength(2);
+    const oldResources = capIds.map((id) => renderer.lifecycle.bundle.draw.primitiveParts.get(id));
+    const bufferStart = gpu.buffers.length;
+    fail = true;
+
+    expect(() =>
+      viewport.updateScene((update) => {
+        update.replacePart(capTetraPart(1, 2));
+      }),
+    ).toThrow("failed second staged cap");
+
+    expect(viewport.scene.parts.get(1)).toBe(original);
+    expect(renderer.sectionCaps.currentFrame).toBe(frame);
+    for (const resources of oldResources) {
+      for (const resource of resources?.values() ?? []) {
+        expect(
+          gpu.buffers.find((buffer) => buffer.resource === resource.vertexBuffer)?.destroyCount,
+        ).toBe(0);
+      }
+    }
+    expect(gpu.buffers.slice(bufferStart).map((buffer) => buffer.destroyCount)).toEqual(
+      gpu.buffers.slice(bufferStart).map(() => 1),
+    );
+    expect(() => {
+      viewport.render();
+    }).not.toThrow();
+    viewport.destroy();
+  });
 });
 
 function unchangedInteraction(viewport: Awaited<ReturnType<typeof fixture>>) {
@@ -176,6 +240,38 @@ function resultQuadPart(id: number, extent: number): Part {
       },
     ],
   });
+}
+
+function capTetraPart(id: number, extent: number): Part {
+  return createPartFromElementModel(
+    id,
+    createElementModel(
+      [0, 0, 0, extent, 0, 0, 0, extent, 0, 0, 0, extent],
+      [createElement(0, ElementShape.Tet4, [0, 1, 2, 3])],
+    ),
+  );
+}
+
+function capRenderer(viewport: Awaited<ReturnType<typeof createViewport>>) {
+  return (
+    viewport as unknown as {
+      readonly renderer: {
+        readonly sectionCaps: {
+          readonly currentFrame?: { readonly parts: ReadonlyMap<number, Part> };
+        };
+        readonly lifecycle: {
+          readonly bundle: {
+            readonly draw: {
+              readonly primitiveParts: ReadonlyMap<
+                number,
+                ReadonlyMap<string, { readonly vertexBuffer: GPUBuffer }>
+              >;
+            };
+          };
+        };
+      };
+    }
+  ).renderer;
 }
 
 function resultRoles() {

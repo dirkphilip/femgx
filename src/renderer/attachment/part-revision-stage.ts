@@ -363,7 +363,8 @@ function protectedStorageBuffers(
   return buffers;
 }
 
-function discardStagedPartResources(
+/** Releases every detached resource owned by an uncommitted revision. */
+export function discardStagedPartResources(
   draw: DrawResources,
   live: DrawResources,
   partIds: ReadonlySet<PartId>,

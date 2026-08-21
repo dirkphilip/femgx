@@ -7,6 +7,7 @@ import type { DrawCallLists, InstanceLayout } from "../runtime-state";
 import { changedPartDefinitions, reconcilePartResources } from "../resources/part-resources";
 import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
 import type { InstanceStorage } from "../resources/instance-storage";
+import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { rebuildVisibilitySurface } from "../visibility/skins";
 import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
@@ -14,6 +15,7 @@ import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
   clonePartRevisionLayout,
+  discardStagedPartResources,
   prepareStagedPartRevision,
   type PartRevisionAttachmentHost,
   type PreparedPartRevision,
@@ -32,11 +34,13 @@ interface PartAttachmentOptions {
 export function prepareAddedAttachmentParts(
   parts: ReadonlyMap<PartId, Part>,
   partIds: ReadonlySet<PartId>,
+  cost?: GpuCostAccumulator,
 ): void {
   for (const partId of partIds) {
     const part = parts.get(partId);
     if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
     getPartSemanticIndex(part);
+    cost?.cpu("definition-validation", 1);
   }
 }
 
@@ -82,7 +86,8 @@ export function replaceAttachedPartDefinitions(
   commitPartRevision(attachment, prepared, partIds, revision.bundle);
 }
 
-function preparePartRevision(options: {
+/** Prepares an attached definition revision without mutating its live owner. */
+export function preparePartRevision(options: {
   readonly attachment: PartRevisionAttachmentHost;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly partIds: ReadonlySet<PartId>;
@@ -119,7 +124,8 @@ function preparePartRevision(options: {
   };
 }
 
-function commitPartRevision(
+/** Publishes a fully prepared attached definition revision. */
+export function commitPartRevision(
   attachment: PartRevisionAttachmentHost,
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
@@ -136,6 +142,15 @@ function commitPartRevision(
   commitPartLayout(attachment.layout, prepared.layout, partIds);
   applyInteractionState(attachment, prepared.interactionState);
   Object.assign(attachment, prepared.calls);
+}
+
+/** Discards one prepared definition revision without touching live resources. */
+export function discardPartRevision(
+  prepared: PreparedPartRevision,
+  live: DrawResources,
+  partIds: ReadonlySet<PartId>,
+): void {
+  discardStagedPartResources(prepared.draw, live, partIds);
 }
 
 function commitPartLayout(

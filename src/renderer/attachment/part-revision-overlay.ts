@@ -67,6 +67,17 @@ export class PartRevisionMap<K, V> extends Map<K, V> {
   ): void {
     for (const [key, value] of this) callbackfn.call(thisArg, value, key, this);
   }
+
+  /** Keys materialized in this overlay, excluding retained source entries. */
+  /** @yields {K} Keys owned by the overlay. */
+  public *stagedKeys(): IterableIterator<K> {
+    yield* super.keys();
+  }
+}
+
+/** Returns exact overlay-owned keys without traversing retained source entries. */
+export function stagedPartRevisionKeys<K, V>(values: Map<K, V>): Iterable<K> {
+  return values instanceof PartRevisionMap ? values.stagedKeys() : [];
 }
 
 /** A copy-on-write flag array that commits only slots owned by the revision. */

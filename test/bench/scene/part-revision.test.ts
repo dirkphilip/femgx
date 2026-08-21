@@ -8,7 +8,15 @@ import { createResultField } from "@/results/fields";
 import { setTargetSelected } from "@/interaction/targets";
 import { createSceneBuilder } from "@/scene/scene";
 import { createViewport, type Part, type Viewport } from "@/entries/root";
-import type { GpuCostSnapshot } from "@/renderer/diagnostics/cost";
+import {
+  capPartForSource,
+  capVertexBuffer,
+  rendererCapCount,
+  rendererCaps,
+  rendererDraw,
+  rendererRevisionCost,
+  viewportBoundsLeaves,
+} from "./part-revision-support";
 import {
   fakeCanvas,
   fakeGpuDevice,
@@ -37,6 +45,9 @@ interface RevisionRow {
   readonly revisionInstanceScans: number;
   readonly revisionPartScans: number;
   readonly revisionWrites: number;
+  readonly definitionValidations: number;
+  readonly resourceRetirements: number;
+  readonly boundsLeaves: number;
 }
 
 interface RevisionFixture {
@@ -54,6 +65,8 @@ interface RevisionFixture {
   readonly retainedGeometry: unknown;
   readonly retainedGlyph: unknown;
   readonly retainedCap: unknown;
+  revisedCap: Part | undefined;
+  revisedCapVertexBuffer: GPUBuffer | undefined;
   revisionIndex: number;
 }
 
@@ -77,7 +90,7 @@ describe("incremental part revision", () => {
       const fixture = await createFixture(revisedOccurrences);
       try {
         rows.push(measureRevision(fixture));
-        await verifyViewportContracts(fixture, revisedOccurrences === 1);
+        await verifyViewportContracts(fixture);
       } finally {
         fixture.viewport.destroy();
       }
@@ -117,6 +130,8 @@ async function createFixture(revisedOccurrences: number): Promise<RevisionFixtur
     retainedGeometry: draw.primitiveParts.get(2)?.get("triangles"),
     retainedGlyph: draw.orientationGlyphs.parts.get(2),
     retainedCap: capPartForSource(rendererCaps(viewport), 2),
+    revisedCap: capPartForSource(rendererCaps(viewport), 1),
+    revisedCapVertexBuffer: capVertexBuffer(viewport, rendererCaps(viewport), 1),
     revisionIndex: 0,
   };
 }
@@ -132,25 +147,49 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
   let revisionInstanceScans = 0;
   let revisionPartScans = 0;
   let revisionWrites = 0;
+  let definitionValidations = 0;
+  let resourceRetirements = 0;
+  let boundsLeaves = 0;
   for (let sample = 0; sample < 7; sample += 1) {
     const writeStart = fixture.gpu.writes.length;
     const buffersBefore = fixture.gpu.buffers.length;
     const bindGroupsBefore = fixture.gpu.bindGroupCreations;
     const started = performance.now();
+    const previousCap = fixture.revisedCap;
+    const previousCapBuffer = fixture.revisedCapVertexBuffer;
     revise(fixture);
-    const cost = rendererCore(fixture.viewport).costSnapshot();
+    const cost = rendererRevisionCost(fixture.viewport);
     revisionInstanceScans += cost.cpu["instance-scan"];
     revisionPartScans += cost.cpu["part-scan"];
     revisionWrites += Object.values(cost.writes).reduce((total, write) => total + write.calls, 0);
+    definitionValidations += cost.cpu["definition-validation"];
+    resourceRetirements += cost.memory.bufferDestroys;
+    boundsLeaves += viewportBoundsLeaves(fixture.viewport);
     expect(cost.cpu["instance-scan"]).toBeLessThanOrEqual(fixture.revisedOccurrences);
     expect(cost.cpu["part-scan"]).toBeLessThanOrEqual(1);
     fixture.viewport.render();
+    fixture.revisedCap = capPartForSource(rendererCaps(fixture.viewport), 1);
+    fixture.revisedCapVertexBuffer = capVertexBuffer(
+      fixture.viewport,
+      rendererCaps(fixture.viewport),
+      1,
+    );
+    expect(fixture.revisedCap).toBeDefined();
+    expect(fixture.revisedCap).not.toBe(previousCap);
+    if (previousCapBuffer !== undefined) {
+      expect(
+        fixture.gpu.buffers.find((buffer) => buffer.resource === previousCapBuffer)?.destroyCount,
+      ).toBe(1);
+    }
     samples.push(performance.now() - started);
     retainedResultWrites += writesToRetainedResults(fixture, writeStart);
     retainedStorageWrites += writesToRetainedStorage(fixture, writeStart);
     revisedStorageWrites += writesToRevisedStorage(fixture, writeStart);
     revisedBindGroupCreations += fixture.gpu.bindGroupCreations - bindGroupsBefore;
-    expect(fixture.gpu.bindGroupCreations - bindGroupsBefore).toBeLessThanOrEqual(4);
+    expect(cost.cpu["definition-validation"]).toBe(1);
+    expect(cost.memory.bufferDestroys).toBeGreaterThan(0);
+    expect(viewportBoundsLeaves(fixture.viewport)).toBe(fixture.revisedOccurrences);
+    expect(fixture.gpu.bindGroupCreations - bindGroupsBefore).toBeLessThanOrEqual(5);
     maximumRevisionBuffers = Math.max(
       maximumRevisionBuffers,
       fixture.gpu.buffers.length - buffersBefore,
@@ -186,22 +225,17 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     revisionInstanceScans,
     revisionPartScans,
     revisionWrites,
+    definitionValidations,
+    resourceRetirements,
+    boundsLeaves,
   };
 }
 
-async function verifyViewportContracts(
-  fixture: RevisionFixture,
-  verifyCaps: boolean,
-): Promise<void> {
+async function verifyViewportContracts(fixture: RevisionFixture): Promise<void> {
   fixture.viewport.view.fit({ durationMs: 0 });
   expect(fixture.viewport.view.camera.target.every(Number.isFinite)).toBe(true);
   await expect(fixture.viewport.interaction.pick(0, 0)).resolves.toBeUndefined();
-  if (verifyCaps) {
-    fixture.viewport.presentation.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
-    fixture.viewport.render();
-    expect(rendererCapCount(fixture.viewport)).toBeGreaterThan(0);
-    fixture.viewport.presentation.clearSectionPlane();
-  }
+  expect(rendererCapCount(fixture.viewport)).toBeGreaterThan(0);
   await fixture.viewport.recover();
   fixture.viewport.render();
   expect(fixture.viewport.scene.parts.get(1)).toBe(
@@ -267,7 +301,7 @@ function revisionScene(revisedOccurrences: number) {
       kind: "part",
       placementId: `revised-${index}`,
       partId: 1,
-      transform: translation(0, 0, 10),
+      transform: translation(0, 0, index === 0 ? 0 : 20),
     });
   }
   for (let index = 0; index < LIVE_UNRELATED_OCCURRENCES; index += 1) {
@@ -331,70 +365,4 @@ function revisionResults() {
 
 function translation(x: number, y: number, z: number): Float32Array {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
-}
-
-function rendererDraw(viewport: Viewport) {
-  const owner = viewport as unknown as {
-    readonly renderer: { readonly lifecycle: { readonly bundle: { readonly draw: unknown } } };
-  };
-  return owner.renderer.lifecycle.bundle.draw as {
-    readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
-    readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
-    readonly storages: ReadonlyMap<
-      number,
-      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer; readonly bindGroup: unknown }
-    >;
-    readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
-    readonly orientationGlyphs: { readonly parts: ReadonlyMap<number, unknown> };
-  };
-}
-
-function rendererCaps(viewport: Viewport) {
-  return (
-    viewport as unknown as {
-      readonly renderer: {
-        readonly sectionCaps: {
-          readonly currentFrame: {
-            readonly parts: ReadonlyMap<number, Part>;
-            readonly sourcePartIds: ReadonlyMap<number, number>;
-          };
-        };
-      };
-    }
-  ).renderer.sectionCaps.currentFrame;
-}
-
-function capForSource(
-  frame: ReturnType<typeof rendererCaps>,
-  sourcePartId: number,
-): number | undefined {
-  for (const [capId, partId] of frame.sourcePartIds) if (partId === sourcePartId) return capId;
-  return undefined;
-}
-
-function capPartForSource(
-  frame: ReturnType<typeof rendererCaps>,
-  sourcePartId: number,
-): Part | undefined {
-  const capId = capForSource(frame, sourcePartId);
-  return capId === undefined ? undefined : frame.parts.get(capId);
-}
-
-function rendererCore(viewport: Viewport) {
-  return (
-    viewport as unknown as {
-      readonly renderer: { costSnapshot(): GpuCostSnapshot };
-    }
-  ).renderer;
-}
-
-function rendererCapCount(viewport: Viewport): number {
-  const owner = viewport as unknown as {
-    readonly renderer: {
-      readonly sectionCaps: {
-        readonly currentFrame?: { readonly parts: ReadonlyMap<number, Part> };
-      };
-    };
-  };
-  return owner.renderer.sectionCaps.currentFrame?.parts.size ?? 0;
 }

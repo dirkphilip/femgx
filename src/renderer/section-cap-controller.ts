@@ -30,6 +30,12 @@ import {
   reviseSectionCapColors,
   reviseSectionCapParts,
 } from "./resources/section-caps/section-cap-frame-overlay";
+import {
+  commitSectionCapResources,
+  discardSectionCapRevision,
+  prepareSectionCapRevision,
+  type PreparedSectionCapRevision,
+} from "./resources/section-caps/revision";
 
 interface SectionCapSyncOptions {
   readonly runtime: PackedSceneRuntime;
@@ -147,6 +153,49 @@ export class SectionCapController {
     this.dirty = true;
     this.rebuildUsingRetained = true;
     this.revisedPartIds = mergeRevisedPartIds(this.revisedPartIds, partIds);
+  }
+
+  /** Stages exact revised cap fragments without changing live frame or resources. */
+  public preparePartRevision(
+    options: SectionCapSyncOptions & {
+      readonly partIds: ReadonlySet<PartId>;
+    },
+  ): PreparedSectionCapRevision {
+    return prepareSectionCapRevision(
+      {
+        frame: this.frame,
+        retained: this.retained,
+        runtime: this.runtime,
+        dirty: this.dirty,
+        renderedParts: this.renderedParts,
+        renderedColors: this.renderedColors,
+      },
+      options,
+    );
+  }
+
+  /** Publishes a prepared cap revision after all fallible staging has succeeded. */
+  public commitPartRevision(
+    prepared: PreparedSectionCapRevision,
+    staged: DrawResources,
+    live: DrawResources,
+  ): void {
+    commitSectionCapResources(prepared, staged, live);
+    this.frame = prepared.frame;
+    this.retained = prepared.retained;
+    this.renderedParts = prepared.renderedParts;
+    this.renderedColors = prepared.renderedColors;
+    this.sourceColors = prepared.sourceColors;
+    this.runtime = prepared.runtime;
+    this.interaction = prepared.interaction;
+    this.dirty = prepared.dirty;
+    this.rebuildUsingRetained = prepared.dirty && this.retained !== undefined;
+    this.revisedPartIds = undefined;
+  }
+
+  /** Releases only newly staged cap resources after a failed transaction. */
+  public discardPartRevision(prepared: PreparedSectionCapRevision, staged: DrawResources): void {
+    discardSectionCapRevision(prepared, staged);
   }
 
   public sync(options: SectionCapSyncOptions): void {

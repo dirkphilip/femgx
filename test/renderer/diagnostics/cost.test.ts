@@ -54,6 +54,7 @@ describe("GPU cost accounting", () => {
       "part-scan": 0,
       "order-rebuild": 0,
       "call-rebuild": 0,
+      "definition-validation": 0,
     });
     expect(cleared.memory).toEqual({
       allocatedBytes: 0,

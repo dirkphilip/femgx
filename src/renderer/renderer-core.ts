@@ -241,13 +241,15 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
         parts,
         partIds,
         results,
+        plane: this.sectionPlane,
+        deformation: results?.deformation ?? this.deformation,
+        resultColors: results?.colors ?? this.resultColors,
       },
     );
     if (results !== undefined) {
       this.deformation = results.deformation;
       this.resultColors = results.colors;
-      // The revision transaction already synchronized only the changed glyph
-      // bindings. A full sync here would walk every retained occurrence.
+      // The revision transaction already synchronized only changed glyph bindings.
       this.orientationGlyphs = results.glyphs;
     }
     this.interaction = interaction;
@@ -396,10 +398,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     }
   }
 
-  private ensureAlive(): void {
-    if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
-    this.lifecycle.ensureUsable();
-  }
+  private readonly ensureAlive = (): undefined => (this.lifecycle.ensureUsable(), undefined);
 
   public frameOptions() {
     return buildFrameOptions({

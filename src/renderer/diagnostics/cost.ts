@@ -40,6 +40,7 @@ export const GPU_COST_CPU = [
   "part-scan",
   "order-rebuild",
   "call-rebuild",
+  "definition-validation",
 ] as const;
 export type GpuCostCpu = (typeof GPU_COST_CPU)[number];
 
@@ -115,6 +116,7 @@ export class GpuCostAccumulator {
   private readonly cpuCounts = emptyCpuCounts();
   private readonly memoryCounts = emptyMemoryCounts();
   private targetCost: GpuTargetCost | undefined;
+  private completedTransaction: GpuCostSnapshot | undefined;
 
   /** Clears all counters before encoding a new visible frame. */
   public reset(): void {
@@ -156,6 +158,16 @@ export class GpuCostAccumulator {
 
   public cpu(work: GpuCostCpu, count: number): void {
     this.cpuCounts[work] += count;
+  }
+
+  /** Retains deterministic transaction counters across the next frame reset. */
+  public completeTransaction(): void {
+    this.completedTransaction = this.snapshot();
+  }
+
+  /** Returns the most recently completed detached transaction counters. */
+  public transactionSnapshot(): GpuCostSnapshot {
+    return this.completedTransaction ?? this.snapshot();
   }
 
   public allocateBuffer(bytes: number): void {
@@ -247,7 +259,13 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
 }
 
 function emptyCpuCounts(): Record<GpuCostCpu, number> {
-  return { "instance-scan": 0, "part-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
+  return {
+    "instance-scan": 0,
+    "part-scan": 0,
+    "order-rebuild": 0,
+    "call-rebuild": 0,
+    "definition-validation": 0,
+  };
 }
 
 function emptyAdmissionCounts(): Record<GpuCostAdmission, number> {
