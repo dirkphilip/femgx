@@ -63,6 +63,7 @@ describe("WebGPU renderer", () => {
     const runtime = createPackedSceneRuntime(scene);
     const presentation = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
     renderer.updateInstances(runtime, presentation, [0, 1, 2]);
+    renderer.updateElements(runtime, presentation, [0, 1, 2]);
     renderer.setPointSizePixels(14);
     renderer.setNodeSizePixels(7);
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.25 });
