@@ -7,7 +7,6 @@ import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
 import type { ResultColorMap } from "../results/colors";
-import type { DeformationState } from "../results/deform";
 import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnostics/timestamps";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
@@ -29,7 +28,7 @@ export function readGpuCostSnapshot(renderer: WebGpuRenderer): GpuCostSnapshot {
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("GPU cost accounting is unavailable for this renderer implementation");
   }
-  return renderer.diagnostics.costSnapshot();
+  return renderer.costSnapshot();
 }
 
 /** Reads internal retained edge-resource state without expanding the public renderer API. */
@@ -37,7 +36,7 @@ export function readMaterializedEdgePartIds(renderer: WebGpuRenderer): ReadonlyS
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("GPU edge-resource accounting is unavailable for this renderer implementation");
   }
-  return renderer.diagnostics.materializedEdgePartIds();
+  return renderer.materializedEdgePartIds();
 }
 
 /** Reads optional benchmark pass timestamps without widening the public renderer API. */
@@ -45,7 +44,7 @@ export function readGpuTimestampSnapshot(renderer: WebGpuRenderer): GpuTimestamp
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("GPU timestamp accounting is unavailable for this renderer implementation");
   }
-  return renderer.diagnostics.timestampSnapshot();
+  return renderer.timestampSnapshot();
 }
 
 /** Completes only the benchmark's delayed timestamp readback pool. */
@@ -53,7 +52,7 @@ export async function drainGpuTimestampSamples(renderer: WebGpuRenderer): Promis
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("GPU timestamp accounting is unavailable for this renderer implementation");
   }
-  await renderer.diagnostics.drainTimestampSamples();
+  await renderer.drainTimestampSamples();
 }
 
 /** Hands internal result composition to the concrete renderer without widening its public contract. */
@@ -76,21 +75,6 @@ export function setRendererResultColors(
     throw new Error("Authored scalar colors require the built-in WebGPU renderer");
   }
   renderer.setResultColors(colors);
-}
-
-/** Applies compatible private result tables without invalidating retained section-cap fragments. */
-export function setRendererPartRevisionResults(
-  renderer: WebGpuRenderer,
-  options: {
-    readonly deformation: DeformationState | undefined;
-    readonly colors: ResultColorMap | undefined;
-    readonly glyphs: OrientationGlyphState | undefined;
-  },
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  renderer.setPartRevisionResults(options);
 }
 
 /** Applies private structural occurrence changes without widening the public renderer API. */

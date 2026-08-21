@@ -1,6 +1,5 @@
 import {
   setRendererOrientationGlyphs,
-  setRendererPartRevisionResults,
   setRendererResultColors,
   type WebGpuRenderer,
 } from "../../renderer/gpu-renderer";
@@ -49,14 +48,6 @@ export function applyResolvedViewportResults(
     renderer,
     results === undefined ? undefined : viewportResultColors(results),
   );
-}
-
-/** Applies compatible result data after a definition-only scene revision. */
-export function applyResolvedPartRevisionResults(
-  renderer: WebGpuRenderer,
-  results: ViewportResultsState | undefined,
-): void {
-  setRendererPartRevisionResults(renderer, partRevisionResultState(results));
 }
 
 /** Converts resolved viewport results to the renderer-private revision transaction input. */

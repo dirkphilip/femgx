@@ -17,6 +17,11 @@ import {
 describe("Viewport atomic part revision staging", () => {
   it("keeps live resources intact when staged optional allocations fail", async () => {
     for (const scenario of [
+      { label: "femgx orientation glyph parameters", nextInteraction: unchangedInteraction },
+      { label: "femgx orientation glyph normals", nextInteraction: unchangedInteraction },
+      { label: "femgx orientation glyph records", nextInteraction: unchangedInteraction },
+      { label: "femgx orientation glyph order", nextInteraction: unchangedInteraction },
+      { label: "femgx result color storage", nextInteraction: unchangedInteraction },
       {
         label: "femgx element highlight storage",
         nextInteraction: (viewport: Awaited<ReturnType<typeof fixture>>) =>
@@ -88,7 +93,8 @@ describe("Viewport atomic part revision staging", () => {
       expect(draw.resultColors.get(1)?.buffer).toBe(color);
       expect(draw.deformations.get(1)?.buffer).toBe(deformation);
       expect(draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer).toBe(glyph);
-      expect(gpu.buffers.slice(bufferStart).every((buffer) => buffer.destroyed)).toBe(true);
+      const destroys = gpu.buffers.slice(bufferStart).map((buffer) => buffer.destroyCount);
+      expect(destroys).toEqual(gpu.buffers.slice(bufferStart).map(() => 1));
       expect(
         gpu.writes
           .slice(writeStart)
@@ -105,6 +111,10 @@ describe("Viewport atomic part revision staging", () => {
     }
   });
 });
+
+function unchangedInteraction(viewport: Awaited<ReturnType<typeof fixture>>) {
+  return viewport.interaction.state;
+}
 
 async function fixture(device: GPUDevice) {
   const viewport = await createViewport({

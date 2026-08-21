@@ -104,15 +104,16 @@ function replaceNormalBuffer(
   resource: OrientationGlyphPartResource,
   slotCount: number,
 ): void {
-  resource.normalBuffer.destroy();
-  resource.normalCapacity = Math.max(slotCount, resource.normalCapacity * 2, 1);
-  resource.normalData = new Float32Array(
-    resource.normalCapacity * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
-  );
-  resource.normalBuffer = resources.device.createBuffer({
+  const normalCapacity = Math.max(slotCount, resource.normalCapacity * 2, 1);
+  const normalData = new Float32Array(normalCapacity * ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS);
+  const normalBuffer = resources.device.createBuffer({
     label: "femgx orientation glyph normals",
-    size: resource.normalData.byteLength,
+    size: normalData.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
+  resource.normalBuffer.destroy();
+  resource.normalCapacity = normalCapacity;
+  resource.normalData = normalData;
+  resource.normalBuffer = normalBuffer;
   for (const group of resource.groups.values()) group.bindGroup = undefined;
 }

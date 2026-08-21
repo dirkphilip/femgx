@@ -193,22 +193,30 @@ function ensureGroupResource(
   const existing = part.groups.get(bindingId);
   if (existing !== undefined) return existing;
   const recordBytes = Math.max(4, records.elementIds.length * ORIENTATION_GLYPH_RECORD_STRIDE);
+  const recordBuffer = resources.device.createBuffer({
+    label: "femgx orientation glyph records",
+    size: recordBytes,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+  let orderBuffer: GPUBuffer;
+  try {
+    orderBuffer = resources.device.createBuffer({
+      label: "femgx orientation glyph order",
+      size: 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+  } catch (error) {
+    recordBuffer.destroy();
+    throw error;
+  }
   const group: OrientationGlyphGroupResource = {
     bindingId,
-    recordBuffer: resources.device.createBuffer({
-      label: "femgx orientation glyph records",
-      size: recordBytes,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    }),
+    recordBuffer,
     recordData: new Uint8Array(recordBytes),
     recordCapacity: Math.floor(recordBytes / ORIENTATION_GLYPH_RECORD_STRIDE),
     recordCount: 0,
     source: undefined,
-    orderBuffer: resources.device.createBuffer({
-      label: "femgx orientation glyph order",
-      size: 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    }),
+    orderBuffer,
     orderData: new Uint32Array(1),
     orderCapacity: 1,
     orderCount: 0,
@@ -228,12 +236,13 @@ function syncRecords(
   if (sameOrientationGlyphRecordSource(resource.source, records)) return;
   const packed = packOrientationRecords(records);
   if (packed.byteLength !== resource.recordBuffer.size) {
-    resource.recordBuffer.destroy();
-    resource.recordBuffer = resources.device.createBuffer({
+    const recordBuffer = resources.device.createBuffer({
       label: "femgx orientation glyph records",
       size: packed.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
+    resource.recordBuffer.destroy();
+    resource.recordBuffer = recordBuffer;
     resource.recordData = new Uint8Array(packed.byteLength);
     resource.recordCapacity = records.elementIds.length;
     resource.bindGroup = undefined;

@@ -16,22 +16,26 @@ import { validateDeformation } from "./frame/deformation";
 import { syncResultColors } from "./resources/result-colors";
 import { GpuDeviceLifecycle } from "./recovery";
 import { writeBundleBackgroundColors } from "./frame/background";
+import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { SectionPlane } from "../math/section-plane";
-import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
+import {
+  syncOrientationGlyphs,
+  type OrientationGlyphState,
+} from "./orientation-glyphs/orientation-glyph";
 import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
 import { buildFrameOptions } from "./frame/frame-options";
+import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
+import { drawCostSnapshot, materializedEdgePartIds } from "./diagnostics/renderer-diagnostics";
 import { RendererPicking } from "./renderer-picking";
-import { createGpuTimestampRecorder, type GpuTimestampRecorder } from "./diagnostics/timestamps";
+import {
+  createGpuTimestampRecorder,
+  unavailableGpuTimestampSnapshot,
+  type GpuTimestampRecorder,
+  type GpuTimestampSnapshot,
+} from "./diagnostics/timestamps";
 import type { GpuRendererConstruction } from "./renderer-construction";
 import { applyRendererPartRevision } from "./attachment/part-revision";
-import { createRendererDiagnostics } from "./diagnostics/access";
-import { RendererInteractionController } from "./attachment/interaction-controller";
-import {
-  syncRendererOrientationGlyphs,
-  syncPartRevisionResults,
-  type PartRevisionResultState,
-} from "./attachment/part-revision-results";
-import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
+import type { PartRevisionResultState } from "./attachment/part-revision-results";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
@@ -39,7 +43,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
   public readonly lifecycle: GpuDeviceLifecycle;
-  private glyphSizes: [number, number];
+  private pointSize: number;
+  private nodeSize: number;
   private readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
   public readonly attachment = new RendererAttachment();
@@ -48,7 +53,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public lastCamera: Camera | undefined;
   private readonly edgePick: EdgePickState;
   public readonly picking: RendererPicking;
-  private readonly interactionController: RendererInteractionController;
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
   public deformation: DeformationState | undefined;
@@ -56,11 +60,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private sectionPlane: SectionPlane | undefined;
   private interaction = createInteractionState();
   public readonly sectionCaps = new SectionCapController();
-  public readonly diagnostics = createRendererDiagnostics({
-    ensureAlive: this.ensureAlive.bind(this),
-    draw: () => this.lifecycle.bundle.draw,
-    timestampRecorder: () => this.timestampRecorder,
-  });
   private timestampRecorder: GpuTimestampRecorder | undefined;
   private readonly timestampQueriesRequested: boolean;
   public orientationGlyphs: OrientationGlyphState | undefined;
@@ -78,7 +77,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.depthFormat = construction.depthFormat;
     this.timestampQueriesRequested = construction.timestampQueriesRequested ?? false;
     this.timestampRecorder = construction.timestampRecorder;
-    this.glyphSizes = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
+    [this.pointSize, this.nodeSize] = [options.pointSizePixels ?? 8, options.nodeSizePixels ?? 6];
     this.originTriadEnabled = options.originTriad ?? true;
     this.edgePick = createEdgePickState(construction.validation);
     this.background = options.background ?? "studio";
@@ -109,12 +108,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
       deformation: () => this.deformation,
       ensureSectionCaps: this.ensureSectionCaps.bind(this),
       frameOptions: () => this.frameOptions(),
-    });
-    this.interactionController = new RendererInteractionController({
-      attachment: this.attachment,
-      sectionCaps: this.sectionCaps,
-      bundle: () => this.lifecycle.bundle,
-      parts: () => this.parts,
     });
     writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     this.resize();
@@ -162,7 +155,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.attachment.clear(this.lifecycle.bundle);
     this.attachment.prepareParts(parts, this.lifecycle.bundle);
     destroyInstanceResources(this.lifecycle.bundle.draw);
-    this.parts = new Map(parts);
+    this.parts = new Map();
     this.sourceParts = undefined;
     this.lastCamera = undefined;
     this.deformation = undefined;
@@ -195,35 +188,15 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
 
   public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
     this.ensureAlive();
-    syncRendererOrientationGlyphs(
-      this.lifecycle.bundle.draw,
-      state,
-      this.attachment.runtime,
-      this.attachment.layout,
-    );
+    if (this.attachment.runtime !== undefined && this.attachment.layout !== undefined) {
+      syncOrientationGlyphs(
+        this.lifecycle.bundle.draw.orientationGlyphs,
+        state,
+        this.attachment.runtime,
+        this.attachment.layout,
+      );
+    }
     this.orientationGlyphs = state;
-  }
-
-  public setPartRevisionResults(options: PartRevisionResultState): void {
-    this.ensureAlive();
-    syncPartRevisionResults(
-      {
-        runtime: this.attachment.runtime,
-        layout: this.attachment.layout,
-        draw: this.lifecycle.bundle.draw,
-        clearResults: () => {
-          this.setDeformation(undefined);
-          this.setResultColors(undefined);
-          this.setOrientationGlyphs(undefined);
-        },
-        installResults: (results) => {
-          this.deformation = results.deformation;
-          this.resultColors = results.colors;
-        },
-        installGlyphs: this.setOrientationGlyphs.bind(this),
-      },
-      options,
-    );
   }
 
   public setSectionPlane(plane: SectionPlane | undefined): void {
@@ -241,11 +214,14 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   ): void {
     this.ensureAlive();
     this.interaction = interaction;
-    const changed = this.interactionController.updateInstances(
+    const changed = this.attachment.updateInstances(
       runtime,
       interaction,
       changedInstanceIds,
+      this.lifecycle.bundle,
     );
+    if (changed) this.sectionCaps.invalidate();
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
   }
 
@@ -257,13 +233,18 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   ): void {
     this.ensureAlive();
     this.interaction = interaction;
-    const changed = this.interactionController.updateOccurrences(
-      runtime,
-      interaction,
-      delta,
-      parts,
-    );
+    this.attachment.addParts(parts, delta.addedPartIds, this.parts);
+    const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
+    if (changed)
+      this.attachment.updateOccurrences(
+        runtime,
+        interaction,
+        delta,
+        this.parts,
+        this.lifecycle.bundle,
+      );
     if (this.sourceParts !== undefined) this.sourceParts = parts;
+    this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
   }
 
@@ -305,11 +286,14 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   ): void {
     this.ensureAlive();
     this.interaction = interaction;
-    const changed = this.interactionController.updateElements(
+    const changed = this.attachment.updateElements(
       runtime,
       interaction,
+      this.lifecycle.bundle,
+      this.parts,
       changedInstanceIds,
     );
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
   }
 
@@ -326,11 +310,17 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   }
 
   public setPointSizePixels(size: number): void {
-    this.setGlyphSize(0, size);
+    this.ensureAlive();
+    if (this.pointSize === size) return;
+    this.pointSize = size;
+    this.picking.invalidate();
   }
 
   public setNodeSizePixels(size: number): void {
-    this.setGlyphSize(1, size);
+    this.ensureAlive();
+    if (this.nodeSize === size) return;
+    this.nodeSize = size;
+    this.picking.invalidate();
   }
 
   public setOrbitPivot(pivot: Vec3 | undefined): void {
@@ -340,8 +330,9 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
 
   public updateVisibility(runtime: PackedSceneRuntime, affectedPartIds: readonly PartId[]): void {
     this.ensureAlive();
-    if (this.interactionController.updateVisibility(runtime, affectedPartIds))
-      this.picking.invalidate();
+    if (!this.attachment.updateVisibility(runtime, affectedPartIds, this.lifecycle.bundle)) return;
+    this.sectionCaps.invalidate();
+    this.picking.invalidate();
   }
 
   public async pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
@@ -376,6 +367,26 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public stats(): { readonly drawBatches: number } {
     this.ensureAlive();
     return { drawBatches: this.attachment.calls.length };
+  }
+
+  public costSnapshot(): GpuCostSnapshot {
+    this.ensureAlive();
+    return drawCostSnapshot(this.lifecycle.bundle.draw.cost);
+  }
+
+  public materializedEdgePartIds(): ReadonlySet<PartId> {
+    this.ensureAlive();
+    return materializedEdgePartIds(this.lifecycle.bundle.draw);
+  }
+
+  public timestampSnapshot(): GpuTimestampSnapshot {
+    this.ensureAlive();
+    return this.timestampRecorder?.snapshot() ?? unavailableGpuTimestampSnapshot();
+  }
+
+  public async drainTimestampSamples(): Promise<void> {
+    this.ensureAlive();
+    await this.timestampRecorder?.drain();
   }
 
   public destroy(): void {
@@ -415,13 +426,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.lifecycle.ensureUsable();
   }
 
-  private setGlyphSize(kind: 0 | 1, size: number): void {
-    this.ensureAlive();
-    if (this.glyphSizes[kind] === size) return;
-    this.glyphSizes[kind] = size;
-    this.picking.invalidate();
-  }
-
   public frameOptions() {
     return buildFrameOptions({
       canvas: this.canvas,
@@ -431,14 +435,12 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
       colorFormat: this.format,
       depthFormat: this.depthFormat,
       edgeDepthTest: this.edgeDepthTest,
-      pointSize: this.glyphSizes[0],
-      nodeSize: this.glyphSizes[1],
+      pointSize: this.pointSize,
+      nodeSize: this.nodeSize,
       deformation: this.deformation,
       sectionPlane: this.sectionPlane,
       resultColors: this.sectionCaps.resultColors,
-      capCalls: this.sectionCaps.currentFrame?.calls,
-      transparentCapCalls: this.sectionCaps.currentFrame?.transparentCalls,
-      allCapCalls: this.sectionCaps.currentFrame?.allCalls,
+      sectionCaps: this.sectionCaps,
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,
       originTriadNominalScale: this.originTriadNominalScale,

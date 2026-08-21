@@ -13,10 +13,7 @@ import { syncResultColors } from "../resources/result-colors";
 import { syncDeformations } from "./deformation";
 import { encodeVisibleFrame, type FrameOptions } from "./frame";
 
-/**
- * Private renderer state consumed by the extracted frame path. This structural
- * type keeps the frame module below the renderer facade, avoiding a cycle.
- */
+/** Private renderer state consumed by the extracted frame path. */
 export interface RendererFrameHost {
   readonly attachment: RendererAttachment;
   readonly sectionCaps: SectionCapController;
@@ -32,7 +29,7 @@ export interface RendererFrameHost {
   frameOptions(): FrameOptions;
 }
 
-/** Synchronizes one renderer frame while retaining the renderer facade's state ownership. */
+/** Synchronizes one renderer frame while retaining facade state ownership. */
 export function renderRendererFrame(
   host: RendererFrameHost,
   runtime: PackedSceneRuntime,
