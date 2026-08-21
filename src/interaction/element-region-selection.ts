@@ -31,7 +31,7 @@ export function createElementRegionSelection(
       elementIds: uniqueSortedElementIds(values),
     }))
     .filter(({ elementIds }) => elementIds.length > 0)
-    .sort((left, right) => left.partOccurrenceId.localeCompare(right.partOccurrenceId));
+    .sort((left, right) => compareOccurrenceIds(left.partOccurrenceId, right.partOccurrenceId));
   const count = ordered.reduce((total, group) => total + group.elementIds.length, 0);
   assertUint32Count(count);
   const partOccurrenceIds = new Array<PartOccurrenceId>(ordered.length);
@@ -80,7 +80,8 @@ export function assertElementRegionSelection(
       end === undefined ||
       start >= end ||
       end > selection.elementIds.length ||
-      (previousOccurrence !== undefined && previousOccurrence >= occurrenceId)
+      (previousOccurrence !== undefined &&
+        compareOccurrenceIds(previousOccurrence, occurrenceId) >= 0)
     ) {
       throw new TypeError(
         "Element region selection groups must be non-empty and deterministically ordered",
@@ -139,4 +140,8 @@ function unsignedElementId(value: ElementId): number {
 
 function assertUint32Count(count: number): void {
   if (count > 0xffff_ffff) throw new RangeError("Element region selection exceeds Uint32 capacity");
+}
+
+function compareOccurrenceIds(left: PartOccurrenceId, right: PartOccurrenceId): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }

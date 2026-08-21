@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createElementRegionSelection,
+  createInteractionState,
   installViewportInteraction,
   selectedElementRegion,
+  setElementRegionSelected,
 } from "../../src/entries/interaction";
 import {
   installFakeWindow,
@@ -21,13 +23,19 @@ afterEach(() => {
 });
 
 describe("installed element box interaction", () => {
-  it("isolates callback columns from discovery and the authoritative default transition", async () => {
+  it("orders stable ids and isolates callbacks from the authoritative default transition", async () => {
     const resolved = createElementRegionSelection(
       new Map([
-        ["1/0", new Set([2, 4])],
-        ["1/1", new Set([7])],
+        ["root/a", new Set([7])],
+        ["root/!", new Set([2, 4])],
+        ["root/A", new Set([5])],
       ]),
     );
+    expect(resolved.partOccurrenceIds).toEqual(["root/!", "root/A", "root/a"]);
+    expect(
+      selectedElementRegion(setElementRegionSelected(createInteractionState(), resolved, "replace"))
+        .partOccurrenceIds,
+    ).toEqual(["root/!", "root/A", "root/a"]);
     const harness = viewportHarness();
     harness.pickRegion.mockResolvedValue(resolved);
     const disposer = installViewportInteraction({
@@ -43,7 +51,7 @@ describe("installed element box interaction", () => {
         if (request.phase !== "box" || request.granularity !== "element") {
           throw new Error("Expected packed element application");
         }
-        expect([...request.selection.elementIds]).toEqual([2, 4, 7]);
+        expect([...request.selection.elementIds]).toEqual([2, 4, 5, 7]);
         request.selection.elementIds.fill(88);
         request.selection.offsets.fill(0);
         return request.defaultInteraction;
@@ -54,13 +62,13 @@ describe("installed element box interaction", () => {
     harness.canvas.dispatch("pointerup", pointer({ clientX: 100, clientY: 100 }));
     await settle();
 
-    expect([...resolved.elementIds]).toEqual([2, 4, 7]);
-    expect([...resolved.offsets]).toEqual([0, 2, 3]);
+    expect([...resolved.elementIds]).toEqual([2, 4, 5, 7]);
+    expect([...resolved.offsets]).toEqual([0, 2, 3, 4]);
     expect(selectedElementRegion(harness.viewport.interaction.state)).toMatchObject({
-      count: 3,
-      partOccurrenceIds: ["1/0", "1/1"],
-      offsets: new Uint32Array([0, 2, 3]),
-      elementIds: new Uint32Array([2, 4, 7]),
+      count: 4,
+      partOccurrenceIds: ["root/!", "root/A", "root/a"],
+      offsets: new Uint32Array([0, 2, 3, 4]),
+      elementIds: new Uint32Array([2, 4, 5, 7]),
     });
     disposer();
   });
