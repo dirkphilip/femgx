@@ -9,6 +9,8 @@ type NumericGroups = Map<number, Set<number>>;
 type FaceGroups = Map<number, Map<number, Set<number>>>;
 
 interface SeenIdentities {
+  readonly assemblyIds: Set<number>;
+  readonly assemblyOccurrenceIds: Set<string>;
   readonly partIds: Set<number>;
   readonly instanceIds: Set<number>;
   readonly ownerIds: NumericGroups;
@@ -28,6 +30,8 @@ export interface PickRegionTargetCollector {
 export function createPickRegionTargetCollector(): PickRegionTargetCollector {
   const ordered: OrderedTarget[] = [];
   const seen: SeenIdentities = {
+    assemblyIds: new Set(),
+    assemblyOccurrenceIds: new Set(),
     partIds: new Set(),
     instanceIds: new Set(),
     ownerIds: new Map(),
@@ -56,6 +60,12 @@ function recordIdentity(
   seen: SeenIdentities,
 ): boolean {
   switch (target.kind) {
+    case "assembly":
+      return recordNumber(seen.assemblyIds, target.assemblyId);
+    case "assemblyOccurrence":
+      if (seen.assemblyOccurrenceIds.has(target.assemblyOccurrenceId)) return false;
+      seen.assemblyOccurrenceIds.add(target.assemblyOccurrenceId);
+      return true;
     case "part":
       return recordNumber(seen.partIds, target.partId);
     case "partOccurrence":
@@ -118,6 +128,10 @@ function targetOrder(
   instancePickId: number,
 ): readonly [number, number, number | string] {
   switch (target.kind) {
+    case "assembly":
+      return [0, target.assemblyId, 0];
+    case "assemblyOccurrence":
+      return [instancePickId, 0, target.assemblyOccurrenceId];
     case "part":
       return [0, target.partId, 0];
     case "partOccurrence":

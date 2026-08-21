@@ -30,6 +30,20 @@ describe("resolvePick", () => {
 });
 
 describe("resolvePickHit", () => {
+  it("carries the complete assembly path on the physical hit", () => {
+    const withPath: PickContext = {
+      ...context,
+      assemblyPath: () => [
+        { assemblyId: 1, assemblyOccurrenceId: "1" },
+        { assemblyId: 2, assemblyOccurrenceId: "1/left" },
+      ],
+    };
+    expect(resolvePickHit(withPath, ids({ instancePickId: 1 }), [0, 0, 0])?.assemblyPath).toEqual([
+      { assemblyId: 1, assemblyOccurrenceId: "1" },
+      { assemblyId: 2, assemblyOccurrenceId: "1/left" },
+    ]);
+  });
+
   it("resolves an instance-only hit to an instance target", () => {
     expect(resolvePickHit(context, ids({ instancePickId: 1 }), [0, 0, 0])).toEqual({
       kind: "partOccurrence",

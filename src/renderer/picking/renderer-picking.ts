@@ -17,6 +17,7 @@ import {
   type EdgePickState,
 } from "../edges/edge-picking";
 import { pickHitFromPixel, resetPickTargets } from "./pick";
+import { assemblyPathForInstance } from "./assembly-path";
 import { pickTargetsFromRegion } from "./region";
 import { createElementPickScratch } from "./element-region";
 import { syncDeformations } from "../frame/deformation";
@@ -102,7 +103,7 @@ export class RendererPicking {
       device: this.owner.lifecycle.bundle.device,
       canvas: this.owner.canvas,
       pick: this.owner.lifecycle.bundle.pickTargets,
-      context: { instances: this.owner.attachment.instances, parts: this.owner.parts() },
+      context: this.pickContext(),
       camera,
       x,
       y,
@@ -125,7 +126,7 @@ export class RendererPicking {
       canvas: this.owner.canvas,
       pick,
       readback: pick.readback,
-      context: { instances: this.owner.attachment.instances, parts: this.owner.parts() },
+      context: this.pickContext(),
       rect,
       granularity,
       elementScratch: this.elementScratch,
@@ -139,7 +140,7 @@ export class RendererPicking {
       device: this.owner.lifecycle.bundle.device,
       canvas: this.owner.canvas,
       pick: this.owner.lifecycle.bundle.pickTargets,
-      context: { instances: this.owner.attachment.instances, parts: this.owner.parts() },
+      context: this.pickContext(),
       camera,
       x,
       y,
@@ -167,13 +168,25 @@ export class RendererPicking {
   }
 
   private edgeContext(camera: Camera) {
-    return createEdgePickContext(
-      this.owner.edgePick,
+    return createEdgePickContext({
+      state: this.owner.edgePick,
       camera,
-      this.owner.parts(),
-      this.owner.attachment.instances,
-      this.owner.frameOptions,
-    );
+      parts: this.owner.parts(),
+      instances: this.owner.attachment.instances,
+      frame: this.owner.frameOptions,
+      runtime: this.owner.attachment.runtime,
+    });
+  }
+
+  private pickContext() {
+    const runtime = this.owner.attachment.runtime;
+    return {
+      instances: this.owner.attachment.instances,
+      parts: this.owner.parts(),
+      ...(runtime === undefined
+        ? {}
+        : { assemblyPath: (slot: number) => assemblyPathForInstance(runtime, slot) }),
+    };
   }
 }
 

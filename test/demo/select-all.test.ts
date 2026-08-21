@@ -127,6 +127,10 @@ function edge(key: string, nodeIds: number[], incidentElementIds: number[]) {
 
 function targetLabel(target: ReturnType<typeof selectAllTargets>[number]): string {
   switch (target.kind) {
+    case "assembly":
+      return `assembly:${target.assemblyId}`;
+    case "assemblyOccurrence":
+      return `assemblyOccurrence:${target.assemblyOccurrenceId}`;
     case "body":
       return `body:${target.bodyId}`;
     case "element":

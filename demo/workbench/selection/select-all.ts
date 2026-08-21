@@ -30,6 +30,23 @@ export function selectAllTargets(
 ): readonly SelectTarget[] {
   const targets: SelectTarget[] = [];
   const selectedPartIds = new Set<number>();
+  if (granularity === "assembly") {
+    for (const assemblyId of viewport.scene.visibleAssemblyIds) {
+      targets.push({ kind: "assembly", assemblyId });
+    }
+    return targets;
+  }
+  if (granularity === "assemblyOccurrence") {
+    for (const occurrence of viewport.occurrences.assemblyOccurrences()) {
+      if (occurrence.effectiveVisible) {
+        targets.push({
+          kind: "assemblyOccurrence",
+          assemblyOccurrenceId: occurrence.assemblyOccurrenceId,
+        });
+      }
+    }
+    return targets;
+  }
   for (const partOccurrenceId of viewport.occurrences.visiblePartOccurrenceIds()) {
     const instance = viewport.occurrences.getPartOccurrence(partOccurrenceId);
     const part = instance === undefined ? undefined : viewport.scene.parts.get(instance.partId);

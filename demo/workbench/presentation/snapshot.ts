@@ -225,6 +225,7 @@ export interface WorkbenchCommands {
   selectAll(): void;
   hideSelected(): void;
   clearSelection(): void;
+  selectVisibilityTarget(target: VisibilityRowTarget): void;
   showAll(): void;
   reset(): void;
   selectModel(id: string): void;

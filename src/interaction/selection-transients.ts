@@ -8,8 +8,12 @@ type ElementTarget = Extract<InteractionTarget, { readonly kind: "element" }>;
 type FaceTarget = Extract<InteractionTarget, { readonly kind: "face" }>;
 type NodeTarget = Extract<InteractionTarget, { readonly kind: "node" }>;
 type EdgeTarget = Extract<InteractionTarget, { readonly kind: "edge" }>;
+type AssemblyTarget = Extract<InteractionTarget, { readonly kind: "assembly" }>;
+type AssemblyOccurrenceTarget = Extract<InteractionTarget, { readonly kind: "assemblyOccurrence" }>;
 
 export interface TargetGroups {
+  readonly assemblyIds: Set<AssemblyTarget["assemblyId"]>;
+  readonly assemblyOccurrenceIds: Set<AssemblyOccurrenceTarget["assemblyOccurrenceId"]>;
   readonly partIds: Set<PartTarget["partId"]>;
   readonly partOccurrenceIds: Set<PartOccurrenceTarget["partOccurrenceId"]>;
   readonly bodyIds: Map<BodyTarget["partOccurrenceId"], Set<BodyTarget["bodyId"]>>;
@@ -20,6 +24,8 @@ export interface TargetGroups {
 }
 
 export interface TargetCollections {
+  readonly assemblyIds: ReadonlySet<AssemblyTarget["assemblyId"]>;
+  readonly assemblyOccurrenceIds: ReadonlySet<AssemblyOccurrenceTarget["assemblyOccurrenceId"]>;
   readonly partIds: ReadonlySet<PartTarget["partId"]>;
   readonly partOccurrenceIds: ReadonlySet<PartOccurrenceTarget["partOccurrenceId"]>;
   readonly bodyIds: ReadonlyMap<BodyTarget["partOccurrenceId"], ReadonlySet<BodyTarget["bodyId"]>>;
@@ -39,6 +45,12 @@ export function updateSelectedTargetCollections(
   enabled: boolean,
 ): TargetCollections {
   return {
+    assemblyIds: updateOwnedSet(current.assemblyIds, groups.assemblyIds, enabled),
+    assemblyOccurrenceIds: updateOwnedSet(
+      current.assemblyOccurrenceIds,
+      groups.assemblyOccurrenceIds,
+      enabled,
+    ),
     partIds: updateOwnedSet(current.partIds, groups.partIds, enabled),
     partOccurrenceIds: updateOwnedSet(current.partOccurrenceIds, groups.partOccurrenceIds, enabled),
     bodyIds: updateOwnedNestedSets(current.bodyIds, groups.bodyIds, enabled),

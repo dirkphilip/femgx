@@ -3,6 +3,7 @@ import { readInteractionState, type InteractionState } from "../../interaction/s
 import type { PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { hasValidNodeSelection, partNodeCount } from "./node-selection";
+import { instanceMatchesAssemblyTarget } from "../../scene-runtime/interaction-hierarchy";
 
 const MAX_SPARSE_SELECTION_OCCURRENCES = 1024;
 
@@ -21,6 +22,23 @@ interface CandidateContext {
 interface SelectionOrderLayout {
   readonly slotPartLocal: Int32Array;
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+}
+
+interface AssemblyCandidateOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
+  readonly requested: ReadonlySet<PartId>;
+  readonly data: ReturnType<typeof readInteractionState>;
+  readonly candidates: Map<PartId, SelectionCandidates>;
+}
+
+interface SelectedTargetCheckOptions {
+  readonly data: ReturnType<typeof readInteractionState>;
+  readonly instanceId: PartOccurrenceId;
+  readonly partId: PartId;
+  readonly part: Part | undefined;
+  readonly runtime: PackedSceneRuntime;
+  readonly slot: number;
 }
 
 /** Returns whether a part's primary geometry is entirely authored point sprites. */
@@ -42,6 +60,13 @@ export function buildSelectionOrders(options: {
   for (const partId of data.selectedPartIds) {
     if (requested.has(partId)) candidate(candidates, partId).broad = true;
   }
+  addAssemblyCandidates({
+    runtime: options.runtime,
+    partSlots: options.layout.partSlots,
+    requested,
+    data,
+    candidates,
+  });
   const solePart = soleRuntimePart(options.runtime, options.layout, requested);
   if (
     solePart !== undefined &&
@@ -72,6 +97,27 @@ export function buildSelectionOrders(options: {
     );
   }
   return orders;
+}
+
+function addAssemblyCandidates(options: AssemblyCandidateOptions): void {
+  for (const partSlots of options.partSlots.values()) {
+    for (const slot of partSlots) {
+      if (
+        !instanceMatchesAssemblyTarget(
+          options.runtime,
+          slot,
+          options.data.selectedAssemblyIds,
+          options.data.selectedAssemblyOccurrenceIds,
+        )
+      ) {
+        continue;
+      }
+      const partId = options.runtime.instancePartIds[slot];
+      if (partId !== undefined && options.requested.has(partId)) {
+        addCandidateSlot(options.runtime, options.candidates, partId, slot);
+      }
+    }
+  }
 }
 
 /** Returns visible part-local slots carrying any selected target for one part. */
@@ -137,6 +183,22 @@ function addCandidate(context: CandidateContext, instanceId: PartOccurrenceId): 
   }
 }
 
+function addCandidateSlot(
+  runtime: PackedSceneRuntime,
+  candidates: Map<PartId, SelectionCandidates>,
+  partId: PartId,
+  slot: number,
+): void {
+  if (!runtime.isInstanceVisible(slot)) return;
+  const selected = candidate(candidates, partId);
+  if (selected.broad) return;
+  selected.slots.add(slot);
+  if (selected.slots.size > MAX_SPARSE_SELECTION_OCCURRENCES) {
+    selected.slots.clear();
+    selected.broad = true;
+  }
+}
+
 function candidate(
   candidates: Map<PartId, SelectionCandidates>,
   partId: PartId,
@@ -174,7 +236,7 @@ function broadSelectionOrder(
       local !== undefined &&
       local >= 0 &&
       runtime.isInstanceVisible(slot) &&
-      hasSelectedTarget(data, instanceId, partId, part)
+      hasSelectedTarget({ data, instanceId, partId, part, runtime, slot })
     ) {
       order.push(local);
     }
@@ -182,15 +244,17 @@ function broadSelectionOrder(
   return new Uint32Array(order);
 }
 
-function hasSelectedTarget(
-  data: ReturnType<typeof readInteractionState>,
-  instanceId: PartOccurrenceId,
-  partId: PartId,
-  part: Part | undefined,
-): boolean {
+function hasSelectedTarget(options: SelectedTargetCheckOptions): boolean {
+  const { data, instanceId, partId, part, runtime, slot } = options;
   return (
     data.selectedPartIds.has(partId) ||
     data.selectedPartOccurrenceIds.has(instanceId) ||
+    instanceMatchesAssemblyTarget(
+      runtime,
+      slot,
+      data.selectedAssemblyIds,
+      data.selectedAssemblyOccurrenceIds,
+    ) ||
     (data.selectedBodyIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedElementIds.get(instanceId)?.size ?? 0) > 0 ||
     (data.selectedFaces.get(instanceId)?.size ?? 0) > 0 ||

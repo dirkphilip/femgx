@@ -8,6 +8,7 @@ import {
 
 import {
   createInteractionState,
+  setAssemblySelected,
   setElementHighlighted,
   setElementOverride,
   setElementSelected,
@@ -223,6 +224,7 @@ export {
   type GeometryBody,
   type Part,
   createInteractionState,
+  setAssemblySelected,
   setElementHighlighted,
   setElementOverride,
   setElementSelected,

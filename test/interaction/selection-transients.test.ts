@@ -65,6 +65,8 @@ describe("local selection group publication", () => {
 
 function emptyGroups(): TargetGroups {
   return {
+    assemblyIds: new Set(),
+    assemblyOccurrenceIds: new Set(),
     partIds: new Set(),
     partOccurrenceIds: new Set(),
     bodyIds: new Map(),
@@ -83,6 +85,8 @@ function groupsWithElements(values: Set<number>): TargetGroups {
 
 function emptyCollections(): TargetCollections {
   return {
+    assemblyIds: new Set(),
+    assemblyOccurrenceIds: new Set(),
     partIds: new Set(),
     partOccurrenceIds: new Set(),
     bodyIds: new Map(),

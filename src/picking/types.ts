@@ -4,13 +4,25 @@ import type { FaceIdRef } from "../elements/faces";
 import type { FaceKey } from "../elements/faces";
 import type { BodyId, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
-import type { PartOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
+
+/** One assembly definition and occurrence along a physical hit's owner path. */
+export interface PickAssemblyPathEntry {
+  /** Reusable assembly definition on the root-to-owner path. */
+  readonly assemblyId: AssemblyId;
+  /** Expanded occurrence of the assembly definition on the path. */
+  readonly assemblyOccurrenceId: AssemblyOccurrenceId;
+}
 
 /**
  * Named selection granularities that a host may derive from a physical hit.
  * @category Interaction and picking
  */
 export const InteractionGranularity = {
+  /** Direct owning reusable assembly definition. */
+  Assembly: "assembly",
+  /** Direct owning expanded assembly occurrence. */
+  AssemblyOccurrence: "assemblyOccurrence",
   /** Whole reusable part definition. */
   Part: "part",
   /** One expanded placed-part occurrence. */
@@ -37,6 +49,8 @@ export type InteractionGranularity =
 export interface FacePickHit {
   /** Face-hit discriminator. */
   readonly kind: "face";
+  /** Root-to-direct-owner assembly context. */
+  readonly assemblyPath?: readonly PickAssemblyPathEntry[];
   /** Reusable part containing the hit. */
   readonly partId: PartId;
   /** Expanded placed-part occurrence containing the hit. */
@@ -66,6 +80,8 @@ export interface FacePickHit {
 export interface NodePickHit {
   /** Node-hit discriminator. */
   readonly kind: "node";
+  /** Root-to-direct-owner assembly context. */
+  readonly assemblyPath?: readonly PickAssemblyPathEntry[];
   /** Reusable part containing the node. */
   readonly partId: PartId;
   /** Expanded placed-part occurrence containing the node. */
@@ -90,6 +106,8 @@ export interface NodePickHit {
 export interface EdgePickHit {
   /** Authored-edge hit discriminator. */
   readonly kind: "edge";
+  /** Root-to-direct-owner assembly context. */
+  readonly assemblyPath?: readonly PickAssemblyPathEntry[];
   /** Reusable part containing the edge. */
   readonly partId: PartId;
   /** Expanded placed-part occurrence containing the edge. */
@@ -116,6 +134,8 @@ export type PickHit =
   | {
       /** Placed-part-occurrence hit discriminator. */
       readonly kind: "partOccurrence";
+      /** Root-to-direct-owner assembly context. */
+      readonly assemblyPath?: readonly PickAssemblyPathEntry[];
       /** Reusable part containing the occurrence. */
       readonly partId: PartId;
       /** Expanded placed-part occurrence identifier. */
@@ -126,6 +146,8 @@ export type PickHit =
   | {
       /** Element hit discriminator. */
       readonly kind: "element";
+      /** Root-to-direct-owner assembly context. */
+      readonly assemblyPath?: readonly PickAssemblyPathEntry[];
       /** Reusable part containing the element. */
       readonly partId: PartId;
       /** Expanded placed-part occurrence identifier. */

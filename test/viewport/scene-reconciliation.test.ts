@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getPartSemanticIndex } from "../../src/geometry/part-semantic-index";
 import { createPart } from "../../src/geometry/part";
 import { createInteractionState } from "../../src/interaction/interaction";
-import { updateInteractionState } from "../../src/interaction/state";
+import { readInteractionState, updateInteractionState } from "../../src/interaction/state";
 import { translationMatrix } from "../../src/math/mat4";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { createSceneBuilder } from "../../src/scene/scene";
@@ -103,5 +103,18 @@ describe("reconcileInteractionState", () => {
 
     expect(getPartSemanticIndex(part)).toBe(getPartSemanticIndex(part));
     expect(reconcileInteractionState(state, runtime, scene.parts)).toBe(state);
+  });
+
+  it("drops assembly identities absent from the replacement runtime", () => {
+    const { scene, runtime } = reusableScene();
+    const state = updateInteractionState(createInteractionState(), {
+      selectedAssemblyIds: new Set([1, 99]),
+      selectedAssemblyOccurrenceIds: new Set(["1", "missing"]),
+    });
+
+    const reconciled = reconcileInteractionState(state, runtime, scene.parts);
+    const data = readInteractionState(reconciled);
+    expect(data.selectedAssemblyIds).toEqual(new Set([1]));
+    expect(data.selectedAssemblyOccurrenceIds).toEqual(new Set(["1"]));
   });
 });

@@ -40,6 +40,26 @@ describe("GPU pick regions", () => {
     expect(createPickRegionTargetResolver(context, granularity)(pickIds)).toEqual(expected);
   });
 
+  it("resolves direct assembly owners from retained pick context", () => {
+    const context: PickContext = {
+      instances: [instance()],
+      parts: new Map([[1, richTrianglePart()]]),
+      assemblyPath: () => [
+        { assemblyId: 1, assemblyOccurrenceId: "1" },
+        { assemblyId: 2, assemblyOccurrenceId: "1/left" },
+      ],
+    };
+    expect(createPickRegionTargetResolver(context, "assembly")(ids({ instancePickId: 1 }))).toEqual(
+      {
+        kind: "assembly",
+        assemblyId: 2,
+      },
+    );
+    expect(
+      createPickRegionTargetResolver(context, "assemblyOccurrence")(ids({ instancePickId: 1 })),
+    ).toEqual({ kind: "assemblyOccurrence", assemblyOccurrenceId: "1/left" });
+  });
+
   it("keeps region target kinds strict and ignores invalid ownership ids", () => {
     const part = richTrianglePart();
     const unownedPart = createPart(2, { geometries: [triangleGeometry()] });
@@ -131,6 +151,23 @@ describe("GPU pick regions", () => {
       { kind: "body", partOccurrenceId: "root/0", bodyId: 3 },
       { kind: "body", partOccurrenceId: "root/0", bodyId: 12 },
       { kind: "body", partOccurrenceId: "root/1", bodyId: 8 },
+    ]);
+  });
+
+  it("deduplicates assembly definitions and occurrences independently", () => {
+    const collector = createPickRegionTargetCollector();
+    collector.add({ kind: "assembly", assemblyId: 2 }, 3);
+    collector.add({ kind: "assembly", assemblyId: 2 }, 1);
+    collector.add({ kind: "assembly", assemblyId: 1 }, 2);
+    collector.add({ kind: "assemblyOccurrence", assemblyOccurrenceId: "root/2" }, 3);
+    collector.add({ kind: "assemblyOccurrence", assemblyOccurrenceId: "root/2" }, 4);
+    collector.add({ kind: "assemblyOccurrence", assemblyOccurrenceId: "root/1" }, 2);
+
+    expect(collector.finish()).toEqual([
+      { kind: "assembly", assemblyId: 1 },
+      { kind: "assembly", assemblyId: 2 },
+      { kind: "assemblyOccurrence", assemblyOccurrenceId: "root/1" },
+      { kind: "assemblyOccurrence", assemblyOccurrenceId: "root/2" },
     ]);
   });
 });

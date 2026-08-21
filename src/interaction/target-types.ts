@@ -1,13 +1,25 @@
 import type { ElementId, NodeId } from "../elements/element";
 import type { EdgeKey } from "../elements/edges";
 import type { BodyId, PartId } from "../geometry/part";
-import type { PartOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 
 /**
  * One stable identity that can be selected, highlighted, or hovered.
  * @category Interaction and picking
  */
 export type InteractionTarget =
+  | {
+      /** Reusable assembly-definition interaction target. */
+      readonly kind: "assembly";
+      /** Stable reusable assembly identifier. */
+      readonly assemblyId: AssemblyId;
+    }
+  | {
+      /** One expanded assembly-occurrence interaction target. */
+      readonly kind: "assemblyOccurrence";
+      /** Stable expanded assembly-occurrence identifier. */
+      readonly assemblyOccurrenceId: AssemblyOccurrenceId;
+    }
   | {
       /** Part-level interaction target. */
       readonly kind: "part";

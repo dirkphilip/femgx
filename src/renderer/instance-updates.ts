@@ -1,7 +1,5 @@
 import type { InteractionState } from "../interaction/interaction";
-import { resolveInstanceStyle } from "../interaction/interaction";
 import { keepsInstanceResultColor } from "../interaction/result-color";
-import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
 import {
@@ -12,6 +10,11 @@ import {
 } from "./resources/draw-resources";
 import { defaultStyle } from "./resources/foundation";
 import { instanceAt, type InstanceLayout } from "./runtime-state";
+import {
+  resolveRuntimeInstanceStyle,
+  runtimeInstanceIsHighlighted,
+  runtimeInstanceIsSelected,
+} from "./selection/runtime-instance-style";
 
 /** Per-part record updates plus the parts whose overlay membership changed. */
 export interface CollectedInstanceUpdates {
@@ -67,14 +70,15 @@ export function collectInstanceUpdates(
   const edgeChanged = new Set<PartId>();
   const nodeChanged = new Set<PartId>();
   const transparentChanged = new Set<PartId>();
-  const interactionData = readInteractionState(interaction);
   for (const slot of changedInstanceIds) {
     if (slot < 0 || slot >= runtime.instanceCount) continue;
     const partId = runtime.instancePartIds[slot];
     const local = layout.slotPartLocal[slot];
     if (partId === undefined || local === undefined || local < 0) continue;
     const instance = instanceAt(runtime, slot, partId);
-    const style = resolveInstanceStyle(instance, defaultStyle, interaction);
+    const style = resolveRuntimeInstanceStyle(runtime, slot, defaultStyle, interaction);
+    const selected = runtimeInstanceIsSelected(runtime, slot, interaction);
+    const highlighted = runtimeInstanceIsHighlighted(runtime, slot, interaction);
     if (flags.edgeFlags[slot] !== style.edge) {
       flags.edgeFlags[slot] = style.edge;
       edgeChanged.add(partId);
@@ -94,9 +98,11 @@ export function collectInstanceUpdates(
         runtime.instanceWorldTransforms.subarray(slot * 16, slot * 16 + 16),
         style,
         slot + 1,
-        interactionData.selectedPartIds.has(partId) ||
-          interactionData.selectedPartOccurrenceIds.has(instance.partOccurrenceId),
-        keepsInstanceResultColor(instance, defaultStyle, interaction),
+        selected,
+        keepsInstanceResultColor(instance, defaultStyle, interaction, {
+          selected,
+          highlighted,
+        }),
       ),
     };
     const list = updates.get(partId);

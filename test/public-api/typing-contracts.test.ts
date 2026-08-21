@@ -30,6 +30,20 @@ async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise
   );
   expectTypeOf(nodeTargets).toEqualTypeOf<readonly InteractionTargetFor<"node">[]>();
 
+  const assemblyTargets = await viewport.interaction.pickRegion(
+    { left: 0, top: 0, right: 1, bottom: 1, width: 1, height: 1 },
+    InteractionGranularity.Assembly,
+  );
+  expectTypeOf(assemblyTargets).toEqualTypeOf<readonly InteractionTargetFor<"assembly">[]>();
+
+  const assemblyOccurrenceTargets = await viewport.interaction.pickRegion(
+    { left: 0, top: 0, right: 1, bottom: 1, width: 1, height: 1 },
+    InteractionGranularity.AssemblyOccurrence,
+  );
+  expectTypeOf(assemblyOccurrenceTargets).toEqualTypeOf<
+    readonly InteractionTargetFor<"assemblyOccurrence">[]
+  >();
+
   const elementSelection = await viewport.interaction.pickRegion(
     { left: 0, top: 0, right: 1, bottom: 1, width: 1, height: 1 },
     InteractionGranularity.Element,

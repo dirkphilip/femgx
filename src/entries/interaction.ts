@@ -1,6 +1,10 @@
 /** Interaction state, target mapping, and host-owned selection gestures. */
 export {
   createInteractionState,
+  setAssemblyHighlighted,
+  setAssemblyOccurrenceHighlighted,
+  setAssemblyOccurrenceSelected,
+  setAssemblySelected,
   setPartOverride,
   setPartOverrides,
   setPartOccurrenceOverride,

@@ -1,4 +1,10 @@
-import type { ElementId, ElementRef, PartOccurrenceId } from "../scene/types";
+import type {
+  AssemblyId,
+  AssemblyOccurrenceId,
+  ElementId,
+  ElementRef,
+  PartOccurrenceId,
+} from "../scene/types";
 import type { BodyId, PartId } from "../geometry/part";
 import {
   createInteractionStateValue,
@@ -52,8 +58,12 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     validatePrimitiveStyleOverride(style);
   }
   const data: InteractionStateData = {
+    highlightedAssemblyIds: new Set(),
+    highlightedAssemblyOccurrenceIds: new Set(),
     highlightedPartIds: new Set(),
     highlightedPartOccurrenceIds: new Set(),
+    selectedAssemblyIds: new Set(),
+    selectedAssemblyOccurrenceIds: new Set(),
     selectedPartIds: new Set(),
     selectedPartOccurrenceIds: new Set(),
     selectedBodyIds: new Map(),
@@ -75,6 +85,47 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     theme: copyTheme(theme),
   };
   return createInteractionStateValue(data);
+}
+
+/** Sets or clears a reusable assembly-definition highlight. */
+export function setAssemblyHighlighted(
+  state: InteractionState,
+  assemblyId: AssemblyId,
+  highlighted: boolean,
+): InteractionState {
+  return updateAssemblySet(state, "highlightedAssemblyIds", assemblyId, highlighted);
+}
+
+/** Sets or clears one expanded assembly-occurrence highlight. */
+export function setAssemblyOccurrenceHighlighted(
+  state: InteractionState,
+  assemblyOccurrenceId: AssemblyOccurrenceId,
+  highlighted: boolean,
+): InteractionState {
+  return updateAssemblySet(
+    state,
+    "highlightedAssemblyOccurrenceIds",
+    assemblyOccurrenceId,
+    highlighted,
+  );
+}
+
+/** Sets or clears a reusable assembly-definition selection. */
+export function setAssemblySelected(
+  state: InteractionState,
+  assemblyId: AssemblyId,
+  selected: boolean,
+): InteractionState {
+  return updateAssemblySet(state, "selectedAssemblyIds", assemblyId, selected);
+}
+
+/** Sets or clears one expanded assembly-occurrence selection. */
+export function setAssemblyOccurrenceSelected(
+  state: InteractionState,
+  assemblyOccurrenceId: AssemblyOccurrenceId,
+  selected: boolean,
+): InteractionState {
+  return updateAssemblySet(state, "selectedAssemblyOccurrenceIds", assemblyOccurrenceId, selected);
 }
 
 function copyTheme(theme: InteractionTheme): InteractionTheme {
@@ -345,6 +396,22 @@ function updateInstanceSet(
   state: InteractionState,
   key: "highlightedPartOccurrenceIds" | "selectedPartOccurrenceIds",
   value: PartOccurrenceId,
+  enabled: boolean,
+): InteractionState {
+  const data = readInteractionState(state);
+  const next = updateSet(data[key], value, enabled);
+  if (next === data[key]) return state;
+  return updateInteractionState(state, { [key]: next });
+}
+
+function updateAssemblySet(
+  state: InteractionState,
+  key:
+    | "highlightedAssemblyIds"
+    | "highlightedAssemblyOccurrenceIds"
+    | "selectedAssemblyIds"
+    | "selectedAssemblyOccurrenceIds",
+  value: AssemblyId | AssemblyOccurrenceId,
   enabled: boolean,
 ): InteractionState {
   const data = readInteractionState(state);

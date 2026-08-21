@@ -135,7 +135,12 @@ function selectionCommands(
   owner: WorkbenchCommandOwner,
 ): Pick<
   WorkbenchCommands,
-  "fitSelection" | "selectAll" | "hideSelected" | "clearSelection" | "showAll"
+  | "fitSelection"
+  | "selectAll"
+  | "hideSelected"
+  | "clearSelection"
+  | "selectVisibilityTarget"
+  | "showAll"
 > {
   return {
     fitSelection: owner.fitSelection.bind(owner),
@@ -143,6 +148,9 @@ function selectionCommands(
     hideSelected: owner.hideSelected.bind(owner),
     clearSelection: () => {
       owner.interactionController.clearSelection();
+    },
+    selectVisibilityTarget: (target) => {
+      owner.interactionController.select(target);
     },
     showAll: owner.showAll.bind(owner),
   };
@@ -169,11 +177,11 @@ function resultPlaybackCommands(
 
 function toggleVisibility(owner: WorkbenchCommandOwner, target: VisibilityRowTarget): void {
   switch (target.kind) {
-    case "assembly": {
-      const occurrence = owner.runtime.getAssemblyOccurrence(target.occurrenceId);
+    case "assemblyOccurrence": {
+      const occurrence = owner.runtime.getAssemblyOccurrence(target.assemblyOccurrenceId);
       if (occurrence !== undefined) {
         owner.visibilityActions.setAssemblyOccurrenceVisible(
-          target.occurrenceId,
+          target.assemblyOccurrenceId,
           !occurrence.visible,
         );
       }

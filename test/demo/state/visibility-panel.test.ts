@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, isBodyVisible, isTargetHighlighted } from "@/entries/interaction";
+import {
+  createInteractionState,
+  isBodyVisible,
+  isTargetHighlighted,
+  isTargetSelected,
+} from "@/entries/interaction";
 import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
@@ -7,6 +12,29 @@ import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench
 import { VisibilityPanelController } from "../../../demo/workbench/state/visibility-panel";
 
 describe("VisibilityPanelController", () => {
+  it("marks rows with their ordinary interaction selection state", () => {
+    const model = createExampleModel(createBoltedPlatePreset());
+    const runtime = createSceneOccurrenceSnapshot(model.scene);
+    const panel = new VisibilityPanelController({
+      getModel: () => model,
+      getRuntime: () => runtime,
+      partName: (partId) => model.partNames.get(partId),
+      partVisible: () => true,
+      bodyVisible: () => true,
+      bodyHighlighted: () => false,
+      targetSelected: (target) =>
+        target.kind === "assemblyOccurrence" && target.assemblyOccurrenceId === "1",
+      onChanged: () => undefined,
+    });
+
+    panel.rebuild();
+
+    expect(panel.snapshot().rows[0]?.selected).toBe(true);
+    expect(panel.snapshot().rows.some((row) => row.kind === "partOccurrence" && row.selected)).toBe(
+      false,
+    );
+  });
+
   it("preserves expanded rows across rebuilds but resets for a new model", () => {
     let model = createExampleModel(createBoltedPlatePreset());
     let runtime = createSceneOccurrenceSnapshot(model.scene);
@@ -19,12 +47,13 @@ describe("VisibilityPanelController", () => {
     const assembly = panel
       .snapshot()
       .rows.find((row) => row.kind === "assembly" && row.expandable && row.expanded);
-    if (assembly?.target.kind !== "assembly") throw new Error("Expected an expanded assembly");
-    panel.toggleExpanded(assembly.target.occurrenceId);
-    expect(rowFor(panel, assembly.target.occurrenceId)?.expanded).toBe(false);
+    if (assembly?.target.kind !== "assemblyOccurrence")
+      throw new Error("Expected an expanded assembly");
+    panel.toggleExpanded(assembly.target.assemblyOccurrenceId);
+    expect(rowFor(panel, assembly.target.assemblyOccurrenceId)?.expanded).toBe(false);
 
     panel.rebuild();
-    expect(rowFor(panel, assembly.target.occurrenceId)?.expanded).toBe(false);
+    expect(rowFor(panel, assembly.target.assemblyOccurrenceId)?.expanded).toBe(false);
 
     model = createExampleModel(createResultsPreset());
     runtime = createSceneOccurrenceSnapshot(model.scene);
@@ -32,7 +61,7 @@ describe("VisibilityPanelController", () => {
     const replacementRoot = panel.snapshot().rows[0];
     expect(replacementRoot?.kind).toBe("assembly");
     expect(replacementRoot?.expanded).toBe(true);
-    expect(rowFor(panel, assembly.target.occurrenceId)).toBeUndefined();
+    expect(rowFor(panel, assembly.target.assemblyOccurrenceId)).toBeUndefined();
   });
 
   it("pages every logical row while materializing only the active 1,000-row window", () => {
@@ -44,6 +73,7 @@ describe("VisibilityPanelController", () => {
       partVisible: () => true,
       bodyVisible: () => true,
       bodyHighlighted: () => false,
+      targetSelected: () => false,
       onChanged: () => undefined,
     });
 
@@ -66,7 +96,11 @@ describe("VisibilityPanelController", () => {
 function rowFor(panel: VisibilityPanelController, occurrenceId: string) {
   return panel
     .snapshot()
-    .rows.find((row) => row.target.kind === "assembly" && row.target.occurrenceId === occurrenceId);
+    .rows.find(
+      (row) =>
+        row.target.kind === "assemblyOccurrence" &&
+        row.target.assemblyOccurrenceId === occurrenceId,
+    );
 }
 
 function createPanel(
@@ -83,6 +117,7 @@ function createPanel(
       isBodyVisible(interaction, { partOccurrenceId, bodyId }),
     bodyHighlighted: (partOccurrenceId, bodyId) =>
       isTargetHighlighted(interaction, { kind: "body", partOccurrenceId, bodyId }),
+    targetSelected: (target) => isTargetSelected(interaction, target),
     onChanged: () => undefined,
   });
 }

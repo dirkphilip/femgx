@@ -11,6 +11,7 @@ export function resolveInstanceStyleLayers(
   base: ResolvedStyle,
   state: InteractionState,
   includeSelection: boolean,
+  hierarchy: { readonly highlighted?: boolean; readonly selected?: boolean } = {},
 ): ResolvedStyle {
   const data = readInteractionState(state);
   const emphasized = applyStyleLayers(base, [
@@ -23,6 +24,7 @@ export function resolveInstanceStyleLayers(
     hoveredInstanceId(data.hoveredTarget, instance) !== undefined
       ? applySelectionStyle(base, data.theme.highlighted)
       : undefined,
+    hierarchy.highlighted === true ? applySelectionStyle(base, data.theme.highlighted) : undefined,
   ]);
   const selected = includeSelection
     ? applyStyleLayers(emphasized, [
@@ -32,6 +34,7 @@ export function resolveInstanceStyleLayers(
         data.selectedPartOccurrenceIds.has(instance.partOccurrenceId)
           ? applySelectionStyle(base, data.theme.selected)
           : undefined,
+        hierarchy.selected === true ? applySelectionStyle(base, data.theme.selected) : undefined,
       ])
     : emphasized;
   return applyStyleLayers(selected, [

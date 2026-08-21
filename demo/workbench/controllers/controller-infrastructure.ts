@@ -166,6 +166,7 @@ function partIdForTarget(
 ): number | undefined {
   if (target === undefined) return undefined;
   if (target.kind === "part") return target.partId;
+  if (target.kind === "assembly" || target.kind === "assemblyOccurrence") return undefined;
   return slot.viewport.occurrences.getPartOccurrence(target.partOccurrenceId)?.partId;
 }
 

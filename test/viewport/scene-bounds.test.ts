@@ -178,6 +178,16 @@ describe("viewport scene bounds", () => {
       maxX: 11,
     });
 
+    const assemblySelected = setTargetSelected(
+      createInteractionState(),
+      { kind: "assembly", assemblyId: 1 },
+      true,
+    );
+    expect(selectedSceneBounds(scene, runtime, assemblySelected)).toMatchObject({
+      minX: 0,
+      maxX: 11,
+    });
+
     for (const { target, expected } of entityTargets) {
       const selected = setTargetSelected(createInteractionState(), target, true);
       expect(selectedSceneBounds(scene, runtime, selected)).toMatchObject(expected);

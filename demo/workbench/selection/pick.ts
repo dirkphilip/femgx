@@ -5,7 +5,15 @@ import type { BodyId, ElementId } from "@/entries/model";
 /** The user-selectable workbench interaction granularities. */
 export type SelectionGranularity = Extract<
   InteractionGranularity,
-  "part" | "partOccurrence" | "body" | "element" | "face" | "node" | "edge"
+  | "assembly"
+  | "assemblyOccurrence"
+  | "part"
+  | "partOccurrence"
+  | "body"
+  | "element"
+  | "face"
+  | "node"
+  | "edge"
 >;
 
 /** A stable selection identity at any supported granularity. */
@@ -38,6 +46,8 @@ export function selectTarget(
       : modifiers.shiftKey &&
           granularity !== "part" &&
           granularity !== "partOccurrence" &&
+          granularity !== "assembly" &&
+          granularity !== "assemblyOccurrence" &&
           granularity !== "edge" &&
           granularity !== "body"
         ? "element"
@@ -75,6 +85,8 @@ function mapTarget(
     !modifiers.altKey &&
     selectedTarget.kind !== "part" &&
     selectedTarget.kind !== "partOccurrence" &&
+    selectedTarget.kind !== "assembly" &&
+    selectedTarget.kind !== "assemblyOccurrence" &&
     selectedTarget.kind !== "edge" &&
     selectedTarget.kind !== "body"
     ? elementTarget(selectedTarget)
@@ -112,6 +124,8 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
         elementId: target.elementId,
       };
     case "body":
+    case "assembly":
+    case "assemblyOccurrence":
     case "partOccurrence":
     case "part":
     case "edge":
@@ -123,6 +137,10 @@ export function elementTarget(target: SelectTarget): SelectTarget | undefined {
 export function targetKey(target: PickHit | SelectTarget | undefined): string {
   if (target === undefined) return "";
   switch (target.kind) {
+    case "assembly":
+      return `assembly:${target.assemblyId}`;
+    case "assemblyOccurrence":
+      return `assemblyOccurrence:${target.assemblyOccurrenceId}`;
     case "body":
       return `body:${target.partOccurrenceId}:${target.bodyId}`;
     case "node":

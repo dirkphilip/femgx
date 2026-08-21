@@ -13,71 +13,9 @@ import {
   setHierarchyHover,
   type WorkbenchHoverController,
 } from "../../demo/workbench/controllers/controller-hover";
-import {
-  interactionTargetsForRow,
-  visibilityRowTargetsEqual,
-} from "../../demo/workbench/state/visibility-snapshot";
+import { visibilityRowTargetsEqual } from "../../demo/workbench/state/visibility-snapshot";
 
 describe("visibility tree hover mapping", () => {
-  it("projects visible assembly descendants while mapping ordinary rows", () => {
-    const occurrences = new Map([
-      [
-        "1",
-        {
-          assemblyOccurrenceId: "1",
-          assemblyId: 1,
-          parentAssemblyOccurrenceId: undefined,
-          placementId: undefined,
-          childCount: 1,
-          getChildId: (ordinal: number) => (ordinal === 0 ? "1/child" : undefined),
-          partOccurrenceCount: 0,
-          getPartOccurrenceId: () => undefined,
-          visible: true,
-          effectiveVisible: true,
-        },
-      ],
-      [
-        "1/child",
-        {
-          assemblyOccurrenceId: "1/child",
-          assemblyId: 2,
-          parentAssemblyOccurrenceId: "1",
-          placementId: "child",
-          childCount: 0,
-          getChildId: () => undefined,
-          partOccurrenceCount: 2,
-          getPartOccurrenceId: (ordinal: number) =>
-            ordinal === 0 ? "1/child/part-a" : ordinal === 1 ? "1/child/part-b" : undefined,
-          visible: true,
-          effectiveVisible: true,
-        },
-      ],
-    ]);
-    const visibleInstances = new Set(["1/child/part-a", "1/child/part-b"]);
-    const runtime = {
-      getAssemblyOccurrence: (id: string) => occurrences.get(id),
-      isPartOccurrenceVisible: (id: string) => visibleInstances.has(id),
-    } as unknown as SceneOccurrences;
-
-    expect(interactionTargetsForRow(runtime, { kind: "assembly", occurrenceId: "1" })).toEqual([
-      { kind: "partOccurrence", partOccurrenceId: "1/child/part-a" },
-      { kind: "partOccurrence", partOccurrenceId: "1/child/part-b" },
-    ]);
-    expect(
-      interactionTargetsForRow(runtime, {
-        kind: "partOccurrence",
-        partOccurrenceId: "1/sibling/part",
-      }),
-    ).toEqual([{ kind: "partOccurrence", partOccurrenceId: "1/sibling/part" }]);
-    expect(
-      interactionTargetsForRow(runtime, {
-        kind: "body",
-        partOccurrenceId: "1/child/part-a",
-        bodyId: 4,
-      }),
-    ).toEqual([{ kind: "body", partOccurrenceId: "1/child/part-a", bodyId: 4 }]);
-  });
-
   it("compares row identityMatrix so stale leave events cannot clear a newer row", () => {
     const body = { kind: "body", partOccurrenceId: "1/child/part-a", bodyId: 4 } as const;
     expect(visibilityRowTargetsEqual(body, { ...body })).toBe(true);
@@ -150,7 +88,7 @@ describe("visibility tree hover mapping", () => {
       render: () => undefined,
       viewports: () => [viewport],
     } as WorkbenchHoverController;
-    const assembly = { kind: "assembly", occurrenceId: "1" } as const;
+    const assembly = { kind: "assemblyOccurrence", assemblyOccurrenceId: "1" } as const;
 
     setHierarchyHover(owner, assembly);
     applyDisplayedInteraction(owner);

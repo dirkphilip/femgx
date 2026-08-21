@@ -5,6 +5,7 @@ import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interact
 import { readInteractionState } from "../interaction/state";
 import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import { forEachInstanceUnderAssemblyTargets } from "../scene-runtime/interaction-hierarchy";
 
 /**
  * Computes the instance slots whose GPU record may change when an interaction
@@ -44,6 +45,7 @@ export function changedInstanceSlots(
       changed.add(slot);
     }
   };
+  addChangedAssemblySlots(runtime, previousData, nextData, changed);
   diffSetMembers(previousData.highlightedPartIds, nextData.highlightedPartIds, addPart);
   diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, addPart);
   diffMapValues(previousData.partOverrides, nextData.partOverrides, addPart);
@@ -69,12 +71,70 @@ export function changedInstanceSlots(
   );
   diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
   if (previousData.hoveredTarget !== nextData.hoveredTarget) {
+    addAssemblyTarget(previousData.hoveredTarget, runtime, changed);
+    addAssemblyTarget(nextData.hoveredTarget, runtime, changed);
     addInstance(hoveredInstanceId(previousData.hoveredTarget));
     addInstance(hoveredInstanceId(nextData.hoveredTarget));
   }
   return Array.from(changed).sort((a, b) => a - b);
 }
 
+function addAssemblyTarget(
+  target: InteractionTarget | undefined,
+  runtime: PackedSceneRuntime,
+  changed: Set<number>,
+): void {
+  if (target?.kind === "assembly") {
+    addAssemblySlots(runtime, new Set([target.assemblyId]), new Set(), changed);
+  } else if (target?.kind === "assemblyOccurrence") {
+    addAssemblySlots(runtime, new Set(), new Set([target.assemblyOccurrenceId]), changed);
+  }
+}
+
+function addChangedAssemblySlots(
+  runtime: PackedSceneRuntime,
+  previousData: ReturnType<typeof readInteractionState>,
+  nextData: ReturnType<typeof readInteractionState>,
+  changed: Set<number>,
+): void {
+  diffSetMembers(previousData.highlightedAssemblyIds, nextData.highlightedAssemblyIds, (id) => {
+    addAssemblySlots(runtime, new Set([id]), new Set(), changed);
+  });
+  diffSetMembers(
+    previousData.highlightedAssemblyOccurrenceIds,
+    nextData.highlightedAssemblyOccurrenceIds,
+    (id) => {
+      addAssemblySlots(runtime, new Set(), new Set([id]), changed);
+    },
+  );
+  diffSetMembers(previousData.selectedAssemblyIds, nextData.selectedAssemblyIds, (id) => {
+    addAssemblySlots(runtime, new Set([id]), new Set(), changed);
+  });
+  diffSetMembers(
+    previousData.selectedAssemblyOccurrenceIds,
+    nextData.selectedAssemblyOccurrenceIds,
+    (id) => {
+      addAssemblySlots(runtime, new Set(), new Set([id]), changed);
+    },
+  );
+}
+
+function addAssemblySlots(
+  runtime: PackedSceneRuntime,
+  assemblyIds: ReadonlySet<number>,
+  occurrenceIds: ReadonlySet<string>,
+  changed: Set<number>,
+): void {
+  forEachInstanceUnderAssemblyTargets(runtime, assemblyIds, occurrenceIds, (slot) => {
+    changed.add(slot);
+  });
+}
+
 function hoveredInstanceId(target: InteractionTarget | undefined): PartOccurrenceId | undefined {
-  return target === undefined || target.kind === "part" ? undefined : target.partOccurrenceId;
+  return target === undefined ||
+    target.kind === "part" ||
+    target.kind === "assembly" ||
+    target.kind === "assemblyOccurrence"
+    ? undefined
+    : target.partOccurrenceId;
 }

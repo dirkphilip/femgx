@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createPart } from "@/geometry/part";
 import {
   createInteractionState,
+  setAssemblySelected,
   setPartOccurrenceOverride,
   setPartOverride,
 } from "@/interaction/interaction";
@@ -46,6 +47,35 @@ function sceneRuntime() {
 }
 
 describe("interactionDirtyParts", () => {
+  it("marks every descendant part dirty when an assembly selection changes", () => {
+    const { runtime, parts } = sceneRuntime();
+    const layout = buildInstanceLayout(runtime);
+    const selected = setAssemblySelected(
+      createInteractionState({ highlighted: {}, selected: { opacity: 0.5 } }),
+      1,
+      true,
+    );
+
+    expect(
+      interactionDirtyParts(runtime, layout, createInteractionState(), selected, false),
+    ).toEqual({ selectionParts: new Set([1]), nodeParts: new Set() });
+
+    const currentFlags = [false, false];
+    const changed = refreshTransparencyFlags({
+      runtime,
+      layout,
+      interaction: selected,
+      parts,
+      currentFlags,
+      slotByInstanceId: new Map(),
+      changedSlots: [0, 1],
+      affectedParts: new Set([1]),
+      emphasisUpdates: new Map(),
+    });
+    expect(currentFlags).toEqual([true, true]);
+    expect(changed).toEqual(new Set([1]));
+  });
+
   it("marks node orders dirty when part or part-occurrence style overrides change", () => {
     const { runtime } = sceneRuntime();
     const layout = buildInstanceLayout(runtime);
