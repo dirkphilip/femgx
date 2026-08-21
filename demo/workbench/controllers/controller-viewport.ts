@@ -11,7 +11,6 @@ import {
   type ObservedPaneSize,
 } from "../viewport/viewport-presentation";
 import type { DisplayToggles, ResultDisplayMode } from "../types";
-import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
@@ -118,13 +117,6 @@ export function isPointerGestureActiveForOwner(
   owner: Pick<WorkbenchViewportOwner, "viewportSlots">,
 ): boolean {
   return owner.viewportSlots.isPointerGestureActive();
-}
-
-/** Returns interaction statistics from the controller-owned interaction adapter. */
-export function boxSelectionStatsForOwner(owner: {
-  readonly interactionController: WorkbenchInteraction;
-}): ReturnType<WorkbenchInteraction["getBoxSelectionStats"]> {
-  return owner.interactionController.getBoxSelectionStats();
 }
 
 /** Toggles the secondary viewport and refreshes its selection resolvers. */

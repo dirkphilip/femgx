@@ -29,7 +29,7 @@ export function normalizeBoxSelectionStrategyForGranularity(owner: BoxSelectionO
       : "visible-surface";
 }
 
-/** Rebuilds resolver closures for every current viewport and invalidates stale work. */
+/** Rebuilds resolver closures for every current viewport. */
 export function applyBoxSelectionResolvers(owner: BoxSelectionOwner): void {
   for (const slot of owner.viewportSlots.all()) {
     const viewport = () => slot.viewport;

@@ -1,9 +1,5 @@
 import { type Viewport } from "@/entries/root";
-import {
-  boxSelectionFrustum,
-  createElementRegionSelection,
-  type BoxSelectionFrustum,
-} from "@/entries/interaction";
+import { boxSelectionFrustum, type BoxSelectionFrustum } from "@/entries/interaction";
 import { type DeformationState } from "@/entries/results";
 import {
   BoxSelectionResolverContractError,
@@ -17,6 +13,7 @@ import {
   type MutableVec3,
 } from "./through-box-geometry";
 import { localBoundsPlanes } from "./through-box-bounds";
+import { ThroughElementRegionBuilder } from "./through-element-region-builder";
 
 interface ThroughQueryContext {
   readonly view: Viewport;
@@ -24,7 +21,7 @@ interface ThroughQueryContext {
   readonly tolerance: number;
   readonly deformation: DeformationState | undefined;
   readonly points: MutableVec3[];
-  readonly groups: Map<string, Set<number>>;
+  readonly selection: ThroughElementRegionBuilder;
 }
 
 interface ReusableElementQuery extends Omit<ElementQuery, "element" | "elementIndex"> {
@@ -39,6 +36,11 @@ export interface ThroughBoxSelectionProbe {
   intersectionTests: number;
   selectedIdentities: number;
   groupsCreated: number;
+  typedScratchGrowths: number;
+  typedScratchBytes: number;
+  outputTypedBytes: number;
+  queryMilliseconds: number;
+  packPublishMilliseconds: number;
 }
 
 /**
@@ -62,7 +64,6 @@ export function throughIntersectionBoxSelectionResolver(
     const frustum = boxSelectionFrustum(view.view.camera, event.rect);
     const tolerance = selectionTolerance(view);
     const deformation = view.results.state?.deformation;
-    const groups = new Map<string, Set<number>>();
     const points: MutableVec3[] = [
       [0, 0, 0],
       [0, 0, 0],
@@ -74,14 +75,25 @@ export function throughIntersectionBoxSelectionResolver(
       tolerance,
       deformation,
       points,
-      groups,
+      selection: new ThroughElementRegionBuilder(),
     };
+    const queryStarted = probe === undefined ? 0 : performance.now();
 
     for (const partOccurrenceId of view.occurrences.visiblePartOccurrenceIds()) {
       if (probe !== undefined) probe.occurrencesVisited += 1;
       appendVisibleOccurrenceTargets(context, partOccurrenceId, probe);
     }
-    return Promise.resolve(createElementRegionSelection(context.groups));
+    const packStarted = probe === undefined ? 0 : performance.now();
+    const selection = context.selection.selection();
+    if (probe !== undefined) {
+      const details = context.selection.details();
+      probe.typedScratchGrowths += details.growths;
+      probe.typedScratchBytes += details.scratchBytes;
+      probe.outputTypedBytes += selection.offsets.byteLength + selection.elementIds.byteLength;
+      probe.queryMilliseconds += packStarted - queryStarted;
+      probe.packPublishMilliseconds += performance.now() - packStarted;
+    }
+    return Promise.resolve(selection);
   };
 }
 
@@ -97,6 +109,7 @@ function appendVisibleOccurrenceTargets(
   if (occurrence === undefined || !occurrence.effectiveVisible) return;
   const part = view.scene.parts.get(instance.partId);
   if (part === undefined) return;
+  context.selection.beginOccurrence(partOccurrenceId);
   const partQuery = queryData(part);
   let elementQuery: ReusableElementQuery | undefined;
   for (let elementIndex = 0; elementIndex < partQuery.elements.length; elementIndex += 1) {
@@ -130,11 +143,7 @@ function appendVisibleOccurrenceTargets(
     }
     if (probe !== undefined) probe.intersectionTests += 1;
     if (elementIntersectsBox(elementQuery)) {
-      const selected = context.groups.get(partOccurrenceId);
-      if (selected === undefined) {
-        context.groups.set(partOccurrenceId, new Set([element.id]));
-        if (probe !== undefined) probe.groupsCreated += 1;
-      } else selected.add(element.id);
+      if (context.selection.append(element.id) && probe !== undefined) probe.groupsCreated += 1;
       if (probe !== undefined) probe.selectedIdentities += 1;
     }
   }

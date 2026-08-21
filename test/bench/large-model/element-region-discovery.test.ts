@@ -1,22 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPart, identityMatrix, type Part, type Scene, type Viewport } from "@/entries/root";
-import {
-  createInteractionState,
-  installViewportInteraction,
-  selectedElementRegion,
-  type ElementRegionSelection,
-  type ViewportInteractionOptions,
-} from "@/entries/interaction";
+import { createInteractionState, type ElementRegionSelection } from "@/entries/interaction";
 import { createCamera } from "@/entries/camera";
 import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { pickTargetsFromRegion } from "@/renderer/picking/region";
 import { createElementPickScratch } from "@/renderer/picking/element-region";
 import { createPickDepthReadback } from "@/renderer/picking/depth";
 import { createPickTargets, ensurePickTargets } from "@/renderer/picking/pick";
-import {
-  viewportInteractionProbeKey,
-  type ViewportInteractionProbe,
-} from "@/interaction/viewport-interaction-types";
 import {
   throughIntersectionBoxSelectionResolver,
   type ThroughBoxSelectionProbe,
@@ -25,10 +15,7 @@ import { createPlanarGridGeometry } from "../../../demo/fixtures/planar-grid";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
 import {
   installFakeWindow,
-  pointer,
   restoreFakeWindow,
-  settle,
-  viewportHarness,
 } from "../../interaction/viewport-interaction-support";
 import {
   buildAsyncOperationsReport,
@@ -38,6 +25,7 @@ import {
 import { exposedGc, forceGc } from "./gc-evidence";
 import { assertActualElementRegionEvidence } from "./element-region-discovery-evidence";
 import { emptyVisibleProbe } from "./element-region-probe";
+import { createThroughWorkflowRunner, type ThroughWorkflowRunner } from "./element-region-workflow";
 
 const CELLS = 354;
 const IDS_PER_OCCURRENCE = CELLS * CELLS * 2;
@@ -48,6 +36,7 @@ interface EvidenceRunner {
   readonly details: Readonly<Record<string, number>>;
   run(): Promise<void>;
   selection(): ElementRegionSelection;
+  reset(): void;
   clear(): void;
 }
 
@@ -57,7 +46,7 @@ let visibleOne: EvidenceRunner;
 let visibleFour: EvidenceRunner;
 let throughOne: EvidenceRunner;
 let throughFour: EvidenceRunner;
-let lifecycle: EvidenceRunner;
+let lifecycle: ThroughWorkflowRunner;
 
 beforeAll(async () => {
   restoreGpu = installGpuGlobals();
@@ -67,10 +56,16 @@ beforeAll(async () => {
   visibleFour = await visibleRunner(part, 4);
   throughOne = throughRunner(part, 1);
   throughFour = throughRunner(part, 4);
-  lifecycle = lifecycleRunner(visibleFour);
+  lifecycle = await createThroughWorkflowRunner(
+    4,
+    selectionScene(part, 4),
+    () => throughViewport(part, 4),
+    assertSelection,
+  );
 }, 60_000);
 
 afterAll(() => {
+  lifecycle.dispose();
   restoreFakeWindow();
   restoreGpu?.();
 });
@@ -160,15 +155,15 @@ async function visibleRunner(sourcePart: Part, occurrenceCount: number): Promise
     assertSelection(latest, occurrenceCount);
     Object.assign(details, probe, selectionDetails(latest));
   };
-  return evidenceRunner(
-    `visible-element-region-${occurrenceCount}-occurrences`,
+  return evidenceRunner({
+    name: `visible-element-region-${occurrenceCount}-occurrences`,
     details,
     run,
-    () => latest,
-    (value) => {
+    read: () => latest,
+    write: (value) => {
       latest = value;
     },
-  );
+  });
 }
 function throughRunner(sourcePart: Part, occurrenceCount: number): EvidenceRunner {
   const probe = emptyThroughProbe();
@@ -182,95 +177,47 @@ function throughRunner(sourcePart: Part, occurrenceCount: number): EvidenceRunne
     assertSelection(latest, occurrenceCount);
     Object.assign(details, probe, selectionDetails(latest));
   };
-  return evidenceRunner(
-    `through-element-region-${occurrenceCount}-occurrences`,
+  return evidenceRunner({
+    name: `through-element-region-${occurrenceCount}-occurrences`,
     details,
     run,
-    () => latest,
-    (value) => {
+    read: () => latest,
+    write: (value) => {
       latest = value;
     },
-  );
+  });
 }
 
-function lifecycleRunner(source: EvidenceRunner): EvidenceRunner {
-  const probe = emptyLifecycleProbe();
-  const details: Record<string, number> = {};
-  let latest: ElementRegionSelection | undefined;
-  const run = async (): Promise<void> => {
-    resetValues(probe);
-    let boxCallbacks = 0;
-    let applyCallbacks = 0;
-    const discovered = source.selection();
-    const harness = viewportHarness();
-    const options = {
-      canvas: harness.canvas as unknown as HTMLCanvasElement,
-      viewport: harness.viewport,
-      granularity: () => "element" as const,
-      resolveRegion: () => Promise.resolve(discovered),
-      [viewportInteractionProbeKey]: probe,
-      onBoxSelection: (box) => {
-        if (box.granularity !== "element") throw new Error("Expected packed box callback");
-        boxCallbacks += 1;
-        box.selection.elementIds.fill(99);
-      },
-      applyInteraction: (request) => {
-        if (request.phase !== "box" || request.granularity !== "element") {
-          throw new Error("Expected packed apply callback");
-        }
-        applyCallbacks += 1;
-        request.selection.offsets.fill(0);
-        return request.defaultInteraction;
-      },
-    } satisfies ViewportInteractionOptions & {
-      readonly [viewportInteractionProbeKey]: ViewportInteractionProbe;
-    };
-    const disposer = installViewportInteraction(options);
-    harness.canvas.dispatch("pointerdown", pointer({ buttons: 1 }));
-    harness.canvas.dispatch("pointerup", pointer({ clientX: 100, clientY: 100 }));
-    await settle();
-    disposer();
-    latest = selectedElementRegion(harness.viewport.interaction.state);
-    assertSelection(latest, 4);
-    Object.assign(details, probe, { boxCallbacks, applyCallbacks }, selectionDetails(latest));
-  };
-  return evidenceRunner(
-    "element-region-callback-default-lifecycle",
-    details,
-    run,
-    () => latest,
-    (value) => {
-      latest = value;
-    },
-  );
-}
-
-function evidenceRunner(
-  name: string,
-  details: Readonly<Record<string, number>>,
-  run: () => Promise<void>,
-  read: () => ElementRegionSelection | undefined,
-  write: (value: ElementRegionSelection | undefined) => void,
-): EvidenceRunner {
+function evidenceRunner(options: {
+  readonly name: string;
+  readonly details: Readonly<Record<string, number>>;
+  readonly run: () => Promise<void>;
+  readonly read: () => ElementRegionSelection | undefined;
+  readonly write: (value: ElementRegionSelection | undefined) => void;
+  readonly beforeEach?: () => void;
+}): EvidenceRunner {
+  const { name, details, run, read, write, beforeEach } = options;
   return {
     operation: {
       name,
       workloadUnit: "selected authored element occurrences",
       workloadCount: name.includes("1-occurrences") ? IDS_PER_OCCURRENCE : IDS_PER_OCCURRENCE * 4,
       workloadDetails: details,
+      ...(beforeEach === undefined ? {} : { beforeEach }),
       run,
     },
     details,
     run,
     selection: () => requireSelection(read()),
+    reset: beforeEach ?? (() => undefined),
     clear: () => {
       write(undefined);
     },
   };
 }
 
-function throughViewport(sourcePart: Part, occurrenceCount: number): Viewport {
-  const scene: Scene = {
+function selectionScene(sourcePart: Part, occurrenceCount: number): Scene {
+  return {
     rootAssemblyId: 1,
     parts: new Map([[sourcePart.id, sourcePart]]),
     assemblies: new Map([
@@ -281,7 +228,7 @@ function throughViewport(sourcePart: Part, occurrenceCount: number): Viewport {
           name: "root",
           placements: Array.from({ length: occurrenceCount }, (_, index) => ({
             kind: "part" as const,
-            placementId: `through-${index}`,
+            placementId: `workflow-${index}`,
             partId: sourcePart.id,
             transform: identityMatrix(),
           })),
@@ -291,6 +238,10 @@ function throughViewport(sourcePart: Part, occurrenceCount: number): Viewport {
     visiblePartIds: new Set([sourcePart.id]),
     visibleAssemblyIds: new Set([1]),
   };
+}
+
+function throughViewport(sourcePart: Part, occurrenceCount: number): Viewport {
+  const scene = selectionScene(sourcePart, occurrenceCount);
   return {
     scene,
     occurrences: createSceneOccurrenceSnapshot(scene),
@@ -375,16 +326,11 @@ function emptyThroughProbe(): ThroughBoxSelectionProbe {
     intersectionTests: 0,
     selectedIdentities: 0,
     groupsCreated: 0,
-  };
-}
-
-function emptyLifecycleProbe(): ViewportInteractionProbe {
-  return {
-    descriptorVisits: 0,
-    targetKeyStrings: 0,
-    defaultElementTransitions: 0,
-    callbackSelectionCopies: 0,
-    statePublications: 0,
+    typedScratchGrowths: 0,
+    typedScratchBytes: 0,
+    outputTypedBytes: 0,
+    queryMilliseconds: 0,
+    packPublishMilliseconds: 0,
   };
 }
 
@@ -398,6 +344,7 @@ async function sampleActualHeapUse(): Promise<readonly number[]> {
   samples.push(process.memoryUsage().heapUsed);
   await throughFour.run();
   samples.push(process.memoryUsage().heapUsed);
+  lifecycle.reset();
   await lifecycle.run();
   samples.push(process.memoryUsage().heapUsed);
   clearSelections();

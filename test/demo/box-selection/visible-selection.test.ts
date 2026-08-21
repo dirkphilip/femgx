@@ -7,38 +7,15 @@ import {
   setTargetSelected,
   setTargetHovered,
   selectedKeys,
-  rect,
   harness,
   element,
   nodeHit,
   faceHit,
   edgeHit,
-  complete,
   createInteractionState,
 } from "./support";
 
 describe("workbench visible-selection", () => {
-  it.each([
-    ["part", { kind: "part", partId: 1 }, "p:1"],
-    ["partOccurrence", { kind: "partOccurrence", partOccurrenceId: "instance-a" }, "i:instance-a"],
-  ] as const)(
-    "supports %s visible-surface box selection",
-    async (granularity, target, expected) => {
-      const pickRegion = vi.fn(() => Promise.resolve([target]));
-      const { workbench, getInteraction } = harness(
-        undefined,
-        pickRegion,
-        createInteractionState(),
-        granularity,
-      );
-
-      await workbench.selectBox(complete());
-
-      expect(pickRegion).toHaveBeenCalledWith(rect(), granularity);
-      expect(selectedKeys(getInteraction())).toEqual([expected]);
-    },
-  );
-
   it.each([
     ["part", "p:1"],
     ["partOccurrence", "i:instance-a"],

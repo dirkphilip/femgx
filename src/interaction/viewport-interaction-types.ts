@@ -15,6 +15,7 @@ export interface ViewportInteractionProbe {
   descriptorVisits: number;
   targetKeyStrings: number;
   defaultElementTransitions: number;
+  defaultElementTransitionMilliseconds: number;
   callbackSelectionCopies: number;
   statePublications: number;
 }

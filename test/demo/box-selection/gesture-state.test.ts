@@ -197,6 +197,7 @@ describe("workbench gesture-state", () => {
     });
     bindings.onError?.(new Error("test failure"), "click");
 
+    expect(getInteraction()).toBe(next);
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
     expect(render).toHaveBeenCalledOnce();
     expect(selectionFeedback).toHaveBeenLastCalledWith(
@@ -265,12 +266,12 @@ describe("workbench gesture-state", () => {
       modifiers,
       event: nextHoverEvent,
     });
-    const staleViewportState = createInteractionState();
+    const latestViewportState = getInteraction();
     await bindings.applyInteraction?.({
       phase: "hover",
       granularity: "node",
-      current: staleViewportState,
-      defaultInteraction: setTargetHovered(staleViewportState, nextHover),
+      current: latestViewportState,
+      defaultInteraction: setTargetHovered(latestViewportState, nextHover),
       target: nextHover,
       modifiers,
       event: nextHoverEvent,

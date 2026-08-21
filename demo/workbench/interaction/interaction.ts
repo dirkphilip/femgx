@@ -6,11 +6,9 @@ import {
   type ViewportInteractionOptions,
 } from "@/entries/interaction";
 import { clientToCanvasCss } from "@/entries/camera";
-import type { BoxSelectionEvent } from "@/entries/interaction";
 import { describePick } from "../selection/inspect";
 import {
   visibleSurfaceBoxSelectionResolver,
-  type BoxSelectionRequest,
   type BoxSelectionResolver,
 } from "../selection/box-selection-resolver";
 import {
@@ -34,7 +32,6 @@ import {
   resolveViewportPoint as resolveDefaultViewportPoint,
   resolveViewportRegion as resolveDefaultViewportRegion,
 } from "./viewport-binding";
-import { WorkbenchBoxSelectionController } from "./box-selection-controller";
 import { contextMenuSelectionOptions, type WorkbenchMenu } from "./menu";
 import {
   mergeModifiers,
@@ -42,14 +39,6 @@ import {
   type HoverPick,
   type PointerModifiers,
 } from "./interaction-pointer";
-
-type CompletedBoxSelectionEvent = BoxSelectionRequest["event"];
-
-function isCompletedBoxSelectionEvent(
-  event: BoxSelectionEvent,
-): event is CompletedBoxSelectionEvent {
-  return event.type === "complete";
-}
 
 /** View and state hooks used by the asynchronous picking interaction layer. */
 export interface WorkbenchInteractionOptions {
@@ -82,18 +71,11 @@ export class WorkbenchInteraction {
   private hoverPick: HoverPick | undefined;
   private target: SelectTarget | undefined;
   private readonly resolvedPointHits = new WeakMap<object, PickHit | undefined>();
-  private readonly boxSelection: WorkbenchBoxSelectionController;
+  private selectionResolver: BoxSelectionResolver;
 
   constructor(private readonly options: WorkbenchInteractionOptions) {
-    this.boxSelection = new WorkbenchBoxSelectionController({
-      getInteraction: options.getInteraction,
-      setInteraction: options.setInteraction,
-      render: options.render,
-      selectionFeedback: options.selectionFeedback,
-      isDisposed: () => this.disposed,
-      resolver:
-        options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport),
-    });
+    this.selectionResolver =
+      options.boxSelectionResolver ?? visibleSurfaceBoxSelectionResolver(options.viewport);
   }
 
   get contextTarget(): SelectTarget | undefined {
@@ -121,7 +103,6 @@ export class WorkbenchInteraction {
   }
 
   async hover(event: PointerEvent): Promise<void> {
-    if (this.boxSelection.isActive()) return;
     const generation = ++this.generation;
     const hit = await this.resolve(event, generation);
     if (generation !== this.generation) return;
@@ -270,7 +251,7 @@ export class WorkbenchInteraction {
 
   /** Replaces candidate discovery and invalidates work captured for the old resolver. */
   setBoxSelectionResolver(resolver: BoxSelectionResolver): void {
-    this.boxSelection.setResolver(resolver);
+    this.selectionResolver = resolver;
   }
 
   viewportInteractionOptions(): Pick<
@@ -284,10 +265,10 @@ export class WorkbenchInteraction {
         return resolved.target;
       },
       resolveRegion: ({ event, granularity }) =>
-        resolveDefaultViewportRegion(this.boxSelection.resolver(), event, granularity),
+        resolveDefaultViewportRegion(this.selectionResolver, event, granularity),
       applyInteraction: (request) => {
         this.applyResolvedPoint(request);
-        applyDefaultViewportInteraction(this.options, request);
+        return applyDefaultViewportInteraction(this.options, request);
       },
       onError: (error, phase) => {
         reportViewportInteractionError(this.options, error, phase);
@@ -335,31 +316,7 @@ export class WorkbenchInteraction {
       : undefined;
   }
 
-  /** Selects the visible elements returned for one completed primary drag. */
-  async selectBox(event: BoxSelectionEvent): Promise<void> {
-    if (!isCompletedBoxSelectionEvent(event)) return;
-    if (this.disposed) return;
-    if (this.downPosition !== undefined) {
-      this.downPosition = undefined;
-      this.downModifiers = undefined;
-      this.skipNextClick = true;
-    }
-    const request = { event, granularity: this.options.selectionGranularity() };
-    this.generation += 1;
-    await this.boxSelection.queue(request);
-  }
-
-  getBoxSelectionStats(): {
-    readonly active: boolean;
-    readonly queued: boolean;
-    readonly started: number;
-    readonly maxActive: number;
-  } {
-    return this.boxSelection.stats();
-  }
-
   private invalidatePendingQuery(): void {
-    this.boxSelection.invalidate();
     this.generation += 1;
   }
 

@@ -38,6 +38,7 @@ export function assertActualElementRegionEvidence(
     intersectionTests: perOccurrence,
     selectedIdentities: perOccurrence,
     groupsCreated: 1,
+    typedScratchGrowths: 15,
   });
   expect(throughFour).toMatchObject({
     occurrencesVisited: 4,
@@ -45,14 +46,16 @@ export function assertActualElementRegionEvidence(
     intersectionTests: perOccurrence * 4,
     selectedIdentities: perOccurrence * 4,
     groupsCreated: 4,
+    typedScratchGrowths: 60,
   });
   expect(lifecycle).toMatchObject({
     descriptorVisits: 0,
     targetKeyStrings: 0,
     defaultElementTransitions: 1,
-    callbackSelectionCopies: 2,
+    callbackSelectionCopies: 1,
     statePublications: 1,
-    boxCallbacks: 1,
     applyCallbacks: 1,
+    rendererSynchronizations: 1,
+    requestedRenders: 1,
   });
 }
