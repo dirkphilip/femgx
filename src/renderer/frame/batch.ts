@@ -62,10 +62,10 @@ function drawCallBatches(options: {
   const geometries = geometriesForIntent(part, intent);
   const ranges = selectionRangesForIntent(call, intent);
   const replay = replaySelectionBatch({ ...options, part, geometries, intent });
-  if (replay.handled) return replay.current;
-  let current = options.current;
+  let current = replay.current;
   if (ranges !== undefined) {
     for (const range of ranges) {
+      if (replay.triangles && range.primitive === "triangles") continue;
       current = drawOneBatch(pass, {
         draw,
         context,
@@ -93,16 +93,19 @@ function replaySelectionBatch(options: {
   readonly geometries: readonly (Geometry | undefined)[];
   readonly intent: DrawIntent;
   readonly current: GPURenderPipeline | undefined;
-}): { readonly handled: boolean; readonly current: GPURenderPipeline | undefined } {
+}): { readonly triangles: boolean; readonly current: GPURenderPipeline | undefined } {
   const { pass, draw, context, call, part, geometries, intent, current } = options;
   const ranges = selectionRangesForIntent(call, intent);
-  if (!canReplaySelection(geometries, ranges)) return { handled: false, current };
-  const geometry = geometries[0];
-  if (geometry?.primitive !== "triangles") return { handled: false, current };
-  const resource = selectionReplayResource(draw, part, geometry, ranges);
-  if (resource === undefined) return { handled: false, current };
+  if (!canReplaySelection(geometries, ranges)) return { triangles: false, current };
+  const geometry = geometries.find(
+    (candidate) => candidate?.primitive === "triangles" && candidate.faceSubset !== undefined,
+  );
+  if (geometry?.primitive !== "triangles") return { triangles: false, current };
+  const triangleRanges = ranges.filter((range) => range.primitive === "triangles");
+  const resource = selectionReplayResource(draw, part, geometry, triangleRanges);
+  if (resource === undefined) return { triangles: false, current };
   return {
-    handled: true,
+    triangles: true,
     current: drawOneBatch(pass, {
       draw,
       context,

@@ -177,6 +177,42 @@ export const mixedPart: Part = createPart(6, {
   ],
 });
 
+export const mixedSubsetPart: Part = createPart(7, {
+  geometries: [
+    {
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint32Array([0, 1, 2]),
+      primitive: "triangles",
+      faces: [
+        {
+          elementId: 1,
+          faceIndex: 0,
+          primitiveStart: 0,
+          primitiveCount: 1,
+          key: "0,1,2",
+          nodeIds: [0, 1, 2],
+        },
+      ],
+      faceSubset: { faceIds: [{ elementId: 1, faceIndex: 0 }] },
+    },
+    {
+      positions: new Float32Array([0, 0, 0, 1, 1, 1]),
+      indices: new Uint32Array([0, 1]),
+      primitive: "lines",
+    },
+    {
+      positions: new Float32Array([0.5, 0.5, 0.5]),
+      indices: new Uint32Array([0]),
+      primitive: "points",
+    },
+  ],
+  elements: [
+    { id: 1, primitiveRanges: [{ primitive: "triangles", primitiveStart: 0, primitiveCount: 1 }] },
+    { id: 2, primitiveRanges: [{ primitive: "lines", primitiveStart: 0, primitiveCount: 1 }] },
+    { id: 3, primitiveRanges: [{ primitive: "points", primitiveStart: 0, primitiveCount: 1 }] },
+  ],
+});
+
 /** Shared renderer test helper. */
 export function record(x: number): ArrayBuffer {
   return encodeInstanceRecord(translationMatrix(x, 0, 0), defaultStyle, 1);

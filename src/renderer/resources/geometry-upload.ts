@@ -18,6 +18,8 @@ import {
   packTopologyData,
   packUnownedEdgeTopologyData,
 } from "./geometry-buffers";
+import { createTopologyBuffer } from "../picking/topology-buffer";
+import { createSubsetBuffers } from "../selection/subset-buffers";
 import { buildElementPrimitiveOrdinals, buildPrimitiveFaceBodyPickData } from "../picking/ids";
 import { expandSurfaceGeometry } from "../resources/surface-geometry";
 import {
@@ -340,79 +342,6 @@ function getSubsetIndices(
   geometry: Extract<Geometry, { primitive: "triangles" }> | undefined,
 ): Uint32Array | undefined {
   return geometry?.faceSubset === undefined ? undefined : buildFaceSubsetIndices(geometry);
-}
-
-function createTopologyBuffer(
-  device: GPUDevice,
-  faceBodyPickIds: Uint32Array,
-  edgeData: MeshEdgeData,
-  metadata: {
-    readonly elementOrdinals: ArrayLike<number>;
-    readonly neighborElementOrdinals?: ArrayLike<number>;
-    readonly conditionElementOrdinals?: ArrayLike<number>;
-    readonly primitiveIds: ArrayLike<number>;
-    readonly edgeIds: ArrayLike<number>;
-    readonly cornerIndices?: ArrayLike<number>;
-  },
-): { readonly buffer: GPUBuffer; readonly cornerIndexOffset?: number } {
-  const data = packTopologyData(
-    faceBodyPickIds,
-    edgeData.bodyRanges,
-    edgeData.bodyIds,
-    edgeData.elementIds,
-    metadata,
-  );
-  const cornerCount = metadata.cornerIndices?.length ?? 0;
-  return {
-    buffer: createBuffer(device, data, GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE),
-    ...(cornerCount === 0
-      ? {}
-      : {
-          cornerIndexOffset: (data.length - cornerCount) * Uint32Array.BYTES_PER_ELEMENT,
-        }),
-  };
-}
-
-/** Uploads a compact triangle vertex/topology view. */
-export function createSubsetBuffers(
-  device: GPUDevice,
-  vertexData: UploadVertexData | undefined,
-  faceBodyPickIds: Uint32Array,
-  elementOrdinals: Uint32Array,
-  neighborElementOrdinals?: Uint32Array,
-): {
-  readonly subsetIndexBuffer?: GPUBuffer;
-  readonly subsetVertexBuffer?: GPUBuffer;
-  readonly subsetNodePickIdsBuffer?: GPUBuffer;
-  readonly subsetMinimalIndexBuffer?: GPUBuffer;
-  readonly subsetMinimalIndexOffset?: number;
-  readonly subsetTopologyBuffer?: GPUBuffer;
-} {
-  if (vertexData === undefined) return {};
-  const subsetVertexBuffer = createBuffer(
-    device,
-    vertexData.positions,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
-  const topology = createTopologyBuffer(device, faceBodyPickIds, emptyMeshEdgeData(), {
-    elementOrdinals,
-    ...(neighborElementOrdinals === undefined ? {} : { neighborElementOrdinals }),
-    primitiveIds: vertexData.primitiveIds,
-    edgeIds: [],
-    ...(vertexData.cornerIndices === undefined ? {} : { cornerIndices: vertexData.cornerIndices }),
-  });
-  return {
-    subsetIndexBuffer: createIndexBuffer(device, vertexData.indices),
-    subsetVertexBuffer,
-    subsetNodePickIdsBuffer: createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE),
-    subsetTopologyBuffer: topology.buffer,
-    ...(topology.cornerIndexOffset === undefined
-      ? {}
-      : {
-          subsetMinimalIndexBuffer: topology.buffer,
-          subsetMinimalIndexOffset: topology.cornerIndexOffset,
-        }),
-  };
 }
 
 function createIndexBuffer(device: GPUDevice, indices: Uint32Array): GPUBuffer {

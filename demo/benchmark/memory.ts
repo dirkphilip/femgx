@@ -246,11 +246,12 @@ export function estimateBenchmarkMemory(
 function selectionReplayEstimate(primitiveCount: number): number {
   if (!Number.isSafeInteger(primitiveCount) || primitiveCount <= 0) return 0;
   const vertexCount = primitiveCount * 3;
+  const topologyWords = 8 + primitiveCount * 13;
   return (
     gpuBufferBytes(vertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
     gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
     gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-    topologyBytesUpperBound(primitiveCount, vertexCount, 0, vertexCount)
+    gpuBufferBytes(topologyWords * Uint32Array.BYTES_PER_ELEMENT)
   );
 }
 

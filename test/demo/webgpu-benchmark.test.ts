@@ -313,7 +313,7 @@ describe("WebGPU benchmark models", () => {
     expect(tet4Memory.geometryBytes).toBe(0);
     expect(tet4Memory.pickMetadataBytes).toBe(0);
     expect(tet4Memory.subsetBytes).toBeGreaterThan(0);
-    expect(tet4Memory.selectionReplayBytes).toBeGreaterThan(0);
+    expect(tet4Memory.selectionReplayBytes).toBe(480);
     const tet4PartId = [
       ...createBenchmarkCase({ ...tet4Spec, gridCells: 2 }).scene.parts.keys(),
     ][0];

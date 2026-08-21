@@ -8,11 +8,11 @@ export function canReplaySelection(
   ranges: readonly SelectionDrawRange[] | undefined,
 ): ranges is readonly SelectionDrawRange[] {
   return (
-    geometries.length === 1 &&
-    geometries[0]?.primitive === "triangles" &&
-    geometries[0].faceSubset !== undefined &&
+    geometries.some(
+      (geometry) => geometry?.primitive === "triangles" && geometry.faceSubset !== undefined,
+    ) &&
     ranges !== undefined &&
-    ranges.every((range) => range.primitive === "triangles")
+    ranges.some((range) => range.primitive === "triangles")
   );
 }
 

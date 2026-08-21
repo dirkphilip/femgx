@@ -39,7 +39,7 @@ describe("dense selection skin ranges", () => {
     ]);
   });
 
-  it("falls back when a dense payload omits a selected bit", () => {
+  it("rebuilds exact ranges when a dense payload omits a selected bit", () => {
     const fixture = selectionFixture(denseSelectionPart, [101, 102]);
     const dense = fixture.denseSelections.get(denseSelectionPart.id);
     const occurrence = dense?.occurrences[0];
@@ -49,7 +49,14 @@ describe("dense selection skin ranges", () => {
       ...dense,
       occurrences: [{ slot: occurrence.slot, selectedCount: 1, words: new Uint32Array([1]) }],
     });
-    expect(buildCalls(denseSelectionPart, { ...fixture, denseSelections })).toBeUndefined();
+    expect(buildCalls(denseSelectionPart, { ...fixture, denseSelections })).toEqual([
+      {
+        partId: denseSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 12 }],
+      },
+    ]);
   });
 
   it("falls back when selected element ids include an invalid id", () => {
@@ -146,15 +153,41 @@ describe("dense selection skin ranges", () => {
     ]);
   });
 
-  it("keeps the fallback for an interior face subset", () => {
+  it("retains exact full-element ranges for an interior face subset", () => {
     const fixture = selectionFixture(interiorSubsetPart, [101, 102, 103]);
-    expect(buildCalls(interiorSubsetPart, fixture)).toBeUndefined();
+    expect(buildCalls(interiorSubsetPart, fixture)).toEqual([
+      {
+        partId: interiorSubsetPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 18 }],
+      },
+    ]);
   });
 
   it("uses the ordinary surface pass when dense selection covers complete geometry", () => {
     const part = completeExplicitTopologyPart();
     const fixture = selectionFixture(part, [101, 102, 103]);
     expect(buildCalls(part, fixture)).toEqual([]);
+  });
+
+  it("retains more than 1024 fragmented subset ranges for one compact replay", () => {
+    const part = fragmentedSubsetPart(4_099);
+    const selected = Array.from({ length: 1_025 }, (_, index) => index * 2 + 1);
+    const fixture = selectionFixture(part, selected);
+    const calls = buildCalls(part, fixture);
+    expect(calls).toHaveLength(1);
+    expect(calls?.[0]?.selectionRanges).toHaveLength(1_025);
+    expect(calls?.[0]?.selectionRanges?.[0]).toEqual({
+      primitive: "triangles",
+      firstIndex: 0,
+      indexCount: 3,
+    });
+    expect(calls?.[0]?.selectionRanges?.at(-1)).toEqual({
+      primitive: "triangles",
+      firstIndex: 6_144,
+      indexCount: 3,
+    });
   });
 });
 
@@ -277,6 +310,45 @@ function completeExplicitTopologyPart(): Part {
   return createPart(8, {
     geometries: [completeGeometry],
     elements: [...(denseSelectionPart.elements ?? [])],
+  });
+}
+
+function fragmentedSubsetPart(elementCount: number): Part {
+  const indices = new Uint32Array(elementCount * 3);
+  const faces = [];
+  const elements = [];
+  const faceIds = [];
+  for (let ordinal = 0; ordinal < elementCount; ordinal += 1) {
+    indices.set([0, 1, 2], ordinal * 3);
+    const elementId = ordinal + 1;
+    const node = ordinal * 3;
+    faces.push({
+      elementId,
+      faceIndex: 0,
+      primitiveStart: ordinal,
+      primitiveCount: 1,
+      key: `${node},${node + 1},${node + 2}`,
+      nodeIds: [node, node + 1, node + 2],
+    });
+    elements.push({
+      id: elementId,
+      primitiveRanges: [
+        { primitive: "triangles" as const, primitiveStart: ordinal, primitiveCount: 1 },
+      ],
+    });
+    faceIds.push({ elementId, faceIndex: 0 });
+  }
+  return createPart(9, {
+    geometries: [
+      {
+        primitive: "triangles",
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices,
+        faces,
+        faceSubset: { faceIds },
+      },
+    ],
+    elements,
   });
 }
 
