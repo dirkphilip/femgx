@@ -19,6 +19,7 @@ export function assertActualElementRegionEvidence(
     resolvedTargetDescriptors: 0,
     elementPickGroups: 1,
     elementPickIds: perOccurrence,
+    elementScratchGrowths: 0,
     selectedIdentities: perOccurrence,
     occurrenceGroups: 1,
   });
@@ -27,6 +28,7 @@ export function assertActualElementRegionEvidence(
     resolvedTargetDescriptors: 0,
     elementPickGroups: 4,
     elementPickIds: perOccurrence * 4,
+    elementScratchGrowths: 0,
     selectedIdentities: perOccurrence * 4,
     occurrenceGroups: 4,
   });

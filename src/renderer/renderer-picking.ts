@@ -19,6 +19,7 @@ import {
 } from "./edges/edge-picking";
 import { pickHitFromPixel, resetPickTargets } from "./picking/pick";
 import { pickTargetsFromRegion } from "./picking/region";
+import { createElementPickScratch } from "./picking/element-region";
 import { syncDeformations } from "./frame/deformation";
 import type { SectionCapController } from "./section-cap-controller";
 
@@ -39,6 +40,8 @@ interface RendererPickingOwner {
 /** Owns the lazy ordinary/edge pick snapshots and their invalidation state. */
 export class RendererPicking {
   private snapshotValid = false;
+
+  private readonly elementScratch = createElementPickScratch();
 
   public constructor(private readonly owner: RendererPickingOwner) {}
 
@@ -94,6 +97,7 @@ export class RendererPicking {
       context: { instances: this.owner.attachment.instances, parts: this.owner.parts() },
       rect,
       granularity,
+      elementScratch: this.elementScratch,
     });
   }
 

@@ -18,8 +18,10 @@ import {
 import { WebGpuPickReadbackError } from "./error";
 import {
   decodeElementRegion,
+  acquireElementPickScratch,
+  releaseElementPickScratch,
   resolveElementRegion,
-  type ElementPickGroups,
+  type ElementPickScratch,
 } from "./element-region";
 import type { PickRegionProbe } from "./region-probe";
 import {
@@ -59,6 +61,8 @@ export interface PickRegionOptions {
   readonly context: PickContext;
   readonly rect: BoxSelectionRect;
   readonly granularity: InteractionGranularity;
+  /** Renderer-owned reusable typed storage for serialized element-region reads. */
+  readonly elementScratch?: ElementPickScratch;
   /** Optional internal measurement sink; absent from the package facade. */
   readonly probe?: PickRegionProbe;
 }
@@ -165,23 +169,24 @@ async function pickElementRegion(
   bounds: RenderPixelRect,
   textures: RegionTextures,
 ): Promise<ElementRegionSelection> {
-  const picks: ElementPickGroups = new Map();
-  for (const tile of regionTiles(bounds, 2)) {
-    assertRegionTexturesCurrent(options.pick, textures);
-    await readRegionTile(
-      options,
-      [textures.instance, textures.element],
-      tile,
-      (bytes, width, height, bytesPerRow) => {
-        decodeElementRegion(bytes, width, height, bytesPerRow, {
-          groups: picks,
-          probe: options.probe,
-        });
-      },
-      "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
-    );
+  const scratch = acquireElementPickScratch(options.elementScratch);
+  try {
+    for (const tile of regionTiles(bounds, 2)) {
+      assertRegionTexturesCurrent(options.pick, textures);
+      await readRegionTile(
+        options,
+        [textures.instance, textures.element],
+        tile,
+        (bytes, width, height, bytesPerRow) => {
+          decodeElementRegion({ bytes, width, height, bytesPerRow, scratch, probe: options.probe });
+        },
+        "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
+      );
+    }
+    return resolveElementRegion(scratch, options.context, options.probe);
+  } finally {
+    releaseElementPickScratch(scratch);
   }
-  return resolveElementRegion(picks, options.context);
 }
 
 function assertRegionTexturesCurrent(pick: PickTargets, snapshot: RegionTextures): void {
