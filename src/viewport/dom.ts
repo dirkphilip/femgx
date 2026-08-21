@@ -134,23 +134,32 @@ export function installViewportCanvasBindings(
   bindingOptions: ViewportCanvasBindingOptions,
 ): ViewportCanvasBindings {
   const { options, renderer, navigationBounds } = bindingOptions;
-  const removeKeyboard = installViewportKeyboard(
-    options.keyboardTarget,
-    bindingOptions.fitSelection,
-  );
-  const removeControls = installCameraControlsWithProtectedBounds({
-    canvas: options.canvas,
-    cameraRef: bindingOptions.cameraRef,
-    navigation: renderer,
-    bounds: () => navigationBounds().bounds,
-    protectedBounds: () => navigationBounds().protectedBounds,
-    onRender: bindingOptions.invalidate,
-    onGestureChange: bindingOptions.onGestureChange,
-  });
-  const removeResize = installResize(options.canvas, bindingOptions.resize);
-  const orientationGizmo =
-    options.orientationGizmo === undefined
-      ? undefined
-      : createOrientationGizmo(options.orientationGizmo, bindingOptions.onOrientationAction);
-  return { removeControls, removeResize, removeKeyboard, orientationGizmo };
+  let removeKeyboard = (): void => undefined;
+  let removeControls = (): void => undefined;
+  let removeResize = (): void => undefined;
+  let orientationGizmo: OrientationGizmoHandle | undefined;
+  try {
+    removeKeyboard = installViewportKeyboard(options.keyboardTarget, bindingOptions.fitSelection);
+    removeControls = installCameraControlsWithProtectedBounds({
+      canvas: options.canvas,
+      cameraRef: bindingOptions.cameraRef,
+      navigation: renderer,
+      bounds: () => navigationBounds().bounds,
+      protectedBounds: () => navigationBounds().protectedBounds,
+      onRender: bindingOptions.invalidate,
+      onGestureChange: bindingOptions.onGestureChange,
+    });
+    removeResize = installResize(options.canvas, bindingOptions.resize);
+    orientationGizmo =
+      options.orientationGizmo === undefined
+        ? undefined
+        : createOrientationGizmo(options.orientationGizmo, bindingOptions.onOrientationAction);
+    return { removeControls, removeResize, removeKeyboard, orientationGizmo };
+  } catch (error) {
+    orientationGizmo?.destroy();
+    removeResize();
+    removeControls();
+    removeKeyboard();
+    throw error;
+  }
 }

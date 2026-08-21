@@ -1,7 +1,7 @@
-import type { CameraFocusController } from "./camera-focus";
-import type { OrientationGizmoHandle } from "./orientation-gizmo";
-import type { WebGpuRenderer } from "../renderer/gpu-renderer";
-import type { Camera } from "../camera/camera";
+import type { CameraFocusController } from "../camera-focus";
+import type { OrientationGizmoHandle } from "../orientation-gizmo";
+import type { WebGpuRenderer } from "../../renderer/gpu-renderer";
+import type { Camera } from "../../camera/camera";
 
 interface LifecycleControllerOptions {
   readonly renderer: WebGpuRenderer;
