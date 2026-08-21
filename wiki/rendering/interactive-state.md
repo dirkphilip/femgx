@@ -16,18 +16,32 @@ material clones.
 
 ## Highlight / selection / hover
 
-- Represent as per-part-occurrence overrides (e.g. emissive/color) patched into the
-  instance GPU buffer.
+- Store stable logical targets in immutable interaction state and project them
+  privately to affected part-occurrence and primitive slots. Assembly targets
+  must not become public arrays of descendant part or element targets.
 - The renderer should patch only affected instance attributes per frame, or
   adjust instance counts — never rebuild geometry or instance lists (see
   [[rendering/renderer-subrange-updates|Renderer subrange updates]]).
 - Body selection, highlight, hover, and explicit style overrides use the same
   immutable interaction state pattern, keyed by `(partOccurrenceId, bodyId)`.
-- `InteractionTarget` is the identity-only union for part, part occurrence, body,
-  element, face, node, and authored-edge targets. `setTargetSelected` and
-  `setTargetHighlighted` dispatch to the owning granular state without a
-  mutable manager. Bulk selection and highlighting group duplicate targets and
-  clone each touched immutable collection at most once.
+- The required `InteractionTarget` vocabulary covers assembly definition,
+  assembly occurrence, part definition, part occurrence, body, element, face,
+  node, and authored-edge targets. Assembly definitions affect all their
+  occurrences; assembly occurrences affect one exact subtree. Hidden
+  descendants remain hidden.
+- `setTargetSelected`, `setTargetHighlighted`, and `setTargetHovered` must accept the
+  same target vocabulary and dispatch without a mutable manager. Bulk selection
+  and highlighting group duplicate targets and clone each touched immutable
+  collection at most once.
+- Shared target and renderer machinery does not merge interaction states.
+  Hover and persistent highlight use the highlighted theme; selection uses the
+  selected theme at every scope. In particular, selecting a part or part
+  occurrence is genuine selection and must never insert that target into
+  highlight state or use a highlight-like appearance.
+- One selected assembly or part remains one logical selected target. Explicit
+  element selection remains occurrence-scoped element identity; hosts use its
+  packed bulk representation only when an element-only action genuinely needs
+  all descendant elements.
 - `clearSelection` clears every selection collection while preserving hover,
   highlights, visibility, results overrides, and explicit styles.
 - The private `interaction/mechanics.ts` module centralizes immutable nested
@@ -45,15 +59,27 @@ material clones.
 - GPU-based: render instance indices into a pick buffer and read back a single
   value on pointer events.
 - CPU side receives a complete `PickHit` and maps it with
-  `interactionTargetFromHit` to a [[architecture/architecture-overview|InteractionTarget]] (part, instance,
-  element, face, or node).
+  `interactionTargetFromHit` to a
+  [[architecture/architecture-overview|InteractionTarget]] at assembly,
+  assembly-occurrence, part, part-occurrence, body, element, face, node, or edge
+  granularity. A higher assembly ancestor is chosen explicitly from the path;
+  the default hierarchy promotion is the direct owner.
+- Every `PickHit` must carry a root-to-direct-owner assembly path. Each entry has
+  both the reusable assembly id and exact assembly-occurrence id. The CPU
+  resolves this ancestry from the authoritative runtime after reading the
+  existing pick ids; it adds no GPU attachment, pass, buffer, or readback byte.
 
 ## Precedence
 
-`resolveInstanceStyle` applies base style, highlight, hover, selection, explicit
-part override, then explicit part-occurrence override. More specific state wins, while
-selection intentionally remains stronger than hover. The resulting complete style
-can be copied directly into a GPU instance attribute without material cloning.
+`resolveInstanceStyle` resolves base material and authored result color, applies
+the highlighted theme for persistent highlight/hover, applies the selected
+theme, then applies explicit part and part-occurrence overrides. Selection is
+intentionally stronger than hover/highlight for properties it specifies, while
+non-conflicting highlighted feedback remains visible. A selected theme color
+overrides result color; a selected theme without color may retain it. The rule
+is identical for assembly, part, occurrence, body, and subentity selection and
+for dense, sparse, and instance renderer paths. The resulting complete style
+can be copied directly into GPU state without material cloning.
 
 For body-aware styles, part-occurrence state is resolved first, followed by body
 highlight, body hover, body selection, and the explicit body override. Element,

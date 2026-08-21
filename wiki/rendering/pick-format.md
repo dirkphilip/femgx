@@ -17,6 +17,27 @@ compact ID tuples before rich target resolution; depth is not copied because
 the pick pass already retains the nearest visible rasterized sample. This is
 visible-intersection discovery, not ordered multi-hit or click-through picking.
 
+## Hierarchy context
+
+The four attachments encode physical raster identity, not semantic hierarchy.
+The required public contract has the CPU enrich every
+`PickHit` with one immutable `assemblyPath` ordered from the expanded root to
+the assembly occurrence that directly owns that part occurrence. Each entry
+carries both the reusable assembly definition id and the exact assembly
+occurrence id. The hit kind remains the deepest physical entity and retains its
+part, body, element, face, node, edge, adjacency, position, and orientation data
+where applicable.
+
+Hosts use this path to promote the same physical hit to assembly-definition,
+assembly-occurrence, part-definition, part-occurrence, or subentity interaction
+targets. Direct owning assembly promotion is the default; selecting a higher
+ancestor is explicit. An ancestry cache may be keyed by part occurrence and
+runtime generation, but hierarchy enrichment adds no GPU attachment, pass,
+buffer, shader output, or readback byte. Region picking likewise deduplicates
+assembly targets from the existing occurrence ids rather than adding another
+picking path. This contract is tracked in
+[issue #1262](https://github.com/dirkphilip/femgx/issues/1262).
+
 Depth remains in the pick pass's normal depth attachment and is copied through
 a one-invocation compute pass. Sampling that existing attachment avoids a
 redundant color target and keeps ids plus exact winning-fragment depth in one
