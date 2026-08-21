@@ -4,9 +4,21 @@
  */
 export class PartRevisionMap<K, V> extends Map<K, V> {
   private readonly removed = new Set<K>();
+  private readonly source: ReadonlyMap<K, V>;
 
-  public constructor(private readonly source: ReadonlyMap<K, V>) {
+  public constructor(source: ReadonlyMap<K, V>) {
     super();
+    if (PartRevisionMap.isOverlay(source)) {
+      this.source = source.source;
+      for (const key of source.removed) this.removed.add(key);
+      for (const [key, value] of source.stagedEntries()) super.set(key, value);
+    } else {
+      this.source = source;
+    }
+  }
+
+  private static isOverlay<K, V>(source: ReadonlyMap<K, V>): source is PartRevisionMap<K, V> {
+    return source instanceof PartRevisionMap;
   }
 
   public override get size(): number {
@@ -33,7 +45,8 @@ export class PartRevisionMap<K, V> extends Map<K, V> {
   public override delete(key: K): boolean {
     if (!this.has(key)) return false;
     super.delete(key);
-    this.removed.add(key);
+    if (this.source.has(key)) this.removed.add(key);
+    else this.removed.delete(key);
     return true;
   }
 
@@ -74,11 +87,35 @@ export class PartRevisionMap<K, V> extends Map<K, V> {
     yield* super.keys();
   }
 
+  /** Reports whether a key's value is owned rather than inherited. */
+  public owns(key: K): boolean {
+    return super.has(key);
+  }
+
+  private *stagedEntries(): IterableIterator<[K, V]> {
+    yield* super.entries();
+  }
+
   /** Publishes only keys changed or removed through this overlay. */
   public commit(target: Map<K, V>): void {
     for (const key of this.removed) target.delete(key);
     for (const [key, value] of super.entries()) target.set(key, value);
   }
+
+  /** Returns retained sparse mutations for scaling regressions. */
+  public get mutationCount(): number {
+    return this.removed.size + super.size;
+  }
+}
+
+/** Returns retained sparse map mutations without traversing source state. */
+export function partRevisionMapOverlaySize(values: ReadonlyMap<unknown, unknown>): number {
+  return values instanceof PartRevisionMap ? values.mutationCount : 0;
+}
+
+/** Reports whether mutating a map value can affect retained source state. */
+export function ownsPartRevisionMapValue<K, V>(values: Map<K, V>, key: K): boolean {
+  return !(values instanceof PartRevisionMap) || values.owns(key);
 }
 
 /** Returns exact overlay-owned keys without traversing retained source entries. */

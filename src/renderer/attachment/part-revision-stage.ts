@@ -268,25 +268,27 @@ export function stageDrawResources(
   const writes: StagedBufferWrite[] = [];
   const protectedBuffers = protectedStorageBuffers(draw, partIds);
   const device = createPartRevisionStagingDevice(draw.device, protectedBuffers, writes);
+  const cost = new GpuCostAccumulator();
   const staged = {
     ...draw,
     device,
     deferReleases: true,
-    cost: new GpuCostAccumulator(),
+    cost,
     parts: new PartRevisionMap(draw.parts),
     primitiveParts: new PartRevisionMap(draw.primitiveParts),
     nodeParts: new PartRevisionMap(draw.nodeParts),
     storages: stagedStorages(draw.storages, partIds, stageInteraction),
     visibilitySkins: new PartRevisionMap(draw.visibilitySkins),
     admissionCache: new PartRevisionMap(draw.admissionCache),
-    deformations: replaceDefinitions ? new Map() : new PartRevisionMap(draw.deformations),
-    resultColors: replaceDefinitions ? new Map() : new PartRevisionMap(draw.resultColors),
+    deformations: new Map(),
+    resultColors: new Map(),
     orientationGlyphs: {
       ...draw.orientationGlyphs,
+      cost,
       // A definition revision cannot change the resolved glyph presentation.
       // Retaining this shared uniform also keeps unchanged glyph bind groups valid.
       paramsData: draw.orientationGlyphs.paramsData.slice(0),
-      parts: replaceDefinitions ? new Map() : new PartRevisionMap(draw.orientationGlyphs.parts),
+      parts: new Map(),
     },
   };
   if (replaceDefinitions) {
@@ -366,6 +368,9 @@ function protectedStorageBuffers(
       if (sidecar !== undefined) buffers.add(sidecar.buffer);
     }
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
+  }
+  if (draw.orientationGlyphs.paramsBuffer !== undefined) {
+    buffers.add(draw.orientationGlyphs.paramsBuffer);
   }
   return buffers;
 }

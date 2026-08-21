@@ -109,6 +109,11 @@ export class ViewportVisibilityState {
     );
   }
 
+  /** Reconciles definition visibility after a hierarchy revision with no runtime occurrences. */
+  reconcileUnplacedAssemblyDefinitions(scene: Scene): ViewportVisibilityState {
+    return this.reconcileHierarchy(scene, this.runtime, [], []);
+  }
+
   setPartVisible(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
     updateHidden(this.parts.hidden, partId, visible);
     return runtime.setPartVisible(partId, visible);

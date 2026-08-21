@@ -24,11 +24,11 @@ import {
 import { stageDrawResources, stagePartDefinitionResources } from "./part-revision-stage";
 import { discardStagedOccurrenceResources } from "./occurrence-resources";
 import {
-  commitStagedPartResults,
   commitStagedPartDefinition,
   commitStagedStorage,
   commitStagedWrites,
 } from "./part-definitions";
+import { commitStagedPartResults } from "./part-revision-result-resources";
 import type { PartRevisionResultState } from "./part-revision-results";
 import { syncDeformations } from "../frame/deformation";
 import { syncOrientationGlyphs } from "../orientation-glyphs/orientation-glyph";
@@ -286,7 +286,7 @@ function commitPrepared(options: PreparedOptions): void {
       commitStagedStorage(options.bundle.draw, options.draw, partId);
     }
   }
-  commitStagedPartResults(options.bundle.draw, options.draw, partIds);
+  commitStagedPartResults(options.bundle.draw, options.draw, partIds, options.results);
   commitStagedWrites(options.bundle.draw, options, partIds);
   commitDrawOverlays(options.bundle.draw, options.draw);
   commitOccurrenceLayout(liveLayout, options.layout, options.slotLocals);

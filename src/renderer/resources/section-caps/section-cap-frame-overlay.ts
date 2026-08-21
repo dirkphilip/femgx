@@ -1,8 +1,9 @@
 import type { Part, PartId } from "../../../geometry/part";
 import type { ResultColorMap } from "../../../results/colors";
-import type { DrawCall } from "../draw-resources";
 import { PartRevisionMap } from "../../attachment/part-revision-overlay";
 import type { SectionCapFrame } from "../../section-caps";
+import { removeSectionCapCalls } from "./section-cap-calls";
+import { sectionCapKey } from "./section-cap-ids";
 
 /** Removes exact cap-owned entries without copying retained frame collections. */
 export function removeSectionCaps(
@@ -14,12 +15,48 @@ export function removeSectionCaps(
     sourcePartIds: removedEntries(frame.sourcePartIds, capIds),
     sourceCapIds: retainedSourceCapIds(frame.sourceCapIds, frame.sourcePartIds, capIds),
     sourceSlots: removedEntries(frame.sourceSlots, capIds),
-    calls: removedCalls(frame.calls, capIds),
-    transparentCalls: removedCalls(frame.transparentCalls, capIds),
-    allCalls: removedCalls(frame.allCalls, capIds),
+    capIdsBySourceSlot: retainedSlotCapIds(frame, capIds),
+    capIdsByKey: retainedCapKeys(frame, capIds),
+    calls: removeSectionCapCalls(frame.calls, capIds),
+    transparentCalls: removeSectionCapCalls(frame.transparentCalls, capIds),
+    allCalls: removeSectionCapCalls(frame.allCalls, capIds),
     resultColors: removedEntries(frame.resultColors, capIds),
     nextCapId: frame.nextCapId,
   };
+}
+
+function retainedSlotCapIds(
+  frame: SectionCapFrame,
+  capIds: ReadonlySet<PartId>,
+): ReadonlyMap<number, Set<PartId>> {
+  const retained = new PartRevisionMap(frame.capIdsBySourceSlot);
+  const slots = new Set<number>();
+  for (const capId of capIds) {
+    const slot = frame.sourceSlots.get(capId);
+    if (slot !== undefined) slots.add(slot);
+  }
+  for (const slot of slots) {
+    const next = new Set(frame.capIdsBySourceSlot.get(slot));
+    for (const capId of capIds) next.delete(capId);
+    if (next.size === 0) retained.delete(slot);
+    else retained.set(slot, next);
+  }
+  return retained;
+}
+
+function retainedCapKeys(
+  frame: SectionCapFrame,
+  capIds: ReadonlySet<PartId>,
+): ReadonlyMap<string, PartId> {
+  const retained = new PartRevisionMap(frame.capIdsByKey);
+  for (const capId of capIds) {
+    const sourcePartId = frame.sourcePartIds.get(capId);
+    const slot = frame.sourceSlots.get(capId);
+    const elementId = frame.parts.get(capId)?.elements?.at(0)?.id;
+    if (sourcePartId !== undefined && slot !== undefined && elementId !== undefined)
+      retained.delete(sectionCapKey(sourcePartId, slot, elementId));
+  }
+  return retained;
 }
 
 /** Combines repeated revision requests without iterating retained source state. */
@@ -127,33 +164,4 @@ function removedEntries<K, V>(
   const retained = new PartRevisionMap(values);
   for (const key of removed) retained.delete(key);
   return retained;
-}
-
-function removedCalls(calls: readonly DrawCall[], removed: ReadonlySet<PartId>): DrawCall[] {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- frame encoding consumes only length and iteration.
-  return new RemovedSectionCapCalls(calls, removed) as unknown as DrawCall[];
-}
-
-class RemovedSectionCapCalls implements Iterable<DrawCall> {
-  private count: number | undefined;
-
-  public constructor(
-    private readonly source: readonly DrawCall[],
-    private readonly removed: ReadonlySet<PartId>,
-  ) {}
-
-  public get length(): number {
-    this.count ??= this.measure();
-    return this.count;
-  }
-
-  public *[Symbol.iterator](): Iterator<DrawCall> {
-    for (const call of this.source) if (!this.removed.has(call.partId)) yield call;
-  }
-
-  private measure(): number {
-    let count = 0;
-    for (const _call of this) count += 1;
-    return count;
-  }
 }

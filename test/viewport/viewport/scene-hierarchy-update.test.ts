@@ -194,7 +194,77 @@ describe("Viewport incremental hierarchy updates", () => {
     expect(viewport.occurrences.isPartOccurrenceVisible("1/attached/leaf")).toBe(false);
     viewport.destroy();
   });
+
+  it("commits an unplaced empty assembly definition without recompiling or touching renderer resources", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const scene = hierarchyScene();
+    const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
+    const occurrences = viewport.occurrences;
+    const prepareOccurrence = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
+    const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
+    const invalidatePicking = vi.spyOn(RendererPicking.prototype, "invalidate");
+    prepareOccurrence.mockClear();
+    prepareParts.mockClear();
+    invalidatePicking.mockClear();
+    const before = gpuActivity(gpu);
+
+    const outcome = viewport.updateScene((update) => {
+      update.addAssembly({ id: 3, placements: [] });
+    });
+
+    expect(outcome).toEqual({ results: "none" });
+    expect(viewport.scene).not.toBe(scene);
+    expect(viewport.scene.assemblies.get(3)).toEqual({ id: 3, placements: [] });
+    expect(viewport.occurrences).toBe(occurrences);
+    expect(prepareOccurrence).not.toHaveBeenCalled();
+    expect(prepareParts).not.toHaveBeenCalled();
+    expect(invalidatePicking).not.toHaveBeenCalled();
+    expect(gpuActivity(gpu)).toEqual(before);
+    viewport.destroy();
+  });
+
+  it("removes an unplaced assembly definition without recompiling or touching renderer resources", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const scene = hierarchyScene();
+    const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
+    const occurrences = viewport.occurrences;
+    const prepareOccurrence = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
+    const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
+    const invalidatePicking = vi.spyOn(RendererPicking.prototype, "invalidate");
+    prepareOccurrence.mockClear();
+    prepareParts.mockClear();
+    invalidatePicking.mockClear();
+    const before = gpuActivity(gpu);
+
+    const outcome = viewport.updateScene((update) => {
+      update.removeAssembly(2);
+    });
+
+    expect(outcome).toEqual({ results: "none" });
+    expect(viewport.scene).not.toBe(scene);
+    expect(viewport.scene.assemblies.has(2)).toBe(false);
+    expect(viewport.occurrences).toBe(occurrences);
+    expect(prepareOccurrence).not.toHaveBeenCalled();
+    expect(prepareParts).not.toHaveBeenCalled();
+    expect(invalidatePicking).not.toHaveBeenCalled();
+    expect(gpuActivity(gpu)).toEqual(before);
+    viewport.destroy();
+  });
 });
+
+function gpuActivity(gpu: ReturnType<typeof fakeGpuDevice>) {
+  return {
+    buffers: gpu.buffers.length,
+    writes: gpu.writes.length,
+    textures: gpu.textureCreations,
+    bindGroups: gpu.bindGroupCreations,
+    submissions: gpu.submissionCount,
+  };
+}
 
 function hierarchyScene() {
   const geometry = {

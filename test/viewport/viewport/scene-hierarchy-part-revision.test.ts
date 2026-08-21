@@ -67,12 +67,16 @@ describe("Viewport mixed hierarchy and part revisions", () => {
     installTestGpuGlobals();
     installNavigator();
     let fail = false;
+    let stagedInstanceStorages = 0;
     const stagedLabels: string[] = [];
     const gpu = fakeGpuDevice({
       onCreateBuffer: (_creation, descriptor) => {
         if (fail) stagedLabels.push(String(descriptor.label));
-        if (fail && descriptor.label === "femgx orientation glyph records") {
-          throw new Error("injected mixed glyph allocation failure");
+        if (fail && descriptor.label === "femgx instance storage") {
+          stagedInstanceStorages += 1;
+          if (stagedInstanceStorages === 2) {
+            throw new Error("injected mixed cap allocation failure");
+          }
         }
       },
     });
@@ -88,9 +92,12 @@ describe("Viewport mixed hierarchy and part revisions", () => {
     const draw = rendererDraw(viewport);
     const frame = rendererCaps(viewport);
     const retained = retainedIdentities(draw, frame);
+    const retainedResultBuffers = resultBuffers(retained);
+    const retainedDestroyCounts = bufferDestroyCounts(gpu, retainedResultBuffers);
     const results = viewport.results.state;
     const bounds = viewportBounds(viewport);
     const bufferStart = gpu.buffers.length;
+    const liveDestroyCounts = gpu.buffers.map(({ destroyCount }) => destroyCount);
     const writeStart = gpu.writes.length;
     const liveBuffers = new Set(gpu.buffers.map(({ resource }) => resource));
     fail = true;
@@ -105,7 +112,7 @@ describe("Viewport mixed hierarchy and part revisions", () => {
           transform: translationMatrix(4, 0, 0),
         });
       }),
-    ).toThrow("injected mixed glyph allocation failure");
+    ).toThrow("injected mixed cap allocation failure");
 
     expect(viewport.scene).toBe(scene);
     expect(viewport.occurrences.getPartOccurrence("1/branch/added-revised")).toBeUndefined();
@@ -118,9 +125,25 @@ describe("Viewport mixed hierarchy and part revisions", () => {
       .map((buffer, index) => ({ label: stagedLabels[index], destroys: buffer.destroyCount }))
       .filter(({ destroys }) => destroys !== 1);
     expect(leaked).toEqual([]);
+    expect(stagedLabels).toEqual(
+      expect.arrayContaining([
+        "femgx orientation glyph records",
+        "femgx deformation storage",
+        "femgx result color storage",
+      ]),
+    );
     expect(gpu.writes.slice(writeStart).some(({ buffer }) => liveBuffers.has(buffer))).toBe(false);
+    expect(bufferDestroyCounts(gpu, retainedResultBuffers)).toEqual(retainedDestroyCounts);
+    expect(gpu.buffers.slice(0, bufferStart).map(({ destroyCount }) => destroyCount)).toEqual(
+      liveDestroyCounts,
+    );
     fail = false;
     viewport.render();
+    expectRetainedIdentities(draw, frame, retained);
+    expect(bufferDestroyCounts(gpu, retainedResultBuffers)).toEqual(retainedDestroyCounts);
+    expect(gpu.buffers.slice(0, bufferStart).map(({ destroyCount }) => destroyCount)).toEqual(
+      liveDestroyCounts,
+    );
     await viewport.recover();
     viewport.render();
     viewport.destroy();
@@ -204,9 +227,20 @@ function rendererDraw(viewport: Awaited<ReturnType<typeof createViewport>>) {
 interface DrawView {
   readonly storages: ReadonlyMap<number, unknown>;
   readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<string, unknown>>;
-  readonly resultColors: ReadonlyMap<number, unknown>;
-  readonly deformations: ReadonlyMap<number, unknown>;
-  readonly orientationGlyphs: { readonly parts: ReadonlyMap<number, unknown> };
+  readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
+  readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
+  readonly orientationGlyphs: {
+    readonly parts: ReadonlyMap<
+      number,
+      {
+        readonly normalBuffer: GPUBuffer;
+        readonly groups: ReadonlyMap<
+          unknown,
+          { readonly recordBuffer: GPUBuffer; readonly orderBuffer: GPUBuffer }
+        >;
+      }
+    >;
+  };
 }
 
 function rendererCaps(viewport: Awaited<ReturnType<typeof createViewport>>) {
@@ -240,6 +274,28 @@ function retainedIdentities(draw: DrawView, caps: ReturnType<typeof rendererCaps
     glyph: draw.orientationGlyphs.parts.get(2),
     cap: capForSource(caps, 2),
   };
+}
+
+function resultBuffers(retained: ReturnType<typeof retainedIdentities>): readonly GPUBuffer[] {
+  const glyph = retained.glyph;
+  return [
+    retained.color?.buffer,
+    retained.deformation?.buffer,
+    glyph?.normalBuffer,
+    ...[...(glyph?.groups.values() ?? [])].flatMap(({ recordBuffer, orderBuffer }) => [
+      recordBuffer,
+      orderBuffer,
+    ]),
+  ].filter((buffer): buffer is GPUBuffer => buffer !== undefined);
+}
+
+function bufferDestroyCounts(
+  gpu: ReturnType<typeof fakeGpuDevice>,
+  buffers: readonly GPUBuffer[],
+): readonly number[] {
+  return buffers.map(
+    (buffer) => gpu.buffers.find(({ resource }) => resource === buffer)?.destroyCount ?? -1,
+  );
 }
 
 function expectRetainedIdentities(

@@ -9,6 +9,7 @@ import {
 } from "../scene-runtime/occurrence-update";
 import {
   applyHierarchyMutations,
+  isHierarchyNoop,
   prepareHierarchyMutations,
 } from "../scene-runtime/hierarchy-update";
 import type { Scene } from "../scene/scene";
@@ -57,6 +58,7 @@ interface SceneUpdateResult {
   readonly committed: boolean;
   readonly outcome: SceneUpdateOutcome;
   readonly rendererSynchronized: boolean;
+  readonly requiresRender?: boolean;
 }
 
 /** Owns the live scene, runtime, results, and interaction transaction state. */
@@ -281,6 +283,7 @@ export class ViewportSceneController {
     mutations: NonNullable<ReturnType<typeof prepareHierarchyMutations>>,
     cancelCamera: () => void,
   ): SceneUpdateResult {
+    if (isHierarchyNoop(mutations)) return this.applyUnplacedAssemblyDefinitionUpdate(scene);
     prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
     const transaction = this.currentRuntime.beginHierarchyTransaction();
     let rendererUpdate: ReturnType<typeof prepareRendererOccurrenceUpdate> | undefined;
@@ -348,6 +351,17 @@ export class ViewportSceneController {
       (assemblyId, authoredVisible) =>
         this.currentVisibility.isAssemblyVisible(assemblyId, authoredVisible),
     );
+  }
+
+  private applyUnplacedAssemblyDefinitionUpdate(scene: Scene): SceneUpdateResult {
+    this.currentScene = scene;
+    this.currentVisibility = this.currentVisibility.reconcileUnplacedAssemblyDefinitions(scene);
+    return {
+      committed: true,
+      outcome: { results: this.currentResults === undefined ? "none" : "preserved" },
+      rendererSynchronized: true,
+      requiresRender: false,
+    };
   }
 
   private updateHierarchyBounds(

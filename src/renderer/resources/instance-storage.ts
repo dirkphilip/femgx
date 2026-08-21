@@ -431,6 +431,7 @@ function writeExistingOrder(
 }
 
 function destroyCoreBuffers(draw: InstanceStorageOwner, storage: InstanceStorage): void {
+  if (draw.deferReleases) return;
   draw.cost.releaseBuffer(storage.buffer.size);
   draw.cost.releaseBuffer(storage.orderBuffer.size);
   storage.buffer.destroy();

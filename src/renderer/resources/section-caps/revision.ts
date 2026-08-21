@@ -32,7 +32,21 @@ export interface PreparedSectionCapRevision {
   readonly runtime: PackedSceneRuntime;
   readonly interaction: InteractionState;
   readonly dirty: boolean;
+  readonly counters: SectionCapRevisionCounters;
 }
+
+/** Exact structural work performed while preparing cap fragments. */
+export interface SectionCapRevisionCounters {
+  readonly slotLookups: number;
+  readonly capIdsVisited: number;
+  readonly resourceLookups: number;
+}
+
+const NO_REVISION_WORK: SectionCapRevisionCounters = {
+  slotLookups: 0,
+  capIdsVisited: 0,
+  resourceLookups: 0,
+};
 
 interface RevisionOwnerState {
   readonly frame: SectionCapFrame | undefined;
@@ -101,6 +115,7 @@ export function prepareSectionCapRevision(
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: false,
+    counters: NO_REVISION_WORK,
   };
 }
 
@@ -112,14 +127,15 @@ export function prepareSectionCapOccurrenceRevision(
   },
 ): PreparedSectionCapRevision {
   const slots = new Set(options.delta.slots.map(({ slot }) => slot));
-  const oldCapIds = capIdsForSlots(owner.retained, slots);
+  const oldLookup = capIdsForSlots(owner.retained, slots);
+  const oldCapIds = oldLookup.ids;
   if (
     options.plane === undefined ||
     owner.frame === undefined ||
     owner.retained === undefined ||
     owner.dirty
   ) {
-    return exactDirtyOccurrence(owner, options, oldCapIds);
+    return exactDirtyOccurrence(owner, options, oldCapIds, oldLookup);
   }
   const retained = removeSectionCaps(owner.retained, oldCapIds);
   let frame: SectionCapFrame;
@@ -131,31 +147,49 @@ export function prepareSectionCapOccurrenceRevision(
       revisedPartIds: options.delta.affectedPartIds,
       revisedSlots: slots,
     });
-    uploadRevisedCapGeometry(options.draw, frame, options.delta.affectedPartIds);
+    const newLookup = capIdsForSlots(frame, slots);
+    const resourceLookups = uploadCapGeometry(options.draw, frame, newLookup.ids);
+    return occurrenceRevisionResult(owner, options, frame, {
+      oldLookup,
+      newLookup,
+      resourceLookups,
+    });
   } catch (error) {
     discardNewCapResources(options.draw, owner.retained, options.delta.affectedPartIds);
     throw error;
   }
-  const newCapIds = capIdsForSlots(frame, slots);
+}
+
+function occurrenceRevisionResult(
+  owner: RevisionOwnerState,
+  options: Omit<SectionCapRevisionOptions, "partIds"> & { readonly delta: RuntimeOccurrenceDelta },
+  frame: SectionCapFrame,
+  work: OccurrenceCapWork,
+): PreparedSectionCapRevision {
   return {
     frame,
     retained: frame,
-    oldCapIds,
-    newCapIds,
+    oldCapIds: work.oldLookup.ids,
+    newCapIds: work.newLookup.ids,
     renderedParts: exactRenderedParts(owner.renderedParts, options.parts, frame, {
       sourceIds: options.delta.affectedPartIds,
-      removed: oldCapIds,
-      added: newCapIds,
+      removed: work.oldLookup.ids,
+      added: work.newLookup.ids,
     }),
     renderedColors: exactRenderedColors(owner.renderedColors, options.resultColors, frame, {
       sourceIds: options.delta.affectedPartIds,
-      removed: oldCapIds,
-      added: newCapIds,
+      removed: work.oldLookup.ids,
+      added: work.newLookup.ids,
     }),
     sourceColors: options.resultColors,
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: false,
+    counters: {
+      slotLookups: work.oldLookup.slotLookups + work.newLookup.slotLookups,
+      capIdsVisited: work.oldLookup.idsVisited + work.newLookup.idsVisited,
+      resourceLookups: work.resourceLookups,
+    },
   };
 }
 
@@ -163,6 +197,7 @@ function exactDirtyOccurrence(
   owner: RevisionOwnerState,
   options: Omit<SectionCapRevisionOptions, "partIds"> & { readonly delta: RuntimeOccurrenceDelta },
   oldCapIds: ReadonlySet<PartId>,
+  lookup: CapSlotLookup,
 ): PreparedSectionCapRevision {
   const frame = owner.frame === undefined ? undefined : removeSectionCaps(owner.frame, oldCapIds);
   const retained =
@@ -186,17 +221,40 @@ function exactDirtyOccurrence(
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: true,
+    counters: {
+      slotLookups: lookup.slotLookups,
+      capIdsVisited: lookup.idsVisited,
+      resourceLookups: 0,
+    },
   };
 }
 
 function capIdsForSlots(
   frame: SectionCapFrame | undefined,
   slots: ReadonlySet<number>,
-): Set<PartId> {
+): CapSlotLookup {
   const ids = new Set<PartId>();
-  if (frame === undefined) return ids;
-  for (const [capId, slot] of frame.sourceSlots) if (slots.has(slot)) ids.add(capId);
-  return ids;
+  if (frame === undefined) return { ids, slotLookups: slots.size, idsVisited: 0 };
+  let idsVisited = 0;
+  for (const slot of slots) {
+    for (const capId of frame.capIdsBySourceSlot.get(slot) ?? []) {
+      ids.add(capId);
+      idsVisited += 1;
+    }
+  }
+  return { ids, slotLookups: slots.size, idsVisited };
+}
+
+interface CapSlotLookup {
+  readonly ids: Set<PartId>;
+  readonly slotLookups: number;
+  readonly idsVisited: number;
+}
+
+interface OccurrenceCapWork {
+  readonly oldLookup: CapSlotLookup;
+  readonly newLookup: CapSlotLookup;
+  readonly resourceLookups: number;
 }
 
 function exactRenderedParts(
@@ -246,6 +304,21 @@ interface ExactCapChanges {
   readonly added: ReadonlySet<PartId>;
 }
 
+function uploadCapGeometry(
+  draw: DrawResources,
+  frame: SectionCapFrame,
+  capIds: ReadonlySet<PartId>,
+): number {
+  let lookups = 0;
+  for (const capId of capIds) {
+    lookups += 1;
+    const cap = frame.parts.get(capId);
+    if (cap === undefined) continue;
+    for (const geometry of cap.geometries) uploadGeometryPart(draw, cap, geometry);
+  }
+  return lookups;
+}
+
 function uploadRevisedCapGeometry(
   draw: DrawResources,
   frame: SectionCapFrame,
@@ -280,6 +353,7 @@ function dirtyRevision(
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: true,
+    counters: NO_REVISION_WORK,
   };
 }
 

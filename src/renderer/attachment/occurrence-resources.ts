@@ -20,7 +20,7 @@ export function discardStagedOccurrenceResources(
   }
   discardVisibilitySkins(draw, live);
   discardGeometry(draw, live);
-  discardResults(draw, live);
+  discardResults(draw, live, partIds);
   if (draw.orientationGlyphs.paramsBuffer !== live.orientationGlyphs.paramsBuffer)
     draw.orientationGlyphs.paramsBuffer?.destroy();
 }
@@ -39,16 +39,16 @@ function discardGeometry(draw: DrawResources, live: DrawResources): void {
   }
 }
 
-function discardResults(draw: DrawResources, live: DrawResources): void {
-  for (const partId of stagedPartRevisionKeys(draw.deformations)) {
+function discardResults(
+  draw: DrawResources,
+  live: DrawResources,
+  partIds: ReadonlySet<PartId>,
+): void {
+  for (const partId of partIds) {
     if (draw.deformations.get(partId) !== live.deformations.get(partId))
       destroyDeformationBuffer(draw.deformations, partId, draw.cost);
-  }
-  for (const partId of stagedPartRevisionKeys(draw.resultColors)) {
     if (draw.resultColors.get(partId) !== live.resultColors.get(partId))
       destroyResultColorBuffer(draw, partId);
-  }
-  for (const partId of stagedPartRevisionKeys(draw.orientationGlyphs.parts)) {
     if (draw.orientationGlyphs.parts.get(partId) !== live.orientationGlyphs.parts.get(partId))
       destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
   }

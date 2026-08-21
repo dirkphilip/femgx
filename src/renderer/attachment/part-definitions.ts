@@ -21,6 +21,7 @@ import {
 } from "./part-revision-stage";
 import { discardStagedPartResources } from "./part-revision-cleanup";
 import { PartRevisionMap, stagePartRevisionFlagSet } from "./part-revision-overlay";
+import { commitStagedPartResults } from "./part-revision-result-resources";
 
 interface PartAttachmentOptions {
   attachedParts: Map<PartId, Part>;
@@ -199,28 +200,7 @@ function commitPartResults(
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
 ): void {
-  commitStagedPartResults(draw, prepared.draw, partIds);
-}
-
-/** Publishes result resources prepared in a detached draw owner. */
-export function commitStagedPartResults(
-  draw: DrawResources,
-  staged: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): void {
-  for (const partId of partIds) {
-    transferPartResource(draw.deformations, staged.deformations, partId);
-    transferPartResource(draw.resultColors, staged.resultColors, partId);
-    transferPartResource(draw.orientationGlyphs.parts, staged.orientationGlyphs.parts, partId);
-  }
-  if (draw.orientationGlyphs.paramsBuffer !== staged.orientationGlyphs.paramsBuffer) {
-    draw.orientationGlyphs.paramsBuffer?.destroy();
-    draw.orientationGlyphs.paramsBuffer = staged.orientationGlyphs.paramsBuffer;
-  }
-  new Uint8Array(draw.orientationGlyphs.paramsData).set(
-    new Uint8Array(staged.orientationGlyphs.paramsData),
-  );
-  draw.orientationGlyphs.state = staged.orientationGlyphs.state;
+  commitStagedPartResults(draw, prepared.draw, partIds, prepared.results);
 }
 
 function commitPartResources(
@@ -350,6 +330,9 @@ function committedStorageBuffers(
       if (sidecar !== undefined) buffers.add(sidecar.buffer);
     }
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
+  }
+  if (draw.orientationGlyphs.paramsBuffer !== undefined) {
+    buffers.add(draw.orientationGlyphs.paramsBuffer);
   }
   return buffers;
 }

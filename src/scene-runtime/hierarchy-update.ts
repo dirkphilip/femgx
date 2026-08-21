@@ -31,6 +31,16 @@ export interface RuntimeHierarchyDelta extends RuntimeOccurrenceDelta {
   readonly removedAssemblyOccurrenceIds: readonly AssemblyOccurrenceId[];
 }
 
+/** Whether a prepared hierarchy revision changes only unplaced assembly definitions. */
+export function isHierarchyNoop(prepared: PreparedHierarchyUpdate): boolean {
+  return (
+    prepared.owners.length === 0 &&
+    prepared.addedPartIds.size === 0 &&
+    prepared.replacedPartIds.size === 0 &&
+    prepared.removedPartIds.size === 0
+  );
+}
+
 /** Prepares exact changed assembly owners before mutating retained runtime storage. */
 export function prepareHierarchyMutations(
   runtime: PackedSceneRuntime,
@@ -39,7 +49,7 @@ export function prepareHierarchyMutations(
   changes: SceneStructuralChanges,
 ): PreparedHierarchyUpdate | undefined {
   const ownerDefinitions = affectedOwnerDefinitions(changes);
-  if (ownerDefinitions.size === 0) return undefined;
+  if (ownerDefinitions.size === 0 && !hasAssemblyDefinitionChanges(changes)) return undefined;
   const owners: OwnerMutation[] = [];
   for (const assemblyId of ownerDefinitions) {
     const beforeDefinition = source.assemblies.get(assemblyId);
@@ -186,6 +196,11 @@ function affectedOwnerDefinitions(changes: SceneStructuralChanges): Set<number> 
   }
   for (const id of changes.assemblies.replaced) ids.add(id);
   return ids;
+}
+
+function hasAssemblyDefinitionChanges(changes: SceneStructuralChanges): boolean {
+  const { added, replaced, removed } = changes.assemblies;
+  return added.size + replaced.size + removed.size > 0;
 }
 
 function samePlacementSequence(before: AssemblyDefinition, after: AssemblyDefinition): boolean {

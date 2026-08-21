@@ -13,6 +13,7 @@ import {
   type SectionCapFrame,
 } from "../../section-caps";
 import { instanceAt } from "../../runtime-state";
+import { sectionCapKey } from "./section-cap-ids";
 
 /** Filters retained cap records when visibility can only remove elements. */
 export function filterSectionCapFrame(options: {
@@ -43,6 +44,8 @@ export function filterSectionCapFrame(options: {
     next.sourcePartIds.set(capId, sourcePartId);
     registerSectionCapOwner(next.sourceCapIds, sourcePartId, capId);
     next.sourceSlots.set(capId, sourceSlot);
+    registerSectionCapOwner(next.capIdsBySourceSlot, sourceSlot, capId);
+    next.capIdsByKey.set(sectionCapKey(sourcePartId, sourceSlot, element.id), capId);
     appendCapCall(
       options.draw,
       capId,
@@ -58,6 +61,8 @@ export function filterSectionCapFrame(options: {
     sourcePartIds: next.sourcePartIds,
     sourceCapIds: next.sourceCapIds,
     sourceSlots: next.sourceSlots,
+    capIdsBySourceSlot: next.capIdsBySourceSlot,
+    capIdsByKey: next.capIdsByKey,
     calls: next.calls.opaque,
     transparentCalls: next.calls.transparent,
     allCalls: next.calls.all,
@@ -72,6 +77,8 @@ function emptyFrame(nextCapId: PartId) {
     sourcePartIds: new Map<PartId, PartId>(),
     sourceCapIds: new Map<PartId, Set<PartId>>(),
     sourceSlots: new Map<PartId, number>(),
+    capIdsBySourceSlot: new Map<number, Set<PartId>>(),
+    capIdsByKey: new Map<string, PartId>(),
     calls: { opaque: [], transparent: [], all: [] } satisfies CapCallLists,
     resultColors: new Map<PartId, ResultColorTable>(),
     nextCapId,

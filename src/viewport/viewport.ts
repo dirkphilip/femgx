@@ -293,7 +293,7 @@ class ViewportCore implements Viewport {
     if (!update.committed) return update.outcome;
     this.visibilityController.reset();
     if (!update.rendererSynchronized) this.appliedInteraction = createInteractionState();
-    this.invalidate();
+    if (update.requiresRender !== false) this.invalidate();
     return update.outcome;
   }
 

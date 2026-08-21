@@ -1,4 +1,5 @@
 import type { PartId } from "../../../geometry/part";
+import { ownsPartRevisionMapValue } from "../../attachment/part-revision-overlay";
 
 /** Records exact section-cap ownership for one source part definition. */
 export function registerSectionCapOwner(
@@ -9,6 +10,9 @@ export function registerSectionCapOwner(
   let capIds = sourceCapIds.get(sourcePartId);
   if (capIds === undefined) {
     capIds = new Set();
+    sourceCapIds.set(sourcePartId, capIds);
+  } else if (!ownsPartRevisionMapValue(sourceCapIds, sourcePartId)) {
+    capIds = new Set(capIds);
     sourceCapIds.set(sourcePartId, capIds);
   }
   capIds.add(capId);
