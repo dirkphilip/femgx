@@ -31,6 +31,10 @@ export interface DemoHarness {
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
   ) => Promise<ElementRegionSelection | readonly unknown[]>;
+  readonly pickRegionKeys: (
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ) => Promise<readonly string[]>;
   readonly getBoxSelectionStats: () => {
     readonly active: boolean;
     readonly queued: boolean;

@@ -4,7 +4,11 @@ import {
   type Viewport,
   type InteractionGranularity,
 } from "@/entries/root";
-import { type BoxSelectionRect } from "@/entries/interaction";
+import {
+  type BoxSelectionRect,
+  type ElementRegionSelection,
+  type InteractionTarget,
+} from "@/entries/interaction";
 import { createModelPresets } from "../fixtures/presets";
 import { parseTet4CellsQuery } from "../benchmark/dense-tet4";
 import { installDemoHarness, type DemoHarness } from "../devtools/harness";
@@ -206,8 +210,37 @@ function installWorkbenchHarness(
     probePick: (x: number, y: number) => probePickKeys(state, controller, x, y),
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
       (await state.viewport?.interaction.pickRegion(rect, granularity)) ?? [],
+    pickRegionKeys: (rect, granularity) => demoRegionKeys(state.viewport, rect, granularity),
     getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
+}
+
+async function demoRegionKeys(
+  viewport: Viewport | undefined,
+  rect: BoxSelectionRect,
+  granularity: InteractionGranularity,
+): Promise<readonly string[]> {
+  const result = await viewport?.interaction.pickRegion(rect, granularity);
+  if (result === undefined) return [];
+  if (isTargetList(result)) return result.map(targetKey);
+  const keys: string[] = [];
+  for (let group = 0; group < result.partOccurrenceIds.length; group += 1) {
+    const partOccurrenceId = result.partOccurrenceIds[group];
+    const start = result.offsets[group];
+    const end = result.offsets[group + 1];
+    if (partOccurrenceId === undefined || start === undefined || end === undefined) continue;
+    for (let index = start; index < end; index += 1) {
+      const elementId = result.elementIds[index];
+      if (elementId !== undefined) keys.push(`e:${partOccurrenceId}:${elementId}`);
+    }
+  }
+  return keys;
+}
+
+function isTargetList(
+  result: ElementRegionSelection | readonly InteractionTarget[],
+): result is readonly InteractionTarget[] {
+  return Array.isArray(result);
 }
 
 function benchmarkRunner(

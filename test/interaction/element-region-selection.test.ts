@@ -96,4 +96,20 @@ describe("packed element region selections", () => {
     expect(() => setElementRegionSelected(initial, malformed, "add")).toThrow(/duplicate-free/);
     expect(selectedElementRegion(initial).count).toBe(0);
   });
+
+  it("rejects a malformed packed discriminator before changing state", () => {
+    const malformed = {
+      kind: "face",
+      count: 1,
+      partOccurrenceIds: ["root/a"],
+      offsets: new Uint32Array([0, 1]),
+      elementIds: new Uint32Array([4]),
+    } as unknown as Parameters<typeof setElementRegionSelected>[1];
+    const initial = createInteractionState();
+
+    expect(() => setElementRegionSelected(initial, malformed, "add")).toThrow(
+      /kind must be element/,
+    );
+    expect(selectedElementRegion(initial).count).toBe(0);
+  });
 });

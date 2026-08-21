@@ -54,6 +54,10 @@ export function createElementRegionSelection(
 export function assertElementRegionSelection(
   selection: ElementRegionSelection,
 ): asserts selection is ElementRegionSelection {
+  const kind: unknown = Reflect.get(selection, "kind");
+  if (kind !== "element") {
+    throw new TypeError("Element region selection kind must be element");
+  }
   if (!Number.isSafeInteger(selection.count) || selection.count < 0) {
     throw new TypeError("Element region selection count must be a non-negative safe integer");
   }
