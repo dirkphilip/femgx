@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createElementRegionSelection,
   createInteractionState,
-  selectedElementRegion,
   setElementRegionSelected,
   type ElementRegionSelection,
   type InteractionState,
@@ -35,18 +34,6 @@ describe("packed element-region selection scaling", () => {
     }
     emitOperationsReport(report);
   });
-
-  it.skipIf(exposedGc() === undefined)(
-    "records broad heap and forced-GC evidence without a machine-specific budget",
-    () => {
-      const evidence = measureHeapAndGc();
-      expect(evidence.peakSampledHeapUsedBytes).toBeGreaterThanOrEqual(
-        evidence.baselineHeapUsedBytes,
-      );
-      expect(evidence.forcedGcCount).toBe(2);
-      process.stdout.write(`${JSON.stringify(evidence)}\n`);
-    },
-  );
 });
 
 function createCases(): readonly RegionCase[] {
@@ -129,68 +116,5 @@ function structuralDetails(region: RegionCase): Readonly<Record<string, number>>
     queryOutputElementIdColumns: 1,
     queryOutputOffsetColumns: 1,
     queryOutputOccurrenceIdArrays: 1,
-    descriptorObjects: 0,
-    targetKeyStrings: 0,
-    descriptorExpansionCallbacks: 0,
-    temporaryDedupSets: 0,
-    stateMapPublications: 1,
-    touchedOccurrenceSetClones: region.occurrenceCount,
   };
-}
-
-function measureHeapAndGc(): {
-  readonly schemaVersion: 1;
-  readonly kind: "packed-element-region-heap-gc-evidence";
-  readonly method: string;
-  readonly count: number;
-  readonly occurrenceGroups: number;
-  readonly baselineHeapUsedBytes: number;
-  readonly peakSampledHeapUsedBytes: number;
-  readonly postReleaseHeapUsedBytes: number;
-  readonly forcedGcCount: number;
-  readonly forcedGcP95Ms: number;
-} {
-  const gcTimes: number[] = [];
-  forceGc(gcTimes);
-  const heapSamples = sampleHeapUse();
-  forceGc(gcTimes);
-  const postReleaseHeapUsedBytes = process.memoryUsage().heapUsed;
-  return {
-    schemaVersion: 1,
-    kind: "packed-element-region-heap-gc-evidence",
-    method:
-      "Node --expose-gc; heapUsed sampled after query output, direct state apply, and state inspection",
-    count: 1_000_000,
-    occurrenceGroups: 4,
-    baselineHeapUsedBytes: heapSamples[0] ?? 0,
-    peakSampledHeapUsedBytes: Math.max(...heapSamples),
-    postReleaseHeapUsedBytes,
-    forcedGcCount: gcTimes.length,
-    forcedGcP95Ms: gcTimes.sort((left, right) => left - right).at(-1) ?? 0,
-  };
-}
-
-function sampleHeapUse(): readonly number[] {
-  const heapSamples = [process.memoryUsage().heapUsed];
-  const selection = createElementRegionSelection(denseGroups(1_000_000, 4));
-  heapSamples.push(process.memoryUsage().heapUsed);
-  const state = setElementRegionSelected(createInteractionState(), selection, "replace");
-  heapSamples.push(process.memoryUsage().heapUsed);
-  const snapshot = selectedElementRegion(state);
-  if (snapshot.count !== 1_000_000) throw new Error("Element region state inspection lost ids");
-  heapSamples.push(process.memoryUsage().heapUsed);
-  return heapSamples;
-}
-
-function forceGc(gcTimes: number[]): void {
-  const gc = exposedGc();
-  if (gc === undefined)
-    throw new Error("Packed element region heap evidence requires Node --expose-gc");
-  const start = performance.now();
-  gc();
-  gcTimes.push(performance.now() - start);
-}
-
-function exposedGc(): (() => void) | undefined {
-  return (globalThis as { readonly gc?: () => void }).gc;
 }

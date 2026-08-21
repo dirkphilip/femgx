@@ -46,6 +46,12 @@ export interface FakeGpuOptions {
   readonly elementPickValue?: number;
   readonly facePickValue?: number;
   readonly nodePickValue?: number;
+  /** Supplies one copied pick value at absolute texture coordinates. */
+  readonly pickValueAt?: (sample: {
+    readonly attachmentIndex: number;
+    readonly x: number;
+    readonly y: number;
+  }) => number;
   readonly ndcDepth?: number;
   readonly mapAsync?: () => Promise<void>;
   readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;

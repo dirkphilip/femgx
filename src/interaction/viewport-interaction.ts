@@ -1,25 +1,31 @@
 import { clientToCanvasCss } from "../camera/coordinates";
-import { elementRegion, resolveBoxRegion, targetList } from "./viewport-interaction-box";
+import {
+  elementBoxHandoff,
+  elementRegion,
+  resolveBoxRegion,
+  targetList,
+} from "./viewport-interaction-box";
 import { installBoxSelection, type BoxSelectionEvent } from "./box-selection";
 import { interactionTargetFromHit, setTargetHovered } from "./targets";
 import {
   assertTarget,
   boxInteraction,
   clickInteraction,
-  elementBoxInteraction,
   isCompletedBoxEvent,
   modifiersOf,
 } from "./viewport-interaction-helpers";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity } from "../picking/types";
-import type {
-  ViewportInteractionApplyRequest,
-  ViewportInteractionBoxEvent,
-  ViewportInteractionBoxSelection,
-  ViewportInteractionOptions,
-  ViewportInteractionPhase,
-  ViewportInteractionTouchMode,
+import {
+  viewportInteractionProbeKey,
+  type ViewportInteractionProbe,
+  type ViewportInteractionApplyRequest,
+  type ViewportInteractionBoxEvent,
+  type ViewportInteractionBoxSelection,
+  type ViewportInteractionOptions,
+  type ViewportInteractionPhase,
+  type ViewportInteractionTouchMode,
 } from "./viewport-interaction-types";
 export type {
   ViewportInteractionApplyRequest,
@@ -68,6 +74,7 @@ class ViewportInteraction {
   private boxQueryActive = false;
   private hoverFrame: number | undefined;
   private hoverInFlight = false;
+  private readonly probe: ViewportInteractionProbe | undefined;
   private touchDown:
     { readonly pointerId: number; readonly clientX: number; readonly clientY: number } | undefined;
   private queuedBox:
@@ -75,6 +82,10 @@ class ViewportInteraction {
   private queuedHover: { readonly event: PointerEvent; readonly generation: number } | undefined;
 
   constructor(private readonly options: ViewportInteractionOptions) {
+    this.probe = (
+      options as ViewportInteractionOptions &
+        Partial<Record<typeof viewportInteractionProbeKey, ViewportInteractionProbe>>
+    )[viewportInteractionProbeKey];
     this.boxDisposer = installBoxSelection({
       canvas: options.canvas,
       touchEnabled: () => this.touchMode() === "box-select",
@@ -332,31 +343,23 @@ class ViewportInteraction {
     const operation = event.modifiers.control || event.modifiers.meta ? "add" : "replace";
     if (granularity === "element") {
       const selection = elementRegion(result);
-      this.reportBoxSelection({ event, granularity, frustum, selection });
-      await this.apply(
-        {
-          phase: "box",
-          granularity,
-          current,
-          defaultInteraction: elementBoxInteraction(current, selection, operation),
-          selection,
-          operation,
-          modifiers: {
-            shift: event.modifiers.shift,
-            control: event.modifiers.control,
-            alt: event.modifiers.alt,
-            meta: event.modifiers.meta,
-          },
-          event,
-          frustum,
-        },
-        generation,
-      );
+      const handoff = elementBoxHandoff({
+        event,
+        frustum,
+        current,
+        selection,
+        operation,
+        observe: this.options.onBoxSelection !== undefined,
+        override: this.options.applyInteraction !== undefined,
+        probe: this.probe,
+      });
+      if (handoff.observed !== undefined) this.reportBoxSelection(handoff.observed);
+      await this.apply(handoff.request, generation);
       return;
     }
     const targets = targetList(result);
     this.reportBoxSelection({ event, granularity, frustum, targets });
-    const next = boxInteraction(current, targets, event.modifiers);
+    const next = boxInteraction(current, targets, event.modifiers, this.probe);
     await this.apply(
       {
         phase: "box",
@@ -365,12 +368,7 @@ class ViewportInteraction {
         defaultInteraction: next,
         selection: targets,
         operation,
-        modifiers: {
-          shift: event.modifiers.shift,
-          control: event.modifiers.control,
-          alt: event.modifiers.alt,
-          meta: event.modifiers.meta,
-        },
+        modifiers: event.modifiers,
         event,
         frustum,
       },
@@ -402,7 +400,10 @@ class ViewportInteraction {
       return;
     }
     if (!this.isCurrent(generation) || result === undefined) return;
-    if (result !== request.current) this.options.viewport.interaction.set(result);
+    if (result !== request.current) {
+      this.options.viewport.interaction.set(result);
+      if (this.probe !== undefined) this.probe.statePublications += 1;
+    }
   }
 
   private isPointPointer(event: PointerEvent): boolean {

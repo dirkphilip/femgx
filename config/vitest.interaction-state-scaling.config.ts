@@ -13,6 +13,7 @@ export default defineConfig({
     include: [
       "test/bench/large-model/interaction-state-scaling.test.ts",
       "test/bench/large-model/element-region-selection.test.ts",
+      "test/bench/large-model/element-region-discovery.test.ts",
     ],
     testTimeout: 60_000,
   },

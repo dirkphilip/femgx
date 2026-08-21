@@ -32,6 +32,15 @@ interface ReusableElementQuery extends Omit<ElementQuery, "element" | "elementIn
   elementIndex: number;
 }
 
+/** Mutable counters for local evidence of authoritative Through query work. */
+export interface ThroughBoxSelectionProbe {
+  occurrencesVisited: number;
+  elementsVisited: number;
+  intersectionTests: number;
+  selectedIdentities: number;
+  groupsCreated: number;
+}
+
 /**
  * Creates the Core through-intersection resolver for element box selection.
  *
@@ -41,6 +50,7 @@ interface ReusableElementQuery extends Omit<ElementQuery, "element" | "elementIn
  */
 export function throughIntersectionBoxSelectionResolver(
   viewport: () => Viewport,
+  probe?: ThroughBoxSelectionProbe,
 ): BoxSelectionResolver {
   return ({ event, granularity }) => {
     if (granularity !== "element") {
@@ -68,7 +78,8 @@ export function throughIntersectionBoxSelectionResolver(
     };
 
     for (const partOccurrenceId of view.occurrences.visiblePartOccurrenceIds()) {
-      appendVisibleOccurrenceTargets(context, partOccurrenceId);
+      if (probe !== undefined) probe.occurrencesVisited += 1;
+      appendVisibleOccurrenceTargets(context, partOccurrenceId, probe);
     }
     return Promise.resolve(createElementRegionSelection(context.groups));
   };
@@ -77,6 +88,7 @@ export function throughIntersectionBoxSelectionResolver(
 function appendVisibleOccurrenceTargets(
   context: ThroughQueryContext,
   partOccurrenceId: string,
+  probe: ThroughBoxSelectionProbe | undefined,
 ): void {
   const { view } = context;
   const instance = view.occurrences.getPartOccurrence(partOccurrenceId);
@@ -90,6 +102,7 @@ function appendVisibleOccurrenceTargets(
   for (let elementIndex = 0; elementIndex < partQuery.elements.length; elementIndex += 1) {
     const element = partQuery.elements[elementIndex];
     if (element === undefined) continue;
+    if (probe !== undefined) probe.elementsVisited += 1;
     if (!isElementOccurrenceVisible(view.interaction.state, part, partOccurrenceId, element))
       continue;
     if (elementQuery === undefined) {
@@ -115,10 +128,14 @@ function appendVisibleOccurrenceTargets(
       elementQuery.element = element;
       elementQuery.elementIndex = elementIndex;
     }
+    if (probe !== undefined) probe.intersectionTests += 1;
     if (elementIntersectsBox(elementQuery)) {
       const selected = context.groups.get(partOccurrenceId);
-      if (selected === undefined) context.groups.set(partOccurrenceId, new Set([element.id]));
-      else selected.add(element.id);
+      if (selected === undefined) {
+        context.groups.set(partOccurrenceId, new Set([element.id]));
+        if (probe !== undefined) probe.groupsCreated += 1;
+      } else selected.add(element.id);
+      if (probe !== undefined) probe.selectedIdentities += 1;
     }
   }
 }

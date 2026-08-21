@@ -7,6 +7,18 @@ import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { Camera } from "../camera/camera";
 import type { CanvasCssPoint } from "../camera/coordinates";
 
+/** Internal key for opt-in local instrumentation; absent from the package facade. */
+export const viewportInteractionProbeKey: unique symbol = Symbol("viewport interaction probe");
+
+/** Mutable counters used by local large-model interaction evidence. */
+export interface ViewportInteractionProbe {
+  descriptorVisits: number;
+  targetKeyStrings: number;
+  defaultElementTransitions: number;
+  callbackSelectionCopies: number;
+  statePublications: number;
+}
+
 /** Explicitly routed touch behavior for an installed viewport interaction. */
 export type ViewportInteractionTouchMode = "navigate" | "hover" | "box-select";
 

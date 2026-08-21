@@ -8,7 +8,6 @@ import type { InteractionGranularity } from "../../picking/types";
 import type { PickContext } from "../../picking/pick";
 import { resolvePick } from "../../picking/pick";
 import { decodePickId } from "./pick-format";
-import { createPickRegionTargetResolver } from "./region-resolver";
 import {
   acquirePickReadback,
   READBACK_BYTE_STRIDE,
@@ -17,14 +16,23 @@ import {
   type PickTargets,
 } from "./pick";
 import { WebGpuPickReadbackError } from "./error";
+import {
+  decodeElementRegion,
+  resolveElementRegion,
+  type ElementPickGroups,
+} from "./element-region";
+import type { PickRegionProbe } from "./region-probe";
+import {
+  decodeRegion,
+  resolveTargets,
+  type RawIdentities,
+  type RegionAttachment,
+} from "./region-identities";
 import { createPickRegionTargetCollector } from "./region-targets";
 import { getPartResource, type DrawResources } from "../resources/draw-resources";
-import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 
 // Keeps common viewport reads in one mapping while bounding high-DPI regions.
 const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
-
-type RegionAttachment = "instance" | "element" | "face" | "node";
 
 interface RenderPixelRect {
   readonly left: number;
@@ -40,14 +48,7 @@ interface RegionTextures {
   readonly node: GPUTexture;
 }
 
-interface RawIdentity {
-  instancePickId: number;
-  elementPickId: number;
-  facePickId: number;
-  nodePickId: number;
-}
-
-type RawIdentities = Map<number, Map<number, RawIdentity>>;
+export type { PickRegionProbe } from "./region-probe";
 
 /** Inputs for the side-effect-free visible-region target query. */
 export interface PickRegionOptions {
@@ -58,6 +59,8 @@ export interface PickRegionOptions {
   readonly context: PickContext;
   readonly rect: BoxSelectionRect;
   readonly granularity: InteractionGranularity;
+  /** Optional internal measurement sink; absent from the package facade. */
+  readonly probe?: PickRegionProbe;
 }
 
 /** Inputs for the lazy authored-edge region query. */
@@ -127,6 +130,9 @@ export async function pickTargetsFromRegion(
   if (bounds === undefined) return emptyElementRegion(options.granularity);
   const textures = regionTextures(options.pick);
   if (textures === undefined) return emptyElementRegion(options.granularity);
+  if (options.granularity === "element") {
+    return pickElementRegion(options, bounds, textures);
+  }
   const attachments = attachmentsFor(options.granularity);
   const identities: RawIdentities = new Map();
   for (const tile of regionTiles(bounds, attachments.length)) {
@@ -136,14 +142,16 @@ export async function pickTargetsFromRegion(
       attachments.map((attachment) => textures[attachment]),
       tile,
       (bytes, width, height, bytesPerRow) => {
-        decodeRegion(bytes, width, height, bytesPerRow, { attachments, identities });
+        decodeRegion(bytes, width, height, bytesPerRow, {
+          attachments,
+          identities,
+          probe: options.probe,
+        });
       },
       "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
     );
   }
-  return options.granularity === "element"
-    ? resolveElementRegion(identityValues(identities), options.context)
-    : resolveTargets(identityValues(identities), options);
+  return resolveTargets(identities, options);
 }
 
 function emptyElementRegion(
@@ -152,28 +160,28 @@ function emptyElementRegion(
   return granularity === "element" ? createElementRegionSelection(new Map()) : [];
 }
 
-function resolveElementRegion(
-  identities: Iterable<RawIdentity>,
-  context: PickContext,
-): ElementRegionSelection {
-  const groups = new Map<string, Set<number>>();
-  for (const ids of identities) {
-    const instance = resolvePick(context.instances, ids.instancePickId - 1);
-    const elementId = ids.elementPickId - 1;
-    const part = instance === undefined ? undefined : context.parts.get(instance.partId);
-    if (
-      instance === undefined ||
-      part === undefined ||
-      ids.elementPickId === 0 ||
-      !getPartSemanticIndex(part).hasElement(elementId)
-    ) {
-      continue;
-    }
-    const values = groups.get(instance.partOccurrenceId);
-    if (values === undefined) groups.set(instance.partOccurrenceId, new Set([elementId]));
-    else values.add(elementId);
+async function pickElementRegion(
+  options: PickRegionOptions,
+  bounds: RenderPixelRect,
+  textures: RegionTextures,
+): Promise<ElementRegionSelection> {
+  const picks: ElementPickGroups = new Map();
+  for (const tile of regionTiles(bounds, 2)) {
+    assertRegionTexturesCurrent(options.pick, textures);
+    await readRegionTile(
+      options,
+      [textures.instance, textures.element],
+      tile,
+      (bytes, width, height, bytesPerRow) => {
+        decodeElementRegion(bytes, width, height, bytesPerRow, {
+          groups: picks,
+          probe: options.probe,
+        });
+      },
+      "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
+    );
   }
-  return createElementRegionSelection(groups);
+  return resolveElementRegion(picks, options.context);
 }
 
 function assertRegionTexturesCurrent(pick: PickTargets, snapshot: RegionTextures): void {
@@ -335,32 +343,6 @@ async function readRegionTile(
   }
 }
 
-function decodeRegion(
-  bytes: Uint8Array,
-  width: number,
-  height: number,
-  bytesPerRow: number,
-  target: {
-    readonly attachments: readonly RegionAttachment[];
-    readonly identities: RawIdentities;
-  },
-): void {
-  const { attachments, identities } = target;
-  const secondaryAttachment = attachments[1];
-  const secondaryOffset = secondaryAttachment === undefined ? 0 : bytesPerRow * height;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const offset = bytesPerRow * y + x * 4;
-      const instancePickId = decodePickId(bytes, offset);
-      if (instancePickId === 0) continue;
-      const secondaryPickId =
-        secondaryAttachment === undefined ? 0 : decodePickId(bytes, secondaryOffset + offset);
-      if (secondaryAttachment !== undefined && secondaryPickId === 0) continue;
-      recordIdentity(identities, instancePickId, secondaryAttachment, secondaryPickId);
-    }
-  }
-}
-
 function decodeEdgeRegion(
   bytes: Uint8Array,
   width: number,
@@ -379,60 +361,4 @@ function decodeEdgeRegion(
       else ids.add(edgePickId);
     }
   }
-}
-
-function recordIdentity(
-  identities: RawIdentities,
-  instancePickId: number,
-  secondaryAttachment: RegionAttachment | undefined,
-  secondaryPickId: number,
-): void {
-  let bySecondary = identities.get(instancePickId);
-  if (bySecondary === undefined) {
-    bySecondary = new Map();
-    identities.set(instancePickId, bySecondary);
-  }
-  if (bySecondary.has(secondaryPickId)) return;
-  const ids = { instancePickId, elementPickId: 0, facePickId: 0, nodePickId: 0 };
-  if (secondaryAttachment !== undefined) setPickId(ids, secondaryAttachment, secondaryPickId);
-  bySecondary.set(secondaryPickId, ids);
-}
-
-function* identityValues(identities: RawIdentities): Iterable<RawIdentity> {
-  for (const bySecondary of identities.values()) yield* bySecondary.values();
-}
-
-function setPickId(ids: RawIdentity, attachment: RegionAttachment, value: number): void {
-  switch (attachment) {
-    case "instance":
-      ids.instancePickId = value;
-      return;
-    case "element":
-      ids.elementPickId = value;
-      return;
-    case "face":
-      ids.facePickId = value;
-      return;
-    case "node":
-      ids.nodePickId = value;
-      return;
-  }
-}
-
-function resolveTargets(
-  identities: Iterable<RawIdentity>,
-  options: PickRegionOptions,
-): readonly InteractionTarget[] {
-  const resolveTarget = createPickRegionTargetResolver(options.context, options.granularity);
-  const resolved = createPickRegionTargetCollector();
-  for (const ids of identities) {
-    try {
-      const target = resolveTarget(ids);
-      if (target === undefined) continue;
-      resolved.add(target, ids.instancePickId);
-    } catch {
-      // Stale or malformed attachment ids are ignored at the ownership boundary.
-    }
-  }
-  return resolved.finish();
 }
