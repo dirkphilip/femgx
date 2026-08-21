@@ -52,7 +52,9 @@ interface ElementGroups {
  *   .addAssembly({
  *     id: 20,
  *     name: "root",
- *     placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+ *     placements: [
+ *       { kind: "part", placementId: "model-part", partId: part.id, transform: identityMatrix() },
+ *     ],
  *   })
  *   .setRootAssembly(20)
  *   .build();

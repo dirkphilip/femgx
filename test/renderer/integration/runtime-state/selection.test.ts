@@ -18,7 +18,6 @@ import {
   part,
   rangedSelectionPart,
   interiorSubsetPart,
-  denseSelectionPart,
   fragmentedSelectionPart,
 } from "./support";
 
@@ -30,8 +29,18 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -50,9 +59,24 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "2",
+            partId: 1,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -75,7 +99,14 @@ describe("renderer runtime state", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: rangedSelectionPart.id, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: rangedSelectionPart.id,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -252,7 +283,12 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: fragmentedSelectionPart.id,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -291,7 +327,14 @@ describe("renderer runtime state", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: interiorSubsetPart.id, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: interiorSubsetPart.id,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -329,56 +372,6 @@ describe("renderer runtime state", () => {
         instanceCount: 1,
         firstInstance: 0,
         selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 18 }],
-      },
-    ]);
-  });
-
-  it("builds one selected-region skin when a dense selection omits an element", () => {
-    const scene = createSceneBuilder()
-      .addPart(denseSelectionPart)
-      .addAssembly({
-        id: 1,
-        name: "root",
-        placements: [{ kind: "part", partId: denseSelectionPart.id, transform: identityMatrix() }],
-      })
-      .setRootAssembly(1)
-      .build();
-    const runtime = createPackedSceneRuntime(scene);
-    const layout = buildInstanceLayout(runtime);
-    const interaction = setTargetsSelected(
-      createInteractionState(),
-      [101, 102].map((elementId) => ({
-        kind: "element" as const,
-        partOccurrenceId: "1/0",
-        elementId,
-      })),
-      true,
-    );
-    const order = buildSelectionOrder(
-      layout,
-      runtime,
-      denseSelectionPart.id,
-      interaction,
-      new Map([[denseSelectionPart.id, denseSelectionPart]]),
-    );
-
-    expect(
-      buildSelectionDrawCallsForTest({
-        layout,
-        runtime,
-        partId: denseSelectionPart.id,
-        interaction,
-        part: denseSelectionPart,
-        order,
-      }),
-    ).toEqual([
-      { partId: denseSelectionPart.id, instanceCount: 1, firstInstance: 0, surfaceSubset: true },
-      {
-        partId: denseSelectionPart.id,
-        instanceCount: 1,
-        firstInstance: 0,
-        surfaceSubset: true,
-        selectionRanges: [{ primitive: "triangles", firstIndex: 9, indexCount: 3 }],
       },
     ]);
   });

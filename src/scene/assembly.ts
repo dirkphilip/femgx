@@ -6,7 +6,7 @@ import type { AssemblyId } from "./types";
  * A placement of a reusable {@link Part} inside an assembly.
  *
  * The authored placement owns a reference to a part definition, a local
- * transform, and optionally a stable `placementId` within its owning assembly.
+ * transform, and a stable `placementId` within its owning assembly.
  * It never copies geometry. The compiled runtime expands each placement into
  * one or more `PartOccurrenceId` values used for occurrence-scoped visibility,
  * interaction, and picking.
@@ -17,8 +17,8 @@ export interface PartPlacement {
   readonly kind: "part";
   /** Reusable part definition referenced by this authored placement. */
   readonly partId: PartId;
-  /** Optional stable identity within the owning assembly. */
-  readonly placementId?: string;
+  /** Stable identity within the owning assembly. */
+  readonly placementId: string;
   /** Local transform relative to the owning assembly. */
   readonly transform: Mat4;
 }
@@ -36,8 +36,8 @@ export interface AssemblyPlacement {
   readonly kind: "assembly";
   /** Child assembly definition referenced by this authored placement. */
   readonly assemblyId: AssemblyId;
-  /** Optional stable identity within the owning assembly. */
-  readonly placementId?: string;
+  /** Stable identity within the owning assembly. */
+  readonly placementId: string;
   /** Local transform relative to the owning assembly. */
   readonly transform: Mat4;
 }
@@ -46,9 +46,8 @@ export interface AssemblyPlacement {
  * A node in an assembly hierarchy.
  *
  * A placement is an authored reference in the immutable scene registry. Its
- * optional `placementId` should be explicit when a host will reconcile scene
- * updates; if omitted, the validated sibling index is the deterministic
- * fallback identity.
+ * `placementId` is scoped to this definition and remains stable when sibling
+ * order changes.
  * @category Scene and geometry
  */
 export type Placement = PartPlacement | AssemblyPlacement;

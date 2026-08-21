@@ -60,7 +60,7 @@ function placementIndex(assembly: AssemblyDefinition): PlacementIndex {
   const index = new Map<string, number>();
   for (let offset = 0; offset < assembly.placements.length; offset += 1) {
     const placement = assembly.placements[offset];
-    if (placement?.placementId !== undefined) index.set(placement.placementId, offset);
+    if (placement !== undefined) index.set(placement.placementId, offset);
   }
   const result = mapIndex(index);
   placementIndexes.set(assembly, result);

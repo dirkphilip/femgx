@@ -59,6 +59,7 @@ const boundsScene = {
         id: 1,
         placements: Array.from({ length: 64 }, (_, index) => ({
           kind: "part" as const,
+          placementId: String(index),
           partId: boundsPart.id,
           transform: translationMatrix(index, 0, 0),
         })),

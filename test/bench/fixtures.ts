@@ -89,6 +89,7 @@ function partPlacements(count: number, partCount: number, row: number): Placemen
   for (let i = 0; i < count; i++) {
     placements.push({
       kind: "part",
+      placementId: String(i),
       partId: (i % partCount) + 1,
       transform: translationMatrix(i * 0.001, row, 0),
     });
@@ -115,6 +116,7 @@ export function makeScene(options: {
     assemblies.set(subcaseId, subcaseAssembly);
     rootPlacements.push({
       kind: "assembly",
+      placementId: String(subcase),
       assemblyId: subcaseId,
       transform: identityMatrix(),
     });
@@ -150,6 +152,7 @@ export function makeHierarchyScene(options: {
       for (let i = 0; i < partsPerLeaf; i++) {
         placements.push({
           kind: "part",
+          placementId: String(i),
           partId: (i % partCount) + 1,
           transform: translationMatrix(i * 0.01, 0, 0),
         });
@@ -160,6 +163,7 @@ export function makeHierarchyScene(options: {
         nextId += 1;
         placements.push({
           kind: "assembly",
+          placementId: String(i),
           assemblyId: childId,
           transform: translationMatrix(i, 0, 0),
         });

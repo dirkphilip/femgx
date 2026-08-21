@@ -259,8 +259,9 @@ function authoredComponentModel(model: ElementModel, bodyNames: readonly string[
 function modePlacements(
   component: BoltedPlateComponentParts,
   transform: Mat4,
+  placementId: string,
 ): readonly Placement[] {
-  return [{ kind: "part", partId: component.partId, transform }];
+  return [{ kind: "part", placementId, partId: component.partId, transform }];
 }
 
 function plateStackAssembly(plateThickness: number, overlapOffset: number) {
@@ -268,8 +269,12 @@ function plateStackAssembly(plateThickness: number, overlapOffset: number) {
     id: PLATE_STACK,
     name: "Plate stack",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.plate, identityMatrix()),
-      ...modePlacements(COMPONENT_PARTS.plate, translationMatrix(overlapOffset, plateThickness, 0)),
+      ...modePlacements(COMPONENT_PARTS.plate, identityMatrix(), "plate-base"),
+      ...modePlacements(
+        COMPONENT_PARTS.plate,
+        translationMatrix(overlapOffset, plateThickness, 0),
+        "plate-overlap",
+      ),
     ],
   };
 }
@@ -279,9 +284,14 @@ function fastenerAssembly(nutY: number) {
     id: FASTENER,
     name: "Fastener",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.bolt, identityMatrix()),
-      { kind: "assembly" as const, assemblyId: WASHERS, transform: identityMatrix() },
-      ...modePlacements(COMPONENT_PARTS.nut, translationMatrix(0, nutY, 0)),
+      ...modePlacements(COMPONENT_PARTS.bolt, identityMatrix(), "bolt"),
+      {
+        kind: "assembly" as const,
+        placementId: "washers",
+        assemblyId: WASHERS,
+        transform: identityMatrix(),
+      },
+      ...modePlacements(COMPONENT_PARTS.nut, translationMatrix(0, nutY, 0), "nut"),
     ],
   };
 }
@@ -291,8 +301,16 @@ function washersAssembly(heights: FastenerHeights) {
     id: WASHERS,
     name: "Washers",
     placements: [
-      ...modePlacements(COMPONENT_PARTS.washer, translationMatrix(0, heights.topWasher, 0)),
-      ...modePlacements(COMPONENT_PARTS.washer, translationMatrix(0, heights.bottomWasher, 0)),
+      ...modePlacements(
+        COMPONENT_PARTS.washer,
+        translationMatrix(0, heights.topWasher, 0),
+        "top-washer",
+      ),
+      ...modePlacements(
+        COMPONENT_PARTS.washer,
+        translationMatrix(0, heights.bottomWasher, 0),
+        "bottom-washer",
+      ),
     ],
   };
 }
@@ -319,8 +337,9 @@ function fastenersGroup(positions: ReadonlyArray<{ readonly x: number; readonly 
   return {
     id: FASTENERS,
     name: "Fasteners",
-    placements: positions.map((position) => ({
+    placements: positions.map((position, index) => ({
       kind: "assembly" as const,
+      placementId: `fastener-${index}`,
       assemblyId: FASTENER,
       transform: translationMatrix(position.x, 0, position.z),
     })),
@@ -332,8 +351,18 @@ function rootAssembly(plateStackId: AssemblyId, fastenersId: AssemblyId) {
     id: ROOT,
     name: "Bolted joint",
     placements: [
-      { kind: "assembly" as const, assemblyId: plateStackId, transform: identityMatrix() },
-      { kind: "assembly" as const, assemblyId: fastenersId, transform: identityMatrix() },
+      {
+        kind: "assembly" as const,
+        placementId: "plate-stack",
+        assemblyId: plateStackId,
+        transform: identityMatrix(),
+      },
+      {
+        kind: "assembly" as const,
+        placementId: "fasteners",
+        assemblyId: fastenersId,
+        transform: identityMatrix(),
+      },
     ],
   };
 }

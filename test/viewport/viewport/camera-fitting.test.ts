@@ -173,8 +173,18 @@ describe("Viewport", () => {
       scene: explicitScene(
         [selectedPart, remotePart],
         [
-          { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
-          { kind: "part", partId: 2, transform: translationMatrix(30, 8, 30) },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: translationMatrix(0, 0, 0),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 2,
+            transform: translationMatrix(30, 8, 30),
+          },
         ],
       ),
       device: fakeGpuDevice().device,

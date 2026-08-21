@@ -43,7 +43,14 @@ export function reconstructBenchmarkScene(
     .addAssembly({
       id: 1,
       name: assemblyName,
-      placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "transfer",
+          partId: 1,
+          transform: translationMatrix(0, 0, 0),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();

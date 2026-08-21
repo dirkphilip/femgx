@@ -55,6 +55,7 @@ function sceneWithRepeatedPart(placementCount = 2) {
       name: "root",
       placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
+        placementId: String(index),
         partId: 1,
         transform: translationMatrix(index * 10, 0, 0),
       })),

@@ -34,7 +34,14 @@ const scene = createSceneBuilder()
   .addAssembly({
     id: 1,
     name: "dense-addressing",
-    placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+    placements: [
+      {
+        kind: "part",
+        placementId: "0",
+        partId: 1,
+        transform: identityMatrix(),
+      },
+    ],
   })
   .setRootAssembly(1)
   .build();

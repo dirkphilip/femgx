@@ -86,7 +86,7 @@ function denseCapScene(occurrenceCount: number) {
       id: 1,
       placements: Array.from({ length: occurrenceCount }, (_, index) => ({
         kind: "part" as const,
-        placementId: `part-${index}`,
+        placementId: String(index),
         partId: 1,
         transform: identityMatrix(),
       })),

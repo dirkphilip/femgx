@@ -176,9 +176,8 @@ export function validateAssemblyDefinition(
     if (placement === undefined) {
       throw new TypeError(`AssemblyDefinition ${assembly.id} placement ${index} is missing`);
     }
-    const placementIdValue = (placement as { readonly placementId?: unknown }).placementId;
-    const placementId = placementIdValue === undefined ? String(index) : placementIdValue;
-    validatePlacementId(placementId, assembly.id, index);
+    validatePlacementId(placement.placementId, assembly.id, index);
+    const placementId = placement.placementId;
     if (placementIds.has(placementId)) {
       throw new Error(
         `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placementId}`,
@@ -359,7 +358,9 @@ function validateAcyclic(assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>
  *   .addAssembly({
  *     id: 2,
  *     name: "root",
- *     placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+ *     placements: [
+ *       { kind: "part", placementId: "root-part", partId: 1, transform: identityMatrix() },
+ *     ],
  *   })
  *   .setRootAssembly(2)
  *   .build();

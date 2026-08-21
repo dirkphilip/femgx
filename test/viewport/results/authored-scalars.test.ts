@@ -111,7 +111,14 @@ describe("viewport results workflow", () => {
       .addAssembly({
         id: 1,
         name: "sparse",
-        placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();

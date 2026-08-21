@@ -167,7 +167,14 @@ export function scene(offset = 0) {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: translationMatrix(offset, 0, 0) }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: translationMatrix(offset, 0, 0),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -191,7 +198,20 @@ export function invalidScene(): Scene {
   return {
     ...current,
     assemblies: new Map([
-      [1, { ...root, placements: [{ kind: "part", partId: 1, transform: new Float32Array(15) }] }],
+      [
+        1,
+        {
+          ...root,
+          placements: [
+            {
+              kind: "part",
+              placementId: "invalid-transform",
+              partId: 1,
+              transform: new Float32Array(15),
+            },
+          ],
+        },
+      ],
     ]),
   };
 }
@@ -223,7 +243,14 @@ export function resultScene(nodeCount: 3 | 6): Scene {
     .addAssembly({
       id: 1,
       name: "result-root",
-      placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: translationMatrix(0, 0, 0),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();

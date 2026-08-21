@@ -31,6 +31,7 @@ function runtime(): SceneRuntime {
   };
   const place = (partId: number, x: number) => ({
     kind: "part" as const,
+    placementId: String(x / 2),
     partId,
     transform: translationMatrix(x, 0, 0),
   });

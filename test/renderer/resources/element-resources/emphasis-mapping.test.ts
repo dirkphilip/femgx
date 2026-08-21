@@ -270,7 +270,14 @@ describe("collectEmphasisUpdates", () => {
       .addAssembly({
         id: 1,
         name: "standalone-node",
-        placements: [{ kind: "part", partId: 2, transform: translationMatrix(0, 0, 0) }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 2,
+            transform: translationMatrix(0, 0, 0),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();

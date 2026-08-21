@@ -34,8 +34,18 @@ export function hardwareConformanceScene(): Scene {
       id: 1,
       name: "hardware-conformance",
       placements: [
-        { kind: "part", partId: part.id, transform: translationMatrix(-1.4, 0, 0) },
-        { kind: "part", partId: part.id, transform: translationMatrix(0.4, 0, 0) },
+        {
+          kind: "part",
+          placementId: "left",
+          partId: part.id,
+          transform: translationMatrix(-1.4, 0, 0),
+        },
+        {
+          kind: "part",
+          placementId: "right",
+          partId: part.id,
+          transform: translationMatrix(0.4, 0, 0),
+        },
       ],
     })
     .setRootAssembly(1)
@@ -65,8 +75,8 @@ export async function runHardwareConformance(
     },
   });
   let interaction = createInteractionState();
-  interaction = setPartOccurrenceOverride(interaction, "1/1", { opacity: 0.45 });
-  const selected = { kind: "partOccurrence", partOccurrenceId: "1/0" } as const;
+  interaction = setPartOccurrenceOverride(interaction, "1/right", { opacity: 0.45 });
+  const selected = { kind: "partOccurrence", partOccurrenceId: "1/left" } as const;
   interaction = setTargetSelected(interaction, selected, true);
   interaction = setTargetHighlighted(interaction, selected, true);
   current.interaction.set(interaction);

@@ -28,7 +28,14 @@ export function depthStableEdgesScene(): Scene {
     .addAssembly({
       id: 1,
       name: "depth-stable-edges",
-      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "edge-surface",
+          partId: 1,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -60,8 +67,18 @@ export function depthEdgeOcclusionScene(): Scene {
       id: 1,
       name: "depth-edge-occlusion",
       placements: [
-        { kind: "part", partId: edgePart.id, transform: identityMatrix() },
-        { kind: "part", partId: occluder.id, transform: identityMatrix() },
+        {
+          kind: "part",
+          placementId: "edge",
+          partId: edgePart.id,
+          transform: identityMatrix(),
+        },
+        {
+          kind: "part",
+          placementId: "occluder",
+          partId: occluder.id,
+          transform: identityMatrix(),
+        },
       ],
     })
     .setRootAssembly(1)
@@ -83,7 +100,7 @@ export function runDepthStableEdges(
   let interaction = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
   interaction = setTargetSelected(
     interaction,
-    { kind: "node", partOccurrenceId: "1/0", nodeId: 5 },
+    { kind: "node", partOccurrenceId: "1/edge-surface", nodeId: 5 },
     true,
   );
   current.interaction.set(interaction);

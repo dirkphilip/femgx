@@ -50,11 +50,13 @@ export function selectionScene(reverse: boolean, behind: boolean) {
       placements: [
         {
           kind: "part",
+          placementId: "part-1",
           partId: 1,
           transform: selectedId === 1 ? selectedTransform : identityMatrix(),
         },
         {
           kind: "part",
+          placementId: "part-2",
           partId: 2,
           transform: selectedId === 2 ? selectedTransform : identityMatrix(),
         },
@@ -85,7 +87,7 @@ function applySelectionPhase(
   const fractional = phase === "all-elemental-fractional";
   const reverseOrder = options.caseName.includes("reverse") || options.caseName.includes("behind");
   const selectedPartId = reverseOrder ? 2 : 1;
-  const partOccurrenceId = reverseOrder ? "1/1" : "1/0";
+  const partOccurrenceId = reverseOrder ? "1/part-2" : "1/part-1";
   const interaction = createSelectionInteraction(partOccurrenceId, all, fractional);
   options.current.results.set({
     scalar: {

@@ -111,12 +111,26 @@ describe("WebGPU renderer", () => {
       .addAssembly({
         id: 2,
         name: "wrapped",
-        placements: [{ kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: translationMatrix(0, 0, 0),
+          },
+        ],
       })
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "assembly",
+            placementId: "0",
+            assemblyId: 2,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -131,8 +145,18 @@ describe("WebGPU renderer", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
-          { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: translationMatrix(0, 0, 0),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: translationMatrix(2, 0, 0),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -159,7 +183,14 @@ describe("WebGPU renderer", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: initialPart.id, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: initialPart.id,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -195,7 +226,14 @@ describe("WebGPU renderer", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: part.id,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -243,7 +281,14 @@ describe("WebGPU renderer", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: part.id,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();

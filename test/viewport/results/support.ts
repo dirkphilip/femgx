@@ -75,7 +75,7 @@ export function createTestScene(transform = identityMatrix()) {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform }],
+      placements: [{ kind: "part", placementId: "0", partId: 1, transform }],
     })
     .setRootAssembly(1)
     .build();
@@ -118,7 +118,14 @@ export function createHex20ViewportScene() {
     .addAssembly({
       id: 7,
       name: "hex20",
-      placements: [{ kind: "part", partId: 7, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 7,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(7)
     .build();

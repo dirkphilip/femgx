@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createSceneBuilder } from "../../src/scene/scene";
+import type { Placement } from "../../src/scene/assembly";
 import { emptyPart } from "../support/scene-fixtures";
 
 describe("createSceneBuilder", () => {
@@ -9,7 +10,9 @@ describe("createSceneBuilder", () => {
       .addAssembly({
         id: 1,
         name: "root",
-        placements: [{ kind: "part", partId: 1, transform: new Float32Array(16) }],
+        placements: [
+          { kind: "part", placementId: "root-part", partId: 1, transform: new Float32Array(16) },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -73,11 +76,34 @@ describe("createSceneBuilder", () => {
         .addAssembly({
           id: 1,
           name: "root",
-          placements: [{ kind: "part", partId: 2, transform: new Float32Array(16) }],
+          placements: [
+            {
+              kind: "part",
+              placementId: "missing-part",
+              partId: 2,
+              transform: new Float32Array(16),
+            },
+          ],
         })
         .setRootAssembly(1)
         .build(),
     ).toThrow("references missing part 2");
+  });
+
+  it("rejects placements without an explicit stable identity", () => {
+    expect(() =>
+      createSceneBuilder()
+        .addPart(emptyPart(1))
+        .addAssembly({
+          id: 1,
+          name: "root",
+          placements: [
+            { kind: "part", partId: 1, transform: new Float32Array(16) } as unknown as Placement,
+          ],
+        })
+        .setRootAssembly(1)
+        .build(),
+    ).toThrow("placement 0 id must be a non-empty string without '/'");
   });
 
   it("rejects cyclic assembly hierarchies", () => {
@@ -86,12 +112,26 @@ describe("createSceneBuilder", () => {
         .addAssembly({
           id: 1,
           name: "one",
-          placements: [{ kind: "assembly", assemblyId: 2, transform: new Float32Array(16) }],
+          placements: [
+            {
+              kind: "assembly",
+              placementId: "child",
+              assemblyId: 2,
+              transform: new Float32Array(16),
+            },
+          ],
         })
         .addAssembly({
           id: 2,
           name: "two",
-          placements: [{ kind: "assembly", assemblyId: 1, transform: new Float32Array(16) }],
+          placements: [
+            {
+              kind: "assembly",
+              placementId: "parent",
+              assemblyId: 1,
+              transform: new Float32Array(16),
+            },
+          ],
         })
         .setRootAssembly(1)
         .build(),

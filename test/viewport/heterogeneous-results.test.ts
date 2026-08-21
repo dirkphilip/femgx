@@ -31,8 +31,9 @@ function heterogeneousScene() {
     .addAssembly({
       id: 1,
       name: "mixed",
-      placements: sourceParts.map((part) => ({
+      placements: sourceParts.map((part, index) => ({
         kind: "part" as const,
+        placementId: String(index),
         partId: part.id,
         transform: identityMatrix(),
       })),

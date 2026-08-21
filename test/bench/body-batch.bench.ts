@@ -36,7 +36,14 @@ function bodyScene() {
     .addAssembly({
       id: 1,
       name: "body-benchmark",
-      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();

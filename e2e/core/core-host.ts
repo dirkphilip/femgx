@@ -97,6 +97,7 @@ function coreScene(placementCount = 1, separated = false) {
       name: "core-foundation",
       placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
+        placementId: `placement-${index}`,
         partId: part.id,
         transform:
           index === 0
@@ -240,10 +241,10 @@ async function runPicking(current: Viewport): Promise<void> {
       ? undefined
       : await current.interaction.pick(projected[0], projected[1]);
   const edgeTargets = await current.interaction.pickRegion(region, "edge");
-  current.visibility.setPartOccurrenceVisible("1/0", false);
+  current.visibility.setPartOccurrenceVisible("1/placement-0", false);
   current.render();
   const hidden = await current.interaction.pickRegion(region, "element");
-  current.visibility.setPartOccurrenceVisible("1/0", true);
+  current.visibility.setPartOccurrenceVisible("1/placement-0", true);
   current.render();
   setStatus(
     "picking",
@@ -326,11 +327,11 @@ function runCamera(current: Viewport): void {
 
 function runTransparency(current: Viewport): void {
   let interaction = createInteractionState();
-  interaction = setPartOccurrenceOverride(interaction, "1/0", {
+  interaction = setPartOccurrenceOverride(interaction, "1/placement-0", {
     color: { r: 0.95, g: 0.25, b: 0.2, a: 1 },
     opacity: 0.45,
   });
-  interaction = setPartOccurrenceOverride(interaction, "1/1", {
+  interaction = setPartOccurrenceOverride(interaction, "1/placement-1", {
     color: { r: 0.2, g: 0.5, b: 1, a: 1 },
     opacity: 0.75,
   });
@@ -345,7 +346,7 @@ function runTransparency(current: Viewport): void {
       current.interaction.set(
         setTargetHighlighted(
           interaction,
-          { kind: "element", partOccurrenceId: "1/0", elementId: 1 },
+          { kind: "element", partOccurrenceId: "1/placement-0", elementId: 1 },
           true,
         ),
       );
@@ -370,7 +371,7 @@ function runSelectedHighlight(current: Viewport, caseName: string): void {
       opacity: 1,
     },
   });
-  const target = { kind: "partOccurrence", partOccurrenceId: "1/0" } as const;
+  const target = { kind: "partOccurrence", partOccurrenceId: "1/placement-0" } as const;
   interaction = setTargetHighlighted(interaction, target, true);
   interaction = setTargetSelected(interaction, target, true);
   if (feature) {

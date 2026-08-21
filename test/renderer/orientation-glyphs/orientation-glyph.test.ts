@@ -144,7 +144,14 @@ describe("orientation glyph data", () => {
       .addAssembly({
         id: 1,
         name: "singular-root",
-        placements: [{ kind: "part", partId: 1, transform: scalingMatrix(1, 0, 1) }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: scalingMatrix(1, 0, 1),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -175,7 +182,14 @@ describe("orientation glyph data", () => {
       .addAssembly({
         id: 1,
         name: "normal-root",
-        placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+        ],
       })
       .setRootAssembly(1)
       .build();
@@ -254,8 +268,18 @@ describe("orientation glyph data", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: translationMatrix(3, 0, 0),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -324,8 +348,18 @@ describe("orientation glyph data", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: translationMatrix(3, 0, 0),
+          },
         ],
       })
       .setRootAssembly(1)

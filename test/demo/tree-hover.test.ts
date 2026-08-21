@@ -22,90 +22,108 @@ describe("visibility tree hover mapping", () => {
   it("projects visible assembly descendants while mapping ordinary rows", () => {
     const occurrences = new Map([
       [
-        "1/0",
+        "1",
         {
-          assemblyOccurrenceId: "1/0",
+          assemblyOccurrenceId: "1",
           assemblyId: 1,
           parentAssemblyOccurrenceId: undefined,
+          placementId: undefined,
           childCount: 1,
-          getChildId: (ordinal: number) => (ordinal === 0 ? "1/0/0" : undefined),
-          partOccurrenceCount: 1,
-          getPartOccurrenceId: (ordinal: number) => (ordinal === 0 ? "1/0/0" : undefined),
+          getChildId: (ordinal: number) => (ordinal === 0 ? "1/child" : undefined),
+          partOccurrenceCount: 0,
+          getPartOccurrenceId: () => undefined,
           visible: true,
           effectiveVisible: true,
         },
       ],
       [
-        "1/0/0",
+        "1/child",
         {
-          assemblyOccurrenceId: "1/0/0",
+          assemblyOccurrenceId: "1/child",
           assemblyId: 2,
-          parentAssemblyOccurrenceId: "1/0",
+          parentAssemblyOccurrenceId: "1",
+          placementId: "child",
           childCount: 0,
           getChildId: () => undefined,
           partOccurrenceCount: 2,
           getPartOccurrenceId: (ordinal: number) =>
-            ordinal === 0 ? "1/0/0/0" : ordinal === 1 ? "1/0/0/1" : undefined,
+            ordinal === 0 ? "1/child/part-a" : ordinal === 1 ? "1/child/part-b" : undefined,
           visible: true,
           effectiveVisible: true,
         },
       ],
     ]);
-    const visibleInstances = new Set(["1/0/0", "1/0/0/1"]);
+    const visibleInstances = new Set(["1/child/part-a", "1/child/part-b"]);
     const runtime = {
       getAssemblyOccurrence: (id: string) => occurrences.get(id),
       isPartOccurrenceVisible: (id: string) => visibleInstances.has(id),
     } as unknown as SceneOccurrences;
 
-    expect(interactionTargetsForRow(runtime, { kind: "assembly", occurrenceId: "1/0" })).toEqual([
-      { kind: "partOccurrence", partOccurrenceId: "1/0/0" },
-      { kind: "partOccurrence", partOccurrenceId: "1/0/0/1" },
+    expect(interactionTargetsForRow(runtime, { kind: "assembly", occurrenceId: "1" })).toEqual([
+      { kind: "partOccurrence", partOccurrenceId: "1/child/part-a" },
+      { kind: "partOccurrence", partOccurrenceId: "1/child/part-b" },
     ]);
     expect(
-      interactionTargetsForRow(runtime, { kind: "partOccurrence", partOccurrenceId: "1/1/0" }),
-    ).toEqual([{ kind: "partOccurrence", partOccurrenceId: "1/1/0" }]);
+      interactionTargetsForRow(runtime, {
+        kind: "partOccurrence",
+        partOccurrenceId: "1/sibling/part",
+      }),
+    ).toEqual([{ kind: "partOccurrence", partOccurrenceId: "1/sibling/part" }]);
     expect(
-      interactionTargetsForRow(runtime, { kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 }),
-    ).toEqual([{ kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 }]);
+      interactionTargetsForRow(runtime, {
+        kind: "body",
+        partOccurrenceId: "1/child/part-a",
+        bodyId: 4,
+      }),
+    ).toEqual([{ kind: "body", partOccurrenceId: "1/child/part-a", bodyId: 4 }]);
   });
 
   it("compares row identityMatrix so stale leave events cannot clear a newer row", () => {
-    const body = { kind: "body", partOccurrenceId: "1/0/0", bodyId: 4 } as const;
+    const body = { kind: "body", partOccurrenceId: "1/child/part-a", bodyId: 4 } as const;
     expect(visibilityRowTargetsEqual(body, { ...body })).toBe(true);
     expect(
-      visibilityRowTargetsEqual(body, { kind: "body", partOccurrenceId: "1/0/0", bodyId: 5 }),
+      visibilityRowTargetsEqual(body, {
+        kind: "body",
+        partOccurrenceId: "1/child/part-a",
+        bodyId: 5,
+      }),
     ).toBe(false);
     expect(
-      visibilityRowTargetsEqual(body, { kind: "partOccurrence", partOccurrenceId: "1/0/0" }),
+      visibilityRowTargetsEqual(body, {
+        kind: "partOccurrence",
+        partOccurrenceId: "1/child/part-a",
+      }),
     ).toBe(false);
   });
 
   it("derives assembly emphasis without erasing persistent highlights", () => {
     const occurrences = new Map([
       [
-        "1/0",
+        "1",
         {
-          assemblyOccurrenceId: "1/0",
+          assemblyOccurrenceId: "1",
           assemblyId: 1,
           parentAssemblyOccurrenceId: undefined,
+          placementId: undefined,
           childCount: 1,
-          getChildId: (ordinal: number) => (ordinal === 0 ? "1/0/0" : undefined),
-          partOccurrenceCount: 1,
-          getPartOccurrenceId: (ordinal: number) => (ordinal === 0 ? "1/0/0" : undefined),
+          getChildId: (ordinal: number) => (ordinal === 0 ? "1/child" : undefined),
+          partOccurrenceCount: 0,
+          getPartOccurrenceId: () => undefined,
           visible: true,
           effectiveVisible: true,
         },
       ],
       [
-        "1/0/0",
+        "1/child",
         {
-          assemblyOccurrenceId: "1/0/0",
+          assemblyOccurrenceId: "1/child",
           assemblyId: 2,
-          parentAssemblyOccurrenceId: "1/0",
+          parentAssemblyOccurrenceId: "1",
+          placementId: "child",
           childCount: 0,
           getChildId: () => undefined,
           partOccurrenceCount: 1,
-          getPartOccurrenceId: (ordinal: number) => (ordinal === 0 ? "1/0/0/0" : undefined),
+          getPartOccurrenceId: (ordinal: number) => (ordinal === 0 ? "1/child/part" : undefined),
           visible: true,
           effectiveVisible: true,
         },
@@ -127,12 +145,12 @@ describe("visibility tree hover mapping", () => {
     const owner = {
       disposed: false,
       hoverOwner: undefined,
-      interaction: setPartOccurrenceHighlighted(createInteractionState(), "1/0/0", true),
+      interaction: setPartOccurrenceHighlighted(createInteractionState(), "1/child/part", true),
       viewportSlots: { clearHover: () => undefined },
       render: () => undefined,
       viewports: () => [viewport],
     } as WorkbenchHoverController;
-    const assembly = { kind: "assembly", occurrenceId: "1/0" } as const;
+    const assembly = { kind: "assembly", occurrenceId: "1" } as const;
 
     setHierarchyHover(owner, assembly);
     applyDisplayedInteraction(owner);
@@ -140,13 +158,13 @@ describe("visibility tree hover mapping", () => {
     expect(
       isTargetHighlighted(displayed as InteractionState, {
         kind: "partOccurrence",
-        partOccurrenceId: "1/0/0",
+        partOccurrenceId: "1/child/part",
       }),
     ).toBe(true);
     expect(
       isTargetHighlighted(displayed as InteractionState, {
         kind: "partOccurrence",
-        partOccurrenceId: "1/0/0/0",
+        partOccurrenceId: "1/child/part",
       }),
     ).toBe(true);
     expect(
@@ -161,7 +179,7 @@ describe("visibility tree hover mapping", () => {
     expect(
       isTargetHighlighted(displayed as InteractionState, {
         kind: "partOccurrence",
-        partOccurrenceId: "1/0/0",
+        partOccurrenceId: "1/child/part",
       }),
     ).toBe(true);
   });

@@ -55,6 +55,8 @@ import {
   installGpuGlobals,
 } from "../../fake-gpu";
 
+export { buildFaceScene } from "./face-scene";
+
 export const originalNavigator = globalThis.navigator;
 
 export const originalDevicePixelRatio = globalThis.devicePixelRatio;
@@ -100,9 +102,24 @@ export function buildScene(): Scene {
       id: 1,
       name: "root",
       placements: [
-        { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
-        { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
-        { kind: "part", partId: 1, transform: translationMatrix(4, 0, 0) },
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: translationMatrix(0, 0, 0),
+        },
+        {
+          kind: "part",
+          placementId: "1",
+          partId: 1,
+          transform: translationMatrix(2, 0, 0),
+        },
+        {
+          kind: "part",
+          placementId: "2",
+          partId: 1,
+          transform: translationMatrix(4, 0, 0),
+        },
       ],
     })
     .setRootAssembly(1)
@@ -121,7 +138,14 @@ export function buildPointScene(): Scene {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -161,7 +185,14 @@ export function buildSectionScene(): Scene {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -191,66 +222,14 @@ export function buildSubsetSelectionScene(): Scene {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
-    })
-    .setRootAssembly(1)
-    .build();
-}
-
-/** Shared renderer test helper. */
-export function buildFaceScene(): Scene {
-  const positions = new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]);
-  const geometry = {
-    positions,
-    indices: new Uint32Array([0, 1, 2]),
-    primitive: "triangles" as const,
-    nodePositions: positions,
-    faces: [
-      {
-        elementId: 0,
-        faceIndex: 0,
-        primitiveStart: 0,
-        primitiveCount: 1,
-        key: "0:1:2",
-        nodeIds: [0, 1, 2],
-      },
-    ],
-    edges: [
-      {
-        key: "0,1",
-        nodeIds: [0, 1],
-        incidentElementIds: [0],
-        faceRefs: [{ elementId: 0, faceIndex: 0 }],
-      },
-      {
-        key: "0,2",
-        nodeIds: [0, 2],
-        incidentElementIds: [0],
-        faceRefs: [{ elementId: 0, faceIndex: 0 }],
-      },
-      {
-        key: "1,2",
-        nodeIds: [1, 2],
-        incidentElementIds: [0],
-        faceRefs: [{ elementId: 0, faceIndex: 0 }],
-      },
-    ],
-    elements: [
-      {
-        id: 0,
-        primitiveRanges: [
-          { primitive: "triangles" as const, primitiveStart: 0, primitiveCount: 1 },
-        ],
-      },
-    ],
-  };
-  const { elements, nodePositions, ...localGeometry } = geometry;
-  return createSceneBuilder()
-    .addPart(createPart(1, { geometries: [localGeometry], elements, nodePositions }))
-    .addAssembly({
-      id: 1,
-      name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: part.id,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();
@@ -279,7 +258,14 @@ export function buildBodyScene(): Scene {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: identityMatrix(),
+        },
+      ],
     })
     .setRootAssembly(1)
     .build();

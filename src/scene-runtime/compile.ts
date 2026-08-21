@@ -225,8 +225,8 @@ function buildNodePlacementOrder(scene: Scene, state: RuntimeState): number[][] 
       "assembly",
     );
     const ownerId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
-    return definition.placements.map((placement, index) => {
-      const id = `${ownerId}/${placement.placementId ?? index}`;
+    return definition.placements.map((placement) => {
+      const id = `${ownerId}/${placement.placementId}`;
       const slot = placement.kind === "part" ? instanceById.get(id) : nodeById.get(id);
       const resolved = invariantValue(slot, `placement ${id}`);
       return placement.kind === "part" ? resolved : ~resolved;

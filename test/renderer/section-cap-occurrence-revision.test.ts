@@ -248,7 +248,7 @@ function repeatedPartScene(count = 2) {
       id: 1,
       placements: Array.from({ length: count }, (_, index) => ({
         kind: "part" as const,
-        placementId: `part-${index}`,
+        placementId: String(index),
         partId: 1,
         transform: identityMatrix(),
       })),

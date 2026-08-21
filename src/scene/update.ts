@@ -355,10 +355,7 @@ class SceneUpdateDraft implements SceneUpdate {
         if (placement.kind === "part" && removed.has(placement.partId)) {
           this.placementChanges.push({ ownerAssemblyId: id, before: placement, after: undefined });
           removalCount += 1;
-          singleRemoval =
-            placement.placementId === undefined
-              ? undefined
-              : { placementId: placement.placementId, index };
+          singleRemoval = { placementId: placement.placementId, index };
         } else placements.push(placement);
       }
       if (placements.length !== assembly.placements.length) {

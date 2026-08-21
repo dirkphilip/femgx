@@ -350,8 +350,9 @@ function nodeFixture(placementCount: number, nodeCount = 1024): NodeFixture {
     .addAssembly({
       id: 1,
       name: "node-selection-test",
-      placements: Array.from({ length: placementCount }, () => ({
+      placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
+        placementId: String(index),
         partId: 1,
         transform: identityMatrix(),
       })),

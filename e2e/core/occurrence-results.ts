@@ -31,7 +31,7 @@ export function runOccurrenceResults(
     deformation: { field: displacement("shared-deformation", 0) },
     occurrences: [
       {
-        partOccurrenceId: "1/1",
+        partOccurrenceId: "1/placement-1",
         scalar: { field: scalar("right-scalar", 1), range: { min: 0, max: 1 } },
         deformation: { field: displacement("right-deformation", 0.4) },
       },
@@ -45,7 +45,7 @@ export function runOccurrenceResults(
       parts: current.scene.parts.size,
       batches: current.stats().drawBatches,
       shared: active?.deformation?.displacements.has(1) === true,
-      override: active?.deformation?.displacements.has("1/1") === true,
+      override: active?.deformation?.displacements.has("1/placement-1") === true,
     }),
   );
 }

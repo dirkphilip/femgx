@@ -21,6 +21,7 @@ describe("importGlb", () => {
     expect(result.scene.parts).toHaveLength(1);
     expect(result.scene.assemblies).toHaveLength(1);
     expect(result.scene.assemblies.get(0)?.placements).toHaveLength(1);
+    expect(result.scene.assemblies.get(0)?.placements[0]?.placementId).toBe("part-0");
     expect([...result.partNames.values()]).toEqual(["mesh0_mesh (4 primitives)"]);
     expect(result.partStyles.get(0)).toEqual({
       color: { r: 0.615686297416687, g: 0.8117647171020508, b: 0.929411768913269, a: 1 },
@@ -106,6 +107,9 @@ describe("importGlb", () => {
     expect(runtime.partOccurrenceCount).toBe(1);
     expect(runtime.visibleCount).toBe(1);
     expect(Array.from(runtime.partOccurrences(), (instance) => instance.partId)).toEqual([0]);
+    expect(Array.from(runtime.partOccurrences(), (instance) => instance.placementId)).toEqual([
+      "part-0",
+    ]);
   });
 
   it("allocates deterministic ids and rejects strict ignored-feature diagnostics", async () => {
@@ -113,6 +117,11 @@ describe("importGlb", () => {
     const second = await importGlb(ONShapeCylinder);
     expect([...first.scene.parts.keys()]).toEqual([...second.scene.parts.keys()]);
     expect([...first.partNames.entries()]).toEqual([...second.partNames.entries()]);
+    expect(
+      [...(first.scene.assemblies.get(0)?.placements ?? [])].map(({ placementId }) => placementId),
+    ).toEqual(
+      [...(second.scene.assemblies.get(0)?.placements ?? [])].map(({ placementId }) => placementId),
+    );
 
     await expect(importGlb(ONShapeCylinder, { strict: true })).rejects.toMatchObject({
       name: "IoError",
@@ -168,6 +177,12 @@ describe("importGlb", () => {
     expect(result.scene.assemblies.get(1)?.placements).toHaveLength(2);
     expect(result.scene.assemblies.get(2)?.placements).toHaveLength(1);
     expect(result.scene.assemblies.get(3)?.placements).toHaveLength(1);
+    expect(
+      [...(result.scene.assemblies.get(0)?.placements ?? [])].map(({ placementId }) => placementId),
+    ).toEqual(["assembly-1", "assembly-3"]);
+    expect(
+      [...(result.scene.assemblies.get(1)?.placements ?? [])].map(({ placementId }) => placementId),
+    ).toEqual(["part-0", "assembly-2"]);
     expect(createSceneOccurrenceSnapshot(result.scene).partOccurrenceCount).toBe(3);
     expect([...(result.scene.assemblies.get(0)?.placements[0]?.transform ?? [])]).toEqual([
       1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 3, 1,

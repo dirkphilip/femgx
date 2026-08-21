@@ -8,16 +8,22 @@ describe("scene occurrences", () => {
     const runtime = createSceneOccurrenceSnapshot(createBoltedPlateFixture().scene);
     const partOccurrenceId = runtime.getPartOccurrenceId(0);
     const occurrenceId = runtime.getAssemblyOccurrenceId(0);
+    const nestedOccurrence = runtime.getAssemblyOccurrence("1/plate-stack");
 
-    expect(partOccurrenceId).toBe("1/0/0");
+    expect(partOccurrenceId).toBe("1/plate-stack/plate-base");
     expect(occurrenceId).toBe("1");
     expect(runtime.assemblyOccurrenceCount).toBe(Array.from(runtime.assemblyOccurrences()).length);
     expect(runtime.getPartOccurrence(partOccurrenceId ?? "missing")?.partOccurrenceId).toBe(
       partOccurrenceId,
     );
+    expect(runtime.getPartOccurrence(partOccurrenceId ?? "missing")?.placementId).toBe(
+      "plate-base",
+    );
     expect(runtime.getAssemblyOccurrence(occurrenceId ?? "missing")?.assemblyOccurrenceId).toBe(
       occurrenceId,
     );
+    expect(runtime.getAssemblyOccurrence(occurrenceId ?? "missing")?.placementId).toBeUndefined();
+    expect(nestedOccurrence?.placementId).toBe("plate-stack");
 
     expect(runtime.isPartOccurrenceVisible(partOccurrenceId ?? "missing")).toBe(true);
     expect(runtime).not.toHaveProperty("setPartOccurrenceVisible");
@@ -158,7 +164,14 @@ describe("scene occurrences", () => {
       ...source,
       assemblies: new Map(source.assemblies).set(source.rootAssemblyId, {
         ...(root as NonNullable<typeof root>),
-        placements: [{ kind: "assembly", assemblyId: 999, transform: identityMatrix() }],
+        placements: [
+          {
+            kind: "assembly",
+            placementId: "0",
+            assemblyId: 999,
+            transform: identityMatrix(),
+          },
+        ],
       }),
     };
 

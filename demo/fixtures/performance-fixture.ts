@@ -32,6 +32,7 @@ export function createPerformancePreset(): ModelPreset {
     name: "two-million-triangle shell",
     placements: Array.from({ length: COLUMNS * ROWS }, (_, index) => ({
       kind: "part" as const,
+      placementId: `placement-${index}`,
       partId: PART_ID,
       transform: translationMatrix((index % COLUMNS) * 1.15, Math.floor(index / COLUMNS) * 1.15, 0),
     })),

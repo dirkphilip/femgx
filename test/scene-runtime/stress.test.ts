@@ -34,12 +34,18 @@ function stressScene(): Scene {
     for (let i = 0; i < STRESS_PLACEMENTS_PER_SUBCASE; i += 1) {
       placements.push({
         kind: "part",
+        placementId: `part-${i}`,
         partId: (i % STRESS_PART_COUNT) + 1,
         transform: translationMatrix(i * 0.001, subcase, 0),
       });
     }
     assemblies.set(subcaseId, { id: subcaseId, placements });
-    rootPlacements.push({ kind: "assembly", assemblyId: subcaseId, transform: identityMatrix() });
+    rootPlacements.push({
+      kind: "assembly",
+      placementId: `subcase-${subcaseId}`,
+      assemblyId: subcaseId,
+      transform: identityMatrix(),
+    });
   }
   assemblies.set(1, { id: 1, placements: rootPlacements });
   return {

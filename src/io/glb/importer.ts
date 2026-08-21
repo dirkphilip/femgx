@@ -112,6 +112,16 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
     );
   }
   if (flattened !== undefined) return buildFlatScene(selected, flattened);
+  return buildHierarchicalScene(selected, nodes, collection, partRecords, diagnostics);
+}
+
+function buildHierarchicalScene(
+  selected: GltfScene,
+  nodes: readonly Node[],
+  collection: ReturnType<typeof collectPartRecords>,
+  partRecords: readonly GlbPartRecord[],
+  diagnostics: GlbDiagnostics,
+): BuiltScene {
   const nodeIds = new Map<Node, number>();
   nodes.forEach((node, index) => nodeIds.set(node, index + 1));
   let builder = createSceneBuilder();
@@ -128,13 +138,19 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
     const placements: Placement[] = [];
     const mesh = node.getMesh();
     for (const record of mesh === null ? [] : (collection.byMesh.get(mesh) ?? [])) {
-      placements.push({ kind: "part", partId: record.part.id, transform: identityMatrix() });
+      placements.push({
+        kind: "part",
+        placementId: glbPartPlacementId(record.part.id),
+        partId: record.part.id,
+        transform: identityMatrix(),
+      });
     }
     for (const child of node.listChildren()) {
       const childId = nodeIds.get(child);
       if (childId === undefined) continue;
       placements.push({
         kind: "assembly",
+        placementId: glbAssemblyPlacementId(childId),
         assemblyId: childId,
         transform: nodeTransform(child, diagnostics),
       });
@@ -142,12 +158,7 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
     builder = builder.addAssembly({ id, name: nodeName(node, id), placements });
   }
   const rootId = 0;
-  const rootPlacements: Placement[] = selected.listChildren().flatMap((node) => {
-    const id = nodeIds.get(node);
-    return id === undefined
-      ? []
-      : [{ kind: "assembly", assemblyId: id, transform: nodeTransform(node, diagnostics) }];
-  });
+  const rootPlacements = buildRootPlacements(selected, nodeIds, diagnostics);
   const rootAssembly: AssemblyDefinition = {
     id: rootId,
     name: selected.getName().trim() || "GLB scene",
@@ -155,6 +166,26 @@ function buildScene(selected: GltfScene, diagnostics: GlbDiagnostics): BuiltScen
   };
   const scene = builder.addAssembly(rootAssembly).setRootAssembly(rootId).build();
   return { scene, partNames, partStyles };
+}
+
+function buildRootPlacements(
+  selected: GltfScene,
+  nodeIds: ReadonlyMap<Node, number>,
+  diagnostics: GlbDiagnostics,
+): Placement[] {
+  return selected.listChildren().flatMap((node) => {
+    const id = nodeIds.get(node);
+    return id === undefined
+      ? []
+      : [
+          {
+            kind: "assembly" as const,
+            placementId: glbAssemblyPlacementId(id),
+            assemblyId: id,
+            transform: nodeTransform(node, diagnostics),
+          },
+        ];
+  });
 }
 
 function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]): BuiltScene {
@@ -166,7 +197,12 @@ function buildFlatScene(selected: GltfScene, records: readonly GlbPartRecord[]):
     builder = builder.addPart(record.part);
     partNames.set(record.part.id, record.name);
     partStyles.set(record.part.id, record.style);
-    placements.push({ kind: "part", partId: record.part.id, transform: identityMatrix() });
+    placements.push({
+      kind: "part",
+      placementId: glbPartPlacementId(record.part.id),
+      partId: record.part.id,
+      transform: identityMatrix(),
+    });
   }
   const root: AssemblyDefinition = {
     id: 0,
@@ -272,6 +308,14 @@ function nodeTransform(node: Node, diagnostics: GlbDiagnostics): Mat4 {
 function nodeName(node: Node, id: number): string {
   const name = node.getName().trim();
   return name.length === 0 ? `Node ${id}` : name;
+}
+
+function glbPartPlacementId(partId: PartId): string {
+  return `part-${partId}`;
+}
+
+function glbAssemblyPlacementId(assemblyId: number): string {
+  return `assembly-${assemblyId}`;
 }
 
 function copyBytes(source: ArrayBuffer | Uint8Array): Uint8Array {

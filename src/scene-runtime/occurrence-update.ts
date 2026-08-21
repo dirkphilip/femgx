@@ -1,6 +1,6 @@
 import type { PartId } from "../geometry/part";
 import { multiplyMatrices, type Mat4 } from "../math/mat4";
-import type { AssemblyDefinition, PartPlacement } from "../scene/assembly";
+import type { PartPlacement } from "../scene/assembly";
 import type { Scene } from "../scene/scene";
 import type { SceneStructuralChanges } from "../scene/update-changes";
 import { hasOnlyDirectPartRuntimeChanges } from "../scene/update-validation";
@@ -52,14 +52,9 @@ export function prepareOccurrenceMutations(
   const authored = aggregatePlacementChanges(changes);
   if (authored === undefined) return undefined;
   const mutations: PreparedOccurrenceMutation[] = [];
-  const implicitPlacementOwners = new Map<number, boolean>();
   for (const change of authored) {
     const owner = scene.assemblies.get(change.ownerAssemblyId);
-    if (
-      (change.before === undefined || change.after === undefined) &&
-      hasImplicitPlacements(change.ownerAssemblyId, owner, implicitPlacementOwners)
-    )
-      return undefined;
+    if (owner === undefined) return undefined;
     for (const ownerNode of runtime.getAssemblyNodeSlots(change.ownerAssemblyId)) {
       const ownerId = invariantValue(runtime.getNodeId(ownerNode), `node id at ${ownerNode}`);
       const occurrenceId = `${ownerId}/${change.placementId}` as PartOccurrenceId;
@@ -83,18 +78,6 @@ export function prepareOccurrenceMutations(
     addedPartIds: changes.parts.added,
     removedPartIds: changes.parts.removed,
   };
-}
-
-function hasImplicitPlacements(
-  ownerId: number,
-  owner: AssemblyDefinition | undefined,
-  cache: Map<number, boolean>,
-): boolean {
-  const cached = cache.get(ownerId);
-  if (cached !== undefined) return cached;
-  const result = owner?.placements.some(({ placementId }) => placementId === undefined) ?? false;
-  cache.set(ownerId, result);
-  return result;
 }
 
 /** Applies a fully prepared direct-placement revision without recompiling the scene. */
@@ -158,14 +141,12 @@ function aggregatePlacementChanges(
   const aggregated = new Map<string, AggregatedPlacementChange>();
   for (const change of changes.placements) {
     if (
-      (change.before !== undefined &&
-        (change.before.kind !== "part" || change.before.placementId === undefined)) ||
-      (change.after !== undefined &&
-        (change.after.kind !== "part" || change.after.placementId === undefined))
+      (change.before !== undefined && change.before.kind !== "part") ||
+      (change.after !== undefined && change.after.kind !== "part")
     )
       return undefined;
     const placement = change.after ?? change.before;
-    if (placement === undefined || placement.placementId === undefined) return undefined;
+    if (placement === undefined) return undefined;
     const key = `${change.ownerAssemblyId}\u0000${placement.placementId}`;
     const current = aggregated.get(key);
     if (current === undefined) {

@@ -74,8 +74,8 @@ export function validateIncrementalHierarchy(
 function hasOnlyExplicitPartPlacements(changes: SceneStructuralChanges): boolean {
   return changes.placements.every(
     ({ before, after }) =>
-      (before === undefined || (before.kind === "part" && before.placementId !== undefined)) &&
-      (after === undefined || (after.kind === "part" && after.placementId !== undefined)),
+      (before === undefined || before.kind === "part") &&
+      (after === undefined || after.kind === "part"),
   );
 }
 
@@ -85,13 +85,12 @@ function changedAssemblyTargets(
 ): readonly AssemblyId[] {
   const previous = new Map<string, AssemblyDefinition["placements"][number]>();
   for (const placement of before?.placements ?? []) {
-    if (placement.placementId !== undefined) previous.set(placement.placementId, placement);
+    previous.set(placement.placementId, placement);
   }
   const targets: AssemblyId[] = [];
   for (const placement of after.placements) {
     if (placement.kind !== "assembly") continue;
-    const existing =
-      placement.placementId === undefined ? undefined : previous.get(placement.placementId);
+    const existing = previous.get(placement.placementId);
     if (!equalPlacement(existing ?? placement, placement) || existing === undefined) {
       targets.push(placement.assemblyId);
     }
