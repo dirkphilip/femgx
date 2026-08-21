@@ -107,10 +107,11 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
   Point parts are excluded because their primary point sprites already draw
   their authored nodes; node order membership is not a per-element filter.
 - The overlay draws with depth writes off and `depthCompare` selected by
-  `ViewportPresentation.setEdgeDepthTest`: on (default) uses `less-equal` so edges
-  occluded by nearer geometry are culled; off uses `always` so every edge shows
-  through the model. Two edge pipelines are pre-created in
-  `renderer/frame/pipelines.ts`.
+  `ViewportPresentation.setEdgeDepthTest`: on (default) uses `less-equal` against
+  active-only conservatively resolved visible depth, so coplanar native lines
+  remain stable while a fully covered nearer surface still occludes them; off
+  uses `always` so every edge shows through the model. Two edge pipelines are
+  pre-created in `renderer/frame/pipelines.ts`.
 - Element edges use translucent neutral black rather than inheriting each
   part's fill color, so topology stays readable without obscuring the model.
 - Edge overlays inherit the resolved instance alpha, so their neutral black is

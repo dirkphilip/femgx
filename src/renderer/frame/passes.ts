@@ -102,3 +102,46 @@ export function beginCompositePass(
     ...(timestampWrites === undefined ? {} : { timestampWrites }),
   });
 }
+
+/** Begins the single-sample native-edge pass over the resolved visible color. */
+export function beginOverlayPass(
+  encoder: GPUCommandEncoder,
+  colorView: GPUTextureView,
+  depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
+): GPURenderPassEncoder {
+  return encoder.beginRenderPass({
+    label: "femgx overlay",
+    colorAttachments: [{ view: colorView, loadOp: "load", storeOp: "store" }],
+    depthStencilAttachment: {
+      view: depthView,
+      depthLoadOp: "load",
+      depthStoreOp: "discard",
+      stencilLoadOp: "load",
+      stencilStoreOp: "discard",
+    },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
+  });
+}
+
+/** Begins the fullscreen multisample-to-single-sample conservative depth resolve. */
+export function beginOverlayDepthPass(
+  encoder: GPUCommandEncoder,
+  depthView: GPUTextureView,
+  timestampWrites?: GPURenderPassTimestampWrites,
+): GPURenderPassEncoder {
+  return encoder.beginRenderPass({
+    label: "femgx overlay depth",
+    colorAttachments: [],
+    depthStencilAttachment: {
+      view: depthView,
+      depthClearValue: 1,
+      depthLoadOp: "clear",
+      depthStoreOp: "store",
+      stencilClearValue: 0,
+      stencilLoadOp: "clear",
+      stencilStoreOp: "store",
+    },
+    ...(timestampWrites === undefined ? {} : { timestampWrites }),
+  });
+}

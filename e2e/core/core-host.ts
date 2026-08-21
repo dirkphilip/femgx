@@ -24,6 +24,12 @@ import {
 } from "./selection-precedence";
 import { runOccurrenceResults } from "./occurrence-results";
 import { hardwareConformanceScene, runHardwareConformance } from "./hardware-conformance";
+import {
+  depthEdgeOcclusionScene,
+  depthStableEdgesScene,
+  runDepthEdgeOcclusion,
+  runDepthStableEdges,
+} from "./depth-stable-edges";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#core-canvas");
 const statusElement = document.querySelector<HTMLOutputElement>("#core-status");
@@ -109,19 +115,23 @@ async function start(): Promise<void> {
   const scene =
     caseName === "hardware-conformance"
       ? hardwareConformanceScene()
-      : selectionCase
-        ? selectionScene(
-            caseName.includes("reverse") || caseName.includes("behind"),
-            caseName.includes("behind"),
-          )
-        : coreScene(
-            caseName === "instancing" ||
-              caseName === "transparency" ||
-              caseName === "occurrence-results"
-              ? 2
-              : 1,
-            caseName === "transparency",
-          );
+      : caseName.startsWith("depth-stable-edges")
+        ? depthStableEdgesScene()
+        : caseName === "depth-edge-occlusion"
+          ? depthEdgeOcclusionScene()
+          : selectionCase
+            ? selectionScene(
+                caseName.includes("reverse") || caseName.includes("behind"),
+                caseName.includes("behind"),
+              )
+            : coreScene(
+                caseName === "instancing" ||
+                  caseName === "transparency" ||
+                  caseName === "occurrence-results"
+                  ? 2
+                  : 1,
+                caseName === "transparency",
+              );
   let frames = 0;
   try {
     viewport = await createViewport({
@@ -174,6 +184,15 @@ async function runCase(caseName: string, current: Viewport): Promise<void> {
       return;
     case "hardware-conformance":
       await runHardwareConformance(current, canvas, setStatus);
+      return;
+    case "depth-stable-edges-perspective":
+      runDepthStableEdges(current, setStatus, false);
+      return;
+    case "depth-stable-edges-orthographic":
+      runDepthStableEdges(current, setStatus, true);
+      return;
+    case "depth-edge-occlusion":
+      runDepthEdgeOcclusion(current, setStatus);
       return;
     case "camera":
       runCamera(current);

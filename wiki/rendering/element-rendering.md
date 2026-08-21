@@ -88,8 +88,12 @@ authored lines resolve exact ties second, and authored points resolve exact ties
 last. The line and point pipelines use `less-equal` for this purpose; a
 genuinely nearer or farther fragment still follows ordinary depth testing.
 This ordering is independent of part ids and scene insertion order. The
-renderer-owned edge and node overlays draw at the end of the final four-sample
-visible pass, after opaque or composite content and before its canvas resolve.
+When no depth-tested native edge is active, renderer-owned node overlays draw
+at the end of the final four-sample visible pass alongside always-visible
+edges. Active depth-tested native-edge presentation resolves its depth
+conservatively into a separate single-sample target, then draws after the
+visible color resolve; node annotations follow in that resolved pass so they
+remain on top of edges.
 
 - Triangle geometry tessellates the exterior boundary plus both oriented copies
   of a face shared by two differently named bodies. Same-body interior faces
@@ -125,11 +129,14 @@ a highlight pass. Exposed interfaces reuse the same owner/neighbor predicate
 for filled surfaces, GPU picking, deformation, edges, and node annotations.
 Triangle pipelines do not cull back faces by default: 2D FE shells are valid
 geometry and must remain inspectable from either side. Ordinary opaque surfaces
-retain fixed-function raster depth in both camera projections. The presentation
-path draws one-device-pixel native edges into the four-sample color target at
-their model depth with `less-equal`; it does not alter the owning surface depth
-or pull overlay vertices toward the camera. Exact edge picking keeps its
-separate widened geometry.
+retain fixed-function raster depth in both camera projections. While edge
+presentation is active, the renderer resolves the furthest covered depth of
+each four-sample pixel into an active-only depth target, then draws
+one-device-pixel native edges at their unmodified model depth with
+`less-equal`. This bounded sample-space allowance keeps coplanar edges stable
+without changing ordinary surface depth or pulling overlay vertices toward the
+camera; a fully covered nearer surface still occludes them. Exact edge picking
+keeps its separate widened geometry.
 
 This depth contract also reduces steady-state work for ordinary surfaces. The
 surface fragment shader no longer exports depth or evaluates screen-space depth

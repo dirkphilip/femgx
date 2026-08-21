@@ -59,7 +59,7 @@ fn fragmentMain(
 }
 `;
 
-/** Edge color pass; the depth-tested pipeline applies a format-native bias. */
+/** Edge color pass; native lines use no fixed-function depth bias. */
 export const edgeFragmentShader = /* wgsl */ `
 ${sectionPlaneBindings}
 ${sectionPlaneFunction}

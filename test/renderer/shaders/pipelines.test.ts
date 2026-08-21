@@ -103,12 +103,15 @@ describe("GPU render resources", () => {
         depthWriteEnabled: false,
       });
       expect(edgeDepthTested?.depthStencil?.depthBias).toBeUndefined();
-      expect(edgeDepthTested?.multisample?.count).toBe(COLOR_SAMPLE_COUNT);
+      expect(edgeDepthTested?.multisample?.count).toBe(1);
       expect(
         gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === "edge overlay always-visible",
-        )?.depthStencil?.depthCompare,
-      ).toBe("always");
+        ),
+      ).toMatchObject({
+        depthStencil: { depthCompare: "always" },
+        multisample: { count: COLOR_SAMPLE_COUNT },
+      });
       expect(
         gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === "node annotation overlay",

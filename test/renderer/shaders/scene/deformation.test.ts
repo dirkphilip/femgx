@@ -217,7 +217,7 @@ describe("GPU deformation shader contract", () => {
     expect(minimalTriangleColorFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
   });
 
-  it("leaves coplanar line depth bias to the edge pipeline", () => {
+  it("keeps native-line depth correction out of the edge fragment", () => {
     expect(edgeFragmentShader).not.toMatch(/@builtin\(frag_depth\)/);
     expect(edgeFragmentShader).not.toContain("16777215");
   });

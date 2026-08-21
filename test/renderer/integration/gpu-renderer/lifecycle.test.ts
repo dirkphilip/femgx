@@ -120,6 +120,8 @@ describe("WebGPU renderer", () => {
       opaque: 1,
       transparency: 1,
       composite: 1,
+      "overlay-depth": 0,
+      overlay: 0,
       pick: 0,
     });
     expect(cost.draws.background).toEqual({ calls: 1, indices: 3, instances: 1 });
@@ -134,6 +136,7 @@ describe("WebGPU renderer", () => {
       devicePixelRatio: 1,
       sampleCount: 4,
       weightedTransparency: true,
+      presentationOverlay: false,
       estimatedBytes: 800 * 600 * 81,
     });
     expect(gpu.drawCalls).toEqual([

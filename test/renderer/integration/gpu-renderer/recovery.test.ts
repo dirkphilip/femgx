@@ -61,6 +61,9 @@ describe("WebGPU renderer", () => {
     });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
+    const presentation = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
+    renderer.updateInstances(runtime, presentation, [0, 1, 2]);
+    renderer.updateElements(runtime, presentation, [0, 1, 2]);
     renderer.setPointSizePixels(14);
     renderer.setNodeSizePixels(7);
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.25 });
@@ -79,6 +82,19 @@ describe("WebGPU renderer", () => {
     const first = gpus[0];
     if (first === undefined) throw new Error("no fake device created");
     expect(first.drawCalls.length).toBeGreaterThan(0);
+    expect(
+      first.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "presentation depth resolve",
+      ),
+    ).toBe(true);
+    expect(
+      first.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "resolved node annotation overlay",
+      ),
+    ).toBe(true);
+    renderer.resize(400, 300);
+    renderer.render(runtime, camera, scene.parts);
+    expect(first.textures.some((texture) => texture.destroyed)).toBe(true);
     expect(renderer.lost).toBe(false);
     expect(renderer.device).toBe(first.device);
 
@@ -97,8 +113,25 @@ describe("WebGPU renderer", () => {
     const second = gpus[1];
     if (second === undefined) throw new Error("no recovered device created");
     expect(renderer.device).toBe(second.device);
+    expect(
+      second.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "presentation depth resolve",
+      ),
+    ).toBe(false);
+    renderer.updateInstances(runtime, presentation, [0, 1, 2]);
+    renderer.updateElements(runtime, presentation, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(second.drawCalls.length).toBeGreaterThan(0);
+    expect(
+      second.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "presentation depth resolve",
+      ),
+    ).toBe(true);
+    expect(
+      second.renderPipelineDescriptors.some(
+        (descriptor) => descriptor.label === "resolved node annotation overlay",
+      ),
+    ).toBe(true);
     const recoveredCamera = second.buffers.find(
       (buffer) => buffer.size === 128 && (buffer.usage & 1) !== 0,
     );
