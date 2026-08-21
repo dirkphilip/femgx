@@ -8,18 +8,14 @@ import { createEmptyOrderBuffer } from "../resources/instance-storage";
 import { createHighlightStorage } from "../selection/highlight-storage";
 import { buildNodeSpritePickIds, buildPackedNodeTopologyData } from "../picking/node-topology";
 import type { DrawPipelines } from "../frame/pipelines";
-import { expandSurfaceGeometry, type SurfaceVertexData } from "./surface-geometry";
 import { createBuffer, type PartResource, type SelectionDrawRange } from "./foundation";
 import { createEmptyResultColorBuffer } from "./result-colors";
 import {
   buildPartSubsetGeometryData,
   buildPartEdgePickResources,
   buildPartEdgeResources,
-  buildPartGeometryData,
   createPrimitiveColorBuffer,
   materializeFullGeometry,
-  triangleUploadData,
-  type UploadVertexData,
 } from "../resources/geometry-upload";
 import { buildPartSelectionGeometryData } from "../selection/replay-data";
 import { createColorTargets } from "../resources/color-targets";
@@ -27,7 +23,8 @@ import { GpuCostAccumulator } from "../diagnostics/cost";
 import { createOrientationGlyphDrawResources } from "../orientation-glyphs/orientation-glyph";
 import type { DrawResources } from "./draw-types";
 import type { VisibilitySkin } from "../visibility/types";
-import { compactNodeSpriteData, expandPointGeometry, type PointVertexData } from "./point-sprites";
+import { compactNodeSpriteData } from "./point-sprites";
+import { uploadFullGeometry } from "./geometry/full-upload";
 
 export type { DrawResources } from "./draw-types";
 export type { SelectionDrawRange } from "./foundation";
@@ -171,76 +168,50 @@ export function uploadGeometryPart(
   if (existing !== undefined)
     return reuseGeometryResource(draw, part, geometry, preferSubset, existing);
   const primitiveColorBuffer = geometryColorBuffer(draw.device, geometry);
-  if (preferSubset && geometry.primitive === "triangles") {
-    const subset = buildPartSubsetGeometryData(draw.device, part, geometry);
-    if (subset !== undefined) {
-      const resource = subsetResource(
-        subset.subsetBuffers,
-        subset.subsetIndices.length,
-        primitiveColorBuffer,
-      );
-      resources.set(geometry.primitive, resource);
-      draw.primitiveParts.set(part.id, resources);
-      if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
-      return resource;
+  try {
+    if (preferSubset && geometry.primitive === "triangles") {
+      const subset = buildPartSubsetGeometryData(draw.device, part, geometry);
+      if (subset !== undefined) {
+        let resource: PartResource;
+        try {
+          resource = subsetResource(
+            subset.subsetBuffers,
+            subset.subsetIndices.length,
+            primitiveColorBuffer,
+          );
+        } catch (error) {
+          destroySubsetBuffers(subset.subsetBuffers);
+          throw error;
+        }
+        resources.set(geometry.primitive, resource);
+        draw.primitiveParts.set(part.id, resources);
+        if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
+        return resource;
+      }
     }
+    return uploadFullGeometry(draw, part, geometry, resources, primitiveColorBuffer);
+  } catch (error) {
+    primitiveColorBuffer?.destroy();
+    throw error;
   }
-  return uploadFullGeometry(draw, part, geometry, resources, primitiveColorBuffer);
 }
 
-function uploadFullGeometry(
-  draw: DrawResources,
-  part: Part,
-  geometry: Geometry,
-  resources: Map<Primitive, PartResource>,
-  primitiveColorBuffer: GPUBuffer | undefined,
-): PartResource {
-  const vertexData: SurfaceVertexData | PointVertexData | UploadVertexData =
-    geometry.primitive === "points"
-      ? expandPointGeometry(geometry)
-      : geometry.primitive === "triangles"
-        ? triangleUploadData(geometry)
-        : expandSurfaceGeometry(geometry);
-  const vertexBuffer = createBuffer(
-    draw.device,
-    vertexData.positions,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+function destroyBuffers(buffers: readonly GPUBuffer[]): void {
+  for (const buffer of new Set(buffers)) buffer.destroy();
+}
+
+function destroySubsetBuffers(
+  buffers: NonNullable<ReturnType<typeof buildPartSubsetGeometryData>>["subsetBuffers"],
+): void {
+  destroyBuffers(
+    [
+      buffers.subsetIndexBuffer,
+      buffers.subsetMinimalIndexBuffer,
+      buffers.subsetVertexBuffer,
+      buffers.subsetNodePickIdsBuffer,
+      buffers.subsetTopologyBuffer,
+    ].filter((buffer): buffer is GPUBuffer => buffer !== undefined),
   );
-  const indexBuffer = createBuffer(
-    draw.device,
-    vertexData.indices,
-    GPUBufferUsage.INDEX | GPUBufferUsage.STORAGE,
-  );
-  const geometryData = buildPartGeometryData(draw.device, part, geometry, vertexData);
-  const resource: PartResource = {
-    vertexBuffer,
-    indexBuffer,
-    nodePickIdsBuffer: geometryData.nodePickIdsBuffer,
-    facePickIdsBuffer: geometryData.facePickIdsBuffer,
-    edge: undefined,
-    edgePick: undefined,
-    indexCount: vertexData.indices.length,
-    fullVertexBuffer: vertexBuffer,
-    fullIndexBuffer: indexBuffer,
-    ...(geometryData.cornerIndexOffset === undefined
-      ? {}
-      : {
-          minimalIndexBuffer: geometryData.facePickIdsBuffer,
-          minimalIndexOffset: geometryData.cornerIndexOffset,
-          fullMinimalIndexBuffer: geometryData.facePickIdsBuffer,
-          fullMinimalIndexOffset: geometryData.cornerIndexOffset,
-        }),
-    fullFacePickIdsBuffer: geometryData.facePickIdsBuffer,
-    fullNodePickIdsBuffer: geometryData.nodePickIdsBuffer,
-    fullIndexCount: vertexData.indices.length,
-    ...(primitiveColorBuffer === undefined ? {} : { primitiveColorBuffer }),
-    ...geometryData.subsetBuffers,
-    subsetIndexCount: geometryData.subsetIndices?.length ?? 0,
-  };
-  resources.set(geometry.primitive, resource);
-  draw.primitiveParts.set(part.id, resources);
-  if (!draw.parts.has(part.id)) draw.parts.set(part.id, resource);
-  return resource;
 }
 
 function geometryColorBuffer(device: GPUDevice, geometry: Geometry): GPUBuffer | undefined {

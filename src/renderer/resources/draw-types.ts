@@ -27,6 +27,8 @@ export interface PipelineAdmissionCacheEntry {
 /** GPU resources retained by the per-part draw path. */
 export interface DrawResources {
   readonly device: GPUDevice;
+  /** A revision stage defers retirement of live optional buffers until commit. */
+  readonly deferReleases?: boolean;
   readonly cost: GpuCostAccumulator;
   destroyed: boolean;
   readonly parts: Map<PartId, PartResource>;

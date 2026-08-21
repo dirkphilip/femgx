@@ -103,10 +103,15 @@ export function createBuffer(
     size,
     usage: usage | GPUBufferUsage.COPY_DST,
   });
-  // queue.writeBuffer copies the source before returning; an intermediate
-  // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
-  device.queue.writeBuffer(buffer, 0, data);
-  return buffer;
+  try {
+    // queue.writeBuffer copies the source before returning; an intermediate
+    // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
+    device.queue.writeBuffer(buffer, 0, data);
+    return buffer;
+  } catch (error) {
+    buffer.destroy();
+    throw error;
+  }
 }
 
 /** Mutable bind-group slots shared by every per-part renderer resource. */
@@ -160,4 +165,59 @@ export function sameTables<T>(
   return (
     previous?.length === next.length && previous.every((value, index) => value === next[index])
   );
+}
+
+type OrderBufferKind =
+  | "opaque"
+  | "transparent"
+  | "edge"
+  | "node"
+  | "selection"
+  | "node-selection"
+  | "node-selection-compact";
+
+interface OrderSidecar {
+  readonly buffer: GPUBuffer;
+}
+
+interface OrderBufferStorage {
+  readonly orderBuffer: GPUBuffer;
+  readonly emptyOrderBuffer: GPUBuffer;
+  readonly sidecars: {
+    readonly transparent: OrderSidecar | undefined;
+    readonly selection: OrderSidecar | undefined;
+    readonly nodeSelection: OrderSidecar | undefined;
+    readonly nodeSelectionCompact: OrderSidecar | undefined;
+    readonly edge: OrderSidecar | undefined;
+    readonly node: OrderSidecar | undefined;
+  };
+}
+
+/** Creates the fixed valid order binding used by every inactive sidecar. */
+export function createEmptyOrderBuffer(device: GPUDevice): GPUBuffer {
+  return createOrderBuffer(device, 1, "femgx empty instance order");
+}
+
+/** Returns the active order buffer or the device-scoped empty sentinel. */
+export function orderBufferFor(storage: OrderBufferStorage, kind: OrderBufferKind): GPUBuffer {
+  if (kind === "opaque") return storage.orderBuffer;
+  const sidecar = storage.sidecars[sidecarKind(kind)];
+  return sidecar?.buffer ?? storage.emptyOrderBuffer;
+}
+
+/** Creates one private u32 storage buffer used for a compacted instance order. */
+export function createOrderBuffer(device: GPUDevice, size: number, label: string): GPUBuffer {
+  return device.createBuffer({
+    label,
+    size: size * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  });
+}
+
+function sidecarKind(
+  kind: Exclude<OrderBufferKind, "opaque">,
+): keyof OrderBufferStorage["sidecars"] {
+  if (kind === "node-selection") return "nodeSelection";
+  if (kind === "node-selection-compact") return "nodeSelectionCompact";
+  return kind;
 }

@@ -1,12 +1,24 @@
-import type { HighlightStorage } from "../selection/highlight-storage";
 import { writeChangedRecordRanges, writeOrderBuffer } from "./buffer-writes";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
-import { invalidateBindGroups as clearBindGroups } from "./foundation";
+import type { HighlightStorage } from "../selection/highlight-storage";
+import { createOrderBuffer, invalidateBindGroups as clearBindGroups } from "./foundation";
 import {
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_STRIDE,
 } from "./instance-record";
+import {
+  captureStagedInstanceRecord,
+  captureStagedOrderValue,
+  type InstanceStorageRevisionJournal,
+} from "./instance-storage/journal";
+
+export {
+  captureStagedInstanceRecord,
+  createInstanceStorageRevisionJournal,
+  rollbackStagedInstanceStorage,
+  type InstanceStorageRevisionJournal,
+} from "./instance-storage/journal";
 
 export {
   createInstanceRecordTarget,
@@ -21,7 +33,7 @@ export {
   type InstanceRecordTarget,
   type InstanceRecordValues,
 } from "./instance-record";
-export { invalidateBindGroups } from "./foundation";
+export { createEmptyOrderBuffer, invalidateBindGroups, orderBufferFor } from "./foundation";
 
 /** One pre-encoded instance record written into a per-part buffer. */
 export interface InstanceUpdate {
@@ -63,6 +75,10 @@ export interface InstanceStorage {
   readonly emptyOrderBuffer: GPUBuffer;
   /** Device-scoped zero-entry emphasis binding used while inactive. */
   readonly emptyHighlight: HighlightStorage;
+  /** Revision-local storage keeps replaced live sidecars alive until commit. */
+  readonly deferRelease?: boolean;
+  /** Exact CPU-mirror mutations made while a definition revision is staged. */
+  readonly revisionJournal?: InstanceStorageRevisionJournal;
   readonly sidecars: InstanceSidecars;
   highlight: HighlightStorage;
   /** True when `highlight` is a part-owned optional allocation. */
@@ -110,6 +126,7 @@ export interface InstanceStorageOwner {
   readonly storages: Map<number, InstanceStorage>;
   readonly emptyOrderBuffer: GPUBuffer;
   readonly emptyHighlight: HighlightStorage;
+  readonly deferReleases?: boolean;
 }
 
 type OrderKind = "draw" | keyof InstanceSidecars;
@@ -142,8 +159,11 @@ export function patchInstances(
     dataFlags[22] =
       (dataFlags[22] ?? 0) |
       ((currentFlags[word] ?? 0) & (INSTANCE_EMPHASIS_FLAG | INSTANCE_EDGE_EMPHASIS_FLAG));
-    if (!sameRecord(next, offset, data)) changedSlots.push(slot);
-    next.set(data, offset);
+    if (!sameRecord(next, offset, data)) {
+      changedSlots.push(slot);
+      captureStagedInstanceRecord(storage, slot);
+      next.set(data, offset);
+    }
   }
   writeChangedRecordRanges(draw.device, {
     buffer: storage.buffer,
@@ -285,7 +305,13 @@ function writeOrder(
       storage.orderBuffer,
       storage.orderData,
       order,
-      { previousLength: storage.orderLength, cost: draw.cost },
+      {
+        previousLength: storage.orderLength,
+        cost: draw.cost,
+        capture: (index) => {
+          captureStagedOrderValue(storage, storage.orderData, index);
+        },
+      },
     );
     return;
   }
@@ -297,6 +323,9 @@ function writeOrder(
   sidecar.length = writeOrderBuffer(draw.device, sidecar.buffer, sidecar.data, order, {
     previousLength: sidecar.length,
     cost: draw.cost,
+    capture: (index) => {
+      captureStagedOrderValue(storage, sidecar.data, index);
+    },
   });
 }
 
@@ -405,36 +434,6 @@ function destroyCoreBuffers(draw: InstanceStorageOwner, storage: InstanceStorage
   storage.orderBuffer.destroy();
 }
 
-/** Creates the fixed valid order binding used by every inactive sidecar. */
-export function createEmptyOrderBuffer(device: GPUDevice): GPUBuffer {
-  return createOrderBuffer(device, 1, "femgx empty instance order");
-}
-
-/** Returns the active order buffer or the device-scoped empty sentinel. */
-export function orderBufferFor(
-  storage: InstanceStorage,
-  kind:
-    | "opaque"
-    | "transparent"
-    | "edge"
-    | "node"
-    | "selection"
-    | "node-selection"
-    | "node-selection-compact",
-): GPUBuffer {
-  if (kind === "opaque") return storage.orderBuffer;
-  const sidecar = storage.sidecars[sidecarKind(kind)];
-  return sidecar?.buffer ?? storage.emptyOrderBuffer;
-}
-
-function sidecarKind(
-  kind: Exclude<Parameters<typeof orderBufferFor>[1], "opaque">,
-): keyof InstanceSidecars {
-  if (kind === "node-selection") return "nodeSelection";
-  if (kind === "node-selection-compact") return "nodeSelectionCompact";
-  return kind;
-}
-
 function ensureOrderSidecar(
   draw: InstanceStorageOwner,
   storage: InstanceStorage,
@@ -453,8 +452,7 @@ function ensureOrderSidecar(
   if (existing !== undefined) {
     next.data.set(existing.data.subarray(0, existing.length));
     writeExistingOrder(draw, next.buffer, next.data, existing.length);
-    draw.cost.releaseBuffer(existing.buffer.size);
-    existing.buffer.destroy();
+    releaseOrderBuffer(draw, existing.buffer);
   }
   draw.cost.allocateBuffer(next.buffer.size);
   storage.sidecars[kind] = next;
@@ -469,17 +467,13 @@ function releaseOrderSidecar(
 ): void {
   const sidecar = storage.sidecars[kind];
   if (sidecar === undefined) return;
-  draw.cost.releaseBuffer(sidecar.buffer.size);
-  sidecar.buffer.destroy();
+  releaseOrderBuffer(draw, sidecar.buffer);
   storage.sidecars[kind] = undefined;
   clearBindGroups(storage, draw.cost);
 }
 
-/** Creates a u32 storage buffer sized to the part's slot capacity. */
-function createOrderBuffer(device: GPUDevice, size: number, label: string): GPUBuffer {
-  return device.createBuffer({
-    label,
-    size: size * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+function releaseOrderBuffer(draw: InstanceStorageOwner, buffer: GPUBuffer): void {
+  if (draw.deferReleases) return;
+  draw.cost.releaseBuffer(buffer.size);
+  buffer.destroy();
 }

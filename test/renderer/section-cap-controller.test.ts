@@ -205,11 +205,85 @@ describe("section-cap part retirement", () => {
         bundle.draw,
       );
 
-      expect(controller.currentFrame?.sourcePartIds).toEqual(new Map([[retainedCapId, 2]]));
+      expect([...(controller.currentFrame?.sourcePartIds ?? new Map()).entries()]).toEqual([
+        [retainedCapId, 2],
+      ]);
       expect(controller.parts.has(1)).toBe(false);
       expect(controller.parts.has(2)).toBe(true);
       expect(bufferDestroyed(gpu, removedResource.vertexBuffer)).toBe(true);
       expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
+
+  it("rebuilds only cap fragments sourced from a revised definition", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = sectionScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const controller = new SectionCapController();
+      const interaction = createInteractionState();
+      controller.sync(sectionOptions(runtime, scene, interaction, bundle.draw));
+      const frame = controller.currentFrame;
+      if (frame === undefined) throw new Error("section-cap frame missing");
+      const revisedCapId = capIdFor(frame.sourcePartIds, 1);
+      const retainedCapId = capIdFor(frame.sourcePartIds, 2);
+      const revisedPart = frame.parts.get(revisedCapId);
+      const retainedPart = frame.parts.get(retainedCapId);
+      if (revisedPart === undefined || retainedPart === undefined) throw new Error("caps missing");
+      const revisedResource = uploadPart(bundle.draw, revisedPart);
+      const retainedResource = uploadPart(bundle.draw, retainedPart);
+      const replacement = sectionScene().parts.get(1);
+      if (replacement === undefined) throw new Error("replacement definition is missing");
+      const parts = new Map(scene.parts).set(1, replacement);
+
+      controller.replaceParts(new Set([1]), parts, bundle.draw);
+      controller.sync({ ...sectionOptions(runtime, scene, interaction, bundle.draw), parts });
+
+      expect(controller.currentFrame?.sourcePartIds.size).toBe(2);
+      expect(new Set(controller.currentFrame?.sourcePartIds.values())).toEqual(new Set([1, 2]));
+      expect(bufferDestroyed(gpu, revisedResource.vertexBuffer)).toBe(true);
+      expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
+    } finally {
+      destroyGpuBundle(bundle);
+      restore();
+    }
+  });
+
+  it("retains unrelated caps when revised topology clears hidden interaction ids", async () => {
+    const restore = installGpuGlobals();
+    const gpu = fakeGpuDevice();
+    const bundle = await createGpuBundle(gpu.device, "bgra8unorm", "depth24plus");
+    try {
+      const scene = sectionScene();
+      const runtime = createPackedSceneRuntime(scene);
+      const controller = new SectionCapController();
+      const visible = createInteractionState();
+      controller.sync(sectionOptions(runtime, scene, visible, bundle.draw));
+      const initial = controller.currentFrame;
+      const firstId = runtime.getInstanceId(0);
+      if (initial === undefined || firstId === undefined)
+        throw new Error("section-cap frame missing");
+      const retainedCapId = capIdFor(initial.sourcePartIds, 2);
+      const retainedPart = initial.parts.get(retainedCapId);
+      if (retainedPart === undefined) throw new Error("retained cap missing");
+      const retainedResource = uploadPart(bundle.draw, retainedPart);
+      const replacement = sectionScene().parts.get(1);
+      if (replacement === undefined) throw new Error("replacement definition is missing");
+      const parts = new Map(scene.parts).set(1, replacement);
+      const hidden = setElementVisible(visible, { partOccurrenceId: firstId, elementId: 7 }, false);
+
+      controller.replaceParts(new Set([1]), parts, bundle.draw);
+      controller.syncInteraction(hidden, runtime, parts, bundle.draw);
+      controller.sync({ ...sectionOptions(runtime, scene, hidden, bundle.draw), parts });
+
+      expect(controller.currentFrame?.parts.get(retainedCapId)).toBe(retainedPart);
+      expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
+      expect([...(controller.currentFrame?.sourcePartIds.values() ?? [])]).toEqual([2]);
     } finally {
       destroyGpuBundle(bundle);
       restore();

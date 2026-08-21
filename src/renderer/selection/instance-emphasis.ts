@@ -4,6 +4,7 @@ import {
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_STRIDE,
+  captureStagedInstanceRecord,
   type InstanceStorage,
 } from "../resources/instance-storage";
 import { writeChangedRecordRanges } from "../resources/buffer-writes";
@@ -55,6 +56,7 @@ export function syncInstanceEmphasisAdmission(
     const next = new Uint8Array(storage.data);
     const flags = new Uint32Array(next.buffer);
     for (const slot of changedSlots) {
+      captureStagedInstanceRecord(storage, slot);
       const word = slot * (INSTANCE_STRIDE / 4) + 22;
       const current = flags[word] ?? 0;
       flags[word] = nextSlots.has(slot)

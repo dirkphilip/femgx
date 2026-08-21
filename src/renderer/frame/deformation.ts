@@ -75,6 +75,7 @@ export function syncDeformations(
   state: DeformationState | undefined,
   runtime?: PackedSceneRuntime,
   layout?: ResultBindingLayout,
+  partScope?: ReadonlySet<PartId>,
 ): void {
   if (state === undefined) {
     for (const [partId, storage] of sync.deformations) {
@@ -90,7 +91,7 @@ export function syncDeformations(
   const bindings =
     runtime === undefined || layout === undefined
       ? sharedDeformationBindings(resolved.displacements)
-      : partResultBindings(resolved.displacements, runtime, layout);
+      : partResultBindings(resolved.displacements, runtime, layout, partScope);
   const active = new Set<PartId>();
   for (const binding of bindings) {
     if (binding.values.every((value) => value === undefined)) continue;

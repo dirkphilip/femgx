@@ -38,6 +38,8 @@ export interface HighlightAllocationTarget {
   nodeSelectionBindGroup: GPUBindGroup | undefined;
   subsetBindGroup?: GPUBindGroup | undefined;
   subsetTransparentBindGroup?: GPUBindGroup | undefined;
+  /** Revision-local storage keeps the prior live allocation until commit. */
+  readonly deferRelease?: boolean;
 }
 
 /** Creates a highlight buffer sized for sparse and dense emphasis payloads. */
@@ -103,8 +105,10 @@ export function ensureHighlightStorage(
   }
   const grown = createHighlightStorage(device, next.sparseCapacity, next);
   preserveDenseSelection(current, grown);
-  options.cost?.releaseBuffer(current.buffer.size);
-  current.buffer.destroy();
+  if (!storage.deferRelease) {
+    options.cost?.releaseBuffer(current.buffer.size);
+    current.buffer.destroy();
+  }
   options.cost?.allocateBuffer(grown.buffer.size);
   storage.highlight = grown;
   storage.highlightOwned = true;

@@ -88,9 +88,7 @@ describe("Viewport", () => {
     ).toEqual({
       results: "preserved",
     });
-    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(
-      expect.objectContaining({ mode: "arrow", transform: "direction" }),
-    );
+    expect(setOrientationGlyphs).not.toHaveBeenCalled();
     expect(viewport.results.state?.orientation).toBeDefined();
 
     setOrientationGlyphs.mockClear();
@@ -103,7 +101,7 @@ describe("Viewport", () => {
     ).toMatchObject({
       results: "cleared",
     });
-    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
+    expect(setOrientationGlyphs).not.toHaveBeenCalled();
     expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });

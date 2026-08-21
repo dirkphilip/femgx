@@ -40,6 +40,7 @@ export const GPU_COST_CPU = [
   "part-scan",
   "order-rebuild",
   "call-rebuild",
+  "definition-validation",
 ] as const;
 export type GpuCostCpu = (typeof GPU_COST_CPU)[number];
 
@@ -115,6 +116,7 @@ export class GpuCostAccumulator {
   private readonly cpuCounts = emptyCpuCounts();
   private readonly memoryCounts = emptyMemoryCounts();
   private targetCost: GpuTargetCost | undefined;
+  private completedTransaction: GpuCostSnapshot | undefined;
 
   /** Clears all counters before encoding a new visible frame. */
   public reset(): void {
@@ -158,6 +160,16 @@ export class GpuCostAccumulator {
     this.cpuCounts[work] += count;
   }
 
+  /** Retains deterministic transaction counters across the next frame reset. */
+  public completeTransaction(): void {
+    this.completedTransaction = this.snapshot();
+  }
+
+  /** Returns the most recently completed detached transaction counters. */
+  public transactionSnapshot(): GpuCostSnapshot {
+    return this.completedTransaction ?? this.snapshot();
+  }
+
   public allocateBuffer(bytes: number): void {
     this.memoryCounts.allocatedBytes += bytes;
     this.memoryCounts.bufferCreates += 1;
@@ -190,6 +202,27 @@ export class GpuCostAccumulator {
       // revealage targets (81 bytes per physical pixel in total).
       estimatedBytes: pixels * (weightedTransparency ? 81 : 32),
     };
+  }
+
+  /** Adds one completed staged transaction without exposing mutable counter state. */
+  public merge(staged: GpuCostAccumulator): void {
+    const snapshot = staged.snapshot();
+    for (const pass of GPU_COST_PASSES) this.passCounts[pass] += snapshot.passes[pass];
+    for (const draw of GPU_COST_DRAWS) {
+      this.drawCounts[draw].calls += snapshot.draws[draw].calls;
+      this.drawCounts[draw].indices += snapshot.draws[draw].indices;
+      this.drawCounts[draw].instances += snapshot.draws[draw].instances;
+    }
+    for (const write of GPU_COST_WRITES) {
+      this.writeCounts[write].calls += snapshot.writes[write].calls;
+      this.writeCounts[write].bytes += snapshot.writes[write].bytes;
+    }
+    for (const work of GPU_COST_CPU) this.cpuCounts[work] += snapshot.cpu[work];
+    this.memoryCounts.allocatedBytes += snapshot.memory.allocatedBytes;
+    this.memoryCounts.releasedBytes += snapshot.memory.releasedBytes;
+    this.memoryCounts.bufferCreates += snapshot.memory.bufferCreates;
+    this.memoryCounts.bufferDestroys += snapshot.memory.bufferDestroys;
+    this.memoryCounts.bindGroupInvalidations += snapshot.memory.bindGroupInvalidations;
   }
 
   /** Returns a detached snapshot safe for benchmark serialization. */
@@ -226,7 +259,13 @@ function emptyPassCounts(): Record<GpuCostPass, number> {
 }
 
 function emptyCpuCounts(): Record<GpuCostCpu, number> {
-  return { "instance-scan": 0, "part-scan": 0, "order-rebuild": 0, "call-rebuild": 0 };
+  return {
+    "instance-scan": 0,
+    "part-scan": 0,
+    "order-rebuild": 0,
+    "call-rebuild": 0,
+    "definition-validation": 0,
+  };
 }
 
 function emptyAdmissionCounts(): Record<GpuCostAdmission, number> {

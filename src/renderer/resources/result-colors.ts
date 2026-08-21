@@ -48,6 +48,7 @@ export function syncResultColors(
   colors: ResultColorMap | undefined,
   runtime?: PackedSceneRuntime,
   layout?: ResultBindingLayout,
+  partScope?: ReadonlySet<PartId>,
 ): void {
   if (colors === undefined) {
     for (const [partId, storage] of draw.resultColors) releaseResultColors(draw, partId, storage);
@@ -56,7 +57,7 @@ export function syncResultColors(
   const bindings =
     runtime === undefined || layout === undefined
       ? sharedResultBindings(colors, "Result color synchronization")
-      : partResultBindings(colors, runtime, layout);
+      : partResultBindings(colors, runtime, layout, partScope);
   const active = new Set<PartId>();
   for (const binding of bindings) {
     if (binding.values.every((value) => value === undefined)) continue;

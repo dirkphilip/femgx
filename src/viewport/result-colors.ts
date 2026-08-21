@@ -7,6 +7,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type { PartOccurrenceId } from "../scene/types";
 import { renderedPartIds } from "./results-roles";
+import { RevisedBindingMap, revisedResultBindings } from "./results/revision-bindings";
 import type {
   ViewportResultField,
   ViewportResultsState,
@@ -26,6 +27,33 @@ export interface OccurrenceScalarBinding {
 /** Returns the internal dense GPU color data for a resolved scalar field. */
 export function viewportResultColors(state: ViewportResultsState): ResultColorMap | undefined {
   return colorsByState.get(state);
+}
+
+/** Retains unchanged per-binding table identities across an immutable part revision. */
+export function reconcileViewportResultColors(
+  state: ViewportResultsState,
+  previous: ViewportResultsState,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): void {
+  const current = colorsByState.get(state);
+  const prior = colorsByState.get(previous);
+  if (current === undefined || prior === undefined) return;
+  const colors = new RevisedBindingMap(
+    prior,
+    current,
+    revisedResultBindings(runtime, revisedPartIds),
+  );
+  colorsByState.set(state, colors);
+}
+
+/** Moves internal resolved color metadata to an equivalent immutable result state. */
+export function transferViewportResultColors(
+  source: ViewportResultsState,
+  target: ViewportResultsState,
+): void {
+  colorsByState.set(target, colorsByState.get(source));
+  partsByState.set(target, partsByState.get(source));
 }
 
 /** Derives or reuses one dense color table per reusable rendered part. */
@@ -165,6 +193,18 @@ function sameRenderedParts(
     if (sources.get(partId) !== scene.parts.get(partId)) return false;
   }
   return true;
+}
+
+/** Tests whether one shared or occurrence-bound result entry targets a revised definition. */
+export function bindingUsesRevisedPart(
+  bindingId: PartId | PartOccurrenceId,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): boolean {
+  if (typeof bindingId === "number") return revisedPartIds.has(bindingId);
+  const slot = runtime.getInstanceSlot(bindingId);
+  const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+  return partId === undefined || revisedPartIds.has(partId);
 }
 
 function renderedParts(

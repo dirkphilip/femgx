@@ -41,8 +41,6 @@ export function reviseAttachmentCalls(
     };
   }
   cost.cpu("call-rebuild", 1);
-  // Dense revisions are cheaper as one layout pass than retained-list filtering and merging.
-  if (changed.size * 4 >= layout.partOrder.length) return buildDrawCalls(layout);
   const replacements = changedPartCalls(layout, changed);
   return {
     calls: mergeCalls(previous.calls, replacements.calls, changed),

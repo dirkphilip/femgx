@@ -21,9 +21,39 @@ export interface HighlightSelectionStorage {
 
 /** A GPU highlight buffer plus its full CPU mirror for diffed writes. */
 export interface HighlightStorage extends HighlightSelectionStorage {
+  /** Exact bytes changed while a definition revision is staged. */
+  readonly revisionJournal?: HighlightRevisionJournal;
   denseSelection: DenseElementSelection | undefined;
   denseVisibility: DenseElementSelection | undefined;
   denseNodeSelection: DenseNodeSelection | undefined;
+}
+
+/** Sparse rollback journal for a retained highlight CPU mirror. */
+export interface HighlightRevisionJournal {
+  readonly bytes: Map<number, number>;
+}
+
+/** Starts a sparse staged-highlight journal. */
+export function createHighlightRevisionJournal(): HighlightRevisionJournal {
+  return { bytes: new Map() };
+}
+
+/** Captures a byte range before a staged highlight mutation. */
+export function captureStagedHighlightRange(
+  storage: HighlightStorage,
+  start: number,
+  end: number,
+): void {
+  const journal = storage.revisionJournal;
+  if (journal === undefined) return;
+  for (let index = start; index < end; index += 1) {
+    if (!journal.bytes.has(index)) journal.bytes.set(index, storage.data[index] ?? 0);
+  }
+}
+
+/** Restores sparse staged highlight bytes after a transaction failure. */
+export function rollbackStagedHighlight(storage: HighlightStorage): void {
+  for (const [index, value] of storage.revisionJournal?.bytes ?? []) storage.data[index] = value;
 }
 
 /** Dense membership sections packed beside the sparse emphasis table. */
@@ -121,11 +151,16 @@ export function writeSelectionHeader(
   view[23] = visibility?.occurrences.length ?? 0;
 }
 
-/** Copies dense offsets and packed per-occurrence words into the fixed payload. */
+/**
+ * Copies dense offsets and packed per-occurrence words into the fixed payload.
+ * This allocation-free linear kernel keeps sparse rollback capture adjacent to each write.
+ */
+// eslint-disable-next-line max-lines-per-function -- Splitting this measured packing kernel would add callback state in its hot loop.
 export function writeDenseSelectionData(
   next: Uint8Array,
   storage: HighlightSelectionStorage,
   payload: DenseHighlightPayload,
+  capture?: (startWord: number, endWord: number) => void,
 ): void {
   const { selection, nodeSelection, visibility } = payload;
   const view = new Uint32Array(next.buffer);
@@ -136,13 +171,25 @@ export function writeDenseSelectionData(
   const visibilityOffsetWord = view[21] ?? 0;
   const visibilityBitsWord = view[22] ?? 0;
   const dataBase = HIGHLIGHT_HEADER / 4;
+  capture?.(dataBase + offsetWord, dataBase + bitsWord);
   view.fill(0xffffffff, dataBase + offsetWord, dataBase + bitsWord);
+  capture?.(
+    dataBase + bitsWord,
+    dataBase + bitsWord + storage.selectionRecordCapacity * storage.selectionWordCapacity,
+  );
   view.fill(
     0,
     dataBase + bitsWord,
     dataBase + bitsWord + storage.selectionRecordCapacity * storage.selectionWordCapacity,
   );
+  capture?.(dataBase + nodeOffsetWord, dataBase + nodeBitsWord);
   view.fill(0xffffffff, dataBase + nodeOffsetWord, dataBase + nodeBitsWord);
+  capture?.(
+    dataBase + nodeBitsWord,
+    dataBase +
+      nodeBitsWord +
+      storage.nodeSelectionRecordCapacity * storage.nodeSelectionWordCapacity,
+  );
   view.fill(
     0,
     dataBase + nodeBitsWord,
@@ -150,7 +197,14 @@ export function writeDenseSelectionData(
       nodeBitsWord +
       storage.nodeSelectionRecordCapacity * storage.nodeSelectionWordCapacity,
   );
+  capture?.(dataBase + visibilityOffsetWord, dataBase + visibilityBitsWord);
   view.fill(0xffffffff, dataBase + visibilityOffsetWord, dataBase + visibilityBitsWord);
+  capture?.(
+    dataBase + visibilityBitsWord,
+    dataBase +
+      visibilityBitsWord +
+      storage.visibilityRecordCapacity * storage.visibilityWordCapacity,
+  );
   view.fill(
     0,
     dataBase + visibilityBitsWord,
@@ -160,13 +214,29 @@ export function writeDenseSelectionData(
   );
   if (selection !== undefined) {
     for (const [record, occurrence] of selection.occurrences.entries()) {
+      capture?.(
+        dataBase + offsetWord + occurrence.slot,
+        dataBase + offsetWord + occurrence.slot + 1,
+      );
       view[dataBase + offsetWord + occurrence.slot] = record;
+      capture?.(
+        dataBase + bitsWord + record * storage.selectionWordCapacity,
+        dataBase + bitsWord + (record + 1) * storage.selectionWordCapacity,
+      );
       view.set(occurrence.words, dataBase + bitsWord + record * storage.selectionWordCapacity);
     }
   }
   if (visibility !== undefined) {
     for (const [record, occurrence] of visibility.occurrences.entries()) {
+      capture?.(
+        dataBase + visibilityOffsetWord + occurrence.slot,
+        dataBase + visibilityOffsetWord + occurrence.slot + 1,
+      );
       view[dataBase + visibilityOffsetWord + occurrence.slot] = record;
+      capture?.(
+        dataBase + visibilityBitsWord + record * storage.visibilityWordCapacity,
+        dataBase + visibilityBitsWord + (record + 1) * storage.visibilityWordCapacity,
+      );
       view.set(
         occurrence.words,
         dataBase + visibilityBitsWord + record * storage.visibilityWordCapacity,
@@ -175,7 +245,15 @@ export function writeDenseSelectionData(
   }
   if (nodeSelection === undefined) return;
   for (const [record, occurrence] of nodeSelection.occurrences.entries()) {
+    capture?.(
+      dataBase + nodeOffsetWord + occurrence.slot,
+      dataBase + nodeOffsetWord + occurrence.slot + 1,
+    );
     view[dataBase + nodeOffsetWord + occurrence.slot] = record;
+    capture?.(
+      dataBase + nodeBitsWord + record * storage.nodeSelectionWordCapacity,
+      dataBase + nodeBitsWord + (record + 1) * storage.nodeSelectionWordCapacity,
+    );
     view.set(
       occurrence.words,
       dataBase + nodeBitsWord + record * storage.nodeSelectionWordCapacity,

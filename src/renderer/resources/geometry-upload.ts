@@ -113,21 +113,22 @@ export function buildPartGeometryData(
     elementOrdinals,
     neighborElementOrdinals ?? new Uint32Array(),
   );
-  const subsetVertexData =
-    triangleGeometry === undefined || subsetIndices === undefined
-      ? undefined
-      : triangleSubsetUploadData(triangleGeometry, subsetIndices);
-  const subsetBuffers = createSubsetBuffers(
-    device,
-    subsetVertexData,
-    faceBodyPickIds,
-    elementOrdinals,
-  );
-  return {
-    ...fullBuffers,
-    subsetBuffers,
-    subsetIndices,
-  };
+  try {
+    const subsetVertexData =
+      triangleGeometry === undefined || subsetIndices === undefined
+        ? undefined
+        : triangleSubsetUploadData(triangleGeometry, subsetIndices);
+    const subsetBuffers = createSubsetBuffers(
+      device,
+      subsetVertexData,
+      faceBodyPickIds,
+      elementOrdinals,
+    );
+    return { ...fullBuffers, subsetBuffers, subsetIndices };
+  } catch (error) {
+    destroyFullGeometryBuffers(fullBuffers);
+    throw error;
+  }
 }
 
 /** Uploads imported per-triangle display colors in the result-color layout. */
@@ -185,19 +186,26 @@ export function materializeFullGeometry(
     elementOrdinals,
     neighborElementOrdinals ?? new Uint32Array(),
   );
-  resource.fullVertexBuffer = createBuffer(
-    device,
-    vertexData.positions,
-    GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
-  );
-  resource.fullIndexBuffer = createIndexBuffer(device, vertexData.indices);
-  if (fullBuffers.cornerIndexOffset !== undefined) {
-    resource.fullMinimalIndexBuffer = fullBuffers.facePickIdsBuffer;
-    resource.fullMinimalIndexOffset = fullBuffers.cornerIndexOffset;
+  const allocated = [fullBuffers.nodePickIdsBuffer, fullBuffers.facePickIdsBuffer];
+  try {
+    const fullVertexBuffer = trackBuffer(
+      allocated,
+      createBuffer(device, vertexData.positions, GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE),
+    );
+    const fullIndexBuffer = trackBuffer(allocated, createIndexBuffer(device, vertexData.indices));
+    resource.fullVertexBuffer = fullVertexBuffer;
+    resource.fullIndexBuffer = fullIndexBuffer;
+    if (fullBuffers.cornerIndexOffset !== undefined) {
+      resource.fullMinimalIndexBuffer = fullBuffers.facePickIdsBuffer;
+      resource.fullMinimalIndexOffset = fullBuffers.cornerIndexOffset;
+    }
+    resource.fullFacePickIdsBuffer = fullBuffers.facePickIdsBuffer;
+    resource.fullNodePickIdsBuffer = fullBuffers.nodePickIdsBuffer;
+    resource.fullIndexCount = vertexData.indices.length;
+  } catch (error) {
+    destroyBuffers(allocated);
+    throw error;
   }
-  resource.fullFacePickIdsBuffer = fullBuffers.facePickIdsBuffer;
-  resource.fullNodePickIdsBuffer = fullBuffers.nodePickIdsBuffer;
-  resource.fullIndexCount = vertexData.indices.length;
 }
 
 function buildFullGeometryBuffers(
@@ -209,20 +217,40 @@ function buildFullGeometryBuffers(
 ): FullGeometryBuffers {
   const emptyEdgeData = emptyMeshEdgeData();
   const nodePickIdsBuffer = createBuffer(device, vertexData.nodePickIds, GPUBufferUsage.STORAGE);
-  const topology = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
-    elementOrdinals,
-    neighborElementOrdinals,
-    primitiveIds: vertexData.primitiveIds,
-    edgeIds: emptyEdgeData.edgeIds,
-    ...(vertexData.cornerIndices === undefined ? {} : { cornerIndices: vertexData.cornerIndices }),
-  });
-  return {
-    nodePickIdsBuffer,
-    facePickIdsBuffer: topology.buffer,
-    ...(topology.cornerIndexOffset === undefined
-      ? {}
-      : { cornerIndexOffset: topology.cornerIndexOffset }),
-  };
+  try {
+    const topology = createTopologyBuffer(device, faceBodyPickIds, emptyEdgeData, {
+      elementOrdinals,
+      neighborElementOrdinals,
+      primitiveIds: vertexData.primitiveIds,
+      edgeIds: emptyEdgeData.edgeIds,
+      ...(vertexData.cornerIndices === undefined
+        ? {}
+        : { cornerIndices: vertexData.cornerIndices }),
+    });
+    return {
+      nodePickIdsBuffer,
+      facePickIdsBuffer: topology.buffer,
+      ...(topology.cornerIndexOffset === undefined
+        ? {}
+        : { cornerIndexOffset: topology.cornerIndexOffset }),
+    };
+  } catch (error) {
+    nodePickIdsBuffer.destroy();
+    throw error;
+  }
+}
+
+function destroyFullGeometryBuffers(buffers: FullGeometryBuffers): void {
+  destroyBuffers([buffers.nodePickIdsBuffer, buffers.facePickIdsBuffer]);
+}
+
+function trackBuffer(buffers: GPUBuffer[], buffer: GPUBuffer): GPUBuffer {
+  buffers.push(buffer);
+  return buffer;
+}
+
+function destroyBuffers(buffers: readonly GPUBuffer[]): void {
+  for (const buffer of new Set(buffers)) buffer.destroy();
 }
 
 /** Builds the optional retained edge resource for a triangle part. */

@@ -105,14 +105,17 @@ function replaceOrderBuffer(
   resource: OrientationGlyphGroupResource,
   count: number,
 ): void {
-  resource.orderBuffer.destroy();
-  resource.orderCapacity = Math.max(count, resource.orderCapacity * 2);
-  resource.orderData = new Uint32Array(resource.orderCapacity);
-  resource.orderBuffer = device.createBuffer({
+  const orderCapacity = Math.max(count, resource.orderCapacity * 2);
+  const orderData = new Uint32Array(orderCapacity);
+  const orderBuffer = device.createBuffer({
     label: "femgx orientation glyph order",
-    size: resource.orderData.byteLength,
+    size: orderData.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
+  resource.orderBuffer.destroy();
+  resource.orderCapacity = orderCapacity;
+  resource.orderData = orderData;
+  resource.orderBuffer = orderBuffer;
   resource.instanceBindGroup = undefined;
   resource.instanceBindGroupSources = undefined;
 }

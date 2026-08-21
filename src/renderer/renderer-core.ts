@@ -12,9 +12,8 @@ import { RendererAttachment } from "./attachment";
 import { destroyInstanceResources } from "./resources/draw-resources";
 import { SectionCapController, sameSectionPlane } from "./section-cap-controller";
 import type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
-import { syncDeformations, validateDeformation } from "./frame/deformation";
+import { validateDeformation } from "./frame/deformation";
 import { syncResultColors } from "./resources/result-colors";
-import { encodeVisibleFrame } from "./frame/frame";
 import { GpuDeviceLifecycle } from "./recovery";
 import { writeBundleBackgroundColors } from "./frame/background";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
@@ -25,6 +24,7 @@ import {
 } from "./orientation-glyphs/orientation-glyph";
 import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
 import { buildFrameOptions } from "./frame/frame-options";
+import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
 import { drawCostSnapshot, materializedEdgePartIds } from "./diagnostics/renderer-diagnostics";
 import { RendererPicking } from "./renderer-picking";
 import {
@@ -34,35 +34,37 @@ import {
   type GpuTimestampSnapshot,
 } from "./diagnostics/timestamps";
 import type { GpuRendererConstruction } from "./renderer-construction";
+import { applyRendererPartRevision } from "./attachment/part-revision";
+import type { PartRevisionResultState } from "./attachment/part-revision-results";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
-export class GpuRenderer implements WebGpuRenderer {
+export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private readonly context: GPUCanvasContext;
   private readonly format: GPUTextureFormat;
   private readonly depthFormat: GPUTextureFormat;
-  private readonly lifecycle: GpuDeviceLifecycle;
+  public readonly lifecycle: GpuDeviceLifecycle;
   private pointSize: number;
   private nodeSize: number;
   private readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
-  private readonly attachment = new RendererAttachment();
-  private parts = new Map<PartId, Part>();
-  private sourceParts: ReadonlyMap<PartId, Part> | undefined;
-  private lastCamera: Camera | undefined;
+  public readonly attachment = new RendererAttachment();
+  public parts = new Map<PartId, Part>();
+  public sourceParts: ReadonlyMap<PartId, Part> | undefined;
+  public lastCamera: Camera | undefined;
   private readonly edgePick: EdgePickState;
-  private readonly picking: RendererPicking;
+  public readonly picking: RendererPicking;
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
-  private deformation: DeformationState | undefined;
+  public deformation: DeformationState | undefined;
   private resultColors: ResultColorMap | undefined;
   private sectionPlane: SectionPlane | undefined;
-  private interaction = createInteractionState();
-  private readonly sectionCaps = new SectionCapController();
+  public interaction = createInteractionState();
+  public readonly sectionCaps = new SectionCapController();
   private timestampRecorder: GpuTimestampRecorder | undefined;
   private readonly timestampQueriesRequested: boolean;
-  private orientationGlyphs: OrientationGlyphState | undefined;
-  private originTriadNominalScale = 1;
-  private interactionNeedsRecoverySync = false;
+  public orientationGlyphs: OrientationGlyphState | undefined;
+  public originTriadNominalScale = 1;
+  public interactionNeedsRecoverySync = false;
   private destroyed = false;
 
   public constructor(
@@ -118,32 +120,7 @@ export class GpuRenderer implements WebGpuRenderer {
     originTriadNominalScale = 1,
   ): void {
     this.ensureAlive();
-    this.lifecycle.bundle.draw.cost.reset();
-    this.originTriadNominalScale = originTriadNominalScale;
-    const partsChanged = this.sourceParts !== parts;
-    const cameraChanged = this.lastCamera !== camera;
-    this.lastCamera = camera;
-    if (partsChanged) {
-      this.sourceParts = parts;
-      this.parts = new Map(parts);
-      this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
-      this.sectionCaps.invalidate();
-    }
-    const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
-    if (attachmentChanged) this.sectionCaps.invalidate();
-    if (attachmentChanged && this.interactionNeedsRecoverySync) {
-      this.attachment.updateElements(runtime, this.interaction, this.lifecycle.bundle, this.parts);
-      this.interactionNeedsRecoverySync = false;
-    }
-    const layout = this.attachment.layout;
-    if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
-    syncDeformations(this.lifecycle.bundle.draw, this.deformation, runtime, layout);
-    this.ensureSectionCaps(runtime);
-    syncResultColors(this.lifecycle.bundle.draw, this.sectionCaps.resultColors, runtime, layout);
-    const glyphs = this.lifecycle.bundle.draw.orientationGlyphs;
-    syncOrientationGlyphs(glyphs, this.orientationGlyphs, runtime, layout);
-    if (partsChanged || cameraChanged || attachmentChanged) this.picking.invalidate();
-    encodeVisibleFrame(camera, this.sectionCaps.parts, this.frameOptions());
+    renderRendererFrame(this, runtime, camera, parts, originTriadNominalScale);
   }
 
   public resetScene(parts: ReadonlyMap<PartId, Part>): void {
@@ -154,10 +131,8 @@ export class GpuRenderer implements WebGpuRenderer {
     this.attachment.prepareParts(parts, this.lifecycle.bundle);
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
-    this.sourceParts = undefined;
-    this.lastCamera = undefined;
-    this.deformation = undefined;
-    this.resultColors = undefined;
+    this.lastCamera = this.sourceParts = undefined;
+    this.resultColors = this.deformation = undefined;
     this.interaction = createInteractionState();
     this.orientationGlyphs = undefined;
     this.picking.invalidate();
@@ -184,7 +159,6 @@ export class GpuRenderer implements WebGpuRenderer {
       syncResultColors(this.lifecycle.bundle.draw, colors, runtime, layout);
   }
 
-  /** Installs renderer-owned elemental orientation records without public API leakage. */
   public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
     this.ensureAlive();
     if (this.attachment.runtime !== undefined && this.attachment.layout !== undefined) {
@@ -233,7 +207,8 @@ export class GpuRenderer implements WebGpuRenderer {
     this.ensureAlive();
     this.interaction = interaction;
     this.attachment.addParts(parts, delta.addedPartIds, this.parts);
-    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) {
+    const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
+    if (changed)
       this.attachment.updateOccurrences(
         runtime,
         interaction,
@@ -241,10 +216,44 @@ export class GpuRenderer implements WebGpuRenderer {
         this.parts,
         this.lifecycle.bundle,
       );
-    }
     if (this.sourceParts !== undefined) this.sourceParts = parts;
     this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
-    if (delta.slots.length > 0 || delta.removedPartIds.size > 0) this.picking.invalidate();
+    if (changed) this.picking.invalidate();
+  }
+
+  public updatePartRevisions(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    parts: ReadonlyMap<PartId, Part>,
+    partIds: ReadonlySet<PartId>,
+    results?: PartRevisionResultState,
+  ): void {
+    this.ensureAlive();
+    this.sourceParts = applyRendererPartRevision(
+      this.attachment,
+      this.parts,
+      this.sourceParts,
+      this.sectionCaps,
+      {
+        bundle: this.lifecycle.bundle,
+        runtime,
+        interaction,
+        parts,
+        partIds,
+        results,
+        plane: this.sectionPlane,
+        deformation: results?.deformation ?? this.deformation,
+        resultColors: results?.colors ?? this.resultColors,
+      },
+    );
+    if (results !== undefined) {
+      this.deformation = results.deformation;
+      this.resultColors = results.colors;
+      // The revision transaction already synchronized only changed glyph bindings.
+      this.orientationGlyphs = results.glyphs;
+    }
+    this.interaction = interaction;
+    this.picking.invalidate();
   }
 
   public updateElements(
@@ -389,13 +398,9 @@ export class GpuRenderer implements WebGpuRenderer {
     }
   }
 
-  private ensureAlive(): void {
-    if (this.destroyed) throw new Error("WebGPU renderer has been destroyed");
-    this.lifecycle.ensureUsable();
-  }
+  private readonly ensureAlive = (): undefined => (this.lifecycle.ensureUsable(), undefined);
 
-  private frameOptions() {
-    const caps = this.sectionCaps.currentFrame;
+  public frameOptions() {
     return buildFrameOptions({
       canvas: this.canvas,
       context: this.context,
@@ -409,9 +414,7 @@ export class GpuRenderer implements WebGpuRenderer {
       deformation: this.deformation,
       sectionPlane: this.sectionPlane,
       resultColors: this.sectionCaps.resultColors,
-      capCalls: caps?.calls,
-      transparentCapCalls: caps?.transparentCalls,
-      allCapCalls: caps?.allCalls,
+      sectionCaps: this.sectionCaps,
       orbitPivot: this.orbitPivot,
       originTriadEnabled: this.originTriadEnabled,
       originTriadNominalScale: this.originTriadNominalScale,
@@ -419,7 +422,7 @@ export class GpuRenderer implements WebGpuRenderer {
     });
   }
 
-  private ensureSectionCaps(runtime: PackedSceneRuntime): void {
+  public ensureSectionCaps(runtime: PackedSceneRuntime): void {
     this.sectionCaps.sync({
       runtime,
       parts: this.parts,

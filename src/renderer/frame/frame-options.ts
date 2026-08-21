@@ -21,9 +21,15 @@ interface FrameOptionSources {
     readonly selectedNodeCalls: FrameOptions["selectedNodeCalls"];
     readonly usesExteriorFaceSubsets: boolean;
   };
-  readonly capCalls?: FrameOptions["capCalls"];
-  readonly transparentCapCalls?: FrameOptions["transparentCapCalls"];
-  readonly allCapCalls?: FrameOptions["allCapCalls"];
+  readonly sectionCaps: {
+    readonly currentFrame:
+      | {
+          readonly calls: FrameOptions["capCalls"];
+          readonly transparentCalls: FrameOptions["transparentCapCalls"];
+          readonly allCalls: FrameOptions["allCapCalls"];
+        }
+      | undefined;
+  };
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
   readonly edgeDepthTest: boolean;
@@ -40,6 +46,7 @@ interface FrameOptionSources {
 
 /** Builds the immutable frame input record from current renderer state. */
 export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
+  const caps = options.sectionCaps.currentFrame;
   return {
     canvas: options.canvas,
     context: options.context,
@@ -52,9 +59,9 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     nodeCalls: options.attachment.nodeCalls,
     selectionCalls: options.attachment.selectionCalls,
     selectedNodeCalls: options.attachment.selectedNodeCalls,
-    capCalls: options.capCalls ?? EMPTY_CALLS,
-    transparentCapCalls: options.transparentCapCalls ?? EMPTY_CALLS,
-    allCapCalls: options.allCapCalls ?? EMPTY_CALLS,
+    capCalls: caps?.calls ?? EMPTY_CALLS,
+    transparentCapCalls: caps?.transparentCalls ?? EMPTY_CALLS,
+    allCapCalls: caps?.allCalls ?? EMPTY_CALLS,
     usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
     pickTargets: options.bundle.pickTargets,
     colorFormat: options.colorFormat,

@@ -115,6 +115,7 @@ function createBuffer(
   options: FakeGpuOptions,
   descriptor: GPUBufferDescriptor,
 ): GPUBuffer {
+  options.onCreateBuffer?.(state.buffers.length + 1, descriptor);
   const record: FakeBuffer = {
     size: descriptor.size,
     usage: descriptor.usage,

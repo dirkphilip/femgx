@@ -1,6 +1,4 @@
 import { createNodalDisplacementBuffer, type DeformationState } from "../results/deform";
-import { createScalarColorMap, type ScalarColorMap } from "../results/mapping";
-import { scalarRange, type ValueRange } from "../results/range";
 import type { Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { PartOccurrenceId } from "../scene/types";
@@ -14,19 +12,26 @@ import {
 } from "./results-roles";
 import {
   mergedNodePickIds,
+  reconcileViewportResultColors,
   resolveViewportResultColors,
-  sameFieldSource,
-  validateResultCoverage,
+  transferViewportResultColors,
   type OccurrenceScalarBinding,
 } from "./result-colors";
+import { validateViewportDeformationCoverage } from "./results/deformation";
+import {
+  reconcilePartRevisionDeformation,
+  reconcilePartRevisionRecords,
+  reconcileSharedPartRevisionDeformation,
+  replacePartRevisionDeformation,
+  reusablePartDeformation,
+} from "./results/revision";
 import { mergeResultRecords } from "./result-records";
+import { partRevisionRuntime, scopedPartRevisionConfig } from "./results/revision-scope";
+import { resolveScalar } from "./results/scalar-resolution";
 import type {
   ViewportDeformationConfig,
-  ViewportResultField,
   ViewportResultsConfig,
   ViewportResultsState,
-  ViewportScalarConfig,
-  ViewportScalarState,
   ViewportOccurrenceResultsConfig,
 } from "./results-types";
 
@@ -111,6 +116,44 @@ export function resolveViewportResults(
     ),
   );
   return state;
+}
+
+/** Resolves a retained snapshot while retaining untouched renderer-table identities. */
+export function resolveViewportPartRevisionResults(
+  config: ViewportResultsConfig,
+  scene: Scene,
+  runtime: PackedSceneRuntime,
+  previous: ViewportResultsState,
+  revisedPartIds: ReadonlySet<PartId>,
+): ViewportResultsState {
+  if (previous.config !== config) return resolveViewportResults(config, scene, runtime, previous);
+  const scoped = scopedPartRevisionConfig(config, runtime, revisedPartIds);
+  if (scoped === undefined) return previous;
+  const partial = resolveViewportResults(
+    scoped,
+    scene,
+    partRevisionRuntime(runtime, revisedPartIds),
+    undefined,
+  );
+  const shared = reconcileSharedPartRevisionDeformation(
+    sharedDeformations.get(partial),
+    revisedPartIds,
+    (partId) => resolveDeformation(config.deformation, scene, runtime, undefined, partId),
+  );
+  const reconciled = {
+    ...partial,
+    config,
+    deformation: reconcilePartRevisionDeformation(
+      replacePartRevisionDeformation(partial.deformation, shared, config, revisedPartIds),
+      previous.deformation,
+      runtime,
+      revisedPartIds,
+    ),
+  };
+  sharedDeformations.set(reconciled, shared);
+  reconcileViewportResultColors(partial, previous, runtime, revisedPartIds);
+  transferResultMetadata(partial, reconciled, previous, runtime, revisedPartIds);
+  return reconciled;
 }
 
 interface OccurrenceTarget {
@@ -250,75 +293,6 @@ function scaledValues(values: Float32Array, scale: number): Float32Array {
   return Float32Array.from(values, (value) => value * scale);
 }
 
-function resolveScalar(
-  config: ViewportScalarConfig | undefined,
-  scene: Scene,
-  runtime: PackedSceneRuntime,
-  previous: ViewportResultsState | undefined,
-): ViewportScalarState | undefined {
-  if (config === undefined) return undefined;
-  const field = config.field;
-  const range = resolveRange(field, config.range, config.colorMap);
-  const colorMap = resolveColorMap(config, field, range, previous);
-  validateMapRange(range, colorMap);
-  validateResultCoverage(field, scene, runtime, config.partId);
-  return { config, field, range, colorMap };
-}
-
-function resolveRange(
-  field: ViewportResultField,
-  requested: ValueRange | undefined,
-  colorMap: ScalarColorMap | undefined,
-): ValueRange {
-  if (requested !== undefined) return requested;
-  if (colorMap !== undefined) return { min: colorMap.min, max: colorMap.max };
-  const observed = scalarRange(field);
-  if (observed === undefined) {
-    throw new Error(
-      `Viewport results field ${field.id} has no finite values for an automatic range`,
-    );
-  }
-  return observed.min === observed.max ? expandConstantRange(observed.min) : observed;
-}
-
-function resolveColorMap(
-  config: ViewportScalarConfig,
-  field: ViewportResultField,
-  range: ValueRange,
-  previous: ViewportResultsState | undefined,
-): ScalarColorMap {
-  if (config.colorMap !== undefined) return config.colorMap;
-  if (
-    previous !== undefined &&
-    previous.scalar !== undefined &&
-    previous.scalar.config.colorMap === undefined &&
-    sameFieldSource(previous.scalar.field, field) &&
-    previous.scalar.range.min === range.min &&
-    previous.scalar.range.max === range.max
-  ) {
-    return previous.scalar.colorMap;
-  }
-  return createScalarColorMap(range);
-}
-
-function expandConstantRange(value: number): ValueRange {
-  const delta = Math.max(0.5, Math.abs(value) * 0.01);
-  return { min: value - delta, max: value + delta };
-}
-
-function validateMapRange(range: ValueRange, colorMap: ScalarColorMap): void {
-  if (!Number.isFinite(range.min) || !Number.isFinite(range.max) || range.min >= range.max) {
-    throw new Error(
-      `Viewport results range must be finite with min < max, got [${range.min}, ${range.max}]`,
-    );
-  }
-  if (range.min !== colorMap.min || range.max !== colorMap.max) {
-    throw new Error(
-      `Viewport results range [${range.min}, ${range.max}] does not match color map range [${colorMap.min}, ${colorMap.max}]`,
-    );
-  }
-}
-
 function resolveDeformation(
   config: ViewportDeformationConfig | undefined,
   scene: Scene,
@@ -331,7 +305,15 @@ function resolveDeformation(
   if (!Number.isFinite(scale)) {
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
-  const reusable = targetPartId === undefined ? reusableDeformation(previous, config) : undefined;
+  validateViewportDeformationCoverage(config, scene, runtime, targetPartId);
+  const reusable =
+    targetPartId === undefined
+      ? reusablePartDeformation(
+          previous,
+          previous === undefined ? undefined : sharedDeformations.get(previous),
+          config,
+        )
+      : undefined;
   if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
   for (const partId of targetPartId === undefined ? renderedPartIds(runtime) : [targetPartId]) {
@@ -359,23 +341,20 @@ function resolveDeformation(
   return { scale, displacements };
 }
 
-function reusableDeformation(
-  previous: ViewportResultsState | undefined,
-  config: ViewportDeformationConfig,
-): ReadonlyMap<PartId, Float32Array> | undefined {
-  const previousConfig = previous?.config.deformation;
-  const previousState = previous === undefined ? undefined : sharedDeformations.get(previous);
-  if (
-    previousConfig === undefined ||
-    previousState === undefined ||
-    previousConfig.field.count !== config.field.count ||
-    previousConfig.field.values !== config.field.values
-  ) {
-    return undefined;
-  }
-  return new Map(
-    [...previousState.displacements].filter(
-      (entry): entry is [PartId, Float32Array] => typeof entry[0] === "number",
-    ),
+function transferResultMetadata(
+  source: ViewportResultsState,
+  target: ViewportResultsState,
+  previous: ViewportResultsState,
+  runtime: PackedSceneRuntime,
+  revisedPartIds: ReadonlySet<PartId>,
+): void {
+  transferViewportResultColors(source, target);
+  const records = reconcilePartRevisionRecords(
+    orientationRecords.get(source),
+    orientationRecords.get(previous),
+    runtime,
+    revisedPartIds,
   );
+  orientationRecords.set(target, records);
+  orientationWidths.set(target, orientationWidths.get(source) ?? 1);
 }

@@ -17,7 +17,11 @@ import {
   restoresSourcePlacements,
 } from "./update-normalization";
 import type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from "./update-types";
-import { hasOnlyDirectPartRuntimeChanges, validateExplicitPlacementId } from "./update-validation";
+import {
+  hasOnlyDirectPartRuntimeChanges,
+  hasOnlyPartReplacementChanges,
+  validateExplicitPlacementId,
+} from "./update-validation";
 import { ScenePlacementDrafts } from "./update-placements";
 
 export type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from "./update-types";
@@ -86,6 +90,7 @@ class SceneUpdateDraft implements SceneUpdate {
 
   replacePart(part: Part): void {
     this.ensureActive();
+    validatePartId(part.id);
     const previous = this.currentParts().get(part.id);
     if (previous === undefined) throw new Error(`Part ${part.id} is not registered`);
     if (previous !== part) {
@@ -222,7 +227,11 @@ class SceneUpdateDraft implements SceneUpdate {
       ),
       placements: this.placementChanges,
     };
-    if (!isTransformOnlyChanges(changes) && !hasOnlyDirectPartRuntimeChanges(changes)) {
+    if (
+      !isTransformOnlyChanges(changes) &&
+      !hasOnlyDirectPartRuntimeChanges(changes) &&
+      !hasOnlyPartReplacementChanges(changes)
+    ) {
       validateScene(candidate);
     }
     return { scene: candidate, changes };

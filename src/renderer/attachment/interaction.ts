@@ -108,6 +108,7 @@ export function syncAttachmentInteraction(options: {
   readonly attached: boolean;
   readonly fullSync: boolean;
   readonly changedSlots: readonly number[];
+  readonly forceParts?: ReadonlySet<PartId>;
 }): {
   readonly changed: boolean;
   readonly calls: DrawCallLists | undefined;
@@ -164,6 +165,7 @@ function interactionScope(options: {
   readonly previousInteraction: InteractionState;
   readonly fullSync: boolean;
   readonly changedSlots: readonly number[];
+  readonly forceParts?: ReadonlySet<PartId>;
 }): {
   readonly slots: readonly number[];
   readonly affectedParts: ReadonlySet<PartId>;
@@ -177,17 +179,42 @@ function interactionScope(options: {
     options.changedSlots,
     options.fullSync,
   );
+  const forced = options.forceParts ?? new Set<PartId>();
   return {
     slots,
-    affectedParts: partsForSlots(options.runtime, options.layout, slots, options.fullSync),
-    visibilityParts: visibilityAffectedParts(options),
-    dirtyParts: interactionDirtyParts(
-      options.runtime,
-      options.layout,
-      options.previousInteraction,
-      options.interaction,
-      options.fullSync,
+    affectedParts: withForcedParts(
+      partsForSlots(options.runtime, options.layout, slots, options.fullSync),
+      forced,
     ),
+    visibilityParts: withForcedParts(visibilityAffectedParts(options), forced),
+    dirtyParts: forceDirtyParts(
+      interactionDirtyParts(
+        options.runtime,
+        options.layout,
+        options.previousInteraction,
+        options.interaction,
+        options.fullSync,
+      ),
+      forced,
+    ),
+  };
+}
+
+function withForcedParts(
+  current: ReadonlySet<PartId>,
+  forced: ReadonlySet<PartId>,
+): ReadonlySet<PartId> {
+  return forced.size === 0 ? current : new Set([...current, ...forced]);
+}
+
+function forceDirtyParts(
+  current: ReturnType<typeof interactionDirtyParts>,
+  forced: ReadonlySet<PartId>,
+): ReturnType<typeof interactionDirtyParts> {
+  if (forced.size === 0) return current;
+  return {
+    selectionParts: new Set([...current.selectionParts, ...forced]),
+    nodeParts: new Set([...current.nodeParts, ...forced]),
   };
 }
 

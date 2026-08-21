@@ -16,6 +16,7 @@ const MINIMUM_BOUNDS: Bounds = {
 
 /** Private segment tree for complete placed-scene bounds under incremental transforms. */
 export class PlacedBoundsIndex {
+  public lastUpdatedLeafCount = 0;
   private leafCapacity: number;
   private minX: Float64Array;
   private minY: Float64Array;
@@ -48,12 +49,14 @@ export class PlacedBoundsIndex {
 
   /** Updates changed occurrence leaves and their logarithmic ancestor paths. */
   update(runtime: PackedSceneRuntime, changedSlots: readonly number[]): void {
+    this.lastUpdatedLeafCount = 0;
     if (runtime.instanceCount > this.leafCapacity) {
       this.rebuild(runtime);
       return;
     }
     for (const slot of changedSlots) {
       if (slot < 0 || slot >= runtime.instanceCount) continue;
+      this.lastUpdatedLeafCount += 1;
       this.writeLeaf(runtime, slot);
       for (let node = (this.leafCapacity + slot) >> 1; node > 0; node >>= 1) {
         this.merge(node);
@@ -91,6 +94,7 @@ export class PlacedBoundsIndex {
   }
 
   private rebuild(runtime: PackedSceneRuntime): void {
+    this.lastUpdatedLeafCount = runtime.instanceCount;
     this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
     const size = this.leafCapacity * 2;
     this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);

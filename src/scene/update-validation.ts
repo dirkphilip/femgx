@@ -20,6 +20,17 @@ export function hasOnlyDirectPartRuntimeChanges(changes: SceneStructuralChanges)
   return hasOnlyExplicitPartPlacements(changes);
 }
 
+/** Whether a transaction changes only existing immutable part definitions. */
+export function hasOnlyPartReplacementChanges(changes: SceneStructuralChanges): boolean {
+  return (
+    !hasDefinitionChanges(changes.assemblies) &&
+    changes.parts.added.size === 0 &&
+    changes.parts.removed.size === 0 &&
+    changes.parts.replaced.size > 0 &&
+    changes.placements.length === 0
+  );
+}
+
 function hasOnlyExplicitPartPlacements(changes: SceneStructuralChanges): boolean {
   return changes.placements.every(
     ({ before, after }) =>
