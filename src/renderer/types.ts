@@ -10,6 +10,7 @@ import type { PartId } from "../geometry/part";
 import type { PickHit } from "../picking/types";
 import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
+import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { SectionPlane } from "../math/section-plane";
 
 /**
@@ -78,7 +79,7 @@ export interface WebGpuRenderer {
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]>;
+  ): Promise<ElementRegionSelection | readonly InteractionTarget[]>;
   /** Returns the exact displayed world-space point under a CSS-local pixel. */
   pickPoint(camera: Camera, x: number, y: number): Promise<Vec3 | undefined>;
   resize(width?: number, height?: number): void;

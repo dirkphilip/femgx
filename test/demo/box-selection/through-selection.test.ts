@@ -8,6 +8,7 @@ import {
   complete,
   createInteractionState,
 } from "./support";
+import { createElementRegionSelection } from "@/entries/interaction";
 import type { BoxSelectionResolver, InteractionTarget } from "./support";
 
 describe("workbench through-selection", () => {
@@ -15,7 +16,7 @@ describe("workbench through-selection", () => {
     const first = element("instance-a", 2);
     const second = element("instance-b", 1);
     const initial = setTargetSelected(createInteractionState(), element("old", 9), true);
-    const pickRegion = vi.fn(() => Promise.resolve([first, second, first]));
+    const pickRegion = vi.fn(() => Promise.resolve(region(first, second, first)));
     const { workbench, render, selectionFeedback, getInteraction } = harness(
       undefined,
       pickRegion,
@@ -82,13 +83,13 @@ describe("workbench through-selection", () => {
   });
 
   it("invalidates an in-flight result when the resolver changes", async () => {
-    let resolveOld: ((targets: readonly InteractionTarget[]) => void) | undefined;
-    const oldResult = new Promise<readonly InteractionTarget[]>((resolve) => {
+    let resolveOld: ((selection: ReturnType<typeof region>) => void) | undefined;
+    const oldResult = new Promise<ReturnType<typeof region>>((resolve) => {
       resolveOld = resolve;
     });
     const oldResolver = vi.fn<BoxSelectionResolver>(() => oldResult);
     const current = { kind: "element", partOccurrenceId: "current", elementId: 3 } as const;
-    const newResolver = vi.fn<BoxSelectionResolver>(() => Promise.resolve([current]));
+    const newResolver = vi.fn<BoxSelectionResolver>(() => Promise.resolve(region(current)));
     const { workbench, getInteraction } = harness(
       undefined,
       undefined,
@@ -103,7 +104,7 @@ describe("workbench through-selection", () => {
     });
     workbench.setBoxSelectionResolver(newResolver);
     const currentBox = workbench.selectBox(complete());
-    resolveOld?.([{ kind: "element", partOccurrenceId: "stale", elementId: 1 }]);
+    resolveOld?.(region({ kind: "element", partOccurrenceId: "stale", elementId: 1 }));
     await Promise.all([oldBox, currentBox]);
 
     expect(newResolver).toHaveBeenCalledOnce();
@@ -111,12 +112,12 @@ describe("workbench through-selection", () => {
   });
 
   it("coalesces region work to one active query and the newest queued drag", async () => {
-    let resolveFirst: ((targets: readonly InteractionTarget[]) => void) | undefined;
-    let resolveSecond: ((targets: readonly InteractionTarget[]) => void) | undefined;
-    const first = new Promise<readonly InteractionTarget[]>((resolve) => {
+    let resolveFirst: ((selection: ReturnType<typeof region>) => void) | undefined;
+    let resolveSecond: ((selection: ReturnType<typeof region>) => void) | undefined;
+    const first = new Promise<ReturnType<typeof region>>((resolve) => {
       resolveFirst = resolve;
     });
-    const second = new Promise<readonly InteractionTarget[]>((resolve) => {
+    const second = new Promise<ReturnType<typeof region>>((resolve) => {
       resolveSecond = resolve;
     });
     const pickRegion = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second);
@@ -129,14 +130,25 @@ describe("workbench through-selection", () => {
     const secondBox = workbench.selectBox(complete({ control: true }));
     const thirdBox = workbench.selectBox(complete({ meta: true }));
     expect(pickRegion).toHaveBeenCalledOnce();
-    resolveFirst?.([element("stale", 1)]);
+    resolveFirst?.(region(element("stale", 1)));
     await vi.waitFor(() => {
       expect(pickRegion).toHaveBeenCalledTimes(2);
     });
-    resolveSecond?.([element("current", 3)]);
+    resolveSecond?.(region(element("current", 3)));
     await Promise.all([firstBox, secondBox, thirdBox]);
 
     expect(selectedKeys(getInteraction())).toEqual(["e:current:3"]);
     expect(render).toHaveBeenCalledOnce();
   });
 });
+
+function region(...targets: readonly InteractionTarget[]) {
+  const groups = new Map<string, number[]>();
+  for (const target of targets) {
+    if (target.kind !== "element") continue;
+    const ids = groups.get(target.partOccurrenceId);
+    if (ids === undefined) groups.set(target.partOccurrenceId, [target.elementId]);
+    else ids.push(target.elementId);
+  }
+  return createElementRegionSelection(groups);
+}

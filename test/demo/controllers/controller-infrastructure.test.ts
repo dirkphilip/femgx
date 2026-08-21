@@ -62,7 +62,6 @@ describe("workbench controller infrastructure", () => {
       current,
       defaultInteraction: setTargetSelected(current, target, true),
       target,
-      targets: [target],
       modifiers,
       event,
     });
@@ -114,7 +113,7 @@ describe("workbench controller infrastructure", () => {
       frustum: {} as never,
     });
 
-    expect(targets).toEqual([]);
+    expect(targets).toMatchObject({ kind: "element", count: 0, partOccurrenceIds: [] });
     expect(primaryPickRegion).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import {
   createInteractionState,
   setBodyVisible,
   setElementVisible,
+  type ElementRegionSelection,
   type InteractionState,
 } from "../../src/entries/interaction";
 import { createCamera } from "../../src/entries/camera";
@@ -37,11 +38,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, interaction),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 1 },
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 3 },
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 4 },
-    ]);
+    await expectElementIds(resolver, [1, 3, 4]);
   });
 
   it("applies hidden element state before testing authored primitive ranges", async () => {
@@ -56,10 +53,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, interaction),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", partOccurrenceId, elementId: 3 },
-      { kind: "element", partOccurrenceId, elementId: 4 },
-    ]);
+    await expectElementIds(resolver, [3, 4], partOccurrenceId);
   });
 
   it("applies hidden body state when custom elements omit body ids", async () => {
@@ -77,9 +71,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, interaction),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", partOccurrenceId, elementId: 2 },
-    ]);
+    await expectElementIds(resolver, [2], partOccurrenceId);
   });
 
   it("applies occurrence transforms before frustum intersection", async () => {
@@ -90,11 +82,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, interaction, undefined, 10),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 1 },
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 3 },
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 4 },
-    ]);
+    await expectElementIds(resolver, [1, 3, 4]);
   });
 
   it("uses displayed positive section-plane geometry while retaining crossing segments", async () => {
@@ -103,9 +91,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, interaction, { normal: [1, 0, 0], distance: -1 }),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      { kind: "element", partOccurrenceId: runtime.getPartOccurrenceId(0), elementId: 4 },
-    ]);
+    await expectElementIds(resolver, [4]);
   });
 
   it("selects an element intersected only by a triangle omitted from ordinary rendering", async () => {
@@ -116,13 +102,7 @@ describe("through box selection", () => {
       viewport(scene, runtime, createInteractionState()),
     );
 
-    await expect(resolver(request("element"))).resolves.toEqual([
-      {
-        kind: "element",
-        partOccurrenceId: runtime.getPartOccurrenceId(0),
-        elementId: 2,
-      },
-    ]);
+    await expectElementIds(resolver, [2]);
   });
 
   it("rejects through selection at a non-element granularity", () => {
@@ -149,9 +129,22 @@ describe("through box selection", () => {
       viewport(scene, runtime, createInteractionState()),
     );
 
-    await expect(resolver(request("element"))).resolves.toHaveLength(250_632);
+    expect(((await resolver(request("element"))) as ElementRegionSelection).count).toBe(250_632);
   });
 });
+
+async function expectElementIds(
+  resolver: ReturnType<typeof throughIntersectionBoxSelectionResolver>,
+  ids: readonly number[],
+  occurrenceId?: string,
+): Promise<void> {
+  const selection = await resolver(request("element"));
+  if (Array.isArray(selection)) throw new Error("Through resolver returned descriptors");
+  const packed = selection as ElementRegionSelection;
+  expect(packed.count).toBe(ids.length);
+  expect([...packed.elementIds]).toEqual(ids);
+  if (occurrenceId !== undefined) expect(packed.partOccurrenceIds).toEqual([occurrenceId]);
+}
 
 function request(granularity: "element" | "face"): BoxSelectionRequest {
   return {

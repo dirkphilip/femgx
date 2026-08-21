@@ -2,6 +2,7 @@ import type { Camera } from "../camera/camera";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget, InteractionTargetFor } from "../interaction/target-types";
+import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { PartId } from "../geometry/part";
@@ -57,7 +58,7 @@ interface InteractionCapabilityOptions extends CapabilityOwner {
   readonly pickRegion: (
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ) => Promise<readonly InteractionTarget[]>;
+  ) => Promise<ElementRegionSelection | readonly InteractionTarget[]>;
 }
 
 function createViewportInteractionCapability(
@@ -95,10 +96,7 @@ class ViewportInteractionCapability implements ViewportInteraction {
     rect: BoxSelectionRect,
     granularity: "body",
   ): Promise<readonly InteractionTargetFor<"body">[]>;
-  pickRegion(
-    rect: BoxSelectionRect,
-    granularity: "element",
-  ): Promise<readonly InteractionTargetFor<"element">[]>;
+  pickRegion(rect: BoxSelectionRect, granularity: "element"): Promise<ElementRegionSelection>;
   pickRegion(
     rect: BoxSelectionRect,
     granularity: "face",
@@ -114,11 +112,11 @@ class ViewportInteractionCapability implements ViewportInteraction {
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]>;
+  ): Promise<ElementRegionSelection | readonly InteractionTarget[]>;
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]> {
+  ): Promise<ElementRegionSelection | readonly InteractionTarget[]> {
     this.options.ensureAlive();
     return this.options.pickRegion(rect, granularity);
   }

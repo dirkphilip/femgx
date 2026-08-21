@@ -74,21 +74,21 @@ function regionRect(left: number, top: number, right: number, bottom: number): R
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
 
-async function regionTargets(
+async function regionKeys(
   canvas: Locator,
   region: RegionRect,
   granularity: string,
-): Promise<readonly unknown[] | undefined> {
+): Promise<readonly string[] | undefined> {
   return canvas.evaluate(
     async (_element, { value, level }) => {
-      const pickRegion = (
+      const pickRegionKeys = (
         window as typeof window & {
           femgxDemo?: {
-            pickRegion?: (rect: RegionRect, requested: string) => Promise<readonly unknown[]>;
+            pickRegionKeys?: (rect: RegionRect, requested: string) => Promise<readonly string[]>;
           };
         }
-      ).femgxDemo?.pickRegion;
-      return pickRegion === undefined ? undefined : pickRegion(value, level);
+      ).femgxDemo?.pickRegionKeys;
+      return pickRegionKeys === undefined ? undefined : pickRegionKeys(value, level);
     },
     { value: region, level: granularity },
   );
@@ -101,10 +101,8 @@ async function locateRegionCell(
   prefix: string,
   depth = 0,
 ): Promise<{ readonly region: RegionRect; readonly key: string } | undefined> {
-  const targets = await regionTargets(canvas, region, granularity);
-  const key = targets
-    ?.map(regionTargetKey)
-    .find((value): value is string => value !== undefined && value.startsWith(prefix));
+  const targets = await regionKeys(canvas, region, granularity);
+  const key = targets?.find((value) => value.startsWith(prefix));
   if (key === undefined) return undefined;
   if (region.width <= 4 || region.height <= 4 || depth >= 8) return { region, key };
   for (const child of subdivideRegion(region)) {

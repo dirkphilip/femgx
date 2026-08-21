@@ -14,6 +14,7 @@ import {
   type ViewportInteractionBoxEvent,
   type BoxSelectionFrustum,
   type InteractionState,
+  createElementRegionSelection,
 } from "@/entries/interaction";
 import { WorkbenchBoxPreview } from "../../../demo/workbench/selection/box-preview";
 import { WorkbenchInteraction } from "../../../demo/workbench/interaction/interaction";
@@ -98,7 +99,9 @@ function createViewportFixture(
 /** Builds an interaction controller with deterministic pick and render spies. */
 function harness(
   pick: ReturnType<typeof vi.fn> = vi.fn(() => Promise.resolve(undefined)),
-  pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[])),
+  pickRegion: ReturnType<typeof vi.fn> = vi.fn(() =>
+    Promise.resolve([] as readonly InteractionTarget[]),
+  ),
   initialInteraction = createInteractionState(),
   selectionGranularity: SelectionGranularity = "element",
   options: {
@@ -158,6 +161,17 @@ const element = (partOccurrenceId: string, elementId: number): InteractionTarget
   partOccurrenceId,
   elementId,
 });
+
+const elementSelection = (...targets: readonly InteractionTarget[]) => {
+  const groups = new Map<string, number[]>();
+  for (const target of targets) {
+    if (target.kind !== "element") continue;
+    const values = groups.get(target.partOccurrenceId);
+    if (values === undefined) groups.set(target.partOccurrenceId, [target.elementId]);
+    else values.push(target.elementId);
+  }
+  return createElementRegionSelection(groups);
+};
 
 const nodeHit: PickHit = {
   kind: "node",
@@ -229,6 +243,7 @@ export {
   rect,
   harness,
   element,
+  elementSelection,
   nodeHit,
   faceHit,
   edgeHit,

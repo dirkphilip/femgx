@@ -22,6 +22,12 @@ export interface OperationSpec {
   readonly run: () => void;
 }
 
+/** Describes one deterministic asynchronous CPU operation in the same report shape. */
+export interface AsyncOperationSpec extends Omit<OperationSpec, "run"> {
+  /** Executes one asynchronous operation without returning a measured value. */
+  readonly run: () => Promise<void>;
+}
+
 interface OperationResult {
   readonly name: string;
   readonly workload: {
@@ -52,6 +58,19 @@ interface OperationsReport {
 
 /** Measures the operation matrix and returns one machine-fingerprinted report. */
 export function buildOperationsReport(operations: readonly OperationSpec[]): OperationsReport {
+  return operationsReport(operations.map(measureOperation));
+}
+
+/** Measures asynchronous operations in series and returns the standard report shape. */
+export async function buildAsyncOperationsReport(
+  operations: readonly AsyncOperationSpec[],
+): Promise<OperationsReport> {
+  const results: OperationResult[] = [];
+  for (const operation of operations) results.push(await measureAsyncOperation(operation));
+  return operationsReport(results);
+}
+
+function operationsReport(operations: readonly OperationResult[]): OperationsReport {
   return {
     schemaVersion: 2,
     kind: "cpu-operation-baseline",
@@ -66,8 +85,23 @@ export function buildOperationsReport(operations: readonly OperationSpec[]): Ope
     warmupSamples: WARMUP_SAMPLES,
     timedSamples: TIMED_SAMPLES,
     measurement: "wall-clock milliseconds; p50/p95 over timed samples",
-    operations: operations.map(measureOperation),
+    operations,
   };
+}
+
+async function measureAsyncOperation(operation: AsyncOperationSpec): Promise<OperationResult> {
+  for (let index = 0; index < WARMUP_SAMPLES; index += 1) {
+    operation.beforeEach?.();
+    await operation.run();
+  }
+  const samples: number[] = [];
+  for (let sample = 0; sample < TIMED_SAMPLES; sample += 1) {
+    operation.beforeEach?.();
+    const start = performance.now();
+    await operation.run();
+    samples.push(performance.now() - start);
+  }
+  return operationResult(operation, samples);
 }
 
 /** Writes a report to `PERF_BASELINE_FILE` or stdout when no path is configured. */
@@ -90,6 +124,13 @@ function measureOperation(operation: OperationSpec): OperationResult {
     operation.run();
     samples.push(performance.now() - start);
   }
+  return operationResult(operation, samples);
+}
+
+function operationResult(
+  operation: Omit<OperationSpec, "run">,
+  samples: readonly number[],
+): OperationResult {
   return {
     name: operation.name,
     workload: {

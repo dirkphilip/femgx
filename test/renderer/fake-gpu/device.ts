@@ -30,6 +30,8 @@ interface FakeGpuState {
       readonly bytesPerRow: number;
       readonly width: number;
       readonly height: number;
+      readonly sourceX: number;
+      readonly sourceY: number;
     }>
   >;
   readonly counters: {
@@ -163,9 +165,17 @@ function mappedRange(
     options.nodePickValue ?? 0,
   ];
   for (const [index, copy] of copies.entries()) {
-    const value = encodePickId(values[index] ?? 0);
     for (let y = 0; y < copy.height; y += 1) {
       for (let x = 0; x < copy.width; x += 1) {
+        const value = encodePickId(
+          options.pickValueAt?.({
+            attachmentIndex: index,
+            x: copy.sourceX + x,
+            y: copy.sourceY + y,
+          }) ??
+            values[index] ??
+            0,
+        );
         bytes.set(value, copy.destinationOffset + y * copy.bytesPerRow + x * 4);
       }
     }
@@ -176,7 +186,9 @@ function mappedRange(
     bytes.set(encodePickId(options.facePickValue ?? 0), READBACK_BYTE_STRIDE * 2);
     bytes.set(encodePickId(options.nodePickValue ?? 0), READBACK_BYTE_STRIDE * 3);
   }
-  new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, options.ndcDepth ?? 1, true);
+  if (copies.length === 4) {
+    new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, options.ndcDepth ?? 1, true);
+  }
   return bytes.buffer;
 }
 
@@ -255,11 +267,14 @@ function recordTextureCopy(
   }
   const copies = state.textureCopies.get(target) ?? [];
   const extent = copySize as unknown as { readonly width?: number; readonly height?: number };
+  const origin = source.origin as { readonly x?: number; readonly y?: number } | undefined;
   copies.push({
     destinationOffset: destination.offset ?? 0,
     bytesPerRow: destination.bytesPerRow ?? 0,
     width: Array.isArray(copySize) ? Number(copySize[0]) : Number(extent.width),
     height: Array.isArray(copySize) ? Number(copySize[1]) : Number(extent.height),
+    sourceX: origin?.x ?? 0,
+    sourceY: origin?.y ?? 0,
   });
   state.textureCopies.set(target, copies);
 }

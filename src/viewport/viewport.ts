@@ -1,7 +1,6 @@
 import { createCamera, resizeCamera, type Camera } from "../camera/camera";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
-import type { InteractionTarget } from "../interaction/target-types";
 import type { DeviceLostInfo } from "../platform/device";
 import { createWebGpuRenderer, type WebGpuRenderer } from "../renderer/gpu-renderer";
 import { changedInstanceSlots } from "./interaction-diff";
@@ -395,10 +394,7 @@ class ViewportCore implements Viewport {
     this.ensureAlive();
     return this.renderer.pick(x, y, granularity);
   }
-  private pickRegion(
-    rect: BoxSelectionRect,
-    granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]> {
+  private pickRegion(rect: BoxSelectionRect, granularity: InteractionGranularity) {
     this.ensureAlive();
     return this.renderer.pickRegion(rect, granularity);
   }

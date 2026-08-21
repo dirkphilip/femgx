@@ -2,9 +2,22 @@ import type { BoxSelectionFrustum } from "./box-frustum";
 import type { BoxSelectionEvent, BoxSelectionRect } from "./box-selection";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
+import type { ElementRegionSelection } from "./element-region-selection";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { Camera } from "../camera/camera";
 import type { CanvasCssPoint } from "../camera/coordinates";
+
+/** Internal key for opt-in local instrumentation; absent from the package facade. */
+export const viewportInteractionProbeKey: unique symbol = Symbol("viewport interaction probe");
+
+/** Mutable counters used by local large-model interaction evidence. */
+export interface ViewportInteractionProbe {
+  descriptorVisits: number;
+  targetKeyStrings: number;
+  defaultElementTransitions: number;
+  callbackSelectionCopies: number;
+  statePublications: number;
+}
 
 /** Explicitly routed touch behavior for an installed viewport interaction. */
 export type ViewportInteractionTouchMode = "navigate" | "hover" | "box-select";
@@ -39,16 +52,32 @@ export interface ViewportInteractionModifiers {
 }
 
 /** A completed box gesture plus its resolved, host-mappable candidates. */
-export interface ViewportInteractionBoxSelection {
+interface ViewportInteractionBoxSelectionBase {
   /** Completed box lifecycle event. */
   readonly event: ViewportInteractionBoxEvent;
   /** Requested target granularity. */
   readonly granularity: InteractionGranularity;
   /** World-space frustum corresponding to the box. */
   readonly frustum: BoxSelectionFrustum;
+}
+
+/** Completed non-element box selection candidates. */
+export interface ViewportInteractionTargetBoxSelection extends ViewportInteractionBoxSelectionBase {
+  readonly granularity: Exclude<InteractionGranularity, "element">;
   /** Unique candidates returned by region discovery. */
   readonly targets: readonly InteractionTarget[];
 }
+
+/** Completed element box selection with exact packed stable identities. */
+export interface ViewportInteractionElementBoxSelection extends ViewportInteractionBoxSelectionBase {
+  readonly granularity: "element";
+  /** Occurrence-grouped authored element identities. */
+  readonly selection: ElementRegionSelection;
+}
+
+/** Completed box selection candidates, separated by physical granularity. */
+export type ViewportInteractionBoxSelection =
+  ViewportInteractionTargetBoxSelection | ViewportInteractionElementBoxSelection;
 
 /**
  * Input passed to the optional interaction-application override.
@@ -57,7 +86,7 @@ export interface ViewportInteractionBoxSelection {
  * suppresses the default mutation, which lets a host own selection policy while
  * still using the installer's candidate discovery and event ordering.
  */
-export interface ViewportInteractionApplyRequest {
+interface ViewportInteractionApplyRequestBase {
   /** Interaction operation being applied. */
   readonly phase: ViewportInteractionPhase;
   /** Requested physical target granularity. */
@@ -66,17 +95,48 @@ export interface ViewportInteractionApplyRequest {
   readonly current: InteractionState;
   /** Snapshot the default policy would install. */
   readonly defaultInteraction: InteractionState;
-  /** Point candidate for hover/click phases. */
-  readonly target: InteractionTarget | undefined;
-  /** Region candidates for box phase, or an empty list for point phases. */
-  readonly targets: readonly InteractionTarget[];
   /** Modifier keys captured for this operation. */
   readonly modifiers: ViewportInteractionModifiers;
   /** Original browser or box lifecycle event. */
   readonly event: PointerEvent | MouseEvent | BoxSelectionEvent;
-  /** Derived world-space frustum for a box operation. */
-  readonly frustum?: BoxSelectionFrustum;
 }
+
+/** Application handoff for one point hover or click. */
+export interface ViewportPointInteractionApplyRequest extends ViewportInteractionApplyRequestBase {
+  readonly phase: "hover" | "click";
+  /** Point candidate, if a physical hit was resolved. */
+  readonly target: InteractionTarget | undefined;
+}
+
+/** Application handoff for a non-element region selection. */
+export interface ViewportTargetBoxInteractionApplyRequest extends ViewportInteractionApplyRequestBase {
+  readonly phase: "box";
+  readonly granularity: Exclude<InteractionGranularity, "element">;
+  /** Region candidates for this one requested target granularity. */
+  readonly selection: readonly InteractionTarget[];
+  /** Explicit default box-selection policy. */
+  readonly operation: "replace" | "add";
+  /** Derived world-space frustum for this box operation. */
+  readonly frustum: BoxSelectionFrustum;
+}
+
+/** Application handoff for a packed element-region selection. */
+export interface ViewportElementBoxInteractionApplyRequest extends ViewportInteractionApplyRequestBase {
+  readonly phase: "box";
+  readonly granularity: "element";
+  /** Exact occurrence-grouped authored element identities. */
+  readonly selection: ElementRegionSelection;
+  /** Explicit default box-selection policy. */
+  readonly operation: "replace" | "add";
+  /** Derived world-space frustum for this box operation. */
+  readonly frustum: BoxSelectionFrustum;
+}
+
+/** Phase-discriminated handoff to a host-owned interaction installer. */
+export type ViewportInteractionApplyRequest =
+  | ViewportPointInteractionApplyRequest
+  | ViewportTargetBoxInteractionApplyRequest
+  | ViewportElementBoxInteractionApplyRequest;
 
 /** Result of an interaction-application override. */
 export type ViewportInteractionApplyResult =
@@ -113,7 +173,7 @@ export interface ViewportInteractionOptions {
       pickRegion(
         rect: BoxSelectionRect,
         granularity: InteractionGranularity,
-      ): Promise<readonly InteractionTarget[]>;
+      ): Promise<ElementRegionSelection | readonly InteractionTarget[]>;
       /** Installs the next immutable interaction snapshot. */
       set(interaction: InteractionState): void;
     };
@@ -157,7 +217,7 @@ export interface ViewportInteractionOptions {
     readonly granularity: InteractionGranularity;
     /** World-space frustum derived from the rectangle. */
     readonly frustum: BoxSelectionFrustum;
-  }) => Promise<readonly InteractionTarget[]>;
+  }) => Promise<ElementRegionSelection | readonly InteractionTarget[]>;
   /**
    * Replaces or suppresses the default immutable interaction transition. The
    * callback runs after candidate discovery; return `undefined` to leave the

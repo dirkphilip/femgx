@@ -3,7 +3,6 @@ import type { Vec3 } from "../math/vec3";
 import type { Part, PartId } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
-import type { InteractionTarget } from "../interaction/target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
 import type { ResultColorMap } from "../results/colors";
@@ -317,10 +316,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     return this.picking.pick(x, y, granularity);
   }
 
-  public async pickRegion(
-    rect: BoxSelectionRect,
-    granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]> {
+  public async pickRegion(rect: BoxSelectionRect, granularity: InteractionGranularity) {
     this.ensureAlive();
     return this.picking.pickRegion(rect, granularity);
   }

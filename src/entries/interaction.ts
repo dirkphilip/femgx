@@ -13,6 +13,7 @@ export {
   type StyleOverride,
 } from "../interaction/interaction";
 export {
+  createElementRegionSelection,
   clearSelection,
   bodyOverride,
   hoveredTarget,
@@ -20,14 +21,17 @@ export {
   isTargetHighlighted,
   isTargetSelected,
   selectedTargets,
+  selectedElementRegion,
   setTargetHighlighted,
   setTargetHovered,
   setTargetsSelected,
+  setElementRegionSelected,
   setTargetsHighlighted,
   setTargetSelected,
   interactionTargetFromHit,
   type InteractionTarget,
   type InteractionTargetFor,
+  type ElementRegionSelection,
 } from "../interaction/targets";
 export {
   emphasizedBodyRefs,
@@ -57,8 +61,13 @@ export {
   type ViewportInteractionApplyResult,
   type ViewportInteractionBoxEvent,
   type ViewportInteractionBoxSelection,
+  type ViewportInteractionElementBoxSelection,
   type ViewportInteractionModifiers,
   type ViewportInteractionOptions,
   type ViewportInteractionPhase,
+  type ViewportInteractionTargetBoxSelection,
   type ViewportInteractionTouchMode,
+  type ViewportElementBoxInteractionApplyRequest,
+  type ViewportPointInteractionApplyRequest,
+  type ViewportTargetBoxInteractionApplyRequest,
 } from "../interaction/viewport-interaction";

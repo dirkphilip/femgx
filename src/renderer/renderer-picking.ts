@@ -1,6 +1,7 @@
 import type { Camera } from "../camera/camera";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionTarget } from "../interaction/target-types";
+import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { InteractionGranularity } from "../picking/types";
 import type { Part, PartId } from "../geometry/part";
 import type { Vec3 } from "../math/vec3";
@@ -77,9 +78,9 @@ export class RendererPicking {
   public async pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]> {
-    if (this.owner.attachment.runtime === undefined) return [];
-    if (!this.ensureSnapshot()) return [];
+  ): Promise<ElementRegionSelection | readonly InteractionTarget[]> {
+    if (this.owner.attachment.runtime === undefined) return emptyRegion(granularity);
+    if (!this.ensureSnapshot()) return emptyRegion(granularity);
     if (granularity === "edge") {
       const camera = this.owner.lastCamera();
       return camera === undefined ? [] : pickEdgeRegion(this.edgeContext(camera), rect);
@@ -139,4 +140,18 @@ export class RendererPicking {
       this.owner.frameOptions,
     );
   }
+}
+
+function emptyRegion(
+  granularity: InteractionGranularity,
+): ElementRegionSelection | readonly InteractionTarget[] {
+  return granularity === "element"
+    ? {
+        kind: "element",
+        count: 0,
+        partOccurrenceIds: [],
+        offsets: new Uint32Array([0]),
+        elementIds: new Uint32Array(),
+      }
+    : [];
 }

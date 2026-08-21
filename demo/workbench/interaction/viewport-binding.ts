@@ -5,12 +5,14 @@ import {
   setTargetHovered,
   setTargetSelected,
   setTargetsSelected,
+  setElementRegionSelected,
   type InteractionState,
   type InteractionTarget,
   type ViewportInteractionApplyRequest,
   type ViewportInteractionBoxEvent,
 } from "@/entries/interaction";
 import type { BoxSelectionResolver } from "../selection/box-selection-resolver";
+import type { ElementRegionSelection } from "@/entries/interaction";
 import {
   selectTarget,
   targetKey,
@@ -56,7 +58,7 @@ export function resolveViewportRegion(
   resolver: BoxSelectionResolver,
   event: ViewportInteractionBoxEvent,
   granularity: InteractionGranularity,
-): Promise<readonly InteractionTarget[]> {
+): Promise<ElementRegionSelection | readonly InteractionTarget[]> {
   return resolver({ event, granularity });
 }
 
@@ -101,13 +103,13 @@ function workbenchInteraction(
   if (request.phase === "hover") return setTargetHovered(current, request.target);
   const withoutHover = setTargetHovered(current, undefined);
   if (request.phase === "box") {
-    return setTargetsSelected(
-      request.modifiers.control || request.modifiers.meta
-        ? withoutHover
-        : clearSelection(withoutHover),
-      request.targets,
-      true,
-    );
+    return request.granularity === "element"
+      ? setElementRegionSelected(withoutHover, request.selection, request.operation)
+      : setTargetsSelected(
+          request.operation === "add" ? withoutHover : clearSelection(withoutHover),
+          request.selection,
+          true,
+        );
   }
   if (request.modifiers.control || request.modifiers.meta) {
     return request.target === undefined

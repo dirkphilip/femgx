@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { selectedKeys, harness, element, complete } from "./support";
+import { selectedKeys, harness, element, elementSelection, complete } from "./support";
 import type { InteractionTarget } from "./support";
 
 describe("workbench cancellation-errors", () => {
@@ -29,8 +29,8 @@ describe("workbench cancellation-errors", () => {
 
   it("does not let the click synthesized after a box drag invalidate its readback", async () => {
     const target = element("instance-a", 2);
-    let resolveRegion: ((targets: readonly InteractionTarget[]) => void) | undefined;
-    const result = new Promise<readonly InteractionTarget[]>((resolve) => {
+    let resolveRegion: ((selection: ReturnType<typeof elementSelection>) => void) | undefined;
+    const result = new Promise<ReturnType<typeof elementSelection>>((resolve) => {
       resolveRegion = resolve;
     });
     const { workbench, getInteraction } = harness(
@@ -42,7 +42,7 @@ describe("workbench cancellation-errors", () => {
     const box = workbench.selectBox(complete());
     workbench.pointerCancel();
     await workbench.click({ clientX: 80, clientY: 80 } as MouseEvent);
-    resolveRegion?.([target]);
+    resolveRegion?.(elementSelection(target));
     await box;
 
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);

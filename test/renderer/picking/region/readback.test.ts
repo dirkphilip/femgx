@@ -92,7 +92,12 @@ describe("GPU pick regions", () => {
         parts: new Map([[1, trianglePart()]]),
       };
       const result = await targets(gpu, context, "element");
-      expect(result).toEqual([{ kind: "element", partOccurrenceId: "root/0", elementId: 4 }]);
+      expect(result).toMatchObject({
+        kind: "element",
+        count: 1,
+        partOccurrenceIds: ["root/0"],
+        elementIds: new Uint32Array([4]),
+      });
       expect(copied.length).toBeGreaterThan(0);
       expect(new Set(copied).size).toBe(2);
       expect(gpu.computeDispatchCount).toBe(0);

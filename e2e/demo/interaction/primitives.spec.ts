@@ -72,16 +72,19 @@ async function isolatePartOccurrence(page: Page, label: string): Promise<Locator
   return checkbox;
 }
 
-async function visibleElementKeys(canvas: Locator): Promise<string[]> {
+async function visibleElementKeys(canvas: Locator): Promise<readonly string[]> {
   return canvas.evaluate(async (element) => {
     const bounds = element.getBoundingClientRect();
     const targets = await (
       window as typeof window & {
         femgxDemo?: {
-          pickRegion?: (rect: Record<string, number>, granularity: "element") => Promise<unknown[]>;
+          pickRegionKeys?: (
+            rect: Record<string, number>,
+            granularity: "element",
+          ) => Promise<readonly string[]>;
         };
       }
-    ).femgxDemo?.pickRegion?.(
+    ).femgxDemo?.pickRegionKeys?.(
       {
         left: 0,
         top: 0,
@@ -92,15 +95,7 @@ async function visibleElementKeys(canvas: Locator): Promise<string[]> {
       },
       "element",
     );
-    return (targets ?? []).flatMap((target) => {
-      if (typeof target !== "object" || target === null) return [];
-      const value = target as Record<string, unknown>;
-      return value["kind"] === "element" &&
-        typeof value["partOccurrenceId"] === "string" &&
-        typeof value["elementId"] === "number"
-        ? [`e:${value["partOccurrenceId"]}:${value["elementId"]}`]
-        : [];
-    });
+    return targets ?? [];
   });
 }
 

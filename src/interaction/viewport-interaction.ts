@@ -1,5 +1,10 @@
 import { clientToCanvasCss } from "../camera/coordinates";
-import { boxSelectionFrustum } from "./box-frustum";
+import {
+  elementBoxHandoff,
+  elementRegion,
+  resolveBoxRegion,
+  targetList,
+} from "./viewport-interaction-box";
 import { installBoxSelection, type BoxSelectionEvent } from "./box-selection";
 import { interactionTargetFromHit, setTargetHovered } from "./targets";
 import {
@@ -12,24 +17,30 @@ import {
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity } from "../picking/types";
-import type { BoxSelectionFrustum } from "./box-frustum";
-import type {
-  ViewportInteractionApplyRequest,
-  ViewportInteractionBoxEvent,
-  ViewportInteractionBoxSelection,
-  ViewportInteractionOptions,
-  ViewportInteractionPhase,
-  ViewportInteractionTouchMode,
+import {
+  viewportInteractionProbeKey,
+  type ViewportInteractionProbe,
+  type ViewportInteractionApplyRequest,
+  type ViewportInteractionBoxEvent,
+  type ViewportInteractionBoxSelection,
+  type ViewportInteractionOptions,
+  type ViewportInteractionPhase,
+  type ViewportInteractionTouchMode,
 } from "./viewport-interaction-types";
 export type {
   ViewportInteractionApplyRequest,
   ViewportInteractionApplyResult,
   ViewportInteractionBoxEvent,
   ViewportInteractionBoxSelection,
+  ViewportInteractionElementBoxSelection,
   ViewportInteractionModifiers,
   ViewportInteractionOptions,
   ViewportInteractionPhase,
+  ViewportInteractionTargetBoxSelection,
   ViewportInteractionTouchMode,
+  ViewportElementBoxInteractionApplyRequest,
+  ViewportPointInteractionApplyRequest,
+  ViewportTargetBoxInteractionApplyRequest,
 } from "./viewport-interaction-types";
 
 /**
@@ -63,6 +74,7 @@ class ViewportInteraction {
   private boxQueryActive = false;
   private hoverFrame: number | undefined;
   private hoverInFlight = false;
+  private readonly probe: ViewportInteractionProbe | undefined;
   private touchDown:
     { readonly pointerId: number; readonly clientX: number; readonly clientY: number } | undefined;
   private queuedBox:
@@ -70,6 +82,10 @@ class ViewportInteraction {
   private queuedHover: { readonly event: PointerEvent; readonly generation: number } | undefined;
 
   constructor(private readonly options: ViewportInteractionOptions) {
+    this.probe = (
+      options as ViewportInteractionOptions &
+        Partial<Record<typeof viewportInteractionProbeKey, ViewportInteractionProbe>>
+    )[viewportInteractionProbeKey];
     this.boxDisposer = installBoxSelection({
       canvas: options.canvas,
       touchEnabled: () => this.touchMode() === "box-select",
@@ -132,7 +148,6 @@ class ViewportInteraction {
           phase: "hover",
           granularity: this.options.granularity(),
           target: undefined,
-          targets: [],
           modifiers: modifiersOf(event),
           event,
           current,
@@ -232,7 +247,6 @@ class ViewportInteraction {
         current,
         defaultInteraction: next,
         target,
-        targets: target === undefined ? [] : [target],
         modifiers,
         event,
       },
@@ -316,42 +330,45 @@ class ViewportInteraction {
 
   private async queryBox(event: ViewportInteractionBoxEvent, generation: number): Promise<void> {
     const granularity = this.options.granularity();
-    let frustum: BoxSelectionFrustum;
-    let targets: readonly InteractionTarget[];
+    let resolved: Awaited<ReturnType<typeof resolveBoxRegion>>;
     try {
-      frustum = boxSelectionFrustum(this.options.viewport.view.camera, event.rect);
-      targets = this.options.resolveRegion
-        ? await this.options.resolveRegion({
-            rect: event.rect,
-            event,
-            granularity,
-            frustum,
-          })
-        : await this.options.viewport.interaction.pickRegion(event.rect, granularity);
-      for (const target of targets) assertTarget(target, granularity);
+      resolved = await resolveBoxRegion(this.options, event, granularity);
     } catch (error: unknown) {
       if (this.isCurrent(generation)) this.reportError(error, "box");
       return;
     }
     if (!this.isCurrent(generation)) return;
-    const selection = { event, granularity, frustum, targets };
-    this.reportBoxSelection(selection);
+    const { frustum, result } = resolved;
     const current = this.options.viewport.interaction.state;
-    const next = boxInteraction(current, targets, event.modifiers);
+    const operation = event.modifiers.control || event.modifiers.meta ? "add" : "replace";
+    if (granularity === "element") {
+      const selection = elementRegion(result);
+      const handoff = elementBoxHandoff({
+        event,
+        frustum,
+        current,
+        selection,
+        operation,
+        observe: this.options.onBoxSelection !== undefined,
+        override: this.options.applyInteraction !== undefined,
+        probe: this.probe,
+      });
+      if (handoff.observed !== undefined) this.reportBoxSelection(handoff.observed);
+      await this.apply(handoff.request, generation);
+      return;
+    }
+    const targets = targetList(result);
+    this.reportBoxSelection({ event, granularity, frustum, targets });
+    const next = boxInteraction(current, targets, event.modifiers, this.probe);
     await this.apply(
       {
         phase: "box",
         granularity,
         current,
         defaultInteraction: next,
-        target: undefined,
-        targets,
-        modifiers: {
-          shift: event.modifiers.shift,
-          control: event.modifiers.control,
-          alt: event.modifiers.alt,
-          meta: event.modifiers.meta,
-        },
+        selection: targets,
+        operation,
+        modifiers: event.modifiers,
         event,
         frustum,
       },
@@ -383,7 +400,10 @@ class ViewportInteraction {
       return;
     }
     if (!this.isCurrent(generation) || result === undefined) return;
-    if (result !== request.current) this.options.viewport.interaction.set(result);
+    if (result !== request.current) {
+      this.options.viewport.interaction.set(result);
+      if (this.probe !== undefined) this.probe.statePublications += 1;
+    }
   }
 
   private isPointPointer(event: PointerEvent): boolean {

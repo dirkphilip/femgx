@@ -1,5 +1,9 @@
 import type { Viewport } from "@/entries/root";
-import type { BoxSelectionEvent, InteractionTarget } from "@/entries/interaction";
+import type {
+  BoxSelectionEvent,
+  ElementRegionSelection,
+  InteractionTarget,
+} from "@/entries/interaction";
 import type { SelectionGranularity } from "./pick";
 
 /** Candidate discovery strategy shared by every workbench viewport. */
@@ -16,7 +20,7 @@ export interface BoxSelectionRequest {
 /** Candidate discovery for one completed workbench box-selection request. */
 export type BoxSelectionResolver = (
   request: BoxSelectionRequest,
-) => Promise<readonly InteractionTarget[]>;
+) => Promise<ElementRegionSelection | readonly InteractionTarget[]>;
 
 /** Identifies a custom resolver result that cannot be applied safely. */
 export class BoxSelectionResolverContractError extends TypeError {

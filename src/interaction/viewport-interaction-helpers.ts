@@ -3,15 +3,18 @@ import type { BoxSelectionEvent } from "./box-selection";
 import {
   clearSelection,
   isTargetSelected,
+  setElementRegionSelected,
   setTargetSelected,
   setTargetsSelected,
   setTargetHovered,
 } from "./targets";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
+import type { ElementRegionSelection } from "./element-region-selection";
 import type {
   ViewportInteractionBoxEvent,
   ViewportInteractionModifiers,
+  ViewportInteractionProbe,
 } from "./viewport-interaction-types";
 
 /** Normalizes modifier state for point and box interaction callbacks. */
@@ -58,11 +61,14 @@ export function isCompletedBoxEvent(
 }
 
 /** Removes duplicate target identities before Control/Meta box append. */
-export function uniqueTargets(targets: readonly InteractionTarget[]): InteractionTarget[] {
+export function uniqueTargets(
+  targets: readonly InteractionTarget[],
+  probe?: ViewportInteractionProbe,
+): InteractionTarget[] {
   const seen = new Set<string>();
   const unique: InteractionTarget[] = [];
   for (const target of targets) {
-    const key = targetKey(target);
+    const key = targetKey(target, probe);
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(target);
@@ -93,15 +99,29 @@ export function boxInteraction(
   current: InteractionState,
   targets: readonly InteractionTarget[],
   modifiers: { readonly control: boolean; readonly meta: boolean },
+  probe?: ViewportInteractionProbe,
 ): InteractionState {
+  if (probe !== undefined) probe.descriptorVisits += targets.length;
   const withoutHover = setTargetHovered(current, undefined);
   if (!modifiers.control && !modifiers.meta) {
     return setTargetsSelected(clearSelection(withoutHover), targets, true);
   }
-  return setTargetsSelected(withoutHover, uniqueTargets(targets), true);
+  return setTargetsSelected(withoutHover, uniqueTargets(targets, probe), true);
 }
 
-function targetKey(target: InteractionTarget): string {
+/** Applies the default packed element-box policy without descriptor expansion. */
+export function elementBoxInteraction(
+  current: InteractionState,
+  selection: ElementRegionSelection,
+  operation: "replace" | "add",
+  probe?: ViewportInteractionProbe,
+): InteractionState {
+  if (probe !== undefined) probe.defaultElementTransitions += 1;
+  return setElementRegionSelected(setTargetHovered(current, undefined), selection, operation);
+}
+
+function targetKey(target: InteractionTarget, probe: ViewportInteractionProbe | undefined): string {
+  if (probe !== undefined) probe.targetKeyStrings += 1;
   switch (target.kind) {
     case "part":
       return `part:${target.partId}`;

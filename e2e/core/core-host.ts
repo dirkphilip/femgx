@@ -11,6 +11,7 @@ import {
   createInteractionState,
   setPartOccurrenceOverride,
   setPartOverride,
+  setElementRegionSelected,
   setTargetHighlighted,
   setTargetSelected,
 } from "../../src/entries/interaction";
@@ -203,14 +204,13 @@ async function runPicking(current: Viewport): Promise<void> {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   const region = { left: 0, top: 0, right: width, bottom: height, width, height };
-  const targets = await current.interaction.pickRegion(region, "element");
-  const target = targets[0];
-  if (target !== undefined) {
+  const selection = await current.interaction.pickRegion(region, "element");
+  if (selection.count > 0) {
     current.interaction.set(
-      setTargetSelected(
+      setElementRegionSelected(
         setPartOverride(createInteractionState(), 1, { edge: true, nodes: true }),
-        target,
-        true,
+        selection,
+        "add",
       ),
     );
     current.render();
@@ -229,10 +229,10 @@ async function runPicking(current: Viewport): Promise<void> {
   setStatus(
     "picking",
     JSON.stringify({
-      region: targets.length,
+      region: selection.count,
       picked: picked?.kind ?? "none",
       edge: edgeTargets[0]?.kind ?? "none",
-      hidden: hidden.length,
+      hidden: hidden.count,
     }),
   );
 }

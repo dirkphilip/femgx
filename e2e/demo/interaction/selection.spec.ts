@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
+import { canvasInteractionBox } from "../../browser-support/browser";
 import {
   dataset,
   loadWebGpuPage,
@@ -18,17 +19,23 @@ async function visibleRegionKeys(
   start: BoxFraction,
   end: BoxFraction,
 ): Promise<string[]> {
+  const canvasBounds = await canvas.boundingBox();
+  if (canvasBounds === null) throw new Error("canvas has no region-query bounds");
+  const box = await canvasInteractionBox(canvas);
+  const startX = Math.round(box.x + start.fx * box.width) - canvasBounds.x;
+  const endX = Math.round(box.x + end.fx * box.width) - canvasBounds.x;
+  const startY = Math.round(box.y + start.fy * box.height) - canvasBounds.y;
+  const endY = Math.round(box.y + end.fy * box.height) - canvasBounds.y;
+  const left = Math.min(startX, endX);
+  const right = Math.max(startX, endX);
+  const top = Math.min(startY, endY);
+  const bottom = Math.max(startY, endY);
   return canvas.evaluate(
-    async (element, points) => {
-      const bounds = element.getBoundingClientRect();
-      const left = Math.min(points.start.fx, points.end.fx) * bounds.width;
-      const right = Math.max(points.start.fx, points.end.fx) * bounds.width;
-      const top = Math.min(points.start.fy, points.end.fy) * bounds.height;
-      const bottom = Math.max(points.start.fy, points.end.fy) * bounds.height;
+    async (_element, rect) => {
       const targets = await (
         window as typeof window & {
           femgxDemo?: {
-            pickRegion?: (
+            pickRegionKeys?: (
               rect: {
                 readonly left: number;
                 readonly top: number;
@@ -38,18 +45,13 @@ async function visibleRegionKeys(
                 readonly height: number;
               },
               granularity: string,
-            ) => Promise<readonly Record<string, unknown>[]>;
+            ) => Promise<readonly string[]>;
           };
         }
-      ).femgxDemo?.pickRegion?.(
-        { left, top, right, bottom, width: right - left, height: bottom - top },
-        "element",
-      );
-      return (targets ?? [])
-        .map((target) => `e:${String(target["instanceId"])}:${String(target["elementId"])}`)
-        .sort();
+      ).femgxDemo?.pickRegionKeys?.(rect, "element");
+      return [...(targets ?? [])].sort();
     },
-    { start, end },
+    { left, top, right, bottom, width: right - left, height: bottom - top },
   );
 }
 
@@ -111,6 +113,8 @@ test("keeps repeated partial, empty, and Control-append box selections complete"
 }) => {
   await loadWebGpuPage(page);
   const canvas = page.getByTestId("view-canvas");
+  await openCommandPanel(page, "selection");
+  await page.getByTestId("box-selection-strategy").selectOption("visible-surface");
   const drag = async (
     start: BoxFraction,
     end: BoxFraction,
@@ -141,7 +145,6 @@ test("keeps repeated partial, empty, and Control-append box selections complete"
     { fx: 0.88, fy: 0.82 },
   ] as const;
   const expectedLeft = await visibleRegionKeys(canvas, left[0], left[1]);
-  const expectedRight = await visibleRegionKeys(canvas, right[0], right[1]);
   const expectedFull = await visibleRegionKeys(
     canvas,
     { fx: 0.08, fy: 0.15 },
@@ -149,8 +152,8 @@ test("keeps repeated partial, empty, and Control-append box selections complete"
   );
   expect(expectedLeft.length).toBeGreaterThan(1);
   expect(expectedLeft.length).toBeLessThan(expectedFull.length);
-  expect(expectedLeft.some((key) => key.startsWith("e:1/0/"))).toBe(true);
-  expect(expectedLeft.some((key) => key.startsWith("e:1/1/"))).toBe(true);
+  expect(expectedLeft.some((key) => key.startsWith("e:1/1:"))).toBe(true);
+  expect(expectedLeft.some((key) => key.startsWith("e:1/2:"))).toBe(true);
 
   const clickHit = await requireHit(
     page,
@@ -184,8 +187,10 @@ test("keeps repeated partial, empty, and Control-append box selections complete"
   expect(await visibleRegionKeys(canvas, empty[0], empty[1])).toEqual([]);
   await drag(empty[0], empty[1], []);
 
-  await drag(left[1], left[0], expectedLeft);
-  await drag(right[0], right[1], [...new Set([...expectedLeft, ...expectedRight])].sort(), true);
+  const repeatedLeft = await visibleRegionKeys(canvas, left[1], left[0]);
+  await drag(left[1], left[0], repeatedLeft);
+  const appendedRight = await visibleRegionKeys(canvas, right[0], right[1]);
+  await drag(right[0], right[1], [...new Set([...repeatedLeft, ...appendedRight])].sort(), true);
 });
 
 test("keeps the Through box strategy truthful across selection granularities", async ({ page }) => {

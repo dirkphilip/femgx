@@ -131,7 +131,7 @@ describe("installViewportInteraction", () => {
     expect(selections).toHaveLength(1);
     const selection = selections[0];
     expect(selection?.granularity).toBe("face");
-    expect(selection?.targets).toEqual([target]);
+    expect(selection?.granularity === "face" && selection.targets).toEqual([target]);
     expect(selection?.frustum.left.normal).toHaveLength(3);
     expect(selection?.frustum.far.normal).toHaveLength(3);
     expect(isTargetSelected(harness.viewport.interaction.state, target)).toBe(true);

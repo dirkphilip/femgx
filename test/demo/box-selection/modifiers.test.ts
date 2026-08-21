@@ -6,10 +6,10 @@ import {
   rect,
   harness,
   element,
+  elementSelection,
   complete,
   createInteractionState,
 } from "./support";
-import type { InteractionTarget } from "./support";
 
 describe("workbench modifiers", () => {
   it.each([
@@ -42,7 +42,7 @@ describe("workbench modifiers", () => {
     const first = element("instance-a", 2);
     const second = element("instance-b", 1);
     const initial = setTargetSelected(createInteractionState(), first, true);
-    const pickRegion = vi.fn(() => Promise.resolve([first, second, second]));
+    const pickRegion = vi.fn(() => Promise.resolve(elementSelection(first, second, second)));
     const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
 
     await workbench.selectBox(complete({ control: true }));
@@ -55,7 +55,7 @@ describe("workbench modifiers", () => {
   it("clears on an empty plain box and leaves Control or Meta empty boxes alone", async () => {
     const selected = element("instance-a", 2);
     const initial = setTargetSelected(createInteractionState(), selected, true);
-    const pickRegion = vi.fn(() => Promise.resolve([] as readonly InteractionTarget[]));
+    const pickRegion = vi.fn(() => Promise.resolve(elementSelection()));
     const { workbench, render, getInteraction } = harness(undefined, pickRegion, initial);
 
     await workbench.selectBox(complete());

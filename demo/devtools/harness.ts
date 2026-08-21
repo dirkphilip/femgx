@@ -1,5 +1,6 @@
 import type { InteractionGranularity } from "@/entries/root";
 import type { BoxSelectionRect } from "@/entries/interaction";
+import type { ElementRegionSelection } from "@/entries/interaction";
 import type { BenchmarkCapture } from "../benchmark/capture";
 import type { GlbViewportBenchmarkReport } from "../benchmark/glb-viewport";
 
@@ -29,7 +30,11 @@ export interface DemoHarness {
   readonly pickRegion: (
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ) => Promise<readonly unknown[]>;
+  ) => Promise<ElementRegionSelection | readonly unknown[]>;
+  readonly pickRegionKeys: (
+    rect: BoxSelectionRect,
+    granularity: InteractionGranularity,
+  ) => Promise<readonly string[]>;
   readonly getBoxSelectionStats: () => {
     readonly active: boolean;
     readonly queued: boolean;
