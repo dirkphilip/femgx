@@ -7,7 +7,12 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import {
+  applySelectionPrecedence,
+  applySelectionStyle,
+  resolveBodyStyle,
+  resolveInstanceStyle,
+} from "./interaction";
 import type { FaceRef } from "./refs";
 import type { PartOccurrenceId } from "../scene/types";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
@@ -66,7 +71,7 @@ export function resolveFaceStyle(
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  return applyStyleLayers(style, [
+  const emphasized = applyStyleLayers(style, [
     data.highlightedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) ===
     true
       ? applySelectionStyle(style, data.theme.highlighted)
@@ -83,6 +88,12 @@ export function resolveFaceStyle(
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
   ]);
+  return applySelectionPrecedence(style, emphasized, instance, state, {
+    bodyId,
+    selected:
+      data.selectedFaces.get(ref.partOccurrenceId)?.has(faceId(ref.elementId, ref.faceIndex)) ===
+      true,
+  });
 }
 
 /**

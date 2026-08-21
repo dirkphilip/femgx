@@ -1,6 +1,5 @@
 import type { ElementId, ElementRef, PartOccurrenceId } from "../scene/types";
 import type { BodyId, PartId } from "../geometry/part";
-import type { InteractionTarget } from "./target-types";
 import {
   createInteractionStateValue,
   readInteractionState,
@@ -24,8 +23,11 @@ import {
   updateSet,
 } from "./mechanics";
 import { setPartOccurrenceOverrides } from "./style-overrides";
+import { applySelectionPrecedence, applySelectionStyle } from "./style-composition";
+import { resolveInstanceStyleLayers } from "./instance-style";
 
 export { setPartOccurrenceOverrides, setPartOverrides } from "./style-overrides";
+export { applySelectionPrecedence, applySelectionStyle } from "./style-composition";
 
 export type {
   Color,
@@ -214,46 +216,16 @@ export function resolveInstanceStyle(
   base: ResolvedStyle,
   state: InteractionState,
 ): ResolvedStyle {
-  const data = readInteractionState(state);
-  const overrides: StyleOverride[] = [];
-  if (data.highlightedPartIds.has(instance.partId))
-    overrides.push(applySelectionStyle(base, data.theme.highlighted));
-  if (data.highlightedPartOccurrenceIds.has(instance.partOccurrenceId))
-    overrides.push(applySelectionStyle(base, data.theme.highlighted));
-  if (hoveredInstanceId(data.hoveredTarget, instance) !== undefined)
-    overrides.push(applySelectionStyle(base, data.theme.highlighted));
-  if (data.selectedPartIds.has(instance.partId))
-    overrides.push(applySelectionStyle(base, data.theme.selected));
-  if (data.selectedPartOccurrenceIds.has(instance.partOccurrenceId))
-    overrides.push(applySelectionStyle(base, data.theme.selected));
-  const partOverride = data.partOverrides.get(instance.partId);
-  if (partOverride !== undefined) overrides.push(partOverride);
-  const instanceOverride = data.partOccurrenceOverrides.get(instance.partOccurrenceId);
-  if (instanceOverride !== undefined) overrides.push(instanceOverride);
-  return applyStyleLayers(base, overrides);
+  return resolveInstanceStyleLayers(instance, base, state, true);
 }
 
-function hoveredInstanceId(
-  target: InteractionTarget | undefined,
+/** Resolves instance emphasis and overrides without part or occurrence selection. */
+export function resolveInstanceStyleWithoutSelection(
   instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
-): PartOccurrenceId | undefined {
-  return target?.kind === "partOccurrence" && target.partOccurrenceId === instance.partOccurrenceId
-    ? instance.partOccurrenceId
-    : undefined;
-}
-
-/** Applies a selection tint without turning a translucent base surface opaque. */
-export function applySelectionStyle(
   base: ResolvedStyle,
-  selection: PrimitiveStyleOverride,
-): PrimitiveStyleOverride {
-  return {
-    ...selection,
-    ...(selection.color === undefined
-      ? {}
-      : { color: { ...selection.color, a: selection.color.a * base.color.a } }),
-    ...(selection.opacity === undefined ? {} : { opacity: selection.opacity * base.opacity }),
-  };
+  state: InteractionState,
+): ResolvedStyle {
+  return resolveInstanceStyleLayers(instance, base, state, false);
 }
 
 /**
@@ -268,7 +240,7 @@ export function resolveBodyStyle(
 ): ResolvedStyle {
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
-  return applyStyleLayers(style, [
+  const emphasized = applyStyleLayers(style, [
     data.highlightedBodyIds.get(instance.partOccurrenceId)?.has(bodyId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
@@ -282,6 +254,7 @@ export function resolveBodyStyle(
       : undefined,
     data.bodyOverrides.get(instance.partOccurrenceId)?.get(bodyId),
   ]);
+  return applySelectionPrecedence(style, emphasized, instance, state, { bodyId });
 }
 
 /**
@@ -305,7 +278,7 @@ export function resolveElementStyle(
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  return applyStyleLayers(style, [
+  const emphasized = applyStyleLayers(style, [
     data.highlightedElementIds.get(instance.partOccurrenceId)?.has(elementId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
@@ -319,6 +292,7 @@ export function resolveElementStyle(
       : undefined,
     data.elementOverrides.get(instance.partOccurrenceId)?.get(elementId),
   ]);
+  return applySelectionPrecedence(style, emphasized, instance, state, { bodyId, elementId });
 }
 
 /**

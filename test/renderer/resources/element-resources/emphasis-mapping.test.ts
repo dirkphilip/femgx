@@ -96,7 +96,7 @@ describe("collectEmphasisUpdates", () => {
     },
   );
 
-  it("keeps result colors for ordinary element selection", () => {
+  it("disables result colors for ordinary element selection", () => {
     const { scene, runtime } = elementScene();
     const interaction = setElementSelected(
       createInteractionState(),
@@ -115,7 +115,7 @@ describe("collectEmphasisUpdates", () => {
     expect(updates.get(1)).toMatchObject([
       {
         selected: true,
-        keepsResultColor: true,
+        keepsResultColor: false,
         style: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
       },
     ]);
@@ -172,7 +172,7 @@ describe("collectEmphasisUpdates", () => {
     },
   );
 
-  it("keeps scalar colors for ordinary body selection while carrying selection color", () => {
+  it("disables scalar colors for ordinary body selection while carrying selection color", () => {
     const { scene, runtime } = elementScene();
     const interaction = setBodySelected(
       createInteractionState(),
@@ -188,7 +188,7 @@ describe("collectEmphasisUpdates", () => {
     expect(updates.get(1)).toMatchObject([
       {
         selected: true,
-        keepsResultColor: true,
+        keepsResultColor: false,
         style: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
       },
     ]);

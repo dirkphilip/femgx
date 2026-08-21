@@ -7,7 +7,12 @@ import {
   type InteractionState,
   type ResolvedStyle,
 } from "./state";
-import { applySelectionStyle, resolveBodyStyle, resolveInstanceStyle } from "./interaction";
+import {
+  applySelectionPrecedence,
+  applySelectionStyle,
+  resolveBodyStyle,
+  resolveInstanceStyle,
+} from "./interaction";
 import type { NodeRef } from "./refs";
 import { applyStyleLayers, collectUniqueRefs, sortedNumbers, updateNestedSet } from "./mechanics";
 
@@ -60,7 +65,7 @@ export function resolveNodeStyle(
     bodyId === undefined
       ? resolveInstanceStyle(instance, base, state)
       : resolveBodyStyle(instance, bodyId, base, state);
-  return applyStyleLayers(style, [
+  const emphasized = applyStyleLayers(style, [
     data.highlightedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
@@ -71,6 +76,10 @@ export function resolveNodeStyle(
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
   ]);
+  return applySelectionPrecedence(style, emphasized, instance, state, {
+    bodyId,
+    selected: data.selectedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true,
+  });
 }
 
 /**

@@ -7,7 +7,7 @@ import {
 } from "./state";
 import type { PartOccurrenceId } from "../scene/types";
 import type { PartId } from "../geometry/part";
-import { applySelectionStyle, resolveInstanceStyle } from "./interaction";
+import { applySelectionPrecedence, applySelectionStyle, resolveInstanceStyle } from "./interaction";
 import type { EdgeRef } from "./refs";
 import { applyStyleLayers, collectUniqueRefs, sortedStrings, updateNestedMap } from "./mechanics";
 
@@ -50,7 +50,7 @@ export function resolveEdgeStyle(
 ): ResolvedStyle {
   const data = readInteractionState(state);
   const style = resolveInstanceStyle(instance, base, state);
-  return applyStyleLayers(style, [
+  const emphasized = applyStyleLayers(style, [
     data.highlightedEdges.get(ref.partOccurrenceId)?.has(ref.key) === true
       ? applySelectionStyle(style, data.theme.highlighted)
       : undefined,
@@ -61,6 +61,9 @@ export function resolveEdgeStyle(
       ? applySelectionStyle(style, data.theme.selected)
       : undefined,
   ]);
+  return applySelectionPrecedence(style, emphasized, instance, state, {
+    selected: data.selectedEdges.get(ref.partOccurrenceId)?.has(ref.key) === true,
+  });
 }
 
 /** Collects emphasized authored edges in deterministic occurrence/key order. */

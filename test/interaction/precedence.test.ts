@@ -3,18 +3,21 @@ import {
   createInteractionState,
   resolveBodyStyle,
   resolveElementStyle,
+  setPartOccurrenceOverride,
   type InteractionState,
   type ResolvedStyle,
 } from "../../src/interaction/interaction";
+import { keepsInstanceResultColor } from "../../src/interaction/result-color";
 import { setBodyHighlighted, setBodySelected } from "../../src/interaction/bodies";
 import { setFaceSelected, resolveFaceStyle } from "../../src/interaction/faces";
 import { setNodeSelected, resolveNodeStyle } from "../../src/interaction/nodes";
-import { setElementSelected } from "../../src/interaction/interaction";
+import { setElementSelected, setPartOccurrenceSelected } from "../../src/interaction/interaction";
 import {
   setPartOccurrenceHighlighted,
   setPartHighlighted,
 } from "../../src/interaction/interaction";
 import { identityMatrix } from "../../src/math/mat4";
+import { setTargetHovered } from "../../src/interaction/targets";
 import type { PartOccurrence } from "../../src/scene/types";
 
 const base: ResolvedStyle = {
@@ -91,5 +94,67 @@ describe("interaction precedence", () => {
       color: { r: 0.95, g: 0.5, b: 0.1, a: 0.28 },
       opacity: 0.6,
     });
+  });
+
+  it("keeps an ancestor occurrence selection color under child hover emphasis", () => {
+    let state = createInteractionState({
+      highlighted: { color: { r: 0.1, g: 0.4, b: 1, a: 1 }, emissive: 0.4 },
+      selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 }, opacity: 0.8 },
+    });
+    state = setPartOccurrenceSelected(state, item.partOccurrenceId, true);
+    state = setTargetHovered(state, { kind: "element", ...elementRef });
+    expect(resolveElementStyle(item, elementRef.elementId, base, state)).toMatchObject({
+      color: { r: 0.95, g: 0.5, b: 0.1, a: 1 },
+      emissive: 0.4,
+      opacity: 0.8,
+    });
+  });
+
+  it("retains the authored result color for a colorless selection theme", () => {
+    let state = createInteractionState({ highlighted: { emissive: 0.4 }, selected: {} });
+    state = setElementSelected(state, elementRef, true);
+    state = setTargetHovered(state, { kind: "element", ...elementRef });
+    expect(resolveElementStyle(item, elementRef.elementId, base, state)).toMatchObject({
+      color: base.color,
+      emissive: 0.4,
+    });
+  });
+
+  it("keeps an explicit instance override final under child hover emphasis", () => {
+    let state = createInteractionState({
+      highlighted: { color: { r: 0.1, g: 0.4, b: 1, a: 1 }, emissive: 0.4 },
+      selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } },
+    });
+    state = setPartOccurrenceSelected(state, item.partOccurrenceId, true);
+    state = setPartOccurrenceOverride(state, item.partOccurrenceId, {
+      color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+      opacity: 0.5,
+    });
+    state = setTargetHovered(state, { kind: "element", ...elementRef });
+    expect(resolveElementStyle(item, elementRef.elementId, base, state)).toMatchObject({
+      color: { r: 0.2, g: 0.3, b: 0.4, a: 1 },
+      opacity: 0.5,
+      emissive: 0.4,
+    });
+  });
+
+  it.each([
+    { name: "colored", selected: { color: { r: 0.95, g: 0.5, b: 0.1, a: 1 } }, expected: false },
+    { name: "colorless", selected: {}, expected: true },
+    { name: "fractional", selected: { opacity: 0.5 }, expected: false },
+  ])("tracks $name instance selection result retention", ({ selected, expected }) => {
+    let state = createInteractionState({ highlighted: { emissive: 0.4 }, selected });
+    state = setPartOccurrenceSelected(state, item.partOccurrenceId, true);
+    expect(keepsInstanceResultColor(item, base, state)).toBe(expected);
+  });
+
+  it("does not retain results through explicit instance color or opacity overrides", () => {
+    let state = createInteractionState({ highlighted: { emissive: 0.4 }, selected: {} });
+    state = setPartOccurrenceSelected(state, item.partOccurrenceId, true);
+    state = setPartOccurrenceOverride(state, item.partOccurrenceId, {
+      color: { r: 0.1, g: 0.2, b: 0.3, a: 1 },
+      opacity: 0.5,
+    });
+    expect(keepsInstanceResultColor(item, base, state)).toBe(false);
   });
 });

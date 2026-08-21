@@ -5,6 +5,8 @@ import {
   createDrawResources,
   EMISSIVE_BYTE_OFFSET,
   encodeInstanceRecord,
+  INSTANCE_RESULT_COLOR_FLAG,
+  INSTANCE_SELECTED_FLAG,
   patchInstances,
   defaultStyle,
   fakeGpuDevice,
@@ -45,6 +47,13 @@ describe("GPU draw path", () => {
       encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, MAX_PART_ID),
     );
     expect(ids[20]).toBe(MAX_PART_ID);
+  });
+
+  it("packs authored-result retention alongside instance selection", () => {
+    const ids = new Uint32Array(
+      encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, 1, true, true),
+    );
+    expect(ids[22]).toBe(INSTANCE_SELECTED_FLAG | INSTANCE_RESULT_COLOR_FLAG);
   });
 
   it("writes one complete record for a changed slot", () => {
