@@ -5,7 +5,7 @@ import { destroyInstancePartResources, type DrawResources } from "../resources/d
 import { destroyResultColorBuffer } from "../resources/result-colors";
 import { destroyDetachedVisibilitySkinCache } from "../visibility/skins";
 import { stagedPartRevisionKeys } from "./part-revision-overlay";
-import { destroyStagedGeometry, destroyStagedStorage } from "./part-revision-stage";
+import { destroyStagedGeometry, destroyStagedStorage } from "./part-revision-cleanup";
 
 /** Releases only overlay-owned resources from an occurrence transaction. */
 export function discardStagedOccurrenceResources(

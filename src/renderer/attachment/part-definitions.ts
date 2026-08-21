@@ -8,18 +8,18 @@ import { changedPartDefinitions, reconcilePartResources } from "../resources/par
 import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
 import type { InstanceStorage } from "../resources/instance-storage";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
-import { rebuildVisibilitySurface } from "../visibility/skins";
+import { rebuildInteractionVisibilitySurfaces } from "./interaction";
 import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
 import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
   clonePartRevisionLayout,
-  discardStagedPartResources,
   prepareStagedPartRevision,
   type PartRevisionAttachmentHost,
   type PreparedPartRevision,
 } from "./part-revision-stage";
+import { discardStagedPartResources } from "./part-revision-cleanup";
 import { PartRevisionMap, stagePartRevisionFlagSet } from "./part-revision-overlay";
 
 interface PartAttachmentOptions {
@@ -228,9 +228,18 @@ function commitPartResources(
   prepared: PreparedPartRevision,
   partId: PartId,
 ): void {
+  commitStagedPartDefinition(draw, prepared.draw, partId);
+}
+
+/** Publishes exact staged definition resources and retires their prior live identities. */
+export function commitStagedPartDefinition(
+  draw: DrawResources,
+  staged: DrawResources,
+  partId: PartId,
+): void {
   destroyPartResources(draw, partId);
-  transferStagedPartResources(draw, prepared.draw, partId);
-  commitStagedStorage(draw, prepared.draw, partId);
+  transferStagedPartResources(draw, staged, partId);
+  commitStagedStorage(draw, staged, partId);
 }
 
 function transferStagedPartResources(
@@ -390,7 +399,14 @@ export function prepareAttachmentParts(
   });
   const next = new Map(reconcilePartResources(options.attachedParts, parts, options.bundle.draw));
   if (changed !== undefined && options.runtime !== undefined && options.layout !== undefined) {
-    for (const partId of changed) rebuildPartVisibility(options, next.get(partId));
+    rebuildInteractionVisibilitySurfaces({
+      runtime: options.runtime,
+      layout: options.layout,
+      parts: changed,
+      attachedParts: next,
+      interaction: options.interaction,
+      bundle: options.bundle,
+    });
   }
   for (const partId of changed ?? []) {
     const part = parts.get(partId);
@@ -419,15 +435,4 @@ export function removeAttachmentParts(
   return removed && rebuildCalls
     ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost)
     : undefined;
-}
-
-function rebuildPartVisibility(options: PartAttachmentOptions, part: Part | undefined): void {
-  if (part === undefined || options.runtime === undefined || options.layout === undefined) return;
-  rebuildVisibilitySurface({
-    runtime: options.runtime,
-    layout: options.layout,
-    part,
-    interaction: options.interaction,
-    draw: options.bundle.draw,
-  });
 }

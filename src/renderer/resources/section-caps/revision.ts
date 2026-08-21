@@ -117,7 +117,6 @@ export function prepareSectionCapOccurrenceRevision(
     options.plane === undefined ||
     owner.frame === undefined ||
     owner.retained === undefined ||
-    owner.runtime !== options.runtime ||
     owner.dirty
   ) {
     return exactDirtyOccurrence(owner, options, oldCapIds);

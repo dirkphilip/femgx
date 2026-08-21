@@ -22,8 +22,8 @@ interface OwnerMutation {
 /** Prepared private hierarchy edits, before any retained runtime state is changed. */
 export interface PreparedHierarchyUpdate {
   readonly owners: readonly OwnerMutation[];
-  readonly changedAssemblyIds: ReadonlySet<number>;
   readonly addedPartIds: ReadonlySet<PartId>;
+  readonly replacedPartIds: ReadonlySet<PartId>;
   readonly removedPartIds: ReadonlySet<PartId>;
 }
 
@@ -56,18 +56,10 @@ export function prepareHierarchyMutations(
   }
   return {
     owners,
-    changedAssemblyIds: changedAssemblyIds(changes),
     addedPartIds: changes.parts.added,
+    replacedPartIds: changes.parts.replaced,
     removedPartIds: changes.parts.removed,
   };
-}
-
-function changedAssemblyIds(changes: SceneStructuralChanges): Set<number> {
-  return new Set([
-    ...changes.assemblies.added,
-    ...changes.assemblies.replaced,
-    ...changes.assemblies.removed,
-  ]);
 }
 
 /** Applies a prepared hierarchy change with retained surviving nodes and leaf slots. */
@@ -92,7 +84,7 @@ export function applyHierarchyMutations(
     resolveAssemblyVisible,
   });
   publishAdditions({ runtime, scene, prepared, additions, addedNodes, slotChanges });
-  return hierarchyDelta(prepared, slotChanges, removedSlots, removal.removedOccurrenceIds);
+  return hierarchyDelta(runtime, prepared, slotChanges, removedSlots, removal.removedOccurrenceIds);
 }
 
 function removeHierarchy(runtime: PackedSceneRuntime, owners: readonly OwnerMutation[]) {
@@ -158,11 +150,18 @@ function publishAdditions(options: {
 }
 
 function hierarchyDelta(
+  runtime: PackedSceneRuntime,
   prepared: PreparedHierarchyUpdate,
   slotChanges: Map<number, RuntimeOccurrenceSlotChange>,
   removedSlots: ReadonlySet<number>,
   removedAssemblyOccurrenceIds: readonly AssemblyOccurrenceId[],
 ): RuntimeHierarchyDelta {
+  for (const partId of prepared.replacedPartIds) {
+    for (const slot of runtime.getPartInstanceSlots(partId)) {
+      recordHierarchySlotBefore(slotChanges, slot, partId);
+      recordHierarchySlotAfter(slotChanges, slot, partId);
+    }
+  }
   const changed = [...slotChanges.values()].sort((left, right) => left.slot - right.slot);
   const affectedPartIds = new Set<PartId>();
   for (const change of changed) {

@@ -42,11 +42,11 @@ describe("section-cap occurrence revisions", () => {
       if (changedPart === undefined || retainedPart === undefined) throw new Error("caps missing");
       const changedResource = uploadPart(bundle.draw, changedPart);
       const retainedResource = uploadPart(bundle.draw, retainedPart);
-      const transaction = runtime.beginHierarchyTransaction();
-      runtime.updateInstance(0, {
-        instanceId: runtime.getInstanceId(0) ?? "",
+      const updatedRuntime = createPackedSceneRuntime(scene);
+      updatedRuntime.updateInstance(0, {
+        instanceId: updatedRuntime.getInstanceId(0) ?? "",
         partId: 1,
-        owningNode: runtime.instanceOwningNode[0] ?? 0,
+        owningNode: updatedRuntime.instanceOwningNode[0] ?? 0,
         partVisible: true,
         overrideVisible: true,
         worldTransform: translationMatrix(0, 0, 0.25),
@@ -54,7 +54,7 @@ describe("section-cap occurrence revisions", () => {
       const delta = occurrenceDelta();
       const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
       const prepared = controller.prepareOccurrenceRevision({
-        runtime,
+        runtime: updatedRuntime,
         parts: scene.parts,
         plane,
         interaction,
@@ -67,7 +67,6 @@ describe("section-cap occurrence revisions", () => {
       expect(controller.currentFrame).toBe(before);
       expect(bufferDestroyed(gpu, changedResource.vertexBuffer)).toBe(false);
       controller.commitOccurrenceRevision(prepared, staged.draw, bundle.draw);
-      transaction.commit();
 
       expect(controller.currentFrame?.parts.get(retainedCapId)).toBe(retainedPart);
       expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);

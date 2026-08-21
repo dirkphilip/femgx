@@ -50,9 +50,10 @@ export function prepareRendererOccurrenceUpdate(
     readonly delta: RuntimeOccurrenceDelta;
     readonly parts: ReadonlyMap<PartId, Part>;
     readonly results?: PartRevisionResultState;
+    readonly replacedPartIds?: ReadonlySet<PartId>;
   },
 ): PreparedRendererOccurrenceUpdate {
-  const { runtime, interaction, delta, parts, results } = options;
+  const { runtime, interaction, delta, parts, results, replacedPartIds } = options;
   const attachment = prepareAttachmentOccurrenceUpdate({
     attachment: renderer.attachment,
     runtime,
@@ -62,6 +63,7 @@ export function prepareRendererOccurrenceUpdate(
     parts,
     bundle: renderer.lifecycle.bundle,
     ...(results === undefined ? {} : { results }),
+    ...(replacedPartIds === undefined ? {} : { replacedPartIds }),
   });
   try {
     const caps = renderer.sectionCaps.prepareOccurrenceRevision({

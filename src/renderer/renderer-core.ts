@@ -191,20 +191,10 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
 
   /** Completes all fallible placement allocations without changing live renderer state. */
   public prepareOccurrenceUpdate(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    delta: Parameters<RendererAttachment["updateOccurrences"]>[2],
-    parts: ReadonlyMap<PartId, Part>,
-    results?: PartRevisionResultState,
+    options: Parameters<typeof prepareRendererOccurrenceUpdate>[1],
   ): PreparedRendererOccurrenceUpdate {
     this.ensureAlive();
-    return prepareRendererOccurrenceUpdate(this, {
-      runtime,
-      interaction,
-      delta,
-      parts,
-      ...(results === undefined ? {} : { results }),
-    });
+    return prepareRendererOccurrenceUpdate(this, options);
   }
 
   /** Publishes a fully prepared placement transaction and invalidates picking once. */

@@ -116,18 +116,13 @@ export function prepareRendererOccurrenceUpdate(
     readonly delta: RuntimeOccurrenceDelta;
     readonly parts: ReadonlyMap<PartId, Part>;
     readonly results?: PartRevisionResultState;
+    readonly replacedPartIds?: ReadonlySet<PartId>;
   },
 ): PreparedRendererOccurrenceUpdate {
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("Incremental scene updates require the built-in WebGPU renderer");
   }
-  return renderer.prepareOccurrenceUpdate(
-    revision.runtime,
-    revision.interaction,
-    revision.delta,
-    revision.parts,
-    revision.results,
-  );
+  return renderer.prepareOccurrenceUpdate(revision);
 }
 
 /** Commits a renderer occurrence revision after every scene owner has prepared. */

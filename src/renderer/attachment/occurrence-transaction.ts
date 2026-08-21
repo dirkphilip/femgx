@@ -11,17 +11,21 @@ import {
   type AttachmentState,
 } from "./reconciliation";
 import { applyOccurrenceAttachment, releasePartDefinitions } from "./occurrences";
-import { syncOccurrenceInteractionEmphasis } from "./interaction";
+import {
+  rebuildInteractionVisibilitySurfaces,
+  syncOccurrenceInteractionEmphasis,
+} from "./interaction";
 import {
   PartRevisionMap,
   stagePartRevisionArray,
   stagePartRevisionFlagSet,
   type PartRevisionFlagSet,
 } from "./part-revision-overlay";
-import { stageDrawResources } from "./part-revision-stage";
+import { stageDrawResources, stagePartDefinitionResources } from "./part-revision-stage";
 import { discardStagedOccurrenceResources } from "./occurrence-resources";
 import {
   commitStagedPartResults,
+  commitStagedPartDefinition,
   commitStagedStorage,
   commitStagedWrites,
 } from "./part-definitions";
@@ -32,6 +36,12 @@ import { syncResultColors } from "../resources/result-colors";
 import type { DrawResources } from "../resources/draw-resources";
 import type { StagedBufferWrite } from "./part-revision-writes";
 import type { AttachmentCallLists } from "./calls";
+import {
+  commitOccurrenceLayout,
+  stageOccurrenceLayout,
+  stageSlotLocals,
+  type StagedSlotLocals,
+} from "./occurrence-layout";
 
 interface OccurrenceAttachmentOwner extends AttachmentCallLists {
   readonly runtime: PackedSceneRuntime | undefined;
@@ -41,12 +51,20 @@ interface OccurrenceAttachmentOwner extends AttachmentCallLists {
   readonly attachedParts: Map<PartId, Part>;
   interactionState: InteractionState;
   interactionBeforeLastInstanceUpdate: InteractionState | undefined;
+  readonly usesExteriorFaceSubsets: boolean;
   styleFlags(): AttachmentFlagState;
 }
 
-interface StagedSlotLocals {
-  readonly values: Int32Array;
-  commit(target: InstanceLayout): void;
+interface OccurrenceUpdateOptions {
+  readonly attachment: OccurrenceAttachmentOwner;
+  readonly runtime: PackedSceneRuntime;
+  readonly interaction: InteractionState;
+  readonly delta: RuntimeOccurrenceDelta;
+  readonly sourceParts: Map<PartId, Part>;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly bundle: GpuBundle;
+  readonly results?: PartRevisionResultState;
+  readonly replacedPartIds?: ReadonlySet<PartId>;
 }
 
 /** Detached renderer placement state whose GPU allocations are complete. */
@@ -62,63 +80,94 @@ export interface PreparedAttachmentOccurrenceUpdate {
 }
 
 /** Prepares exact placement, presentation, and result writes without mutating live owners. */
-export function prepareAttachmentOccurrenceUpdate(options: {
-  readonly attachment: OccurrenceAttachmentOwner;
-  readonly runtime: PackedSceneRuntime;
-  readonly interaction: InteractionState;
-  readonly delta: RuntimeOccurrenceDelta;
-  readonly sourceParts: Map<PartId, Part>;
-  readonly parts: ReadonlyMap<PartId, Part>;
-  readonly bundle: GpuBundle;
-  readonly results?: PartRevisionResultState;
-}): PreparedAttachmentOccurrenceUpdate {
+export function prepareAttachmentOccurrenceUpdate(
+  options: OccurrenceUpdateOptions,
+): PreparedAttachmentOccurrenceUpdate {
   const liveLayout = options.attachment.layout;
   if (options.attachment.runtime !== options.runtime || liveLayout === undefined)
     throw new Error("Occurrence revisions require the attached renderer runtime");
-  const partIds = options.delta.affectedPartIds;
-  const flags = stagePartRevisionFlagSet(options.attachment.styleFlags());
-  const instances = stagePartRevisionArray(options.attachment.instances);
-  const slotByInstanceId = new PartRevisionMap(options.attachment.slotByInstanceId);
-  const sourceParts = new PartRevisionMap(options.sourceParts);
-  const attachedParts = new PartRevisionMap(options.attachment.attachedParts);
-  stageAddedParts(options.parts, options.delta.addedPartIds, sourceParts, attachedParts);
-  const slotLocals = stageSlotLocals(liveLayout.slotPartLocal);
-  const layout = stageOccurrenceLayout(liveLayout, slotLocals.values, partIds);
-  const staged = stageDrawResources(options.bundle.draw, partIds, true, false);
+  const state = prepareOccurrenceState(options, liveLayout);
   let completed = false;
   try {
-    const calls = stageOccurrenceChanges({
-      ...options,
-      layout,
-      flags,
-      instances,
-      slotByInstanceId,
-      attachedParts,
-      draw: staged.draw,
-    });
-    stageResults(staged.draw, options.results, options.runtime, layout, partIds);
+    const calls = stagePreparedOccurrence(options, state);
     return preparedUpdate({
       ...options,
+      ...state,
       calls,
-      flags,
-      instances,
-      slotByInstanceId,
-      slotLocals,
-      layout,
       liveSourceParts: options.sourceParts,
-      sourceParts,
-      attachedParts,
-      draw: staged.draw,
-      writes: staged.writes,
       complete: () => {
         completed = true;
       },
       completed: () => completed,
     });
   } catch (error) {
-    discardStagedOccurrenceResources(staged.draw, options.bundle.draw, partIds);
+    discardStagedOccurrenceResources(
+      state.draw,
+      options.bundle.draw,
+      options.delta.affectedPartIds,
+    );
     throw error;
   }
+}
+
+function prepareOccurrenceState(options: OccurrenceUpdateOptions, liveLayout: InstanceLayout) {
+  const partIds = options.delta.affectedPartIds;
+  const flags = stagePartRevisionFlagSet(options.attachment.styleFlags());
+  const instances = stagePartRevisionArray(options.attachment.instances);
+  const slotByInstanceId = new PartRevisionMap(options.attachment.slotByInstanceId);
+  const sourceParts = new PartRevisionMap(options.sourceParts);
+  const attachedParts = new PartRevisionMap(options.attachment.attachedParts);
+  const replacedPartIds = options.replacedPartIds ?? new Set<PartId>();
+  stageParts(
+    options.parts,
+    new Set([...options.delta.addedPartIds, ...replacedPartIds]),
+    sourceParts,
+    attachedParts,
+  );
+  const slotLocals = stageSlotLocals(liveLayout.slotPartLocal);
+  const layout = stageOccurrenceLayout(liveLayout, slotLocals.values, partIds);
+  const staged = stageDrawResources(options.bundle.draw, partIds, true, false);
+  return {
+    flags,
+    instances,
+    slotByInstanceId,
+    sourceParts,
+    attachedParts,
+    slotLocals,
+    layout,
+    draw: staged.draw,
+    writes: staged.writes,
+    replacedPartIds,
+  };
+}
+
+function stagePreparedOccurrence(
+  options: OccurrenceUpdateOptions,
+  state: ReturnType<typeof prepareOccurrenceState>,
+): AttachmentCallLists {
+  stagePartDefinitionResources(
+    state.draw,
+    state.attachedParts,
+    state.replacedPartIds,
+    options.attachment.usesExteriorFaceSubsets,
+  );
+  const calls = stageOccurrenceChanges({ ...options, ...state });
+  stageResults(
+    state.draw,
+    options.results,
+    options.runtime,
+    state.layout,
+    options.delta.affectedPartIds,
+  );
+  if (state.replacedPartIds.size === 0) return calls;
+  return rebuildInteractionVisibilitySurfaces({
+    runtime: options.runtime,
+    layout: state.layout,
+    parts: state.replacedPartIds,
+    attachedParts: state.attachedParts,
+    interaction: options.interaction,
+    bundle: { ...options.bundle, device: state.draw.device, draw: state.draw },
+  });
 }
 
 function stageOccurrenceChanges(options: {
@@ -196,6 +245,7 @@ type PreparedOptions = Parameters<typeof prepareAttachmentOccurrenceUpdate>[0] &
   readonly attachedParts: PartRevisionMap<PartId, Part>;
   readonly draw: DrawResources;
   readonly writes: readonly StagedBufferWrite[];
+  readonly replacedPartIds: ReadonlySet<PartId>;
   readonly complete: () => void;
   readonly completed: () => boolean;
 };
@@ -228,11 +278,18 @@ function commitPrepared(options: PreparedOptions): void {
   const liveLayout = options.attachment.layout;
   if (liveLayout === undefined) throw new Error("Occurrence revision layout is unavailable");
   const partIds = options.delta.affectedPartIds;
-  for (const partId of partIds) commitStagedStorage(options.bundle.draw, options.draw, partId);
+  for (const partId of options.replacedPartIds) {
+    commitStagedPartDefinition(options.bundle.draw, options.draw, partId);
+  }
+  for (const partId of partIds) {
+    if (!options.replacedPartIds.has(partId)) {
+      commitStagedStorage(options.bundle.draw, options.draw, partId);
+    }
+  }
   commitStagedPartResults(options.bundle.draw, options.draw, partIds);
   commitStagedWrites(options.bundle.draw, options, partIds);
   commitDrawOverlays(options.bundle.draw, options.draw);
-  commitLayout(liveLayout, options.layout, options.slotLocals);
+  commitOccurrenceLayout(liveLayout, options.layout, options.slotLocals);
   options.flags.commit(options.attachment.styleFlags());
   options.instances.commit(options.attachment.instances);
   options.slotByInstanceId.commit(options.attachment.slotByInstanceId);
@@ -254,7 +311,7 @@ function commitPrepared(options: PreparedOptions): void {
   options.complete();
 }
 
-function stageAddedParts(
+function stageParts(
   parts: ReadonlyMap<PartId, Part>,
   partIds: ReadonlySet<PartId>,
   source: PartRevisionMap<PartId, Part>,
@@ -262,7 +319,7 @@ function stageAddedParts(
 ): void {
   for (const partId of partIds) {
     const part = parts.get(partId);
-    if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
+    if (part === undefined) throw new Error(`Revised part ${partId} is not registered`);
     source.set(partId, part);
     attached.set(partId, part);
   }
@@ -284,77 +341,6 @@ function stageResults(
   if (staged.colors !== undefined) syncResultColors(draw, staged.colors, runtime, layout, partIds);
 }
 
-function stageOccurrenceLayout(
-  source: InstanceLayout,
-  slotPartLocal: Int32Array,
-  partIds: ReadonlySet<PartId>,
-): InstanceLayout {
-  const partLocalSlots = new PartRevisionMap(source.partLocalSlots);
-  for (const partId of partIds) {
-    const slots = source.partLocalSlots.get(partId);
-    if (slots !== undefined) partLocalSlots.set(partId, slots.slice());
-  }
-  return {
-    ...source,
-    slotPartLocal,
-    partSlots: new PartRevisionMap(source.partSlots),
-    partLocalSlots,
-    partOrder: source.partOrder.slice(),
-    partVisibleCounts: new PartRevisionMap(source.partVisibleCounts),
-    partEdgeCounts: new PartRevisionMap(source.partEdgeCounts),
-    partNodeCounts: new PartRevisionMap(source.partNodeCounts),
-    partTransparentCounts: new PartRevisionMap(source.partTransparentCounts),
-    partSelectionCounts: new PartRevisionMap(source.partSelectionCounts),
-    partSelectedNodeCounts: new PartRevisionMap(source.partSelectedNodeCounts),
-    partSelectedNodeDrawCalls: new PartRevisionMap(source.partSelectedNodeDrawCalls),
-    partSelectionDrawCalls: new PartRevisionMap(source.partSelectionDrawCalls),
-    partSurfaceDrawCalls: new PartRevisionMap(source.partSurfaceDrawCalls),
-  };
-}
-
-function stageSlotLocals(source: Int32Array): StagedSlotLocals {
-  const changes = new Map<number, number>();
-  const values = new Proxy(source, {
-    get(target, key) {
-      if (key === "length") return target.length;
-      const index = arrayIndex(key);
-      if (index !== undefined) return changes.get(index) ?? target[index];
-      return Reflect.get(target, key, target) as unknown;
-    },
-    set(target, key, value) {
-      const index = arrayIndex(key);
-      if (index === undefined) return Reflect.set(target, key, value, target);
-      changes.set(index, Number(value));
-      return true;
-    },
-  });
-  return {
-    values,
-    commit(target) {
-      for (const [index, value] of changes) target.slotPartLocal[index] = value;
-    },
-  };
-}
-
-function commitLayout(live: InstanceLayout, staged: InstanceLayout, slots: StagedSlotLocals): void {
-  if (staged.slotPartLocal !== slots.values) live.slotPartLocal = staged.slotPartLocal;
-  else slots.commit(live);
-  live.instanceCount = staged.instanceCount;
-  live.visibleCount = staged.visibleCount;
-  live.partOrder.splice(0, live.partOrder.length, ...staged.partOrder);
-  commitOverlay(live.partSlots, staged.partSlots);
-  commitOverlay(live.partLocalSlots, staged.partLocalSlots);
-  commitOverlay(live.partVisibleCounts, staged.partVisibleCounts);
-  commitOverlay(live.partEdgeCounts, staged.partEdgeCounts);
-  commitOverlay(live.partNodeCounts, staged.partNodeCounts);
-  commitOverlay(live.partTransparentCounts, staged.partTransparentCounts);
-  commitOverlay(live.partSelectionCounts, staged.partSelectionCounts);
-  commitOverlay(live.partSelectedNodeCounts, staged.partSelectedNodeCounts);
-  commitOverlay(live.partSelectedNodeDrawCalls, staged.partSelectedNodeDrawCalls);
-  commitOverlay(live.partSelectionDrawCalls, staged.partSelectionDrawCalls);
-  commitOverlay(live.partSurfaceDrawCalls, staged.partSurfaceDrawCalls);
-}
-
 function commitDrawOverlays(live: DrawResources, staged: DrawResources): void {
   commitOverlay(live.parts, staged.parts);
   commitOverlay(live.primitiveParts, staged.primitiveParts);
@@ -365,10 +351,4 @@ function commitDrawOverlays(live: DrawResources, staged: DrawResources): void {
 
 function commitOverlay<K, V>(target: Map<K, V>, source: Map<K, V>): void {
   if (source instanceof PartRevisionMap) source.commit(target);
-}
-
-function arrayIndex(key: PropertyKey): number | undefined {
-  if (typeof key !== "string" || !/^(?:0|[1-9]\d*)$/.test(key)) return undefined;
-  const index = Number(key);
-  return Number.isSafeInteger(index) ? index : undefined;
 }

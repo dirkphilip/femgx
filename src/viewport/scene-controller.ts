@@ -309,13 +309,15 @@ export class ViewportSceneController {
           this.currentRuntime,
           delta.affectedPartIds,
         ),
+        replacedPartIds: mutations.replacedPartIds,
       });
+      const revisedPartIds = new Set([...delta.addedPartIds, ...mutations.replacedPartIds]);
       boundsUpdate = this.placedBounds.beginTransaction(
         delta.slots.map(({ slot }) => slot),
-        delta.addedPartIds,
+        revisedPartIds,
       );
       cancelCamera();
-      this.updateHierarchyBounds(scene, delta);
+      this.updateHierarchyBounds(scene, delta, revisedPartIds);
       commitRendererOccurrenceUpdate(this.options.renderer, rendererUpdate);
       transaction.commit();
       boundsUpdate.commit();
@@ -351,8 +353,9 @@ export class ViewportSceneController {
   private updateHierarchyBounds(
     scene: Scene,
     delta: ReturnType<typeof applyHierarchyMutations>,
+    revisedPartIds: ReadonlySet<number>,
   ): void {
-    this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
+    this.placedBounds.updateParts(scene.parts, revisedPartIds);
     this.placedBounds.update(
       this.currentRuntime,
       delta.slots.map(({ slot }) => slot),
