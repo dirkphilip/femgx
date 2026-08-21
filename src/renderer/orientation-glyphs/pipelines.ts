@@ -48,10 +48,11 @@ export async function createOrientationGlyphPipelines(
     bindGroupLayouts: [options.cameraLayout, instanceLayout, layout],
   });
   const shaders = await createOrientationGlyphShaders(options);
-  const [visible, hidden] = await Promise.all([
-    createVisibleGlyphPipeline(options, pipelineLayout, shaders),
-    createHiddenGlyphPipeline(options, pipelineLayout, shaders),
-  ]);
+  const [visible, hidden] = await createOrientationGlyphPipelineFamily(
+    options,
+    pipelineLayout,
+    shaders,
+  );
   return { instanceLayout, layout, visible, hidden };
 }
 
@@ -102,54 +103,50 @@ async function createOrientationGlyphShaders(
   return { vertex, visibleFragment, hiddenFragment };
 }
 
-function createVisibleGlyphPipeline(
+function createOrientationGlyphPipelineFamily(
   options: OrientationGlyphPipelineOptions,
   layout: GPUPipelineLayout,
   shaders: OrientationGlyphShaders,
-): Promise<GPURenderPipeline> {
-  return createValidatedRenderPipeline(options.device, "orientation glyph visible", {
-    layout,
+): Promise<readonly [GPURenderPipeline, GPURenderPipeline]> {
+  const geometry = {
     vertex: { module: shaders.vertex, entryPoint: "vertexMain" },
-    fragment: {
-      module: shaders.visibleFragment,
-      entryPoint: "fragmentMain",
-      targets: [{ format: options.format }],
-    },
     primitive: { topology: "triangle-list", cullMode: "none" },
-    depthStencil: {
-      format: options.depthFormat,
-      depthWriteEnabled: false,
-      depthCompare: "less-equal",
-    },
-    multisample: { count: COLOR_SAMPLE_COUNT },
-  });
-}
-
-function createHiddenGlyphPipeline(
-  options: OrientationGlyphPipelineOptions,
-  layout: GPUPipelineLayout,
-  shaders: OrientationGlyphShaders,
-): Promise<GPURenderPipeline> {
-  return createValidatedRenderPipeline(options.device, "orientation glyph hidden", {
-    layout,
-    vertex: { module: shaders.vertex, entryPoint: "vertexMain" },
-    fragment: {
-      module: shaders.hiddenFragment,
-      entryPoint: "fragmentMain",
-      targets: [
+  } as const;
+  const create = (
+    label: string,
+    fragmentModule: GPUShaderModule,
+    targets: GPUColorTargetState[],
+    depthCompare: GPUCompareFunction,
+  ) =>
+    createValidatedRenderPipeline(options.device, label, {
+      layout,
+      ...geometry,
+      fragment: { module: fragmentModule, entryPoint: "fragmentMain", targets },
+      depthStencil: {
+        format: options.depthFormat,
+        depthWriteEnabled: false,
+        depthCompare,
+      },
+      multisample: { count: COLOR_SAMPLE_COUNT },
+    });
+  return Promise.all([
+    create(
+      "orientation glyph visible",
+      shaders.visibleFragment,
+      [{ format: options.format }],
+      "less-equal",
+    ),
+    create(
+      "orientation glyph hidden",
+      shaders.hiddenFragment,
+      [
         {
           format: TRANSPARENCY_ACCUMULATION_FORMAT,
           blend: TRANSPARENCY_ACCUMULATION_BLEND_STATE,
         },
         { format: TRANSPARENCY_REVEALAGE_FORMAT, blend: TRANSPARENCY_REVEALAGE_BLEND_STATE },
       ],
-    },
-    primitive: { topology: "triangle-list", cullMode: "none" },
-    depthStencil: {
-      format: options.depthFormat,
-      depthWriteEnabled: false,
-      depthCompare: "greater",
-    },
-    multisample: { count: COLOR_SAMPLE_COUNT },
-  });
+      "greater",
+    ),
+  ]);
 }

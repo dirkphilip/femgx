@@ -183,6 +183,15 @@ See [[architecture/api-design|API design north star]].
   then fix the bug and verify the test passes.
 - Keep WebGPU behind thin interfaces where CPU behavior can be tested without a
   GPU. Use real browser evidence for rendering behavior.
+- Each semantic renderable or pipeline family owns one geometry contract:
+  vertex module and entry point, vertex-buffer layout, primitive topology and
+  culling, plus any other family invariant. Pass variants may compose only
+  legitimate pass policy such as targets, fragment entry, blending, depth
+  state, and sample count; callers must not copy or override family-owned
+  geometry invariants. Prefer small constrained family builders or specs, not a
+  universal boolean/options matrix or generalized public abstraction. Keep
+  every pipeline-creation module classified and linked in the enforced
+  [[rendering/pipeline-families|render pipeline family catalog]].
 - ESLint enforces 400 implementation lines per file, 60 lines per function, and
   nesting depth 4; 300 file lines is a design-review threshold. Split only when
   it improves cohesion.
@@ -277,4 +286,5 @@ GitHub issues and PRs remain the work tracker.
 [engineering/pre-commit-hooks|pre-commit hooks]: wiki/engineering/pre-commit-hooks.md
 [engineering/state-invariants|invariant-driven state design]: wiki/engineering/state-invariants.md
 [operations/ci-authority|CI authority]: wiki/operations/ci-authority.md
+[rendering/pipeline-families|render pipeline family catalog]: wiki/rendering/pipeline-families.md
 [requirements/product-scope|product scope and requirements contract]: wiki/requirements/product-scope.md

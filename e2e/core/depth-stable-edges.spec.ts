@@ -4,9 +4,15 @@ const HOST = "/e2e/core/core-host.html";
 
 interface EdgeProbe {
   readonly covered?: readonly [number, number];
-  readonly node?: readonly [number, number];
+  readonly interiorNode?: readonly [number, number];
+  readonly exteriorNode?: readonly [number, number];
   readonly shallow?: readonly [number, number];
   readonly steep?: readonly [number, number];
+}
+
+interface NodeShape {
+  readonly coloredPixels: number;
+  readonly quadrants: readonly number[];
 }
 
 test("keeps depth-visible native authored edges stable while retaining occlusion", async ({
@@ -23,7 +29,12 @@ test("keeps depth-visible native authored edges stable while retaining occlusion
       const probes = await edgeProbes(page.locator("#core-status"));
       expect(await darkPixelsNear(canvas, probes.shallow)).toBeGreaterThan(0);
       expect(await darkPixelsNear(canvas, probes.steep)).toBeGreaterThan(0);
-      expect(await orangePixelsNear(canvas, probes.node)).toBeGreaterThan(0);
+      const nodeShapes = await orangeNodeShapesNear(canvas, [
+        requireProbe(probes.interiorNode, "interior node"),
+        requireProbe(probes.exteriorNode, "exterior node"),
+      ]);
+      expectInteriorNodeCoverage(nodeShapes[0]);
+      expectExteriorNodeDisc(nodeShapes[1]);
       await page.screenshot({
         path: testInfo.outputPath(`depth-stable-${viewport.name}-${projection}.png`),
         fullPage: true,
@@ -79,14 +90,35 @@ async function darkPixelsNear(
   );
 }
 
-async function orangePixelsNear(
-  canvas: Locator,
+function requireProbe(
   point: readonly [number, number] | undefined,
-): Promise<number> {
-  if (point === undefined) throw new Error("missing node probe");
+  label: string,
+): readonly [number, number] {
+  if (point === undefined) throw new Error(`missing ${label} probe`);
+  return point;
+}
+
+function expectInteriorNodeCoverage(shape: NodeShape | undefined): void {
+  if (shape === undefined) throw new Error("missing interior node shape");
+  // Adjacent surface depth legitimately clips one side; broad area and three
+  // occupied quadrants still distinguish a glyph from one procedural triangle.
+  expect(shape.coloredPixels).toBeGreaterThanOrEqual(20);
+  expect(shape.quadrants.filter((count) => count > 0).length).toBeGreaterThanOrEqual(3);
+}
+
+function expectExteriorNodeDisc(shape: NodeShape | undefined): void {
+  if (shape === undefined) throw new Error("missing exterior node shape");
+  expect(shape.coloredPixels).toBeGreaterThanOrEqual(40);
+  expect(Math.min(...shape.quadrants)).toBeGreaterThanOrEqual(5);
+}
+
+async function orangeNodeShapesNear(
+  canvas: Locator,
+  points: readonly (readonly [number, number])[],
+): Promise<readonly NodeShape[]> {
   const encoded = (await canvas.screenshot()).toString("base64");
   return canvas.page().evaluate(
-    async ({ base64, point: [x, y] }) => {
+    async ({ base64, points }) => {
       const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
       const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
       const snapshot = document.createElement("canvas");
@@ -96,16 +128,30 @@ async function orangePixelsNear(
       if (context === null) throw new Error("no node screenshot context");
       context.drawImage(bitmap, 0, 0);
       bitmap.close();
-      const pixels = context.getImageData(Math.round(x) - 6, Math.round(y) - 6, 13, 13).data;
-      let orange = 0;
-      for (let index = 0; index < pixels.length; index += 4) {
-        const red = pixels[index] ?? 0;
-        const green = pixels[index + 1] ?? 0;
-        const blue = pixels[index + 2] ?? 0;
-        if (red > 180 && green > 60 && green < 180 && blue < 80) orange += 1;
-      }
-      return orange;
+      return points.map(([pointX, pointY]) => {
+        const pixels = context.getImageData(
+          Math.round(pointX) - 6,
+          Math.round(pointY) - 6,
+          13,
+          13,
+        ).data;
+        let coloredPixels = 0;
+        const quadrants = [0, 0, 0, 0];
+        for (let index = 0; index < pixels.length; index += 4) {
+          const red = pixels[index] ?? 0;
+          const green = pixels[index + 1] ?? 0;
+          const blue = pixels[index + 2] ?? 0;
+          if (!(red > 180 && green > 60 && green < 180 && blue < 80)) continue;
+          const pixel = index / 4;
+          const x = pixel % 13;
+          const y = Math.floor(pixel / 13);
+          coloredPixels += 1;
+          const quadrant = (y < 6 ? 0 : 2) + (x < 6 ? 0 : 1);
+          quadrants[quadrant] = (quadrants[quadrant] ?? 0) + 1;
+        }
+        return { coloredPixels, quadrants };
+      });
     },
-    { base64: encoded, point },
+    { base64: encoded, points },
   );
 }

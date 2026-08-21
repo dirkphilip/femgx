@@ -8,13 +8,29 @@ import {
 
 export interface NodeOverlayPipelines {
   readonly visible: GPURenderPipeline;
-  readonly resolved: ResolvedNodeOverlay;
+  readonly resolved: GPURenderPipeline;
 }
 
-interface ResolvedNodeOverlay {
-  readonly vertexModule: GPUShaderModule;
-  readonly fragmentModule: GPUShaderModule;
-  pipeline: GPURenderPipeline | undefined;
+type NodeSpriteOrder = "expanded" | "compact";
+
+const NODE_SPRITE_VERTEX_ENTRIES = {
+  expanded: "nodeOverlayVertexMain",
+  compact: "compactSelectedNodeOverlayVertexMain",
+} as const satisfies Record<NodeSpriteOrder, string>;
+
+/** Returns the family-owned procedural node-sprite geometry contract. */
+export function nodeSpritePipelineGeometry(
+  vertexModule: GPUShaderModule,
+  order: NodeSpriteOrder,
+): Pick<GPURenderPipelineDescriptor, "vertex" | "primitive"> {
+  return {
+    vertex: {
+      module: vertexModule,
+      entryPoint: NODE_SPRITE_VERTEX_ENTRIES[order],
+      buffers: [],
+    },
+    primitive: { topology: "triangle-strip", cullMode: "none" },
+  };
 }
 
 interface NodeOverlayOptions {
@@ -48,71 +64,45 @@ async function createNodePipeline(options: NodePipelineOptions): Promise<NodeOve
     nodeOverlayFragmentShader,
     options.validation,
   );
-  const visible = await createValidatedRenderPipeline(options.device, "node annotation overlay", {
-    layout: options.layout,
-    vertex: {
-      module: options.pointVertexModule,
-      entryPoint: "nodeOverlayVertexMain",
-      buffers: [],
-    },
-    fragment: {
-      module: fragmentModule,
-      entryPoint: "nodeOverlayFragmentMain",
-      targets: [{ format: options.format, writeMask: 0xf }],
-    },
-    primitive: { topology: "triangle-strip", cullMode: "none" },
-    depthStencil: {
-      format: options.depthFormat,
-      depthWriteEnabled: false,
-      depthCompare: "less-equal",
-    },
-    multisample: { count: COLOR_SAMPLE_COUNT, alphaToCoverageEnabled: true },
-  });
-  return {
-    visible,
-    resolved: { vertexModule: options.pointVertexModule, fragmentModule, pipeline: undefined },
-  };
-}
-
-/** Creates the one-sample node pipeline only while resolved edge presentation is active. */
-export function ensureResolvedNodeOverlayPipeline(
-  device: GPUDevice,
-  layout: GPUPipelineLayout,
-  pipelines: NodeOverlayPipelines,
-  format: GPUTextureFormat,
-  depthFormat: GPUTextureFormat,
-): GPURenderPipeline {
-  pipelines.resolved.pipeline ??= device.createRenderPipeline({
-    label: "resolved node annotation overlay",
-    layout,
-    vertex: {
-      module: pipelines.resolved.vertexModule,
-      entryPoint: "nodeOverlayVertexMain",
-      buffers: [],
-    },
-    fragment: {
-      module: pipelines.resolved.fragmentModule,
-      entryPoint: "nodeOverlayResolvedFragmentMain",
-      targets: [
-        {
-          format,
-          blend: {
-            color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
-            alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
-          },
+  const geometry = nodeSpritePipelineGeometry(options.pointVertexModule, "expanded");
+  const create = (
+    label: string,
+    fragmentEntry: "nodeOverlayFragmentMain" | "nodeOverlayResolvedFragmentMain",
+    target: GPUColorTargetState,
+    multisample: GPUMultisampleState,
+  ) =>
+    createValidatedRenderPipeline(options.device, label, {
+      layout: options.layout,
+      ...geometry,
+      fragment: { module: fragmentModule, entryPoint: fragmentEntry, targets: [target] },
+      depthStencil: {
+        format: options.depthFormat,
+        depthWriteEnabled: false,
+        depthCompare: "less-equal",
+      },
+      multisample,
+    });
+  const [visible, resolved] = await Promise.all([
+    create(
+      "node annotation overlay",
+      "nodeOverlayFragmentMain",
+      { format: options.format, writeMask: 0xf },
+      { count: COLOR_SAMPLE_COUNT, alphaToCoverageEnabled: true },
+    ),
+    create(
+      "resolved node annotation overlay",
+      "nodeOverlayResolvedFragmentMain",
+      {
+        format: options.format,
+        blend: {
+          color: { srcFactor: "src-alpha", dstFactor: "one-minus-src-alpha" },
+          alpha: { srcFactor: "one", dstFactor: "one-minus-src-alpha" },
         },
-      ],
-    },
-    primitive: { topology: "triangle-list", cullMode: "none" },
-    depthStencil: { format: depthFormat, depthWriteEnabled: false, depthCompare: "less-equal" },
-    multisample: { count: 1 },
-  });
-  return pipelines.resolved.pipeline;
-}
-
-/** Releases the optional resolved node pipeline when edge presentation becomes inactive. */
-export function releaseResolvedNodeOverlayPipeline(pipelines: NodeOverlayPipelines): void {
-  pipelines.resolved.pipeline = undefined;
+      },
+      { count: 1 },
+    ),
+  ]);
+  return { visible, resolved };
 }
 
 export const nodeOverlayFragmentShader = /* wgsl */ `

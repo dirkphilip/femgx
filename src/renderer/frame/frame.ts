@@ -12,7 +12,6 @@ import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawOriginTriad, originTriadScale, writeOriginTriad } from "../overlays/origin-triad";
 import { drawOrbitPivot, writeOrbitPivot } from "../overlays/orbit-pivot";
 import { drawPresentationOverlayPass, needsResolvedOverlay } from "./presentation-overlay";
-import { releaseResolvedNodeOverlayPipeline } from "../shaders/node-overlay";
 import { drawSectionCaps } from "./section-cap-draw";
 import { writeFrameUniforms } from "./frame-uniforms";
 import type { GpuTimestampFrame } from "../diagnostics/timestamps";
@@ -106,7 +105,6 @@ function prepareVisibleFrame(
     requiresTransparency: needsTransparency,
     requiresOverlays: resolvedOverlay,
   });
-  if (!resolvedOverlay) releaseResolvedNodeOverlayPipeline(frame.resources.nodeOverlayPipelines);
   frame.draw.cost.targets(
     frame.canvas.width,
     frame.canvas.height,

@@ -91,6 +91,7 @@ export function runDepthStableEdges(
   setStatus: SetStatus,
   orthographic: boolean,
 ): void {
+  current.presentation.setNodeSizePixels(12);
   current.view.fit({ durationMs: 0 });
   const camera = setProjection(current.view.camera, orthographic ? "orthographic" : "perspective");
   current.view.setCamera(
@@ -98,22 +99,30 @@ export function runDepthStableEdges(
     { durationMs: 0 },
   );
   let interaction = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
-  interaction = setTargetSelected(
-    interaction,
-    { kind: "node", partOccurrenceId: "1/edge-surface", nodeId: 5 },
-    true,
-  );
+  for (const nodeId of [13, 14]) {
+    interaction = setTargetSelected(
+      interaction,
+      { kind: "node", partOccurrenceId: "1/edge-surface", nodeId },
+      true,
+    );
+  }
   current.interaction.set(interaction);
   current.render();
   const shallow = projectPoint(current.view.camera, [1, 1, 0.4]);
   const steep = projectPoint(current.view.camera, [2, 1, 0.2]);
-  const node = projectPoint(current.view.camera, [2, 1, 0]);
-  if (shallow === undefined || steep === undefined || node === undefined)
+  const interiorNode = projectPoint(current.view.camera, [1, 1, 0.4]);
+  const exteriorNode = projectPoint(current.view.camera, [2, 1, 0.4]);
+  if (
+    shallow === undefined ||
+    steep === undefined ||
+    interiorNode === undefined ||
+    exteriorNode === undefined
+  )
     throw new Error("edge probes did not project");
   setStatus(
     "depth-stable-edges",
     "depth-stable-edges-ready",
-    JSON.stringify({ shallow, steep, node }),
+    JSON.stringify({ shallow, steep, interiorNode, exteriorNode }),
   );
 }
 

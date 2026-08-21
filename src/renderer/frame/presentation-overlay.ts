@@ -4,7 +4,6 @@ import type { DrawCall, DrawCallContext, DrawResources } from "../resources/draw
 import type { ReadyColorTargets } from "../resources/color-targets";
 import { drawBatches } from "./batch";
 import { popDebugGroup, pushDebugGroup } from "./debug";
-import { ensureResolvedNodeOverlayPipeline } from "../shaders/node-overlay";
 import { beginOverlayDepthPass, beginOverlayPass } from "./passes";
 import { ensureOverlayDepthBindGroup, ensureOverlayDepthResources } from "./overlay-depth";
 import type { RenderResources } from "./pipelines";
@@ -89,13 +88,7 @@ export function drawPresentationOverlayPass(options: PresentationOverlayOptions)
     pushDebugGroup(pass, "nodes");
     drawBatches(pass, frame.draw, context, frame.nodeCalls, {
       kind: "nodes",
-      pipeline: ensureResolvedNodeOverlayPipeline(
-        frame.draw.device,
-        frame.resources.pipelineLayout,
-        frame.resources.nodeOverlayPipelines,
-        frame.colorFormat,
-        frame.depthFormat,
-      ),
+      pipeline: frame.resources.nodeOverlayPipelines.resolved,
     });
     popDebugGroup(pass);
   }
