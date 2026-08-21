@@ -32,6 +32,9 @@
 - [[rendering/platform-support|Platform support]] — WebGPU as the product
   requirement, explicit unsupported behavior, and supported-path device
   recovery.
+- [[rendering/pipeline-families|Render pipeline families]] — enforced ownership
+  map for every pipeline-creation module, family geometry contract, pass
+  variants, and justified singleton.
 - [[rendering/renderer-subrange-updates|Renderer subrange updates]] — delta
   updates for instance and element GPU state.
 - [[rendering/selection-occlusion|Selection through occlusion]] — renderer-owned
@@ -70,6 +73,7 @@
 [rendering/order-independent-transparency|Order-independent transparency]: order-independent-transparency.md
 [rendering/pick-format|Pick texture format]: pick-format.md
 [rendering/platform-support|Platform support]: platform-support.md
+[rendering/pipeline-families|Render pipeline families]: pipeline-families.md
 [rendering/renderer-subrange-updates|Renderer subrange updates]: renderer-subrange-updates.md
 [rendering/selection-occlusion|Selection through occlusion]: selection-occlusion.md
 [rendering/section-cut-investigation|Exact FE section-cut investigation]: section-cut-investigation.md

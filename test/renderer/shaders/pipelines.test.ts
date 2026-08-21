@@ -137,6 +137,14 @@ describe("GPU render resources", () => {
       expect(resources.nodeOverlayPipelines.visible).toBeDefined();
       expect(resources.orientationGlyphs.visible).toBeDefined();
       expect(resources.orientationGlyphs.hidden).toBeDefined();
+      const orientationVisible = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "orientation glyph visible",
+      );
+      const orientationHidden = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "orientation glyph hidden",
+      );
+      expect(orientationHidden?.vertex).toEqual(orientationVisible?.vertex);
+      expect(orientationHidden?.primitive).toEqual(orientationVisible?.primitive);
       expect(
         gpu.renderPipelineDescriptors.find(
           (descriptor) => descriptor.label === "node selection visible",
@@ -237,6 +245,29 @@ describe("GPU render resources", () => {
       const nodePipeline = gpu.renderPipelineDescriptors.find(
         (descriptor) => descriptor.label === "node annotation overlay",
       );
+      const resolvedNodePipeline = gpu.renderPipelineDescriptors.find(
+        (descriptor) => descriptor.label === "resolved node annotation overlay",
+      );
+      expect(resolvedNodePipeline?.vertex).toEqual(nodePipeline?.vertex);
+      expect(resolvedNodePipeline?.primitive).toEqual(nodePipeline?.primitive);
+      for (const label of ["node selection visible", "node selection hidden"]) {
+        const nodeSelection = gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === label,
+        );
+        expect(nodeSelection?.vertex).toEqual(nodePipeline?.vertex);
+        expect(nodeSelection?.primitive).toEqual(nodePipeline?.primitive);
+      }
+      for (const label of ["compact node selection visible", "compact node selection hidden"]) {
+        const compactNodeSelection = gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === label,
+        );
+        expect(compactNodeSelection?.vertex).toMatchObject({
+          module: nodePipeline?.vertex.module,
+          entryPoint: "compactSelectedNodeOverlayVertexMain",
+          buffers: nodePipeline?.vertex.buffers,
+        });
+        expect(compactNodeSelection?.primitive).toEqual(nodePipeline?.primitive);
+      }
       expect(nodePipeline?.depthStencil).toMatchObject({
         depthCompare: "less-equal",
         depthWriteEnabled: false,
