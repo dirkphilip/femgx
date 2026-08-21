@@ -16,6 +16,7 @@ import {
   interactionTargetFromHit,
   setPartOccurrenceOverrides,
   setPartOverrides,
+  type ElementRegionSelection,
   type InteractionTargetFor,
 } from "../../src/entries/interaction";
 
@@ -28,6 +29,12 @@ async function assertPickingContracts(viewport: Viewport, hit: PickHit): Promise
     InteractionGranularity.Node,
   );
   expectTypeOf(nodeTargets).toEqualTypeOf<readonly InteractionTargetFor<"node">[]>();
+
+  const elementSelection = await viewport.interaction.pickRegion(
+    { left: 0, top: 0, right: 1, bottom: 1, width: 1, height: 1 },
+    InteractionGranularity.Element,
+  );
+  expectTypeOf(elementSelection).toEqualTypeOf<ElementRegionSelection>();
 
   const faceTarget = interactionTargetFromHit(hit, InteractionGranularity.Face);
   expectTypeOf(faceTarget).toEqualTypeOf<InteractionTargetFor<"face"> | undefined>();

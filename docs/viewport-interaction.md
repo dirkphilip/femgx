@@ -48,17 +48,32 @@ if (target !== undefined) {
 }
 ```
 
-For a visible-region query, {@link root.ViewportInteraction.pickRegion pickRegion}
-returns nearest-visible raster targets without mutating selection. Apply them in
-one transition:
+For an element visible-region query, {@link root.ViewportInteraction.pickRegion pickRegion}
+returns occurrence-grouped CSR columns without mutating selection. The ids are
+stable authored element identities, never renderer slots or GPU pick ids. Apply
+the packed result in one transition; use `"add"` to retain the existing
+selection instead of replacing it:
 
 ```ts
-const targets = await viewport.interaction.pickRegion(
+const selection = await viewport.interaction.pickRegion(
   { left: 20, top: 20, right: 320, bottom: 240 },
   "element",
 );
-viewport.interaction.set(setTargetsSelected(viewport.interaction.state, targets, true));
+viewport.interaction.set(
+  setElementRegionSelected(viewport.interaction.state, selection, "replace"),
+);
+
+for (let group = 0; group < selection.partOccurrenceIds.length; group += 1) {
+  const occurrenceId = selection.partOccurrenceIds[group];
+  const ids = selection.elementIds.subarray(selection.offsets[group], selection.offsets[group + 1]);
+  synchronizeExternalModel(occurrenceId, ids);
+}
 ```
+
+`selectedElementRegion(state)` provides the same grouped shape for current
+host-owned state. Its typed arrays are caller-owned copies; `selectedTargets()`
+remains a descriptor-expansion convenience for small selections and diagnostics.
+Non-element region queries retain their target arrays.
 
 The default policy is opt-in and disposable:
 

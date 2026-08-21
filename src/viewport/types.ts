@@ -2,6 +2,7 @@ import type { Camera } from "../camera/camera";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget, InteractionTargetFor } from "../interaction/target-types";
+import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { DeviceLostInfo } from "../platform/device";
 import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { PartId } from "../geometry/part";
@@ -141,10 +142,7 @@ export interface ViewportInteraction {
     granularity: "body",
   ): Promise<readonly InteractionTargetFor<"body">[]>;
   /** Resolves visible authored elements intersecting a canvas-space rectangle. */
-  pickRegion(
-    rect: BoxSelectionRect,
-    granularity: "element",
-  ): Promise<readonly InteractionTargetFor<"element">[]>;
+  pickRegion(rect: BoxSelectionRect, granularity: "element"): Promise<ElementRegionSelection>;
   /** Resolves visible authored faces intersecting a canvas-space rectangle. */
   pickRegion(
     rect: BoxSelectionRect,
@@ -164,7 +162,7 @@ export interface ViewportInteraction {
   pickRegion(
     rect: BoxSelectionRect,
     granularity: InteractionGranularity,
-  ): Promise<readonly InteractionTarget[]>;
+  ): Promise<ElementRegionSelection | readonly InteractionTarget[]>;
 }
 
 /** Visibility mutations against the active scene and expanded runtime. */

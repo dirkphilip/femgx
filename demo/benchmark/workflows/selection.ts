@@ -2,7 +2,11 @@ import { orbitCamera, projectPoint, type Camera } from "@/camera/camera";
 import { percentiles } from "../statistics";
 import { transformPoint } from "@/math/mat4";
 import { createInteractionState } from "@/interaction/interaction";
-import { setTargetsSelected } from "@/interaction/targets";
+import { setElementRegionSelected, setTargetsSelected } from "@/interaction/targets";
+import {
+  createElementRegionSelection,
+  type ElementRegionSelection,
+} from "@/interaction/element-region-selection";
 import type { BoxSelectionRect } from "@/interaction/box-selection";
 import type { InteractionTarget } from "@/interaction/target-types";
 import type { Part, PartId } from "@/geometry/part";
@@ -98,13 +102,13 @@ async function measureScenario(
   const invalidStart = performance.now();
   const invalidTargets = await renderer.pickRegion(rect, "element");
   const invalidSnapshotMs = performance.now() - invalidStart;
-  if (invalidTargets.length === 0) {
+  if (!isElementRegionSelection(invalidTargets) || invalidTargets.count === 0) {
     throw new Error(`${benchmarkCase.id} ${id} box returned no element targets`);
   }
   const cachedStart = performance.now();
   const cachedTargets = await renderer.pickRegion(rect, "element");
   const cachedReadbackMs = performance.now() - cachedStart;
-  if (cachedTargets.length !== invalidTargets.length) {
+  if (!isElementRegionSelection(cachedTargets) || cachedTargets.count !== invalidTargets.count) {
     throw new Error(`${benchmarkCase.id} ${id} cached box result changed target count`);
   }
   return measureSelectedTargets(options, id, cachedTargets, {
@@ -123,7 +127,7 @@ async function measureAuthoredScenario(
   renderer.render(runtime, camera, benchmarkCase.scene.parts);
   await device.queue.onSubmittedWorkDone();
   const constructionStart = performance.now();
-  const targets = authoredElementTargets(benchmarkCase, runtime, targetCount);
+  const targets = authoredElementRegion(benchmarkCase, runtime, targetCount);
   const targetConstructionMs = performance.now() - constructionStart;
   return measureSelectedTargets(options, id, targets, {
     invalidSnapshotMs: 0,
@@ -137,7 +141,7 @@ export function authoredElementTargets(
   benchmarkCase: WebGpuBenchmarkCase,
   runtime: PackedSceneRuntime,
   count = authoredElementCount(benchmarkCase, runtime),
-): readonly InteractionTarget[] {
+): readonly Extract<InteractionTarget, { readonly kind: "element" }>[] {
   const context = authoredElementContext(benchmarkCase, runtime);
   const { partOccurrenceId, part } = context;
   const graph = partSemanticGraph(part);
@@ -145,7 +149,7 @@ export function authoredElementTargets(
   if (count < 0 || count > elementCount) {
     throw new Error(`${benchmarkCase.id} requested ${count} of ${elementCount} elements`);
   }
-  const targets = new Array<InteractionTarget>(count);
+  const targets = new Array<Extract<InteractionTarget, { readonly kind: "element" }>>(count);
   for (let ordinal = 0; ordinal < count; ordinal += 1) {
     const elementId = graph?.elementIds[ordinal] ?? part.elements?.at(ordinal)?.id;
     if (elementId === undefined) throw new Error(`${benchmarkCase.id} element ${ordinal} missing`);
@@ -176,10 +180,22 @@ function authoredElementContext(
   return { partOccurrenceId, part };
 }
 
+function authoredElementRegion(
+  benchmarkCase: WebGpuBenchmarkCase,
+  runtime: PackedSceneRuntime,
+  count: number,
+): ElementRegionSelection {
+  const { partOccurrenceId } = authoredElementContext(benchmarkCase, runtime);
+  const targets = authoredElementTargets(benchmarkCase, runtime, count);
+  return createElementRegionSelection(
+    new Map([[partOccurrenceId, targets.map((target) => target.elementId)]]),
+  );
+}
+
 async function measureSelectedTargets(
   options: SelectionMeasureOptions,
   id: SelectionBenchmarkPhase["id"],
-  targets: readonly InteractionTarget[],
+  targets: ElementRegionSelection | readonly InteractionTarget[],
   readback: Pick<
     SelectionBenchmarkPhase,
     "invalidSnapshotMs" | "cachedReadbackMs" | "targetConstructionMs"
@@ -188,7 +204,9 @@ async function measureSelectedTargets(
   const { renderer, device, benchmarkCase, runtime, camera } = options;
   const parts = benchmarkCase.scene.parts;
   const stateStart = performance.now();
-  const selected = setTargetsSelected(createInteractionState(), targets, true);
+  const selected = isElementRegionSelection(targets)
+    ? setElementRegionSelected(createInteractionState(), targets, "add")
+    : setTargetsSelected(createInteractionState(), targets, true);
   const interactionStateMs = performance.now() - stateStart;
   renderer.render(runtime, camera, parts);
   await device.queue.onSubmittedWorkDone();
@@ -212,18 +230,19 @@ async function measureSelectedTargets(
   const cameraTransition = await measureCameraTransition(renderer, runtime, camera, parts, device);
   const interactionGpuCost = readGpuCostSnapshot(renderer);
   const selectionLabel = `${benchmarkCase.id} ${id} selection`;
-  if (fullSelectionUsesOrdinarySurface(options, id, targets.length, changedSlots)) {
+  const targetCount = isElementRegionSelection(targets) ? targets.count : targets.length;
+  if (fullSelectionUsesOrdinarySurface(options, id, targetCount, changedSlots)) {
     assertNoElementEmphasisDraw(interactionGpuCost, selectionLabel);
   } else {
     assertElementEmphasisDraw(
       interactionGpuCost,
       selectionLabel,
-      expectedAuthoredIndices(benchmarkCase, id, targets.length),
+      expectedAuthoredIndices(benchmarkCase, id, targetCount),
     );
   }
   const dense = denseSelectionFacts(runtime, parts, selected);
   if (requiresDenseSelection(id)) {
-    if (dense.selectedCount !== targets.length || dense.occurrenceCount !== changedSlots.length) {
+    if (dense.selectedCount !== targetCount || dense.occurrenceCount !== changedSlots.length) {
       throw new Error(`${benchmarkCase.id} ${id} omitted dense selected-element membership`);
     }
   }
@@ -238,7 +257,7 @@ async function measureSelectedTargets(
   const clearSelectionMs = performance.now() - clearStart;
   return {
     id,
-    returnedTargetCount: targets.length,
+    returnedTargetCount: targetCount,
     selectedOccurrenceCount: changedSlots.length,
     targetConstructionMs: readback.targetConstructionMs,
     invalidSnapshotMs: readback.invalidSnapshotMs,
@@ -252,7 +271,7 @@ async function measureSelectedTargets(
     clearSelectionMs,
     interactionGpuCost,
     denseSelectionBytes: dense.bytes,
-    selectedElementRecordBytes: targets.length * ELEMENT_RECORD_STRIDE,
+    selectedElementRecordBytes: targetCount * ELEMENT_RECORD_STRIDE,
   };
 }
 
@@ -364,15 +383,28 @@ async function renderFrame(
 
 function occurrenceSlots(
   runtime: PackedSceneRuntime,
-  targets: readonly InteractionTarget[],
+  targets: ElementRegionSelection | readonly InteractionTarget[],
 ): number[] {
   const slots = new Set<number>();
+  if (isElementRegionSelection(targets)) {
+    for (const partOccurrenceId of targets.partOccurrenceIds) {
+      const slot = runtime.getInstanceSlot(partOccurrenceId);
+      if (slot !== undefined) slots.add(slot);
+    }
+    return [...slots].sort((left, right) => left - right);
+  }
   for (const target of targets) {
     if (target.kind !== "element") continue;
     const slot = runtime.getInstanceSlot(target.partOccurrenceId);
     if (slot !== undefined) slots.add(slot);
   }
   return [...slots].sort((left, right) => left - right);
+}
+
+function isElementRegionSelection(
+  targets: ElementRegionSelection | readonly InteractionTarget[],
+): targets is ElementRegionSelection {
+  return !Array.isArray(targets);
 }
 
 function benchmarkCenter(

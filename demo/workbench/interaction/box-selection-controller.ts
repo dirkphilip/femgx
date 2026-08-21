@@ -1,4 +1,9 @@
-import type { InteractionState, InteractionTarget } from "@/entries/interaction";
+import {
+  setElementRegionSelected,
+  type ElementRegionSelection,
+  type InteractionState,
+  type InteractionTarget,
+} from "@/entries/interaction";
 import { selectedTargetCount } from "@/interaction/selection-queries";
 import {
   BoxSelectionResolverContractError,
@@ -84,9 +89,9 @@ export class WorkbenchBoxSelectionController {
         const queued = this.queued;
         this.queued = undefined;
         const generation = this.generation;
-        let targets: readonly InteractionTarget[];
+        let selection: ElementRegionSelection | readonly InteractionTarget[];
         try {
-          targets = validateBoxSelectionTargets(
+          selection = validateSelection(
             await queued.resolver(queued.request),
             queued.request.granularity,
           );
@@ -95,7 +100,7 @@ export class WorkbenchBoxSelectionController {
           continue;
         }
         if (!this.isCurrent(generation)) continue;
-        this.apply(queued.request, targets);
+        this.apply(queued.request, selection);
       }
     } finally {
       this.queriesInFlight -= 1;
@@ -104,13 +109,17 @@ export class WorkbenchBoxSelectionController {
     }
   }
 
-  private apply(request: BoxSelectionRequest, targets: readonly InteractionTarget[]): void {
-    const selectable = selectableTargets(targets);
+  private apply(
+    request: BoxSelectionRequest,
+    selection: ElementRegionSelection | readonly InteractionTarget[],
+  ): void {
     const current = this.options.getInteraction();
-    const next =
-      request.event.modifiers.control || request.event.modifiers.meta
-        ? appendTargets(current, selectable)
-        : replaceTargets(current, selectable);
+    const add = request.event.modifiers.control || request.event.modifiers.meta;
+    const next = isElementRegion(selection)
+      ? setElementRegionSelected(current, selection, add ? "add" : "replace")
+      : add
+        ? appendTargets(current, selectableTargets(selection))
+        : replaceTargets(current, selectableTargets(selection));
     const selectedCount = selectedTargetCount(next, request.granularity);
     this.options.selectionFeedback?.(
       `Box selection: ${selectedCount} ${selectionNoun(request.granularity, selectedCount)}`,
@@ -131,6 +140,28 @@ export class WorkbenchBoxSelectionController {
   private isCurrent(generation: number): boolean {
     return !this.options.isDisposed() && generation === this.generation;
   }
+}
+
+function validateSelection(
+  selection: ElementRegionSelection | readonly InteractionTarget[],
+  granularity: SelectionGranularity,
+): ElementRegionSelection | readonly InteractionTarget[] {
+  if (granularity === "element") {
+    if (!isElementRegion(selection)) {
+      throw new BoxSelectionResolverContractError("Element selection must be packed");
+    }
+    return selection;
+  }
+  if (isElementRegion(selection)) {
+    throw new BoxSelectionResolverContractError("Non-element selection must use targets");
+  }
+  return validateBoxSelectionTargets(selection, granularity);
+}
+
+function isElementRegion(
+  selection: ElementRegionSelection | readonly InteractionTarget[],
+): selection is ElementRegionSelection {
+  return !Array.isArray(selection);
 }
 
 function selectableTargets(targets: readonly InteractionTarget[]): SelectTarget[] {

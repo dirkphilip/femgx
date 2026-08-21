@@ -1,18 +1,18 @@
 import { clientToCanvasCss } from "../camera/coordinates";
-import { boxSelectionFrustum } from "./box-frustum";
+import { elementRegion, resolveBoxRegion, targetList } from "./viewport-interaction-box";
 import { installBoxSelection, type BoxSelectionEvent } from "./box-selection";
 import { interactionTargetFromHit, setTargetHovered } from "./targets";
 import {
   assertTarget,
   boxInteraction,
   clickInteraction,
+  elementBoxInteraction,
   isCompletedBoxEvent,
   modifiersOf,
 } from "./viewport-interaction-helpers";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
 import type { InteractionGranularity } from "../picking/types";
-import type { BoxSelectionFrustum } from "./box-frustum";
 import type {
   ViewportInteractionApplyRequest,
   ViewportInteractionBoxEvent,
@@ -132,7 +132,6 @@ class ViewportInteraction {
           phase: "hover",
           granularity: this.options.granularity(),
           target: undefined,
-          targets: [],
           modifiers: modifiersOf(event),
           event,
           current,
@@ -232,7 +231,6 @@ class ViewportInteraction {
         current,
         defaultInteraction: next,
         target,
-        targets: target === undefined ? [] : [target],
         modifiers,
         event,
       },
@@ -316,27 +314,43 @@ class ViewportInteraction {
 
   private async queryBox(event: ViewportInteractionBoxEvent, generation: number): Promise<void> {
     const granularity = this.options.granularity();
-    let frustum: BoxSelectionFrustum;
-    let targets: readonly InteractionTarget[];
+    let resolved: Awaited<ReturnType<typeof resolveBoxRegion>>;
     try {
-      frustum = boxSelectionFrustum(this.options.viewport.view.camera, event.rect);
-      targets = this.options.resolveRegion
-        ? await this.options.resolveRegion({
-            rect: event.rect,
-            event,
-            granularity,
-            frustum,
-          })
-        : await this.options.viewport.interaction.pickRegion(event.rect, granularity);
-      for (const target of targets) assertTarget(target, granularity);
+      resolved = await resolveBoxRegion(this.options, event, granularity);
     } catch (error: unknown) {
       if (this.isCurrent(generation)) this.reportError(error, "box");
       return;
     }
     if (!this.isCurrent(generation)) return;
-    const selection = { event, granularity, frustum, targets };
-    this.reportBoxSelection(selection);
+    const { frustum, result } = resolved;
     const current = this.options.viewport.interaction.state;
+    const operation = event.modifiers.control || event.modifiers.meta ? "add" : "replace";
+    if (granularity === "element") {
+      const selection = elementRegion(result);
+      this.reportBoxSelection({ event, granularity, frustum, selection });
+      await this.apply(
+        {
+          phase: "box",
+          granularity,
+          current,
+          defaultInteraction: elementBoxInteraction(current, selection, operation),
+          selection,
+          operation,
+          modifiers: {
+            shift: event.modifiers.shift,
+            control: event.modifiers.control,
+            alt: event.modifiers.alt,
+            meta: event.modifiers.meta,
+          },
+          event,
+          frustum,
+        },
+        generation,
+      );
+      return;
+    }
+    const targets = targetList(result);
+    this.reportBoxSelection({ event, granularity, frustum, targets });
     const next = boxInteraction(current, targets, event.modifiers);
     await this.apply(
       {
@@ -344,8 +358,8 @@ class ViewportInteraction {
         granularity,
         current,
         defaultInteraction: next,
-        target: undefined,
-        targets,
+        selection: targets,
+        operation,
         modifiers: {
           shift: event.modifiers.shift,
           control: event.modifiers.control,

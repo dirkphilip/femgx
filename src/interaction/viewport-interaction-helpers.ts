@@ -3,12 +3,14 @@ import type { BoxSelectionEvent } from "./box-selection";
 import {
   clearSelection,
   isTargetSelected,
+  setElementRegionSelected,
   setTargetSelected,
   setTargetsSelected,
   setTargetHovered,
 } from "./targets";
 import type { InteractionState } from "./interaction";
 import type { InteractionTarget } from "./target-types";
+import type { ElementRegionSelection } from "./element-region-selection";
 import type {
   ViewportInteractionBoxEvent,
   ViewportInteractionModifiers,
@@ -99,6 +101,15 @@ export function boxInteraction(
     return setTargetsSelected(clearSelection(withoutHover), targets, true);
   }
   return setTargetsSelected(withoutHover, uniqueTargets(targets), true);
+}
+
+/** Applies the default packed element-box policy without descriptor expansion. */
+export function elementBoxInteraction(
+  current: InteractionState,
+  selection: ElementRegionSelection,
+  operation: "replace" | "add",
+): InteractionState {
+  return setElementRegionSelected(setTargetHovered(current, undefined), selection, operation);
 }
 
 function targetKey(target: InteractionTarget): string {

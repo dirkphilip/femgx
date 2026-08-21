@@ -1,5 +1,9 @@
 import type { BoxSelectionRect } from "../../interaction/box-selection";
 import type { InteractionTarget } from "../../interaction/target-types";
+import {
+  createElementRegionSelection,
+  type ElementRegionSelection,
+} from "../../interaction/element-region-selection";
 import type { InteractionGranularity } from "../../picking/types";
 import type { PickContext } from "../../picking/pick";
 import { resolvePick } from "../../picking/pick";
@@ -15,6 +19,7 @@ import {
 import { WebGpuPickReadbackError } from "./error";
 import { createPickRegionTargetCollector } from "./region-targets";
 import { getPartResource, type DrawResources } from "../resources/draw-resources";
+import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 
 // Keeps common viewport reads in one mapping while bounding high-DPI regions.
 const REGION_BYTE_BUDGET = 4 * 1024 * 1024;
@@ -116,12 +121,12 @@ export async function pickEdgeTargetsFromRegion(
  */
 export async function pickTargetsFromRegion(
   options: PickRegionOptions,
-): Promise<readonly InteractionTarget[]> {
+): Promise<ElementRegionSelection | readonly InteractionTarget[]> {
   assertGranularity(options.granularity);
   const bounds = renderPixelRect(options.rect, options.canvas);
-  if (bounds === undefined) return [];
+  if (bounds === undefined) return emptyElementRegion(options.granularity);
   const textures = regionTextures(options.pick);
-  if (textures === undefined) return [];
+  if (textures === undefined) return emptyElementRegion(options.granularity);
   const attachments = attachmentsFor(options.granularity);
   const identities: RawIdentities = new Map();
   for (const tile of regionTiles(bounds, attachments.length)) {
@@ -136,7 +141,39 @@ export async function pickTargetsFromRegion(
       "WebGPU pick readback failed: rendering works, but the pick region could not be read back",
     );
   }
-  return resolveTargets(identityValues(identities), options);
+  return options.granularity === "element"
+    ? resolveElementRegion(identityValues(identities), options.context)
+    : resolveTargets(identityValues(identities), options);
+}
+
+function emptyElementRegion(
+  granularity: InteractionGranularity,
+): ElementRegionSelection | readonly InteractionTarget[] {
+  return granularity === "element" ? createElementRegionSelection(new Map()) : [];
+}
+
+function resolveElementRegion(
+  identities: Iterable<RawIdentity>,
+  context: PickContext,
+): ElementRegionSelection {
+  const groups = new Map<string, Set<number>>();
+  for (const ids of identities) {
+    const instance = resolvePick(context.instances, ids.instancePickId - 1);
+    const elementId = ids.elementPickId - 1;
+    const part = instance === undefined ? undefined : context.parts.get(instance.partId);
+    if (
+      instance === undefined ||
+      part === undefined ||
+      ids.elementPickId === 0 ||
+      !getPartSemanticIndex(part).hasElement(elementId)
+    ) {
+      continue;
+    }
+    const values = groups.get(instance.partOccurrenceId);
+    if (values === undefined) groups.set(instance.partOccurrenceId, new Set([elementId]));
+    else values.add(elementId);
+  }
+  return createElementRegionSelection(groups);
 }
 
 function assertRegionTexturesCurrent(pick: PickTargets, snapshot: RegionTextures): void {

@@ -192,7 +192,6 @@ describe("workbench gesture-state", () => {
       current,
       defaultInteraction: next,
       target,
-      targets: [target],
       modifiers,
       event: {} as MouseEvent,
     });
@@ -231,7 +230,6 @@ describe("workbench gesture-state", () => {
       current,
       defaultInteraction: setTargetHovered(current, hovered),
       target: hovered,
-      targets: hovered === undefined ? [] : [hovered],
       modifiers,
       event: hoverEvent,
     });
@@ -247,8 +245,8 @@ describe("workbench gesture-state", () => {
       granularity: "node",
       current: beforeBox,
       defaultInteraction: setTargetSelected(setTargetHovered(beforeBox, undefined), hovered, true),
-      target: undefined,
-      targets: [hovered],
+      selection: [hovered],
+      operation: "replace",
       modifiers,
       event: boxEvent,
       frustum: {} as BoxSelectionFrustum,
@@ -274,7 +272,6 @@ describe("workbench gesture-state", () => {
       current: staleViewportState,
       defaultInteraction: setTargetHovered(staleViewportState, nextHover),
       target: nextHover,
-      targets: nextHover === undefined ? [] : [nextHover],
       modifiers,
       event: nextHoverEvent,
     });

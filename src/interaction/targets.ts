@@ -25,10 +25,15 @@ import {
   type TargetCollections,
   type TargetGroups,
 } from "./selection-transients";
+export { selectedElementRegion, setElementRegionSelected } from "./element-region-state";
 export type { InteractionTarget, InteractionTargetFor } from "./target-types";
 import type { InteractionTarget, InteractionTargetFor } from "./target-types";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 export { bodyOverride, clearSelection, selectedTargets } from "./selection-queries";
+export {
+  createElementRegionSelection,
+  type ElementRegionSelection,
+} from "./element-region-selection";
 
 /**
  * Converts a complete physical hit to a host-owned interaction identity.

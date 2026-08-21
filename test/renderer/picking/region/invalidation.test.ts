@@ -38,9 +38,12 @@ describe("GPU pick regions", () => {
       });
 
       for (let index = 0; index < 3; index += 1) {
-        await expect(targets(gpu, context, "element", selection, pick)).resolves.toEqual([
-          { kind: "element", partOccurrenceId: "root/0", elementId: 4 },
-        ]);
+        await expect(targets(gpu, context, "element", selection, pick)).resolves.toMatchObject({
+          kind: "element",
+          count: 1,
+          partOccurrenceIds: ["root/0"],
+          elementIds: new Uint32Array([4]),
+        });
       }
 
       expect(gpu.submissionCount).toBe(3);
@@ -173,11 +176,14 @@ describe("GPU pick regions", () => {
       };
       await expect(
         targets(gpu, context, "element", rect({ left: 10, right: 10, width: 0 })),
-      ).resolves.toEqual([]);
+      ).resolves.toMatchObject({ kind: "element", count: 0, partOccurrenceIds: [] });
       await expect(targets(gpu, context, "element", rect({ left: Number.NaN }))).rejects.toThrow(
         "finite",
       );
-      await expect(targets(gpu, context, "element")).resolves.toEqual([]);
+      await expect(targets(gpu, context, "element")).resolves.toMatchObject({
+        kind: "element",
+        count: 0,
+      });
     } finally {
       restore();
     }

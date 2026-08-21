@@ -1,8 +1,8 @@
 import { type Viewport } from "@/entries/root";
 import {
   boxSelectionFrustum,
+  createElementRegionSelection,
   type BoxSelectionFrustum,
-  type InteractionTarget,
 } from "@/entries/interaction";
 import { type DeformationState } from "@/entries/results";
 import {
@@ -24,7 +24,7 @@ interface ThroughQueryContext {
   readonly tolerance: number;
   readonly deformation: DeformationState | undefined;
   readonly points: MutableVec3[];
-  readonly targets: InteractionTarget[];
+  readonly groups: Map<string, Set<number>>;
 }
 
 interface ReusableElementQuery extends Omit<ElementQuery, "element" | "elementIndex"> {
@@ -52,7 +52,7 @@ export function throughIntersectionBoxSelectionResolver(
     const frustum = boxSelectionFrustum(view.view.camera, event.rect);
     const tolerance = selectionTolerance(view);
     const deformation = view.results.state?.deformation;
-    const targets: InteractionTarget[] = [];
+    const groups = new Map<string, Set<number>>();
     const points: MutableVec3[] = [
       [0, 0, 0],
       [0, 0, 0],
@@ -64,13 +64,13 @@ export function throughIntersectionBoxSelectionResolver(
       tolerance,
       deformation,
       points,
-      targets,
+      groups,
     };
 
     for (const partOccurrenceId of view.occurrences.visiblePartOccurrenceIds()) {
       appendVisibleOccurrenceTargets(context, partOccurrenceId);
     }
-    return Promise.resolve(targets);
+    return Promise.resolve(createElementRegionSelection(context.groups));
   };
 }
 
@@ -116,7 +116,9 @@ function appendVisibleOccurrenceTargets(
       elementQuery.elementIndex = elementIndex;
     }
     if (elementIntersectsBox(elementQuery)) {
-      context.targets.push({ kind: "element", partOccurrenceId, elementId: element.id });
+      const selected = context.groups.get(partOccurrenceId);
+      if (selected === undefined) context.groups.set(partOccurrenceId, new Set([element.id]));
+      else selected.add(element.id);
     }
   }
 }

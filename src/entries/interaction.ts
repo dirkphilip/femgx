@@ -13,6 +13,7 @@ export {
   type StyleOverride,
 } from "../interaction/interaction";
 export {
+  createElementRegionSelection,
   clearSelection,
   bodyOverride,
   hoveredTarget,
@@ -20,14 +21,17 @@ export {
   isTargetHighlighted,
   isTargetSelected,
   selectedTargets,
+  selectedElementRegion,
   setTargetHighlighted,
   setTargetHovered,
   setTargetsSelected,
+  setElementRegionSelected,
   setTargetsHighlighted,
   setTargetSelected,
   interactionTargetFromHit,
   type InteractionTarget,
   type InteractionTargetFor,
+  type ElementRegionSelection,
 } from "../interaction/targets";
 export {
   emphasizedBodyRefs,

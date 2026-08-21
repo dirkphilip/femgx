@@ -94,7 +94,7 @@ export async function runHardwareConformance(
       section: current.presentation.sectionPlane !== undefined,
       selectedAndHighlighted: true,
       transparentOccurrence: true,
-      region: region.length,
+      region: region.count,
       picked: picked?.kind ?? "none",
     }),
   );

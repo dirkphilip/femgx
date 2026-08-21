@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { identityMatrix, type Scene, type SectionPlane, type Viewport } from "@/entries/root";
-import { createInteractionState } from "@/entries/interaction";
+import { createInteractionState, type ElementRegionSelection } from "@/entries/interaction";
 import { createCamera } from "@/entries/camera";
 import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
@@ -30,21 +30,21 @@ describe("through-box selection benchmark", () => {
       const coldHalf = performance.now() - coldStart;
       const narrowTargets = await resolver(narrowRequest);
       const broadTargets = await resolver(broadRequest);
-      expect(narrowTargets.length).toBeGreaterThan(0);
-      expect(halfTargets.length).toBeGreaterThan(0);
-      expect(halfTargets.length).toBeLessThan(broadTargets.length);
-      const narrow = await measure(resolver, narrowRequest, 3, narrowTargets.length);
-      const half = await measure(resolver, halfRequest, 3, halfTargets.length);
+      expect(elementCount(narrowTargets)).toBeGreaterThan(0);
+      expect(elementCount(halfTargets)).toBeGreaterThan(0);
+      expect(elementCount(halfTargets)).toBeLessThan(elementCount(broadTargets));
+      const narrow = await measure(resolver, narrowRequest, 3, elementCount(narrowTargets));
+      const half = await measure(resolver, halfRequest, 3, elementCount(halfTargets));
       const broad = await measure(resolver, broadRequest, 3, expectedCount);
       setSectionPlane({ normal: [0, 0, 1], distance: -gridSize / 2 });
       const sectionTargets = await resolver(halfRequest);
-      const sectionHalf = await measure(resolver, halfRequest, 3, sectionTargets.length);
+      const sectionHalf = await measure(resolver, halfRequest, 3, elementCount(sectionTargets));
       const boundsBytes = queryData(part).elementBounds.byteLength;
 
       console.info(
         `through-box ${family} ${gridSize}^3: cold half ${coldHalf.toFixed(2)} ms, ` +
           `narrow median ${narrow.toFixed(2)} ms, ` +
-          `half median ${half.toFixed(2)} ms (${halfTargets.length} elements), ` +
+          `half median ${half.toFixed(2)} ms (${elementCount(halfTargets)} elements), ` +
           `broad median ${broad.toFixed(2)} ms, section half ${sectionHalf.toFixed(2)} ms, ` +
           `${expectedCount} elements, ${boundsBytes} bounds bytes`,
       );
@@ -56,6 +56,13 @@ describe("through-box selection benchmark", () => {
     60_000,
   );
 });
+
+function elementCount(
+  result: Awaited<ReturnType<ReturnType<typeof throughIntersectionBoxSelectionResolver>>>,
+): number {
+  if (Array.isArray(result)) throw new Error("Through resolver returned targets");
+  return (result as ElementRegionSelection).count;
+}
 
 function denseFixture(
   family: "tet4" | "hex8",
@@ -126,7 +133,7 @@ async function measure(
     const start = performance.now();
     const targets = await resolver(selection);
     durations.push(performance.now() - start);
-    if (expectedCount > 0) expect(targets).toHaveLength(expectedCount);
+    if (expectedCount > 0) expect(elementCount(targets)).toBe(expectedCount);
   }
   durations.sort((left, right) => left - right);
   return durations[Math.floor(durations.length / 2)] ?? 0;
