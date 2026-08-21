@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { createInteractionState } from "../../src/entries/interaction";
 import { createSceneOccurrenceSnapshot } from "../../src/scene-runtime/occurrences";
 import { createBoltedPlateFixture } from "../../demo/fixtures/bolted-plate";
+import { type WorkbenchSnapshotInput } from "../../demo/workbench/presentation/snapshot";
 import {
   createWorkbenchSnapshot,
   WorkbenchSnapshotBridge,
-  type WorkbenchSnapshotInput,
-} from "../../demo/workbench/results/snapshot";
+} from "../../demo/workbench/presentation/snapshot-builder";
 import type { WorkbenchModel } from "../../demo/workbench/models/model";
 import type { WorkbenchResultLegendSnapshot } from "../../demo/workbench/results/result-legend";
 

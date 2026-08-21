@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { WorkbenchController } from "../controllers/controller";
+  import type { WorkbenchPresentationPort } from "../presentation/snapshot";
   import type {
     WorkbenchVisibilityRowSnapshot,
     WorkbenchVisibilitySnapshot,
   } from "../state/visibility-snapshot";
 
   let {
-    controller,
+    workbench,
     visibility,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     visibility: WorkbenchVisibilitySnapshot | undefined;
   } = $props();
 
@@ -54,33 +54,33 @@
   }
 
   function toggleVisibility(row: WorkbenchVisibilityRowSnapshot): void {
-    controller?.commands.toggleVisibility(row.target);
+    workbench?.commands.toggleVisibility(row.target);
   }
 
   function toggleBodyHighlight(row: WorkbenchVisibilityRowSnapshot): void {
-    if (row.target.kind === "body") controller?.commands.toggleBodyHighlight(row.target);
+    if (row.target.kind === "body") workbench?.commands.toggleBodyHighlight(row.target);
   }
 
   function openElementDetail(row: WorkbenchVisibilityRowSnapshot): void {
-    if (row.target.kind === "body") controller?.commands.openElementDetail(row.target);
+    if (row.target.kind === "body") workbench?.commands.openElementDetail(row.target);
   }
 
   function toggleExpanded(row: WorkbenchVisibilityRowSnapshot): void {
     if (row.target.kind === "assembly") {
-      controller?.commands.toggleVisibilityTree(row.target.occurrenceId);
+      workbench?.commands.toggleVisibilityTree(row.target.occurrenceId);
     }
   }
 
   function setPage(page: number): void {
-    controller?.commands.setVisibilityPage(page);
+    workbench?.commands.setVisibilityPage(page);
   }
 
   function setHierarchyHover(row: WorkbenchVisibilityRowSnapshot): void {
-    controller?.commands.setHierarchyHover(row.target);
+    workbench?.commands.setHierarchyHover(row.target);
   }
 
   function clearHierarchyHover(row: WorkbenchVisibilityRowSnapshot): void {
-    controller?.commands.clearHierarchyHover(row.target);
+    workbench?.commands.clearHierarchyHover(row.target);
   }
 
   function bodyId(row: WorkbenchVisibilityRowSnapshot): number | undefined {

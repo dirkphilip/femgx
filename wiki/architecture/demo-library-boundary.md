@@ -53,6 +53,38 @@ ordinary component updates. The plain TypeScript controller and session core
 remain the lifecycle and state owners; Svelte is a replaceable presentation
 layer.
 
+### Workbench ownership and dependency direction
+
+`presentation/snapshot.ts` owns the workbench-wide `WorkbenchPresentationPort`
+and immutable snapshot stream.
+Svelte receives its immutable snapshot stream and typed commands through that
+port. The sole additional read is the bounded element-detail query, which keeps
+a virtualized body list from copying an unbounded element-id array into every
+snapshot. UI components must never import `controllers/` directly.
+
+`controllers/` is the workbench composition owner: it wires model sessions,
+viewport slots, interaction, presentation state, and the command-port adapter.
+`start.ts` creates that owner; no other workbench implementation module may
+depend on controllers. Conversely, implementation modules must not depend on
+`ui/`. This makes the data and control direction visible without turning the
+feature folders into a second framework.
+
+The architecture lint checks those two boundaries, rejects runtime dependency
+cycles under `demo/workbench/`, and applies the 400 effective-line ceiling to
+Svelte components as well as TypeScript. It also bans new dynamic property
+installation. `state/show-state.ts` retains one documented legacy adapter for
+the pre-existing slot-map controller shape; it is an explicit ownership debt,
+not a pattern for new work. A later state-ownership change should replace that
+adapter with an explicit owner only when it can remove the surrounding wiring
+rather than adding forwarding accessors.
+
+The checks intentionally do not impose a function-count, command-count, or
+generic abstraction-count limit. Clear responsibility, direct ownership, and
+the smallest useful command groups remain review criteria. Type-only coupling
+is also reviewed as an ownership signal, but the automated cycle check covers
+runtime edges so it does not require a generic type barrel or churn existing
+declaration-only relationships.
+
 ## Emphasis rendering
 
 Node/face emphasis is represented and rendered entirely through library APIs,

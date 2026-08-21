@@ -18,7 +18,7 @@ import { errorMessage } from "./models/model";
 import { selectTarget, targetKey } from "./selection/pick";
 import type { WorkbenchResultPlaybackActions } from "./results/result-playback";
 import type { DemoView, WorkbenchPane, ViewportSlotId } from "./viewport/view";
-import type { WorkbenchStartupStatus } from "./results/snapshot";
+import type { WorkbenchStartupStatus } from "./presentation/snapshot";
 
 /** Inputs for the WebGPU demo path. */
 export interface WebGpuDemoOptions {

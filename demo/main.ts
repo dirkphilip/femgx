@@ -3,11 +3,13 @@ import WorkbenchApp from "./workbench/ui/WorkbenchApp.svelte";
 import { queryDemoView } from "./workbench/viewport/view";
 import { startWebGpuDemo } from "./workbench/start";
 import { readDemoHarnessOptions } from "./devtools/harness";
-import type { WorkbenchController } from "./workbench/controllers/controller";
-import type { WorkbenchStartupStatus } from "./workbench/results/snapshot";
+import type {
+  WorkbenchPresentationPort,
+  WorkbenchStartupStatus,
+} from "./workbench/presentation/snapshot";
 
 interface WorkbenchAppHandle {
-  connectWorkbench(controller: WorkbenchController): void;
+  connectWorkbench(workbench: WorkbenchPresentationPort): void;
   reportStartupFailure(status: WorkbenchStartupStatus): void;
 }
 
@@ -18,13 +20,13 @@ if (!isWorkbenchAppHandle(mountedApp)) throw new Error("The workbench component 
 const workbenchApp = mountedApp;
 
 const view = queryDemoView();
-const controller = await startWebGpuDemo({
+const workbench = await startWebGpuDemo({
   view,
   canvas: view.primaryPane.canvas,
   reportStartupFailure: workbenchApp.reportStartupFailure.bind(workbenchApp),
   ...readDemoHarnessOptions(),
 });
-if (controller !== undefined) workbenchApp.connectWorkbench(controller);
+if (workbench !== undefined) workbenchApp.connectWorkbench(workbench);
 
 function isWorkbenchAppHandle(value: unknown): value is WorkbenchAppHandle {
   return (

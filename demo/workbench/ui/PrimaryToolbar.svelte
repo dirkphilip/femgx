@@ -1,15 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchPresentationPort, WorkbenchSnapshot } from "../presentation/snapshot";
   import AnalysisControls from "./AnalysisControls.svelte";
+  import { controlValue } from "./control-value";
 
   let {
-    controller,
+    workbench,
     snapshot,
     navigationOpen = false,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
     navigationOpen?: boolean;
   } = $props();
@@ -53,35 +53,19 @@
     return `${panel}-controls`;
   }
 
-  function selectValue(event: unknown): string | undefined {
-    if (typeof event !== "object" || event === null || !("currentTarget" in event)) {
-      return undefined;
-    }
-    const currentTarget = event.currentTarget;
-    if (
-      typeof currentTarget !== "object" ||
-      currentTarget === null ||
-      !("value" in currentTarget)
-    ) {
-      return undefined;
-    }
-    const value = currentTarget.value;
-    return typeof value === "string" ? value : undefined;
-  }
-
   function setBackground(event: unknown): void {
-    const value = selectValue(event);
-    if (value !== undefined) controller?.commands.setBackground(value);
+    const value = controlValue(event);
+    if (value !== undefined) workbench?.commands.setBackground(value);
   }
 
   function setSelectionGranularity(event: unknown): void {
-    const value = selectValue(event);
-    if (value !== undefined) controller?.commands.setSelectionGranularity(value);
+    const value = controlValue(event);
+    if (value !== undefined) workbench?.commands.setSelectionGranularity(value);
   }
 
   function setBoxSelectionStrategy(event: unknown): void {
-    const value = selectValue(event);
-    if (value !== undefined) controller?.commands.setBoxSelectionStrategy(value);
+    const value = controlValue(event);
+    if (value !== undefined) workbench?.commands.setBoxSelectionStrategy(value);
   }
 
   function containsTarget(target: Node): boolean {
@@ -178,7 +162,7 @@
       data-testid="select-all"
       type="button"
       title="Select every explicitly visible target at the active granularity."
-      onclick={() => controller?.commands.selectAll()}>Select all</button
+      onclick={() => workbench?.commands.selectAll()}>Select all</button
     >
     <button
       id="hide-selected"
@@ -191,7 +175,7 @@
       title={(snapshot?.hierarchy.hideSelectedElementCount ?? 0) === 0
         ? "Select one or more visible elements to hide."
         : `Hide ${snapshot?.hierarchy.hideSelectedElementCount} selected visible element${snapshot?.hierarchy.hideSelectedElementCount === 1 ? "" : "s"}.`}
-      onclick={() => controller?.commands.hideSelected()}>Hide selected</button
+      onclick={() => workbench?.commands.hideSelected()}>Hide selected</button
     >
     <button
       id="clear-selection"
@@ -201,14 +185,14 @@
       title={(snapshot?.hierarchy.selectedCount ?? 0) === 0
         ? "No selection to clear."
         : "Clear selection without changing visibility, results, or camera."}
-      onclick={() => controller?.commands.clearSelection()}>Clear selection</button
+      onclick={() => workbench?.commands.clearSelection()}>Clear selection</button
     >
     <button
       id="show-all"
       data-testid="show-all"
       type="button"
       title="Restore all model visibility without clearing selection or changing the camera."
-      onclick={() => controller?.commands.showAll()}>Show all</button
+      onclick={() => workbench?.commands.showAll()}>Show all</button
     >
   </section>
 
@@ -229,7 +213,7 @@
       title={snapshot?.toolbar.fitSelectionAvailable
         ? "Frame the visible selected geometry. Press Z to use the same action."
         : "Frame the complete model because no visible selection can be framed. Press Z to use the same action."}
-      onclick={() => controller?.commands.fitSelection()}
+      onclick={() => workbench?.commands.fitSelection()}
       >{snapshot?.toolbar.fitSelectionAvailable ? "Fit selection" : "Fit model"}</button
     >
     <button
@@ -237,7 +221,7 @@
       data-testid="projection-toggle"
       type="button"
       aria-label={`Projection: ${snapshot?.toolbar.projection ?? "perspective"}`}
-      onclick={() => controller?.commands.setProjection()}
+      onclick={() => workbench?.commands.setProjection()}
       >{snapshot?.toolbar.projection === "orthographic" ? "Orthographic" : "Perspective"}</button
     >
     <label class="toolbar-background" for="background-select">
@@ -263,7 +247,7 @@
         ? "Close secondary viewport"
         : "Add secondary viewport"}
       disabled={snapshot?.toolbar.secondaryBusy ?? false}
-      onclick={() => controller?.commands.toggleSecondaryViewport()}
+      onclick={() => workbench?.commands.toggleSecondaryViewport()}
       >{snapshot?.toolbar.secondaryBusy
         ? "Opening…"
         : snapshot?.toolbar.secondaryOpen
@@ -285,7 +269,7 @@
       data-testid="edge-overlay"
       type="button"
       aria-pressed={snapshot?.toolbar.edges ?? true}
-      onclick={() => controller?.commands.toggleEdges()}>Edges</button
+      onclick={() => workbench?.commands.toggleEdges()}>Edges</button
     >
     <button
       id="node-overlay"
@@ -293,7 +277,7 @@
       type="button"
       aria-pressed={snapshot?.toolbar.nodes ?? true}
       title="Toggle node annotations. Point elements use their primary glyph as the node marker."
-      onclick={() => controller?.commands.toggleNodes()}>Nodes</button
+      onclick={() => workbench?.commands.toggleNodes()}>Nodes</button
     >
     <button
       id="continuous-rendering"
@@ -301,7 +285,7 @@
       type="button"
       aria-pressed={snapshot?.toolbar.continuous ?? false}
       title="Start a recurring render-loop sample for manual inspection."
-      onclick={() => controller?.commands.toggleContinuous()}>Continuous</button
+      onclick={() => workbench?.commands.toggleContinuous()}>Continuous</button
     >
   </section>
 
@@ -313,7 +297,7 @@
     aria-labelledby="command-analysis"
     hidden={!isOpen("analysis")}
   >
-    <AnalysisControls {controller} {snapshot} />
+    <AnalysisControls {workbench} {snapshot} />
   </section>
 
   <div

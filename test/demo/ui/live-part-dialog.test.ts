@@ -19,7 +19,7 @@ describe("live part dialog", () => {
     document.body.append(target);
     const component = mount(LivePartDialog, {
       target,
-      props: { controller: undefined, snapshot: createSnapshot(false) },
+      props: { workbench: undefined, snapshot: createSnapshot(false) },
     });
 
     expect(target.querySelector("[data-testid=live-part-dialog]")).toBeNull();
@@ -27,13 +27,13 @@ describe("live part dialog", () => {
     await unmount(component);
   });
 
-  it("submits bounded add and instance requests and cancels through the controller", async () => {
+  it("submits bounded add and instance requests through the presentation port", async () => {
     const calls: string[] = [];
-    const controller = fakeController(calls);
+    const workbench = fakeController(calls);
     const target = document.createElement("div");
     document.body.append(target);
     const add = withDialog("add");
-    const component = mount(LivePartDialog, { target, props: { controller, snapshot: add } });
+    const component = mount(LivePartDialog, { target, props: { workbench, snapshot: add } });
     const form = target.querySelector("form");
     if (form === null) throw new Error("live part form is missing");
 
@@ -46,7 +46,7 @@ describe("live part dialog", () => {
     await unmount(component);
 
     const instance = withDialog("instance", 17, "Live Hex8 box");
-    const named = mount(LivePartDialog, { target, props: { controller, snapshot: instance } });
+    const named = mount(LivePartDialog, { target, props: { workbench, snapshot: instance } });
     expect(target.textContent).toContain("Part 17 · Live Hex8 box");
     (target.querySelector("button[type=button]") as HTMLButtonElement).click();
     await tick();
@@ -55,7 +55,7 @@ describe("live part dialog", () => {
 
     const unnamed = mount(LivePartDialog, {
       target,
-      props: { controller, snapshot: withDialog("instance", 17) },
+      props: { workbench, snapshot: withDialog("instance", 17) },
     });
     expect(target.textContent).toContain("Part 17");
     expect(target.textContent).not.toContain("Part 17 ·");

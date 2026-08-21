@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchSnapshot } from "../presentation/snapshot";
   import type { WorkbenchResultLegendSnapshot } from "../results/result-legend";
   import { vectorGlyphLabel, vectorTransformLabel } from "../results/result-controls";
 

@@ -10,7 +10,7 @@ import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog } from "../models/model-catalog";
 import { parseLivePartRequest, prepareLivePartEdit } from "../live-part-addition";
 import { BASE_RESULT_VALUE } from "../results/result-controls";
-import type { WorkbenchLivePartDialogSnapshot } from "../results/snapshot";
+import type { WorkbenchLivePartDialogSnapshot } from "../presentation/snapshot";
 import { rememberCatalogModel } from "./controller-catalog";
 
 interface LivePartEditOwner {

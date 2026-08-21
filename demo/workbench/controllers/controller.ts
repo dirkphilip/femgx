@@ -1,8 +1,7 @@
-import { type Viewport, type ViewportBackground } from "@/entries/root";
+import { type SceneOccurrences, type Viewport, type ViewportBackground } from "@/entries/root";
 import { type InteractionState } from "@/entries/interaction";
 import { importGlb } from "@/entries/io/glb";
-import type { SceneOccurrences } from "@/entries/root";
-import type { DemoView } from "../viewport/view";
+import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog, WorkbenchCatalogMode } from "../models/model-catalog";
 import {
@@ -26,7 +25,6 @@ import type {
   TouchInteractionMode,
   WorkbenchOptions,
 } from "../types";
-import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlots, WorkbenchViewportSlot } from "../viewport/viewport-slots";
 import { WorkbenchModelSession } from "../models/model-session";
 import { activateModelForOwner } from "../models/model-activation";
@@ -66,7 +64,10 @@ import {
   setDeformationScale as applyDeformationScale,
   setResultField as applyResultField,
 } from "../results/result-actions";
-import { createControllerInfrastructure, installControllerLifecycle } from "./controller-wiring";
+import {
+  createWorkbenchInfrastructure,
+  installControllerLifecycle,
+} from "./controller-infrastructure";
 import {
   createElementDetailActions,
   type WorkbenchElementDetailActions,
@@ -85,14 +86,14 @@ import {
 import type { SectionAxis } from "../section-controls";
 import { selectAll as applySelectAll } from "../selection/select-all";
 import {
-  WorkbenchSnapshotBridge,
   type WorkbenchCommands,
+  type WorkbenchLivePartDialogSnapshot,
   type WorkbenchSnapshot,
   type WorkbenchSnapshotListener,
-  type WorkbenchElementDetailSnapshot,
-  snapshotInputFromOwner,
-} from "../results/snapshot";
-import { createWorkbenchCommands } from "../interaction/commands";
+} from "../presentation/snapshot";
+import { WorkbenchSnapshotBridge, snapshotInputFromOwner } from "../presentation/snapshot-builder";
+import type { WorkbenchElementDetailSnapshot } from "../state/show-state";
+import { createWorkbenchCommands } from "./controller-commands";
 import {
   activeSlotChangedForController,
   activeViewportForOwner,
@@ -121,9 +122,8 @@ import {
   markCanvasHover as markCanvasHoverForOwner,
   resetHoverOwner as resetHoverOwnerForOwner,
   setHierarchyHover as setHierarchyHoverForOwner,
-  type WorkbenchHoverOwner,
 } from "./controller-hover";
-import type { WorkbenchLivePartDialogSnapshot } from "../results/snapshot";
+import type { WorkbenchHoverOwner } from "../state/show-state";
 import {
   applyLivePartEditForOwner,
   cancelLivePartEditForOwner,
@@ -222,7 +222,7 @@ export class WorkbenchController {
   }
 
   private initializeInfrastructure(options: WorkbenchOptions): void {
-    const infrastructure = createControllerInfrastructure(this, options);
+    const infrastructure = createWorkbenchInfrastructure(this, options.createViewport);
     this.viewportSlots = infrastructure.viewportSlots;
     const features = infrastructure.features;
     this.menu = features.menu;
@@ -289,6 +289,10 @@ export class WorkbenchController {
     return this.commandSurface;
   }
 
+  get elementDetails() {
+    return this.elementDetailActions;
+  }
+
   get catalogMode(): WorkbenchCatalogMode {
     return this.catalog.mode;
   }
@@ -349,11 +353,6 @@ export class WorkbenchController {
   setTouchInteractionMode = changeTouchInteractionMode.bind(null, this);
 
   setBackground = setBackgroundForOwner.bind(null, this);
-
-  setInteraction = (interaction: InteractionState): void => {
-    this.interaction = interaction;
-    this.publishSnapshot();
-  };
 
   setDiagnostics = setDiagnosticsForOwner.bind(null, this);
 

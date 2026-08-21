@@ -2,24 +2,39 @@ import {
   selectedElementVisibilitySummary,
   selectedTargetSummary,
 } from "@/interaction/selection-queries";
+import type { InteractionState } from "@/entries/interaction";
+import type { Camera } from "@/entries/camera";
+import type { SceneOccurrences, ViewportBackground } from "@/entries/root";
 import {
   DEFORMATION_OFF_VALUE,
   displayedScalarFieldId,
   resultScalarFieldsForModel,
   resultVectorFieldsForModel,
   VECTOR_OFF_VALUE,
-} from "./result-controls";
+} from "../results/result-controls";
 import { sectionRange } from "../section-controls";
 import { hasVisibleSelection } from "../selection/selection";
-import { emptyResultLegend } from "./result-legend";
+import { emptyResultLegend } from "../results/result-legend";
+import type { WorkbenchResultPlaybackActions } from "../results/result-playback";
+import type { WorkbenchModel } from "../models/model";
+import type { WorkbenchCatalogMode } from "../models/model-catalog";
+import type { WorkbenchVisibilitySnapshot } from "../state/visibility-snapshot";
+import type { DisplayToggles, ResultDisplayMode, TouchInteractionMode } from "../types";
 import type {
+  WorkbenchLivePartDialogSnapshot,
   WorkbenchResultField,
   WorkbenchSnapshot,
   WorkbenchSnapshotInput,
   WorkbenchPresentationSnapshot,
+  WorkbenchSnapshotListener,
 } from "./snapshot";
+import type { WorkbenchElementDetailSnapshot } from "../state/show-state";
+import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
+import type { SelectionGranularity } from "../selection/pick";
+import type { SectionAxis } from "../section-controls";
+import type { VectorDisplayState } from "../results/result-controls";
 
-/** Builds a bounded immutable presentation snapshot without exposing runtime or GPU storage. */
+/** Builds a presentation snapshot from controller-owned state. */
 export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapshot {
   const presentation = input.presentation ?? defaultPresentationSnapshot(input.toggles.diagnostics);
   const visibility = input.visibility ?? {
@@ -173,4 +188,99 @@ function resultField(field: {
   readonly location: "nodal" | "elemental";
 }): WorkbenchResultField {
   return Object.freeze({ id: field.id, name: field.name, location: field.location });
+}
+
+interface WorkbenchSnapshotOwner {
+  readonly model: WorkbenchModel;
+  readonly models: readonly WorkbenchModel[];
+  readonly catalogMode: WorkbenchCatalogMode;
+  readonly catalogSelectionId: string;
+  readonly runtime: SceneOccurrences;
+  readonly interaction: InteractionState;
+  readonly rendererName: string;
+  readonly rendererState: string;
+  readonly background: ViewportBackground;
+  readonly toggles: Readonly<DisplayToggles>;
+  readonly continuousEnabled: boolean;
+  readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
+  readonly touchInteractionMode: TouchInteractionMode;
+  readonly scalarFieldId: string;
+  readonly resultMode: ResultDisplayMode;
+  readonly deformationScale: number;
+  readonly vectorDisplay: VectorDisplayState;
+  readonly sectionAxis: SectionAxis;
+  readonly sectionOffset: number;
+  readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
+  readonly livePartDialog: WorkbenchLivePartDialogSnapshot | undefined;
+  readonly resultPlaybackActions: Pick<WorkbenchResultPlaybackActions, "snapshot">;
+  readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
+  readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
+  readonly viewportSlots: {
+    activeSlot(): { readonly id: "primary" | "secondary" };
+    isSecondaryVisible(): boolean;
+    isSecondaryOpening(): boolean;
+  };
+  activeViewport(): { readonly view: { readonly camera: Pick<Camera, "mode"> } };
+}
+
+/** Owns one presentation snapshot stream without creating a second state owner. */
+export class WorkbenchSnapshotBridge {
+  private readonly listeners = new Set<WorkbenchSnapshotListener>();
+
+  constructor(private readonly read: () => WorkbenchSnapshotInput) {}
+
+  get current(): WorkbenchSnapshot {
+    return createWorkbenchSnapshot(this.read());
+  }
+
+  subscribe(listener: WorkbenchSnapshotListener): () => void {
+    this.listeners.add(listener);
+    listener(this.current);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  publish(): void {
+    if (this.listeners.size === 0) return;
+    const snapshot = this.current;
+    for (const listener of this.listeners) listener(snapshot);
+  }
+}
+
+/** Adapts the controller's state owner to the immutable presentation snapshot input. */
+export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): WorkbenchSnapshotInput {
+  const resultPlayback = owner.resultPlaybackActions.snapshot();
+  return {
+    model: owner.model,
+    models: owner.models,
+    catalogMode: owner.catalogMode,
+    catalogSelectionId: owner.catalogSelectionId,
+    runtime: owner.runtime,
+    interaction: owner.interaction,
+    rendererName: owner.rendererName,
+    rendererState: owner.rendererState,
+    cameraMode: owner.activeViewport().view.camera.mode,
+    background: owner.background,
+    toggles: owner.toggles,
+    continuous: owner.continuousEnabled,
+    selectionGranularity: owner.selectionGranularity,
+    boxSelectionStrategy: owner.boxSelectionStrategy,
+    touchInteractionMode: owner.touchInteractionMode,
+    activeSlot: owner.viewportSlots.activeSlot().id,
+    scalarFieldId: owner.scalarFieldId,
+    secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
+    secondaryBusy: owner.viewportSlots.isSecondaryOpening(),
+    resultMode: owner.resultMode,
+    deformationScale: owner.deformationScale,
+    vectorDisplay: owner.vectorDisplay,
+    sectionAxis: owner.sectionAxis,
+    sectionOffset: owner.sectionOffset,
+    ...(owner.elementDetail === undefined ? {} : { elementDetail: owner.elementDetail }),
+    ...(owner.livePartDialog === undefined ? {} : { livePartDialog: owner.livePartDialog }),
+    ...(resultPlayback === undefined ? {} : { resultPlayback }),
+    presentation: owner.presentation.snapshot(),
+    visibility: owner.visibilityPanel.snapshot(),
+  };
 }

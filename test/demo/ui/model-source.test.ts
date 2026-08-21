@@ -26,7 +26,7 @@ describe("workbench model source", () => {
     document.body.append(target);
     const component = mount(ModelSource, {
       target,
-      props: { controller: fakeController(calls), snapshot },
+      props: { workbench: fakeController(calls), snapshot },
     });
 
     expect(element(target, "#tet4-cells")).toBeDefined();
@@ -42,7 +42,7 @@ describe("workbench model source", () => {
     document.body.append(target);
     const component = mount(ModelSource, {
       target,
-      props: { controller: fakeController([]), snapshot: createSnapshot(false) },
+      props: { workbench: fakeController([]), snapshot: createSnapshot(false) },
     });
 
     expect(target.querySelector("#mesh-tet4")).toBeNull();

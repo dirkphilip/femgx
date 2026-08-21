@@ -1,27 +1,18 @@
-import { type PartOccurrenceId, type Viewport } from "@/entries/root";
+import { type Viewport } from "@/entries/root";
 import {
   setTargetHovered,
   setTargetsHighlighted,
   type InteractionState,
 } from "@/entries/interaction";
-import type { ElementId } from "@/entries/model";
 import {
   interactionTargetsForRow,
   visibilityRowTargetsEqual,
   type VisibilityRowTarget,
 } from "../state/visibility-snapshot";
 import type { ViewportSlotId } from "../viewport/view";
+import type { ElementDetailHoverTarget, WorkbenchHoverOwner } from "../state/show-state";
 
-export type WorkbenchHoverOwner =
-  | { readonly kind: "canvas"; readonly slotId: ViewportSlotId }
-  | { readonly kind: "hierarchy"; readonly row: VisibilityRowTarget }
-  | { readonly kind: "element-detail"; readonly target: ElementDetailHoverTarget };
-
-/** Stable element identity used while the body-scoped detail list owns hover. */
-export interface ElementDetailHoverTarget {
-  readonly partOccurrenceId: PartOccurrenceId;
-  readonly elementId: ElementId;
-}
+export type { ElementDetailHoverTarget, WorkbenchHoverOwner } from "../state/show-state";
 
 export interface WorkbenchHoverController {
   disposed: boolean;

@@ -1,6 +1,9 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
+  import type {
+    WorkbenchPresentationPort,
+    WorkbenchSnapshot,
+    WorkbenchStartupStatus,
+  } from "../presentation/snapshot";
   import ContextMenu from "./ContextMenu.svelte";
   import PrimaryToolbar from "./PrimaryToolbar.svelte";
   import ResultLegend from "./ResultLegend.svelte";
@@ -10,12 +13,12 @@
   import ViewportPane from "./ViewportPane.svelte";
 
   let {
-    controller,
+    workbench,
     snapshot,
     startup,
     navigationOpen = false,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
     startup: WorkbenchStartupStatus | undefined;
     navigationOpen?: boolean;
@@ -23,7 +26,7 @@
 </script>
 
 <div id="viewport-shell" aria-hidden={navigationOpen}>
-  <PrimaryToolbar {controller} {snapshot} {navigationOpen} />
+  <PrimaryToolbar {workbench} {snapshot} {navigationOpen} />
   <div
     id="viewport-workspace"
     data-secondary-open={snapshot?.toolbar.secondaryOpen ?? false}
@@ -40,9 +43,9 @@
       {/if}
     </ViewportPane>
     <ResultLegend {snapshot} />
-    <TouchToolRail {controller} {snapshot} />
+    <TouchToolRail {workbench} {snapshot} />
   </div>
 </div>
 
-<ContextMenu {controller} {snapshot} />
-<LivePartDialog {controller} {snapshot} />
+<ContextMenu {workbench} {snapshot} />
+<LivePartDialog {workbench} {snapshot} />

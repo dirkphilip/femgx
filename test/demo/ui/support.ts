@@ -4,16 +4,14 @@ import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";
 import { createExampleModel } from "../../../demo/workbench/models/model";
-import type { WorkbenchController } from "../../../demo/workbench/controllers/controller";
 import type {
   WorkbenchCommands,
-  WorkbenchElementDetailSnapshot,
+  WorkbenchPresentationPort,
   WorkbenchSnapshot,
-} from "../../../demo/workbench/results/snapshot";
-import {
-  createWorkbenchSnapshot,
-  type WorkbenchSnapshotInput,
-} from "../../../demo/workbench/results/snapshot";
+  WorkbenchSnapshotInput,
+} from "../../../demo/workbench/presentation/snapshot";
+import { createWorkbenchSnapshot } from "../../../demo/workbench/presentation/snapshot-builder";
+import type { WorkbenchElementDetailSnapshot } from "../../../demo/workbench/state/show-state";
 import type { WorkbenchVisibilityRowSnapshot } from "../../../demo/workbench/state/visibility-snapshot";
 import type { VisibilityRowTarget } from "../../../demo/workbench/state/visibility-snapshot";
 import { DEFORMATION_OFF_VALUE } from "../../../demo/workbench/results/result-controls";
@@ -63,29 +61,40 @@ function element(target: HTMLElement, selector: string): HTMLElement {
   return value;
 }
 
-/** Creates a command-recording controller for component tests. */
-function fakeController(calls: string[]): WorkbenchController {
+/** Creates a command-recording presentation port for component tests. */
+function fakeController(calls: string[]): WorkbenchPresentationPort {
   return controllerWithCommands(calls);
 }
 
-/** Wraps command recording in the controller shape required by the UI. */
-function controllerWithCommands(calls: string[]): WorkbenchController {
-  return { commands: createCommands(calls) } as unknown as WorkbenchController;
+/** Wraps command recording in the presentation-port shape required by the UI. */
+function controllerWithCommands(calls: string[]): WorkbenchPresentationPort {
+  return {
+    commands: createCommands(calls),
+    elementDetails: {
+      elementIdsForDetail: () => [],
+      isElementSelected: () => false,
+    },
+    subscribe: () => () => undefined,
+  };
 }
 
-/** Creates a controller that immediately publishes a chosen snapshot. */
+/** Creates a presentation port that immediately publishes a chosen snapshot. */
 function connectableController(
   snapshot: WorkbenchSnapshot,
   calls: string[],
   commands: WorkbenchCommands = createCommands(calls),
-): WorkbenchController {
+): WorkbenchPresentationPort {
   return {
     commands,
+    elementDetails: {
+      elementIdsForDetail: () => [],
+      isElementSelected: () => false,
+    },
     subscribe: (listener: (current: WorkbenchSnapshot) => void) => {
       listener(snapshot);
       return () => calls.push("unsubscribe");
     },
-  } as unknown as WorkbenchController;
+  };
 }
 
 /** Creates typed command spies without duplicating the command surface. */
@@ -268,9 +277,9 @@ export {
   withOverlayState,
 };
 export type {
-  WorkbenchController,
   WorkbenchCommands,
   WorkbenchElementDetailSnapshot,
+  WorkbenchPresentationPort,
   WorkbenchSnapshot,
   WorkbenchSnapshotInput,
   WorkbenchVisibilityRowSnapshot,

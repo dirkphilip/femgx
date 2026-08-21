@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
+  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../presentation/snapshot";
 
   let {
     snapshot,

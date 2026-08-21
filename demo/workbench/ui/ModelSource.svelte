@@ -4,14 +4,18 @@
     TET4_DENSE_DEFAULT_CELLS,
     TET4_DENSE_MAX_CELLS,
   } from "../../benchmark/dense-tet4";
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchCommands, WorkbenchSnapshot } from "../results/snapshot";
+  import type {
+    WorkbenchCommands,
+    WorkbenchPresentationPort,
+    WorkbenchSnapshot,
+  } from "../presentation/snapshot";
+  import { controlValue } from "./control-value";
 
   let {
-    controller,
+    workbench,
     snapshot,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
 
@@ -20,20 +24,13 @@
   let modelFileInput: { click(): void; value: string } | undefined;
   let tet4Cells = $state(String(TET4_DENSE_DEFAULT_CELLS));
 
-  function selectValue(event: unknown): string | undefined {
-    const currentTarget = eventTarget(event);
-    if (currentTarget === undefined || !("value" in currentTarget)) return undefined;
-    const value = currentTarget.value;
-    return typeof value === "string" ? value : undefined;
-  }
-
   function selectModel(event: unknown): void {
-    const value = selectValue(event);
-    if (value !== undefined) controller?.commands.selectModel(value);
+    const value = controlValue(event);
+    if (value !== undefined) workbench?.commands.selectModel(value);
   }
 
   function toggleCatalogMode(): void {
-    controller?.commands.setCatalogMode(
+    workbench?.commands.setCatalogMode(
       snapshot?.model.mode === "performance" ? "ordinary" : "performance",
     );
   }
@@ -41,7 +38,7 @@
   function meshTet4(): void {
     const cells = parseTet4Cells(tet4Cells);
     if (cells === undefined) return;
-    controller?.commands.meshTet4(cells);
+    workbench?.commands.meshTet4(cells);
   }
 
   function meshTet4OnEnter(event: unknown): void {
@@ -62,7 +59,7 @@
     if (files === null || typeof files !== "object" || !("0" in files)) return;
     const file = files[0];
     if (!isModelFile(file)) return;
-    const command = controller?.commands.openModel(file);
+    const command = workbench?.commands.openModel(file);
     if (command !== undefined) void command.then(resetModelFileInput, resetModelFileInput);
   }
 
@@ -139,7 +136,7 @@
         disabled={snapshot.model.selectionDisabled}
         aria-label="Tet4 grid cells per axis"
         oninput={(event) => {
-          tet4Cells = selectValue(event) ?? tet4Cells;
+          tet4Cells = controlValue(event) ?? tet4Cells;
         }}
         onkeydown={meshTet4OnEnter}
       />

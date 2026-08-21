@@ -1,12 +1,11 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchPresentationPort, WorkbenchSnapshot } from "../presentation/snapshot";
 
   let {
-    controller,
+    workbench,
     snapshot,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
   let copies = $state("1");
@@ -14,7 +13,7 @@
   let dialog = $derived(snapshot?.overlays.livePartDialog);
 
   function submit(): void {
-    controller?.commands.applyLivePartEdit(copies, spacing);
+    workbench?.commands.applyLivePartEdit(copies, spacing);
   }
 </script>
 
@@ -60,7 +59,7 @@
         >{copies || "0"} placement{copies === "1" ? "" : "s"} in a deterministic X/Z grid</output
       >
       <div class="live-part-actions">
-        <button type="button" onclick={() => controller?.commands.cancelLivePartEdit()}
+        <button type="button" onclick={() => workbench?.commands.cancelLivePartEdit()}
           >Cancel</button
         >
         <button type="submit" data-testid="live-part-apply">Apply</button>

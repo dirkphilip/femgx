@@ -4,7 +4,7 @@ import type {
   WorkbenchContextMenuSnapshot,
   WorkbenchMenuAction,
   WorkbenchMenuEntry,
-} from "../results/snapshot";
+} from "../presentation/snapshot";
 
 /** Labels for target-specific selection actions rendered by the context menu. */
 export interface WorkbenchMenuSelectionOptions {
