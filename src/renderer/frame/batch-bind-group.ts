@@ -49,7 +49,9 @@ export function createBatchBindGroup(options: {
     surfaceSubset: !overlay && subset,
     edgePick,
     admission,
-    cache: options.cache ?? (!edgePick && part.geometries.length === 1),
+    cache:
+      options.cache ??
+      (!edgePick && part.geometries.length === 1 && call.selectionRanges === undefined),
     ...(options.orderByteOffset === undefined ? {} : { orderByteOffset: options.orderByteOffset }),
   });
 }

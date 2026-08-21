@@ -6,6 +6,7 @@ import {
   writeSelectedNodeCompactOrder,
   writeNodeSelectionOrder,
   writeSelectionOrder,
+  clearSelectionReplay,
   type DrawResources,
 } from "./resources/draw-resources";
 import { buildNodeOrder, type InstanceLayout } from "./runtime-state";
@@ -187,6 +188,7 @@ function syncSelectedInstanceOrders(options: {
     parts: partDefinitions,
   });
   for (const partId of parts) {
+    clearSelectionReplay(draw, partId);
     const order = orders.get(partId) ?? new Uint32Array();
     writeSelectionOrder(draw, partId, order);
     layout.partSelectionCounts.set(partId, order.length);

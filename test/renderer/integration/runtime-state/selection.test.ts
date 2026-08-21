@@ -69,7 +69,7 @@ describe("renderer runtime state", () => {
     runtime.setInstanceVisible(1, true);
   });
 
-  it("builds ranged selection calls for omitted face-subset elements and keeps broad selection fallback", () => {
+  it("builds exact ranged selection calls for omitted and explicit face-subset selection", () => {
     const scene = createSceneBuilder()
       .addPart(rangedSelectionPart)
       .addAssembly({
@@ -206,7 +206,14 @@ describe("renderer runtime state", () => {
         part: rangedSelectionPart,
         order: allElementOrder,
       }),
-    ).toBeUndefined();
+    ).toEqual([
+      {
+        partId: rangedSelectionPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 9 }],
+      },
+    ]);
     const allElementsAndUnknown = setElementSelected(
       allElements,
       { partOccurrenceId: "1/0", elementId: 999 },
@@ -278,7 +285,7 @@ describe("renderer runtime state", () => {
     ).toBeUndefined();
   });
 
-  it("retains full hidden selection when an explicit face subset contains interior faces", () => {
+  it("retains interior faces when every element in an explicit face subset is selected", () => {
     const scene = createSceneBuilder()
       .addPart(interiorSubsetPart)
       .addAssembly({
@@ -316,7 +323,14 @@ describe("renderer runtime state", () => {
         part: interiorSubsetPart,
         order,
       }),
-    ).toBeUndefined();
+    ).toEqual([
+      {
+        partId: interiorSubsetPart.id,
+        instanceCount: 1,
+        firstInstance: 0,
+        selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 18 }],
+      },
+    ]);
   });
 
   it("builds one selected-region skin when a dense selection omits an element", () => {

@@ -28,10 +28,11 @@ export function triangleUploadData(
   };
 }
 
-/** Builds a compact source-vertex table for an exterior face subset. */
+/** Builds a compact source-vertex table with optional prevalidated draw-primitive ids. */
 export function triangleSubsetUploadData(
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   sourceIndices: Uint32Array,
+  primitiveIds: Uint32Array = primitiveIdsForSourceIndices(geometry, sourceIndices),
 ): UploadVertexData {
   const sourceVertexByIndex = new Map<number, number>();
   const compactIndices = new Uint32Array(sourceIndices.length);
@@ -57,7 +58,7 @@ export function triangleSubsetUploadData(
     positions: new Float32Array(positions),
     indices: sequentialIndices(sourceIndices.length),
     nodePickIds: new Uint32Array(nodePickIds),
-    primitiveIds: primitiveIdsForSourceIndices(geometry, sourceIndices),
+    primitiveIds,
     cornerIndices: compactIndices,
   };
 }

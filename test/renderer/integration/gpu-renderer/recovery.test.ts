@@ -15,6 +15,7 @@ import {
   installFreshDeviceNavigator,
   buildScene,
   buildSectionScene,
+  buildSubsetSelectionScene,
   camera,
   installGpuTestGlobals,
   installGpuTestEnvironment,
@@ -156,6 +157,48 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].instances).toBe(1);
+    renderer.destroy();
+  });
+
+  it("rebuilds compact subset selection replay after device recovery", async () => {
+    installGpuTestGlobals();
+    const gpus = installFreshDeviceNavigator();
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildSubsetSelectionScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const selected = setElementSelected(
+      createInteractionState(),
+      { partOccurrenceId: "1/0", elementId: 7 },
+      true,
+    );
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateInstances(runtime, selected, [0]);
+    renderer.updateElements(runtime, selected, [0]);
+    const first = gpus[0];
+    if (first === undefined) throw new Error("missing initial fake device");
+    const allocationStart = first.buffers.length;
+    const drawStart = first.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(first.drawCalls.slice(drawStart)).toContainEqual({ indexCount: 3, instanceCount: 1 });
+    const replayBuffers = first.buffers.slice(allocationStart);
+    expect(replayBuffers.length).toBeGreaterThanOrEqual(4);
+
+    first.lose("unknown", "selection replay recovery");
+    await first.lost;
+    await renderer.recover();
+    expect(replayBuffers.every((buffer) => buffer.destroyed)).toBe(true);
+
+    const recovered = gpus[1];
+    if (recovered === undefined) throw new Error("missing recovered fake device");
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateInstances(runtime, selected, [0]);
+    renderer.updateElements(runtime, selected, [0]);
+    const recoveredDrawStart = recovered.drawCalls.length;
+    renderer.render(runtime, camera, scene.parts);
+    expect(recovered.drawCalls.slice(recoveredDrawStart)).toContainEqual({
+      indexCount: 3,
+      instanceCount: 1,
+    });
     renderer.destroy();
   });
 

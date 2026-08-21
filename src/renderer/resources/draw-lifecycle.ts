@@ -48,6 +48,16 @@ export function destroyPartResource(resource: PartResource): void {
   }
 }
 
+/** Releases compact selected-primitive replays for one part. */
+export function clearSelectionReplay(draw: DrawResources, partId: PartId): void {
+  const replays = draw.selectionReplays.get(partId);
+  if (replays === undefined) return;
+  for (const primitiveReplays of replays.values()) {
+    for (const resource of primitiveReplays.values()) destroyPartResource(resource);
+  }
+  draw.selectionReplays.delete(partId);
+}
+
 /** Releases every resource owned by the draw path. */
 export function destroyDrawResources(draw: DrawResources): void {
   if (draw.destroyed) return;
@@ -63,6 +73,7 @@ export function destroyDrawResources(draw: DrawResources): void {
     if (!destroyed.has(resource)) destroyPartResource(resource);
   }
   draw.primitiveParts.clear();
+  for (const partId of [...draw.selectionReplays.keys()]) clearSelectionReplay(draw, partId);
   draw.admissionCache.clear();
   for (const resource of draw.nodeParts.values()) destroyPartResource(resource);
   draw.parts.clear();
@@ -89,6 +100,7 @@ export function destroyPartResources(draw: DrawResources, partId: PartId): void 
   const storage = draw.storages.get(partId);
   if (storage !== undefined) invalidateBindGroups(storage, draw.cost);
   destroyVisibilitySkinCache(draw, partId);
+  clearSelectionReplay(draw, partId);
   const resources = draw.primitiveParts.get(partId);
   if (resources !== undefined) {
     for (const resource of resources.values()) destroyPartResource(resource);

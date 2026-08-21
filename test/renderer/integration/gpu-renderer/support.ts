@@ -167,6 +167,36 @@ export function buildSectionScene(): Scene {
     .build();
 }
 
+/** Two Tet4 elements whose shared face is omitted from the retained exterior subset. */
+export function buildSubsetSelectionScene(): Scene {
+  const model = createElementModel(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1],
+    [
+      createElement(7, ElementShape.Tet4, [0, 1, 2, 3]),
+      createElement(8, ElementShape.Tet4, [0, 2, 1, 4]),
+    ],
+  );
+  const part = createPartFromElementModel(1, model, {
+    faceSubset: [
+      { elementId: 7, faceIndex: 0 },
+      { elementId: 7, faceIndex: 1 },
+      { elementId: 7, faceIndex: 2 },
+      { elementId: 8, faceIndex: 0 },
+      { elementId: 8, faceIndex: 1 },
+      { elementId: 8, faceIndex: 2 },
+    ],
+  });
+  return createSceneBuilder()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+    })
+    .setRootAssembly(1)
+    .build();
+}
+
 /** Shared renderer test helper. */
 export function buildFaceScene(): Scene {
   const positions = new Float32Array([-1, -1, 0, 1, -1, 0, 0, 1, 0]);

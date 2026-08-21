@@ -31,4 +31,22 @@ describe("GPU support helpers", () => {
       restore();
     }
   });
+
+  it("rejects storage bindings that exceed the active device limit", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice({ maxStorageBufferBindingSize: 8 });
+      expect(() =>
+        createBuffer(
+          gpu.device,
+          new Uint32Array([1, 2, 3]),
+          GPUBufferUsage.STORAGE,
+          "selection replay",
+        ),
+      ).toThrow("selection replay: 12 bytes exceeds device maxStorageBufferBindingSize 8");
+      expect(gpu.buffers).toHaveLength(0);
+    } finally {
+      restore();
+    }
+  });
 });

@@ -66,9 +66,7 @@ export function buildSelectionDrawCalls(options: {
     if (groupGeometry !== undefined && !sameSelectionGeometry(groupGeometry, geometry)) {
       // A grouped call is instanced, so its GPU cost is one draw per range,
       // independent of how many selected occurrences share that range set.
-      const rangeCount = isSelectionRanges(groupGeometry)
-        ? groupGeometry.length
-        : groupGeometry.interfaceRanges.length;
+      const rangeCount = selectionDrawCount(part, groupGeometry);
       if (rangedDrawCount + rangeCount > MAX_RANGED_SELECTION_DRAWS) return undefined;
       appendSelectionCalls(calls, groupGeometry, {
         partId,
@@ -169,29 +167,25 @@ function fallbackSelectionGeometry(
     const element = metadata.element(elementId);
     if (element === undefined) return undefined;
     for (const range of element.primitiveRanges) {
-      const nextRangeCount = addPrimitiveRange(
+      rangeCount = addPrimitiveRange(
         byPrimitive,
         rangeCount,
         range.primitive,
         range.primitiveStart,
         range.primitiveCount,
       );
-      if (nextRangeCount === undefined) return undefined;
-      rangeCount = nextRangeCount;
     }
   }
   for (const [key] of selectedFaces ?? []) {
     const face = faceForIdentity(metadata, key);
     if (face === undefined) return undefined;
-    const nextRangeCount = addPrimitiveRange(
+    rangeCount = addPrimitiveRange(
       byPrimitive,
       rangeCount,
       "triangles",
       face.primitiveStart,
       face.primitiveCount,
     );
-    if (nextRangeCount === undefined) return undefined;
-    rangeCount = nextRangeCount;
   }
   const ranges = materializeRanges(byPrimitive);
   const rangedIndexCount = ranges.reduce((count, range) => count + range.indexCount, 0);
@@ -199,7 +193,12 @@ function fallbackSelectionGeometry(
     const indicesPerPrimitive = geometry.primitive === "triangles" ? 3 : 6;
     return count + logicalPrimitiveCount(geometry) * indicesPerPrimitive;
   }, 0);
-  return rangedIndexCount * 2 < fullIndexCount ? ranges : undefined;
+  const replaysSubsetTriangles =
+    ranges.some((range) => range.primitive === "triangles") &&
+    part.geometries.some(
+      (geometry) => geometry.primitive === "triangles" && geometry.faceSubset !== undefined,
+    );
+  return replaysSubsetTriangles || rangedIndexCount * 2 < fullIndexCount ? ranges : undefined;
 }
 
 function faceForIdentity(metadata: PartSemanticIndex, identity: string) {
@@ -274,14 +273,12 @@ function denseInterfaceRanges(
         const ownerOrdinal = metadata.elementOrdinal(face.elementId);
         if (ownerOrdinal === undefined) return undefined;
         if (!isSelectionBitSet(words, ownerOrdinal)) continue;
-        const nextRangeCount = addPrimitiveRangeToIntervals(
+        rangeCount = addPrimitiveRangeToIntervals(
           intervals,
           rangeCount,
           face.primitiveStart,
           face.primitiveCount,
         );
-        if (nextRangeCount === undefined) return undefined;
-        rangeCount = nextRangeCount;
       }
       unselected = (unselected & (unselected - 1)) >>> 0;
     }
@@ -295,7 +292,7 @@ function addPrimitiveRange(
   primitive: Primitive,
   primitiveStart: number,
   primitiveCount: number,
-): number | undefined {
+): number {
   const indicesPerPrimitive = primitive === "triangles" ? 3 : 6;
   const ranges = byPrimitive.get(primitive) ?? [];
   const nextRangeCount = addPrimitiveRangeToIntervals(
@@ -305,7 +302,7 @@ function addPrimitiveRange(
     primitiveCount,
     indicesPerPrimitive,
   );
-  if (nextRangeCount !== undefined) byPrimitive.set(primitive, ranges);
+  byPrimitive.set(primitive, ranges);
   return nextRangeCount;
 }
 
@@ -315,7 +312,7 @@ function addPrimitiveRangeToIntervals(
   primitiveStart: number,
   primitiveCount: number,
   indicesPerPrimitive = 3,
-): number | undefined {
+): number {
   const firstIndex = primitiveStart * indicesPerPrimitive;
   const endIndex = (primitiveStart + primitiveCount) * indicesPerPrimitive;
   let insertion = 0;
@@ -332,7 +329,6 @@ function addPrimitiveRangeToIntervals(
   }
   const removedCount = (mergeEnd - insertion) / 2;
   const nextRangeCount = rangeCount - removedCount + 1;
-  if (nextRangeCount > MAX_RANGED_SELECTION_DRAWS) return undefined;
   const shift = 2 - (mergeEnd - insertion);
   const previousLength = ranges.length;
   if (shift > 0) ranges.length += shift;
@@ -341,6 +337,21 @@ function addPrimitiveRangeToIntervals(
   ranges[insertion] = mergedStart;
   ranges[insertion + 1] = mergedEnd;
   return nextRangeCount;
+}
+
+function selectionDrawCount(part: Part, geometry: SelectionGeometry): number {
+  if (!isSelectionRanges(geometry)) return geometry.interfaceRanges.length === 0 ? 1 : 2;
+  const replayTriangles = part.geometries.some(
+    (candidate) => candidate.primitive === "triangles" && candidate.faceSubset !== undefined,
+  );
+  if (!replayTriangles) return geometry.length;
+  let count = 0;
+  let hasTriangles = false;
+  for (const range of geometry) {
+    if (range.primitive === "triangles") hasTriangles = true;
+    else count += 1;
+  }
+  return count + (hasTriangles ? 1 : 0);
 }
 
 function materializeTriangleRanges(intervals: readonly number[]): readonly SelectionDrawRange[] {

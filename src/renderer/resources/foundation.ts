@@ -1,5 +1,13 @@
 import type { ResolvedStyle } from "../../interaction/interaction";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
+import type { Primitive } from "../../geometry/part";
+
+/** One contiguous index range for a selected primitive group. */
+export interface SelectionDrawRange {
+  readonly primitive: Primitive;
+  readonly firstIndex: number;
+  readonly indexCount: number;
+}
 
 interface PartEdgeResource {
   readonly edgeNodePickIdsBuffer: GPUBuffer;
@@ -83,9 +91,16 @@ export function createBuffer(
   usage: GPUBufferUsageFlags,
   label = "femgx uploaded buffer",
 ): GPUBuffer {
+  const size = Math.max(4, data.byteLength);
+  const storageLimit = device.limits.maxStorageBufferBindingSize;
+  if ((usage & GPUBufferUsage.STORAGE) !== 0 && size > storageLimit) {
+    throw new Error(
+      `Cannot allocate ${label}: ${size} bytes exceeds device maxStorageBufferBindingSize ${storageLimit}`,
+    );
+  }
   const buffer = device.createBuffer({
     label,
-    size: Math.max(4, data.byteLength),
+    size,
     usage: usage | GPUBufferUsage.COPY_DST,
   });
   // queue.writeBuffer copies the source before returning; an intermediate

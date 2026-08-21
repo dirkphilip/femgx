@@ -14,6 +14,7 @@ import {
   record,
   drawContext,
 } from "./support";
+import { clearSelectionReplay, selectionReplayResource } from "@/renderer/resources/draw-resources";
 
 describe("GPU draw path", () => {
   it("binds a visibility skin against the full expanded surface", () => {
@@ -34,7 +35,7 @@ describe("GPU draw path", () => {
       drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }]);
       const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
       if (resource === undefined) throw new Error("Subset resource was not uploaded");
-      expect(resource.fullVertexBuffer).toBeDefined();
+      expect(resource.fullVertexBuffer).toBeUndefined();
       drawBatches(pass, draw, context, [
         {
           partId: subsetPart.id,
@@ -139,15 +140,16 @@ describe("GPU draw path", () => {
         { indexCount: 3, instanceCount: 1 },
         { indexCount: 6, instanceCount: 1 },
         { indexCount: 3, instanceCount: 1 },
-        { indexCount: 3, instanceCount: 1, firstIndex: 3 },
+        { indexCount: 3, instanceCount: 1 },
         { indexCount: 6, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
       ]);
     } finally {
       restore();
     }
   });
 
-  it("keeps ranged selection on full geometry before using the face subset", () => {
+  it("compacts ranged selection before drawing a retained face subset", () => {
     const restore = installGpuGlobals();
     try {
       const gpu = fakeGpuDevice();
@@ -188,10 +190,82 @@ describe("GPU draw path", () => {
       );
       pass.end();
       expect(gpu.drawCalls).toEqual([
-        { indexCount: 3, instanceCount: 1, firstIndex: 3, firstInstance: 1 },
+        { indexCount: 3, instanceCount: 1, firstInstance: 1 },
         { indexCount: 3, instanceCount: 1 },
       ]);
       expect(gpu.bindGroupCreations).toBe(2);
+    } finally {
+      restore();
+    }
+  });
+
+  it("replays a subset-resident interior selection without materializing full geometry", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, subsetPart.id, [{ slot: 0, data: record(0) }]);
+      writeSelectionOrder(draw, subsetPart.id, new Uint32Array([0]));
+      const encoder = gpu.device.createCommandEncoder();
+      const pass = beginColorPass(
+        encoder,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+        {} as GPUTextureView,
+      );
+      const context = { ...drawContext(), parts: new Map([[subsetPart.id, subsetPart]]) };
+      drawBatches(pass, draw, context, [{ partId: subsetPart.id, instanceCount: 1 }]);
+      drawBatches(
+        pass,
+        draw,
+        context,
+        [
+          {
+            partId: subsetPart.id,
+            instanceCount: 1,
+            selectionRanges: [{ primitive: "triangles", firstIndex: 0, indexCount: 3 }],
+          },
+        ],
+        { kind: "surface", pass: "selection-visible", surfaceSubset: true },
+      );
+      pass.end();
+
+      const resource = draw.primitiveParts.get(subsetPart.id)?.get("triangles");
+      expect(resource?.fullVertexBuffer).toBeUndefined();
+      expect(gpu.drawCalls).toEqual([
+        { indexCount: 3, instanceCount: 1 },
+        { indexCount: 3, instanceCount: 1 },
+      ]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("caches and clears compact replays for the current selection identities", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      const geometry = subsetPart.geometries[0];
+      if (geometry?.primitive !== "triangles") throw new Error("Expected triangle fixture");
+      const first = selectionReplayResource(draw, subsetPart, geometry, [
+        { primitive: "triangles", firstIndex: 0, indexCount: 3 },
+      ]);
+      const repeated = selectionReplayResource(draw, subsetPart, geometry, [
+        { primitive: "triangles", firstIndex: 0, indexCount: 3 },
+      ]);
+      const distinct = selectionReplayResource(draw, subsetPart, geometry, [
+        { primitive: "triangles", firstIndex: 3, indexCount: 3 },
+      ]);
+      if (first === undefined || distinct === undefined) throw new Error("Replay was not built");
+
+      expect(repeated).toBe(first);
+      expect(distinct).not.toBe(first);
+      expect(first.facePickIdsBuffer.size).toBe(80);
+      expect(gpu.buffers.filter((buffer) => buffer.destroyed)).toHaveLength(0);
+      clearSelectionReplay(draw, subsetPart.id);
+      expect(draw.selectionReplays.has(subsetPart.id)).toBe(false);
+      expect(gpu.buffers.filter((buffer) => buffer.destroyed)).toHaveLength(8);
     } finally {
       restore();
     }
