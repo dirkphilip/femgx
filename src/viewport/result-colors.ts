@@ -7,6 +7,7 @@ import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type { PartOccurrenceId } from "../scene/types";
 import { renderedPartIds } from "./results-roles";
+import { RevisedBindingMap, revisedResultBindings } from "./results/revision-bindings";
 import type {
   ViewportResultField,
   ViewportResultsState,
@@ -38,13 +39,11 @@ export function reconcileViewportResultColors(
   const current = colorsByState.get(state);
   const prior = colorsByState.get(previous);
   if (current === undefined || prior === undefined) return;
-  const colors = new Map(current);
-  for (const [bindingId, table] of prior) {
-    if (!current.has(bindingId) || bindingUsesRevisedPart(bindingId, runtime, revisedPartIds)) {
-      continue;
-    }
-    colors.set(bindingId, table);
-  }
+  const colors = new RevisedBindingMap(
+    prior,
+    current,
+    revisedResultBindings(runtime, revisedPartIds),
+  );
   colorsByState.set(state, colors);
 }
 

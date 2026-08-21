@@ -5,6 +5,7 @@ import {
 } from "../../renderer/gpu-renderer";
 import type { PartRevisionResultState } from "../../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
+import type { PartId } from "../../geometry/part";
 import type { Scene } from "../../scene/scene";
 import {
   resolveViewportResults,
@@ -14,6 +15,7 @@ import {
   type ViewportResultsConfig,
   type ViewportResultsState,
 } from "../results";
+import { revisedResultBindings } from "./revision-bindings";
 
 interface ViewportResultsApplication {
   readonly results: ViewportResultsConfig;
@@ -53,12 +55,53 @@ export function applyResolvedViewportResults(
 /** Converts resolved viewport results to the renderer-private revision transaction input. */
 export function partRevisionResultState(
   results: ViewportResultsState | undefined,
+  runtime: PackedSceneRuntime,
+  partIds: ReadonlySet<PartId>,
 ): PartRevisionResultState {
+  const colors = results === undefined ? undefined : viewportResultColors(results);
+  const glyphs = glyphState(results);
   return {
     deformation: results?.deformation,
-    colors: results === undefined ? undefined : viewportResultColors(results),
-    glyphs: glyphState(results),
+    colors,
+    glyphs,
+    staged:
+      results === undefined
+        ? undefined
+        : revisedResultState(results.deformation, colors, glyphs, runtime, partIds),
   };
+}
+
+function revisedResultState(
+  deformation: ViewportResultsState["deformation"],
+  colors: ReturnType<typeof viewportResultColors>,
+  glyphs: ReturnType<typeof glyphState>,
+  runtime: PackedSceneRuntime,
+  partIds: ReadonlySet<PartId>,
+) {
+  const bindings = revisedResultBindings(runtime, partIds);
+  return {
+    deformation:
+      deformation === undefined
+        ? undefined
+        : { ...deformation, displacements: revisedBindings(deformation.displacements, bindings) },
+    colors: colors === undefined ? undefined : revisedBindings(colors, bindings),
+    glyphs:
+      glyphs === undefined
+        ? undefined
+        : { ...glyphs, parts: revisedBindings(glyphs.parts, bindings) },
+  };
+}
+
+function revisedBindings<K, V>(
+  source: ReadonlyMap<K, V>,
+  bindings: ReadonlySet<K>,
+): ReadonlyMap<K, V> {
+  const revised = new Map<K, V>();
+  for (const binding of bindings) {
+    const value = source.get(binding);
+    if (value !== undefined) revised.set(binding, value);
+  }
+  return revised;
 }
 
 function glyphState(results: ViewportResultsState | undefined) {

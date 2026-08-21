@@ -26,6 +26,7 @@ import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
 import type { InstanceStorage } from "../resources/instance-storage";
 import { createPartRevisionStagingDevice, type StagedBufferWrite } from "./part-revision-writes";
+import { PartRevisionMap } from "./part-revision-overlay";
 
 export interface PartRevisionAttachmentHost extends AttachmentCallLists {
   interactionState: InteractionState;
@@ -46,12 +47,15 @@ export interface PreparedPartRevision {
   readonly layout: InstanceLayout;
   readonly parts: Map<PartId, Part>;
   readonly flags: AttachmentFlagState;
+  readonly commitFlags: (target: AttachmentFlagState) => void;
   readonly interaction: InteractionState;
   readonly results: PartRevisionResultState | undefined;
   readonly interactionState: AttachmentInteractionState;
   readonly calls: AttachmentCallLists;
   readonly writes: readonly StagedBufferWrite[];
 }
+
+type StagedPartRevision = Omit<PreparedPartRevision, "commitFlags">;
 
 /** Stages every fallible resource operation before the live attachment changes. */
 export function prepareStagedPartRevision(options: {
@@ -64,8 +68,13 @@ export function prepareStagedPartRevision(options: {
   readonly layout: InstanceLayout;
   readonly flags: AttachmentFlagState;
   readonly results: PartRevisionResultState | undefined;
-}): PreparedPartRevision {
-  const { draw, writes } = stageDrawResources(options.bundle.draw, options.partIds);
+}): StagedPartRevision {
+  const stageInteraction = options.interaction !== options.attachment.interactionState;
+  const { draw, writes } = stageDrawResources(
+    options.bundle.draw,
+    options.partIds,
+    stageInteraction,
+  );
   try {
     return stagePartRevision({ ...options, draw, writes });
   } catch (error) {
@@ -78,14 +87,14 @@ export function prepareStagedPartRevision(options: {
 export function clonePartRevisionLayout(layout: InstanceLayout): InstanceLayout {
   return {
     ...layout,
-    partVisibleCounts: new Map(layout.partVisibleCounts),
-    partEdgeCounts: new Map(layout.partEdgeCounts),
-    partNodeCounts: new Map(layout.partNodeCounts),
-    partTransparentCounts: new Map(layout.partTransparentCounts),
-    partSelectionCounts: new Map(layout.partSelectionCounts),
-    partSelectedNodeCounts: new Map(layout.partSelectedNodeCounts),
-    partSelectionDrawCalls: new Map(layout.partSelectionDrawCalls),
-    partSurfaceDrawCalls: new Map(layout.partSurfaceDrawCalls),
+    partVisibleCounts: new PartRevisionMap(layout.partVisibleCounts),
+    partEdgeCounts: new PartRevisionMap(layout.partEdgeCounts),
+    partNodeCounts: new PartRevisionMap(layout.partNodeCounts),
+    partTransparentCounts: new PartRevisionMap(layout.partTransparentCounts),
+    partSelectionCounts: new PartRevisionMap(layout.partSelectionCounts),
+    partSelectedNodeCounts: new PartRevisionMap(layout.partSelectedNodeCounts),
+    partSelectionDrawCalls: new PartRevisionMap(layout.partSelectionDrawCalls),
+    partSurfaceDrawCalls: new PartRevisionMap(layout.partSurfaceDrawCalls),
   };
 }
 
@@ -101,7 +110,7 @@ function stagePartRevision(options: {
   readonly results: PartRevisionResultState | undefined;
   readonly draw: DrawResources;
   readonly writes: readonly StagedBufferWrite[];
-}): PreparedPartRevision {
+}): StagedPartRevision {
   stagePartGeometry(
     options.draw,
     options.parts,
@@ -124,8 +133,11 @@ function stagePartInteraction(options: {
   readonly results: PartRevisionResultState | undefined;
   readonly draw: DrawResources;
   readonly writes: readonly StagedBufferWrite[];
-}): PreparedPartRevision {
+}): StagedPartRevision {
   const interactionState = stagedInteractionState(options.attachment, options.flags);
+  if (options.interaction === options.attachment.interactionState) {
+    return { ...options, interactionState, calls: attachmentCalls(options.attachment) };
+  }
   const changedSlots: number[] = [];
   for (const partId of options.partIds) {
     changedSlots.push(...options.runtime.getPartInstanceSlots(partId));
@@ -189,7 +201,7 @@ function stagePartResults(options: {
   readonly layout: InstanceLayout;
   readonly partIds: ReadonlySet<PartId>;
 }): void {
-  const results = revisedResults(options.results, options.runtime, options.partIds);
+  const results = options.results?.staged;
   if (results === undefined) return;
   if (results.glyphs !== undefined)
     syncOrientationGlyphs(
@@ -220,6 +232,7 @@ function stagePartGeometry(
 function stageDrawResources(
   draw: DrawResources,
   partIds: ReadonlySet<PartId>,
+  stageInteraction: boolean,
 ): { readonly draw: DrawResources; readonly writes: readonly StagedBufferWrite[] } {
   const writes: StagedBufferWrite[] = [];
   const protectedBuffers = protectedStorageBuffers(draw, partIds);
@@ -229,18 +242,19 @@ function stageDrawResources(
     device,
     deferReleases: true,
     cost: new GpuCostAccumulator(),
-    parts: new Map(draw.parts),
-    primitiveParts: new Map(draw.primitiveParts),
-    nodeParts: new Map(draw.nodeParts),
-    storages: stagedStorages(draw.storages, partIds),
-    visibilitySkins: new Map(draw.visibilitySkins),
-    admissionCache: new Map(draw.admissionCache),
+    parts: new PartRevisionMap(draw.parts),
+    primitiveParts: new PartRevisionMap(draw.primitiveParts),
+    nodeParts: new PartRevisionMap(draw.nodeParts),
+    storages: stagedStorages(draw.storages, partIds, stageInteraction),
+    visibilitySkins: new PartRevisionMap(draw.visibilitySkins),
+    admissionCache: new PartRevisionMap(draw.admissionCache),
     deformations: new Map(),
     resultColors: new Map(),
     orientationGlyphs: {
       ...draw.orientationGlyphs,
-      paramsBuffer: undefined,
-      paramsData: new ArrayBuffer(draw.orientationGlyphs.paramsData.byteLength),
+      // A definition revision cannot change the resolved glyph presentation.
+      // Retaining this shared uniform also keeps unchanged glyph bind groups valid.
+      paramsData: draw.orientationGlyphs.paramsData.slice(0),
       parts: new Map(),
     },
   };
@@ -257,13 +271,26 @@ function stageDrawResources(
 function stagedStorages(
   source: ReadonlyMap<PartId, InstanceStorage>,
   partIds: ReadonlySet<PartId>,
+  stageInteraction: boolean,
 ): Map<PartId, InstanceStorage> {
-  return new Map(
-    [...source].map(([partId, storage]) => [
-      partId,
-      partIds.has(partId) ? cloneStagedStorage(storage) : storage,
-    ]),
-  );
+  const staged = new PartRevisionMap(source);
+  if (!stageInteraction) return staged;
+  for (const partId of partIds) {
+    const storage = source.get(partId);
+    if (storage !== undefined) staged.set(partId, cloneStagedStorage(storage));
+  }
+  return staged;
+}
+
+function attachmentCalls(attachment: AttachmentCallLists): AttachmentCallLists {
+  return {
+    calls: attachment.calls,
+    transparentCalls: attachment.transparentCalls,
+    edgeCalls: attachment.edgeCalls,
+    nodeCalls: attachment.nodeCalls,
+    selectionCalls: attachment.selectionCalls,
+    selectedNodeCalls: attachment.selectedNodeCalls,
+  };
 }
 
 function cloneStagedStorage(storage: InstanceStorage): InstanceStorage {
@@ -311,42 +338,6 @@ function protectedStorageBuffers(
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
   }
   return buffers;
-}
-
-function revisedResults(
-  results: PartRevisionResultState | undefined,
-  runtime: PackedSceneRuntime,
-  partIds: ReadonlySet<PartId>,
-): PartRevisionResultState | undefined {
-  if (results === undefined) return undefined;
-  const revised = (binding: number | string): boolean => {
-    if (typeof binding === "number") return partIds.has(binding);
-    const slot = runtime.getInstanceSlot(binding);
-    const partId = slot === undefined ? undefined : runtime.getPartId(slot);
-    return partId !== undefined && partIds.has(partId);
-  };
-  return {
-    deformation:
-      results.deformation === undefined
-        ? undefined
-        : {
-            ...results.deformation,
-            displacements: new Map(
-              [...results.deformation.displacements].filter(([binding]) => revised(binding)),
-            ),
-          },
-    colors:
-      results.colors === undefined
-        ? undefined
-        : new Map([...results.colors].filter(([binding]) => revised(binding))),
-    glyphs:
-      results.glyphs === undefined
-        ? undefined
-        : {
-            ...results.glyphs,
-            parts: new Map([...results.glyphs.parts].filter(([binding]) => revised(binding))),
-          },
-  };
 }
 
 function discardStagedPartResources(

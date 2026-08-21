@@ -95,10 +95,8 @@ export function destroyDrawResources(draw: DrawResources): void {
   destroyColorTargets(draw.targets);
 }
 
-/** Releases all cached resources derived from one changed part definition. */
-export function destroyPartResources(draw: DrawResources, partId: PartId): void {
-  const storage = draw.storages.get(partId);
-  if (storage !== undefined) invalidateBindGroups(storage, draw.cost);
+/** Releases geometry and visibility resources for one changed immutable definition. */
+function destroyPartGeometryResources(draw: DrawResources, partId: PartId): void {
   destroyVisibilitySkinCache(draw, partId);
   clearSelectionReplay(draw, partId);
   const resources = draw.primitiveParts.get(partId);
@@ -116,6 +114,13 @@ export function destroyPartResources(draw: DrawResources, partId: PartId): void 
     destroyPartResource(nodeResource);
     draw.nodeParts.delete(partId);
   }
+}
+
+/** Releases all cached resources derived from one changed part definition. */
+export function destroyPartResources(draw: DrawResources, partId: PartId): void {
+  const storage = draw.storages.get(partId);
+  if (storage !== undefined) invalidateBindGroups(storage, draw.cost);
+  destroyPartGeometryResources(draw, partId);
   destroyDeformationBuffer(draw.deformations, partId, draw.cost);
   destroyResultColorBuffer(draw, partId);
   destroyOrientationGlyphPart(draw.orientationGlyphs, partId);

@@ -23,7 +23,6 @@ export function applyRendererPartRevision(
   sectionCaps: SectionCapController,
   options: RendererPartRevisionOptions,
 ): ReadonlyMap<PartId, Part> | undefined {
-  attachment.prepareAddedParts(options.parts, options.partIds);
   attachment.replaceParts(
     options.parts,
     options.partIds,

@@ -243,7 +243,7 @@ export class ViewportSceneController {
       interaction: nextInteraction,
       parts: scene.parts,
       partIds,
-      results: partRevisionResultState(resultUpdate.results),
+      results: partRevisionResultState(resultUpdate.results, this.currentRuntime, partIds),
     });
     cancelCamera();
     this.currentScene = scene;

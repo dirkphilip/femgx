@@ -15,35 +15,37 @@ import {
 } from "../../renderer/fake-gpu";
 import { percentile } from "../measure";
 
-const OCCURRENCE_COUNTS = [1, 1_000, 100_000] as const;
+const REVISED_OCCURRENCE_COUNTS = [1, 1_000, 100_000] as const;
 const UNRELATED_DEFINITION_COUNT = 10_000;
-const LIVE_UNRELATED_PARTS = 2;
+const LIVE_UNRELATED_OCCURRENCES = 100_000;
 const originalNavigator = globalThis.navigator;
 let restoreGpuGlobals: (() => void) | undefined;
 
 interface RevisionRow {
-  readonly occurrences: number;
+  readonly revisedOccurrences: number;
   readonly unrelatedDefinitions: number;
-  readonly liveUnrelatedParts: number;
+  readonly liveUnrelatedOccurrences: number;
   readonly p50Ms: number;
   readonly p95Ms: number;
   readonly retainedResultWrites: number;
   readonly retainedStorageWrites: number;
   readonly revisedStorageWrites: number;
+  readonly revisedBindGroupCreations: number;
   readonly maximumRevisionBuffers: number;
 }
 
 interface RevisionFixture {
   readonly viewport: Viewport;
   readonly gpu: FakeGpu;
-  readonly occurrences: number;
+  readonly revisedOccurrences: number;
   readonly revisions: readonly Part[];
   readonly retainedColorBuffer: GPUBuffer | undefined;
   readonly retainedDeformationBuffer: GPUBuffer | undefined;
   readonly revisedStorage:
     { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer } | undefined;
   readonly retainedStorage:
-    { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer } | undefined;
+    | { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer; readonly bindGroup: unknown }
+    | undefined;
   readonly retainedGeometry: unknown;
   revisionIndex: number;
 }
@@ -64,25 +66,25 @@ afterAll(() => {
 describe("incremental part revision", () => {
   it("measures the complete viewport revision path without touching live unrelated resources", async () => {
     const rows: RevisionRow[] = [];
-    for (const occurrences of OCCURRENCE_COUNTS) {
-      const fixture = await createFixture(occurrences);
+    for (const revisedOccurrences of REVISED_OCCURRENCE_COUNTS) {
+      const fixture = await createFixture(revisedOccurrences);
       try {
         rows.push(measureRevision(fixture));
-        await verifyViewportContracts(fixture, occurrences === 1);
+        await verifyViewportContracts(fixture, revisedOccurrences === 1);
       } finally {
         fixture.viewport.destroy();
       }
     }
-    expect(rows).toHaveLength(OCCURRENCE_COUNTS.length);
+    expect(rows).toHaveLength(REVISED_OCCURRENCE_COUNTS.length);
     console.log(JSON.stringify({ schemaVersion: 2, rows }, undefined, 2));
   }, 300_000);
 });
 
-async function createFixture(occurrences: number): Promise<RevisionFixture> {
+async function createFixture(revisedOccurrences: number): Promise<RevisionFixture> {
   const gpu = fakeGpuDevice();
   const viewport = await createViewport({
     canvas: fakeCanvas(),
-    scene: revisionScene(occurrences),
+    scene: revisionScene(revisedOccurrences),
     device: gpu.device,
     results: revisionResults(),
   });
@@ -91,7 +93,7 @@ async function createFixture(occurrences: number): Promise<RevisionFixture> {
   return {
     viewport,
     gpu,
-    occurrences,
+    revisedOccurrences,
     revisions: [tetraPart(1, 2), tetraPart(1, 3)],
     retainedColorBuffer: draw.resultColors.get(2)?.buffer,
     retainedDeformationBuffer: draw.deformations.get(2)?.buffer,
@@ -108,10 +110,12 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
   let retainedResultWrites = 0;
   let retainedStorageWrites = 0;
   let revisedStorageWrites = 0;
+  let revisedBindGroupCreations = 0;
   let maximumRevisionBuffers = 0;
   for (let sample = 0; sample < 7; sample += 1) {
     const writeStart = fixture.gpu.writes.length;
     const buffersBefore = fixture.gpu.buffers.length;
+    const bindGroupsBefore = fixture.gpu.bindGroupCreations;
     const started = performance.now();
     revise(fixture);
     fixture.viewport.render();
@@ -119,29 +123,35 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     retainedResultWrites += writesToRetainedResults(fixture, writeStart);
     retainedStorageWrites += writesToRetainedStorage(fixture, writeStart);
     revisedStorageWrites += writesToRevisedStorage(fixture, writeStart);
+    revisedBindGroupCreations += fixture.gpu.bindGroupCreations - bindGroupsBefore;
+    expect(fixture.gpu.bindGroupCreations - bindGroupsBefore).toBe(1);
     maximumRevisionBuffers = Math.max(
       maximumRevisionBuffers,
       fixture.gpu.buffers.length - buffersBefore,
     );
     expect(rendererDraw(fixture.viewport).storages.get(1)).toBe(fixture.revisedStorage);
     expect(rendererDraw(fixture.viewport).storages.get(2)).toBe(fixture.retainedStorage);
+    expect(rendererDraw(fixture.viewport).storages.get(2)?.bindGroup).toBe(
+      fixture.retainedStorage?.bindGroup,
+    );
     expect(rendererDraw(fixture.viewport).primitiveParts.get(2)?.get("triangles")).toBe(
       fixture.retainedGeometry,
     );
     expect(fixture.viewport.occurrences.partOccurrenceCount).toBe(
-      fixture.occurrences + LIVE_UNRELATED_PARTS,
+      fixture.revisedOccurrences + LIVE_UNRELATED_OCCURRENCES,
     );
     expect(fixture.viewport.results.state).toBeDefined();
   }
   return {
-    occurrences: fixture.occurrences,
+    revisedOccurrences: fixture.revisedOccurrences,
     unrelatedDefinitions: UNRELATED_DEFINITION_COUNT,
-    liveUnrelatedParts: LIVE_UNRELATED_PARTS,
+    liveUnrelatedOccurrences: LIVE_UNRELATED_OCCURRENCES,
     p50Ms: percentile(samples, 0.5),
     p95Ms: percentile(samples, 0.95),
     retainedResultWrites,
     retainedStorageWrites,
     revisedStorageWrites,
+    revisedBindGroupCreations,
     maximumRevisionBuffers,
   };
 }
@@ -208,21 +218,33 @@ function writesToRevisedStorage(fixture: RevisionFixture, start: number): number
   return count;
 }
 
-function revisionScene(occurrences: number) {
+function revisionScene(revisedOccurrences: number) {
   let builder = createSceneBuilder().addPart(tetraPart(1, 1));
   for (let partId = 2; partId < UNRELATED_DEFINITION_COUNT + 2; partId += 1) {
     builder = builder.addPart(tetraPart(partId, 1));
   }
-  const placements = Array.from({ length: occurrences }, (_, index) => ({
-    kind: "part" as const,
-    placementId: `revised-${index}`,
-    partId: 1,
-    transform: translation(0, 0, 10),
-  }));
-  placements.push(
-    { kind: "part", placementId: "retained-a", partId: 2, transform: translation(0, 0, 0) },
-    { kind: "part", placementId: "retained-b", partId: 3, transform: translation(3, 0, 0) },
-  );
+  const placements: {
+    readonly kind: "part";
+    readonly placementId: string;
+    readonly partId: number;
+    readonly transform: Float32Array;
+  }[] = [];
+  for (let index = 0; index < revisedOccurrences; index += 1) {
+    placements.push({
+      kind: "part",
+      placementId: `revised-${index}`,
+      partId: 1,
+      transform: translation(0, 0, 10),
+    });
+  }
+  for (let index = 0; index < LIVE_UNRELATED_OCCURRENCES; index += 1) {
+    placements.push({
+      kind: "part",
+      placementId: `retained-${index}`,
+      partId: 2,
+      transform: translation(3, 0, 0),
+    });
+  }
   return builder.addAssembly({ id: 1, placements }).setRootAssembly(1).build();
 }
 
@@ -274,7 +296,7 @@ function rendererDraw(viewport: Viewport) {
     readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
     readonly storages: ReadonlyMap<
       number,
-      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer }
+      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer; readonly bindGroup: unknown }
     >;
     readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
   };

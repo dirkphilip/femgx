@@ -13,6 +13,7 @@ import {
   translationMatrix,
   type Part,
 } from "./support";
+import { partRevisionDraw } from "./scene-part-revision-draw";
 
 describe("Viewport incremental part revisions", () => {
   it("replaces one reusable definition without broad renderer reconciliation", async () => {
@@ -35,7 +36,7 @@ describe("Viewport incremental part revisions", () => {
       device: gpu.device,
     });
     viewport.render();
-    const draw = rendererDraw(viewport);
+    const draw = partRevisionDraw(viewport);
     const retainedStorage = draw.storages.get(1);
     if (retainedStorage === undefined) throw new Error("revised storage is missing");
     const storageBuffers = [retainedStorage.buffer, retainedStorage.orderBuffer];
@@ -64,7 +65,6 @@ describe("Viewport incremental part revisions", () => {
     ]);
     viewport.destroy();
   });
-
   it("retains the live revision when renderer preparation rejects a replacement", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -127,7 +127,7 @@ describe("Viewport incremental part revisions", () => {
       results: revisionResultRoles(),
     });
     viewport.render();
-    const draw = rendererDraw(viewport);
+    const draw = partRevisionDraw(viewport);
     const originalStorage = draw.storages.get(1);
     const retainedStorage = draw.storages.get(2);
     const originalGeometry = draw.primitiveParts.get(1)?.get("triangles");
@@ -143,7 +143,6 @@ describe("Viewport incremental part revisions", () => {
     expect(originalGlyph).toBeDefined();
     expect(originalGlyphParams).toBeDefined();
     failStaging = true;
-
     expect(() => {
       viewport.updateScene((update) => {
         update.replacePart(resultTrianglePart(1, 2));
@@ -231,11 +230,13 @@ describe("Viewport incremental part revisions", () => {
     const beforeColors = viewportResultColors(before)?.get(2);
     const beforeDeformation = before.deformation?.displacements.get(2);
     const beforeRecords = viewportOrientationRecords(before)?.get(2);
-    const draw = rendererDraw(viewport);
+    const draw = partRevisionDraw(viewport);
     const retainedColorBuffer = draw.resultColors.get(2)?.buffer;
     const retainedDeformationBuffer = draw.deformations.get(2)?.buffer;
     const retainedGlyphBuffer = draw.orientationGlyphs.parts.get(2)?.groups.get(2)?.recordBuffer;
+    const retainedGlyphParams = draw.orientationGlyphs.paramsBuffer;
     expect(retainedGlyphBuffer).toBeDefined();
+    expect(retainedGlyphParams).toBeDefined();
     const writeStart = gpu.writes.length;
 
     const outcome = viewport.updateScene((update) => {
@@ -253,6 +254,7 @@ describe("Viewport incremental part revisions", () => {
     expect(draw.orientationGlyphs.parts.get(2)?.groups.get(2)?.recordBuffer).toBe(
       retainedGlyphBuffer,
     );
+    expect(draw.orientationGlyphs.paramsBuffer).toBe(retainedGlyphParams);
     expect(
       gpu.writes
         .slice(writeStart)
@@ -263,6 +265,7 @@ describe("Viewport incremental part revisions", () => {
             write.buffer === retainedGlyphBuffer,
         ),
     ).toBe(false);
+    viewport.render();
     viewport.destroy();
   });
 
@@ -384,31 +387,5 @@ function revisionResultRoles() {
       glyph: "arrow" as const,
       transform: "direction" as const,
     },
-  };
-}
-
-function rendererDraw(viewport: Awaited<ReturnType<typeof createViewport>>) {
-  const owner = viewport as unknown as {
-    readonly renderer: { readonly lifecycle: { readonly bundle: { readonly draw: unknown } } };
-  };
-  return owner.renderer.lifecycle.bundle.draw as {
-    readonly storages: ReadonlyMap<
-      number,
-      {
-        readonly buffer: GPUBuffer;
-        readonly orderBuffer: GPUBuffer;
-        readonly bindGroup: GPUBindGroup | undefined;
-      }
-    >;
-    readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
-    readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
-    readonly deformations: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
-    readonly orientationGlyphs: {
-      readonly parts: ReadonlyMap<
-        number,
-        { readonly groups: ReadonlyMap<number, { readonly recordBuffer: GPUBuffer }> }
-      >;
-      readonly paramsBuffer: GPUBuffer | undefined;
-    };
   };
 }

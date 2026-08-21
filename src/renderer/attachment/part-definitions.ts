@@ -4,10 +4,9 @@ import type { InteractionState } from "../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuBundle } from "../recovery";
 import type { DrawCallLists, InstanceLayout } from "../runtime-state";
-import { cloneAttachmentFlags, copyAttachmentFlags } from "./reconciliation";
 import { changedPartDefinitions, reconcilePartResources } from "../resources/part-resources";
 import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
-import { invalidateBindGroups, type InstanceStorage } from "../resources/instance-storage";
+import type { InstanceStorage } from "../resources/instance-storage";
 import { rebuildVisibilitySurface } from "../visibility/skins";
 import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
@@ -19,6 +18,7 @@ import {
   type PartRevisionAttachmentHost,
   type PreparedPartRevision,
 } from "./part-revision-stage";
+import { PartRevisionMap, stagePartRevisionFlagSet } from "./part-revision-overlay";
 
 interface PartAttachmentOptions {
   attachedParts: Map<PartId, Part>;
@@ -97,10 +97,10 @@ function preparePartRevision(options: {
     throw new Error("Part revisions require an attached renderer runtime");
   }
   const layout = clonePartRevisionLayout(attachedLayout);
-  const flags = cloneAttachmentFlags(attachment.styleFlags());
-  const parts = new Map(attachment.attachedParts);
+  const flags = stagePartRevisionFlagSet(attachment.styleFlags());
+  const parts = new PartRevisionMap(attachment.attachedParts);
   replaceAttachedParts(parts, options.parts, partIds);
-  return prepareStagedPartRevision({
+  const prepared = prepareStagedPartRevision({
     attachment,
     parts,
     partIds,
@@ -108,9 +108,15 @@ function preparePartRevision(options: {
     bundle: options.bundle,
     runtime,
     layout,
-    flags,
+    flags: flags.values,
     results: options.results,
   });
+  return {
+    ...prepared,
+    commitFlags: (target) => {
+      flags.commit(target);
+    },
+  };
 }
 
 function commitPartRevision(
@@ -125,10 +131,41 @@ function commitPartRevision(
   commitPartResults(bundle.draw, prepared, partIds);
   commitStagedWrites(bundle.draw, prepared, partIds);
   replaceAttachedParts(attachment.attachedParts, prepared.parts, partIds);
-  copyAttachmentFlags(attachment.styleFlags(), prepared.flags);
-  attachment.layout = prepared.layout;
+  prepared.commitFlags(attachment.styleFlags());
+  commitPartLayout(attachment.layout, prepared.layout, partIds);
   applyInteractionState(attachment, prepared.interactionState);
   Object.assign(attachment, prepared.calls);
+}
+
+function commitPartLayout(
+  live: InstanceLayout | undefined,
+  staged: InstanceLayout,
+  partIds: ReadonlySet<PartId>,
+): void {
+  if (live === undefined) throw new Error("Part revision layout is unavailable");
+  for (const [target, source] of layoutMaps(live, staged)) {
+    for (const partId of partIds) {
+      const value = source.get(partId);
+      if (value === undefined) target.delete(partId);
+      else target.set(partId, value);
+    }
+  }
+}
+
+function layoutMaps(
+  live: InstanceLayout,
+  staged: InstanceLayout,
+): readonly [Map<PartId, unknown>, ReadonlyMap<PartId, unknown>][] {
+  return [
+    [live.partVisibleCounts, staged.partVisibleCounts],
+    [live.partEdgeCounts, staged.partEdgeCounts],
+    [live.partNodeCounts, staged.partNodeCounts],
+    [live.partTransparentCounts, staged.partTransparentCounts],
+    [live.partSelectionCounts, staged.partSelectionCounts],
+    [live.partSelectedNodeCounts, staged.partSelectedNodeCounts],
+    [live.partSelectionDrawCalls, staged.partSelectionDrawCalls],
+    [live.partSurfaceDrawCalls, staged.partSurfaceDrawCalls],
+  ];
 }
 
 function applyInteractionState(
@@ -190,12 +227,11 @@ function transferStagedPartResources(
 function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId: PartId): void {
   const live = draw.storages.get(partId);
   const prepared = staged.storages.get(partId);
-  if (live === undefined || prepared === undefined) return;
+  if (live === undefined || prepared === undefined || live === prepared) return;
   replacePreparedSidecars(live, prepared);
   replacePreparedHighlight(live, prepared);
   live.emphasisSlots = new Set(prepared.emphasisSlots);
   live.edgeEmphasisSlots = new Set(prepared.edgeEmphasisSlots);
-  invalidateBindGroups(live, draw.cost);
   new Uint8Array(live.data).set(new Uint8Array(prepared.data));
   live.orderData.set(prepared.orderData);
   live.orderLength = prepared.orderLength;

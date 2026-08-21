@@ -1,8 +1,8 @@
 import type { PartId } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
-import { bindingUsesRevisedPart } from "../result-colors";
 import type { OrientationRecordMap } from "../results-roles";
+import { RevisedBindingMap, revisedResultBindings } from "./revision-bindings";
 import type {
   ViewportDeformationConfig,
   ViewportResultsConfig,
@@ -39,16 +39,11 @@ export function reconcilePartRevisionDeformation(
   revisedPartIds: ReadonlySet<PartId>,
 ): DeformationState | undefined {
   if (current === undefined || previous === undefined) return current;
-  const displacements = new Map(current.displacements);
-  for (const [bindingId, values] of previous.displacements) {
-    if (
-      !displacements.has(bindingId) ||
-      bindingUsesRevisedPart(bindingId, runtime, revisedPartIds)
-    ) {
-      continue;
-    }
-    displacements.set(bindingId, values);
-  }
+  const displacements = new RevisedBindingMap(
+    previous.displacements,
+    current.displacements,
+    revisedResultBindings(runtime, revisedPartIds),
+  );
   return { scale: current.scale, displacements };
 }
 
@@ -93,12 +88,11 @@ export function reconcilePartRevisionRecords(
   revisedPartIds: ReadonlySet<PartId>,
 ): OrientationRecordMap | undefined {
   if (current === undefined || previous === undefined) return current;
-  const records = new Map(current);
-  for (const [bindingId, values] of previous) {
-    if (!records.has(bindingId) || bindingUsesRevisedPart(bindingId, runtime, revisedPartIds))
-      continue;
-    records.set(bindingId, values);
-  }
+  const records = new RevisedBindingMap(
+    previous,
+    current,
+    revisedResultBindings(runtime, revisedPartIds),
+  );
   return records;
 }
 

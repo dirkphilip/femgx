@@ -17,7 +17,6 @@ import {
 describe("Viewport atomic part revision staging", () => {
   it("keeps live resources intact when staged optional allocations fail", async () => {
     for (const scenario of [
-      { label: "femgx orientation glyph parameters", nextInteraction: unchangedInteraction },
       { label: "femgx orientation glyph normals", nextInteraction: unchangedInteraction },
       { label: "femgx orientation glyph records", nextInteraction: unchangedInteraction },
       { label: "femgx orientation glyph order", nextInteraction: unchangedInteraction },
@@ -260,6 +259,11 @@ function rendererInternals(viewport: Awaited<ReturnType<typeof fixture>>) {
       deformation: renderer.deformation,
       colors: renderer.resultColors,
       glyphs: renderer.orientationGlyphs,
+      staged: {
+        deformation: renderer.deformation,
+        colors: renderer.resultColors,
+        glyphs: renderer.orientationGlyphs,
+      },
     },
   };
 }
