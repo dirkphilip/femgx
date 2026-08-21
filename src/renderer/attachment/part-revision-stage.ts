@@ -37,6 +37,15 @@ import {
 import { createPartRevisionStagingDevice, type StagedBufferWrite } from "./part-revision-writes";
 import { PartRevisionMap } from "./part-revision-overlay";
 
+const PART_REVISION_SIDECARS = [
+  "transparent",
+  "selection",
+  "nodeSelection",
+  "nodeSelectionCompact",
+  "edge",
+  "node",
+] as const;
+
 export interface PartRevisionAttachmentHost extends AttachmentCallLists {
   interactionState: InteractionState;
   interactionBeforeLastInstanceUpdate: InteractionState | undefined;
@@ -349,13 +358,8 @@ function protectedStorageBuffers(
     if (storage === undefined) continue;
     buffers.add(storage.buffer);
     buffers.add(storage.orderBuffer);
-    for (const sidecar of [
-      storage.sidecars.transparent,
-      storage.sidecars.selection,
-      storage.sidecars.nodeSelection,
-      storage.sidecars.edge,
-      storage.sidecars.node,
-    ]) {
+    for (const kind of PART_REVISION_SIDECARS) {
+      const sidecar = storage.sidecars[kind];
       if (sidecar !== undefined) buffers.add(sidecar.buffer);
     }
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
@@ -389,7 +393,7 @@ function destroyStagedStorage(
   rollbackStagedInstanceStorage(storage);
   rollbackStagedHighlight(storage.highlight);
   const buffers = new Set<GPUBuffer>();
-  for (const kind of ["transparent", "selection", "nodeSelection", "edge", "node"] as const) {
+  for (const kind of PART_REVISION_SIDECARS) {
     const sidecar = storage.sidecars[kind];
     if (sidecar !== undefined && sidecar.buffer !== live.sidecars[kind]?.buffer)
       buffers.add(sidecar.buffer);

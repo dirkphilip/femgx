@@ -254,7 +254,14 @@ function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId:
 }
 
 function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
-  for (const kind of ["transparent", "selection", "nodeSelection", "edge", "node"] as const) {
+  for (const kind of [
+    "transparent",
+    "selection",
+    "nodeSelection",
+    "nodeSelectionCompact",
+    "edge",
+    "node",
+  ] as const) {
     const previous = live.sidecars[kind];
     const next = prepared.sidecars[kind];
     if (previous !== undefined && previous.buffer !== next?.buffer) previous.buffer.destroy();
@@ -304,6 +311,7 @@ function sidecars(storage: InstanceStorage) {
     storage.sidecars.transparent,
     storage.sidecars.selection,
     storage.sidecars.nodeSelection,
+    storage.sidecars.nodeSelectionCompact,
     storage.sidecars.edge,
     storage.sidecars.node,
   ];
