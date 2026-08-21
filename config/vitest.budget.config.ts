@@ -20,6 +20,8 @@ export default defineConfig({
       "test/bench/scene/section-cap-occurrence.test.ts",
       "test/bench/scene/scene-update-scaling.test.ts",
       "test/bench/visibility/part-occurrence-visibility.test.ts",
+      "test/bench/visibility/tet4-visibility-sync.test.ts",
+      "test/bench/visibility/tet4-edge-residency.test.ts",
     ],
     env: { FEMGX_PERFORMANCE_BUDGET: "1" },
     fileParallelism: false,

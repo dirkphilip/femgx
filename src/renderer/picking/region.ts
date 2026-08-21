@@ -104,10 +104,11 @@ export async function pickEdgeTargetsFromRegion(
   const targets = createPickRegionTargetCollector();
   for (const [instancePickId, edgeIds] of found) {
     const instance = resolvePick(options.context.instances, instancePickId - 1);
-    const edgeResource =
+    const resource =
       instance === undefined
         ? undefined
-        : getPartResource(options.draw, instance.partId, "triangles")?.edgePick;
+        : getPartResource(options.draw, instance.partId, "triangles");
+    const edgeResource = resource?.edgePick;
     if (instance === undefined || edgeResource === undefined) continue;
     for (const edgePickId of edgeIds) {
       const key = edgeResource.edgeKeys[edgePickId - 1];

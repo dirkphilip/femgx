@@ -41,10 +41,14 @@ export function rebuildVisibilitySurface(
   const slots = layout.partSlots.get(part.id);
   if (slots === undefined) return [];
   const triangleGeometry = triangleGeometryForSkin(part);
-  if (triangleGeometry === undefined) return rebuildUnskinnedSurface(runtime, layout, part, draw);
+  if (triangleGeometry === undefined) {
+    layout.partEdgeNeedsFullTopology.set(part.id, false);
+    return rebuildUnskinnedSurface(runtime, layout, part, draw);
+  }
   const metadata = visibilityPartMetadata(part);
   const groups = groupVisibleSlots(runtime, layout, slots, interaction, metadata);
   const hasHiddenSignature = groups.some((group) => group.signature.hasHidden);
+  layout.partEdgeNeedsFullTopology.set(part.id, hasHiddenSignature);
   const cache = draw.visibilitySkins.get(part.id) ?? createVisibilitySkinCache();
   draw.visibilitySkins.set(part.id, cache);
   cache.budgetBytes = skinBudget(triangleGeometry);
@@ -72,6 +76,7 @@ export function rebuildVisibilitySurface(
       ...(hasHiddenSignature && !group.signature.hasHidden && skin === undefined
         ? { surfaceSubset: true }
         : {}),
+      ...(hasHiddenSignature ? { fullEdgeTopology: true } : {}),
       ...(skin === undefined ? {} : { visibilitySkin: skin }),
     });
   }

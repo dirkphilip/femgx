@@ -50,6 +50,7 @@ export interface VisibilityLayout {
   readonly partSlots: ReadonlyMap<PartId, Uint32Array>;
   readonly partVisibleCounts: Map<PartId, number>;
   readonly partSurfaceDrawCalls: Map<PartId, readonly VisibilityDrawCall[]>;
+  readonly partEdgeNeedsFullTopology: Map<PartId, boolean>;
 }
 
 /** Minimal resource owner needed to create and account for a skin. */

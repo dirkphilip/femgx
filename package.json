@@ -147,6 +147,7 @@
   "knip": {
     "entry": [
       "e2e/core/core-host.ts",
+      "e2e/core/authored-interior-edges-host.ts",
       "examples/host-integration/main.ts"
     ],
     "ignore": [

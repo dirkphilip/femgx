@@ -5,7 +5,10 @@ import { sourceAlias } from "./source-alias.ts";
 export default defineConfig({
   resolve: { alias: sourceAlias },
   test: {
-    include: ["test/bench/visibility/tet4-visibility-sync.test.ts"],
+    include: [
+      "test/bench/visibility/tet4-visibility-sync.test.ts",
+      "test/bench/visibility/tet4-edge-residency.test.ts",
+    ],
     testTimeout: 120_000,
   },
 });

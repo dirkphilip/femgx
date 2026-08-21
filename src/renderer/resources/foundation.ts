@@ -52,7 +52,11 @@ export interface PartResource {
   fullIndexCount?: number;
   /** Edge geometry and topology, materialized on first edge use. */
   edge: PartEdgeResource | undefined;
+  /** Whether the retained edge resource includes complete authored topology. */
+  edgeTopologyFull: boolean;
   edgePick: PartEdgePickResource | undefined;
+  /** Whether the retained edge-pick resource includes complete authored topology. */
+  edgePickTopologyFull: boolean;
   readonly indexCount: number;
   /** Logical node-sprite count for the private procedural node draw path. */
   readonly nodeCount?: number;

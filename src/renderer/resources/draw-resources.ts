@@ -4,7 +4,7 @@ import type { DeformationState } from "../../results/deform";
 import type { ResultColorMap } from "../../results/colors";
 import type { SectionPlane } from "../../math/section-plane";
 import { createEmptyDeformationBuffer } from "../frame/deformation";
-import { createEmptyOrderBuffer } from "../resources/instance-storage";
+import { createEmptyOrderBuffer, invalidateBindGroups } from "../resources/instance-storage";
 import { createHighlightStorage } from "../selection/highlight-storage";
 import { buildNodeSpritePickIds, buildPackedNodeTopologyData } from "../picking/node-topology";
 import type { DrawPipelines } from "../frame/pipelines";
@@ -70,6 +70,8 @@ export interface DrawCall {
   readonly visibilitySkin?: VisibilitySkin;
   /** Per-call exterior subset override when another occurrence needs a skin. */
   readonly surfaceSubset?: boolean;
+  /** Uses the full authored edge topology for visibility-exposed interiors. */
+  readonly fullEdgeTopology?: boolean;
   /** Uses the sparse selected-node occurrence/node sidecar rather than full replay. */
   readonly selectedNodeMode?: "compact";
 }
@@ -137,7 +139,9 @@ export function uploadNodePart(draw: DrawResources, part: Part): PartResource {
     facePickIdsBuffer: createBuffer(draw.device, nodeTopology, GPUBufferUsage.STORAGE),
     nodePickIdsBuffer: createBuffer(draw.device, ids, GPUBufferUsage.STORAGE),
     edge: undefined,
+    edgeTopologyFull: false,
     edgePick: undefined,
+    edgePickTopologyFull: false,
     indexCount: 0,
     nodeCount: ids.length,
     subsetIndexCount: 0,
@@ -259,7 +263,9 @@ function subsetResource(
     facePickIdsBuffer: buffers.subsetTopologyBuffer,
     ...(primitiveColorBuffer === undefined ? {} : { primitiveColorBuffer }),
     edge: undefined,
+    edgeTopologyFull: false,
     edgePick: undefined,
+    edgePickTopologyFull: false,
     indexCount,
     ...(buffers.subsetMinimalIndexBuffer === undefined
       ? {}
@@ -320,6 +326,7 @@ export function ensureEdgeResources(
   part: Part,
   geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
   resourceMaybe?: PartResource,
+  fullTopology = false,
 ): NonNullable<PartResource["edge"]> | undefined {
   const geometry =
     "primitive" in geometryOrResource
@@ -328,10 +335,17 @@ export function ensureEdgeResources(
   const resource = "primitive" in geometryOrResource ? resourceMaybe : geometryOrResource;
   if (resource === undefined) throw new Error("Edge geometry requires its uploaded resource");
   if (geometry?.primitive !== "triangles") return undefined;
-  if (resource.edge !== undefined) return resource.edge;
-  const edge = buildPartEdgeResources(draw.device, part, geometry);
+  if (resource.edge !== undefined && resource.edgeTopologyFull === fullTopology) {
+    return resource.edge;
+  }
+  const edge = buildPartEdgeResources(draw.device, part, geometry, fullTopology);
   if (edge === undefined) return undefined;
+  if (resource.edge !== undefined) {
+    invalidateBindGroups(draw.storages.get(part.id), draw.cost);
+    destroyEdgeResource(resource.edge);
+  }
   resource.edge = edge;
+  resource.edgeTopologyFull = fullTopology;
   return edge;
 }
 
@@ -341,6 +355,7 @@ export function ensureEdgePickResources(
   part: Part,
   geometryOrResource: Extract<Geometry, { primitive: "triangles" }> | PartResource,
   resourceMaybe?: PartResource,
+  fullTopology = false,
 ): NonNullable<PartResource["edgePick"]> | undefined {
   const geometry =
     "primitive" in geometryOrResource
@@ -349,9 +364,30 @@ export function ensureEdgePickResources(
   const resource = "primitive" in geometryOrResource ? resourceMaybe : geometryOrResource;
   if (resource === undefined) throw new Error("Edge-pick geometry requires its uploaded resource");
   if (geometry?.primitive !== "triangles") return undefined;
-  if (resource.edgePick !== undefined) return resource.edgePick;
-  const edgePick = buildPartEdgePickResources(draw.device, part, geometry);
+  if (resource.edgePick !== undefined && resource.edgePickTopologyFull === fullTopology) {
+    return resource.edgePick;
+  }
+  const edgePick = buildPartEdgePickResources(draw.device, part, geometry, fullTopology);
   if (edgePick === undefined) return undefined;
+  if (resource.edgePick !== undefined) {
+    invalidateBindGroups(draw.storages.get(part.id), draw.cost);
+    destroyEdgePickResource(resource.edgePick);
+  }
   resource.edgePick = edgePick;
+  resource.edgePickTopologyFull = fullTopology;
   return edgePick;
+}
+
+function destroyEdgeResource(resource: NonNullable<PartResource["edge"]>): void {
+  resource.edgeNodePickIdsBuffer.destroy();
+  resource.edgeVertexBuffer.destroy();
+  resource.edgeIndexBuffer.destroy();
+  resource.edgeTopologyBuffer.destroy();
+}
+
+function destroyEdgePickResource(resource: NonNullable<PartResource["edgePick"]>): void {
+  resource.vertexBuffer.destroy();
+  resource.indexBuffer.destroy();
+  resource.nodePickIdsBuffer.destroy();
+  resource.topologyBuffer.destroy();
 }

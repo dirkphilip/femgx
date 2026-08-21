@@ -39,6 +39,8 @@ export interface InstanceLayout {
   readonly partSelectionDrawCalls: Map<PartId, readonly DrawCall[]>;
   /** Surface calls split by active visibility signature when compact skins exist. */
   readonly partSurfaceDrawCalls: Map<PartId, readonly DrawCall[]>;
+  /** Whether the edge pass needs full authored topology for each part. */
+  readonly partEdgeNeedsFullTopology: Map<PartId, boolean>;
   /** Total visible instance count, kept in sync with the runtime. */
   visibleCount: number;
 }
@@ -77,6 +79,7 @@ export function buildInstanceLayout(
   const partSelectedNodeDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const partSelectionDrawCalls = new Map<PartId, readonly DrawCall[]>();
   const partSurfaceDrawCalls = new Map<PartId, readonly DrawCall[]>();
+  const partEdgeNeedsFullTopology = new Map<PartId, boolean>();
   const drawList = runtime.getDrawList();
   for (const slot of drawList) {
     const partId = runtime.instancePartIds[slot];
@@ -89,6 +92,7 @@ export function buildInstanceLayout(
     partTransparentCounts.set(partId, 0);
     partSelectionCounts.set(partId, 0);
     partSelectedNodeCounts.set(partId, 0);
+    partEdgeNeedsFullTopology.set(partId, false);
   }
   return {
     instanceCount,
@@ -105,6 +109,7 @@ export function buildInstanceLayout(
     partSelectedNodeDrawCalls,
     partSelectionDrawCalls,
     partSurfaceDrawCalls,
+    partEdgeNeedsFullTopology,
     visibleCount: drawList.length,
   };
 }
@@ -327,7 +332,12 @@ export function appendPartDrawCalls(
     if (surfaceCalls === undefined) target.calls.push({ partId, instanceCount: count });
     else target.calls.push(...surfaceCalls);
   }
-  appendCountCall(target.edgeCalls, partId, layout.partEdgeCounts.get(partId));
+  appendCountCall(
+    target.edgeCalls,
+    partId,
+    layout.partEdgeCounts.get(partId),
+    layout.partEdgeNeedsFullTopology.get(partId) === true,
+  );
   appendCountCall(target.transparentCalls, partId, layout.partTransparentCounts.get(partId));
   appendCountCall(target.nodeCalls, partId, layout.partNodeCounts.get(partId));
   const selectionCount = layout.partSelectionCounts.get(partId);
@@ -341,6 +351,17 @@ export function appendPartDrawCalls(
   if (selectedNodeCalls !== undefined) target.selectedNodeCalls.push(...selectedNodeCalls);
 }
 
-function appendCountCall(target: DrawCall[], partId: PartId, count: number | undefined): void {
-  if (count !== undefined && count > 0) target.push({ partId, instanceCount: count });
+function appendCountCall(
+  target: DrawCall[],
+  partId: PartId,
+  count: number | undefined,
+  fullEdgeTopology = false,
+): void {
+  if (count !== undefined && count > 0) {
+    target.push({
+      partId,
+      instanceCount: count,
+      ...(fullEdgeTopology ? { fullEdgeTopology: true } : {}),
+    });
+  }
 }

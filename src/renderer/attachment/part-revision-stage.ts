@@ -103,6 +103,7 @@ export function clonePartRevisionLayout(layout: InstanceLayout): InstanceLayout 
     partSelectedNodeCounts: new PartRevisionMap(layout.partSelectedNodeCounts),
     partSelectionDrawCalls: new PartRevisionMap(layout.partSelectionDrawCalls),
     partSurfaceDrawCalls: new PartRevisionMap(layout.partSurfaceDrawCalls),
+    partEdgeNeedsFullTopology: new PartRevisionMap(layout.partEdgeNeedsFullTopology),
   };
 }
 

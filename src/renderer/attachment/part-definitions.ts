@@ -182,6 +182,7 @@ function layoutMaps(
     [live.partSelectedNodeCounts, staged.partSelectedNodeCounts],
     [live.partSelectionDrawCalls, staged.partSelectionDrawCalls],
     [live.partSurfaceDrawCalls, staged.partSurfaceDrawCalls],
+    [live.partEdgeNeedsFullTopology, staged.partEdgeNeedsFullTopology],
   ];
 }
 
