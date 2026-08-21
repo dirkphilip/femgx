@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createSceneBuilder } from "@/scene/scene";
 import { UnknownSceneIdentityError } from "@/viewport/visibility-error";
 import {
+  captureViewportVisibilityPolicy,
+  restoreViewportVisibilityPolicy,
+} from "@/entries/runtime";
+import {
   createViewport,
   fakeCanvas,
   fakeGpuDevice,
@@ -127,6 +131,23 @@ describe("Viewport scene-update visibility", () => {
     });
 
     viewport.visibility.setAssemblyVisible(2, true);
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/child/keep")).toBe(false);
+    viewport.visibility.setAssemblyOccurrenceVisible("1/child", true);
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/child/keep")).toBe(true);
+    viewport.destroy();
+  });
+
+  it("restores a direct occurrence override concealed by a hidden definition", async () => {
+    const scene = nestedScene();
+    const viewport = await testViewport(scene);
+    viewport.visibility.setAssemblyOccurrenceVisible("1/child", false);
+    viewport.visibility.setAssemblyVisible(2, false);
+    const policy = captureViewportVisibilityPolicy(viewport);
+
+    viewport.replaceScene(scene);
+    restoreViewportVisibilityPolicy(viewport, policy);
+    viewport.visibility.setAssemblyVisible(2, true);
+
     expect(viewport.occurrences.isPartOccurrenceVisible("1/child/keep")).toBe(false);
     viewport.visibility.setAssemblyOccurrenceVisible("1/child", true);
     expect(viewport.occurrences.isPartOccurrenceVisible("1/child/keep")).toBe(true);

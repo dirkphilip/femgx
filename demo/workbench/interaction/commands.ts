@@ -47,6 +47,8 @@ interface WorkbenchCommandOwner extends CatalogModeOwner {
   reset(): void;
   setModel(id: string): void;
   openModel(file: File): Promise<void>;
+  applyLivePartEdit(copies: string, spacing: string): void;
+  cancelLivePartEdit(): void;
   setResultField(id: string): void;
   setSectionAxis(axis: string): void;
   setSectionOffset(value: string): void;
@@ -87,6 +89,8 @@ export function createWorkbenchCommands(owner: WorkbenchCommandOwner): Workbench
     reset: owner.reset.bind(owner),
     selectModel: owner.setModel.bind(owner),
     openModel: owner.openModel.bind(owner),
+    applyLivePartEdit: owner.applyLivePartEdit.bind(owner),
+    cancelLivePartEdit: owner.cancelLivePartEdit.bind(owner),
     setResultField: owner.setResultField.bind(owner),
     setSectionAxis: owner.setSectionAxis.bind(owner),
     setSectionOffset: owner.setSectionOffset.bind(owner),

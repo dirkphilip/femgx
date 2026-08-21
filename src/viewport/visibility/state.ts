@@ -1,8 +1,8 @@
-import type { PartId } from "../geometry/part";
-import type { Scene } from "../scene/scene";
-import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { VisibilityDelta } from "../scene-runtime/visibility";
+import type { PartId } from "../../geometry/part";
+import type { Scene } from "../../scene/scene";
+import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../../scene/types";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
+import type { VisibilityDelta } from "../../scene-runtime/visibility";
 
 /** Viewport-local visibility policy retained across scene revisions. */
 export class ViewportVisibilityState {
@@ -22,6 +22,27 @@ export class ViewportVisibilityState {
       new Set(),
       runtime,
     );
+  }
+
+  snapshot(): ViewportVisibilityPolicy {
+    const partOccurrences: VisibilityPolicyEntry<PartOccurrenceId>[] = [];
+    for (let slot = 0; slot < this.runtime.instanceCount; slot += 1) {
+      const id = this.runtime.getInstanceId(slot);
+      if (id !== undefined)
+        partOccurrences.push({ id, visible: !this.hiddenPartOccurrenceSlots.has(slot) });
+    }
+    const assemblyOccurrences: VisibilityPolicyEntry<AssemblyOccurrenceId>[] = [];
+    for (let node = 0; node < this.runtime.nodeCount; node += 1) {
+      const id = this.runtime.getNodeId(node);
+      if (id !== undefined)
+        assemblyOccurrences.push({ id, visible: !this.hiddenAssemblyOccurrenceIds.has(id) });
+    }
+    return {
+      parts: visibilityEntries(this.parts),
+      assemblies: visibilityEntries(this.assemblies),
+      partOccurrences,
+      assemblyOccurrences,
+    };
   }
 
   reconcile(scene: Scene, runtime: PackedSceneRuntime): ViewportVisibilityState {
@@ -119,6 +140,22 @@ export class ViewportVisibilityState {
 interface DefinitionVisibility<T> {
   readonly known: Set<T>;
   readonly hidden: Set<T>;
+}
+
+export interface ViewportVisibilityPolicy {
+  readonly parts: readonly VisibilityPolicyEntry<PartId>[];
+  readonly assemblies: readonly VisibilityPolicyEntry<AssemblyId>[];
+  readonly partOccurrences: readonly VisibilityPolicyEntry<PartOccurrenceId>[];
+  readonly assemblyOccurrences: readonly VisibilityPolicyEntry<AssemblyOccurrenceId>[];
+}
+
+export interface VisibilityPolicyEntry<T> {
+  readonly id: T;
+  readonly visible: boolean;
+}
+
+function visibilityEntries<T>(visibility: DefinitionVisibility<T>): VisibilityPolicyEntry<T>[] {
+  return [...visibility.known].map((id) => ({ id, visible: !visibility.hidden.has(id) }));
 }
 
 function updateHidden<T>(hidden: Set<T>, id: T, visible: boolean): void {

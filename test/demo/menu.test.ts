@@ -35,12 +35,39 @@ describe("workbench context-menu state", () => {
         },
       ]),
     );
+    expect(menu.snapshot.entries).not.toEqual(
+      expect.arrayContaining([{ kind: "button", action: "instance-part" }]),
+    );
 
     menu.activate("highlight");
 
     expect(action).toHaveBeenCalledWith("highlight");
     expect(menu.snapshot.visible).toBe(false);
     expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers instancing only for a reusable part target", () => {
+    const menu = new WorkbenchMenu(
+      () => false,
+      () => false,
+      () => false,
+      vi.fn(),
+      vi.fn(),
+    );
+
+    menu.show({ kind: "part", partId: 4 }, 0, 0);
+    expect(menu.snapshot.entries).toEqual(
+      expect.arrayContaining([
+        { kind: "button", label: "Instance this part…", action: "instance-part" },
+      ]),
+    );
+
+    menu.show({ kind: "partOccurrence", partOccurrenceId: "1/live-4-1" }, 0, 0);
+    expect(menu.snapshot.entries).toEqual(
+      expect.arrayContaining([
+        { kind: "button", label: "Instance this part…", action: "instance-part" },
+      ]),
+    );
   });
 
   it("creates a bounded empty-space view menu", () => {
@@ -58,6 +85,7 @@ describe("workbench context-menu state", () => {
     expect(menu.snapshot.entries).toEqual(
       expect.arrayContaining([
         { kind: "button", label: "Hide diagnostics", action: "diagnostics" },
+        { kind: "button", label: "Add mesh…", action: "add-mesh" },
         { kind: "button", label: "Clear selection", action: "clear-selection" },
         {
           kind: "button",

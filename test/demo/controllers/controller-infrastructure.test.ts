@@ -1,20 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { type PickHit, type Viewport } from "../../src/entries/root";
+import { type PickHit, type Viewport } from "@/entries/root";
 import {
   createInteractionState,
   isTargetSelected,
   setTargetSelected,
   type InteractionTarget,
   type InteractionState,
-} from "../../src/entries/interaction";
-import { createCamera } from "../../src/camera/camera";
-import type { SceneOccurrences } from "../../src/scene-runtime/occurrences";
-import type { WorkbenchModel } from "../../demo/workbench/models/model";
+} from "@/entries/interaction";
+import { createCamera } from "@/camera/camera";
+import type { SceneOccurrences } from "@/scene-runtime/occurrences";
+import type { WorkbenchModel } from "../../../demo/workbench/models/model";
 import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructureOptions,
-} from "../../demo/workbench/controllers/controller-infrastructure";
-import type { ViewportSlotId } from "../../demo/workbench/viewport/view";
+} from "../../../demo/workbench/controllers/controller-infrastructure";
+import type { ViewportSlotId } from "../../../demo/workbench/viewport/view";
 
 describe("workbench controller infrastructure", () => {
   it("keeps primary picking and state scoped to primary when secondary is active", async () => {

@@ -136,6 +136,28 @@ export function setDiagnosticsForOwner(owner: ControllerDisplayOwner): void {
   owner.publishSnapshot();
 }
 
+/** Changes edge-overlay admission only when the active toggle changes. */
+export function setEdgesForOwner(
+  owner: Pick<ControllerDisplayOwner, "toggles" | "applyCurrentDisplayState" | "render">,
+  enabled = !owner.toggles.edges,
+): void {
+  if (owner.toggles.edges === enabled) return;
+  owner.toggles.edges = enabled;
+  owner.applyCurrentDisplayState();
+  owner.render();
+}
+
+/** Changes node-annotation admission only when the active toggle changes. */
+export function setNodesForOwner(
+  owner: Pick<ControllerDisplayOwner, "toggles" | "applyCurrentDisplayState" | "render">,
+  enabled = !owner.toggles.nodes,
+): void {
+  if (owner.toggles.nodes === enabled) return;
+  owner.toggles.nodes = enabled;
+  owner.applyCurrentDisplayState();
+  owner.render();
+}
+
 /** Applies the active slot's complete show state after focus or slot creation. */
 export function applyActiveStateForOwner(owner: ControllerDisplayOwner): void {
   owner.applyResultMode(false);

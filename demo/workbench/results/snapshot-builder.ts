@@ -62,7 +62,7 @@ export function createWorkbenchSnapshot(input: WorkbenchSnapshotInput): Workbenc
         input.elementDetail === undefined ? undefined : Object.freeze({ ...input.elementDetail }),
       visibility,
     }),
-    overlays: createOverlaySnapshot(presentation),
+    overlays: createOverlaySnapshot(presentation, input.livePartDialog),
   });
 }
 
@@ -128,6 +128,7 @@ function createAnalysisSnapshot(input: WorkbenchSnapshotInput): WorkbenchSnapsho
 
 function createOverlaySnapshot(
   presentation: WorkbenchPresentationSnapshot,
+  livePartDialog: WorkbenchSnapshotInput["livePartDialog"],
 ): WorkbenchSnapshot["overlays"] {
   return Object.freeze({
     diagnostics: presentation.diagnostics.visible,
@@ -140,6 +141,9 @@ function createOverlaySnapshot(
     diagnosticsText: presentation.diagnostics.text,
     resultLegend: presentation.resultLegend,
     contextMenu: presentation.contextMenu,
+    ...(livePartDialog === undefined
+      ? {}
+      : { livePartDialog: Object.freeze({ ...livePartDialog }) }),
   });
 }
 

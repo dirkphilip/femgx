@@ -6,6 +6,7 @@
   import ResultLegend from "./ResultLegend.svelte";
   import StatusOverlays from "./StatusOverlays.svelte";
   import TouchToolRail from "./TouchToolRail.svelte";
+  import LivePartDialog from "./LivePartDialog.svelte";
   import ViewportPane from "./ViewportPane.svelte";
 
   let {
@@ -44,3 +45,4 @@
 </div>
 
 <ContextMenu {controller} {snapshot} />
+<LivePartDialog {controller} {snapshot} />

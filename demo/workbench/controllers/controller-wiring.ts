@@ -64,6 +64,7 @@ export interface WorkbenchControllerWiringContext {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
+  readonly openLivePartDialog: (kind: "add" | "instance", partId?: number) => void;
   readonly applyActiveState: () => void;
   readonly applyState: (slotId: ViewportSlotId) => void;
   readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
@@ -132,6 +133,7 @@ export function createControllerInfrastructure(
     setDiagnostics: context.setDiagnostics.bind(context),
     fitSelection: context.fitSelection.bind(context),
     reset: context.reset.bind(context),
+    openLivePartDialog: context.openLivePartDialog.bind(context),
     applyActiveState: context.applyActiveState.bind(context),
     applyState: context.applyState.bind(context),
     cloneShowState: context.cloneShowState.bind(context),

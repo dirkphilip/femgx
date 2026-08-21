@@ -201,6 +201,7 @@ class ViewportCore implements Viewport {
     });
     this.cameraRef = { camera: options.camera ?? createCamera() };
     this.visibilityController = new ViewportVisibilityController({
+      viewport: this,
       sceneController: this.sceneController,
       renderer,
       isBatching: () => this.lifecycle.isBatching,

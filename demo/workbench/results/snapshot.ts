@@ -23,6 +23,8 @@ import { createWorkbenchSnapshot } from "./snapshot-builder";
 export { createWorkbenchSnapshot } from "./snapshot-builder";
 
 export type WorkbenchMenuAction =
+  | "add-mesh"
+  | "instance-part"
   | "highlight"
   | "select"
   | "select-element"
@@ -64,6 +66,13 @@ export interface WorkbenchPresentationSnapshot {
   readonly diagnostics: { readonly visible: boolean; readonly text: string };
   readonly resultLegend: WorkbenchResultLegendSnapshot;
   readonly contextMenu: WorkbenchContextMenuSnapshot;
+}
+
+/** Demo-private dialog state for the canonical live part-addition proof. */
+export interface WorkbenchLivePartDialogSnapshot {
+  readonly kind: "add" | "instance";
+  readonly partId?: number;
+  readonly partName?: string;
 }
 
 export interface WorkbenchStartupStatus {
@@ -142,6 +151,7 @@ export interface WorkbenchSnapshot {
     readonly diagnosticsText: string;
     readonly resultLegend: WorkbenchPresentationSnapshot["resultLegend"];
     readonly contextMenu: WorkbenchContextMenuSnapshot;
+    readonly livePartDialog?: WorkbenchLivePartDialogSnapshot | undefined;
   };
 }
 
@@ -201,6 +211,7 @@ export interface WorkbenchSnapshotInput {
   readonly resultPlayback?: WorkbenchResultPlaybackSnapshot;
   readonly presentation?: WorkbenchPresentationSnapshot;
   readonly visibility?: WorkbenchVisibilitySnapshot;
+  readonly livePartDialog?: WorkbenchLivePartDialogSnapshot;
 }
 
 export interface WorkbenchSnapshotOwner {
@@ -225,6 +236,7 @@ export interface WorkbenchSnapshotOwner {
   readonly sectionAxis: SectionAxis;
   readonly sectionOffset: number;
   readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
+  readonly livePartDialog: WorkbenchLivePartDialogSnapshot | undefined;
   readonly resultPlaybackActions: Pick<WorkbenchResultPlaybackActions, "snapshot">;
   readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
   readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
@@ -280,6 +292,8 @@ export interface WorkbenchCommands {
   nextResultPlayback(): void;
   toggleResultPlayback(): void;
   setResultPlaybackRate(value: string): void;
+  applyLivePartEdit(copies: string, spacing: string): void;
+  cancelLivePartEdit(): void;
   setHierarchyHover(target: VisibilityRowTarget): void;
   clearHierarchyHover(target: VisibilityRowTarget): void;
   contextMenuAction(action: WorkbenchMenuAction): void;
@@ -342,6 +356,7 @@ export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): Workbench
     sectionAxis: owner.sectionAxis,
     sectionOffset: owner.sectionOffset,
     ...(owner.elementDetail === undefined ? {} : { elementDetail: owner.elementDetail }),
+    ...(owner.livePartDialog === undefined ? {} : { livePartDialog: owner.livePartDialog }),
     ...(resultPlayback === undefined ? {} : { resultPlayback }),
     presentation: owner.presentation.snapshot(),
     visibility: owner.visibilityPanel.snapshot(),

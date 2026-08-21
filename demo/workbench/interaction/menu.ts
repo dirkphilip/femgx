@@ -68,6 +68,9 @@ export class WorkbenchMenu {
     options: WorkbenchMenuSelectionOptions = { selectionLabel: "Select / Deselect" },
   ): void {
     const entries: WorkbenchMenuEntry[] = [
+      ...(target.kind === "part" || target.kind === "partOccurrence"
+        ? [button("Instance this part…", "instance-part")]
+        : []),
       button("Highlight / Clear", "highlight"),
       ...optionalButtons(options),
       button("Hide / Show instance", "hide-instance"),
@@ -93,6 +96,7 @@ export class WorkbenchMenu {
       y,
       title: "View",
       entries: [
+        button("Add mesh…", "add-mesh"),
         section("View"),
         this.fitButton(),
         button("Clear selection", "clear-selection"),
