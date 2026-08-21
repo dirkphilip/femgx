@@ -135,9 +135,13 @@ describe("Viewport incremental part revisions", () => {
     const originalColor = draw.resultColors.get(1)?.buffer;
     const originalDeformation = draw.deformations.get(1)?.buffer;
     const originalGlyph = draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer;
+    const originalGlyphParams = draw.orientationGlyphs.paramsBuffer;
+    const originalBindGroup = originalStorage?.bindGroup;
+    const writesStart = gpu.writes.length;
     expect(originalColor).toBeDefined();
     expect(originalDeformation).toBeDefined();
     expect(originalGlyph).toBeDefined();
+    expect(originalGlyphParams).toBeDefined();
     failStaging = true;
 
     expect(() => {
@@ -147,15 +151,20 @@ describe("Viewport incremental part revisions", () => {
     }).toThrow("staged replacement allocation failed");
     expect(viewport.scene.parts.get(1)).toBe(original);
     expect(draw.storages.get(1)).toBe(originalStorage);
+    expect(draw.storages.get(1)?.bindGroup).toBe(originalBindGroup);
     expect(draw.storages.get(2)).toBe(retainedStorage);
     expect(draw.primitiveParts.get(1)?.get("triangles")).toBe(originalGeometry);
     expect(draw.primitiveParts.get(2)?.get("triangles")).toBe(retainedGeometry);
     expect(draw.resultColors.get(1)?.buffer).toBe(originalColor);
     expect(draw.deformations.get(1)?.buffer).toBe(originalDeformation);
     expect(draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer).toBe(originalGlyph);
-    for (const buffer of [originalColor, originalDeformation, originalGlyph]) {
+    expect(draw.orientationGlyphs.paramsBuffer).toBe(originalGlyphParams);
+    for (const buffer of [originalColor, originalDeformation, originalGlyph, originalGlyphParams]) {
       expect(gpu.buffers.find((entry) => entry.resource === buffer)?.destroyCount).toBe(0);
     }
+    expect(
+      gpu.writes.slice(writesStart).some((write) => write.buffer === originalGlyphParams),
+    ).toBe(false);
     expect(() => {
       viewport.render();
     }).not.toThrow();
@@ -385,7 +394,11 @@ function rendererDraw(viewport: Awaited<ReturnType<typeof createViewport>>) {
   return owner.renderer.lifecycle.bundle.draw as {
     readonly storages: ReadonlyMap<
       number,
-      { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer }
+      {
+        readonly buffer: GPUBuffer;
+        readonly orderBuffer: GPUBuffer;
+        readonly bindGroup: GPUBindGroup | undefined;
+      }
     >;
     readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
     readonly resultColors: ReadonlyMap<number, { readonly buffer: GPUBuffer }>;
@@ -395,6 +408,7 @@ function rendererDraw(viewport: Awaited<ReturnType<typeof createViewport>>) {
         number,
         { readonly groups: ReadonlyMap<number, { readonly recordBuffer: GPUBuffer }> }
       >;
+      readonly paramsBuffer: GPUBuffer | undefined;
     };
   };
 }

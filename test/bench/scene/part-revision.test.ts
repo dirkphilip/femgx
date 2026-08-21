@@ -29,6 +29,7 @@ interface RevisionRow {
   readonly p95Ms: number;
   readonly retainedResultWrites: number;
   readonly retainedStorageWrites: number;
+  readonly revisedStorageWrites: number;
   readonly maximumRevisionBuffers: number;
 }
 
@@ -106,6 +107,7 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
   const samples: number[] = [];
   let retainedResultWrites = 0;
   let retainedStorageWrites = 0;
+  let revisedStorageWrites = 0;
   let maximumRevisionBuffers = 0;
   for (let sample = 0; sample < 7; sample += 1) {
     const writeStart = fixture.gpu.writes.length;
@@ -116,6 +118,7 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     samples.push(performance.now() - started);
     retainedResultWrites += writesToRetainedResults(fixture, writeStart);
     retainedStorageWrites += writesToRetainedStorage(fixture, writeStart);
+    revisedStorageWrites += writesToRevisedStorage(fixture, writeStart);
     maximumRevisionBuffers = Math.max(
       maximumRevisionBuffers,
       fixture.gpu.buffers.length - buffersBefore,
@@ -138,6 +141,7 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     p95Ms: percentile(samples, 0.95),
     retainedResultWrites,
     retainedStorageWrites,
+    revisedStorageWrites,
     maximumRevisionBuffers,
   };
 }
@@ -157,6 +161,10 @@ async function verifyViewportContracts(
   }
   await fixture.viewport.recover();
   fixture.viewport.render();
+  expect(fixture.viewport.scene.parts.get(1)).toBe(
+    fixture.revisions[(fixture.revisionIndex - 1) % fixture.revisions.length],
+  );
+  expect(rendererDraw(fixture.viewport).storages.get(1)).toBeDefined();
   expect(fixture.viewport.results.state).toBeDefined();
 }
 
@@ -183,6 +191,15 @@ function writesToRetainedResults(fixture: RevisionFixture, start: number): numbe
 }
 
 function writesToRetainedStorage(fixture: RevisionFixture, start: number): number {
+  const buffers = [fixture.retainedStorage?.buffer, fixture.retainedStorage?.orderBuffer];
+  const count = fixture.gpu.writes
+    .slice(start)
+    .filter((write) => buffers.includes(write.buffer)).length;
+  expect(count).toBe(0);
+  return count;
+}
+
+function writesToRevisedStorage(fixture: RevisionFixture, start: number): number {
   const buffers = [fixture.revisedStorage?.buffer, fixture.revisedStorage?.orderBuffer];
   const count = fixture.gpu.writes
     .slice(start)

@@ -41,7 +41,7 @@ export interface BufferCopy {
 }
 
 export interface FakeGpuOptions {
-  readonly onCreateBuffer?: (creation: number) => void;
+  readonly onCreateBuffer?: (creation: number, descriptor: GPUBufferDescriptor) => void;
   readonly pickValue?: number;
   readonly elementPickValue?: number;
   readonly facePickValue?: number;

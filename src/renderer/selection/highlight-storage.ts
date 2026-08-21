@@ -178,8 +178,10 @@ function releaseHighlightStorage(
   const current = storage.highlight;
   device.queue.writeBuffer(current.buffer, 0, EMPTY_HIGHLIGHT_HEADER);
   cost?.write("highlight", EMPTY_HIGHLIGHT_HEADER.byteLength);
-  cost?.releaseBuffer(current.buffer.size);
-  current.buffer.destroy();
+  if (!storage.deferRelease) {
+    cost?.releaseBuffer(current.buffer.size);
+    current.buffer.destroy();
+  }
   storage.highlight = storage.emptyHighlight;
   storage.highlightOwned = false;
   invalidateHighlightBindGroups(storage, cost);

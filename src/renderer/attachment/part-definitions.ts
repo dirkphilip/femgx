@@ -7,9 +7,10 @@ import type { DrawCallLists, InstanceLayout } from "../runtime-state";
 import { cloneAttachmentFlags, copyAttachmentFlags } from "./reconciliation";
 import { changedPartDefinitions, reconcilePartResources } from "../resources/part-resources";
 import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
+import { invalidateBindGroups, type InstanceStorage } from "../resources/instance-storage";
 import { rebuildVisibilitySurface } from "../visibility/skins";
-import { rebuildAttachmentCalls, reviseAttachmentCalls } from "./calls";
-import { syncAttachmentInteraction } from "./interaction";
+import type { AttachmentInteractionState } from "./interaction";
+import { rebuildAttachmentCalls } from "./calls";
 import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
@@ -122,58 +123,17 @@ function commitPartRevision(
   if (runtime === undefined) throw new Error("Part revision runtime is unavailable");
   for (const partId of partIds) commitPartResources(bundle.draw, prepared, partId);
   commitPartResults(bundle.draw, prepared, partIds);
+  commitStagedWrites(bundle.draw, prepared, partIds);
   replaceAttachedParts(attachment.attachedParts, prepared.parts, partIds);
   copyAttachmentFlags(attachment.styleFlags(), prepared.flags);
   attachment.layout = prepared.layout;
-  const state = {
-    interaction: attachment.interactionState,
-    beforeLastInstanceUpdate: attachment.interactionBeforeLastInstanceUpdate,
-    appliedHiddenIds: attachment.appliedHiddenIds,
-    usesExteriorFaceSubsets: attachment.usesExteriorFaceSubsets,
-    transparentFlags: prepared.flags.transparentFlags,
-    edgeFlags: prepared.flags.edgeFlags,
-    edgeEmphasisFlags: prepared.flags.edgeEmphasisFlags,
-    slotByInstanceId: attachment.slotByInstanceId,
-    selection: {
-      selectedNodeFlags: prepared.flags.selectedNodeFlags,
-      nodeFlags: prepared.flags.nodeFlags,
-    },
-  };
-  const changedSlots: number[] = [];
-  for (const partId of partIds) changedSlots.push(...runtime.getPartInstanceSlots(partId));
-  const result = syncAttachmentInteraction({
-    state,
-    runtime,
-    layout: prepared.layout,
-    interaction: prepared.interaction,
-    parts: prepared.parts,
-    bundle,
-    attached: false,
-    fullSync: false,
-    changedSlots,
-    forceParts: partIds,
-  });
-  for (const partId of result.visibilityParts ?? []) {
-    const part = prepared.parts.get(partId);
-    if (part !== undefined)
-      rebuildVisibilitySurface({
-        runtime,
-        layout: prepared.layout,
-        part,
-        interaction: prepared.interaction,
-        draw: bundle.draw,
-      });
-  }
-  applyInteractionState(attachment, state);
-  Object.assign(
-    attachment,
-    result.calls ?? reviseAttachmentCalls(prepared.layout, attachment, partIds, bundle.draw.cost),
-  );
+  applyInteractionState(attachment, prepared.interactionState);
+  Object.assign(attachment, prepared.calls);
 }
 
 function applyInteractionState(
   attachment: PartRevisionAttachmentHost,
-  state: Parameters<typeof syncAttachmentInteraction>[0]["state"],
+  state: AttachmentInteractionState,
 ): void {
   attachment.interactionState = state.interaction;
   attachment.interactionBeforeLastInstanceUpdate = state.beforeLastInstanceUpdate;
@@ -212,6 +172,7 @@ function commitPartResources(
 ): void {
   destroyPartResources(draw, partId);
   transferStagedPartResources(draw, prepared.draw, partId);
+  commitStagedStorage(draw, prepared.draw, partId);
 }
 
 function transferStagedPartResources(
@@ -222,7 +183,77 @@ function transferStagedPartResources(
   transferPartResource(draw.parts, staged.parts, partId);
   transferPartResource(draw.primitiveParts, staged.primitiveParts, partId);
   transferPartResource(draw.nodeParts, staged.nodeParts, partId);
+  transferPartResource(draw.visibilitySkins, staged.visibilitySkins, partId);
   transferPartResource(draw.admissionCache, staged.admissionCache, partId);
+}
+
+function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId: PartId): void {
+  const live = draw.storages.get(partId);
+  const prepared = staged.storages.get(partId);
+  if (live === undefined || prepared === undefined) return;
+  replacePreparedSidecars(live, prepared);
+  replacePreparedHighlight(live, prepared);
+  live.emphasisSlots = new Set(prepared.emphasisSlots);
+  live.edgeEmphasisSlots = new Set(prepared.edgeEmphasisSlots);
+  invalidateBindGroups(live, draw.cost);
+  new Uint8Array(live.data).set(new Uint8Array(prepared.data));
+  live.orderData.set(prepared.orderData);
+  live.orderLength = prepared.orderLength;
+}
+
+function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
+  for (const kind of ["transparent", "selection", "nodeSelection", "edge", "node"] as const) {
+    const previous = live.sidecars[kind];
+    const next = prepared.sidecars[kind];
+    if (previous !== next) previous?.buffer.destroy();
+    live.sidecars[kind] = next;
+  }
+}
+
+function replacePreparedHighlight(live: InstanceStorage, prepared: InstanceStorage): void {
+  if (live.highlight !== prepared.highlight && live.highlightOwned) live.highlight.buffer.destroy();
+  live.highlight = prepared.highlight;
+  live.highlightOwned = prepared.highlightOwned;
+}
+
+function commitStagedWrites(
+  draw: DrawResources,
+  prepared: PreparedPartRevision,
+  partIds: ReadonlySet<PartId>,
+): void {
+  const liveBuffers = committedStorageBuffers(draw, partIds);
+  for (const write of prepared.writes) {
+    if (!liveBuffers.has(write.buffer)) continue;
+    draw.device.queue.writeBuffer(write.buffer, write.offset, write.data);
+  }
+}
+
+function committedStorageBuffers(
+  draw: DrawResources,
+  partIds: ReadonlySet<PartId>,
+): Set<GPUBuffer> {
+  const buffers = new Set<GPUBuffer>();
+  for (const partId of partIds) {
+    const storage = draw.storages.get(partId);
+    if (storage === undefined) continue;
+    buffers.add(storage.buffer);
+    buffers.add(storage.orderBuffer);
+    for (const sidecar of sidecars(storage)) {
+      if (sidecar !== undefined) buffers.add(sidecar.buffer);
+    }
+    if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
+  }
+  return buffers;
+}
+
+function sidecars(storage: InstanceStorage) {
+  return [
+    storage.sidecars.transparent,
+    storage.sidecars.selection,
+    storage.sidecars.nodeSelection,
+    storage.sidecars.edge,
+    storage.sidecars.node,
+  ];
 }
 
 function transferPartResource<T>(

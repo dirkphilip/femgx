@@ -63,6 +63,8 @@ export interface InstanceStorage {
   readonly emptyOrderBuffer: GPUBuffer;
   /** Device-scoped zero-entry emphasis binding used while inactive. */
   readonly emptyHighlight: HighlightStorage;
+  /** Revision-local storage keeps replaced live sidecars alive until commit. */
+  readonly deferRelease?: boolean;
   readonly sidecars: InstanceSidecars;
   highlight: HighlightStorage;
   /** True when `highlight` is a part-owned optional allocation. */
@@ -110,6 +112,7 @@ export interface InstanceStorageOwner {
   readonly storages: Map<number, InstanceStorage>;
   readonly emptyOrderBuffer: GPUBuffer;
   readonly emptyHighlight: HighlightStorage;
+  readonly deferReleases?: boolean;
 }
 
 type OrderKind = "draw" | keyof InstanceSidecars;
@@ -453,8 +456,10 @@ function ensureOrderSidecar(
   if (existing !== undefined) {
     next.data.set(existing.data.subarray(0, existing.length));
     writeExistingOrder(draw, next.buffer, next.data, existing.length);
-    draw.cost.releaseBuffer(existing.buffer.size);
-    existing.buffer.destroy();
+    if (!draw.deferReleases) {
+      draw.cost.releaseBuffer(existing.buffer.size);
+      existing.buffer.destroy();
+    }
   }
   draw.cost.allocateBuffer(next.buffer.size);
   storage.sidecars[kind] = next;
@@ -469,8 +474,10 @@ function releaseOrderSidecar(
 ): void {
   const sidecar = storage.sidecars[kind];
   if (sidecar === undefined) return;
-  draw.cost.releaseBuffer(sidecar.buffer.size);
-  sidecar.buffer.destroy();
+  if (!draw.deferReleases) {
+    draw.cost.releaseBuffer(sidecar.buffer.size);
+    sidecar.buffer.destroy();
+  }
   storage.sidecars[kind] = undefined;
   clearBindGroups(storage, draw.cost);
 }
