@@ -17,7 +17,7 @@ import {
   unmount,
   withOverlayState,
 } from "./support";
-import type { WorkbenchController } from "./support";
+import type { WorkbenchPresentationPort } from "./support";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -29,7 +29,7 @@ describe("workbench display-view", () => {
     document.body.append(target);
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: undefined, snapshot: createSnapshot(false) },
+      props: { workbench: undefined, snapshot: createSnapshot(false) },
     });
 
     expect(target.querySelectorAll(".command-target")).toHaveLength(4);
@@ -57,7 +57,7 @@ describe("workbench display-view", () => {
   it("renders conditional overlays, panes, and the root subscription lifecycle", async () => {
     const snapshot = withOverlayState(createSnapshot(true));
     const calls: string[] = [];
-    const controller = fakeController(calls);
+    const workbench = fakeController(calls);
     const target = document.createElement("div");
     document.body.append(target);
 
@@ -70,7 +70,7 @@ describe("workbench display-view", () => {
 
     const workspace = mount(ViewportWorkspace, {
       target,
-      props: { controller, snapshot, startup: undefined },
+      props: { workbench, snapshot, startup: undefined },
     });
     expect(element(target, "#viewport-workspace").dataset["secondaryOpen"]).toBe("true");
     expect(element(target, ".toolbar").closest("#viewport-shell")).not.toBeNull();
@@ -94,7 +94,7 @@ describe("workbench display-view", () => {
 
     const app = mount(WorkbenchApp, { target });
     const api = app as unknown as {
-      connectWorkbench(next: WorkbenchController): void;
+      connectWorkbench(next: WorkbenchPresentationPort): void;
       reportStartupFailure(status: { rendererStatus: string; status: string }): void;
     };
     api.connectWorkbench(connectableController(snapshot, calls));

@@ -1,12 +1,11 @@
 <script lang="ts">
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchSnapshot } from "../results/snapshot";
+  import type { WorkbenchPresentationPort, WorkbenchSnapshot } from "../presentation/snapshot";
 
   let {
-    controller,
+    workbench,
     snapshot,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
 </script>
@@ -18,7 +17,7 @@
     aria-label="Navigate"
     title="Navigate: drag to orbit; use two fingers to pan and zoom"
     aria-pressed={(snapshot?.toolbar.touchInteractionMode ?? "navigate") === "navigate"}
-    onclick={() => controller?.commands.setTouchInteractionMode("navigate")}
+    onclick={() => workbench?.commands.setTouchInteractionMode("navigate")}
   >
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
@@ -32,7 +31,7 @@
     aria-label="Highlight"
     title="Highlight: tap or drag over the model without selecting"
     aria-pressed={snapshot?.toolbar.touchInteractionMode === "hover"}
-    onclick={() => controller?.commands.setTouchInteractionMode("hover")}
+    onclick={() => workbench?.commands.setTouchInteractionMode("hover")}
   >
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path
@@ -47,7 +46,7 @@
     aria-label="Box select"
     title="Box select: drag a rectangle over the model"
     aria-pressed={snapshot?.toolbar.touchInteractionMode === "box-select"}
-    onclick={() => controller?.commands.setTouchInteractionMode("box-select")}
+    onclick={() => workbench?.commands.setTouchInteractionMode("box-select")}
   >
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 5h4M15 5h4v4M19 15v4h-4M9 19H5v-4M5 9V5M11 11l8 8m-3-1 3 1-1-3" />
@@ -58,7 +57,7 @@
     data-testid="touch-tool-select-all"
     aria-label="Select all"
     title="Select all explicitly visible targets at the active granularity"
-    onclick={() => controller?.commands.selectAll()}
+    onclick={() => workbench?.commands.selectAll()}
   >
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 12l3 3 6-7" />

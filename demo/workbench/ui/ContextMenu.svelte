@@ -1,13 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchMenuEntry, WorkbenchSnapshot } from "../results/snapshot";
+  import type {
+    WorkbenchMenuEntry,
+    WorkbenchPresentationPort,
+    WorkbenchSnapshot,
+  } from "../presentation/snapshot";
 
   let {
-    controller,
+    workbench,
     snapshot,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     snapshot: WorkbenchSnapshot | undefined;
   } = $props();
   let menuElement: unknown = $state();
@@ -29,12 +32,12 @@
         typeof menuElement === "object" &&
         !menuContains(target)
       ) {
-        controller?.commands.clearContextMenu();
+        workbench?.commands.clearContextMenu();
       }
     };
     const closeWithEscape = (event: unknown): void => {
       if (typeof event === "object" && event !== null && "key" in event && event.key === "Escape") {
-        controller?.commands.clearContextMenu();
+        workbench?.commands.clearContextMenu();
       }
     };
     const repositionMenu = (): void => positionMenu();
@@ -79,7 +82,7 @@
 
   function activate(entry: WorkbenchMenuEntry): void {
     if (entry.kind === "button" && entry.action !== undefined) {
-      controller?.commands.contextMenuAction(entry.action);
+      workbench?.commands.contextMenuAction(entry.action);
     }
   }
 

@@ -13,7 +13,7 @@ import type { SceneOccurrences } from "@/scene-runtime/occurrences";
 import type { WorkbenchModel } from "../../../demo/workbench/models/model";
 import {
   createWorkbenchInfrastructure,
-  type WorkbenchInfrastructureOptions,
+  type WorkbenchControllerComposition,
 } from "../../../demo/workbench/controllers/controller-infrastructure";
 import { applyViewportInteraction } from "../../../demo/workbench/interaction/viewport-binding";
 import type { ViewportSlotId } from "../../../demo/workbench/viewport/view";
@@ -62,7 +62,7 @@ describe("workbench controller infrastructure", () => {
       ["secondary", { visible: false, text: "" }],
     ]);
     const options = infrastructureOptions(primaryViewport, secondaryViewport, states, inspections);
-    const infrastructure = createWorkbenchInfrastructure(options);
+    const infrastructure = createWorkbenchInfrastructure(options, vi.fn());
     const bindings = infrastructure.features.interactionController.viewportInteractionOptions();
     const event = {} as MouseEvent;
     const modifiers = { shift: false, control: false, alt: false, meta: false } as const;
@@ -120,9 +120,8 @@ describe("workbench controller infrastructure", () => {
       ["primary", { visible: false, text: "" }],
       ["secondary", { visible: false, text: "" }],
     ]);
-    const infrastructure = createWorkbenchInfrastructure(
-      infrastructureOptions(primaryViewport, secondaryViewport, states, inspections),
-    );
+    const options = infrastructureOptions(primaryViewport, secondaryViewport, states, inspections);
+    const infrastructure = createWorkbenchInfrastructure(options, vi.fn());
     const resolveRegion =
       infrastructure.features.interactionController.viewportInteractionOptions().resolveRegion;
     if (resolveRegion === undefined) throw new Error("missing region resolver");
@@ -152,7 +151,7 @@ function infrastructureOptions(
   secondaryViewport: Viewport,
   states: Map<ViewportSlotId, InteractionState>,
   inspections: Map<ViewportSlotId, { visible: boolean; text: string }>,
-): WorkbenchInfrastructureOptions {
+): WorkbenchControllerComposition {
   const primaryPane = pane("primary");
   const secondaryPane = pane("secondary");
   let activeSlot: ViewportSlotId = "secondary";
@@ -174,26 +173,24 @@ function infrastructureOptions(
     canvas: primaryPane.canvas,
     rendererName: "test",
     viewport: primaryViewport,
-    primaryViewport: () => primaryViewport,
-    createViewport: vi.fn(),
-    model: () => ({ partNames: new Map() }) as unknown as WorkbenchModel,
-    toggles: () => ({ edges: false, nodes: false, diagnostics: false }),
-    resultMode: () => "base",
-    vectorFieldId: () => "off",
-    vectorGlyph: () => "arrow",
-    vectorTransform: () => "direction",
-    continuous: () => false,
-    selectionGranularity: () => "element",
-    selectionGranularityForSlot: () => "element",
-    boxSelectionStrategy: () => "through-intersection",
-    touchInteractionMode: () => "navigate",
-    touchInteractionModeForSlot: () => "navigate",
-    sectionAxis: () => "off",
-    sectionOffset: () => 0,
-    interaction: () => interactionForSlot(activeSlot),
-    setInteraction: (value) => {
-      setInteractionForSlot(activeSlot, value);
+    model: { partNames: new Map() } as unknown as WorkbenchModel,
+    toggles: { edges: false, nodes: false, diagnostics: false },
+    resultMode: "base",
+    vectorDisplay: {
+      fieldId: "off",
+      glyph: "arrow",
+      transform: "direction",
+      lengthScale: 1,
+      widthPixels: 1,
     },
+    continuousEnabled: false,
+    selectionGranularity: "element",
+    selectionGranularityForSlot: () => "element",
+    boxSelectionStrategy: "through-intersection",
+    touchInteractionMode: "navigate",
+    touchInteractionModeForSlot: () => "navigate",
+    sectionAxis: "off",
+    sectionOffset: 0,
     getInspection: activeInspection,
     setInspection: (value) => {
       inspections.set(activeSlot, { ...value });
@@ -212,8 +209,7 @@ function infrastructureOptions(
         viewport: activeSlot === "primary" ? primaryViewport : secondaryViewport,
       }) as never,
     activeViewport: () => (activeSlot === "primary" ? primaryViewport : secondaryViewport),
-    viewports: () => [primaryViewport, secondaryViewport],
-    runtime: () => ({}) as SceneOccurrences,
+    runtime: {} as SceneOccurrences,
     applyDisplayedInteraction: vi.fn(),
     render: vi.fn(),
     publishSnapshot: vi.fn(),
@@ -221,6 +217,7 @@ function infrastructureOptions(
     setDiagnostics: vi.fn(),
     fitSelection: vi.fn(),
     reset: vi.fn(),
+    openLivePartDialog: vi.fn(),
     applyActiveState: vi.fn(),
     applyState: vi.fn(),
     cloneShowState: vi.fn(),

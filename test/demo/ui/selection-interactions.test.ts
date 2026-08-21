@@ -25,7 +25,7 @@ describe("workbench selection-interactions", () => {
     document.body.append(target);
     const emptyComponent = mount(PrimaryToolbar, {
       target,
-      props: { controller: fakeController(calls), snapshot: createSnapshot(false) },
+      props: { workbench: fakeController(calls), snapshot: createSnapshot(false) },
     });
     button(target, "#command-selection").click();
     await tick();
@@ -39,7 +39,7 @@ describe("workbench selection-interactions", () => {
     };
     const selectedComponent = mount(PrimaryToolbar, {
       target,
-      props: { controller: fakeController(calls), snapshot: selectedSnapshot },
+      props: { workbench: fakeController(calls), snapshot: selectedSnapshot },
     });
     button(target, "#command-selection").click();
     await tick();
@@ -56,7 +56,7 @@ describe("workbench selection-interactions", () => {
     const nonElementComponent = mount(PrimaryToolbar, {
       target,
       props: {
-        controller: undefined,
+        workbench: undefined,
         snapshot: {
           ...base,
           hierarchy: { ...base.hierarchy, selectedCount: 1, hideSelectedElementCount: 0 },
@@ -74,7 +74,7 @@ describe("workbench selection-interactions", () => {
     const elementComponent = mount(PrimaryToolbar, {
       target,
       props: {
-        controller: undefined,
+        workbench: undefined,
         snapshot: {
           ...base,
           hierarchy: { ...base.hierarchy, selectedCount: 1, hideSelectedElementCount: 1 },
@@ -92,12 +92,12 @@ describe("workbench selection-interactions", () => {
 
   it("dispatches stable visibility targets and cleans up on unmount", async () => {
     const calls: string[] = [];
-    const controller = fakeController(calls);
+    const workbench = fakeController(calls);
     const target = document.createElement("div");
     document.body.append(target);
     const component = mount(VisibilityTree, {
       target,
-      props: { controller, visibility: visibilitySnapshot() },
+      props: { workbench, visibility: visibilitySnapshot() },
     });
 
     const assemblyRow = element(target, '[role="treeitem"]');
@@ -128,7 +128,7 @@ describe("workbench selection-interactions", () => {
     document.body.append(menuTarget);
     const menu = mount(ContextMenu, {
       target: menuTarget,
-      props: { controller, snapshot: createSnapshot(false) },
+      props: { workbench, snapshot: createSnapshot(false) },
     });
     await unmount(menu);
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
@@ -143,7 +143,7 @@ describe("workbench selection-interactions", () => {
     const component = mount(VisibilityTree, {
       target,
       props: {
-        controller: fakeController(calls),
+        workbench: fakeController(calls),
         visibility: { ...base, pageCount: 2, rowCount: 1_001 },
       },
     });

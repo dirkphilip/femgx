@@ -1,5 +1,6 @@
-import type { ViewportBackground } from "@/entries/root";
+import type { PartOccurrenceId, ViewportBackground } from "@/entries/root";
 import type { InteractionState } from "@/entries/interaction";
+import type { BodyId, ElementId } from "@/entries/model";
 import type { WorkbenchModel } from "../models/model";
 import {
   activeScalarFieldIdForModel,
@@ -7,7 +8,6 @@ import {
   vectorDisplayForModel,
   type VectorDisplayState,
 } from "../results/result-controls";
-import type { WorkbenchElementDetailSnapshot } from "../results/snapshot";
 import { createModelInteraction } from "./preset";
 import {
   createDefaultDisplayToggles,
@@ -19,7 +19,28 @@ import type { SelectionGranularity } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import type { ViewportSlotId } from "../viewport/view";
-import type { WorkbenchHoverOwner } from "../controllers/controller-hover";
+import type { VisibilityRowTarget } from "./visibility-snapshot";
+
+/** Stable element identity while the body-detail view owns transient hover. */
+export interface ElementDetailHoverTarget {
+  readonly partOccurrenceId: PartOccurrenceId;
+  readonly elementId: ElementId;
+}
+
+/** Bounded body-detail metadata owned with the state that displays it. */
+export interface WorkbenchElementDetailSnapshot {
+  readonly partOccurrenceId: PartOccurrenceId;
+  readonly bodyId: BodyId;
+  readonly label: string;
+  readonly partName: string;
+  readonly count: number;
+}
+
+/** Identifies the active source of transient hover for one viewport slot. */
+export type WorkbenchHoverOwner =
+  | { readonly kind: "canvas"; readonly slotId: ViewportSlotId }
+  | { readonly kind: "hierarchy"; readonly row: VisibilityRowTarget }
+  | { readonly kind: "element-detail"; readonly target: ElementDetailHoverTarget };
 
 /** Demo-private presentation state owned independently by one viewport slot. */
 export interface WorkbenchShowState {
@@ -46,7 +67,12 @@ export interface WorkbenchShowState {
   resultPlaybackTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 }
 
-/** Installs controller-compatible active-state properties over the slot map. */
+/**
+ * Installs the legacy controller compatibility adapter over the slot map.
+ *
+ * New workbench owners must hold explicit state instead. This adapter remains
+ * only until a dedicated state-ownership refactor can replace it coherently.
+ */
 export function installWorkbenchShowStateAccessors(
   target: object,
   states: Map<ViewportSlotId, WorkbenchShowState>,
@@ -65,6 +91,7 @@ export function installWorkbenchShowStateAccessors(
     get: () => current()[key],
     set: (value: unknown) => Object.assign(current(), { [key]: value }),
   });
+  // eslint-disable-next-line no-restricted-syntax -- isolated legacy adapter; see the workbench ownership contract.
   Object.defineProperties(target, {
     toggles: stateProperty("toggles"),
     resultMode: stateProperty("resultMode"),

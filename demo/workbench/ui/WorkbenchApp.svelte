@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchSnapshot, WorkbenchStartupStatus } from "../results/snapshot";
+  import type {
+    WorkbenchPresentationPort,
+    WorkbenchSnapshot,
+    WorkbenchStartupStatus,
+  } from "../presentation/snapshot";
   import BuildInfo from "./BuildInfo.svelte";
   import ElementDetail from "./ElementDetail.svelte";
   import ModelSource from "./ModelSource.svelte";
@@ -27,7 +30,7 @@
     focus(): void;
   }
 
-  let controller: WorkbenchController | undefined = $state();
+  let workbench: WorkbenchPresentationPort | undefined = $state();
   let snapshot: WorkbenchSnapshot | undefined = $state();
   let startup: WorkbenchStartupStatus | undefined = $state();
   let appElement: AppElement | undefined = $state();
@@ -40,9 +43,9 @@
   const PHONE_BREAKPOINT = 720;
 
   /** Connects the presentation root to the already-created plain TypeScript owner. */
-  export function connectWorkbench(next: WorkbenchController): void {
+  export function connectWorkbench(next: WorkbenchPresentationPort): void {
     unsubscribe?.();
-    controller = next;
+    workbench = next;
     unsubscribe = next.subscribe((current) => {
       snapshot = current;
     });
@@ -200,13 +203,13 @@
       <a class="brand-link" href="./api/">API reference</a>
       <BuildInfo />
     </div>
-    <ModelSource {controller} {snapshot} />
+    <ModelSource {workbench} {snapshot} />
     <h2 class="sidebar-heading">Visibility</h2>
     {#if snapshot?.hierarchy.elementDetail === undefined}
-      <VisibilityTree {controller} visibility={snapshot?.hierarchy.visibility} />
+      <VisibilityTree {workbench} visibility={snapshot?.hierarchy.visibility} />
     {:else}
-      <ElementDetail {controller} detail={snapshot.hierarchy.elementDetail} />
+      <ElementDetail {workbench} detail={snapshot.hierarchy.elementDetail} />
     {/if}
   </aside>
-  <ViewportWorkspace {controller} {snapshot} {startup} {navigationOpen} />
+  <ViewportWorkspace {workbench} {snapshot} {startup} {navigationOpen} />
 </main>

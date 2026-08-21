@@ -1,14 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import type { ElementId } from "@/entries/model";
-  import type { WorkbenchController } from "../controllers/controller";
-  import type { WorkbenchElementDetailSnapshot } from "../results/snapshot";
+  import type {
+    WorkbenchElementDetailSnapshot,
+    WorkbenchPresentationPort,
+  } from "../presentation/snapshot";
 
   let {
-    controller,
+    workbench,
     detail,
   }: {
-    controller: WorkbenchController | undefined;
+    workbench: WorkbenchPresentationPort | undefined;
     detail: WorkbenchElementDetailSnapshot | undefined;
   } = $props();
 
@@ -19,9 +21,9 @@
   let viewportHeight = $state(300);
 
   const elementIds = $derived.by(() =>
-    controller === undefined || detail === undefined
+    workbench === undefined || detail === undefined
       ? []
-      : controller.elementDetailActions.elementIdsForDetail(detail),
+      : workbench.elementDetails.elementIdsForDetail(detail),
   );
   const rowWindow = $derived.by(() => {
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -56,20 +58,20 @@
   }
 
   function select(elementId: ElementId): void {
-    if (detail !== undefined) controller?.commands.selectElementDetail(detail, elementId);
+    if (detail !== undefined) workbench?.commands.selectElementDetail(detail, elementId);
   }
 
   function setHover(elementId: ElementId): void {
-    if (detail !== undefined) controller?.commands.setElementDetailHover(detail, elementId);
+    if (detail !== undefined) workbench?.commands.setElementDetailHover(detail, elementId);
   }
 
   function clearHover(elementId: ElementId): void {
-    if (detail !== undefined) controller?.commands.clearElementDetailHover(detail, elementId);
+    if (detail !== undefined) workbench?.commands.clearElementDetailHover(detail, elementId);
   }
 
   function close(): void {
     const currentDetail = detail;
-    controller?.commands.closeElementDetail();
+    workbench?.commands.closeElementDetail();
     if (currentDetail === undefined) return;
     globalThis.setTimeout(() => {
       const trigger = Array.from(
@@ -85,7 +87,7 @@
   }
 </script>
 
-{#if controller !== undefined && detail !== undefined}
+{#if workbench !== undefined && detail !== undefined}
   <div
     id="element-detail"
     data-testid="element-detail"
@@ -123,7 +125,7 @@
           type="button"
           class="element-detail-row"
           role="option"
-          aria-selected={controller.elementDetailActions.isElementSelected(
+          aria-selected={workbench.elementDetails.isElementSelected(
             detail.partOccurrenceId,
             elementId,
           )}

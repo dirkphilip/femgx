@@ -25,16 +25,16 @@ afterEach(() => {
 describe("workbench analysis-controls", () => {
   it("dispatches toolbar and contextual analysis changes through typed commands", async () => {
     const calls: string[] = [];
-    const controller = fakeController(calls);
+    const workbench = fakeController(calls);
     const target = document.createElement("div");
     document.body.append(target);
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller, snapshot: createSnapshot(true) },
+      props: { workbench, snapshot: createSnapshot(true) },
     });
     const modelSource = mount(ModelSource, {
       target,
-      props: { controller, snapshot: createSnapshot(true) },
+      props: { workbench, snapshot: createSnapshot(true) },
     });
 
     button(target, "#command-view").click();
@@ -112,7 +112,7 @@ describe("workbench analysis-controls", () => {
     document.body.append(target);
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: undefined, snapshot: createSnapshot(true) },
+      props: { workbench: undefined, snapshot: createSnapshot(true) },
     });
 
     button(target, "#command-selection").click();
@@ -138,7 +138,7 @@ describe("workbench analysis-controls", () => {
     document.body.append(target);
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: undefined, snapshot: createSnapshot(false) },
+      props: { workbench: undefined, snapshot: createSnapshot(false) },
     });
 
     const resultControls = element(target, "#result-controls");
@@ -157,7 +157,7 @@ describe("workbench analysis-controls", () => {
     const component = mount(PrimaryToolbar, {
       target,
       props: {
-        controller: undefined,
+        workbench: undefined,
         snapshot: {
           ...snapshot,
           overlays: {
@@ -193,7 +193,7 @@ describe("workbench analysis-controls", () => {
     };
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: undefined, snapshot },
+      props: { workbench: undefined, snapshot },
     });
 
     expect(element(target, "#result-controls").hidden).toBe(false);
@@ -216,7 +216,7 @@ describe("workbench analysis-controls", () => {
     document.body.append(target);
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: undefined, snapshot: createSnapshot(true) },
+      props: { workbench: undefined, snapshot: createSnapshot(true) },
     });
     button(target, "#command-analysis").click();
     await tick();
@@ -274,7 +274,7 @@ describe("workbench analysis-controls", () => {
     } as const;
     const component = mount(PrimaryToolbar, {
       target,
-      props: { controller: fakeController(calls), snapshot: createSnapshot(true, playback) },
+      props: { workbench: fakeController(calls), snapshot: createSnapshot(true, playback) },
     });
     button(target, "#command-analysis").click();
     await tick();
@@ -323,7 +323,7 @@ describe("workbench analysis-controls", () => {
     const playingComponent = mount(PrimaryToolbar, {
       target,
       props: {
-        controller: fakeController(calls),
+        workbench: fakeController(calls),
         snapshot: createSnapshot(true, playingSnapshot),
       },
     });
@@ -341,7 +341,7 @@ describe("workbench analysis-controls", () => {
 
     const emptyComponent = mount(AnalysisControls, {
       target,
-      props: { controller: undefined, snapshot: undefined },
+      props: { workbench: undefined, snapshot: undefined },
     });
     expect(element(target, "#result-controls").hidden).toBe(true);
     await unmount(emptyComponent);

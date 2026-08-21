@@ -1,12 +1,15 @@
 import type { Viewport } from "@/entries/root";
 import type { InteractionState } from "@/entries/interaction";
 import type { SceneOccurrences } from "@/entries/root";
+import { installWorkbenchPaneLifecycle } from "../lifecycle";
 import type { DemoView, ViewportSlotId } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
 import { applyMenuAction } from "../interaction/menu-actions";
 import { createWorkbenchFeatures, type WorkbenchFeatures } from "../state/features";
 import { WorkbenchViewportSlots } from "../viewport/viewport-slots";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";
+import type { WorkbenchInteraction } from "../interaction/interaction";
+import type { WorkbenchBoxPreview } from "../selection/box-preview";
 import type {
   DisplayToggles,
   ResultDisplayMode,
@@ -17,32 +20,27 @@ import type { SelectionGranularity } from "../selection/pick";
 import type { SelectTarget } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
-import type { VectorGlyph, VectorTransform } from "../results/result-controls";
+import type { VectorDisplayState } from "../results/result-controls";
 import { applyBoxSelectionResolvers } from "./controller-box-selection";
 
-export interface WorkbenchInfrastructureOptions {
+/** The controller-owned values and transitions used to compose workbench features. */
+export interface WorkbenchControllerComposition {
   readonly view: DemoView;
   readonly canvas: HTMLCanvasElement;
   readonly rendererName: string;
-  readonly viewport: WorkbenchOptions["viewport"];
-  readonly primaryViewport: () => Viewport;
-  readonly createViewport: WorkbenchOptions["createViewport"];
-  readonly model: () => WorkbenchModel;
-  readonly toggles: () => DisplayToggles;
-  readonly resultMode: () => ResultDisplayMode;
-  readonly vectorFieldId: () => string;
-  readonly vectorGlyph: () => VectorGlyph;
-  readonly vectorTransform: () => VectorTransform;
-  readonly continuous: () => boolean;
-  readonly selectionGranularity: () => SelectionGranularity;
-  readonly boxSelectionStrategy: () => BoxSelectionStrategy;
+  readonly viewport: Viewport;
+  readonly model: WorkbenchModel;
+  readonly toggles: DisplayToggles;
+  readonly resultMode: ResultDisplayMode;
+  readonly vectorDisplay: VectorDisplayState;
+  readonly continuousEnabled: boolean;
+  readonly selectionGranularity: SelectionGranularity;
+  readonly boxSelectionStrategy: BoxSelectionStrategy;
   readonly selectionGranularityForSlot: (slotId: ViewportSlotId) => SelectionGranularity;
-  readonly touchInteractionMode: () => TouchInteractionMode;
+  readonly touchInteractionMode: TouchInteractionMode;
   readonly touchInteractionModeForSlot: (slotId: ViewportSlotId) => TouchInteractionMode;
-  readonly sectionAxis: () => SectionAxis;
-  readonly sectionOffset: () => number;
-  readonly interaction: () => InteractionState;
-  readonly setInteraction: (value: InteractionState) => void;
+  readonly sectionAxis: SectionAxis;
+  readonly sectionOffset: number;
   readonly getInspection: () => { readonly visible: boolean; readonly text: string };
   readonly setInspection: (value: { readonly visible: boolean; readonly text: string }) => void;
   readonly setInspectionForSlot: (
@@ -56,8 +54,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly clearCanvasHover: (slotId: ViewportSlotId) => void;
   readonly activeSlot: () => WorkbenchViewportSlot;
   readonly activeViewport: () => Viewport;
-  readonly viewports: () => readonly Viewport[];
-  readonly runtime: () => SceneOccurrences;
+  readonly runtime: SceneOccurrences;
   readonly applyDisplayedInteraction: () => void;
   readonly render: () => void;
   readonly publishSnapshot: () => void;
@@ -65,7 +62,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
-  readonly openLivePartDialog?: (kind: "add" | "instance", partId?: number) => void;
+  readonly openLivePartDialog: (kind: "add" | "instance", partId?: number) => void;
   readonly applyActiveState: () => void;
   readonly applyState: (slotId: ViewportSlotId) => void;
   readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
@@ -82,52 +79,53 @@ export interface WorkbenchInfrastructure {
 
 /** Creates feature owners first, then gives them one shared slot manager. */
 export function createWorkbenchInfrastructure(
-  options: WorkbenchInfrastructureOptions,
+  context: WorkbenchControllerComposition,
+  createViewport: WorkbenchOptions["createViewport"],
 ): WorkbenchInfrastructure {
   const features: { current?: WorkbenchFeatures } = {};
   const createdFeatures = createWorkbenchFeatures({
-    view: options.view,
-    canvas: options.canvas,
-    rendererName: options.rendererName,
-    viewport: options.activeViewport,
-    interactionViewport: options.primaryViewport,
-    runtime: options.runtime,
-    model: options.model,
-    toggles: options.toggles,
-    resultMode: options.resultMode,
-    vectorFieldId: options.vectorFieldId,
-    vectorGlyph: options.vectorGlyph,
-    vectorTransform: options.vectorTransform,
-    continuous: options.continuous,
-    selectionGranularity: options.selectionGranularity,
-    touchInteractionMode: options.touchInteractionMode,
-    sectionAxis: options.sectionAxis,
-    sectionOffset: options.sectionOffset,
-    interaction: () => options.interactionForSlot("primary"),
+    view: context.view,
+    canvas: context.canvas,
+    rendererName: context.rendererName,
+    viewport: context.activeViewport.bind(context),
+    interactionViewport: () => context.viewport,
+    runtime: () => context.runtime,
+    model: () => context.model,
+    toggles: () => context.toggles,
+    resultMode: () => context.resultMode,
+    vectorFieldId: () => context.vectorDisplay.fieldId,
+    vectorGlyph: () => context.vectorDisplay.glyph,
+    vectorTransform: () => context.vectorDisplay.transform,
+    continuous: () => context.continuousEnabled,
+    selectionGranularity: () => context.selectionGranularity,
+    touchInteractionMode: () => context.touchInteractionMode,
+    sectionAxis: () => context.sectionAxis,
+    sectionOffset: () => context.sectionOffset,
+    interaction: () => context.interactionForSlot("primary"),
     setInteraction: (value) => {
-      options.setInteractionForSlot("primary", value);
+      context.setInteractionForSlot("primary", value);
     },
-    getInspection: options.getInspection,
-    setInspection: options.setInspection,
-    setInspectionForSlot: options.setInspectionForSlot,
+    getInspection: context.getInspection.bind(context),
+    setInspection: context.setInspection.bind(context),
+    setInspectionForSlot: context.setInspectionForSlot.bind(context),
     hoverSlotId: "primary",
-    canClearCanvasHover: options.canClearCanvasHover,
-    markCanvasHover: options.markCanvasHover,
-    clearCanvasHover: options.clearCanvasHover,
-    applyDisplayedInteraction: options.applyDisplayedInteraction,
-    render: options.render,
-    publishSnapshot: options.publishSnapshot,
+    canClearCanvasHover: context.canClearCanvasHover.bind(context),
+    markCanvasHover: context.markCanvasHover.bind(context),
+    clearCanvasHover: context.clearCanvasHover.bind(context),
+    applyDisplayedInteraction: context.applyDisplayedInteraction.bind(context),
+    render: context.render.bind(context),
+    publishSnapshot: context.publishSnapshot.bind(context),
     applyMenuAction: (action) => {
-      applyControllerMenuAction(action, options, features.current);
+      applyControllerMenuAction(action, context, features.current);
     },
   });
   features.current = createdFeatures;
-  const viewportSlots = createViewportSlots(options, createdFeatures);
+  const viewportSlots = createViewportSlots(context, createViewport, createdFeatures);
   applyBoxSelectionResolvers({
-    boxSelectionStrategy: options.boxSelectionStrategy(),
-    selectionGranularity: options.selectionGranularity(),
+    boxSelectionStrategy: context.boxSelectionStrategy,
+    selectionGranularity: context.selectionGranularity,
     viewportSlots,
-    render: options.render,
+    render: context.render.bind(context),
   });
   return {
     features: createdFeatures,
@@ -137,26 +135,26 @@ export function createWorkbenchInfrastructure(
 
 function applyControllerMenuAction(
   action: string,
-  options: WorkbenchInfrastructureOptions,
+  context: WorkbenchControllerComposition,
   features: WorkbenchFeatures | undefined,
 ): void {
   if (features === undefined) throw new Error("Workbench features are not initialized");
-  const slot = options.activeSlot();
+  const slot = context.activeSlot();
   applyMenuAction(action, {
     target: slot.interaction.contextTarget,
     interaction: slot.interaction,
     visibilityActions: features.visibilityActions,
-    toggles: options.toggles(),
-    setEdges: options.setEdges,
-    setDiagnostics: options.setDiagnostics,
-    fitSelection: options.fitSelection,
-    reset: options.reset,
+    toggles: context.toggles,
+    setEdges: context.setEdges.bind(context),
+    setDiagnostics: context.setDiagnostics.bind(context),
+    fitSelection: context.fitSelection.bind(context),
+    reset: context.reset.bind(context),
     addMesh: () => {
-      options.openLivePartDialog?.("add");
+      context.openLivePartDialog("add");
     },
     instancePart: () => {
       const source = partIdForTarget(slot, slot.interaction.contextTarget);
-      if (source !== undefined) options.openLivePartDialog?.("instance", source);
+      if (source !== undefined) context.openLivePartDialog("instance", source);
     },
   });
   slot.interaction.clearContext();
@@ -172,35 +170,59 @@ function partIdForTarget(
 }
 
 function createViewportSlots(
-  options: WorkbenchInfrastructureOptions,
+  context: WorkbenchControllerComposition,
+  createViewport: WorkbenchOptions["createViewport"],
   features: WorkbenchFeatures,
 ): WorkbenchViewportSlots {
   return new WorkbenchViewportSlots({
-    view: options.view,
-    primaryViewport: options.viewport,
+    view: context.view,
+    primaryViewport: context.viewport,
     primaryInteraction: features.interactionController,
     primaryBoxPreview: features.boxPreview,
-    createViewport: options.createViewport,
-    getModel: options.model,
-    getInteraction: options.interactionForSlot,
-    setInteraction: options.setInteractionForSlot,
-    canClearCanvasHover: options.canClearCanvasHover,
-    markCanvasHover: options.markCanvasHover,
-    clearCanvasHover: options.clearCanvasHover,
-    selectionGranularity: options.selectionGranularityForSlot,
-    touchInteractionMode: options.touchInteractionModeForSlot,
+    createViewport,
+    getModel: () => context.model,
+    getInteraction: context.interactionForSlot.bind(context),
+    setInteraction: context.setInteractionForSlot.bind(context),
+    canClearCanvasHover: context.canClearCanvasHover.bind(context),
+    markCanvasHover: context.markCanvasHover.bind(context),
+    clearCanvasHover: context.clearCanvasHover.bind(context),
+    selectionGranularity: context.selectionGranularityForSlot.bind(context),
+    touchInteractionMode: context.touchInteractionModeForSlot.bind(context),
     menu: features.menu,
-    render: options.render,
-    applyActiveState: options.applyActiveState,
-    applyState: options.applyState,
-    cloneShowState: options.cloneShowState,
-    removeShowState: options.removeShowState,
-    rebuildVisibility: options.rebuildVisibility,
-    feedback: options.feedback,
+    render: context.render.bind(context),
+    applyActiveState: context.applyActiveState.bind(context),
+    applyState: context.applyState.bind(context),
+    cloneShowState: context.cloneShowState.bind(context),
+    removeShowState: context.removeShowState.bind(context),
+    rebuildVisibility: context.rebuildVisibility.bind(context),
+    feedback: context.feedback.bind(context),
     setInspection: (slotId, text, visible) => {
-      options.setInspectionForSlot(slotId, { text, visible });
+      context.setInspectionForSlot(slotId, { text, visible });
     },
     selectionFeedback: features.presentation.setFeedback.bind(features.presentation),
-    onActiveSlotChanged: options.onActiveSlotChanged,
+    onActiveSlotChanged: context.onActiveSlotChanged.bind(context),
+  });
+}
+
+/** Installs the primary pane lifecycle after its feature owners are composed. */
+export function installControllerLifecycle(context: {
+  readonly view: DemoView;
+  readonly listenerController: AbortController;
+  readonly interactionController: WorkbenchInteraction;
+  readonly viewport: Viewport;
+  readonly boxPreview: WorkbenchBoxPreview;
+  readonly selectionGranularity: SelectionGranularity;
+  readonly touchInteractionMode: TouchInteractionMode;
+  readonly setActiveSlot: (slotId: "primary") => void;
+}): () => void {
+  return installWorkbenchPaneLifecycle({
+    pane: context.view.primaryPane,
+    signal: context.listenerController.signal,
+    interaction: context.interactionController,
+    viewport: () => context.viewport,
+    boxPreview: context.boxPreview,
+    selectionGranularity: () => context.selectionGranularity,
+    touchInteractionMode: () => context.touchInteractionMode,
+    setActive: context.setActiveSlot.bind(context, "primary"),
   });
 }

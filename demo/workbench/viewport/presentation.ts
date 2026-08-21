@@ -11,7 +11,7 @@ import type { VectorGlyph, VectorTransform } from "../results/result-controls";
 import type { SectionAxis } from "../section-controls";
 import { describePick } from "../selection/inspect";
 import type { WorkbenchMenu } from "../interaction/menu";
-import type { WorkbenchPresentationSnapshot } from "../results/snapshot";
+import type { WorkbenchPresentationSnapshot } from "../presentation/snapshot";
 import type {
   WorkbenchResultLegendField,
   WorkbenchResultLegendSnapshot,

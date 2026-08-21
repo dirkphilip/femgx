@@ -4,7 +4,7 @@ import type { ElementId } from "@/entries/model";
 import type { SceneOccurrences } from "@/entries/root";
 import type { WorkbenchInteraction } from "../interaction/interaction";
 import type { WorkbenchModel } from "../models/model";
-import type { WorkbenchElementDetailSnapshot } from "../results/snapshot";
+import type { WorkbenchElementDetailSnapshot } from "../state/show-state";
 import {
   clearElementDetailHover,
   setElementDetailHover,

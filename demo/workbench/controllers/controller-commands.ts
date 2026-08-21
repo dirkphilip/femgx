@@ -1,15 +1,15 @@
 import type { SceneOccurrences } from "@/entries/root";
-import type { WorkbenchCommands, WorkbenchMenuAction } from "../results/snapshot";
-import { meshTet4ForOwner, type CatalogModeOwner } from "../controllers/controller-catalog";
-import type { WorkbenchElementDetailActions } from "../controllers/controller-element-detail";
+import type { WorkbenchCommands, WorkbenchMenuAction } from "../presentation/snapshot";
+import { meshTet4ForOwner, type CatalogModeOwner } from "./controller-catalog";
+import type { WorkbenchElementDetailActions } from "./controller-element-detail";
 import type { WorkbenchResultPlaybackActions } from "../results/result-playback";
 import type { WorkbenchModel } from "../models/model";
 import { setVectorWidthPixels as applyVectorWidth } from "../results/vector-actions";
 import type { VectorDisplayState } from "../results/result-controls";
 import type { VisibilityRowTarget } from "../state/visibility-snapshot";
 import type { WorkbenchVisibilityActions } from "../state/visibility-actions";
-import type { WorkbenchInteraction } from "./interaction";
-import type { WorkbenchMenu } from "./menu";
+import type { WorkbenchInteraction } from "../interaction/interaction";
+import type { WorkbenchMenu } from "../interaction/menu";
 
 interface WorkbenchCommandOwner extends CatalogModeOwner {
   readonly model: WorkbenchModel;
@@ -58,7 +58,7 @@ interface WorkbenchCommandOwner extends CatalogModeOwner {
   readonly resultPlaybackActions: WorkbenchResultPlaybackActions;
 }
 
-/** Adapts existing controller methods to the typed presentation command surface. */
+/** Adapts controller-owned operations to the typed presentation command surface. */
 export function createWorkbenchCommands(owner: WorkbenchCommandOwner): WorkbenchCommands {
   return {
     setProjection: owner.setProjection.bind(owner),

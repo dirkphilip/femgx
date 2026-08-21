@@ -143,10 +143,29 @@ export default tseslint.config(
     },
   },
   {
-    files: ["demo/workbench/**/*.ts"],
+    files: ["demo/workbench/**/*.{ts,svelte}"],
     rules: {
+      // The workbench presentation has the same readability ceiling as library
+      // modules. Svelte panels split by visible responsibility, not markup size.
       "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+      // Slot state must have an explicit owner. The sole documented legacy
+      // adapter suppresses this locally until its ownership refactor lands.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.name='Object'][callee.property.name=/^definePropert(?:y|ies)$/]",
+          message:
+            "Do not install workbench state properties dynamically; give the owning state object an explicit surface instead.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Reflect'][callee.property.name='defineProperty']",
+          message:
+            "Do not install workbench state properties dynamically; give the owning state object an explicit surface instead.",
+        },
+      ],
     },
   },
   {

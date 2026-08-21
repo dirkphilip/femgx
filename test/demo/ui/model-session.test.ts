@@ -19,8 +19,8 @@ import {
 } from "./support";
 import type {
   WorkbenchCommands,
-  WorkbenchController,
   WorkbenchElementDetailSnapshot,
+  WorkbenchPresentationPort,
 } from "./support";
 
 afterEach(() => {
@@ -34,7 +34,7 @@ describe("workbench model-session", () => {
     document.body.append(target);
     const component = mount(TouchToolRail, {
       target,
-      props: { controller: fakeController(calls), snapshot: createSnapshot(false) },
+      props: { workbench: fakeController(calls), snapshot: createSnapshot(false) },
     });
 
     button(target, '[data-testid="touch-tool-box-select"]').click();
@@ -58,7 +58,7 @@ describe("workbench model-session", () => {
     document.body.append(target);
     const app = mount(WorkbenchApp, { target });
     const api = app as unknown as {
-      connectWorkbench(next: WorkbenchController): void;
+      connectWorkbench(next: WorkbenchPresentationPort): void;
     };
     api.connectWorkbench(
       connectableController(createSnapshot(true), [], {
@@ -115,7 +115,7 @@ describe("workbench model-session", () => {
     const menu = mount(ContextMenu, {
       target,
       props: {
-        controller: fakeController(calls),
+        workbench: fakeController(calls),
         snapshot: withOverlayState(createSnapshot(false)),
       },
     });
@@ -132,13 +132,13 @@ describe("workbench model-session", () => {
 
   it("keeps body element detail bounded and routes its commands", async () => {
     const calls: string[] = [];
-    const controller = {
+    const workbench = {
       commands: createCommands(calls),
-      elementDetailActions: {
+      elementDetails: {
         elementIdsForDetail: () => Array.from({ length: 10_000 }, (_, index) => index + 1),
         isElementSelected: (_instanceId: string, elementId: number) => elementId === 1,
       },
-    } as unknown as WorkbenchController;
+    } as unknown as WorkbenchPresentationPort;
     const detail: WorkbenchElementDetailSnapshot = {
       partOccurrenceId: "1",
       bodyId: 1,
@@ -148,7 +148,7 @@ describe("workbench model-session", () => {
     };
     const target = document.createElement("div");
     document.body.append(target);
-    const component = mount(ElementDetail, { target, props: { controller, detail } });
+    const component = mount(ElementDetail, { target, props: { workbench, detail } });
     await tick();
 
     expect(target.querySelectorAll('[role="option"]').length).toBeLessThan(100);
@@ -189,7 +189,7 @@ describe("workbench model-session", () => {
     }));
     const component = mount(VisibilityTree, {
       target,
-      props: { controller: undefined, visibility: { ...base, rows } },
+      props: { workbench: undefined, visibility: { ...base, rows } },
     });
     await tick();
 

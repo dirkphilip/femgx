@@ -1,6 +1,6 @@
 import type { PartOccurrenceId, ViewportBackground } from "@/entries/root";
 import type { InteractionState } from "@/entries/interaction";
-import type { BodyId, ElementId } from "@/entries/model";
+import type { ElementId } from "@/entries/model";
 import type { Camera } from "@/entries/camera";
 import type { SceneOccurrences } from "@/entries/root";
 import type { WorkbenchModel } from "../models/model";
@@ -10,17 +10,14 @@ import type { SectionAxis } from "../section-controls";
 import type { DisplayToggles } from "../types";
 import type { ResultDisplayMode, TouchInteractionMode } from "../types";
 import type { WorkbenchCatalogMode } from "../models/model-catalog";
-import type { VectorDisplayState } from "./result-controls";
+import type { VectorDisplayState } from "../results/result-controls";
 import type { VisibilityRowTarget } from "../state/visibility-snapshot";
 import type { WorkbenchVisibilitySnapshot } from "../state/visibility-snapshot";
-import type { WorkbenchResultLegendSnapshot } from "./result-legend";
-import type {
-  WorkbenchResultPlaybackActions,
-  WorkbenchResultPlaybackSnapshot,
-} from "./result-playback";
-import { createWorkbenchSnapshot } from "./snapshot-builder";
+import type { WorkbenchResultLegendSnapshot } from "../results/result-legend";
+import type { WorkbenchResultPlaybackSnapshot } from "../results/result-playback";
+import type { WorkbenchElementDetailSnapshot } from "../state/show-state";
 
-export { createWorkbenchSnapshot } from "./snapshot-builder";
+export type { WorkbenchElementDetailSnapshot } from "../state/show-state";
 
 export type WorkbenchMenuAction =
   | "add-mesh"
@@ -155,15 +152,6 @@ export interface WorkbenchSnapshot {
   };
 }
 
-/** Bounded metadata for the body-scoped element detail view. */
-export interface WorkbenchElementDetailSnapshot {
-  readonly partOccurrenceId: PartOccurrenceId;
-  readonly bodyId: BodyId;
-  readonly label: string;
-  readonly partName: string;
-  readonly count: number;
-}
-
 export interface WorkbenchResultField {
   readonly id: string;
   readonly name: string;
@@ -212,40 +200,6 @@ export interface WorkbenchSnapshotInput {
   readonly presentation?: WorkbenchPresentationSnapshot;
   readonly visibility?: WorkbenchVisibilitySnapshot;
   readonly livePartDialog?: WorkbenchLivePartDialogSnapshot;
-}
-
-export interface WorkbenchSnapshotOwner {
-  readonly model: WorkbenchModel;
-  readonly models: readonly WorkbenchModel[];
-  readonly catalogMode: WorkbenchCatalogMode;
-  readonly catalogSelectionId: string;
-  readonly runtime: SceneOccurrences;
-  readonly interaction: InteractionState;
-  readonly rendererName: string;
-  readonly rendererState: string;
-  readonly background: ViewportBackground;
-  readonly toggles: Readonly<DisplayToggles>;
-  readonly continuousEnabled: boolean;
-  readonly selectionGranularity: SelectionGranularity;
-  readonly boxSelectionStrategy: BoxSelectionStrategy;
-  readonly touchInteractionMode: TouchInteractionMode;
-  readonly scalarFieldId: string;
-  readonly resultMode: ResultDisplayMode;
-  readonly deformationScale: number;
-  readonly vectorDisplay: VectorDisplayState;
-  readonly sectionAxis: SectionAxis;
-  readonly sectionOffset: number;
-  readonly elementDetail: WorkbenchElementDetailSnapshot | undefined;
-  readonly livePartDialog: WorkbenchLivePartDialogSnapshot | undefined;
-  readonly resultPlaybackActions: Pick<WorkbenchResultPlaybackActions, "snapshot">;
-  readonly presentation: { snapshot(): WorkbenchPresentationSnapshot };
-  readonly visibilityPanel: { snapshot(): WorkbenchVisibilitySnapshot };
-  readonly viewportSlots: {
-    activeSlot(): { readonly id: "primary" | "secondary" };
-    isSecondaryVisible(): boolean;
-    isSecondaryOpening(): boolean;
-  };
-  activeViewport(): { readonly view: { readonly camera: Pick<Camera, "mode"> } };
 }
 
 export interface WorkbenchCommands {
@@ -302,63 +256,21 @@ export interface WorkbenchCommands {
 
 export type WorkbenchSnapshotListener = (snapshot: WorkbenchSnapshot) => void;
 
-/** Owns one workbench snapshot stream without creating a second mutable state owner. */
-export class WorkbenchSnapshotBridge {
-  private readonly listeners = new Set<WorkbenchSnapshotListener>();
-
-  constructor(private readonly read: () => WorkbenchSnapshotInput) {}
-
-  get current(): WorkbenchSnapshot {
-    return createWorkbenchSnapshot(this.read());
-  }
-
-  subscribe(listener: WorkbenchSnapshotListener): () => void {
-    this.listeners.add(listener);
-    listener(this.current);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  }
-
-  publish(): void {
-    if (this.listeners.size === 0) return;
-    const snapshot = this.current;
-    for (const listener of this.listeners) listener(snapshot);
-  }
+/** Bounded read queries that would be needlessly large in the snapshot stream. */
+export interface WorkbenchElementDetailQueries {
+  elementIdsForDetail(detail: WorkbenchElementDetailSnapshot): readonly ElementId[];
+  isElementSelected(partOccurrenceId: PartOccurrenceId, elementId: ElementId): boolean;
 }
 
-/** Adapts the controller's existing state owner to the bounded snapshot input. */
-export function snapshotInputFromOwner(owner: WorkbenchSnapshotOwner): WorkbenchSnapshotInput {
-  const resultPlayback = owner.resultPlaybackActions.snapshot();
-  return {
-    model: owner.model,
-    models: owner.models,
-    catalogMode: owner.catalogMode,
-    catalogSelectionId: owner.catalogSelectionId,
-    runtime: owner.runtime,
-    interaction: owner.interaction,
-    rendererName: owner.rendererName,
-    rendererState: owner.rendererState,
-    cameraMode: owner.activeViewport().view.camera.mode,
-    background: owner.background,
-    toggles: owner.toggles,
-    continuous: owner.continuousEnabled,
-    selectionGranularity: owner.selectionGranularity,
-    boxSelectionStrategy: owner.boxSelectionStrategy,
-    touchInteractionMode: owner.touchInteractionMode,
-    activeSlot: owner.viewportSlots.activeSlot().id,
-    scalarFieldId: owner.scalarFieldId,
-    secondaryOpen: owner.viewportSlots.isSecondaryVisible(),
-    secondaryBusy: owner.viewportSlots.isSecondaryOpening(),
-    resultMode: owner.resultMode,
-    deformationScale: owner.deformationScale,
-    vectorDisplay: owner.vectorDisplay,
-    sectionAxis: owner.sectionAxis,
-    sectionOffset: owner.sectionOffset,
-    ...(owner.elementDetail === undefined ? {} : { elementDetail: owner.elementDetail }),
-    ...(owner.livePartDialog === undefined ? {} : { livePartDialog: owner.livePartDialog }),
-    ...(resultPlayback === undefined ? {} : { resultPlayback }),
-    presentation: owner.presentation.snapshot(),
-    visibility: owner.visibilityPanel.snapshot(),
-  };
+/**
+ * The complete dependency surface exposed by the workbench owner to Svelte.
+ *
+ * Commands mutate workbench state; snapshots describe it. Element detail keeps
+ * its virtualized row identity behind one bounded read query rather than
+ * copying potentially large element lists into every snapshot.
+ */
+export interface WorkbenchPresentationPort {
+  readonly commands: WorkbenchCommands;
+  readonly elementDetails: WorkbenchElementDetailQueries;
+  subscribe(listener: WorkbenchSnapshotListener): () => void;
 }
