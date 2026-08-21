@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   installNavigator,
   scene,
+  invalidScene,
   resultScene,
   createResultField,
   setPartOverride,
@@ -30,6 +31,49 @@ describe("Viewport", () => {
       }),
     ).rejects.toThrow("orientationGizmo.container must contain the canvas");
     expect(contains).toHaveBeenCalledWith(canvas);
+  });
+
+  it("releases the renderer when initial viewport setup fails", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    // Keep the genuine implementation available while the spy injects the setup failure.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const resize = GpuRenderer.prototype.resize;
+    const rendererResize = vi.spyOn(GpuRenderer.prototype, "resize");
+    const rendererDestroy = vi.spyOn(GpuRenderer.prototype, "destroy");
+    rendererResize.mockImplementation(function (this: GpuRenderer, width?, height?) {
+      if (rendererResize.mock.calls.length > 1) throw new Error("initial viewport resize failed");
+      resize.call(this, width, height);
+    });
+
+    try {
+      await expect(
+        createViewport({ canvas: fakeCanvas(), scene: scene(), device: gpu.device }),
+      ).rejects.toThrow("initial viewport resize failed");
+      expect(rendererDestroy).toHaveBeenCalledOnce();
+      expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
+    } finally {
+      rendererResize.mockRestore();
+      rendererDestroy.mockRestore();
+    }
+  });
+
+  it("releases the renderer when scene initialization fails before lifecycle setup", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const gpu = fakeGpuDevice();
+    const rendererDestroy = vi.spyOn(GpuRenderer.prototype, "destroy");
+
+    try {
+      await expect(
+        createViewport({ canvas: fakeCanvas(), scene: invalidScene(), device: gpu.device }),
+      ).rejects.toThrow();
+      expect(rendererDestroy).toHaveBeenCalledOnce();
+      expect(gpu.buffers.every((buffer) => buffer.destroyed)).toBe(true);
+    } finally {
+      rendererDestroy.mockRestore();
+    }
   });
 
   it("owns fitted camera, runtime, interaction, visibility, resize, and teardown", async () => {
