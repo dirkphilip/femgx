@@ -3,6 +3,7 @@ import { type PickHit, type Viewport } from "@/entries/root";
 import {
   createInteractionState,
   isTargetSelected,
+  setTargetHovered,
   setTargetSelected,
   type InteractionTarget,
   type InteractionState,
@@ -14,9 +15,37 @@ import {
   createWorkbenchInfrastructure,
   type WorkbenchInfrastructureOptions,
 } from "../../../demo/workbench/controllers/controller-infrastructure";
+import { applyViewportInteraction } from "../../../demo/workbench/interaction/viewport-binding";
 import type { ViewportSlotId } from "../../../demo/workbench/viewport/view";
 
 describe("workbench controller infrastructure", () => {
+  it("does not synchronize or render unchanged hover state", () => {
+    const target: InteractionTarget = { kind: "element", partOccurrenceId: "1/0", elementId: 2 };
+    let interaction = setTargetHovered(createInteractionState(), target);
+    const setInteraction = vi.fn((next: InteractionState) => {
+      interaction = next;
+    });
+    const render = vi.fn();
+    const canvas = { dataset: {} } as unknown as HTMLCanvasElement;
+    const options = { canvas, getInteraction: () => interaction, setInteraction, render };
+    const request = {
+      phase: "hover" as const,
+      granularity: "element" as const,
+      target,
+      targets: [target],
+      modifiers: { shift: false, control: false, alt: false, meta: false },
+      event: {} as PointerEvent,
+      current: interaction,
+      defaultInteraction: interaction,
+    };
+
+    applyViewportInteraction(options, request);
+
+    expect(canvas.dataset["hovered"]).toBe("e:1/0:2");
+    expect(setInteraction).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
+  });
+
   it("keeps primary picking and state scoped to primary when secondary is active", async () => {
     const primaryHit = faceHit("primary-occurrence");
     const primaryPick = vi.fn(() => Promise.resolve(primaryHit));

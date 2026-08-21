@@ -67,6 +67,9 @@ export interface PickPixelResult {
 export const READBACK_BYTE_STRIDE = 256;
 
 const READBACK_SIZE = READBACK_BYTE_STRIDE * 5;
+const EDGE_READBACK_SIZE = READBACK_BYTE_STRIDE * 6;
+
+export type EdgePickPixelResult = { readonly ids: PickPixelResult; readonly edgePickId: number };
 
 /** Creates empty pick targets; they are populated before the first pick pass. */
 export function createPickTargets(depthReadback?: PickDepthReadback): PickTargets {
@@ -165,48 +168,42 @@ export async function readPickPixel(
   x: number,
   y: number,
 ): Promise<PickPixelResult> {
+  return (await readPickPixelResult({ device, canvas, pick, x, y, edge: undefined })).ids;
+}
+
+/** Reads ordinary and lazy edge ids in one map; ordinary picks retain five slots. */
+export async function readEdgePickPixel(
+  device: GPUDevice,
+  canvas: HTMLCanvasElement,
+  pick: PickTargets,
+  x: number,
+  y: number,
+): Promise<EdgePickPixelResult> {
+  return readPickPixelResult({ device, canvas, pick, x, y, edge: pick.edgeTexture });
+}
+
+interface PickPixelReadOptions {
+  readonly device: GPUDevice;
+  readonly canvas: HTMLCanvasElement;
+  readonly pick: PickTargets;
+  readonly x: number;
+  readonly y: number;
+  readonly edge: GPUTexture | undefined;
+}
+
+async function readPickPixelResult(options: PickPixelReadOptions): Promise<EdgePickPixelResult> {
+  const { pick } = options;
   const initialTextures = readableTextures(pick);
-  if (initialTextures === undefined) {
-    return {
-      instancePickId: 0,
-      elementPickId: 0,
-      facePickId: 0,
-      nodePickId: 0,
-      ndcDepth: 1,
-    };
-  }
+  if (initialTextures === undefined) return { ids: emptyPickPixel(), edgePickId: 0 };
   const depthReadback = initialTextures.readback;
   let releaseDepth: (() => void) | undefined;
-  let buffer: GPUBuffer | undefined;
-  let mapped = false;
   try {
     const acquiredDepth = acquirePickDepthReadback(depthReadback);
     releaseDepth = acquiredDepth instanceof Promise ? await acquiredDepth : acquiredDepth;
     if (releaseDepth === undefined) {
       throw new Error("WebGPU picking depth resources were destroyed");
     }
-    // The depth lock may suspend across a resize; refresh the snapshot before
-    // encoding so a queued pick never submits copies from destroyed targets.
-    const textures = readableTextures(pick);
-    if (textures === undefined || textures.readback !== depthReadback) {
-      throw new Error("WebGPU picking targets were resized while waiting for depth resources");
-    }
-    const pixel = pickPixelCoordinates(
-      x,
-      y,
-      canvas.getBoundingClientRect(),
-      canvas.width,
-      canvas.height,
-    );
-    const readback = acquirePickReadback(device, pick.readback, READBACK_SIZE);
-    buffer = readback;
-    submitPickCopies(device, textures, readback, pixel);
-    await readback.mapAsync(GPUMapMode.READ);
-    mapped = true;
-    const result = decodePickPixel(new Uint8Array(readback.getMappedRange()));
-    readback.unmap();
-    mapped = false;
-    return result;
+    return await readLockedPickPixel(options, depthReadback);
   } catch (error) {
     // Rendering already succeeded; only the pick readback failed (e.g. the
     // mapAsync rejection seen on some iOS/WebKit builds). Surface it as a
@@ -217,22 +214,25 @@ export async function readPickPixel(
       { cause: error },
     );
   } finally {
-    if (mapped) buffer?.unmap();
     releaseDepth?.();
-    if (buffer !== undefined) releasePickReadback(pick.readback, buffer, READBACK_SIZE);
   }
 }
 
-/** Reads one private authored-edge id from the optional edge target. */
-export async function readEdgePickPixel(
-  device: GPUDevice,
-  canvas: HTMLCanvasElement,
-  pick: PickTargets,
-  x: number,
-  y: number,
-): Promise<number> {
-  const texture = pick.edgeTexture;
-  if (texture === undefined) return 0;
+async function readLockedPickPixel(
+  options: PickPixelReadOptions,
+  depthReadback: PickDepthReadback,
+): Promise<EdgePickPixelResult> {
+  const { device, canvas, pick, x, y, edge } = options;
+  // The depth lock may suspend across a resize; refresh the snapshot before
+  // encoding so a queued pick never submits copies from destroyed targets.
+  const textures = readableTextures(pick);
+  if (
+    textures === undefined ||
+    textures.readback !== depthReadback ||
+    (edge !== undefined && pick.edgeTexture !== edge)
+  ) {
+    throw new Error("WebGPU picking targets were resized while waiting for depth resources");
+  }
   const pixel = pickPixelCoordinates(
     x,
     y,
@@ -240,25 +240,17 @@ export async function readEdgePickPixel(
     canvas.width,
     canvas.height,
   );
-  const buffer = acquirePickReadback(device, pick.readback, READBACK_BYTE_STRIDE);
+  const readbackSize = edge === undefined ? READBACK_SIZE : EDGE_READBACK_SIZE;
+  const buffer = acquirePickReadback(device, pick.readback, readbackSize);
   let mapped = false;
   try {
-    const encoder = device.createCommandEncoder({ label: "femgx pick pixel copy" });
-    copyPickPixel(encoder, buffer, pixel, { texture, offset: 0 });
-    device.queue.submit([encoder.finish()]);
+    submitPickCopies(device, textures, buffer, pixel, edge);
     await buffer.mapAsync(GPUMapMode.READ);
     mapped = true;
-    const value = decodePickId(new Uint8Array(buffer.getMappedRange()));
-    buffer.unmap();
-    mapped = false;
-    return value;
-  } catch (error) {
-    throw new WebGpuPickReadbackError("WebGPU authored-edge pick readback failed", {
-      cause: error,
-    });
+    return decodePickPixel(new Uint8Array(buffer.getMappedRange()), edge !== undefined);
   } finally {
     if (mapped) buffer.unmap();
-    releasePickReadback(pick.readback, buffer, READBACK_BYTE_STRIDE);
+    releasePickReadback(pick.readback, buffer, readbackSize);
   }
 }
 
@@ -296,13 +288,24 @@ function submitPickCopies(
   textures: ReadablePickTextures,
   buffer: GPUBuffer,
   pixel: { readonly x: number; readonly y: number },
+  edge: GPUTexture | undefined,
 ): void {
   const encoder = device.createCommandEncoder({ label: "femgx pick region copy" });
   const ordered = [textures.instance, textures.element, textures.face, textures.node];
   ordered.forEach((texture, index) => {
     copyPickPixel(encoder, buffer, pixel, { texture, offset: READBACK_BYTE_STRIDE * index });
   });
-  encodePickDepthReadback(device, encoder, textures.readback, buffer, pixel);
+  const depthOffset = edge === undefined ? READBACK_BYTE_STRIDE * 4 : READBACK_BYTE_STRIDE * 5;
+  if (edge !== undefined) {
+    copyPickPixel(encoder, buffer, pixel, { texture: edge, offset: READBACK_BYTE_STRIDE * 4 });
+  }
+  encodePickDepthReadback(
+    device,
+    encoder,
+    textures.readback,
+    { buffer, offset: depthOffset },
+    pixel,
+  );
   device.queue.submit([encoder.finish()]);
 }
 
@@ -320,19 +323,23 @@ function copyPickPixel(
   );
 }
 
-/** Decodes the four pick ids from a mapped readback buffer. */
-function decodePickPixel(pixels: Uint8Array): PickPixelResult {
+/** Decodes one mapped ordinary or authored-edge pick readback. */
+function decodePickPixel(pixels: Uint8Array, hasEdge: boolean): EdgePickPixelResult {
+  const depthOffset = READBACK_BYTE_STRIDE * (hasEdge ? 5 : 4);
   return {
-    instancePickId: decodePickId(pixels),
-    elementPickId: decodePickId(pixels, READBACK_BYTE_STRIDE),
-    facePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 2),
-    nodePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 3),
-    ndcDepth: new DataView(
-      pixels.buffer,
-      pixels.byteOffset + READBACK_BYTE_STRIDE * 4,
-      4,
-    ).getFloat32(0, true),
+    ids: {
+      instancePickId: decodePickId(pixels),
+      elementPickId: decodePickId(pixels, READBACK_BYTE_STRIDE),
+      facePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 2),
+      nodePickId: decodePickId(pixels, READBACK_BYTE_STRIDE * 3),
+      ndcDepth: new DataView(pixels.buffer, pixels.byteOffset + depthOffset, 4).getFloat32(0, true),
+    },
+    edgePickId: hasEdge ? decodePickId(pixels, READBACK_BYTE_STRIDE * 4) : 0,
   };
+}
+
+function emptyPickPixel(): PickPixelResult {
+  return { instancePickId: 0, elementPickId: 0, facePickId: 0, nodePickId: 0, ndcDepth: 1 };
 }
 
 /** Inputs for resolving a pixel to a pick target. */

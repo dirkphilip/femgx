@@ -27,6 +27,26 @@ loose, approximately 10× the measured median, and scaling series retain a
 ≤3× normalized-cost-spread guard by default, with documented noisy-case
 exceptions.
 
+### Hover readback guidance
+
+Hover remains GPU-backed and keeps the bounded scheduler contract: at most one
+query is in flight and only the newest pointer event is queued. The workbench
+also uses interaction-state identity as a render gate: when a resolved hover
+has the same semantic target, inspection and canvas datasets may be refreshed,
+but interaction synchronization and visible-frame submission are skipped.
+
+Ordinary point picking retains its four color attachments and pooled five-slot
+readback layout (instance, element, face, node, and depth) with one mapping.
+When edge granularity is explicitly requested, the lazy authored-edge target
+uses one additional pooled slot in the same copy submission and mapping; edge
+resources and edge copies remain absent from ordinary picking. This is a
+structural cost and identity contract, not a browser performance result.
+
+Safari/WebKit reproduction details, adapter-specific before/after latency
+percentiles, mapping counts, and Continuous-rendering evidence remain pending
+for issue #1219. Unit/fake-GPU tests and Chrome evidence cannot establish a
+material Safari improvement, so no Safari gain is claimed here.
+
 ## Local CPU operation report
 
 The opt-in operation matrix uses the existing realistic Tet4, body-heavy, and

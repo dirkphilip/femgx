@@ -115,7 +115,7 @@ export function encodePickDepthReadback(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   readback: PickDepthReadback,
-  destination: GPUBuffer,
+  destination: { readonly buffer: GPUBuffer; readonly offset?: number },
   pixel: { readonly x: number; readonly y: number },
 ): void {
   if (readback.bindGroup === undefined) {
@@ -130,8 +130,8 @@ export function encodePickDepthReadback(
   encoder.copyBufferToBuffer(
     readback.requestBuffer,
     DEPTH_RESULT_OFFSET,
-    destination,
-    DEPTH_READBACK_OFFSET,
+    destination.buffer,
+    destination.offset ?? DEPTH_READBACK_OFFSET,
     4,
   );
 }
