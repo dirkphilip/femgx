@@ -50,6 +50,8 @@ import {
   setBackgroundForOwner,
   setContinuousForOwner,
   setDiagnosticsForOwner,
+  setEdgesForOwner,
+  setNodesForOwner,
 } from "./controller-display";
 import type { ObservedPaneSize } from "../viewport/viewport-presentation";
 import type { VectorDisplayState } from "../results/result-controls";
@@ -122,6 +124,12 @@ import {
   setHierarchyHover as setHierarchyHoverForOwner,
   type WorkbenchHoverOwner,
 } from "./controller-hover";
+import type { WorkbenchLivePartDialogSnapshot } from "../results/snapshot";
+import {
+  applyLivePartEditForOwner,
+  cancelLivePartEditForOwner,
+  openLivePartDialogForOwner,
+} from "./controller-live-part-edit";
 
 export type { DisplayToggles, RendererStats, ResultDisplayMode, WorkbenchOptions } from "../types";
 
@@ -171,6 +179,7 @@ export class WorkbenchController {
   declare scalarFieldId: string;
   declare background: ViewportBackground;
   declare inspection: { visible: boolean; text: string };
+  livePartDialog: WorkbenchLivePartDialogSnapshot | undefined;
 
   constructor(options: WorkbenchOptions) {
     this.view = options.view;
@@ -235,35 +244,29 @@ export class WorkbenchController {
   get runtime(): SceneOccurrences {
     return this.activeViewport().occurrences;
   }
-
   showState = showStateForSlot.bind(null, this.showStates);
-
   interactionForSlot = (slotId: ViewportSlotId): InteractionState =>
     this.showState(slotId).interaction;
 
   setInteractionForSlot = (slotId: ViewportSlotId, value: InteractionState): void => {
     this.showState(slotId).interaction = value;
   };
-
   selectionGranularityForSlot = (slotId: ViewportSlotId): SelectionGranularity =>
     this.showState(slotId).selectionGranularity;
 
   touchInteractionModeForSlot = (slotId: ViewportSlotId): TouchInteractionMode =>
     this.showState(slotId).touchInteractionMode;
-
   hoverOwnerForSlot = (slotId: ViewportSlotId): WorkbenchHoverOwner | undefined =>
     this.hoverOwners.get(slotId);
 
   setHoverOwnerForSlot = (slotId: ViewportSlotId, value: WorkbenchHoverOwner | undefined): void => {
     this.hoverOwners.set(slotId, value);
   };
-
   cloneShowState = (from: ViewportSlotId, to: ViewportSlotId) =>
     cloneShowStateForSlot(this.showStates, this.hoverOwners, from, to);
 
   removeShowState = (slotId: ViewportSlotId) =>
     removeShowStateForSlot(this.showStates, this.hoverOwners, slotId);
-
   resetShowStates = (model: WorkbenchModel) =>
     resetShowStatesForModel(this.showStates, this.hoverOwners, model);
 
@@ -384,21 +387,17 @@ export class WorkbenchController {
     await this.modelSession.openModel(file);
   }
 
-  setEdges(enabled = !this.toggles.edges): void {
-    if (this.toggles.edges === enabled) return;
-    this.toggles.edges = enabled;
-    this.applyCurrentDisplayState();
-    this.render();
-  }
+  setEdges = setEdgesForOwner.bind(null, this);
 
-  setNodes(enabled = !this.toggles.nodes): void {
-    if (this.toggles.nodes === enabled) return;
-    this.toggles.nodes = enabled;
-    this.applyCurrentDisplayState();
-    this.render();
-  }
+  setNodes = setNodesForOwner.bind(null, this);
 
   fitSelection = fitSelectionForOwner.bind(null, this);
+
+  openLivePartDialog = openLivePartDialogForOwner.bind(null, this);
+
+  cancelLivePartEdit = cancelLivePartEditForOwner.bind(null, this);
+
+  applyLivePartEdit = applyLivePartEditForOwner.bind(null, this);
 
   reset(): void {
     this.touchInteractionMode = "navigate";

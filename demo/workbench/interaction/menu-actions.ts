@@ -13,12 +13,21 @@ export interface WorkbenchMenuActionContext {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
+  readonly addMesh: () => void;
+  readonly instancePart: () => void;
 }
 
 /** Applies one menu action without adding policy to the DOM menu renderer. */
 export function applyMenuAction(action: string, context: WorkbenchMenuActionContext): void {
   const { target } = context;
   switch (action) {
+    case "add-mesh":
+      context.addMesh();
+      break;
+    case "instance-part": {
+      if (target !== undefined) context.instancePart();
+      break;
+    }
     case "highlight":
       if (target !== undefined) context.interaction.highlight(target);
       break;

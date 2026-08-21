@@ -14,6 +14,7 @@ import type {
   WorkbenchOptions,
 } from "../types";
 import type { SelectionGranularity } from "../selection/pick";
+import type { SelectTarget } from "../selection/pick";
 import type { BoxSelectionStrategy } from "../selection/box-selection-resolver";
 import type { SectionAxis } from "../section-controls";
 import type { VectorGlyph, VectorTransform } from "../results/result-controls";
@@ -64,6 +65,7 @@ export interface WorkbenchInfrastructureOptions {
   readonly setDiagnostics: () => void;
   readonly fitSelection: () => void;
   readonly reset: () => void;
+  readonly openLivePartDialog?: (kind: "add" | "instance", partId?: number) => void;
   readonly applyActiveState: () => void;
   readonly applyState: (slotId: ViewportSlotId) => void;
   readonly cloneShowState: (from: ViewportSlotId, to: ViewportSlotId) => void;
@@ -149,8 +151,24 @@ function applyControllerMenuAction(
     setDiagnostics: options.setDiagnostics,
     fitSelection: options.fitSelection,
     reset: options.reset,
+    addMesh: () => {
+      options.openLivePartDialog?.("add");
+    },
+    instancePart: () => {
+      const source = partIdForTarget(slot, slot.interaction.contextTarget);
+      if (source !== undefined) options.openLivePartDialog?.("instance", source);
+    },
   });
   slot.interaction.clearContext();
+}
+
+function partIdForTarget(
+  slot: WorkbenchViewportSlot,
+  target: SelectTarget | undefined,
+): number | undefined {
+  if (target === undefined) return undefined;
+  if (target.kind === "part") return target.partId;
+  return slot.viewport.occurrences.getPartOccurrence(target.partOccurrenceId)?.partId;
 }
 
 function createViewportSlots(

@@ -25,6 +25,7 @@ describe("workbench context-menu state", () => {
     expect(menu.snapshot.entries).toEqual(
       expect.arrayContaining([
         { kind: "button", label: "Highlight / Clear", action: "highlight" },
+        { kind: "button", label: "Instance this part…", action: "instance-part" },
         { kind: "button", label: "Hide / Show instance", action: "hide-instance" },
         { kind: "button", label: "Hide / Show part", action: "hide-part" },
         {
@@ -58,6 +59,7 @@ describe("workbench context-menu state", () => {
     expect(menu.snapshot.entries).toEqual(
       expect.arrayContaining([
         { kind: "button", label: "Hide diagnostics", action: "diagnostics" },
+        { kind: "button", label: "Add mesh…", action: "add-mesh" },
         { kind: "button", label: "Clear selection", action: "clear-selection" },
         {
           kind: "button",
