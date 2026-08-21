@@ -95,8 +95,8 @@ test("selects authored bodies through the selection granularity", async ({ page 
   const bodyHit = await requireHit(
     page,
     canvas,
-    { prefix: "f:" },
-    "body GPU picking must resolve from authored element metadata",
+    { attribute: "hovered", prefix: "body:" },
+    "body selection must resolve from authored element metadata",
   );
   await page.mouse.click(bodyHit.x, bodyHit.y);
   await expect.poll(() => dataset(page, "selected")).toMatch(/^body:/);

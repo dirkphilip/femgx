@@ -1,11 +1,5 @@
 import { type InteractionGranularity, type PickHit } from "@/entries/root";
 import {
-  clearSelection,
-  isTargetSelected,
-  setTargetHovered,
-  setTargetSelected,
-  setTargetsSelected,
-  setElementRegionSelected,
   type InteractionState,
   type InteractionTarget,
   type ViewportInteractionApplyRequest,
@@ -74,7 +68,7 @@ export function applyViewportInteraction(
     | "render"
   >,
   request: ViewportInteractionApplyRequest,
-): undefined {
+): InteractionState {
   if (request.phase === "hover") {
     if (request.target === undefined) options.hoverOwnership?.clear();
     else options.hoverOwnership?.mark();
@@ -83,7 +77,7 @@ export function applyViewportInteraction(
     options.hoverOwnership?.clear();
     options.canvas.dataset["hovered"] = "";
   }
-  const interaction = workbenchInteraction(options.getInteraction(), request);
+  const interaction = request.defaultInteraction;
   if (request.phase === "box") {
     const granularity = request.granularity;
     const selectedCount = selectedTargetCount(interaction, granularity);
@@ -91,36 +85,11 @@ export function applyViewportInteraction(
       `Box selection: ${selectedCount} ${selectionNoun(granularity, selectedCount)}`,
     );
   }
-  options.setInteraction(interaction);
-  options.render();
-  return undefined;
-}
-
-function workbenchInteraction(
-  current: InteractionState,
-  request: ViewportInteractionApplyRequest,
-): InteractionState {
-  if (request.phase === "hover") return setTargetHovered(current, request.target);
-  const withoutHover = setTargetHovered(current, undefined);
-  if (request.phase === "box") {
-    return request.granularity === "element"
-      ? setElementRegionSelected(withoutHover, request.selection, request.operation)
-      : setTargetsSelected(
-          request.operation === "add" ? withoutHover : clearSelection(withoutHover),
-          request.selection,
-          true,
-        );
+  if (interaction !== request.current) {
+    options.setInteraction(interaction);
+    options.render();
   }
-  if (request.modifiers.control || request.modifiers.meta) {
-    return request.target === undefined
-      ? withoutHover
-      : setTargetSelected(withoutHover, request.target, !isTargetSelected(current, request.target));
-  }
-  return setTargetsSelected(
-    clearSelection(withoutHover),
-    request.target === undefined ? [] : [request.target],
-    true,
-  );
+  return interaction;
 }
 
 /** Reports a binding failure through the workbench's existing feedback surface. */

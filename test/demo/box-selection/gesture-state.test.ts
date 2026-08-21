@@ -9,6 +9,7 @@ import {
   rect,
   harness,
   element,
+  elementSelection,
   nodeHit,
   createInteractionState,
   complete,
@@ -197,6 +198,7 @@ describe("workbench gesture-state", () => {
     });
     bindings.onError?.(new Error("test failure"), "click");
 
+    expect(getInteraction()).toBe(next);
     expect(selectedKeys(getInteraction())).toEqual(["e:instance-a:2"]);
     expect(render).toHaveBeenCalledOnce();
     expect(selectionFeedback).toHaveBeenLastCalledWith(
@@ -265,18 +267,59 @@ describe("workbench gesture-state", () => {
       modifiers,
       event: nextHoverEvent,
     });
-    const staleViewportState = createInteractionState();
+    const latestViewportState = getInteraction();
     await bindings.applyInteraction?.({
       phase: "hover",
       granularity: "node",
-      current: staleViewportState,
-      defaultInteraction: setTargetHovered(staleViewportState, nextHover),
+      current: latestViewportState,
+      defaultInteraction: setTargetHovered(latestViewportState, nextHover),
       target: nextHover,
       modifiers,
       event: nextHoverEvent,
     });
 
     expect(selectedKeys(getInteraction())).toEqual(["n:instance-a:3"]);
+  });
+
+  it("rejects an in-flight region result when its strategy changes", async () => {
+    let resolveOld: ((selection: ReturnType<typeof elementSelection>) => void) | undefined;
+    const oldResolver = vi.fn<BoxSelectionResolver>(
+      () =>
+        new Promise<ReturnType<typeof elementSelection>>((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    const current = element("current", 3);
+    const newResolver = vi.fn<BoxSelectionResolver>(() =>
+      Promise.resolve(elementSelection(current)),
+    );
+    const { workbench } = harness(undefined, undefined, createInteractionState(), "element", {
+      boxSelectionResolver: oldResolver,
+    });
+    const bindings = workbench.viewportInteractionOptions();
+    const resolveRegion = bindings.resolveRegion;
+    if (resolveRegion === undefined) throw new Error("Expected viewport region resolver");
+    const event = complete();
+    const pending = resolveRegion({
+      event,
+      rect: event.rect,
+      granularity: "element",
+      frustum: {} as BoxSelectionFrustum,
+    });
+    await vi.waitFor(() => {
+      expect(oldResolver).toHaveBeenCalledOnce();
+    });
+    workbench.setBoxSelectionResolver(newResolver);
+    resolveOld?.(elementSelection(element("stale", 1)));
+
+    await expect(pending).rejects.toThrow("Box selection resolver changed");
+    const replacement = await resolveRegion({
+      event,
+      rect: event.rect,
+      granularity: "element",
+      frustum: {} as BoxSelectionFrustum,
+    });
+    expect(replacement).toEqual(elementSelection(current));
   });
 
   it("does not select or mutate inspection for a drag beyond the threshold", async () => {

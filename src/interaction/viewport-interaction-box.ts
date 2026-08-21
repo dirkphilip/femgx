@@ -52,12 +52,16 @@ export function elementBoxHandoff(options: {
     if (options.probe !== undefined) options.probe.callbackSelectionCopies += 1;
     return copyElementRegionSelection(options.selection);
   };
+  const transitionStarted = options.probe === undefined ? 0 : performance.now();
   const defaultInteraction = elementBoxInteraction(
     options.current,
     options.selection,
     options.operation,
     options.probe,
   );
+  if (options.probe !== undefined) {
+    options.probe.defaultElementTransitionMilliseconds += performance.now() - transitionStarted;
+  }
   return {
     observed: options.observe
       ? {

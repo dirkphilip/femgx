@@ -211,7 +211,6 @@ function installWorkbenchHarness(
     pickRegion: async (rect: BoxSelectionRect, granularity: InteractionGranularity) =>
       (await state.viewport?.interaction.pickRegion(rect, granularity)) ?? [],
     pickRegionKeys: (rect, granularity) => demoRegionKeys(state.viewport, rect, granularity),
-    getBoxSelectionStats: () => controller.getBoxSelectionStats(),
   });
 }
 

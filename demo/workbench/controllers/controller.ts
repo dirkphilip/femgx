@@ -96,7 +96,6 @@ import { createWorkbenchCommands } from "../interaction/commands";
 import {
   activeSlotChangedForController,
   activeViewportForOwner,
-  boxSelectionStatsForOwner,
   detachViewportForOwner,
   invalidateInteractionForOwner,
   isPointerGestureActiveForOwner,
@@ -301,8 +300,6 @@ export class WorkbenchController {
   subscribe(listener: WorkbenchSnapshotListener): () => void {
     return this.snapshotBridge.subscribe(listener);
   }
-
-  getBoxSelectionStats = boxSelectionStatsForOwner.bind(null, this);
 
   setViewport = setControllerViewport.bind(null, this);
 
