@@ -89,6 +89,7 @@ export function applyOccurrenceAttachment(options: {
   readonly draw: DrawResources;
 }): AttachmentOrderParts {
   const orderChanges = previousOptionalOrders(options.delta, options.state);
+  addAll(orderChanges.node, options.delta.affectedPartIds);
   reserveGlobalSlots(options.layout, options.runtime.instanceCount);
   removePreviousLocals(options.layout, options.delta);
   assignCurrentLocals(options.runtime, options.layout, options.delta);

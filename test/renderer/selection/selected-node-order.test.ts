@@ -18,6 +18,18 @@ describe("selected node order", () => {
     expect(order.sparseNodeIds).toEqual(new Uint32Array([17]));
   });
 
+  it("keeps highly fragmented million-node membership exact", () => {
+    const fixture = selectionFixture(1, 1_002_001);
+    const order = selectedOrder(
+      fixture,
+      [0, 499_999, 1_002_000].map((nodeId) => ({ partOccurrenceId: "1/0", nodeId })),
+    );
+
+    expect(order.denseOccurrences).toEqual(new Uint32Array());
+    expect(order.sparseOccurrences).toEqual(new Uint32Array([0, 0, 0]));
+    expect(order.sparseNodeIds).toEqual(new Uint32Array([0, 499_999, 1_002_000]));
+  });
+
   it("shares occurrence-scoped sparse membership across repeated placements", () => {
     const fixture = selectionFixture(2, 16);
     const order = selectedOrder(fixture, [

@@ -3,11 +3,16 @@ import { benchmarkCaptureEvent, type BenchmarkCapture } from "../../demo/benchma
 import type { WebGpuBenchmarkReport } from "../../demo/benchmark/runner";
 import { pixelMetrics } from "../browser-support/screenshot";
 import { rendererMode } from "./demo-support";
-import { expectDenseNodeSelectionReport } from "./perf-node-selection-assertions";
+import {
+  expectDenseNodeSelectionReport,
+  expectNodeSelectionReport,
+} from "./perf-node-selection-assertions";
 
 const enabled = process.env["RUN_PERF_NODE_VISUAL"] === "1";
 const CASE_ID = "fe-tet4-solid-132k";
-const CASE_TIMEOUT_MS = 3 * 60_000;
+const MILLION_CASE_ID = "unique-2m-local";
+const MILLION_NODE_COUNT = 1_002_001;
+const CASE_TIMEOUT_MS = 10 * 60_000;
 
 interface BenchmarkSeam {
   readonly runBenchmark: (
@@ -74,7 +79,41 @@ test("captures dense node selection on desktop and mobile viewports", async ({
   if (entry === undefined) throw new Error("Dense node-selection benchmark case is missing");
   expect(entry.id).toBe(CASE_ID);
   expectDenseNodeSelectionReport(entry);
+  await attachNodeSelectionReport(testInfo, entry);
 });
+
+test("records the selected-node matrix for the 1,002,001-node reference", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  const canvas = page.getByTestId("view-canvas");
+  await expect(canvas).toBeVisible();
+  await expect.poll(() => rendererMode(page, canvas)).not.toBe("");
+  if ((await rendererMode(page, canvas)) !== "webgpu") {
+    test.skip(true, "the opt-in benchmark requires a real WebGPU adapter");
+    return;
+  }
+  const report = await page.evaluate(
+    ({ caseId }) =>
+      (window as unknown as CaptureWindow).femgxDemo.runBenchmark(true, caseId, "node-selection"),
+    { caseId: MILLION_CASE_ID },
+  );
+  const entry = report.cases[0];
+  if (entry === undefined) throw new Error("Million-node benchmark case is missing");
+  expect(entry.id).toBe(MILLION_CASE_ID);
+  expectNodeSelectionReport(entry, MILLION_NODE_COUNT);
+  await attachNodeSelectionReport(testInfo, entry);
+});
+
+async function attachNodeSelectionReport(
+  testInfo: TestInfo,
+  entry: WebGpuBenchmarkReport["cases"][number],
+): Promise<void> {
+  await testInfo.attach(`${entry.id}-node-selection-report`, {
+    body: JSON.stringify(entry.nodeSelection, undefined, 2),
+    contentType: "application/json",
+  });
+}
 
 async function captureEvidence(
   page: Page,

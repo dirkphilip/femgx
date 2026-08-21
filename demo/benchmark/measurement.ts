@@ -78,6 +78,7 @@ export async function measureBenchmarkCase(
   options: {
     readonly timestampQueriesRequested?: boolean;
     readonly denseBuild?: WebGpuBenchmarkCaseResult["denseBuild"];
+    readonly nodeSelectionOnly?: boolean;
     readonly holdNodeSelectionForCapture?: () => Promise<void>;
     readonly holdElementSelectionForCapture?: (
       phase: "all-but-one" | "all-authored",
@@ -151,103 +152,108 @@ export async function measureBenchmarkCase(
       if (index >= WARMUP_SAMPLES) pushSample(samples, sample.sample);
     }
     if (gpuCost === undefined) throw new Error("Benchmark produced no visible frame cost");
-    phase = "interactive sample";
-    interactive = hasInteractiveSample(benchmarkCase)
-      ? await measureInteractiveSamples({
-          renderer,
-          benchmarkCase,
-          runtime,
-          camera,
-        })
-      : undefined;
-    phase = "combined node and edge-presentation overlay sample";
-    combinedOverlay = await measureCombinedOverlayBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-      pickPoint,
-      ...(options.holdCombinedOverlayForCapture === undefined
-        ? {}
-        : { holdSelectionForCapture: options.holdCombinedOverlayForCapture }),
-    });
-    phase = "overlay interactive sample";
-    overlayInteractive = hasOverlayInteractiveSample(benchmarkCase)
-      ? await measureOverlayInteractiveSamples({
-          renderer,
-          benchmarkCase,
-          runtime,
-          camera,
-        })
-      : undefined;
     materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
-    phase = "element box-selection sample";
-    selection = await measureSelectionBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-      ...(options.holdElementSelectionForCapture === undefined
-        ? {}
-        : { holdElementSelectionForCapture: options.holdElementSelectionForCapture }),
-    });
-    phase = "authored node-selection sample";
-    nodeSelection = await measureNodeSelectionBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-      ...(options.holdNodeSelectionForCapture === undefined
-        ? {}
-        : { holdFinalSelection: options.holdNodeSelectionForCapture }),
-    });
-    phase = "element hover sample";
-    hover = await measureHoverBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-      pickPoint,
-    });
-    phase = "visibility sample";
-    visibility = await measureVisibilityBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-    });
-    phase = "selection-hide workflow sample";
-    selectionHideWorkflow = await measureSelectionHideWorkflow({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-    });
-    if (options.holdHiddenInteriorForCapture !== undefined) {
-      phase = "half-hidden interior capture";
-      await captureHiddenInterior({
+    if (options.nodeSelectionOnly === true) {
+      phase = "authored node-selection sample";
+      nodeSelection = await measureNodeSelectionBenchmark({
         renderer,
         device,
         benchmarkCase,
         runtime,
         camera,
-        hold: options.holdHiddenInteriorForCapture,
+        ...(options.holdNodeSelectionForCapture === undefined
+          ? {}
+          : { holdFinalSelection: options.holdNodeSelectionForCapture }),
+      });
+    } else {
+      phase = "interactive sample";
+      interactive = hasInteractiveSample(benchmarkCase)
+        ? await measureInteractiveSamples({ renderer, benchmarkCase, runtime, camera })
+        : undefined;
+      phase = "combined node and edge-presentation overlay sample";
+      combinedOverlay = await measureCombinedOverlayBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        pickPoint,
+        ...(options.holdCombinedOverlayForCapture === undefined
+          ? {}
+          : { holdSelectionForCapture: options.holdCombinedOverlayForCapture }),
+      });
+      phase = "overlay interactive sample";
+      overlayInteractive = hasOverlayInteractiveSample(benchmarkCase)
+        ? await measureOverlayInteractiveSamples({ renderer, benchmarkCase, runtime, camera })
+        : undefined;
+      materializedEdgePartIds = readMaterializedEdgePartIds(renderer);
+      phase = "element box-selection sample";
+      selection = await measureSelectionBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        ...(options.holdElementSelectionForCapture === undefined
+          ? {}
+          : { holdElementSelectionForCapture: options.holdElementSelectionForCapture }),
+      });
+      phase = "authored node-selection sample";
+      nodeSelection = await measureNodeSelectionBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        ...(options.holdNodeSelectionForCapture === undefined
+          ? {}
+          : { holdFinalSelection: options.holdNodeSelectionForCapture }),
+      });
+      phase = "element hover sample";
+      hover = await measureHoverBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+        pickPoint,
+      });
+      phase = "visibility sample";
+      visibility = await measureVisibilityBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+      });
+      phase = "selection-hide workflow sample";
+      selectionHideWorkflow = await measureSelectionHideWorkflow({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
+      });
+      if (options.holdHiddenInteriorForCapture !== undefined) {
+        phase = "half-hidden interior capture";
+        await captureHiddenInterior({
+          renderer,
+          device,
+          benchmarkCase,
+          runtime,
+          camera,
+          hold: options.holdHiddenInteriorForCapture,
+        });
+      }
+      phase = "many-piece interaction sample";
+      manyPiece = await measureManyPieceBenchmark({
+        renderer,
+        device,
+        benchmarkCase,
+        runtime,
+        camera,
       });
     }
-    phase = "many-piece interaction sample";
-    manyPiece = await measureManyPieceBenchmark({
-      renderer,
-      device,
-      benchmarkCase,
-      runtime,
-      camera,
-    });
     phase = "timestamp readback";
     await drainGpuTimestampSamples(renderer);
     gpuTimestamps = readGpuTimestampSnapshot(renderer);

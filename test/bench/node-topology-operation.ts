@@ -65,7 +65,7 @@ function packedTopologyFacts(data: Uint32Array): PackedNodeTopologyFacts {
   const faceRecordCount = data[0] ?? 0;
   const rangeCount = data[1] ?? 0;
   const ownerOccurrenceCount = data[2] ?? 0;
-  const faceEnd = 4 + faceRecordCount * 5;
+  const faceEnd = 5 + faceRecordCount * 5;
   const rangeEnd = faceEnd + rangeCount * 2;
   const bodyEnd = rangeEnd + ownerOccurrenceCount * 2;
   const elementEnd = bodyEnd + ownerOccurrenceCount * 2;

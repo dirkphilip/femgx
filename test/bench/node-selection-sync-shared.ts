@@ -19,7 +19,15 @@ export const NODE_COUNT = 24_389;
 export const HALF_NODE_COUNT = Math.floor(NODE_COUNT / 2);
 export const PART_ID = 1;
 export const SAMPLE_COUNT = 9;
-export const CASES = ["small", "half", "all"] as const;
+export const CASES = [
+  "one",
+  "contiguous",
+  "fragmented",
+  "half",
+  "near-all",
+  "dense-boundary",
+  "all",
+] as const;
 export type CaseId = (typeof CASES)[number];
 export const MULTI_CASE_ID = "multi-32x1" as const;
 
@@ -121,6 +129,13 @@ export function details(
     selectedNodeDrawInstanceCount:
       selectedOrder.denseOccurrences.length * fixture.nodeCount +
       selectedOrder.sparseNodeIds.length,
+    selectedNodeDrawCalls:
+      Number(selectedOrder.denseOccurrences.length > 0) +
+      Number(selectedOrder.sparseNodeIds.length > 0),
+    selectedNodeOrderBytes:
+      selectedOrder.denseOccurrences.byteLength + selectedOrder.sparseNodeIds.byteLength * 2,
+    selectedNodeOrderUploadBytes:
+      selectedOrder.denseOccurrences.byteLength + selectedOrder.sparseNodeIds.byteLength * 2,
     selectedNodeCompactPairBytes:
       selectedOrder.sparseNodeIds.length * 2 * Uint32Array.BYTES_PER_ELEMENT,
     denseSelectionBytes: denseNodeBytes(fixture, selected),
@@ -186,6 +201,7 @@ function assertOrder(
   expected: Uint32Array,
   label: string,
 ): void {
+  if (actual === undefined && expected.length === 0) return;
   if (
     actual === undefined ||
     actual.length !== expected.length ||

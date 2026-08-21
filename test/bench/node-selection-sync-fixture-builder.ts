@@ -69,11 +69,26 @@ function createTet4Setup(): Tet4Setup {
 }
 
 function buildCases(setup: Tet4Setup): ReadonlyMap<NodeCase["id"], NodeCase> {
-  const nodeIds = Array.from({ length: setup.nodeCount }, (_, nodeId) => nodeId);
-  const counts = { small: 2, half: HALF_NODE_COUNT, all: setup.nodeCount } as const;
   const cases = new Map<NodeCase["id"], NodeCase>();
-  for (const id of CASES) cases.set(id, buildCase(setup, id, nodeIds.slice(0, counts[id])));
+  for (const id of CASES) cases.set(id, buildCase(setup, id, nodeIdsForCase(setup.nodeCount, id)));
   return cases;
+}
+
+function nodeIdsForCase(nodeCount: number, id: NodeCase["id"]): readonly number[] {
+  if (id === "one") return [17];
+  if (id === "all") return sequentialNodeIds(nodeCount);
+  if (id === "half") return sequentialNodeIds(HALF_NODE_COUNT);
+  const sparseCount = Math.floor(nodeCount / 16);
+  if (id === "contiguous") return sequentialNodeIds(sparseCount, 37);
+  if (id === "fragmented") {
+    return Array.from({ length: sparseCount }, (_, index) => index * 16);
+  }
+  const denseBoundary = Math.ceil((nodeCount * 7) / 8);
+  return sequentialNodeIds(id === "near-all" ? denseBoundary - 1 : denseBoundary);
+}
+
+function sequentialNodeIds(count: number, start = 0): readonly number[] {
+  return Array.from({ length: count }, (_, index) => start + index);
 }
 
 function buildCase(setup: Tet4Setup, id: NodeCase["id"], nodeIds: readonly number[]): NodeCase {
