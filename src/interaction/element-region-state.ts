@@ -49,23 +49,22 @@ function apply(
   selection: ElementRegionSelection,
   replace: boolean,
 ): ReadonlyMap<string, ReadonlySet<number>> {
-  const base = replace ? new Map<string, ReadonlySet<number>>() : current;
-  let next: Map<string, ReadonlySet<number>> | undefined;
+  let next = replace ? new Map<string, ReadonlySet<number>>() : undefined;
   for (let group = 0; group < selection.partOccurrenceIds.length; group += 1) {
     const occurrence = selection.partOccurrenceIds[group];
     const start = selection.offsets[group];
     const end = selection.offsets[group + 1];
     if (occurrence === undefined || start === undefined || end === undefined) continue;
-    const existing = base.get(occurrence);
+    const existing = replace ? undefined : current.get(occurrence);
     let values: Set<number> | undefined;
     for (let index = start; index < end; index += 1) {
       const id = selection.elementIds[index];
       if (id !== undefined && existing?.has(id) !== true)
         (values ??= new Set(existing ?? [])).add(id);
     }
-    if (values !== undefined) (next ??= new Map(base)).set(occurrence, values);
+    if (values !== undefined) (next ??= new Map(current)).set(occurrence, values);
   }
-  return next ?? base;
+  return next ?? current;
 }
 
 function onlyElements(data: InteractionStateData): boolean {

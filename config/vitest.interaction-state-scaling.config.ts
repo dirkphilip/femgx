@@ -8,7 +8,12 @@ import { sourceAlias } from "./source-alias.ts";
 export default defineConfig({
   resolve: { alias: sourceAlias },
   test: {
-    include: ["test/bench/large-model/interaction-state-scaling.test.ts"],
+    // The packed-region evidence test samples heap after explicit Node GC; it has no budget.
+    execArgv: ["--expose-gc"],
+    include: [
+      "test/bench/large-model/interaction-state-scaling.test.ts",
+      "test/bench/large-model/element-region-selection.test.ts",
+    ],
     testTimeout: 60_000,
   },
 });

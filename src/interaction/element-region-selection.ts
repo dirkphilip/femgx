@@ -115,14 +115,26 @@ export function copyElementRegionSelection(
 }
 
 function uniqueSortedElementIds(values: Iterable<ElementId>): Uint32Array {
+  if (values instanceof Set) return sortedSetElementIds(values);
   const ids = new Set<number>();
   for (const value of values) {
-    if (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {
-      throw new TypeError("Element region selection ids must be unsigned 32-bit integers");
-    }
-    ids.add(value);
+    ids.add(unsignedElementId(value));
   }
   return Uint32Array.from(ids).sort();
+}
+
+function sortedSetElementIds(values: ReadonlySet<ElementId>): Uint32Array {
+  const ids = new Uint32Array(values.size);
+  let index = 0;
+  for (const value of values) ids[index++] = unsignedElementId(value);
+  return ids.sort();
+}
+
+function unsignedElementId(value: ElementId): number {
+  if (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff) {
+    throw new TypeError("Element region selection ids must be unsigned 32-bit integers");
+  }
+  return value;
 }
 
 function assertUint32Count(count: number): void {

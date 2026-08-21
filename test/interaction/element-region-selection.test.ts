@@ -42,6 +42,10 @@ describe("packed element region selections", () => {
     const replaced = setElementRegionSelected(initial, first, "replace");
     const firstData = readInteractionState(replaced);
     expect(firstData.selectedNodeIds.size).toBe(0);
+    expect(firstData.selectedElementIds).not.toBe(readInteractionState(initial).selectedElementIds);
+    const replacedGroups = [...firstData.selectedElementIds.values()];
+    expect(replacedGroups).toHaveLength(2);
+    expect(replacedGroups[0]).not.toBe(replacedGroups[1]);
     expect(firstData.selectedElementIds.get("root/a")).toEqual(new Set([1, 2]));
     expect(firstData.selectedElementIds.get("root/b")).toEqual(new Set([8]));
 
@@ -57,6 +61,9 @@ describe("packed element region selections", () => {
     expect(secondData.selectedElementIds.get("root/a")).toEqual(new Set([1, 2, 4]));
     expect(secondData.selectedElementIds.get("root/b")).toBe(
       firstData.selectedElementIds.get("root/b"),
+    );
+    expect(secondData.selectedElementIds.get("root/a")).not.toBe(
+      firstData.selectedElementIds.get("root/a"),
     );
     expect(secondData.selectedElementIds.get("root/c")).toEqual(new Set([6]));
     expect(setElementRegionSelected(added, second, "add")).toBe(added);
