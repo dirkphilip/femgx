@@ -61,8 +61,13 @@ export {
   type ViewportInteractionApplyResult,
   type ViewportInteractionBoxEvent,
   type ViewportInteractionBoxSelection,
+  type ViewportInteractionElementBoxSelection,
   type ViewportInteractionModifiers,
   type ViewportInteractionOptions,
   type ViewportInteractionPhase,
+  type ViewportInteractionTargetBoxSelection,
   type ViewportInteractionTouchMode,
+  type ViewportElementBoxInteractionApplyRequest,
+  type ViewportPointInteractionApplyRequest,
+  type ViewportTargetBoxInteractionApplyRequest,
 } from "../interaction/viewport-interaction";

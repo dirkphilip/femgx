@@ -26,10 +26,15 @@ export type {
   ViewportInteractionApplyResult,
   ViewportInteractionBoxEvent,
   ViewportInteractionBoxSelection,
+  ViewportInteractionElementBoxSelection,
   ViewportInteractionModifiers,
   ViewportInteractionOptions,
   ViewportInteractionPhase,
+  ViewportInteractionTargetBoxSelection,
   ViewportInteractionTouchMode,
+  ViewportElementBoxInteractionApplyRequest,
+  ViewportPointInteractionApplyRequest,
+  ViewportTargetBoxInteractionApplyRequest,
 } from "./viewport-interaction-types";
 
 /**
