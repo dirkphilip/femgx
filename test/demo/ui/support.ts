@@ -30,6 +30,7 @@ import ElementDetail from "../../../demo/workbench/ui/ElementDetail.svelte";
 import WorkbenchApp from "../../../demo/workbench/ui/WorkbenchApp.svelte";
 import AnalysisControls from "../../../demo/workbench/ui/AnalysisControls.svelte";
 import TouchToolRail from "../../../demo/workbench/ui/TouchToolRail.svelte";
+import LivePartDialog from "../../../demo/workbench/ui/LivePartDialog.svelte";
 
 const VECTOR_OFF = "__vectors_off__";
 
@@ -253,6 +254,7 @@ export {
   WorkbenchApp,
   AnalysisControls,
   TouchToolRail,
+  LivePartDialog,
   change,
   input,
   button,

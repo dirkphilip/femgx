@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createPart,
-  createSceneBuilder,
-  identityMatrix,
-  type Scene,
-} from "@/entries/root";
+import { createPart, createSceneBuilder, identityMatrix, type Scene } from "@/entries/root";
 import {
   MAX_LIVE_PART_COPIES,
   parseLivePartRequest,

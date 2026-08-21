@@ -1,5 +1,6 @@
 import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";
+import type { SceneUpdateOutcome } from "@/entries/root";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog } from "../models/model-catalog";
 import { parseLivePartRequest, prepareLivePartEdit } from "../live-part-addition";
@@ -71,14 +72,15 @@ export function applyLivePartEditForOwner(
   const edit = prepareLivePartEdit(before, request);
   const slots = owner.viewportSlots.all();
   const committed: WorkbenchViewportSlot[] = [];
+  const outcomes: SceneUpdateOutcome[] = [];
   const start = performance.now();
   try {
     for (const slot of slots) {
-      slot.viewport.updateScene(edit.apply);
+      outcomes.push(slot.viewport.updateScene(edit.apply));
       committed.push(slot);
     }
   } catch (error) {
-    for (const slot of committed) slot.viewport.replaceScene(before.scene);
+    restoreCommittedSlots(owner, committed, before.scene);
     owner.presentation.setFeedback(
       `Live edit could not be applied: ${errorMessage(error)}`,
       "error",
@@ -100,7 +102,24 @@ export function applyLivePartEditForOwner(
   owner.visibilityPanel.rebuild();
   const duration = Math.round(performance.now() - start);
   owner.presentation.setFeedback(
-    `${request.kind === "add" ? "Added" : "Instanced"} ${request.copies.toLocaleString()} placement${request.copies === 1 ? "" : "s"} of Part ${edit.partId} in ${duration} ms · ${owner.runtime.partOccurrenceCount} occurrences total.`,
+    `${request.kind === "add" ? "Added" : "Instanced"} ${request.copies.toLocaleString()} placement${request.copies === 1 ? "" : "s"} of Part ${edit.partId} in ${duration} ms · ${owner.runtime.partOccurrenceCount} occurrences total.${resultsClearedFeedback(outcomes)}`,
   );
   owner.render();
+}
+
+function restoreCommittedSlots(
+  owner: LivePartEditOwner,
+  committed: readonly WorkbenchViewportSlot[],
+  scene: WorkbenchModel["scene"],
+): void {
+  for (const slot of committed) slot.viewport.replaceScene(scene);
+  for (const slot of committed) {
+    owner.applyState(slot.id);
+    slot.viewport.render();
+  }
+}
+
+function resultsClearedFeedback(outcomes: readonly SceneUpdateOutcome[]): string {
+  const cleared = outcomes.find((outcome) => outcome.results === "cleared");
+  return cleared === undefined ? "" : ` Results cleared: ${cleared.reason}.`;
 }
