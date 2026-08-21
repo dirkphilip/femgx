@@ -2,6 +2,7 @@ import type { Mat4 } from "../math/mat4";
 import type { AssemblyId, AssemblyOccurrenceId } from "../scene/types";
 import type { RuntimeState } from "./compile";
 import { invariantValue } from "./invariants";
+import type { RuntimeJournalOwner } from "./runtime-journal";
 
 /** Private input used while committing a prepared assembly-subtree expansion. */
 export interface RuntimeAssemblyNodeInput {
@@ -17,6 +18,7 @@ export function addRuntimeAssemblyNode(
   state: RuntimeState,
   nodeSlots: Map<AssemblyOccurrenceId, number>,
   input: RuntimeAssemblyNodeInput,
+  journal: RuntimeJournalOwner,
 ): number {
   if (nodeSlots.has(input.nodeId)) {
     throw new Error(`Assembly occurrence ${input.nodeId} already exists`);
@@ -24,7 +26,7 @@ export function addRuntimeAssemblyNode(
   if (input.parent !== -1 && !isNodeActive(state, input.parent)) {
     throw new Error(`Assembly parent node ${input.parent} is inactive`);
   }
-  const node = state.nodeFreeSlots.pop() ?? state.nodeCount++;
+  const node = journal.popNodeFreeSlot() ?? state.nodeCount++;
   reserveNodes(state, state.nodeCount);
   state.nodeAssemblyIds[node] = input.assemblyId;
   state.nodeWorldTransforms.set(input.worldTransform, node * 16);
@@ -51,6 +53,7 @@ export function removeRuntimeAssemblyNodes(
   state: RuntimeState,
   nodeSlots: Map<AssemblyOccurrenceId, number>,
   nodeIds: readonly number[],
+  journal: RuntimeJournalOwner,
 ): void {
   for (const node of nodeIds) {
     if (!isNodeActive(state, node)) throw new Error(`Assembly node ${node} is inactive`);
@@ -70,7 +73,7 @@ export function removeRuntimeAssemblyNodes(
     state.nodeParents[node] = -1;
     state.nodeEffectiveVisible[node] = 0;
     state.nodePlacementOrder[node] = [];
-    state.nodeFreeSlots.push(node);
+    journal.pushNodeFreeSlot(node);
     state.activeNodeCount -= 1;
   }
 }

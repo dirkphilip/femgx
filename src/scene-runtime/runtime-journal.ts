@@ -24,6 +24,10 @@ export interface RuntimeJournalOwner {
   readonly captureNodes: (nodes: readonly number[]) => void;
   readonly captureAddedNode: (id: AssemblyOccurrenceId) => void;
   readonly captureNodeLinks: (node: number, children: readonly number[]) => void;
+  readonly popInstanceFreeSlot: () => number | undefined;
+  readonly pushInstanceFreeSlot: (slot: number) => void;
+  readonly popNodeFreeSlot: () => number | undefined;
+  readonly pushNodeFreeSlot: (slot: number) => void;
 }
 
 /** Owns one sparse hierarchy rollback journal without cloning retained runtime storage. */
@@ -44,11 +48,21 @@ export function createRuntimeJournalOwner(
     captureNodes: (nodes) => active?.captureNodes(nodes),
     captureAddedNode: (id) => active?.captureAddedNode(id),
     captureNodeLinks: (node, children) => active?.captureNodeLinks(node, children),
+    popInstanceFreeSlot: () => popFreeSlot(state.instanceFreeSlots, active?.instanceFreeList),
+    pushInstanceFreeSlot: (slot) => {
+      pushFreeSlot(state.instanceFreeSlots, slot, active?.instanceFreeList);
+    },
+    popNodeFreeSlot: () => popFreeSlot(state.nodeFreeSlots, active?.nodeFreeList),
+    pushNodeFreeSlot: (slot) => {
+      pushFreeSlot(state.nodeFreeSlots, slot, active?.nodeFreeList);
+    },
   };
 }
 
 class RuntimeJournal implements RuntimeJournalTransaction {
   public readonly instanceIds = new Set<PartOccurrenceId>();
+  public readonly instanceFreeList: FreeListJournal = [];
+  public readonly nodeFreeList: FreeListJournal = [];
   private readonly nodeIds = new Set<AssemblyOccurrenceId>();
   private readonly instances = new Map<number, InstanceRecord>();
   private readonly nodes = new Map<number, NodeRecord>();
@@ -112,6 +126,8 @@ class RuntimeJournal implements RuntimeJournalTransaction {
   rollback(): void {
     this.assertActive();
     restoreRuntime(this.state, this.snapshot);
+    rollbackFreeList(this.state.nodeFreeSlots, this.nodeFreeList, "node");
+    rollbackFreeList(this.state.instanceFreeSlots, this.instanceFreeList, "instance");
     for (const [slot, record] of this.instances) {
       if (slot < this.snapshot.instanceCapacity) restoreInstance(this.state, slot, record);
     }
@@ -153,8 +169,6 @@ interface RuntimeSnapshot {
   readonly activeInstanceCount: number;
   readonly instanceCapacity: number;
   readonly visibleCount: number;
-  readonly nodeFreeSlots: readonly number[];
-  readonly instanceFreeSlots: readonly number[];
   readonly sortedPartIds: Uint32Array;
   readonly arrays: Pick<
     RuntimeState,
@@ -189,8 +203,6 @@ function snapshotRuntime(state: RuntimeState): RuntimeSnapshot {
     activeInstanceCount: state.activeInstanceCount,
     instanceCapacity: state.instanceCapacity,
     visibleCount: state.visibleCount,
-    nodeFreeSlots: [...state.nodeFreeSlots],
-    instanceFreeSlots: [...state.instanceFreeSlots],
     sortedPartIds: state.sortedPartIds,
     arrays: {
       nodeAssemblyIds: state.nodeAssemblyIds,
@@ -227,11 +239,41 @@ function restoreRuntime(state: RuntimeState, before: RuntimeSnapshot): void {
     visibleCount: before.visibleCount,
     sortedPartIds: before.sortedPartIds,
   });
-  state.nodeFreeSlots.splice(0, state.nodeFreeSlots.length, ...before.nodeFreeSlots);
-  state.instanceFreeSlots.splice(0, state.instanceFreeSlots.length, ...before.instanceFreeSlots);
   state.nodeNodeIds.length = before.nodeCapacity;
   state.nodePlacementOrder.length = before.nodeCapacity;
   state.instanceInstanceIds.length = before.instanceCapacity;
+}
+
+type FreeListJournal = FreeListMutation[];
+
+interface FreeListMutation {
+  readonly kind: "pop" | "push";
+  readonly slot: number;
+}
+
+function popFreeSlot(slots: number[], journal: FreeListJournal | undefined): number | undefined {
+  const slot = slots.pop();
+  if (slot !== undefined) journal?.push({ kind: "pop", slot });
+  return slot;
+}
+
+function pushFreeSlot(slots: number[], slot: number, journal: FreeListJournal | undefined): void {
+  slots.push(slot);
+  journal?.push({ kind: "push", slot });
+}
+
+function rollbackFreeList(
+  slots: number[],
+  journal: FreeListJournal,
+  kind: "node" | "instance",
+): void {
+  for (let index = journal.length - 1; index >= 0; index -= 1) {
+    const mutation = journal[index];
+    if (mutation?.kind === "pop") slots.push(mutation.slot);
+    else if (mutation !== undefined && slots.pop() !== mutation.slot) {
+      throw new Error(`Runtime ${kind} free-list rollback order is inconsistent`);
+    }
+  }
 }
 
 interface InstanceRecord {

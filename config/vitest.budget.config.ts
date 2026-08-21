@@ -15,6 +15,7 @@ export default defineConfig({
       "test/bench/budget/explicit-topology-budgets.test.ts",
       "test/bench/scene/part-addition-scaling.test.ts",
       "test/bench/scene/hierarchy-update.test.ts",
+      "test/bench/scene/hierarchy-free-list.test.ts",
       "test/bench/scene/part-removal-scaling.test.ts",
       "test/bench/scene/section-cap-occurrence.test.ts",
       "test/bench/scene/scene-update-scaling.test.ts",

@@ -246,11 +246,11 @@ function createRuntimeMutations(
     ...createVisibilityMutations(state),
     addInstances(inputs: readonly RuntimeInstanceInput[]): readonly number[] {
       journal.captureAddedInstances(inputs);
-      return addRuntimeInstances(state, maps, inputs);
+      return addRuntimeInstances(state, maps, inputs, journal);
     },
     removeInstances(instanceIds: readonly number[]): void {
       journal.captureInstances(instanceIds);
-      removeRuntimeInstances(state, maps, instanceIds);
+      removeRuntimeInstances(state, maps, instanceIds, journal);
     },
     updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
       journal.captureInstances([instanceId]);
@@ -259,11 +259,11 @@ function createRuntimeMutations(
     },
     addAssemblyNode(input: RuntimeAssemblyNodeInput): number {
       journal.captureAddedNode(input.nodeId);
-      return addRuntimeAssemblyNode(state, maps.nodeSlots, input);
+      return addRuntimeAssemblyNode(state, maps.nodeSlots, input, journal);
     },
     removeAssemblyNodes(nodeIds: readonly number[]): void {
       journal.captureNodes(nodeIds);
-      removeRuntimeAssemblyNodes(state, maps.nodeSlots, nodeIds);
+      removeRuntimeAssemblyNodes(state, maps.nodeSlots, nodeIds, journal);
     },
     setNodeChildren(nodeId: number, children: readonly number[]): void {
       journal.captureNodeLinks(nodeId, children);
@@ -298,11 +298,12 @@ function addRuntimeInstance(
   state: RuntimeState,
   maps: RuntimeMaps,
   input: RuntimeInstanceInput,
+  journal: RuntimeJournalOwner,
 ): number {
   if (maps.instanceSlots.has(input.instanceId)) {
     throw new Error(`Part occurrence ${input.instanceId} already exists`);
   }
-  const slot = state.instanceFreeSlots.pop() ?? state.instanceCount++;
+  const slot = journal.popInstanceFreeSlot() ?? state.instanceCount++;
   reserveInstances(state, state.instanceCount);
   writeInstance(state, slot, input);
   maps.instanceSlots.set(input.instanceId, slot);
@@ -317,13 +318,14 @@ function addRuntimeInstances(
   state: RuntimeState,
   maps: RuntimeMaps,
   inputs: readonly RuntimeInstanceInput[],
+  journal: RuntimeJournalOwner,
 ): readonly number[] {
   const slots = new Array<number>(inputs.length);
   const addedPartIds = new Set<PartId>();
   for (let index = 0; index < inputs.length; index += 1) {
     const input = invariantValue(inputs[index], `added instance at ${index}`);
     if (state.partInstanceGroups.slots(input.partId).length === 0) addedPartIds.add(input.partId);
-    slots[index] = addRuntimeInstance(state, maps, input);
+    slots[index] = addRuntimeInstance(state, maps, input, journal);
   }
   if (addedPartIds.size > 0) {
     state.sortedPartIds = mergeSortedPartIds(state.sortedPartIds, addedPartIds);
@@ -331,7 +333,12 @@ function addRuntimeInstances(
   return slots;
 }
 
-function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceId: number): void {
+function removeRuntimeInstance(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+  instanceId: number,
+  journal: RuntimeJournalOwner,
+): void {
   if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
   const id = invariantValue(state.instanceInstanceIds[instanceId], `instance id at ${instanceId}`);
   const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
@@ -343,7 +350,7 @@ function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceI
   state.instanceActive[instanceId] = 0;
   state.instanceVisible[instanceId] = 0;
   state.instanceInstanceIds[instanceId] = "";
-  state.instanceFreeSlots.push(instanceId);
+  journal.pushInstanceFreeSlot(instanceId);
   state.activeInstanceCount -= 1;
 }
 
@@ -351,13 +358,14 @@ function removeRuntimeInstances(
   state: RuntimeState,
   maps: RuntimeMaps,
   instanceIds: readonly number[],
+  journal: RuntimeJournalOwner,
 ): void {
   const removedPartIds = new Set<PartId>();
   for (const instanceId of instanceIds) {
     if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
     const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
     removedPartIds.add(partId);
-    removeRuntimeInstance(state, maps, instanceId);
+    removeRuntimeInstance(state, maps, instanceId, journal);
   }
   const emptiedPartIds = new Set<PartId>();
   for (const partId of removedPartIds) {
@@ -394,8 +402,7 @@ function updateRuntimeInstance(
     state.nodeInstanceGroups.add(input.owningNode, instanceId);
   }
   writeInstance(state, instanceId, input);
-  const visible = state.instanceVisible[instanceId] === 1;
-  if (wasVisible !== visible) state.visibleCount += visible ? 1 : -1;
+  state.visibleCount += (state.instanceVisible[instanceId] ?? 0) - Number(wasVisible);
 }
 
 function isActive(state: RuntimeState, instanceId: number): boolean {
