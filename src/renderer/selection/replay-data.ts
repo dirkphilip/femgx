@@ -20,15 +20,15 @@ export function buildPartSelectionGeometryData(
   if (selected === undefined || selected.indices.length === 0) return undefined;
   const topology = selectedTopology(part, geometry, selected.primitiveIds);
   if (topology === undefined) return undefined;
-  const vertexData = triangleSubsetUploadData(geometry, selected.indices);
-  const localPrimitiveIds = new Uint32Array(vertexData.primitiveIds.length);
+  const localPrimitiveIds = new Uint32Array(selected.indices.length);
   for (let index = 0; index < localPrimitiveIds.length; index += 1) {
     localPrimitiveIds[index] = Math.floor(index / 3);
   }
+  const vertexData = triangleSubsetUploadData(geometry, selected.indices, localPrimitiveIds);
   return {
     subsetBuffers: createSubsetBuffers(
       device,
-      { ...vertexData, primitiveIds: localPrimitiveIds },
+      vertexData,
       topology.faceRecords,
       topology.elementOrdinals,
       topology.neighborElementOrdinals,

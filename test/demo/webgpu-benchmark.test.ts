@@ -313,7 +313,7 @@ describe("WebGPU benchmark models", () => {
     expect(tet4Memory.geometryBytes).toBe(0);
     expect(tet4Memory.pickMetadataBytes).toBe(0);
     expect(tet4Memory.subsetBytes).toBeGreaterThan(0);
-    expect(tet4Memory.selectionReplayBytes).toBe(480);
+    expect(tet4Memory.selectionReplayBytes).toBe(352);
     const tet4PartId = [
       ...createBenchmarkCase({ ...tet4Spec, gridCells: 2 }).scene.parts.keys(),
     ][0];
@@ -325,7 +325,7 @@ describe("WebGPU benchmark models", () => {
       600,
       { selectionReplayPrimitiveCounts: new Map([[tet4PartId, 4]]) },
     );
-    expect(selectedTet4Memory.selectionReplayBytes).toBe(tet4Memory.selectionReplayBytes);
+    expect(selectedTet4Memory.selectionReplayBytes).toBe(480);
     expect(selectedTet4Memory.firstInteractionRetainedBufferBytes).toBe(
       selectedTet4Memory.retainedBufferBytes + selectedTet4Memory.selectionReplayBytes,
     );

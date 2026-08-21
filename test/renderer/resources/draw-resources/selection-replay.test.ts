@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { GeometryFaces } from "@/geometry/part";
 import {
   partSemanticGraph,
@@ -99,12 +99,30 @@ describe("compact subset selection replay", () => {
       const gpu = fakeGpuDevice();
       const draw = createDrawResources(gpu.device);
       const { part, geometry, lookupCount } = syntheticLargePart();
-      const replay = selectionReplayResource(draw, part, geometry, [
-        { primitive: "triangles", firstIndex: 0, indexCount: 3 },
-      ]);
+      // Capture before spying so instrumentation can delegate without recursion.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      const originalSet = Map.prototype.set;
+      let stringKeyWrites = 0;
+      const setSpy = vi.spyOn(Map.prototype, "set").mockImplementation(function (
+        this: Map<unknown, unknown>,
+        key,
+        value,
+      ) {
+        if (typeof key === "string") stringKeyWrites += 1;
+        return originalSet.call(this, key, value);
+      });
+      let replay: ReturnType<typeof selectionReplayResource>;
+      try {
+        replay = selectionReplayResource(draw, part, geometry, [
+          { primitive: "triangles", firstIndex: 0, indexCount: 3 },
+        ]);
+      } finally {
+        setSpy.mockRestore();
+      }
       if (replay === undefined) throw new Error("Selection replay missing");
 
       expect(lookupCount()).toBeLessThanOrEqual(23);
+      expect(stringKeyWrites).toBeLessThanOrEqual(2);
       const resources = new Set([
         replay.vertexBuffer,
         replay.indexBuffer,
@@ -211,7 +229,9 @@ function syntheticLargePart() {
     *entries() {},
     *[Symbol.iterator]() {},
   };
-  const geometry = { ...source, indices: new Uint32Array([0, 1, 2]), faces };
+  const indices = new Uint32Array(3_000_000 * 3);
+  indices.set([0, 1, 2]);
+  const geometry = { ...source, indices, faces };
   const part = { ...subsetPart, id: 9, geometries: [geometry] };
   const graph = partSemanticGraph(subsetPart);
   if (graph === undefined) throw new Error("Subset semantic graph missing");

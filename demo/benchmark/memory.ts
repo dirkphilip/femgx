@@ -51,7 +51,7 @@ export interface BenchmarkMemoryEstimate {
 export interface BenchmarkMemoryOptions {
   /** Part ids whose optional edge resources have already been materialized. */
   readonly materializedEdgePartIds?: ReadonlySet<number>;
-  /** Optional selected triangle counts by part for the first-interaction replay estimate. */
+  /** Optional selected triangle counts by part for a worst-case unshared-vertex replay estimate. */
   readonly selectionReplayPrimitiveCounts?: ReadonlyMap<number, number>;
 }
 
@@ -148,9 +148,6 @@ export function estimateBenchmarkMemory(
         geometry.primitive === "triangles" ? expandedIndexCountFor(geometry) : 0,
       );
       const subset = subsetEstimate(geometry, edgeMaterialized);
-      const replayPrimitiveCount =
-        options.selectionReplayPrimitiveCounts?.get(part.id) ??
-        firstElementReplayPrimitiveCount(part, geometry);
       if (subset.bufferBytes > 0) {
         subsetBytes += subset.bufferBytes;
       }
@@ -172,7 +169,14 @@ export function estimateBenchmarkMemory(
           canonicalEdge === 0 ? 0 : gpuBufferBytes(canonicalEdge * Uint32Array.BYTES_PER_ELEMENT);
       }
       if (geometry.primitive === "triangles" && geometry.faceSubset !== undefined) {
-        selectionReplayBytes += selectionReplayEstimate(replayPrimitiveCount);
+        const configuredPrimitiveCount = options.selectionReplayPrimitiveCounts?.get(part.id);
+        selectionReplayBytes +=
+          configuredPrimitiveCount === undefined
+            ? firstElementReplayBytes(part, geometry)
+            : selectionReplayEstimate(
+                configuredPrimitiveCount,
+                Math.min(configuredPrimitiveCount * 3, sourceVertexCount),
+              );
       }
     }
     cpuSceneTypedArrayBytes += scenePartTypedArrayBytes(part);
@@ -243,30 +247,44 @@ export function estimateBenchmarkMemory(
   };
 }
 
-function selectionReplayEstimate(primitiveCount: number): number {
-  if (!Number.isSafeInteger(primitiveCount) || primitiveCount <= 0) return 0;
-  const vertexCount = primitiveCount * 3;
+function selectionReplayEstimate(primitiveCount: number, sourceVertexCount: number): number {
+  if (
+    !Number.isSafeInteger(primitiveCount) ||
+    primitiveCount <= 0 ||
+    !Number.isSafeInteger(sourceVertexCount) ||
+    sourceVertexCount <= 0
+  ) {
+    return 0;
+  }
+  const cornerCount = primitiveCount * 3;
   const topologyWords = 8 + primitiveCount * 13;
   return (
-    gpuBufferBytes(vertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
-    gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
-    gpuBufferBytes(vertexCount * Uint32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(sourceVertexCount * 3 * Float32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(cornerCount * Uint32Array.BYTES_PER_ELEMENT) +
+    gpuBufferBytes(sourceVertexCount * Uint32Array.BYTES_PER_ELEMENT) +
     gpuBufferBytes(topologyWords * Uint32Array.BYTES_PER_ELEMENT)
   );
 }
 
-function firstElementReplayPrimitiveCount(
+function firstElementReplayBytes(
   part: Part,
-  geometry: Part["geometries"][number],
+  geometry: Extract<Part["geometries"][number], { primitive: "triangles" }>,
 ): number {
-  if (geometry.primitive !== "triangles" || geometry.faceSubset === undefined) return 0;
   let maximum = 0;
+  const sourceVertices = new Set<number>();
   for (const element of part.elements ?? []) {
-    let count = 0;
+    let primitiveCount = 0;
+    sourceVertices.clear();
     for (const range of element.primitiveRanges) {
-      if (range.primitive === "triangles") count += range.primitiveCount;
+      if (range.primitive !== "triangles") continue;
+      primitiveCount += range.primitiveCount;
+      const first = range.primitiveStart * 3;
+      const end = first + range.primitiveCount * 3;
+      for (let corner = first; corner < end; corner += 1) {
+        sourceVertices.add(geometry.indices[corner] ?? 0);
+      }
     }
-    maximum = Math.max(maximum, count);
+    maximum = Math.max(maximum, selectionReplayEstimate(primitiveCount, sourceVertices.size));
   }
   return maximum;
 }
