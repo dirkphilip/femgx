@@ -18,6 +18,8 @@ import {
   reviseSectionCapColors,
   reviseSectionCapParts,
 } from "./section-cap-frame-overlay";
+import type { RuntimeOccurrenceDelta } from "../../../scene-runtime/occurrence-update";
+import { PartRevisionMap } from "../../attachment/part-revision-overlay";
 
 export interface PreparedSectionCapRevision {
   readonly frame: SectionCapFrame | undefined;
@@ -100,6 +102,149 @@ export function prepareSectionCapRevision(
     interaction: options.interaction,
     dirty: false,
   };
+}
+
+/** Builds only cap fragments owned by placement slots changed in one transaction. */
+export function prepareSectionCapOccurrenceRevision(
+  owner: RevisionOwnerState,
+  options: Omit<SectionCapRevisionOptions, "partIds"> & {
+    readonly delta: RuntimeOccurrenceDelta;
+  },
+): PreparedSectionCapRevision {
+  const slots = new Set(options.delta.slots.map(({ slot }) => slot));
+  const oldCapIds = capIdsForSlots(owner.retained, slots);
+  if (
+    options.plane === undefined ||
+    owner.frame === undefined ||
+    owner.retained === undefined ||
+    owner.runtime !== options.runtime ||
+    owner.dirty
+  ) {
+    return exactDirtyOccurrence(owner, options, oldCapIds);
+  }
+  const retained = removeSectionCaps(owner.retained, oldCapIds);
+  let frame: SectionCapFrame;
+  try {
+    frame = buildSectionCapFrame({
+      ...options,
+      plane: options.plane,
+      reusable: retained,
+      revisedPartIds: options.delta.affectedPartIds,
+      revisedSlots: slots,
+    });
+    uploadRevisedCapGeometry(options.draw, frame, options.delta.affectedPartIds);
+  } catch (error) {
+    discardNewCapResources(options.draw, owner.retained, options.delta.affectedPartIds);
+    throw error;
+  }
+  const newCapIds = capIdsForSlots(frame, slots);
+  return {
+    frame,
+    retained: frame,
+    oldCapIds,
+    newCapIds,
+    renderedParts: exactRenderedParts(owner.renderedParts, options.parts, frame, {
+      sourceIds: options.delta.affectedPartIds,
+      removed: oldCapIds,
+      added: newCapIds,
+    }),
+    renderedColors: exactRenderedColors(owner.renderedColors, options.resultColors, frame, {
+      sourceIds: options.delta.affectedPartIds,
+      removed: oldCapIds,
+      added: newCapIds,
+    }),
+    sourceColors: options.resultColors,
+    runtime: options.runtime,
+    interaction: options.interaction,
+    dirty: false,
+  };
+}
+
+function exactDirtyOccurrence(
+  owner: RevisionOwnerState,
+  options: Omit<SectionCapRevisionOptions, "partIds"> & { readonly delta: RuntimeOccurrenceDelta },
+  oldCapIds: ReadonlySet<PartId>,
+): PreparedSectionCapRevision {
+  const frame = owner.frame === undefined ? undefined : removeSectionCaps(owner.frame, oldCapIds);
+  const retained =
+    owner.retained === undefined ? undefined : removeSectionCaps(owner.retained, oldCapIds);
+  return {
+    frame,
+    retained,
+    oldCapIds,
+    newCapIds: new Set(),
+    renderedParts: exactRenderedParts(owner.renderedParts, options.parts, undefined, {
+      sourceIds: options.delta.affectedPartIds,
+      removed: oldCapIds,
+      added: new Set(),
+    }),
+    renderedColors: exactRenderedColors(owner.renderedColors, options.resultColors, undefined, {
+      sourceIds: options.delta.affectedPartIds,
+      removed: oldCapIds,
+      added: new Set(),
+    }),
+    sourceColors: options.resultColors,
+    runtime: options.runtime,
+    interaction: options.interaction,
+    dirty: true,
+  };
+}
+
+function capIdsForSlots(
+  frame: SectionCapFrame | undefined,
+  slots: ReadonlySet<number>,
+): Set<PartId> {
+  const ids = new Set<PartId>();
+  if (frame === undefined) return ids;
+  for (const [capId, slot] of frame.sourceSlots) if (slots.has(slot)) ids.add(capId);
+  return ids;
+}
+
+function exactRenderedParts(
+  current: ReadonlyMap<PartId, Part>,
+  source: ReadonlyMap<PartId, Part>,
+  frame: SectionCapFrame | undefined,
+  changes: ExactCapChanges,
+): ReadonlyMap<PartId, Part> {
+  const next = new PartRevisionMap(current);
+  for (const id of changes.removed) next.delete(id);
+  for (const id of changes.sourceIds) {
+    const part = source.get(id);
+    if (part === undefined) next.delete(id);
+    else if (current.get(id) !== part) next.set(id, part);
+  }
+  for (const id of changes.added) {
+    const part = frame?.parts.get(id);
+    if (part !== undefined) next.set(id, part);
+  }
+  return next;
+}
+
+function exactRenderedColors(
+  current: ResultColorMap | undefined,
+  source: ResultColorMap | undefined,
+  frame: SectionCapFrame | undefined,
+  changes: ExactCapChanges,
+): ResultColorMap | undefined {
+  if (current === undefined && source === undefined && changes.added.size === 0) return undefined;
+  const next = new PartRevisionMap(current ?? new Map());
+  for (const id of changes.removed) next.delete(id);
+  for (const id of changes.sourceIds) {
+    const colors = source?.get(id);
+    if (colors === undefined) next.delete(id);
+    else next.set(id, colors);
+  }
+  for (const id of changes.added) {
+    const colors = frame?.resultColors.get(id);
+    if (colors !== undefined) next.set(id, colors);
+  }
+  return next;
+}
+
+interface ExactCapChanges {
+  readonly sourceIds: ReadonlySet<PartId>;
+  readonly removed: ReadonlySet<PartId>;
+  readonly added: ReadonlySet<PartId>;
 }
 
 function uploadRevisedCapGeometry(

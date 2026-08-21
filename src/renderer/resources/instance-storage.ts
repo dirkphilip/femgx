@@ -12,6 +12,7 @@ import {
   captureStagedOrderValue,
   type InstanceStorageRevisionJournal,
 } from "./instance-storage/journal";
+import { createStorageBuffers } from "./instance-storage/create-storage-buffers";
 
 export {
   captureStagedInstanceRecord,
@@ -359,13 +360,15 @@ function createStorage(
   },
 ): InstanceStorage {
   const mirror = initial?.data ?? new ArrayBuffer(size * INSTANCE_STRIDE);
+  const { buffer, orderBuffer } = createStorageBuffers({
+    device: draw.device,
+    cost: draw.cost,
+    size: size * INSTANCE_STRIDE,
+    createOrderBuffer: () => createOrderBuffer(draw.device, size, "femgx instance order"),
+  });
   const storage: InstanceStorage = {
-    buffer: draw.device.createBuffer({
-      label: "femgx instance storage",
-      size: size * INSTANCE_STRIDE,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    }),
-    orderBuffer: createOrderBuffer(draw.device, size, "femgx instance order"),
+    buffer,
+    orderBuffer,
     emptyOrderBuffer: draw.emptyOrderBuffer,
     emptyHighlight: draw.emptyHighlight,
     sidecars: existing?.sidecars ?? {

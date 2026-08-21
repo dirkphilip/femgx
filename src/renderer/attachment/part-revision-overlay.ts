@@ -73,6 +73,12 @@ export class PartRevisionMap<K, V> extends Map<K, V> {
   public *stagedKeys(): IterableIterator<K> {
     yield* super.keys();
   }
+
+  /** Publishes only keys changed or removed through this overlay. */
+  public commit(target: Map<K, V>): void {
+    for (const key of this.removed) target.delete(key);
+    for (const [key, value] of super.entries()) target.set(key, value);
+  }
 }
 
 /** Returns exact overlay-owned keys without traversing retained source entries. */
@@ -84,6 +90,51 @@ export function stagedPartRevisionKeys<K, V>(values: Map<K, V>): Iterable<K> {
 export interface PartRevisionFlags {
   readonly values: boolean[];
   commit(target: boolean[]): void;
+}
+
+/** A sparse copy-on-write ordinary array used by exact placement revisions. */
+export interface PartRevisionArray<T> {
+  readonly values: T[];
+  commit(target: T[]): void;
+}
+
+/** Stages indexed writes and logical length without copying retained elements. */
+export function stagePartRevisionArray<T>(source: T[]): PartRevisionArray<T> {
+  const changes = new Map<number, T>();
+  let length = source.length;
+  const values = new Proxy(source, {
+    get(target, key, receiver) {
+      if (key === "length") return length;
+      const index = arrayIndex(key);
+      if (index !== undefined)
+        return index >= length
+          ? undefined
+          : changes.has(index)
+            ? changes.get(index)
+            : target[index];
+      return Reflect.get(target, key, receiver) as unknown;
+    },
+    set(target, key, value, receiver) {
+      if (key === "length") {
+        length = Number(value);
+        return true;
+      }
+      const index = arrayIndex(key);
+      if (index === undefined) return Reflect.set(target, key, value, receiver);
+      if (index >= length) length = index + 1;
+      // ProxyHandler.set receives `any`; this proxy is exposed only as T[].
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      changes.set(index, value as T);
+      return true;
+    },
+  });
+  return {
+    values,
+    commit(target) {
+      target.length = length;
+      for (const [index, value] of changes) if (index < length) target[index] = value;
+    },
+  };
 }
 
 /** Staged per-slot flags and their exact commit operation. */
@@ -120,16 +171,24 @@ export function stagePartRevisionFlagSet(source: AttachmentFlagState): PartRevis
 /** Stages writes to one retained slot-indexed flag mirror. */
 export function stagePartRevisionFlags(source: boolean[]): PartRevisionFlags {
   const changes = new Map<number, boolean>();
+  let length = source.length;
   const values = new Proxy(source, {
     get(target, key, receiver) {
+      if (key === "length") return length;
       const index = arrayIndex(key);
-      if (index !== undefined) return changes.get(index) ?? target[index];
+      if (index !== undefined)
+        return index >= length ? undefined : (changes.get(index) ?? target[index]);
       const value: unknown = Reflect.get(target, key, receiver);
       return value;
     },
     set(target, key, value, receiver) {
+      if (key === "length") {
+        length = Number(value);
+        return true;
+      }
       const index = arrayIndex(key);
       if (index === undefined) return Reflect.set(target, key, value, receiver);
+      if (index >= length) length = index + 1;
       changes.set(index, value === true);
       return true;
     },
@@ -137,7 +196,8 @@ export function stagePartRevisionFlags(source: boolean[]): PartRevisionFlags {
   return {
     values,
     commit(target) {
-      for (const [index, value] of changes) target[index] = value;
+      target.length = length;
+      for (const [index, value] of changes) if (index < length) target[index] = value;
     },
   };
 }

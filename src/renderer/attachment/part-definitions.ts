@@ -199,23 +199,28 @@ function commitPartResults(
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
 ): void {
+  commitStagedPartResults(draw, prepared.draw, partIds);
+}
+
+/** Publishes result resources prepared in a detached draw owner. */
+export function commitStagedPartResults(
+  draw: DrawResources,
+  staged: DrawResources,
+  partIds: ReadonlySet<PartId>,
+): void {
   for (const partId of partIds) {
-    transferPartResource(draw.deformations, prepared.draw.deformations, partId);
-    transferPartResource(draw.resultColors, prepared.draw.resultColors, partId);
-    transferPartResource(
-      draw.orientationGlyphs.parts,
-      prepared.draw.orientationGlyphs.parts,
-      partId,
-    );
+    transferPartResource(draw.deformations, staged.deformations, partId);
+    transferPartResource(draw.resultColors, staged.resultColors, partId);
+    transferPartResource(draw.orientationGlyphs.parts, staged.orientationGlyphs.parts, partId);
   }
-  if (draw.orientationGlyphs.paramsBuffer !== prepared.draw.orientationGlyphs.paramsBuffer) {
+  if (draw.orientationGlyphs.paramsBuffer !== staged.orientationGlyphs.paramsBuffer) {
     draw.orientationGlyphs.paramsBuffer?.destroy();
-    draw.orientationGlyphs.paramsBuffer = prepared.draw.orientationGlyphs.paramsBuffer;
+    draw.orientationGlyphs.paramsBuffer = staged.orientationGlyphs.paramsBuffer;
   }
   new Uint8Array(draw.orientationGlyphs.paramsData).set(
-    new Uint8Array(prepared.draw.orientationGlyphs.paramsData),
+    new Uint8Array(staged.orientationGlyphs.paramsData),
   );
-  draw.orientationGlyphs.state = prepared.draw.orientationGlyphs.state;
+  draw.orientationGlyphs.state = staged.orientationGlyphs.state;
 }
 
 function commitPartResources(
@@ -240,10 +245,23 @@ function transferStagedPartResources(
   transferPartResource(draw.admissionCache, staged.admissionCache, partId);
 }
 
-function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId: PartId): void {
+/** Publishes one affected part's prepared placement storage. */
+export function commitStagedStorage(
+  draw: DrawResources,
+  staged: DrawResources,
+  partId: PartId,
+): void {
   const live = draw.storages.get(partId);
   const prepared = staged.storages.get(partId);
-  if (live === undefined || prepared === undefined || live === prepared) return;
+  if (live === undefined) {
+    if (prepared !== undefined) draw.storages.set(partId, prepared);
+    return;
+  }
+  if (prepared === undefined || live === prepared) return;
+  if (live.buffer !== prepared.buffer || live.orderBuffer !== prepared.orderBuffer) {
+    replaceGrownStorage(draw, partId, live, prepared);
+    return;
+  }
   replacePreparedSidecars(live, prepared);
   replacePreparedHighlight(live, prepared);
   live.emphasisSlots = new Set(prepared.emphasisSlots);
@@ -251,6 +269,26 @@ function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId:
   if (live.data !== prepared.data) new Uint8Array(live.data).set(new Uint8Array(prepared.data));
   if (live.orderData !== prepared.orderData) live.orderData.set(prepared.orderData);
   live.orderLength = prepared.orderLength;
+}
+
+function replaceGrownStorage(
+  draw: DrawResources,
+  partId: PartId,
+  live: InstanceStorage,
+  prepared: InstanceStorage,
+): void {
+  replacePreparedSidecars(live, prepared);
+  replacePreparedHighlight(live, prepared);
+  if (live.buffer !== prepared.buffer) {
+    draw.cost.releaseBuffer(live.buffer.size);
+    live.buffer.destroy();
+  }
+  if (live.orderBuffer !== prepared.orderBuffer) {
+    draw.cost.releaseBuffer(live.orderBuffer.size);
+    live.orderBuffer.destroy();
+  }
+  const { deferRelease: _deferRelease, revisionJournal: _revisionJournal, ...committed } = prepared;
+  draw.storages.set(partId, committed);
 }
 
 function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
@@ -276,9 +314,10 @@ function replacePreparedHighlight(live: InstanceStorage, prepared: InstanceStora
   live.highlightOwned = prepared.highlightOwned;
 }
 
-function commitStagedWrites(
+/** Flushes writes deferred from protected live buffers during preparation. */
+export function commitStagedWrites(
   draw: DrawResources,
-  prepared: PreparedPartRevision,
+  prepared: Pick<PreparedPartRevision, "writes">,
   partIds: ReadonlySet<PartId>,
 ): void {
   const liveBuffers = committedStorageBuffers(draw, partIds);

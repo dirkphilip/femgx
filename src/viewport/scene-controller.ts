@@ -16,23 +16,22 @@ import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
 import { hasOnlyPartReplacementChanges } from "../scene/update-validation";
 import { originTriadScaleFromBounds } from "./bounds/origin-triad";
 import { PlacedBoundsIndex } from "./bounds/placed-index";
-import {
-  resolveViewportPartRevisionResults,
-  resolveViewportResults,
-  type ViewportResultsConfig,
-  type ViewportResultsState,
-} from "./results";
+import type { ViewportResultsConfig, ViewportResultsState } from "./results";
 import {
   applyResolvedViewportResults,
   applyViewportResults,
   partRevisionResultState,
 } from "./results/application";
 import { reconcileInteractionState } from "./scene-reconciliation";
+import { preparePartRevisionResults, prepareSceneResults } from "./results/scene-transition";
 import { ViewportVisibilityState } from "./visibility/state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
 import {
+  commitRendererOccurrenceUpdate,
+  discardRendererOccurrenceUpdate,
   prepareRendererPartAdditions,
+  prepareRendererOccurrenceUpdate,
   updateRendererOccurrences,
   updateRendererPartRevisions,
 } from "../renderer/gpu-renderer";
@@ -219,7 +218,7 @@ export class ViewportSceneController {
       this.currentRuntime,
       scene.parts,
     );
-    const resultUpdate = this.prepareSceneResults(scene, this.currentRuntime);
+    const resultUpdate = prepareSceneResults(this.currentResults, scene, this.currentRuntime);
     updateRendererOccurrences(
       this.options.renderer,
       this.currentRuntime,
@@ -250,7 +249,12 @@ export class ViewportSceneController {
       this.currentRuntime,
       scene.parts,
     );
-    const resultUpdate = this.preparePartRevisionResults(scene, this.currentRuntime, partIds);
+    const resultUpdate = preparePartRevisionResults(
+      this.currentResults,
+      scene,
+      this.currentRuntime,
+      partIds,
+    );
     updateRendererPartRevisions(this.options.renderer, {
       runtime: this.currentRuntime,
       interaction: nextInteraction,
@@ -278,8 +282,63 @@ export class ViewportSceneController {
     cancelCamera: () => void,
   ): SceneUpdateResult {
     prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
-    cancelCamera();
-    const delta = applyHierarchyMutations(
+    const transaction = this.currentRuntime.beginHierarchyTransaction();
+    let rendererUpdate: ReturnType<typeof prepareRendererOccurrenceUpdate> | undefined;
+    let boundsUpdate: ReturnType<PlacedBoundsIndex["beginTransaction"]> | undefined;
+    try {
+      const delta = this.applyHierarchyMutations(scene, mutations);
+      const nextVisibility = this.currentVisibility.reconcileHierarchy(
+        scene,
+        this.currentRuntime,
+        delta.removedOccurrenceSlots,
+        delta.removedAssemblyOccurrenceIds,
+      );
+      const nextInteraction = reconcileInteractionState(
+        this.baseInteraction,
+        this.currentRuntime,
+        scene.parts,
+      );
+      const resultUpdate = prepareSceneResults(this.currentResults, scene, this.currentRuntime);
+      rendererUpdate = prepareRendererOccurrenceUpdate(this.options.renderer, {
+        runtime: this.currentRuntime,
+        interaction: nextInteraction,
+        delta,
+        parts: scene.parts,
+        results: partRevisionResultState(
+          resultUpdate.results,
+          this.currentRuntime,
+          delta.affectedPartIds,
+        ),
+      });
+      boundsUpdate = this.placedBounds.beginTransaction(
+        delta.slots.map(({ slot }) => slot),
+        delta.addedPartIds,
+      );
+      cancelCamera();
+      this.updateHierarchyBounds(scene, delta);
+      commitRendererOccurrenceUpdate(this.options.renderer, rendererUpdate);
+      transaction.commit();
+      boundsUpdate.commit();
+      this.currentScene = scene;
+      this.currentVisibility = nextVisibility;
+      this.baseInteraction = nextInteraction;
+      this.currentResults = resultUpdate.results;
+      return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
+    } catch (error) {
+      if (rendererUpdate !== undefined) {
+        discardRendererOccurrenceUpdate(this.options.renderer, rendererUpdate);
+      }
+      boundsUpdate?.rollback();
+      transaction.rollback();
+      throw error;
+    }
+  }
+
+  private applyHierarchyMutations(
+    scene: Scene,
+    mutations: NonNullable<ReturnType<typeof prepareHierarchyMutations>>,
+  ): ReturnType<typeof applyHierarchyMutations> {
+    return applyHierarchyMutations(
       this.currentRuntime,
       scene,
       mutations,
@@ -287,35 +346,18 @@ export class ViewportSceneController {
       (assemblyId, authoredVisible) =>
         this.currentVisibility.isAssemblyVisible(assemblyId, authoredVisible),
     );
-    this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
-    this.currentVisibility.pruneAssemblyOccurrences(delta.removedAssemblyOccurrenceIds);
-    this.currentVisibility.pruneParts(delta.removedPartIds);
-    this.currentVisibility.admitParts(scene, delta.addedPartIds);
-    this.currentVisibility.reconcileAssemblies(scene, mutations.changedAssemblyIds);
-    const nextInteraction = reconcileInteractionState(
-      this.baseInteraction,
-      this.currentRuntime,
-      scene.parts,
-    );
-    const resultUpdate = this.prepareSceneResults(scene, this.currentRuntime);
-    updateRendererOccurrences(
-      this.options.renderer,
-      this.currentRuntime,
-      nextInteraction,
-      delta,
-      scene.parts,
-    );
-    this.currentScene = scene;
-    this.baseInteraction = nextInteraction;
-    this.currentResults = resultUpdate.results;
+  }
+
+  private updateHierarchyBounds(
+    scene: Scene,
+    delta: ReturnType<typeof applyHierarchyMutations>,
+  ): void {
     this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
     this.placedBounds.update(
       this.currentRuntime,
       delta.slots.map(({ slot }) => slot),
     );
     this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
-    applyResolvedViewportResults(this.options.renderer, resultUpdate.results);
-    return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
   }
 
   private applySceneReplacement(
@@ -352,7 +394,7 @@ export class ViewportSceneController {
       scene.parts,
     );
     const resultUpdate = preserveResults
-      ? this.prepareSceneResults(scene, nextRuntime)
+      ? prepareSceneResults(this.currentResults, scene, nextRuntime)
       : { results: undefined, outcome: { results: "none" as const } };
     return {
       scene,
@@ -365,60 +407,4 @@ export class ViewportSceneController {
       visibility: nextVisibility,
     };
   }
-
-  private prepareSceneResults(
-    scene: Scene,
-    runtime: PackedSceneRuntime,
-  ): {
-    readonly results: ViewportResultsState | undefined;
-    readonly outcome: SceneUpdateOutcome;
-  } {
-    const previous = this.currentResults;
-    if (previous === undefined) {
-      return { results: undefined, outcome: { results: "none" } };
-    }
-    try {
-      const results = resolveViewportResults(previous.config, scene, runtime, previous);
-      return {
-        results,
-        outcome: { results: "preserved" },
-      };
-    } catch (error: unknown) {
-      return {
-        results: undefined,
-        outcome: { results: "cleared", reason: errorMessage(error) },
-      };
-    }
-  }
-
-  private preparePartRevisionResults(
-    scene: Scene,
-    runtime: PackedSceneRuntime,
-    partIds: ReadonlySet<number>,
-  ): {
-    readonly results: ViewportResultsState | undefined;
-    readonly outcome: SceneUpdateOutcome;
-  } {
-    const previous = this.currentResults;
-    if (previous === undefined) return { results: undefined, outcome: { results: "none" } };
-    try {
-      const results = resolveViewportPartRevisionResults(
-        previous.config,
-        scene,
-        runtime,
-        previous,
-        partIds,
-      );
-      return { results, outcome: { results: "preserved" } };
-    } catch (error: unknown) {
-      return {
-        results: undefined,
-        outcome: { results: "cleared", reason: errorMessage(error) },
-      };
-    }
-  }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

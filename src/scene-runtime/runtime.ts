@@ -25,6 +25,7 @@ import {
   removeSortedPartId,
   removeSortedPartIds,
 } from "./sorted-part-ids";
+import { createRuntimeJournalOwner, type RuntimeJournalOwner } from "./runtime-journal";
 
 /**
  * A packed CPU-side view of a scene for rendering: placement transforms,
@@ -36,6 +37,8 @@ import {
  * into the runtime: do not mutate them, or visibleCount desynchronizes.
  */
 interface RuntimeMethods {
+  /** Starts a private sparse mutation journal for one hierarchy transaction. */
+  beginHierarchyTransaction(): RuntimeHierarchyTransaction;
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
   /** Resolves a stable instance slot to its authoring placement handle. */
@@ -80,6 +83,13 @@ interface RuntimeMethods {
   setNodeChildren(nodeId: number, children: readonly number[]): void;
   /** Replaces one node's direct interleaved authored placement sequence. */
   setNodePlacementOrder(nodeId: number, placements: readonly number[]): void;
+  /** Patches one retained assembly occurrence world transform. */
+  updateNodeTransform(nodeId: number, transform: Mat4): void;
+}
+
+export interface RuntimeHierarchyTransaction {
+  commit(): void;
+  rollback(): void;
 }
 
 export interface RuntimeInstanceInput {
@@ -136,9 +146,11 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
 }
 
 function createRuntimeMethods(state: RuntimeState, maps: RuntimeMaps): RuntimeMethods {
+  const journal = createRuntimeJournalOwner(state, maps);
   return {
+    beginHierarchyTransaction: journal.begin,
     ...createRuntimeQueries(state, maps),
-    ...createRuntimeMutations(state, maps),
+    ...createRuntimeMutations(state, maps, journal),
   };
 }
 
@@ -156,6 +168,8 @@ type RuntimeQueries = Omit<
   | "removeAssemblyNodes"
   | "setNodeChildren"
   | "setNodePlacementOrder"
+  | "beginHierarchyTransaction"
+  | "updateNodeTransform"
 >;
 
 function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQueries {
@@ -211,6 +225,7 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
 function createRuntimeMutations(
   state: RuntimeState,
   maps: RuntimeMaps,
+  journal: RuntimeJournalOwner,
 ): Pick<
   RuntimeMethods,
   | "setInstanceVisible"
@@ -225,44 +240,57 @@ function createRuntimeMutations(
   | "removeAssemblyNodes"
   | "setNodeChildren"
   | "setNodePlacementOrder"
+  | "updateNodeTransform"
 > {
   return {
-    setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
-      return setInstanceVisible(state, instanceId, visible);
-    },
-    setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta {
-      return setInstancesVisible(state, instanceIds, visible);
-    },
-    setPartVisible(partId: PartId, visible: boolean): VisibilityDelta {
-      return setPartVisible(state, partId, visible);
-    },
-    setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta {
-      return setAssemblyNodeVisible(state, nodeId, visible);
-    },
-    setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
-      return setAssemblyVisible(state, assemblyId, visible);
-    },
+    ...createVisibilityMutations(state),
     addInstances(inputs: readonly RuntimeInstanceInput[]): readonly number[] {
+      journal.captureAddedInstances(inputs);
       return addRuntimeInstances(state, maps, inputs);
     },
     removeInstances(instanceIds: readonly number[]): void {
+      journal.captureInstances(instanceIds);
       removeRuntimeInstances(state, maps, instanceIds);
     },
     updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
+      journal.captureInstances([instanceId]);
+      journal.touchInstanceId(input.instanceId);
       updateRuntimeInstance(state, instanceId, input);
     },
     addAssemblyNode(input: RuntimeAssemblyNodeInput): number {
+      journal.captureAddedNode(input.nodeId);
       return addRuntimeAssemblyNode(state, maps.nodeSlots, input);
     },
     removeAssemblyNodes(nodeIds: readonly number[]): void {
+      journal.captureNodes(nodeIds);
       removeRuntimeAssemblyNodes(state, maps.nodeSlots, nodeIds);
     },
     setNodeChildren(nodeId: number, children: readonly number[]): void {
+      journal.captureNodeLinks(nodeId, children);
       setRuntimeNodeChildren(state, nodeId, children);
     },
     setNodePlacementOrder(nodeId: number, placements: readonly number[]): void {
+      journal.captureNodes([nodeId]);
       state.nodePlacementOrder[nodeId] = [...placements];
     },
+    updateNodeTransform(nodeId: number, transform: Mat4): void {
+      journal.captureNodes([nodeId]);
+      state.nodeWorldTransforms.set(transform, nodeId * 16);
+    },
+  };
+}
+
+function createVisibilityMutations(state: RuntimeState) {
+  return {
+    setInstanceVisible: (instanceId: number, visible: boolean) =>
+      setInstanceVisible(state, instanceId, visible),
+    setInstancesVisible: (instanceIds: readonly number[], visible: boolean) =>
+      setInstancesVisible(state, instanceIds, visible),
+    setPartVisible: (partId: PartId, visible: boolean) => setPartVisible(state, partId, visible),
+    setAssemblyNodeVisible: (nodeId: number, visible: boolean) =>
+      setAssemblyNodeVisible(state, nodeId, visible),
+    setAssemblyVisible: (assemblyId: AssemblyId, visible: boolean) =>
+      setAssemblyVisible(state, assemblyId, visible),
   };
 }
 

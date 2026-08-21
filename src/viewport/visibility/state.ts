@@ -77,6 +77,38 @@ export class ViewportVisibilityState {
     );
   }
 
+  /** Prepares hierarchy-owned policy changes without mutating the retained policy object. */
+  reconcileHierarchy(
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    removedPartSlots: readonly number[],
+    removedAssemblyIds: readonly AssemblyOccurrenceId[],
+  ): ViewportVisibilityState {
+    const hiddenParts = reconcileDefinitions(
+      scene.parts.keys(),
+      this.parts.known,
+      this.parts.hidden,
+      scene.visiblePartIds,
+    );
+    const hiddenAssemblies = reconcileDefinitions(
+      scene.assemblies.keys(),
+      this.assemblies.known,
+      this.assemblies.hidden,
+      scene.visibleAssemblyIds,
+    );
+    const hiddenPartOccurrences = new Set(this.hiddenPartOccurrenceSlots);
+    for (const slot of removedPartSlots) hiddenPartOccurrences.delete(slot);
+    const hiddenAssemblyOccurrences = new Set(this.hiddenAssemblyOccurrenceIds);
+    for (const id of removedAssemblyIds) hiddenAssemblyOccurrences.delete(id);
+    return new ViewportVisibilityState(
+      { known: new Set(scene.parts.keys()), hidden: hiddenParts },
+      { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
+      hiddenPartOccurrences,
+      hiddenAssemblyOccurrences,
+      runtime,
+    );
+  }
+
   setPartVisible(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
     updateHidden(this.parts.hidden, partId, visible);
     return runtime.setPartVisible(partId, visible);

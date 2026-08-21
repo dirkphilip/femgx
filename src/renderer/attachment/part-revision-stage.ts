@@ -92,6 +92,7 @@ export function prepareStagedPartRevision(options: {
     options.bundle.draw,
     options.partIds,
     stageInteraction,
+    true,
   );
   try {
     return stagePartRevision({ ...options, draw, writes });
@@ -259,10 +260,12 @@ function stagePartGeometry(
   }
 }
 
-function stageDrawResources(
+/** Creates a detached draw owner for exact affected-part writes. */
+export function stageDrawResources(
   draw: DrawResources,
   partIds: ReadonlySet<PartId>,
   stageInteraction: boolean,
+  replaceDefinitions: boolean,
 ): { readonly draw: DrawResources; readonly writes: readonly StagedBufferWrite[] } {
   const writes: StagedBufferWrite[] = [];
   const protectedBuffers = protectedStorageBuffers(draw, partIds);
@@ -278,22 +281,24 @@ function stageDrawResources(
     storages: stagedStorages(draw.storages, partIds, stageInteraction),
     visibilitySkins: new PartRevisionMap(draw.visibilitySkins),
     admissionCache: new PartRevisionMap(draw.admissionCache),
-    deformations: new Map(),
-    resultColors: new Map(),
+    deformations: replaceDefinitions ? new Map() : new PartRevisionMap(draw.deformations),
+    resultColors: replaceDefinitions ? new Map() : new PartRevisionMap(draw.resultColors),
     orientationGlyphs: {
       ...draw.orientationGlyphs,
       // A definition revision cannot change the resolved glyph presentation.
       // Retaining this shared uniform also keeps unchanged glyph bind groups valid.
       paramsData: draw.orientationGlyphs.paramsData.slice(0),
-      parts: new Map(),
+      parts: replaceDefinitions ? new Map() : new PartRevisionMap(draw.orientationGlyphs.parts),
     },
   };
-  for (const partId of partIds) {
-    staged.parts.delete(partId);
-    staged.primitiveParts.delete(partId);
-    staged.nodeParts.delete(partId);
-    staged.visibilitySkins.delete(partId);
-    staged.admissionCache.delete(partId);
+  if (replaceDefinitions) {
+    for (const partId of partIds) {
+      staged.parts.delete(partId);
+      staged.primitiveParts.delete(partId);
+      staged.nodeParts.delete(partId);
+      staged.visibilitySkins.delete(partId);
+      staged.admissionCache.delete(partId);
+    }
   }
   return { draw: staged, writes };
 }
@@ -375,7 +380,9 @@ export function discardStagedPartResources(
 ): void {
   for (const partId of partIds) {
     destroyStagedGeometry(draw, partId);
-    destroyPartResults(draw, partId);
+    destroyDeformationBuffer(draw.deformations, partId, draw.cost);
+    destroyResultColorBuffer(draw, partId);
+    destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
     destroyStagedStorage(draw.storages.get(partId), live.storages.get(partId));
     const skins = draw.visibilitySkins.get(partId);
     if (skins !== undefined) destroyDetachedVisibilitySkinCache(draw, skins);
@@ -385,7 +392,8 @@ export function discardStagedPartResources(
   }
 }
 
-function destroyStagedStorage(
+/** Rolls back CPU journals and destroys only storage buffers detached from the live owner. */
+export function destroyStagedStorage(
   storage: InstanceStorage | undefined,
   live: InstanceStorage | undefined,
 ): void {
@@ -403,7 +411,8 @@ function destroyStagedStorage(
   for (const buffer of buffers) buffer.destroy();
 }
 
-function destroyStagedGeometry(draw: DrawResources, partId: PartId): void {
+/** Destroys geometry resources owned only by an uncommitted staging draw. */
+export function destroyStagedGeometry(draw: DrawResources, partId: PartId): void {
   const primitives = draw.primitiveParts.get(partId);
   if (primitives !== undefined) {
     for (const resource of primitives.values()) destroyPartResource(resource);
@@ -413,10 +422,4 @@ function destroyStagedGeometry(draw: DrawResources, partId: PartId): void {
   if (resource !== undefined) destroyPartResource(resource);
   const nodes = draw.nodeParts.get(partId);
   if (nodes !== undefined) destroyPartResource(nodes);
-}
-
-function destroyPartResults(draw: DrawResources, partId: PartId): void {
-  destroyDeformationBuffer(draw.deformations, partId, draw.cost);
-  destroyResultColorBuffer(draw, partId);
-  destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }

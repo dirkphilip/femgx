@@ -28,7 +28,7 @@ export function patchRetainedSubtree(
   world: Mat4,
   resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean,
 ): void {
-  runtime.nodeWorldTransforms.set(world, node * 16);
+  runtime.updateNodeTransform(node, world);
   const assemblyId = invariantValue(runtime.nodeAssemblyIds[node], `assembly at node ${node}`);
   const definition = invariantValue(scene.assemblies.get(assemblyId), `assembly ${assemblyId}`);
   const ownerId = invariantValue(runtime.getNodeId(node), `node id at ${node}`);

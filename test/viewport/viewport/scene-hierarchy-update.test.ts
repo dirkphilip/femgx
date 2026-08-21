@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSceneBuilder } from "@/scene/scene";
 import { RendererAttachment } from "@/renderer/attachment";
+import { RendererPicking } from "@/renderer/picking/renderer-picking";
 import {
   createPart,
   createViewport,
@@ -8,10 +9,102 @@ import {
   fakeGpuDevice,
   installNavigator,
   installTestGpuGlobals,
+  GpuRenderer,
+  isTargetSelected,
+  nodalResult,
+  resultScene,
+  setTargetSelected,
   translationMatrix,
 } from "./support";
 
 describe("Viewport incremental hierarchy updates", () => {
+  it("cleans partial occurrence storage allocation and keeps the prior renderer usable", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    let fail = false;
+    const gpu = fakeGpuDevice({
+      onCreateBuffer: (_creation, descriptor) => {
+        if (fail && descriptor.label === "femgx instance order") {
+          throw new Error("injected occurrence order allocation failure");
+        }
+      },
+    });
+    const scene = hierarchyScene();
+    const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
+    viewport.render();
+    const bufferStart = gpu.buffers.length;
+    const writeStart = gpu.writes.length;
+    const liveBuffers = new Set(gpu.buffers.map(({ resource }) => resource));
+    const invalidatePicking = vi.spyOn(RendererPicking.prototype, "invalidate");
+    invalidatePicking.mockClear();
+    fail = true;
+
+    expect(() =>
+      viewport.updateScene((update) => {
+        update.addPlacement(1, {
+          kind: "assembly",
+          placementId: "attached",
+          assemblyId: 2,
+          transform: translationMatrix(3, 0, 0),
+        });
+      }),
+    ).toThrow("injected occurrence order allocation failure");
+
+    expect(viewport.scene).toBe(scene);
+    expect(viewport.occurrences.getAssemblyOccurrence("1/attached")).toBeUndefined();
+    expect(gpu.buffers.slice(bufferStart).map(({ destroyCount }) => destroyCount)).toEqual([1]);
+    expect(gpu.writes.slice(writeStart).some(({ buffer }) => liveBuffers.has(buffer))).toBe(false);
+    expect(invalidatePicking).not.toHaveBeenCalled();
+    fail = false;
+    expect(() => {
+      viewport.render();
+    }).not.toThrow();
+    await viewport.recover();
+    expect(viewport.occurrences.getPartOccurrence("1/keep")).toMatchObject({ partId: 1 });
+    viewport.destroy();
+  });
+
+  it("restores the exact prior runtime when renderer preparation fails and remains recoverable", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const scene = hierarchyScene();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene,
+      device: fakeGpuDevice().device,
+    });
+    viewport.visibility.setPartOccurrenceVisible("1/keep", false);
+    viewport.render();
+    const before = [...viewport.occurrences.partOccurrences()].map(
+      (occurrence) => occurrence.partOccurrenceId,
+    );
+    vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate").mockImplementationOnce(() => {
+      throw new Error("injected occurrence allocation failure");
+    });
+
+    expect(() =>
+      viewport.updateScene((update) => {
+        update.addPlacement(1, {
+          kind: "assembly",
+          placementId: "attached",
+          assemblyId: 2,
+          transform: translationMatrix(3, 0, 0),
+        });
+      }),
+    ).toThrow("injected occurrence allocation failure");
+
+    expect(viewport.scene).toBe(scene);
+    expect(
+      [...viewport.occurrences.partOccurrences()].map((item) => item.partOccurrenceId),
+    ).toEqual(before);
+    expect(viewport.occurrences.getAssemblyOccurrence("1/attached")).toBeUndefined();
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
+    viewport.render();
+    await viewport.recover();
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
+    viewport.destroy();
+  });
+
   it("attaches an assembly subtree without replacing the runtime or rebuilding retained attachments", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -23,6 +116,8 @@ describe("Viewport incremental hierarchy updates", () => {
     });
     const occurrences = viewport.occurrences;
     const attachment = vi.spyOn(RendererAttachment.prototype, "prepareParts");
+    const invalidatePicking = vi.spyOn(RendererPicking.prototype, "invalidate");
+    invalidatePicking.mockClear();
 
     viewport.updateScene((update) => {
       update.addPlacement(1, {
@@ -41,6 +136,36 @@ describe("Viewport incremental hierarchy updates", () => {
     expect(viewport.occurrences.getPartOccurrence("1/attached/leaf")).toMatchObject({
       partId: 2,
     });
+    expect(invalidatePicking).toHaveBeenCalledTimes(1);
+    viewport.destroy();
+  });
+
+  it("preserves unrelated results and interaction through a hierarchy transaction", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const scene = hierarchyResultScene();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene,
+      results: { scalar: { ...nodalResult(3).scalar, partId: 1 } },
+      device: fakeGpuDevice().device,
+    });
+    viewport.interaction.set(
+      setTargetSelected(viewport.interaction.state, { kind: "part", partId: 1 }, true),
+    );
+
+    const outcome = viewport.updateScene((update) => {
+      update.addPlacement(1, {
+        kind: "assembly",
+        placementId: "attached",
+        assemblyId: 2,
+        transform: translationMatrix(3, 0, 0),
+      });
+    });
+
+    expect(outcome.results).toBe("preserved");
+    expect(viewport.results.state?.config.scalar?.partId).toBe(1);
+    expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 1 })).toBe(true);
     viewport.destroy();
   });
 
@@ -82,6 +207,33 @@ function hierarchyScene() {
   return createSceneBuilder()
     .addPart(first)
     .addPart(second)
+    .addAssembly({
+      id: 2,
+      placements: [
+        { kind: "part", placementId: "leaf", partId: 2, transform: translationMatrix(0, 0, 0) },
+      ],
+    })
+    .addAssembly({
+      id: 1,
+      placements: [
+        { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(0, 0, 0) },
+      ],
+    })
+    .setRootAssembly(1)
+    .build();
+}
+
+function hierarchyResultScene() {
+  const resultPart = resultScene(3).parts.get(1);
+  if (resultPart === undefined) throw new Error("result part missing");
+  const geometry = {
+    primitive: "triangles" as const,
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+  };
+  return createSceneBuilder()
+    .addPart(resultPart)
+    .addPart(createPart(2, { geometries: [geometry] }))
     .addAssembly({
       id: 2,
       placements: [

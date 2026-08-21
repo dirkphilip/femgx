@@ -45,6 +45,8 @@ interface CapBuildOptions {
   readonly reusable?: SectionCapFrame;
   /** Exact source definitions whose cap fragments must be rebuilt. */
   readonly revisedPartIds?: ReadonlySet<PartId>;
+  /** Exact source occurrence slots rebuilt by a topology transaction. */
+  readonly revisedSlots?: ReadonlySet<number>;
 }
 
 export interface SectionCapFrame {
@@ -101,6 +103,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     if (elements === undefined || sourcePositions === undefined) continue;
     const metadata = getPartSemanticIndex(sourcePart);
     for (const slot of options.runtime.getPartInstanceSlots(sourcePart.id)) {
+      if (options.revisedSlots !== undefined && !options.revisedSlots.has(slot)) continue;
       if (!options.runtime.isInstanceVisible(slot)) continue;
       const instanceId = options.runtime.getInstanceId(slot);
       if (instanceId === undefined) continue;

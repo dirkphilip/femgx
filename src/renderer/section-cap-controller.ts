@@ -34,6 +34,7 @@ import {
   commitSectionCapResources,
   discardSectionCapRevision,
   prepareSectionCapRevision,
+  prepareSectionCapOccurrenceRevision,
   type PreparedSectionCapRevision,
 } from "./resources/section-caps/revision";
 
@@ -172,6 +173,40 @@ export class SectionCapController {
       },
       options,
     );
+  }
+
+  /** Stages only cap fragments owned by placement slots changed by a transaction. */
+  public prepareOccurrenceRevision(
+    options: SectionCapSyncOptions & { readonly delta: RuntimeOccurrenceDelta },
+  ): PreparedSectionCapRevision {
+    return prepareSectionCapOccurrenceRevision(
+      {
+        frame: this.frame,
+        retained: this.retained,
+        runtime: this.runtime,
+        dirty: this.dirty,
+        renderedParts: this.renderedParts,
+        renderedColors: this.renderedColors,
+      },
+      options,
+    );
+  }
+
+  /** Publishes occurrence cap state after its attachment transaction commits. */
+  public commitOccurrenceRevision(
+    prepared: PreparedSectionCapRevision,
+    staged: DrawResources,
+    live: DrawResources,
+  ): void {
+    this.commitPartRevision(prepared, staged, live);
+  }
+
+  /** Releases occurrence cap allocations after a failed attachment transaction. */
+  public discardOccurrenceRevision(
+    prepared: PreparedSectionCapRevision,
+    staged: DrawResources,
+  ): void {
+    this.discardPartRevision(prepared, staged);
   }
 
   /** Publishes a prepared cap revision after all fallible staging has succeeded. */

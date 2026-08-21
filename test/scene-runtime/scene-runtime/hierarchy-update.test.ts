@@ -8,6 +8,30 @@ import { prepareSceneTransition } from "@/scene/update";
 import { buildScene, createPackedSceneRuntime, identityMatrix, translationMatrix } from "./support";
 
 describe("incremental assembly hierarchy storage", () => {
+  it("rejects an ambiguous legacy implicit placement before changing runtime", () => {
+    const scene = buildScene(
+      1,
+      [{ id: 1, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] }],
+      [1],
+    );
+    const runtime = createPackedSceneRuntime(scene);
+    const transition = prepareSceneTransition(scene, (update) => {
+      update.addPlacement(1, {
+        kind: "part",
+        placementId: "added",
+        partId: 1,
+        transform: identityMatrix(),
+      });
+    });
+    if (transition === undefined) throw new Error("expected ambiguous transition");
+
+    expect(() =>
+      prepareHierarchyMutations(runtime, scene, transition.scene, transition.changes),
+    ).toThrow("uses an implicit placement identity");
+    expect(runtime.activeInstanceCount).toBe(1);
+    expect(runtime.getInstanceId(0)).toBe("1/0");
+  });
+
   it("patches a retained assembly transform alongside topology without resetting overrides", () => {
     const scene = buildScene(
       1,
