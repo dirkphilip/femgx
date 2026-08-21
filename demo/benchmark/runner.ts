@@ -58,6 +58,7 @@ export async function runWebGpuBenchmark(
             performance.now() - modelBuildStart,
             {
               timestampQueriesRequested: timestampQueriesEnabled,
+              ...(options.capture === "node-selection" ? { nodeSelectionOnly: true } : {}),
               ...(built.denseBuild === undefined ? {} : { denseBuild: built.denseBuild }),
               ...(options.capture === "node-selection" && spec.id === "fe-tet4-solid-132k"
                 ? {

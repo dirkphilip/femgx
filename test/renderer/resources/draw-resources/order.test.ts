@@ -40,6 +40,7 @@ describe("GPU draw path", () => {
               storage.sidecars.transparent === undefined &&
               storage.sidecars.selection === undefined &&
               storage.sidecars.nodeSelection === undefined &&
+              storage.sidecars.nodeSelectionCompact === undefined &&
               storage.sidecars.edge === undefined &&
               storage.sidecars.node === undefined &&
               !storage.highlightOwned,

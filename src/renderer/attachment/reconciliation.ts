@@ -245,6 +245,7 @@ export function rebuildAttachmentOrders(options: {
       layout: options.layout,
       parts: options.partDefinitions,
       selection: options.selection,
+      interaction: options.interaction,
       bundle: options.bundle,
     },
     activeOptionalParts(activeParts, options.optionalParts?.node),

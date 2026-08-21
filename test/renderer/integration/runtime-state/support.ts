@@ -11,7 +11,6 @@ export { emptyPart as part };
 import {
   buildDrawOrder,
   buildNodeOrder,
-  buildNodeSelectionOrder,
   buildSelectionOrder,
   buildInstanceLayout,
   buildTransparentOrder,
@@ -201,7 +200,6 @@ export {
   createSceneBuilder,
   buildDrawOrder,
   buildNodeOrder,
-  buildNodeSelectionOrder,
   buildSelectionOrder,
   buildInstanceLayout,
   buildTransparentOrder,

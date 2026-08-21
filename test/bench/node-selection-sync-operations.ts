@@ -2,9 +2,9 @@ import { createInteractionState } from "../../src/interaction/interaction";
 import { readInteractionState } from "../../src/interaction/state";
 import { setTargetsSelected } from "../../src/interaction/targets";
 import type { GpuBundle } from "../../src/renderer/recovery";
-import { buildNodeSelectionOrder } from "../../src/renderer/runtime-state";
 import { syncSelectionState } from "../../src/renderer/selection-state";
 import { collectDenseNodeSelections } from "../../src/renderer/selection/node-selection";
+import { buildSelectedNodeOrder } from "../../src/renderer/selection/selected-node-order";
 import {
   collectEmphasisUpdates,
   ELEMENT_RECORD_STRIDE,
@@ -165,22 +165,19 @@ function highlightUploadOperation(
 }
 
 function nodeOrderOperation(fixture: NodeSelectionFixture, selected: NodeCase): OperationSpec {
-  const selectedNodeFlags = selectedFlags(fixture, selected.interaction);
-  const expectedOccurrences = selectedNodeFlags.filter(Boolean).length;
+  const expected = selectedNodeOrder(fixture, selected);
   return {
     name: `node-${selected.id}-build-selected-node-order`,
-    workloadUnit: "selected occurrence entries in the node-selection order",
-    workloadCount: expectedOccurrences,
+    workloadUnit: "selected occurrence/node pairs in the compact node-selection order",
+    workloadCount: selected.selectedNodeCount,
     workloadDetails: details(fixture, selected),
     run: () => {
-      const order = buildNodeSelectionOrder(
-        fixture.layout,
-        fixture.runtime,
-        PART_ID,
-        selectedNodeFlags,
-        fixture.parts,
-      );
-      if (order.length !== expectedOccurrences) throw new Error("Selected node order changed");
+      const order = selectedNodeOrder(fixture, selected);
+      if (
+        order.denseOccurrences.length !== expected.denseOccurrences.length ||
+        order.sparseNodeIds.length !== expected.sparseNodeIds.length
+      )
+        throw new Error("Selected node order changed");
     },
   };
 }
@@ -188,13 +185,7 @@ function nodeOrderOperation(fixture: NodeSelectionFixture, selected: NodeCase): 
 function nodeSyncOperation(fixture: NodeSelectionFixture, selected: NodeCase): OperationSpec {
   installGpuGlobals();
   const expectedFlags = selectedFlags(fixture, selected.interaction);
-  const expectedOrder = buildNodeSelectionOrder(
-    fixture.layout,
-    fixture.runtime,
-    PART_ID,
-    expectedFlags,
-    fixture.parts,
-  );
+  const expectedOrder = selectedNodeOrder(fixture, selected);
   const samples = Array.from({ length: SAMPLE_COUNT }, () => {
     const gpu = fakeGpuDevice();
     return {
@@ -238,6 +229,16 @@ function nodeSyncOperation(fixture: NodeSelectionFixture, selected: NodeCase): O
       sample += 1;
     },
   };
+}
+
+function selectedNodeOrder(fixture: NodeSelectionFixture, selected: NodeCase) {
+  return buildSelectedNodeOrder({
+    runtime: fixture.runtime,
+    layout: fixture.layout,
+    partId: PART_ID,
+    parts: fixture.parts,
+    interaction: selected.interaction,
+  });
 }
 
 function freshHighlightTarget(device: GPUDevice): InstanceStorage {

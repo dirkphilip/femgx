@@ -18,10 +18,15 @@ import { syncSelectionState, type SelectionState } from "../selection-state";
 import {
   collectDenseElementSelections,
   collectDenseHiddenElements,
+  invalidateDenseElementSelectionCaches,
 } from "../selection/element-selection";
-import { collectDenseNodeSelections } from "../selection/node-selection";
+import {
+  collectDenseNodeSelections,
+  invalidateDenseNodeSelectionCache,
+} from "../selection/node-selection";
 import { rebuildEdgeOrders, rebuildTransparentOrders } from "./orders";
 import { rebuildAttachmentCalls } from "./calls";
+import { rebuildVisibilitySurface } from "../visibility/skins";
 
 export type HiddenInteractionIds = ReadonlyMap<string, ReadonlySet<number>> | undefined;
 export type HiddenInteractionTuple = readonly [HiddenInteractionIds, HiddenInteractionIds];
@@ -36,6 +41,60 @@ export interface AttachmentInteractionState {
   edgeEmphasisFlags: boolean[];
   slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   selection: SelectionState;
+}
+
+/** Refreshes exact emphasis buffers after an in-place occurrence mutation. */
+export function syncOccurrenceInteractionEmphasis(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly interaction: InteractionState;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly bundle: GpuBundle;
+  readonly transparentFlags: boolean[];
+  readonly slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
+  readonly changedSlots: readonly number[];
+  readonly affectedParts: ReadonlySet<PartId>;
+}): void {
+  invalidateDenseElementSelectionCaches(options.runtime, options.layout);
+  invalidateDenseNodeSelectionCache(options.runtime, options.layout);
+  const { denseSelections, denseNodeSelections, denseVisibility } = denseMemberships(options);
+  syncInteractionEmphasis({
+    runtime: options.runtime,
+    layout: options.layout,
+    interaction: options.interaction,
+    parts: options.parts,
+    bundle: options.bundle,
+    currentFlags: options.transparentFlags,
+    slotByInstanceId: options.slotByInstanceId,
+    changedSlots: options.changedSlots,
+    affectedParts: options.affectedParts,
+    denseSelections,
+    denseVisibility,
+    denseNodeSelections,
+  });
+}
+
+/** Rebuilds visibility skins for the exact parts changed by interaction. */
+export function rebuildInteractionVisibilitySurfaces(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly layout: InstanceLayout;
+  readonly parts: ReadonlySet<PartId>;
+  readonly attachedParts: ReadonlyMap<PartId, Part>;
+  readonly interaction: InteractionState;
+  readonly bundle: GpuBundle;
+}): DrawCallLists {
+  for (const partId of options.parts) {
+    const part = options.attachedParts.get(partId);
+    if (part === undefined) continue;
+    rebuildVisibilitySurface({
+      runtime: options.runtime,
+      layout: options.layout,
+      part,
+      interaction: options.interaction,
+      draw: options.bundle.draw,
+    });
+  }
+  return rebuildAttachmentCalls(options.layout, options.bundle.draw.cost);
 }
 
 /** Synchronizes element, selection, emphasis, and hidden-visibility state. */

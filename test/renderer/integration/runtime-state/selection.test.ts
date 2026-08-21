@@ -4,7 +4,6 @@ import {
   createPackedSceneRuntime,
   createSceneBuilder,
   buildDrawOrder,
-  buildNodeSelectionOrder,
   buildSelectionOrder,
   buildInstanceLayout,
   buildTransparentOrder,
@@ -67,13 +66,7 @@ describe("renderer runtime state", () => {
     const parts = new Map([[1, triangle]]);
 
     expect(Array.from(buildSelectionOrder(layout, runtime, 1, interaction, parts))).toEqual([0, 2]);
-    expect(
-      Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
-    ).toEqual([]);
     runtime.setInstanceVisible(1, true);
-    expect(
-      Array.from(buildNodeSelectionOrder(layout, runtime, 1, [false, true, false], parts)),
-    ).toEqual([1]);
   });
 
   it("builds ranged selection calls for omitted face-subset elements and keeps broad selection fallback", () => {

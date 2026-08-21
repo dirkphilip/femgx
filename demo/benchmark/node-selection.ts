@@ -1,4 +1,4 @@
-import type { Camera } from "../../src/camera/camera";
+import { orbitCamera, type Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
 import { renderBenchmarkFrame } from "./measurement";
 import type { PartId } from "../../src/geometry/part";
@@ -9,17 +9,24 @@ import type { InteractionTarget } from "../../src/interaction/target-types";
 import { ELEMENT_RECORD_STRIDE } from "../../src/renderer/resources/element-resources";
 import { readGpuCostSnapshot, type WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import { buildInstanceLayout, type InstanceLayout } from "../../src/renderer/runtime-state";
+import { buildSelectedNodeOrder } from "../../src/renderer/selection/selected-node-order";
 import { HIGHLIGHT_HEADER } from "../../src/renderer/selection/highlight-layout";
-import {
-  collectDenseNodeSelections,
-  type DenseNodeSelection,
-} from "../../src/renderer/selection/node-selection";
+import { collectDenseNodeSelections } from "../../src/renderer/selection/node-selection";
 import type { PackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import type { WebGpuBenchmarkCase } from "./model";
 import type { NodeSelectionBenchmarkPhase, NodeSelectionBenchmarkReport } from "./types";
 
-const SUPPORTED_CASE = "fe-tet4-solid-132k";
+const SUPPORTED_CASES = new Set(["fe-tet4-solid-132k", "unique-2m-local"]);
 const STEADY_SAMPLES = 7;
+const PHASES = [
+  "one",
+  "contiguous",
+  "fragmented",
+  "half",
+  "near-all",
+  "dense-boundary",
+  "all",
+] as const satisfies readonly NodeSelectionBenchmarkPhase["id"][];
 
 interface NodeSelectionMeasureOptions {
   readonly renderer: WebGpuRenderer;
@@ -39,22 +46,20 @@ interface NodeSelectionContext extends NodeSelectionMeasureOptions {
 }
 
 interface DenseNodeFacts {
-  readonly selection: DenseNodeSelection;
   readonly uniqueNodeCount: number;
+  readonly selectedOccurrenceCount: number;
   readonly denseNodePayloadBytes: number;
   readonly highlightStorageBytes: number;
 }
 
-/** Measures authored half/all node-selection display on the real WebGPU benchmark lane. */
+/** Measures the authored selected-node scaling matrix on the real WebGPU benchmark lane. */
 export async function measureNodeSelectionBenchmark(
   options: NodeSelectionMeasureOptions,
 ): Promise<NodeSelectionBenchmarkReport | undefined> {
-  if (options.benchmarkCase.id !== SUPPORTED_CASE) return undefined;
+  if (!SUPPORTED_CASES.has(options.benchmarkCase.id)) return undefined;
   const context = nodeSelectionContext(options);
-  const phases = [
-    await measureNodeScenario(context, "half", Math.floor(context.nodeCount / 2)),
-    await measureNodeScenario(context, "all", context.nodeCount),
-  ];
+  const phases: NodeSelectionBenchmarkPhase[] = [];
+  for (const id of PHASES) phases.push(await measureNodeScenario(context, id));
   if (options.holdFinalSelection !== undefined) {
     await presentFinalSelection(context);
     await options.holdFinalSelection();
@@ -110,9 +115,14 @@ export function denseNodeSelectionStorage(
 async function measureNodeScenario(
   context: NodeSelectionContext,
   id: NodeSelectionBenchmarkPhase["id"],
-  targetCount: number,
 ): Promise<NodeSelectionBenchmarkPhase> {
-  const targets = authoredNodeTargets(context.partOccurrenceId, targetCount);
+  const nodeIds = scenarioNodeIds(context.nodeCount, id);
+  const targetCount = nodeIds.length;
+  const targets = nodeIds.map((nodeId) => ({
+    kind: "node" as const,
+    partOccurrenceId: context.partOccurrenceId,
+    nodeId,
+  }));
   await renderBenchmarkFrame(context);
   const stateStart = performance.now();
   const selected = setTargetsSelected(createInteractionState(), targets, true);
@@ -121,16 +131,26 @@ async function measureNodeScenario(
   const syncStart = performance.now();
   context.renderer.updateElements(context.runtime, selected, [context.slot]);
   const interactionSyncMs = performance.now() - syncStart;
-  const firstSelectedFrameMs = await renderBenchmarkFrame(context);
+  const interactionSyncGpuCost = readGpuCostSnapshot(context.renderer);
+  const firstSelectedFrame = await measureFrame(context, context.camera);
   const interactionGpuCost = readGpuCostSnapshot(context.renderer);
-  const selectedNodeDraw = selectedNodeDrawWork(
-    context.nodeCount,
-    facts.selection.occurrences.length,
-  );
+  const selectedNodeOrder = buildSelectedNodeOrder({
+    runtime: context.runtime,
+    layout: context.layout,
+    partId: context.partId,
+    parts: context.benchmarkCase.scene.parts,
+    interaction: selected,
+  });
+  const selectedNodeDraw = selectedNodeDrawWork(context.nodeCount, selectedNodeOrder);
   assertAggregateSelectedWork(interactionGpuCost, selectedNodeDraw);
   const steadyFrames: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) {
     steadyFrames.push(await renderBenchmarkFrame(context));
+  }
+  const movingFrames: number[] = [];
+  for (let index = 1; index <= STEADY_SAMPLES; index += 1) {
+    const camera = orbitCamera(context.camera, index * 0.02, 0.006, context.camera.target);
+    movingFrames.push(await renderBenchmarkFrame({ ...context, camera }));
   }
   const clearStart = performance.now();
   context.renderer.updateElements(context.runtime, createInteractionState(), [context.slot]);
@@ -140,19 +160,58 @@ async function measureNodeScenario(
     id,
     targetCount,
     uniqueNodeCount: facts.uniqueNodeCount,
-    selectedOccurrenceCount: facts.selection.occurrences.length,
+    selectedOccurrenceCount: facts.selectedOccurrenceCount,
     selectedNodeDrawVertices: selectedNodeDraw.vertices,
     selectedNodeDrawInstances: selectedNodeDraw.instances,
+    selectedNodeCalls: selectedNodeDraw.calls,
+    selectedNodeOrderBytes: selectedNodeDraw.orderBytes,
+    selectedNodeOrderUploadBytes: interactionSyncGpuCost.writes["order"].bytes,
+    selectedNodeOrderUploadCalls: interactionSyncGpuCost.writes["order"].calls,
     interactionStateMs,
     interactionSyncMs,
-    firstSelectedFrameMs,
+    firstSelectedFrameMs: firstSelectedFrame.queueMs,
+    firstSelectedFrameCpuMs: firstSelectedFrame.cpuMs,
     steadySelectedFrameMs: percentiles(steadyFrames),
+    movingSelectedFrameMs: percentiles(movingFrames),
     clearSelectionMs,
     interactionGpuCost,
+    interactionSyncGpuCost,
     denseNodePayloadBytes: facts.denseNodePayloadBytes,
     highlightStorageBytes: facts.highlightStorageBytes,
     selectedNodeRecordBytes: targetCount * ELEMENT_RECORD_STRIDE,
   };
+}
+
+function scenarioNodeIds(
+  nodeCount: number,
+  id: NodeSelectionBenchmarkPhase["id"],
+): readonly number[] {
+  if (id === "one") return [Math.min(17, nodeCount - 1)];
+  if (id === "all") return sequentialNodeIds(nodeCount);
+  if (id === "half") return sequentialNodeIds(Math.floor(nodeCount / 2));
+  const sparseCount = Math.max(1, Math.floor(nodeCount / 16));
+  if (id === "contiguous") return sequentialNodeIds(sparseCount, Math.min(37, nodeCount - 1));
+  if (id === "fragmented") {
+    const stride = Math.max(1, Math.floor(nodeCount / sparseCount));
+    return Array.from({ length: sparseCount }, (_, index) => index * stride);
+  }
+  const denseBoundary = Math.ceil((nodeCount * 7) / 8);
+  return sequentialNodeIds(id === "near-all" ? denseBoundary - 1 : denseBoundary);
+}
+
+function sequentialNodeIds(count: number, start = 0): readonly number[] {
+  return Array.from({ length: count }, (_, index) => start + index);
+}
+
+async function measureFrame(
+  context: NodeSelectionContext,
+  camera: Camera,
+): Promise<{ readonly cpuMs: number; readonly queueMs: number }> {
+  const start = performance.now();
+  context.renderer.render(context.runtime, camera, context.benchmarkCase.scene.parts);
+  const cpuMs = performance.now() - start;
+  await context.device.queue.onSubmittedWorkDone();
+  return { cpuMs, queueMs: performance.now() - start };
 }
 
 function denseNodeFacts(
@@ -170,28 +229,24 @@ function denseNodeFacts(
     context.benchmarkCase.scene.parts,
     interaction,
   ).get(context.partId);
-  const denseCount = selection?.occurrences.reduce(
-    (count, occurrence) => count + occurrence.selectedCount,
-    0,
-  );
+  const denseCount =
+    selection?.occurrences.reduce((count, occurrence) => count + occurrence.selectedCount, 0) ?? 0;
   if (
     uniqueNodeCount !== expectedCount ||
-    selection === undefined ||
-    denseCount !== expectedCount
+    (selection !== undefined && denseCount !== expectedCount)
   ) {
     throw new Error(
       `${context.benchmarkCase.id} node selection lost authored targets or dense membership`,
     );
   }
   const slots = context.layout.partSlots.get(context.partId)?.length ?? 0;
-  const storage = denseNodeSelectionStorage(
-    selection.nodeCount,
-    slots,
-    selection.occurrences.length,
-  );
+  const storage =
+    selection === undefined
+      ? { payloadBytes: 0, storageBytes: HIGHLIGHT_HEADER + expectedCount * ELEMENT_RECORD_STRIDE }
+      : denseNodeSelectionStorage(selection.nodeCount, slots, selection.occurrences.length);
   return {
-    selection,
     uniqueNodeCount,
+    selectedOccurrenceCount: Number(uniqueNodeCount > 0),
     denseNodePayloadBytes: storage.payloadBytes,
     highlightStorageBytes: storage.storageBytes,
   };
@@ -231,20 +286,32 @@ async function presentFinalSelection(context: NodeSelectionContext): Promise<voi
 
 function selectedNodeDrawWork(
   nodeCount: number,
-  occurrenceCount: number,
-): { readonly vertices: number; readonly instances: number } {
-  return { vertices: 4, instances: nodeCount * occurrenceCount };
+  order: ReturnType<typeof buildSelectedNodeOrder>,
+): {
+  readonly vertices: number;
+  readonly instances: number;
+  readonly calls: number;
+  readonly orderBytes: number;
+} {
+  const dense = order.denseOccurrences.length;
+  const sparse = order.sparseNodeIds.length;
+  return {
+    vertices: 4,
+    instances: dense * nodeCount + sparse,
+    calls: Number(dense > 0) + Number(sparse > 0),
+    orderBytes: dense * Uint32Array.BYTES_PER_ELEMENT + sparse * 2 * Uint32Array.BYTES_PER_ELEMENT,
+  };
 }
 
 function assertAggregateSelectedWork(
   cost: NodeSelectionBenchmarkPhase["interactionGpuCost"],
-  nodeWork: { readonly vertices: number; readonly instances: number },
+  nodeWork: { readonly vertices: number; readonly instances: number; readonly calls: number },
 ): void {
   for (const pass of ["selection-visible", "selection-hidden"] as const) {
     const draw = cost.draws[pass];
     if (
       draw === undefined ||
-      draw.calls !== 1 ||
+      draw.calls !== nodeWork.calls ||
       draw.indices !== nodeWork.vertices ||
       draw.instances !== nodeWork.instances
     ) {

@@ -9,6 +9,7 @@ import {
   setPartOverride,
   setTargetHovered,
   setElementOverride,
+  setNodeSelected,
   fakeCanvas,
   fakeGpuDevice,
   installFreshDeviceNavigator,
@@ -128,6 +129,33 @@ describe("WebGPU renderer", () => {
         ? undefined
         : Array.from(new Float32Array(recoveredSectionPlane.bytes.buffer)),
     ).toEqual([0, 0, 1, -0.25]);
+    renderer.destroy();
+  });
+
+  it("restores selected-node presentation after device recovery", async () => {
+    installGpuTestGlobals();
+    const gpus = installFreshDeviceNavigator();
+    const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const selected = setNodeSelected(
+      createInteractionState(),
+      { partOccurrenceId: "1/0", nodeId: 1 },
+      true,
+    );
+    renderer.render(runtime, camera, scene.parts);
+    renderer.updateElements(runtime, selected);
+    renderer.render(runtime, camera, scene.parts);
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].instances).toBe(1);
+
+    const first = gpus[0];
+    if (first === undefined) throw new Error("missing initial fake device");
+    first.lose();
+    await first.lost;
+    await renderer.recover();
+    renderer.render(runtime, camera, scene.parts);
+
+    expect(readGpuCostSnapshot(renderer).draws["selection-visible"].instances).toBe(1);
     renderer.destroy();
   });
 

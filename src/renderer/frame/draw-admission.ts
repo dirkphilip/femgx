@@ -29,7 +29,14 @@ export type DrawIntent =
     };
 
 export interface DrawIntentState {
-  readonly orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection";
+  readonly orderKind:
+    | "opaque"
+    | "transparent"
+    | "edge"
+    | "node"
+    | "selection"
+    | "node-selection"
+    | "node-selection-compact";
   readonly overlay: boolean;
   readonly edgePick: boolean;
   readonly nodes: boolean;
@@ -172,13 +179,24 @@ export function pipelineFor(
 }
 
 /** Selects a surface pipeline or preserves a fixed overlay/picking pipeline. */
-export function pipelineForIntent(
-  intent: DrawIntent,
-  geometry: Geometry | undefined,
-  pipelines: DrawPipelines,
-  admission: GpuCostAdmission,
-  storage?: Pick<InstanceStorage, "highlight">,
-): GPURenderPipeline {
+export function pipelineForIntent(options: {
+  readonly intent: DrawIntent;
+  readonly geometry: Geometry | undefined;
+  readonly pipelines: DrawPipelines;
+  readonly admission: GpuCostAdmission;
+  readonly storage?: Pick<InstanceStorage, "highlight">;
+  readonly call?: DrawCall;
+}): GPURenderPipeline {
+  const { intent, geometry, pipelines, admission, storage, call } = options;
+  if (
+    intent.kind === "nodes" &&
+    intent.selection !== undefined &&
+    call?.selectedNodeMode === "compact"
+  ) {
+    return intent.selection === "visible"
+      ? pipelines.nodesSelectionCompactVisible
+      : pipelines.nodesSelectionCompactHidden;
+  }
   return intent.kind === "surface"
     ? pipelineFor(
         geometry?.primitive ?? "triangles",
@@ -191,10 +209,15 @@ export function pipelineForIntent(
 }
 
 /** Maps a draw intent to its order sidecar and geometry resource requirements. */
-export function drawIntentState(intent: DrawIntent): DrawIntentState {
+export function drawIntentState(intent: DrawIntent, call?: DrawCall): DrawIntentState {
   if (intent.kind === "nodes") {
     return {
-      orderKind: intent.selection === undefined ? "node" : "node-selection",
+      orderKind:
+        intent.selection === undefined
+          ? "node"
+          : call?.selectedNodeMode === "compact"
+            ? "node-selection-compact"
+            : "node-selection",
       overlay: false,
       edgePick: false,
       nodes: true,

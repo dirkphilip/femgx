@@ -18,6 +18,7 @@ export function destroyInstancePartResources(draw: DrawResources, partId: PartId
     storage.sidecars.transparent,
     storage.sidecars.selection,
     storage.sidecars.nodeSelection,
+    storage.sidecars.nodeSelectionCompact,
     storage.sidecars.edge,
     storage.sidecars.node,
   ]) {

@@ -44,6 +44,7 @@ export interface InstanceSidecars {
   transparent: InstanceOrderStorage | undefined;
   selection: InstanceOrderStorage | undefined;
   nodeSelection: InstanceOrderStorage | undefined;
+  nodeSelectionCompact: InstanceOrderStorage | undefined;
   edge: InstanceOrderStorage | undefined;
   node: InstanceOrderStorage | undefined;
 }
@@ -95,6 +96,8 @@ export interface InstanceStorage {
   subsetSelectionBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the selected-node order buffer. */
   nodeSelectionBindGroup: GPUBindGroup | undefined;
+  /** Cached bind group addressing compact selected-node occurrence/id sidecars. */
+  nodeSelectionCompactBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing the face-subset opaque/pick geometry. */
   subsetBindGroup: GPUBindGroup | undefined;
   /** Cached bind group addressing transparent face-subset geometry. */
@@ -228,6 +231,25 @@ export function writeNodeSelectionOrder(
   writeOrder(draw, partId, order, "nodeSelection");
 }
 
+/** Replaces paired sparse selected-node occurrence and authored-node orders. */
+export function writeSelectedNodeCompactOrder(
+  draw: InstanceStorageOwner,
+  partId: number,
+  occurrences: Uint32Array,
+  nodeIds: Uint32Array,
+): void {
+  if (occurrences.length !== nodeIds.length) {
+    throw new Error("Selected-node occurrence and id orders must have equal length");
+  }
+  const order = new Uint32Array(occurrences.length * 2);
+  for (let index = 0; index < occurrences.length; index += 1) {
+    const offset = index * 2;
+    order[offset] = occurrences[index] ?? 0;
+    order[offset + 1] = nodeIds[index] ?? 0;
+  }
+  writeOrder(draw, partId, order, "nodeSelectionCompact");
+}
+
 /**
  * Replaces the compacted edge-overlay order list of a part (visible instances
  * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
@@ -321,6 +343,7 @@ function createStorage(
       transparent: undefined,
       selection: undefined,
       nodeSelection: undefined,
+      nodeSelectionCompact: undefined,
       edge: undefined,
       node: undefined,
     },
@@ -341,6 +364,7 @@ function createStorage(
     selectionBindGroup: undefined,
     subsetSelectionBindGroup: undefined,
     nodeSelectionBindGroup: undefined,
+    nodeSelectionCompactBindGroup: undefined,
     subsetBindGroup: undefined,
     subsetTransparentBindGroup: undefined,
   };
@@ -389,7 +413,14 @@ export function createEmptyOrderBuffer(device: GPUDevice): GPUBuffer {
 /** Returns the active order buffer or the device-scoped empty sentinel. */
 export function orderBufferFor(
   storage: InstanceStorage,
-  kind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
+  kind:
+    | "opaque"
+    | "transparent"
+    | "edge"
+    | "node"
+    | "selection"
+    | "node-selection"
+    | "node-selection-compact",
 ): GPUBuffer {
   if (kind === "opaque") return storage.orderBuffer;
   const sidecar = storage.sidecars[sidecarKind(kind)];
@@ -400,6 +431,7 @@ function sidecarKind(
   kind: Exclude<Parameters<typeof orderBufferFor>[1], "opaque">,
 ): keyof InstanceSidecars {
   if (kind === "node-selection") return "nodeSelection";
+  if (kind === "node-selection-compact") return "nodeSelectionCompact";
   return kind;
 }
 

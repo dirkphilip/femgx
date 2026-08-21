@@ -9,13 +9,25 @@ import {
   HIGHLIGHT_HEADER,
 } from "../../src/renderer/selection/highlight-layout";
 import type { DrawResources } from "../../src/renderer/resources/draw-resources";
+import {
+  buildSelectedNodeOrder,
+  type SelectedNodeOrder,
+} from "../../src/renderer/selection/selected-node-order";
 
 export const ELEMENT_COUNT = 131_712;
 export const NODE_COUNT = 24_389;
 export const HALF_NODE_COUNT = Math.floor(NODE_COUNT / 2);
 export const PART_ID = 1;
 export const SAMPLE_COUNT = 9;
-export const CASES = ["small", "half", "all"] as const;
+export const CASES = [
+  "one",
+  "contiguous",
+  "fragmented",
+  "half",
+  "near-all",
+  "dense-boundary",
+  "all",
+] as const;
 export type CaseId = (typeof CASES)[number];
 export const MULTI_CASE_ID = "multi-32x1" as const;
 
@@ -94,6 +106,13 @@ export function details(
   const selectedOccurrenceCount = selectedFlags(fixture, selected.interaction).filter(
     Boolean,
   ).length;
+  const selectedOrder = buildSelectedNodeOrder({
+    runtime: fixture.runtime,
+    layout: fixture.layout,
+    partId: PART_ID,
+    parts: fixture.parts,
+    interaction: selected.interaction,
+  });
   return {
     selectedNodes: selected.selectedNodeCount,
     selectedOccurrenceCount,
@@ -106,8 +125,19 @@ export function details(
     nodePickIdsBytes: fixture.nodePickIdsBytes,
     nodeSpriteVertexCount: fixture.nodeCount * 4,
     nodeSpriteIndexCount: 0,
-    selectedNodeDrawVertexCount: selectedOccurrenceCount * fixture.nodeCount * 4,
-    selectedNodeDrawInstanceCount: selectedOccurrenceCount * fixture.nodeCount,
+    selectedNodeDrawVertexCount: 4,
+    selectedNodeDrawInstanceCount:
+      selectedOrder.denseOccurrences.length * fixture.nodeCount +
+      selectedOrder.sparseNodeIds.length,
+    selectedNodeDrawCalls:
+      Number(selectedOrder.denseOccurrences.length > 0) +
+      Number(selectedOrder.sparseNodeIds.length > 0),
+    selectedNodeOrderBytes:
+      selectedOrder.denseOccurrences.byteLength + selectedOrder.sparseNodeIds.byteLength * 2,
+    selectedNodeOrderUploadBytes:
+      selectedOrder.denseOccurrences.byteLength + selectedOrder.sparseNodeIds.byteLength * 2,
+    selectedNodeCompactPairBytes:
+      selectedOrder.sparseNodeIds.length * 2 * Uint32Array.BYTES_PER_ELEMENT,
     denseSelectionBytes: denseNodeBytes(fixture, selected),
     sparseHighlightTableBytes: sparseHighlightTableBytes(selected),
   };
@@ -132,12 +162,12 @@ export function assertSelectedNodeTotal(interaction: InteractionState, expected:
     throw new Error(`Node selection changed: expected ${expected}, got ${actual}`);
 }
 
-/** Asserts the selected flags plus both node order sidecars after a cold sync. */
+/** Asserts annotation isolation plus selected-node dense or compact sidecars. */
 export function assertNodeSync(
   actualFlags: readonly boolean[],
   draw: DrawResources,
   expectedFlags: readonly boolean[],
-  expectedOrder: Uint32Array,
+  expectedOrder: SelectedNodeOrder,
 ): void {
   if (
     actualFlags.length !== expectedFlags.length ||
@@ -146,8 +176,24 @@ export function assertNodeSync(
     throw new Error("Selected-node flags changed");
   }
   const storage = draw.storages.get(PART_ID);
-  assertOrder(storage?.sidecars.node, expectedOrder, "node visibility");
-  assertOrder(storage?.sidecars.nodeSelection, expectedOrder, "selected node");
+  assertOrder(storage?.sidecars.node, new Uint32Array(), "node visibility");
+  assertOrder(
+    storage?.sidecars.nodeSelection,
+    expectedOrder.denseOccurrences,
+    "dense selected node",
+  );
+  const compact = selectedNodePairs(expectedOrder);
+  assertOrder(storage?.sidecars.nodeSelectionCompact, compact, "compact selected node");
+}
+
+function selectedNodePairs(order: SelectedNodeOrder): Uint32Array {
+  const pairs = new Uint32Array(order.sparseNodeIds.length * 2);
+  for (let index = 0; index < order.sparseNodeIds.length; index += 1) {
+    const offset = index * 2;
+    pairs[offset] = order.sparseOccurrences[index] ?? 0;
+    pairs[offset + 1] = order.sparseNodeIds[index] ?? 0;
+  }
+  return pairs;
 }
 
 function assertOrder(
@@ -155,6 +201,7 @@ function assertOrder(
   expected: Uint32Array,
   label: string,
 ): void {
+  if (actual === undefined && expected.length === 0) return;
   if (
     actual === undefined ||
     actual.length !== expected.length ||

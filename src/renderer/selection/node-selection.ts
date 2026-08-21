@@ -45,6 +45,14 @@ const selectionCache = new WeakMap<
   WeakMap<DenseNodeLayout, DenseNodeCacheEntry>
 >();
 
+/** Drops a cache entry after an in-place occurrence/layout mutation. */
+export function invalidateDenseNodeSelectionCache(
+  runtime: PackedSceneRuntime,
+  layout: DenseNodeLayout,
+): void {
+  selectionCache.get(runtime)?.delete(layout);
+}
+
 /** Resolves valid large node selections to compact typed bitsets. */
 export function collectDenseNodeSelections(
   runtime: PackedSceneRuntime,

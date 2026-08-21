@@ -16,8 +16,8 @@ describe("local node-selection synchronization baseline", () => {
       ...nodeSelectionOperations(fixture),
       ...nodeSelectionCaseOperations(multiFixture, MULTI_CASE_ID),
     ]);
-    expect(report.operations).toHaveLength(26);
-    expect(new Set(report.operations.map((operation) => operation.name)).size).toBe(26);
+    expect(report.operations).toHaveLength(50);
+    expect(new Set(report.operations.map((operation) => operation.name)).size).toBe(50);
     for (const operation of report.operations) {
       expect(operation.timingsMs.p50).toBeGreaterThanOrEqual(0);
       expect(operation.timingsMs.p95).toBeGreaterThanOrEqual(operation.timingsMs.p50);
@@ -25,15 +25,15 @@ describe("local node-selection synchronization baseline", () => {
       expect(operation.workload.details?.["elementCount"]).toBe(ELEMENT_COUNT);
     }
     expect(
-      report.operations.find((operation) => operation.name === "node-small-build-interaction-state")
+      report.operations.find((operation) => operation.name === "node-one-build-interaction-state")
         ?.workload.details?.["selectedNodes"],
-    ).toBe(2);
+    ).toBe(1);
     expect(
       report.operations.find((operation) => operation.name === "node-all-collect-emphasis-updates")
         ?.workload.details?.["selectedNodes"],
     ).toBe(NODE_COUNT);
     expect(
-      report.operations.find((operation) => operation.name === "node-small-build-interaction-state")
+      report.operations.find((operation) => operation.name === "node-one-build-interaction-state")
         ?.workload.details?.["occurrenceCount"],
     ).toBe(1);
     expect(

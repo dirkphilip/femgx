@@ -14,6 +14,12 @@ describe("procedural node draws", () => {
     ]);
   });
 
+  it("keeps paired compact node rows aligned with their occurrence binding", () => {
+    expect(buildNodeDraws(1, 2, 128, 256, 2)).toEqual([
+      { vertexCount: 4, instanceCount: 2, firstInstance: 0, orderByteOffset: 1024 },
+    ]);
+  });
+
   it("splits beyond the WebGPU instance bound and rebinds the order range", () => {
     expect(buildNodeDraws(4, 1_073_741_824, 0, 4)).toEqual([
       { vertexCount: 4, instanceCount: 4_294_967_292, firstInstance: 0, orderByteOffset: 0 },

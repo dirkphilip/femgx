@@ -67,7 +67,7 @@ function removePartOrderEntries(order: PartId[], removed: ReadonlySet<PartId>): 
   order.length = target;
 }
 
-function partCountMaps(layout: InstanceLayout): readonly Map<PartId, number>[] {
+function partCountMaps(layout: InstanceLayout): readonly Map<PartId, unknown>[] {
   return [
     layout.partVisibleCounts,
     layout.partEdgeCounts,
@@ -75,6 +75,7 @@ function partCountMaps(layout: InstanceLayout): readonly Map<PartId, number>[] {
     layout.partTransparentCounts,
     layout.partSelectionCounts,
     layout.partSelectedNodeCounts,
+    layout.partSelectedNodeDrawCalls,
   ];
 }
 
@@ -88,6 +89,7 @@ export function applyOccurrenceAttachment(options: {
   readonly draw: DrawResources;
 }): AttachmentOrderParts {
   const orderChanges = previousOptionalOrders(options.delta, options.state);
+  addAll(orderChanges.node, options.delta.affectedPartIds);
   reserveGlobalSlots(options.layout, options.runtime.instanceCount);
   removePreviousLocals(options.layout, options.delta);
   assignCurrentLocals(options.runtime, options.layout, options.delta);

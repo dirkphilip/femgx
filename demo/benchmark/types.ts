@@ -153,7 +153,7 @@ export interface SelectionBenchmarkReport {
 }
 
 export interface NodeSelectionBenchmarkPhase {
-  readonly id: "half" | "all";
+  readonly id: "one" | "contiguous" | "fragmented" | "half" | "near-all" | "dense-boundary" | "all";
   readonly targetCount: number;
   readonly uniqueNodeCount: number;
   readonly selectedOccurrenceCount: number;
@@ -161,16 +161,28 @@ export interface NodeSelectionBenchmarkPhase {
   readonly selectedNodeDrawVertices: number;
   /** Exact flattened node-occurrence instances in one procedural node-sprite draw. */
   readonly selectedNodeDrawInstances: number;
+  /** Number of selected-node draw calls in each visible or x-ray pass. */
+  readonly selectedNodeCalls: number;
+  /** Shared dense-occurrence or compact sparse-pair sidecar bytes. */
+  readonly selectedNodeOrderBytes: number;
+  /** Actual order-buffer bytes uploaded by the selection transition. */
+  readonly selectedNodeOrderUploadBytes: number;
+  readonly selectedNodeOrderUploadCalls: number;
   /** Immutable interaction-state construction wall time. */
   readonly interactionStateMs: number;
   /** CPU-only renderer interaction synchronization wall time. */
   readonly interactionSyncMs: number;
   /** Queue-drained first selected frame wall time. */
   readonly firstSelectedFrameMs: number;
+  /** CPU encode/submit portion of the first selected frame. */
+  readonly firstSelectedFrameCpuMs: number;
   readonly steadySelectedFrameMs: BenchmarkPercentiles;
+  readonly movingSelectedFrameMs: BenchmarkPercentiles;
   /** Queue-drained clear transition wall time. */
   readonly clearSelectionMs: number;
   readonly interactionGpuCost: BenchmarkGpuCostSnapshot;
+  /** Allocation and upload costs captured immediately after interaction synchronization. */
+  readonly interactionSyncGpuCost: BenchmarkGpuCostSnapshot;
   /** Exact part-local slot table plus selected-occurrence node bitset bytes. */
   readonly denseNodePayloadBytes: number;
   /** Exact fresh highlight allocation containing this dense node payload. */

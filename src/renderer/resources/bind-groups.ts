@@ -31,7 +31,14 @@ export function orderBindGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   storage: InstanceStorage,
-  orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
+  orderKind:
+    | "opaque"
+    | "transparent"
+    | "edge"
+    | "node"
+    | "selection"
+    | "node-selection"
+    | "node-selection-compact",
   part: PartDrawInputs,
 ): GPUBindGroup {
   const orderBuffer = orderBufferFor(storage, orderKind);
@@ -70,7 +77,14 @@ function orderBinding(buffer: GPUBuffer, offset: number | undefined): GPUBufferB
 
 function cachedOrderBindGroup(
   storage: InstanceStorage,
-  orderKind: "opaque" | "transparent" | "edge" | "node" | "selection" | "node-selection",
+  orderKind:
+    | "opaque"
+    | "transparent"
+    | "edge"
+    | "node"
+    | "selection"
+    | "node-selection"
+    | "node-selection-compact",
   surfaceSubset: boolean,
   create: () => GPUBindGroup,
 ): GPUBindGroup {
@@ -94,6 +108,9 @@ function cachedOrderBindGroup(
   }
   if (orderKind === "node-selection") {
     return (storage.nodeSelectionBindGroup ??= create());
+  }
+  if (orderKind === "node-selection-compact") {
+    return (storage.nodeSelectionCompactBindGroup ??= create());
   }
   if (orderKind === "node") {
     return (storage.nodeBindGroup ??= create());
