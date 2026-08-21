@@ -1,6 +1,13 @@
 import type { ViewportSlotId } from "../viewport/view";
 import type { WorkbenchViewportSlot } from "../viewport/viewport-slots";
-import type { SceneUpdateOutcome } from "@/entries/root";
+import type {
+  AssemblyId,
+  AssemblyOccurrenceId,
+  PartId,
+  PartOccurrenceId,
+  SceneUpdateOutcome,
+  Viewport,
+} from "@/entries/root";
 import { errorMessage, type WorkbenchModel } from "../models/model";
 import type { WorkbenchModelCatalog } from "../models/model-catalog";
 import { parseLivePartRequest, prepareLivePartEdit } from "../live-part-addition";
@@ -27,6 +34,21 @@ interface LivePartEditOwner {
   publishSnapshot(): void;
   readonly catalog: WorkbenchModelCatalog;
   models: readonly WorkbenchModel[];
+}
+
+interface VisibilitySnapshot {
+  readonly parts: ReadonlyMap<PartId, boolean>;
+  readonly assemblies: ReadonlyMap<AssemblyId, boolean>;
+  readonly partOccurrences: readonly {
+    readonly id: PartOccurrenceId;
+    readonly overrideVisible: boolean;
+  }[];
+  readonly assemblyOccurrences: readonly {
+    readonly id: AssemblyOccurrenceId;
+    readonly assemblyId: AssemblyId;
+    readonly parentId: AssemblyOccurrenceId | undefined;
+    readonly effectiveVisible: boolean;
+  }[];
 }
 
 /** Opens the focused dialog without creating a second demo state owner. */
@@ -72,15 +94,17 @@ export function applyLivePartEditForOwner(
   const edit = prepareLivePartEdit(before, request);
   const slots = owner.viewportSlots.all();
   const committed: WorkbenchViewportSlot[] = [];
+  const visibilityBefore = new Map<WorkbenchViewportSlot, VisibilitySnapshot>();
   const outcomes: SceneUpdateOutcome[] = [];
   const start = performance.now();
   try {
     for (const slot of slots) {
+      visibilityBefore.set(slot, captureVisibility(slot.viewport));
       outcomes.push(slot.viewport.updateScene(edit.apply));
       committed.push(slot);
     }
   } catch (error) {
-    restoreCommittedSlots(owner, committed, before.scene);
+    restoreCommittedSlots(owner, committed, before.scene, visibilityBefore);
     owner.presentation.setFeedback(
       `Live edit could not be applied: ${errorMessage(error)}`,
       "error",
@@ -111,12 +135,89 @@ function restoreCommittedSlots(
   owner: LivePartEditOwner,
   committed: readonly WorkbenchViewportSlot[],
   scene: WorkbenchModel["scene"],
+  visibilityBefore: ReadonlyMap<WorkbenchViewportSlot, VisibilitySnapshot>,
 ): void {
-  for (const slot of committed) slot.viewport.replaceScene(scene);
+  for (const slot of committed) {
+    slot.viewport.replaceScene(scene);
+    const visibility = visibilityBefore.get(slot);
+    if (visibility !== undefined) restoreVisibility(slot.viewport, visibility);
+  }
   for (const slot of committed) {
     owner.applyState(slot.id);
     slot.viewport.render();
   }
+  owner.visibilityPanel.rebuild();
+}
+
+function captureVisibility(viewport: Viewport): VisibilitySnapshot {
+  const parts = new Map<PartId, boolean>(
+    [...viewport.scene.parts.keys()].map((partId) => [
+      partId,
+      viewport.scene.visiblePartIds.has(partId),
+    ]),
+  );
+  const assemblies = new Map<AssemblyId, boolean>(
+    [...viewport.scene.assemblies.keys()].map((assemblyId) => [
+      assemblyId,
+      viewport.scene.visibleAssemblyIds.has(assemblyId),
+    ]),
+  );
+  const currentPartOccurrences = [...viewport.occurrences.partOccurrences()];
+  const partOccurrences = currentPartOccurrences.map((occurrence) => ({
+    id: occurrence.partOccurrenceId,
+    overrideVisible: occurrence.overrideVisible,
+  }));
+  const currentAssemblyOccurrences = [...viewport.occurrences.assemblyOccurrences()];
+  const assemblyOccurrences = currentAssemblyOccurrences.map((occurrence) => ({
+    id: occurrence.assemblyOccurrenceId,
+    assemblyId: occurrence.assemblyId,
+    parentId: occurrence.parentAssemblyOccurrenceId,
+    effectiveVisible: occurrence.effectiveVisible,
+  }));
+  for (const occurrence of currentPartOccurrences) {
+    parts.set(occurrence.partId, occurrence.partVisible);
+  }
+  for (const occurrence of currentAssemblyOccurrences) {
+    assemblies.set(occurrence.assemblyId, occurrence.visible);
+  }
+  return { parts, assemblies, partOccurrences, assemblyOccurrences };
+}
+
+function restoreVisibility(viewport: Viewport, snapshot: VisibilitySnapshot): void {
+  for (const [partId, visible] of snapshot.parts)
+    viewport.visibility.setPartVisible(partId, visible);
+  for (const [assemblyId, visible] of snapshot.assemblies)
+    viewport.visibility.setAssemblyVisible(assemblyId, visible);
+
+  const assemblies = new Map(
+    snapshot.assemblyOccurrences.map((occurrence) => [occurrence.id, occurrence]),
+  );
+  const ordered = [...snapshot.assemblyOccurrences].sort(
+    (left, right) => occurrenceDepth(left, assemblies) - occurrenceDepth(right, assemblies),
+  );
+  for (const occurrence of ordered) {
+    const parent =
+      occurrence.parentId === undefined ? undefined : assemblies.get(occurrence.parentId);
+    const definitionVisible = snapshot.assemblies.get(occurrence.assemblyId) ?? true;
+    const overrideVisible =
+      (parent?.effectiveVisible ?? true) && definitionVisible ? occurrence.effectiveVisible : true;
+    viewport.visibility.setAssemblyOccurrenceVisible(occurrence.id, overrideVisible);
+  }
+  for (const occurrence of snapshot.partOccurrences)
+    viewport.visibility.setPartOccurrenceVisible(occurrence.id, occurrence.overrideVisible);
+}
+
+function occurrenceDepth(
+  occurrence: VisibilitySnapshot["assemblyOccurrences"][number],
+  assemblies: ReadonlyMap<AssemblyOccurrenceId, VisibilitySnapshot["assemblyOccurrences"][number]>,
+): number {
+  let depth = 0;
+  let parentId = occurrence.parentId;
+  while (parentId !== undefined) {
+    depth += 1;
+    parentId = assemblies.get(parentId)?.parentId;
+  }
+  return depth;
 }
 
 function resultsClearedFeedback(outcomes: readonly SceneUpdateOutcome[]): string {

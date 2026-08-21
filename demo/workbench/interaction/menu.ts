@@ -68,7 +68,9 @@ export class WorkbenchMenu {
     options: WorkbenchMenuSelectionOptions = { selectionLabel: "Select / Deselect" },
   ): void {
     const entries: WorkbenchMenuEntry[] = [
-      button("Instance this part…", "instance-part"),
+      ...(target.kind === "part" || target.kind === "partOccurrence"
+        ? [button("Instance this part…", "instance-part")]
+        : []),
       button("Highlight / Clear", "highlight"),
       ...optionalButtons(options),
       button("Hide / Show instance", "hide-instance"),

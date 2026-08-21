@@ -34,7 +34,9 @@ test("adds one reusable mesh then instances its shared part through the context 
   );
   await expect(canvas).toHaveAttribute("data-hovered", hit.key);
   await capture(page, testInfo, "live-part-addition-desktop-grid.png");
+  await page.keyboard.down("Alt");
   await page.mouse.click(hit.x, hit.y, { button: "right" });
+  await page.keyboard.up("Alt");
   await menu.getByTestId("context-action-instance-part").click();
   await expect(dialog).toContainText("Instance this part");
   await expect(dialog).toContainText("Part 17 · Live Hex8 box");

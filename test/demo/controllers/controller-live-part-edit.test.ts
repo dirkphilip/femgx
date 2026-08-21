@@ -30,6 +30,17 @@ describe("live part edit controller", () => {
     expect(primary.viewport.render).toHaveBeenCalledOnce();
     expect(restored).toEqual(new Set(["primary"]));
     expect(primary.presentationRestored).toBe(true);
+    expect(primary.viewport.visibility.setPartVisible).toHaveBeenCalledWith(1, false);
+    expect(primary.viewport.visibility.setAssemblyVisible).toHaveBeenCalledWith(1, true);
+    expect(primary.viewport.visibility.setPartOccurrenceVisible).toHaveBeenCalledWith(
+      "1/source",
+      false,
+    );
+    expect(primary.viewport.visibility.setAssemblyOccurrenceVisible).toHaveBeenCalledWith(
+      "1",
+      false,
+    );
+    expect(owner.visibilityPanel.rebuild).toHaveBeenCalledOnce();
     expect(owner.presentation.setFeedback).toHaveBeenCalledWith(
       expect.stringContaining("Live edit could not be applied"),
       "error",
@@ -66,6 +77,12 @@ interface FakeSlot {
   readonly viewport: {
     scene: Scene;
     readonly results: { state: unknown };
+    readonly visibility: {
+      readonly setPartVisible: ReturnType<typeof vi.fn>;
+      readonly setAssemblyVisible: ReturnType<typeof vi.fn>;
+      readonly setPartOccurrenceVisible: ReturnType<typeof vi.fn>;
+      readonly setAssemblyOccurrenceVisible: ReturnType<typeof vi.fn>;
+    };
     readonly updateScene: ReturnType<typeof vi.fn>;
     readonly replaceScene: ReturnType<typeof vi.fn>;
     readonly render: ReturnType<typeof vi.fn>;
@@ -82,6 +99,37 @@ function fakeSlot(
   const viewport = {
     scene: initialScene,
     results: { state: outcome.results === "cleared" ? undefined : { retained: true } },
+    occurrences: {
+      partOccurrences: () => [
+        {
+          partOccurrenceId: "1/source",
+          partId: 1,
+          assemblyOccurrenceId: "1",
+          visible: true,
+          partVisible: false,
+          overrideVisible: false,
+        },
+      ],
+      assemblyOccurrences: () => [
+        {
+          assemblyOccurrenceId: "1",
+          assemblyId: 1,
+          parentAssemblyOccurrenceId: undefined,
+          childCount: 0,
+          partOccurrenceCount: 1,
+          getChildId: () => undefined,
+          getPartOccurrenceId: () => "1/source",
+          visible: true,
+          effectiveVisible: false,
+        },
+      ],
+    },
+    visibility: {
+      setPartVisible: vi.fn(),
+      setAssemblyVisible: vi.fn(),
+      setPartOccurrenceVisible: vi.fn(),
+      setAssemblyOccurrenceVisible: vi.fn(),
+    },
     updateScene: vi.fn((operation: (update: SceneUpdate) => void) => {
       if (reject) throw new Error(`${id} update failed`);
       viewport.scene = prepareSceneUpdate(viewport.scene, operation) ?? viewport.scene;
