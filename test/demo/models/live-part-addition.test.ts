@@ -43,6 +43,44 @@ describe("live workbench part addition", () => {
       spacing: 0.5,
     });
   });
+
+  it("spaces arbitrary local part bounds beside the placed scene without overlap", () => {
+    const source = createPart(7, {
+      geometries: [
+        {
+          primitive: "points",
+          positions: new Float32Array([-2, -3, -4, 4, 5, 6]),
+          indices: new Uint32Array([0, 1]),
+        },
+      ],
+    });
+    const sourceScene = createSceneBuilder()
+      .addPart(source)
+      .addAssembly({
+        id: 1,
+        placements: [
+          { kind: "part", partId: 7, placementId: "source", transform: identityMatrix() },
+        ],
+      })
+      .setRootAssembly(1)
+      .build();
+    const edit = prepareLivePartEdit(
+      { ...model(sourceScene), bounds: source.bounds },
+      { kind: "instance", partId: 7, copies: 3, spacing: 2 },
+    );
+
+    expect(
+      edit.placements.map((placement) => [
+        placement.transform[12],
+        placement.transform[13],
+        placement.transform[14],
+      ]),
+    ).toEqual([
+      [8, 0, 0],
+      [16, 0, 0],
+      [8, 0, 12],
+    ]);
+  });
 });
 
 function scene(): Scene {

@@ -3,9 +3,12 @@ import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scen
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneNavigationBoundsCache } from "./scene-bounds";
 import type { ViewportSceneController } from "./scene-controller";
+import type { Viewport } from "./types";
 import { UnknownSceneIdentityError } from "./visibility-error";
+import { registerViewportVisibilityPolicy } from "./visibility/policy";
 
 interface VisibilityControllerOptions {
+  readonly viewport?: Viewport;
   readonly sceneController: ViewportSceneController;
   readonly renderer: WebGpuRenderer;
   readonly isBatching: () => boolean;
@@ -17,7 +20,12 @@ interface VisibilityControllerOptions {
 export class ViewportVisibilityController {
   private readonly pendingVisibility = new Set<PartId>();
 
-  constructor(private readonly options: VisibilityControllerOptions) {}
+  constructor(private readonly options: VisibilityControllerOptions) {
+    if (options.viewport !== undefined)
+      registerViewportVisibilityPolicy(options.viewport, () =>
+        options.sceneController.visibility.snapshot(),
+      );
+  }
 
   setPartVisible(partId: PartId, visible: boolean): void {
     if (!this.options.sceneController.scene.parts.has(partId)) {

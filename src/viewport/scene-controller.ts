@@ -18,7 +18,7 @@ import {
 } from "./results";
 import { applyResolvedViewportResults, applyViewportResults } from "./results-application";
 import { reconcileInteractionState } from "./scene-reconciliation";
-import { ViewportVisibilityState } from "./visibility-state";
+import { ViewportVisibilityState } from "./visibility/state";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
 import { prepareRendererPartAdditions, updateRendererOccurrences } from "../renderer/gpu-renderer";

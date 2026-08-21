@@ -6,8 +6,10 @@ import {
   type Scene,
   type SceneUpdate,
   type SceneUpdateOutcome,
+  type Viewport,
 } from "@/entries/root";
 import { prepareSceneUpdate } from "@/scene/update";
+import { registerViewportVisibilityPolicy } from "@/viewport/visibility/policy";
 import { applyLivePartEditForOwner } from "../../../demo/workbench/controllers/controller-live-part-edit";
 import { WorkbenchModelCatalog } from "../../../demo/workbench/models/model-catalog";
 import type { WorkbenchModel } from "../../../demo/workbench/models/model";
@@ -99,37 +101,13 @@ function fakeSlot(
   const viewport = {
     scene: initialScene,
     results: { state: outcome.results === "cleared" ? undefined : { retained: true } },
-    occurrences: {
-      partOccurrences: () => [
-        {
-          partOccurrenceId: "1/source",
-          partId: 1,
-          assemblyOccurrenceId: "1",
-          visible: true,
-          partVisible: false,
-          overrideVisible: false,
-        },
-      ],
-      assemblyOccurrences: () => [
-        {
-          assemblyOccurrenceId: "1",
-          assemblyId: 1,
-          parentAssemblyOccurrenceId: undefined,
-          childCount: 0,
-          partOccurrenceCount: 1,
-          getChildId: () => undefined,
-          getPartOccurrenceId: () => "1/source",
-          visible: true,
-          effectiveVisible: false,
-        },
-      ],
-    },
     visibility: {
       setPartVisible: vi.fn(),
       setAssemblyVisible: vi.fn(),
       setPartOccurrenceVisible: vi.fn(),
       setAssemblyOccurrenceVisible: vi.fn(),
     },
+    batch: <T>(operation: () => T): T => operation(),
     updateScene: vi.fn((operation: (update: SceneUpdate) => void) => {
       if (reject) throw new Error(`${id} update failed`);
       viewport.scene = prepareSceneUpdate(viewport.scene, operation) ?? viewport.scene;
@@ -142,6 +120,12 @@ function fakeSlot(
     }),
     render: vi.fn(),
   };
+  registerViewportVisibilityPolicy(viewport as unknown as Viewport, () => ({
+    parts: [{ id: 1, visible: false }],
+    assemblies: [{ id: 1, visible: true }],
+    partOccurrences: [{ id: "1/source", visible: false }],
+    assemblyOccurrences: [{ id: "1", visible: false }],
+  }));
   return {
     slot: { id, viewport } as unknown as WorkbenchViewportSlot,
     viewport,

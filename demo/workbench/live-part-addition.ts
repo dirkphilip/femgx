@@ -52,13 +52,17 @@ export function prepareLivePartEdit(
   const elementModel = request.kind === "add" ? builtInBoxModel() : undefined;
   const part =
     elementModel === undefined ? undefined : createPartFromElementModel(partId, elementModel);
-  const placements = gridPlacements(
-    model.scene,
-    model.bounds,
+  const sourcePart = part ?? model.scene.parts.get(partId);
+  if (sourcePart === undefined)
+    throw new Error(`Live edit source Part ${partId} is not registered`);
+  const placements = gridPlacements({
+    scene: model.scene,
+    sceneBounds: model.bounds,
+    partBounds: sourcePart.bounds,
     partId,
-    request.copies,
-    request.spacing,
-  );
+    copies: request.copies,
+    spacing: request.spacing,
+  });
   return {
     request,
     partId,
@@ -109,20 +113,26 @@ function builtInBoxModel(): ReturnType<typeof createElementModel> {
   );
 }
 
-function gridPlacements(
-  scene: Scene,
-  bounds: Bounds,
-  partId: PartId,
-  copies: number,
-  spacing: number,
-): readonly ExplicitPlacement[] {
+interface GridPlacementOptions {
+  readonly scene: Scene;
+  readonly sceneBounds: Bounds;
+  readonly partBounds: Bounds;
+  readonly partId: PartId;
+  readonly copies: number;
+  readonly spacing: number;
+}
+
+function gridPlacements(options: GridPlacementOptions): readonly ExplicitPlacement[] {
+  const { scene, sceneBounds, partBounds, partId, copies, spacing } = options;
   const used = new Set(
     scene.assemblies.get(scene.rootAssemblyId)?.placements.map(placementId) ?? [],
   );
   const columns = Math.ceil(Math.sqrt(copies));
-  const step = 1 + spacing;
-  const startX = bounds.maxX + spacing;
-  const startZ = bounds.minZ;
+  const stepX = partBounds.maxX - partBounds.minX + spacing;
+  const stepZ = partBounds.maxZ - partBounds.minZ + spacing;
+  const startX = sceneBounds.maxX + spacing - partBounds.minX;
+  const startY = sceneBounds.minY - partBounds.minY;
+  const startZ = sceneBounds.minZ - partBounds.minZ;
   const placements: ExplicitPlacement[] = [];
   for (let index = 0; index < copies; index += 1) {
     const placementId = uniquePlacementId(used, `live-${partId}-${index + 1}`);
@@ -132,7 +142,7 @@ function gridPlacements(
       kind: "part",
       placementId,
       partId,
-      transform: translationMatrix(startX + column * step, bounds.minY, startZ + row * step),
+      transform: translationMatrix(startX + column * stepX, startY, startZ + row * stepZ),
     });
   }
   return placements;
