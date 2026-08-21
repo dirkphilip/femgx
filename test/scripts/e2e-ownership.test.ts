@@ -20,6 +20,7 @@ describe("browser suite ownership", () => {
       ),
     ).toBe(true);
     expect(filesUnder(join(e2e, "core"), ".spec.ts")).toEqual([
+      join(e2e, "core/authored-interior-edges.spec.ts"),
       join(e2e, "core/core-foundation.spec.ts"),
       join(e2e, "core/core-journeys.spec.ts"),
       join(e2e, "core/depth-stable-edges.spec.ts"),

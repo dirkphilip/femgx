@@ -33,6 +33,7 @@ export function stageOccurrenceLayout(
     partSelectedNodeDrawCalls: new PartRevisionMap(source.partSelectedNodeDrawCalls),
     partSelectionDrawCalls: new PartRevisionMap(source.partSelectionDrawCalls),
     partSurfaceDrawCalls: new PartRevisionMap(source.partSurfaceDrawCalls),
+    partEdgeNeedsFullTopology: new PartRevisionMap(source.partEdgeNeedsFullTopology),
   };
 }
 
@@ -83,6 +84,7 @@ export function commitOccurrenceLayout(
   commitOverlay(live.partSelectedNodeDrawCalls, staged.partSelectedNodeDrawCalls);
   commitOverlay(live.partSelectionDrawCalls, staged.partSelectionDrawCalls);
   commitOverlay(live.partSurfaceDrawCalls, staged.partSurfaceDrawCalls);
+  commitOverlay(live.partEdgeNeedsFullTopology, staged.partEdgeNeedsFullTopology);
 }
 
 function commitOverlay<K, V>(target: Map<K, V>, source: Map<K, V>): void {

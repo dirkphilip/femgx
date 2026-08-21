@@ -127,7 +127,6 @@ function edgeKeyForPickId(
   if (edgePickId <= 0) return undefined;
   const instance = context.instances[instancePickId - 1];
   if (instance === undefined) return undefined;
-  return getPartResource(context.frame().draw, instance.partId, "triangles")?.edgePick?.edgeKeys[
-    edgePickId - 1
-  ];
+  const resource = getPartResource(context.frame().draw, instance.partId, "triangles");
+  return resource?.edgePick?.edgeKeys[edgePickId - 1];
 }

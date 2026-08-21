@@ -363,4 +363,5 @@ function initializePartCounts(layout: InstanceLayout, partId: PartId): void {
   layout.partTransparentCounts.set(partId, 0);
   layout.partSelectionCounts.set(partId, 0);
   layout.partSelectedNodeCounts.set(partId, 0);
+  layout.partEdgeNeedsFullTopology.set(partId, false);
 }

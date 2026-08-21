@@ -258,8 +258,9 @@ export function buildPartEdgeResources(
   device: GPUDevice,
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
+  fullTopology = false,
 ): NonNullable<PartResource["edge"]> | undefined {
-  const edgeBuild = buildPartMeshEdgeData(part, geometry, true);
+  const edgeBuild = buildPartMeshEdgeData(part, geometry, true, fullTopology);
   const edgeData = edgeBuild.edgeData;
   return uploadEdgeResourceData(device, part, geometry, {
     edgeData,
@@ -275,8 +276,9 @@ export function buildPartEdgePickResources(
   device: GPUDevice,
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
+  fullTopology = false,
 ): PartEdgePickResource | undefined {
-  const edgeData = buildPartMeshEdgeData(part, geometry, false).edgeData;
+  const edgeData = buildPartMeshEdgeData(part, geometry, false, fullTopology).edgeData;
   if ((edgeData.edgeKeys?.length ?? 0) === 0) return undefined;
   const upload = uploadEdgeResourceData(device, part, geometry, {
     edgeData,
@@ -296,8 +298,11 @@ function buildPartMeshEdgeData(
   part: Part,
   geometry: Extract<Geometry, { primitive: "triangles" }>,
   presentationOnly: boolean,
+  fullTopology: boolean,
 ): MeshEdgePresentationBuild {
-  const indices = getSubsetIndices(geometry) ?? geometry.indices;
+  const indices = fullTopology
+    ? geometry.indices
+    : (getSubsetIndices(geometry) ?? geometry.indices);
   const elements = elementsForPart(part) ?? [];
   if (presentationOnly && (part.bodies?.count ?? 0) === 0) {
     return buildUnownedMeshEdgePresentation(geometry, indices, elements);

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FemGx authored interior edge host</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #151a21;
+        color: #e8edf2;
+      }
+      main {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+      }
+      #interior-edge-stage {
+        width: min(960px, calc(100vw - 32px));
+      }
+      #interior-edge-canvas {
+        display: block;
+        width: 100%;
+        height: min(640px, calc(100vh - 80px));
+        background: #252d38;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <output id="interior-edge-status" data-result="loading">Interior-edge host loading</output>
+      <div id="interior-edge-stage">
+        <canvas id="interior-edge-canvas" width="960" height="640"></canvas>
+      </div>
+    </main>
+    <script type="module" src="./authored-interior-edges-host.ts"></script>
+  </body>
+</html>

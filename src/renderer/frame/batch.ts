@@ -249,6 +249,7 @@ function prepareBatch(batch: {
     !hasBatchResources({
       draw,
       part,
+      call,
       geometry,
       resource,
       overlay,
@@ -334,6 +335,7 @@ function prepareBatchDraw(
 function hasBatchResources(options: {
   readonly draw: DrawResources;
   readonly part: Part;
+  readonly call: DrawCall;
   readonly geometry: Geometry | undefined;
   readonly resource: PartResource;
   readonly overlay: boolean;
@@ -341,22 +343,27 @@ function hasBatchResources(options: {
   readonly subset: boolean;
   readonly visibilitySkin?: DrawCall["visibilitySkin"];
 }): boolean {
-  const { draw, part, geometry, resource, overlay, edgePick, subset, visibilitySkin } = options;
+  const { draw, part, call, geometry, resource, overlay, edgePick, subset, visibilitySkin } =
+    options;
   if (
     edgePick &&
     geometry?.primitive === "triangles" &&
-    ensureEdgePickResources(draw, part, geometry, resource) === undefined
+    ensureEdgePickResources(draw, part, geometry, resource, call.fullEdgeTopology === true) ===
+      undefined
   )
     return false;
   if (
     overlay &&
     !edgePick &&
     geometry?.primitive === "triangles" &&
-    ensureEdgeResources(draw, part, geometry, resource) === undefined
+    ensureEdgeResources(draw, part, geometry, resource, call.fullEdgeTopology === true) ===
+      undefined
   )
     return false;
-  if (edgePick && (resource.edgePick?.indexCount ?? 0) === 0) return false;
-  if (overlay && !edgePick && (resource.edge?.edgeIndexCount ?? 0) === 0) return false;
+  const edgePickResource = resource.edgePick;
+  const edgeResource = resource.edge;
+  if (edgePick && (edgePickResource?.indexCount ?? 0) === 0) return false;
+  if (overlay && !edgePick && (edgeResource?.edgeIndexCount ?? 0) === 0) return false;
   return !(
     (!overlay && subset && resource.subsetIndexCount === 0) ||
     (!overlay && !subset && visibilitySkin !== undefined && visibilitySkin.indexCount === 0)

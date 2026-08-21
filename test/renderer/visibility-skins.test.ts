@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState } from "../../src/interaction/interaction";
+import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
 import { setElementVisible } from "../../src/interaction/elements";
 import { setBodyVisible } from "../../src/interaction/bodies";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
@@ -249,14 +249,20 @@ describe("bounded visibility skins", () => {
       attachment.prepareParts(scene.parts, bundle);
       attachment.attach(runtime, bundle);
 
+      const styled = setPartOverride(createInteractionState(), part.id, { edge: true });
+      attachment.updateInstances(runtime, styled, [0, 1], bundle);
       let interaction = setElementVisible(
-        createInteractionState(),
+        styled,
         { partOccurrenceId: "1/left", elementId: 101 },
         false,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
 
       const firstSkin = attachment.calls.find((call) => call.visibilitySkin)?.visibilitySkin;
+      expect(attachment.layout?.partEdgeNeedsFullTopology.get(part.id)).toBe(true);
+      expect(attachment.edgeCalls).toEqual([
+        { partId: part.id, instanceCount: 2, fullEdgeTopology: true },
+      ]);
       expect(firstSkin?.indexCount).toBe(3);
       expect(attachment.calls[0]?.visibilitySkin).toBe(firstSkin);
       expect(attachment.calls[1]).toMatchObject({
@@ -267,21 +273,25 @@ describe("bounded visibility skins", () => {
 
       interaction = setElementVisible(
         interaction,
-        { partOccurrenceId: "1/right", elementId: 101 },
+        { partOccurrenceId: "1/right", elementId: 102 },
         false,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
-      expect(attachment.calls).toHaveLength(1);
+      expect(attachment.calls).toHaveLength(2);
       expect(attachment.calls[0]?.visibilitySkin).toBe(firstSkin);
-      expect(attachment.calls[0]?.instanceCount).toBe(2);
+      expect(attachment.calls[0]?.instanceCount).toBe(1);
+      expect(attachment.calls[1]?.visibilitySkin).not.toBe(firstSkin);
+      expect(attachment.calls[1]?.instanceCount).toBe(1);
 
       interaction = setElementVisible(
         setElementVisible(interaction, { partOccurrenceId: "1/left", elementId: 101 }, true),
-        { partOccurrenceId: "1/right", elementId: 101 },
+        { partOccurrenceId: "1/right", elementId: 102 },
         true,
       );
       attachment.updateElements(runtime, interaction, bundle, scene.parts);
       expect(attachment.calls).toEqual([{ partId: part.id, instanceCount: 2 }]);
+      expect(attachment.layout?.partEdgeNeedsFullTopology.get(part.id)).toBe(false);
+      expect(attachment.edgeCalls).toEqual([{ partId: part.id, instanceCount: 2 }]);
       expect(bundle.draw.visibilitySkins.get(part.id)?.residentBytes).toBe(0);
       interaction = setElementVisible(
         interaction,

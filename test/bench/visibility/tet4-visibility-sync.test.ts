@@ -2,17 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createPackedTet4Part } from "../../../demo/benchmark/packed-tet4";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
-import { createInteractionState } from "@/interaction/interaction";
-import { updateInteractionState } from "@/interaction/state";
-import { identityMatrix } from "@/math/mat4";
-import { RendererAttachment } from "@/renderer/attachment";
-import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
+import { destroyGpuBundle } from "@/renderer/recovery";
 import { buildGraphVisibilitySkinIndices } from "@/renderer/visibility/graph-skin";
 import { destroyVisibilitySkinCache } from "@/renderer/visibility/skins";
 import type { VisibilitySignature } from "@/renderer/visibility/types";
-import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
-import { createSceneBuilder } from "@/scene/scene";
-import { fakeGpuDevice, installGpuGlobals } from "../../renderer/fake-gpu";
+import { installGpuGlobals } from "../../renderer/fake-gpu";
+import { type VisibilityFixture, visibilityFixture } from "./tet4-visibility-fixture";
 import {
   buildOperationsReport,
   emitOperationsReport,
@@ -48,35 +43,6 @@ describe("local Tet4 element-visibility synchronization baseline", () => {
     }
   }, 120_000);
 });
-
-type VisibilityFixture = Awaited<ReturnType<typeof visibilityFixture>>;
-
-async function visibilityFixture(part: ReturnType<typeof createPackedTet4Part>, ids: Uint32Array) {
-  const scene = createSceneBuilder()
-    .addPart(part)
-    .addAssembly({
-      id: 1,
-      name: "visibility",
-      placements: [
-        { kind: "part", placementId: "tet4", partId: part.id, transform: identityMatrix() },
-      ],
-    })
-    .setRootAssembly(1)
-    .build();
-  const runtime = createPackedSceneRuntime(scene);
-  const bundle = await createGpuBundle(fakeGpuDevice().device, "bgra8unorm", "depth24plus");
-  const attachment = new RendererAttachment();
-  attachment.prepareParts(scene.parts, bundle);
-  attachment.attach(runtime, bundle);
-  const occurrenceId = runtime.getInstanceId(0);
-  if (occurrenceId === undefined) throw new Error("Tet4 visibility occurrence is missing");
-  const hidden = updateInteractionState(createInteractionState(), {
-    hiddenElementIds: new Map([
-      [occurrenceId, new Set(ids.subarray(0, Math.floor(ids.length / 2)))],
-    ]),
-  });
-  return { part, scene, runtime, bundle, attachment, hidden, shown: createInteractionState() };
-}
 
 function cacheOperations(fixture: VisibilityFixture): readonly OperationSpec[] {
   const details = {
