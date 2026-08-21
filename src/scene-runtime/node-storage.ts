@@ -39,6 +39,7 @@ export function addRuntimeAssemblyNode(
       : 0;
   state.nodeActive[node] = 1;
   state.nodeNodeIds[node] = input.nodeId;
+  state.nodePlacementOrder[node] = [];
   state.assemblyNodeGroups.add(input.assemblyId, node);
   nodeSlots.set(input.nodeId, node);
   state.activeNodeCount += 1;
@@ -68,6 +69,7 @@ export function removeRuntimeAssemblyNodes(
     state.nodeNextSibling[node] = -1;
     state.nodeParents[node] = -1;
     state.nodeEffectiveVisible[node] = 0;
+    state.nodePlacementOrder[node] = [];
     state.nodeFreeSlots.push(node);
     state.activeNodeCount -= 1;
   }

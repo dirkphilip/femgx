@@ -54,6 +54,8 @@ interface RuntimeMethods {
   getPartInstanceSlots(partId: PartId): Uint32Array;
   /** Returns direct placed-part slots owned by one expanded assembly node. */
   getNodeInstanceSlots(nodeId: number): readonly number[];
+  /** Returns direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
+  getNodePlacementOrder(nodeId: number): readonly number[];
   /** Returns the expanded node slots belonging to an assembly definition. */
   getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array;
   /** Returns visible instance ids in deterministic depth-first order. */
@@ -76,6 +78,8 @@ interface RuntimeMethods {
   removeAssemblyNodes(nodeIds: readonly number[]): void;
   /** Replaces one node's direct assembly-child sequence. */
   setNodeChildren(nodeId: number, children: readonly number[]): void;
+  /** Replaces one node's direct interleaved authored placement sequence. */
+  setNodePlacementOrder(nodeId: number, placements: readonly number[]): void;
 }
 
 export interface RuntimeInstanceInput {
@@ -151,6 +155,7 @@ type RuntimeQueries = Omit<
   | "addAssemblyNode"
   | "removeAssemblyNodes"
   | "setNodeChildren"
+  | "setNodePlacementOrder"
 >;
 
 function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQueries {
@@ -177,6 +182,9 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
     },
     getNodeInstanceSlots(nodeId: number): readonly number[] {
       return state.nodeInstanceGroups.slots(nodeId);
+    },
+    getNodePlacementOrder(nodeId: number): readonly number[] {
+      return state.nodePlacementOrder[nodeId] ?? [];
     },
     getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array {
       const slots = new Uint32Array(state.assemblyNodeGroups.slots(assemblyId));
@@ -216,6 +224,7 @@ function createRuntimeMutations(
   | "addAssemblyNode"
   | "removeAssemblyNodes"
   | "setNodeChildren"
+  | "setNodePlacementOrder"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
@@ -250,6 +259,9 @@ function createRuntimeMutations(
     },
     setNodeChildren(nodeId: number, children: readonly number[]): void {
       setRuntimeNodeChildren(state, nodeId, children);
+    },
+    setNodePlacementOrder(nodeId: number, placements: readonly number[]): void {
+      state.nodePlacementOrder[nodeId] = [...placements];
     },
   };
 }

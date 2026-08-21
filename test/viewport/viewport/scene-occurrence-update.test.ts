@@ -183,9 +183,26 @@ describe("Viewport incremental part occurrences", () => {
   it("preserves results explicitly owned by a retained part", async () => {
     installTestGpuGlobals();
     installNavigator();
+    const implicit = resultScene(3);
+    const root = implicit.assemblies.get(1);
+    if (root === undefined) throw new Error("test root is missing");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
-      scene: resultScene(3),
+      scene: {
+        ...implicit,
+        assemblies: new Map([
+          [
+            1,
+            {
+              ...root,
+              placements: root.placements.map((placement) => ({
+                ...placement,
+                placementId: "retained",
+              })),
+            },
+          ],
+        ]),
+      },
       results: { scalar: { ...nodalResult(3).scalar, partId: 1 } },
       device: fakeGpuDevice().device,
     });

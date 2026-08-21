@@ -6,6 +6,8 @@ import type { SceneStructuralChanges } from "../scene/update-changes";
 import type { AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { equalPlacement } from "../scene/update-equality";
 import { invariantValue } from "./invariants";
+import { patchRetainedSubtree, relinkNodeOrder } from "./hierarchy-transform";
+import { expandAssembly, hierarchyInstanceInput } from "./hierarchy-expand";
 import { recordHierarchySlotAfter, recordHierarchySlotBefore } from "./hierarchy-slot-changes";
 import type { RuntimeOccurrenceDelta, RuntimeOccurrenceSlotChange } from "./occurrence-update";
 import type { PackedSceneRuntime, RuntimeInstanceInput } from "./runtime";
@@ -46,7 +48,6 @@ export function prepareHierarchyMutations(
     if (samePlacementSequence(beforeDefinition, afterDefinition)) continue;
     const before = explicitPlacements(beforeDefinition);
     const after = explicitPlacements(afterDefinition);
-    if (samePlacementMaps(before, after)) continue;
     for (const node of runtime.getAssemblyNodeSlots(assemblyId)) {
       const ownerId = runtime.getNodeId(node);
       if (ownerId === undefined) return undefined;
@@ -77,36 +78,72 @@ export function applyHierarchyMutations(
   resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean,
   resolveAssemblyVisible: (assemblyId: number, authoredVisible: boolean) => boolean,
 ): RuntimeHierarchyDelta {
-  const removedRoots = hierarchyRemovalRoots(runtime, prepared.owners);
+  const removal = removeHierarchy(runtime, prepared.owners);
+  const slotChanges = removal.slotChanges;
+  const removedSlots = removal.removedSlots;
+  runtime.removeInstances([...removedSlots]);
+  runtime.removeAssemblyNodes(removal.removedNodes);
+  const { additions, addedNodes } = applyOwners({
+    runtime,
+    scene,
+    prepared,
+    slotChanges,
+    resolvePartVisible,
+    resolveAssemblyVisible,
+  });
+  publishAdditions({ runtime, scene, prepared, additions, addedNodes, slotChanges });
+  return hierarchyDelta(prepared, slotChanges, removedSlots, removal.removedOccurrenceIds);
+}
+
+function removeHierarchy(runtime: PackedSceneRuntime, owners: readonly OwnerMutation[]) {
+  const removedRoots = hierarchyRemovalRoots(runtime, owners);
   const removedNodes = collectRemovedNodes(runtime, removedRoots);
-  const removedAssemblyOccurrenceIds = removedNodes.map((node) =>
+  const removedOccurrenceIds = removedNodes.map((node) =>
     invariantValue(runtime.getNodeId(node), `removed assembly node id at ${node}`),
   );
   const removedNodeSet = new Set(removedNodes);
   const slotChanges = new Map<number, RuntimeOccurrenceSlotChange>();
-  const removedSlots = directRemovedSlots(runtime, prepared.owners, removedNodeSet, slotChanges);
+  const removedSlots = directRemovedSlots(runtime, owners, removedNodeSet, slotChanges);
   for (const node of removedNodes) {
     for (const slot of runtime.getNodeInstanceSlots(node)) {
       recordHierarchySlotBefore(slotChanges, slot, runtime.getPartId(slot));
       removedSlots.add(slot);
     }
   }
-  runtime.removeInstances([...removedSlots]);
-  runtime.removeAssemblyNodes(removedNodes);
+  return { removedNodes, removedOccurrenceIds, removedSlots, slotChanges };
+}
 
+function applyOwners(context: {
+  readonly runtime: PackedSceneRuntime;
+  readonly scene: Scene;
+  readonly prepared: PreparedHierarchyUpdate;
+  readonly slotChanges: Map<number, RuntimeOccurrenceSlotChange>;
+  readonly resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean;
+  readonly resolveAssemblyVisible: (assemblyId: number, authoredVisible: boolean) => boolean;
+}): { additions: RuntimeInstanceInput[]; addedNodes: number[] } {
   const additions: RuntimeInstanceInput[] = [];
-  for (const owner of prepared.owners) {
-    if (runtime.getNodeId(owner.node) === undefined) continue;
+  const addedNodes: number[] = [];
+  for (const owner of context.prepared.owners) {
+    if (context.runtime.getNodeId(owner.node) === undefined) continue;
     applyOwnerMutation({
-      runtime,
-      scene,
+      ...context,
       owner,
       additions,
-      slotChanges,
-      resolvePartVisible,
-      resolveAssemblyVisible,
+      addedNodes,
     });
   }
+  return { additions, addedNodes };
+}
+
+function publishAdditions(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly scene: Scene;
+  readonly prepared: PreparedHierarchyUpdate;
+  readonly additions: readonly RuntimeInstanceInput[];
+  readonly addedNodes: readonly number[];
+  readonly slotChanges: Map<number, RuntimeOccurrenceSlotChange>;
+}): void {
+  const { runtime, scene, prepared, additions, addedNodes, slotChanges } = options;
   const slots = runtime.addInstances(additions);
   for (let index = 0; index < additions.length; index += 1) {
     const input = invariantValue(additions[index], `added hierarchy instance at ${index}`);
@@ -114,6 +151,18 @@ export function applyHierarchyMutations(
     recordHierarchySlotBefore(slotChanges, slot, slotChanges.get(slot)?.beforePartId);
     recordHierarchySlotAfter(slotChanges, slot, input.partId);
   }
+  for (const owner of prepared.owners) {
+    if (runtime.getNodeId(owner.node) !== undefined) relinkNodeOrder(runtime, scene, owner.node);
+  }
+  for (const node of addedNodes) relinkNodeOrder(runtime, scene, node);
+}
+
+function hierarchyDelta(
+  prepared: PreparedHierarchyUpdate,
+  slotChanges: Map<number, RuntimeOccurrenceSlotChange>,
+  removedSlots: ReadonlySet<number>,
+  removedAssemblyOccurrenceIds: readonly AssemblyOccurrenceId[],
+): RuntimeHierarchyDelta {
   const changed = [...slotChanges.values()].sort((left, right) => left.slot - right.slot);
   const affectedPartIds = new Set<PartId>();
   for (const change of changed) {
@@ -134,9 +183,7 @@ export function applyHierarchyMutations(
 function affectedOwnerDefinitions(changes: SceneStructuralChanges): Set<number> {
   const ids = new Set<number>();
   for (const change of changes.placements) {
-    if (change.before?.kind === "assembly" || change.after?.kind === "assembly") {
-      ids.add(change.ownerAssemblyId);
-    }
+    ids.add(change.ownerAssemblyId);
   }
   for (const id of changes.assemblies.replaced) ids.add(id);
   return ids;
@@ -169,15 +216,6 @@ function explicitPlacements(assembly: AssemblyDefinition): ReadonlyMap<string, P
   return placements;
 }
 
-function samePlacementMaps(
-  before: ReadonlyMap<string, Placement>,
-  after: ReadonlyMap<string, Placement>,
-): boolean {
-  if (before.size !== after.size) return false;
-  for (const [id, placement] of before) if (!equalPlacement(placement, after.get(id))) return false;
-  return true;
-}
-
 function hierarchyRemovalRoots(
   runtime: PackedSceneRuntime,
   owners: readonly OwnerMutation[],
@@ -186,7 +224,11 @@ function hierarchyRemovalRoots(
   for (const owner of owners) {
     for (const [id, before] of owner.before) {
       const after = owner.after.get(id);
-      if (before.kind !== "assembly" || equalPlacement(before, after)) continue;
+      if (
+        before.kind !== "assembly" ||
+        (after?.kind === "assembly" && after.assemblyId === before.assemblyId)
+      )
+        continue;
       const node = runtime.getNodeSlot(path(owner.ownerId, id));
       if (node === undefined)
         throw new Error(`Missing assembly occurrence ${path(owner.ownerId, id)}`);
@@ -243,6 +285,7 @@ interface OwnerApplyContext {
   readonly slotChanges: Map<number, RuntimeOccurrenceSlotChange>;
   readonly resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean;
   readonly resolveAssemblyVisible: (assemblyId: number, authoredVisible: boolean) => boolean;
+  readonly addedNodes: number[];
 }
 
 function applyOwnerMutation(context: OwnerApplyContext): void {
@@ -251,9 +294,9 @@ function applyOwnerMutation(context: OwnerApplyContext): void {
     scene,
     owner,
     additions,
-    slotChanges,
     resolvePartVisible,
     resolveAssemblyVisible,
+    addedNodes,
   } = context;
   const ownerWorld = nodeWorld(runtime, owner.node);
   for (const [id, after] of owner.after) {
@@ -262,33 +305,12 @@ function applyOwnerMutation(context: OwnerApplyContext): void {
     const occurrenceId = path(owner.ownerId, id);
     const world = multiplyMatrices(ownerWorld, after.transform);
     if (after.kind === "part") {
-      const slot = before?.kind === "part" ? runtime.getInstanceSlot(occurrenceId) : undefined;
-      if (slot === undefined) {
-        additions.push(
-          instanceInput({
-            scene,
-            node: owner.node,
-            id: occurrenceId,
-            placement: after,
-            world,
-            resolvePartVisible,
-          }),
-        );
-      } else {
-        recordHierarchySlotBefore(slotChanges, slot, runtime.getPartId(slot));
-        runtime.updateInstance(
-          slot,
-          instanceInput({
-            scene,
-            node: owner.node,
-            id: occurrenceId,
-            placement: after,
-            world,
-            resolvePartVisible,
-          }),
-        );
-        recordHierarchySlotAfter(slotChanges, slot, after.partId);
-      }
+      applyPartPlacement(context, occurrenceId, before, after, world);
+      continue;
+    }
+    if (before?.kind === "assembly" && before.assemblyId === after.assemblyId) {
+      const node = invariantValue(runtime.getNodeSlot(occurrenceId), `assembly ${occurrenceId}`);
+      patchRetainedSubtree(runtime, scene, node, world, resolvePartVisible);
       continue;
     }
     expandAssembly({
@@ -301,9 +323,38 @@ function applyOwnerMutation(context: OwnerApplyContext): void {
       additions,
       resolvePartVisible,
       resolveAssemblyVisible,
+      addedNodes,
     });
   }
   relinkOwnerChildren(runtime, owner);
+}
+
+function applyPartPlacement(
+  context: OwnerApplyContext,
+  occurrenceId: PartOccurrenceId,
+  before: Placement | undefined,
+  after: Extract<Placement, { readonly kind: "part" }>,
+  world: Mat4,
+): void {
+  const slot = before?.kind === "part" ? context.runtime.getInstanceSlot(occurrenceId) : undefined;
+  const input = hierarchyInstanceInput({
+    scene: context.scene,
+    node: context.owner.node,
+    id: occurrenceId,
+    placement: after,
+    world,
+    resolvePartVisible: context.resolvePartVisible,
+    ...(slot === undefined
+      ? {}
+      : { overrideVisible: context.runtime.instanceOverrideVisible[slot] === 1 }),
+  });
+  if (slot === undefined) {
+    context.additions.push(input);
+    return;
+  }
+  recordHierarchySlotBefore(context.slotChanges, slot, context.runtime.getPartId(slot));
+  context.runtime.updateInstance(slot, input);
+  recordHierarchySlotAfter(context.slotChanges, slot, after.partId);
 }
 
 function relinkOwnerChildren(runtime: PackedSceneRuntime, owner: OwnerMutation): void {
@@ -316,89 +367,6 @@ function relinkOwnerChildren(runtime: PackedSceneRuntime, owner: OwnerMutation):
     children.push(child);
   }
   runtime.setNodeChildren(owner.node, children);
-}
-
-interface AssemblyExpansionContext {
-  readonly runtime: PackedSceneRuntime;
-  readonly scene: Scene;
-  readonly assemblyId: number;
-  readonly nodeId: AssemblyOccurrenceId;
-  readonly parent: number;
-  readonly world: Mat4;
-  readonly additions: RuntimeInstanceInput[];
-  readonly resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean;
-  readonly resolveAssemblyVisible: (assemblyId: number, authoredVisible: boolean) => boolean;
-}
-
-function expandAssembly(context: AssemblyExpansionContext): void {
-  const assembly = context.scene.assemblies.get(context.assemblyId);
-  if (assembly === undefined) throw new Error(`Missing assembly ${context.assemblyId}`);
-  const node = context.runtime.addAssemblyNode({
-    nodeId: context.nodeId,
-    assemblyId: context.assemblyId,
-    parent: context.parent,
-    worldTransform: context.world,
-    assemblyVisible: context.resolveAssemblyVisible(
-      context.assemblyId,
-      context.scene.visibleAssemblyIds.has(context.assemblyId),
-    ),
-  });
-  const children: number[] = [];
-  for (const placement of assembly.placements) {
-    const id = placement.placementId;
-    if (id === undefined) {
-      throw new Error(
-        `AssemblyDefinition ${assembly.id} uses an implicit placement identity; migrate it before a live hierarchy edit`,
-      );
-    }
-    const childId = path(context.nodeId, id);
-    const world = multiplyMatrices(context.world, placement.transform);
-    if (placement.kind === "part") {
-      context.additions.push(
-        instanceInput({
-          scene: context.scene,
-          node,
-          id: childId,
-          placement,
-          world,
-          resolvePartVisible: context.resolvePartVisible,
-        }),
-      );
-      continue;
-    }
-    expandAssembly({
-      ...context,
-      assemblyId: placement.assemblyId,
-      nodeId: childId,
-      parent: node,
-      world,
-    });
-    const child = context.runtime.getNodeSlot(childId);
-    if (child === undefined) throw new Error(`Missing added hierarchy child ${childId}`);
-    children.push(child);
-  }
-  context.runtime.setNodeChildren(node, children);
-}
-
-interface InstanceInputContext {
-  readonly scene: Scene;
-  readonly node: number;
-  readonly id: PartOccurrenceId;
-  readonly placement: Extract<Placement, { readonly kind: "part" }>;
-  readonly world: Mat4;
-  readonly resolvePartVisible: (partId: PartId, authoredVisible: boolean) => boolean;
-}
-
-function instanceInput(context: InstanceInputContext): RuntimeInstanceInput {
-  const { scene, node, id, placement, world, resolvePartVisible } = context;
-  return {
-    instanceId: id,
-    partId: placement.partId,
-    owningNode: node,
-    partVisible: resolvePartVisible(placement.partId, scene.visiblePartIds.has(placement.partId)),
-    overrideVisible: true,
-    worldTransform: world,
-  };
 }
 
 function path(

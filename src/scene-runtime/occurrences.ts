@@ -128,7 +128,7 @@ class PublicSceneOccurrences implements SceneOccurrences {
     return activeAssemblyOccurrenceIdAt(this.packed, ordinal);
   }
   *partOccurrences(): IterableIterator<PartOccurrence> {
-    for (let slot = 0; slot < this.packed.instanceCount; slot += 1) {
+    for (const slot of authoredPartSlots(this.packed)) {
       const partOccurrenceId = this.packed.getInstanceId(slot);
       if (partOccurrenceId === undefined) continue;
       yield invariantValue(
@@ -138,8 +138,8 @@ class PublicSceneOccurrences implements SceneOccurrences {
     }
   }
   *assemblyOccurrences(): IterableIterator<AssemblyOccurrence> {
-    for (let ordinal = 0; ordinal < this.packed.nodeCount; ordinal += 1) {
-      const occurrenceId = this.packed.getNodeId(ordinal);
+    for (const node of authoredAssemblySlots(this.packed)) {
+      const occurrenceId = this.packed.getNodeId(node);
       if (occurrenceId === undefined) continue;
       yield invariantValue(this.getAssemblyOccurrence(occurrenceId), `occurrence ${occurrenceId}`);
     }
@@ -267,7 +267,15 @@ function directPartOccurrenceIdAt(
   ordinal: number,
 ): PartOccurrenceId | undefined {
   if (!Number.isInteger(ordinal) || ordinal < 0) return undefined;
-  const slot = runtime.getNodeInstanceSlots(node)[ordinal];
+  let partOrdinal = 0;
+  let slot: number | undefined;
+  for (const encoded of runtime.getNodePlacementOrder(node)) {
+    if (encoded < 0) continue;
+    if (partOrdinal++ === ordinal) {
+      slot = encoded;
+      break;
+    }
+  }
   return slot === undefined ? undefined : runtime.getInstanceId(slot);
 }
 
@@ -277,7 +285,7 @@ function activePartOccurrenceIdAt(
 ): PartOccurrenceId | undefined {
   if (!Number.isInteger(ordinal) || ordinal < 0) return undefined;
   let activeOrdinal = 0;
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
+  for (const slot of authoredPartSlots(runtime)) {
     const id = runtime.getInstanceId(slot);
     if (id === undefined) continue;
     if (activeOrdinal === ordinal) return id;
@@ -292,11 +300,40 @@ function activeAssemblyOccurrenceIdAt(
 ): AssemblyOccurrenceId | undefined {
   if (!Number.isInteger(ordinal) || ordinal < 0) return undefined;
   let activeOrdinal = 0;
-  for (let node = 0; node < runtime.nodeCount; node += 1) {
+  for (const node of authoredAssemblySlots(runtime)) {
     const id = runtime.getNodeId(node);
     if (id === undefined) continue;
     if (activeOrdinal === ordinal) return id;
     activeOrdinal += 1;
   }
   return undefined;
+}
+
+function* authoredPartSlots(runtime: PackedSceneRuntime): IterableIterator<number> {
+  const stack = [~0];
+  while (stack.length > 0) {
+    const encoded = invariantValue(stack.pop(), "authored part traversal");
+    if (encoded >= 0) {
+      if (runtime.isInstanceActive(encoded)) yield encoded;
+      continue;
+    }
+    const placements = runtime.getNodePlacementOrder(~encoded);
+    for (let index = placements.length - 1; index >= 0; index -= 1) {
+      stack.push(invariantValue(placements[index], `authored placement at ${index}`));
+    }
+  }
+}
+
+function* authoredAssemblySlots(runtime: PackedSceneRuntime): IterableIterator<number> {
+  const stack = [0];
+  while (stack.length > 0) {
+    const node = invariantValue(stack.pop(), "authored assembly traversal");
+    if (runtime.getNodeId(node) === undefined) continue;
+    yield node;
+    const placements = runtime.getNodePlacementOrder(node);
+    for (let index = placements.length - 1; index >= 0; index -= 1) {
+      const encoded = invariantValue(placements[index], `authored placement at ${index}`);
+      if (encoded < 0) stack.push(~encoded);
+    }
+  }
 }

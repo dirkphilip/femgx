@@ -47,6 +47,8 @@ export interface RuntimeState {
   sortedPartIds: Uint32Array;
   /** Mutable definition-to-expanded-node membership for hierarchy deltas. */
   readonly assemblyNodeGroups: SlotGroups;
+  /** Direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
+  nodePlacementOrder: number[][];
   visibleCount: number;
 }
 
@@ -202,11 +204,32 @@ export function compileSceneState(scene: Scene): RuntimeState {
   const nodeData = packNodes(nodes);
   const instanceData = packInstances(instances);
   const partGroups = buildGroups(instanceData.instancePartIds);
-  return {
+  const state: RuntimeState = {
     rootAssemblyId: scene.rootAssemblyId,
     ...nodeData,
     ...instanceData,
     sortedPartIds: partGroups.sortedKeys,
     assemblyNodeGroups: new SlotGroups(nodeData.nodeAssemblyIds),
+    nodePlacementOrder: [],
   };
+  state.nodePlacementOrder = buildNodePlacementOrder(scene, state);
+  return state;
+}
+
+function buildNodePlacementOrder(scene: Scene, state: RuntimeState): number[][] {
+  const nodeById = new Map(state.nodeNodeIds.map((id, slot) => [id, slot]));
+  const instanceById = new Map(state.instanceInstanceIds.map((id, slot) => [id, slot]));
+  return Array.from({ length: state.nodeCount }, (_, node) => {
+    const definition = invariantValue(
+      scene.assemblies.get(invariantValue(state.nodeAssemblyIds[node], `assembly at ${node}`)),
+      "assembly",
+    );
+    const ownerId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
+    return definition.placements.map((placement, index) => {
+      const id = `${ownerId}/${placement.placementId ?? index}`;
+      const slot = placement.kind === "part" ? instanceById.get(id) : nodeById.get(id);
+      const resolved = invariantValue(slot, `placement ${id}`);
+      return placement.kind === "part" ? resolved : ~resolved;
+    });
+  });
 }

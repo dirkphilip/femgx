@@ -231,10 +231,19 @@ export function setAssemblyVisible(
 export function getDrawList(state: RuntimeState): Uint32Array {
   const drawList = new Uint32Array(state.visibleCount);
   let write = 0;
-  for (let instanceId = 0; instanceId < state.instanceCount; instanceId++) {
-    if (state.instanceActive[instanceId] === 1 && state.instanceVisible[instanceId] === 1) {
-      drawList[write] = instanceId;
-      write++;
+  const stack = [~0];
+  while (stack.length > 0) {
+    const encoded = invariantValue(stack.pop(), "authored draw traversal");
+    if (encoded >= 0) {
+      if (state.instanceActive[encoded] === 1 && state.instanceVisible[encoded] === 1) {
+        drawList[write++] = encoded;
+      }
+      continue;
+    }
+    const node = ~encoded;
+    const placements = state.nodePlacementOrder[node] ?? [];
+    for (let index = placements.length - 1; index >= 0; index -= 1) {
+      stack.push(invariantValue(placements[index], `placement ${index} at node ${node}`));
     }
   }
   return drawList;
