@@ -1,5 +1,6 @@
 import type { Camera } from "../../camera/camera";
 import type { Part, PartId } from "../../geometry/part";
+import type { InteractionState } from "../../interaction/interaction";
 import type { DeformationState } from "../../results/deform";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { RendererAttachment } from "../attachment";
@@ -25,6 +26,8 @@ export interface RendererFrameHost {
   deformation: DeformationState | undefined;
   orientationGlyphs: OrientationGlyphState | undefined;
   originTriadNominalScale: number;
+  interaction: InteractionState;
+  interactionNeedsRecoverySync: boolean;
   ensureSectionCaps(runtime: PackedSceneRuntime): void;
   frameOptions(): FrameOptions;
 }
@@ -50,8 +53,13 @@ export function renderRendererFrame(
     host.sectionCaps.invalidate();
   }
   const attachmentChanged = host.attachment.attach(runtime, bundle);
-  if (attachmentChanged) host.sectionCaps.invalidate();
-  if (attachmentChanged || partsChanged) host.attachment.updateNodeOrders(parts, bundle);
+  if (attachmentChanged) {
+    host.sectionCaps.invalidate();
+    if (host.interactionNeedsRecoverySync) {
+      host.attachment.updateElements(runtime, host.interaction, bundle, host.parts);
+      host.interactionNeedsRecoverySync = false;
+    }
+  }
   const layout = host.attachment.layout;
   if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
   syncDeformations(bundle.draw, host.deformation, runtime, layout);

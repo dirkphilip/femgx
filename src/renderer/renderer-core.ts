@@ -58,13 +58,13 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public deformation: DeformationState | undefined;
   private resultColors: ResultColorMap | undefined;
   private sectionPlane: SectionPlane | undefined;
-  private interaction = createInteractionState();
+  public interaction = createInteractionState();
   public readonly sectionCaps = new SectionCapController();
   private timestampRecorder: GpuTimestampRecorder | undefined;
   private readonly timestampQueriesRequested: boolean;
   public orientationGlyphs: OrientationGlyphState | undefined;
   public originTriadNominalScale = 1;
-  private interactionNeedsRecoverySync = false;
+  public interactionNeedsRecoverySync = false;
   private destroyed = false;
 
   public constructor(
@@ -120,32 +120,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     originTriadNominalScale = 1,
   ): void {
     this.ensureAlive();
-    this.lifecycle.bundle.draw.cost.reset();
-    this.originTriadNominalScale = originTriadNominalScale;
-    const partsChanged = this.sourceParts !== parts;
-    const cameraChanged = this.lastCamera !== camera;
-    this.lastCamera = camera;
-    if (partsChanged) {
-      this.sourceParts = parts;
-      this.parts = new Map(parts);
-      this.attachment.prepareParts(this.parts, this.lifecycle.bundle);
-      this.sectionCaps.invalidate();
-    }
-    const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
-    if (attachmentChanged) this.sectionCaps.invalidate();
-    if (attachmentChanged && this.interactionNeedsRecoverySync) {
-      this.attachment.updateElements(runtime, this.interaction, this.lifecycle.bundle, this.parts);
-      this.interactionNeedsRecoverySync = false;
-    }
-    const layout = this.attachment.layout;
-    if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
-    syncDeformations(this.lifecycle.bundle.draw, this.deformation, runtime, layout);
-    this.ensureSectionCaps(runtime);
-    syncResultColors(this.lifecycle.bundle.draw, this.sectionCaps.resultColors, runtime, layout);
-    const glyphs = this.lifecycle.bundle.draw.orientationGlyphs;
-    syncOrientationGlyphs(glyphs, this.orientationGlyphs, runtime, layout);
-    if (partsChanged || cameraChanged || attachmentChanged) this.picking.invalidate();
-    encodeVisibleFrame(camera, this.sectionCaps.parts, this.frameOptions());
+    renderRendererFrame(this, runtime, camera, parts, originTriadNominalScale);
   }
 
   public resetScene(parts: ReadonlyMap<PartId, Part>): void {
@@ -156,10 +131,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     this.attachment.prepareParts(parts, this.lifecycle.bundle);
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
-    this.sourceParts = undefined;
-    this.lastCamera = undefined;
-    this.deformation = undefined;
-    this.resultColors = undefined;
+    this.lastCamera = this.sourceParts = undefined;
+    this.resultColors = this.deformation = undefined;
     this.interaction = createInteractionState();
     this.orientationGlyphs = undefined;
     this.picking.invalidate();
