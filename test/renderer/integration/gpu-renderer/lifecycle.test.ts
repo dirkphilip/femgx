@@ -147,6 +147,7 @@ describe("WebGPU renderer", () => {
     expect(gpu.bindGroupCreations).toBe(8);
     expect(gpu.submissionCount).toBe(2);
     await expect(renderer.pick(400, 300)).resolves.toEqual({
+      assemblyPath: [{ assemblyId: 1, assemblyOccurrenceId: "1" }],
       kind: "partOccurrence",
       partId: 1,
       partOccurrenceId: "1/0",

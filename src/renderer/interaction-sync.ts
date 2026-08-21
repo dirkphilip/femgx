@@ -1,5 +1,5 @@
 import type { Part, PartId } from "../geometry/part";
-import { resolveInstanceStyle, type InteractionState } from "../interaction/interaction";
+import { type InteractionState } from "../interaction/interaction";
 import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
 import { readInteractionState, type InteractionStateData } from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
@@ -13,7 +13,9 @@ import type { DenseElementSelections } from "./selection/element-selection";
 import type { DenseNodeSelections } from "./selection/node-selection";
 import { defaultStyle } from "./resources/foundation";
 import type { GpuBundle } from "./recovery";
-import { instanceAt, type InstanceLayout } from "./runtime-state";
+import { type InstanceLayout } from "./runtime-state";
+import { forEachInstanceUnderAssemblyTargets } from "../scene-runtime/interaction-hierarchy";
+import { resolveRuntimeInstanceStyle } from "./selection/runtime-instance-style";
 
 const THEME_KEYS = [
   "highlighted",
@@ -65,6 +67,14 @@ export interface InteractionElementSyncOptions {
 export interface InteractionDirtyParts {
   readonly selectionParts: ReadonlySet<PartId>;
   readonly nodeParts: ReadonlySet<PartId>;
+}
+
+interface DirtyPartCollectionOptions {
+  readonly runtime: PackedSceneRuntime;
+  readonly previousData: InteractionStateData;
+  readonly nextData: InteractionStateData;
+  readonly selectionParts: Set<PartId>;
+  readonly nodeParts: Set<PartId>;
 }
 
 /** Adds only slots whose element-level state can affect interaction buffers. */
@@ -125,7 +135,15 @@ export function interactionDirtyParts(
   const nodeParts = new Set<PartId>();
   const previousData = readInteractionState(previous);
   const nextData = readInteractionState(next);
-  const addPart = (partId: PartId, destination: Set<PartId>): void => void destination.add(partId);
+  collectDirtyParts({ runtime, previousData, nextData, selectionParts, nodeParts });
+  return { selectionParts, nodeParts };
+}
+
+function collectDirtyParts(options: DirtyPartCollectionOptions): void {
+  const { runtime, previousData, nextData, selectionParts, nodeParts } = options;
+  const addPart = (partId: PartId, destination: Set<PartId>): void => {
+    destination.add(partId);
+  };
   const addInstance = (instanceId: PartOccurrenceId, destination: Set<PartId>): void => {
     const slot = runtime.getInstanceSlot(instanceId);
     const partId = slot === undefined ? undefined : runtime.instancePartIds[slot];
@@ -133,6 +151,14 @@ export function interactionDirtyParts(
   };
   diffSetMembers(previousData.selectedPartIds, nextData.selectedPartIds, (partId) => {
     addPart(partId, selectionParts);
+  });
+  addAssemblyParts({
+    runtime,
+    previousAssemblyIds: previousData.selectedAssemblyIds,
+    previousOccurrenceIds: previousData.selectedAssemblyOccurrenceIds,
+    nextAssemblyIds: nextData.selectedAssemblyIds,
+    nextOccurrenceIds: nextData.selectedAssemblyOccurrenceIds,
+    parts: selectionParts,
   });
   diffMapValues(previousData.partOverrides, nextData.partOverrides, (partId) => {
     addPart(partId, nodeParts);
@@ -168,7 +194,6 @@ export function interactionDirtyParts(
     addInstance(instanceId, selectionParts);
     addInstance(instanceId, nodeParts);
   });
-  return { selectionParts, nodeParts };
 }
 
 /** Updates transparency classification only for slots affected by an interaction transition. */
@@ -197,8 +222,9 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
     if (slot < 0 || slot >= options.runtime.instanceCount) continue;
     const partId = options.runtime.instancePartIds[slot];
     if (partId === undefined) continue;
-    const style = resolveInstanceStyle(
-      instanceAt(options.runtime, slot, partId),
+    const style = resolveRuntimeInstanceStyle(
+      options.runtime,
+      slot,
       defaultStyle,
       options.interaction,
     );
@@ -207,6 +233,32 @@ export function refreshTransparencyFlags(options: TransparencySyncOptions): Read
     options.currentFlags[slot] = next;
   }
   return changed;
+}
+
+function addAssemblyParts(options: {
+  readonly runtime: PackedSceneRuntime;
+  readonly previousAssemblyIds: ReadonlySet<number>;
+  readonly previousOccurrenceIds: ReadonlySet<string>;
+  readonly nextAssemblyIds: ReadonlySet<number>;
+  readonly nextOccurrenceIds: ReadonlySet<string>;
+  readonly parts: Set<PartId>;
+}): void {
+  const {
+    runtime,
+    previousAssemblyIds,
+    previousOccurrenceIds,
+    nextAssemblyIds,
+    nextOccurrenceIds,
+    parts,
+  } = options;
+  const add = (assemblyIds: ReadonlySet<number>, occurrenceIds: ReadonlySet<string>): void => {
+    forEachInstanceUnderAssemblyTargets(runtime, assemblyIds, occurrenceIds, (slot) => {
+      const partId = runtime.instancePartIds[slot];
+      if (partId !== undefined) parts.add(partId);
+    });
+  };
+  add(previousAssemblyIds, previousOccurrenceIds);
+  add(nextAssemblyIds, nextOccurrenceIds);
 }
 
 function selectionThemeIsTransparent(interaction: InteractionState): boolean {
@@ -344,7 +396,14 @@ function addHoveredInstance(
   target: InteractionTarget | undefined,
   addInstance: (instanceId: PartOccurrenceId) => void,
 ): void {
-  if (target !== undefined && target.kind !== "part") addInstance(target.partOccurrenceId);
+  if (
+    target !== undefined &&
+    target.kind !== "part" &&
+    target.kind !== "assembly" &&
+    target.kind !== "assemblyOccurrence"
+  ) {
+    addInstance(target.partOccurrenceId);
+  }
 }
 
 function themesEqual(

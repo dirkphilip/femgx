@@ -95,6 +95,16 @@ export function hasVisibleSelection(
 ): boolean {
   const visiblePartIds = visiblePartIdsFor(runtime);
   const selection = selectedTargetSummary(interaction);
+  for (const assemblyOccurrenceId of selection.assemblyOccurrenceIds) {
+    if (runtime.getAssemblyOccurrence(assemblyOccurrenceId)?.effectiveVisible === true) return true;
+  }
+  if (selection.assemblyIds.size > 0) {
+    for (const occurrence of runtime.assemblyOccurrences()) {
+      if (selection.assemblyIds.has(occurrence.assemblyId) && occurrence.effectiveVisible) {
+        return true;
+      }
+    }
+  }
   for (const partId of selection.partIds) if (visiblePartIds.has(partId)) return true;
   for (const partOccurrenceId of selection.partOccurrenceIds) {
     if (runtime.isPartOccurrenceVisible(partOccurrenceId)) return true;

@@ -1,6 +1,7 @@
 import type { PartId } from "../geometry/part";
 import type { PartOccurrenceId } from "../scene/types";
-import { resolveInstanceStyle, resolveInstanceStyleWithoutSelection } from "./interaction";
+import { resolveInstanceStyle } from "./interaction";
+import { resolveInstanceStyleLayers } from "./instance-style";
 import { readInteractionState, type InteractionState, type ResolvedStyle } from "./state";
 
 /** Reports whether a primitive style leaves instance color and opacity intact. */
@@ -19,6 +20,7 @@ export function keepsInstanceResultColor(
   instance: { readonly partOccurrenceId: PartOccurrenceId; readonly partId: PartId },
   base: ResolvedStyle,
   state: InteractionState,
+  hierarchy: { readonly selected?: boolean; readonly highlighted?: boolean } = {},
 ): boolean {
   const data = readInteractionState(state);
   if (
@@ -29,7 +31,7 @@ export function keepsInstanceResultColor(
   ) {
     return false;
   }
-  const selected = resolveInstanceStyle(instance, base, state);
-  const withoutSelection = resolveInstanceStyleWithoutSelection(instance, base, state);
+  const selected = resolveInstanceStyleLayers(instance, base, state, true, hierarchy);
+  const withoutSelection = resolveInstanceStyleLayers(instance, base, state, false, hierarchy);
   return selected.color === withoutSelection.color && selected.opacity === withoutSelection.opacity;
 }

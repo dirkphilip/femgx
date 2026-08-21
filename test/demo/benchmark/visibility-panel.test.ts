@@ -5,7 +5,12 @@ import {
   type PartOccurrenceId,
   type Viewport,
 } from "@/entries/root";
-import { createInteractionState, isBodyVisible, isTargetHighlighted } from "@/entries/interaction";
+import {
+  createInteractionState,
+  isBodyVisible,
+  isTargetHighlighted,
+  isTargetSelected,
+} from "@/entries/interaction";
 import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";
@@ -162,6 +167,7 @@ function createPanel(
       isBodyVisible(interaction, { partOccurrenceId, bodyId }),
     bodyHighlighted: (partOccurrenceId, bodyId) =>
       isTargetHighlighted(interaction, { kind: "body", partOccurrenceId, bodyId }),
+    targetSelected: (target) => isTargetSelected(interaction, target),
     onChanged: () => {},
   });
 }

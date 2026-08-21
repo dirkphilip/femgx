@@ -108,7 +108,7 @@ export class WorkbenchVisibilityActions {
   }
 
   toggleInstance(target: SelectTarget): void {
-    if (target.kind === "part") return;
+    if (target.kind !== "partOccurrence") return;
     const runtime = this.options.runtime();
     if (runtime.getPartOccurrence(target.partOccurrenceId) === undefined) return;
     this.setPartOccurrenceVisible(
@@ -189,6 +189,7 @@ export class WorkbenchVisibilityActions {
 
   private partForTarget(target: SelectTarget): PartId | undefined {
     if (target.kind === "part") return target.partId;
+    if (target.kind === "assembly" || target.kind === "assemblyOccurrence") return undefined;
     return this.options.runtime().getPartId(target.partOccurrenceId);
   }
 

@@ -8,6 +8,8 @@ import {
   setPartOccurrenceSelected,
   setPartOverride,
   setPartHighlighted,
+  setAssemblySelected,
+  setAssemblyHighlighted,
   type InteractionState,
 } from "../../src/interaction/interaction";
 import { setTargetHovered } from "../../src/interaction/targets";
@@ -78,6 +80,16 @@ describe("changedInstanceSlots", () => {
     const highlighted = setPartHighlighted(empty, 1, true);
     expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([0, 1, 2]);
     expect(changedInstanceSlots(rt, highlighted, empty)).toEqual([0, 1, 2]);
+  });
+
+  it("projects assembly definition selection and highlight to every descendant slot", () => {
+    const rt = runtime();
+    const empty = createInteractionState();
+    const selected = setAssemblySelected(empty, 1, true);
+    const highlighted = setAssemblyHighlighted(empty, 1, true);
+    expect(changedInstanceSlots(rt, empty, selected)).toEqual([0, 1, 2, 3, 4]);
+    expect(changedInstanceSlots(rt, empty, highlighted)).toEqual([0, 1, 2, 3, 4]);
+    expect(changedInstanceSlots(rt, selected, empty)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it("returns the slot of an instance when its selection changes", () => {

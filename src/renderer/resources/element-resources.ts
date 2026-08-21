@@ -1,12 +1,13 @@
 import type { Part } from "../../geometry/part";
 import {
   emphasizedElementRefs,
+  applySelectionPrecedence,
   resolveBodyStyle,
   resolveElementStyle,
   type InteractionState,
   type ResolvedStyle,
 } from "../../interaction/interaction";
-import { keepsResultColor } from "../../interaction/result-color";
+import { keepsInstanceResultColor, keepsResultColor } from "../../interaction/result-color";
 import { emphasizedBodyRefs, isBodyVisible } from "../../interaction/bodies";
 import { isElementVisible } from "../../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../../interaction/faces";
@@ -29,6 +30,11 @@ import {
   sparseNodeEmphasisRefs,
   type DenseNodeSelections,
 } from "../selection/node-selection";
+import {
+  runtimeInstanceIsHighlighted,
+  runtimeInstanceIsSelected,
+  resolveRuntimeInstanceStyle,
+} from "../selection/runtime-instance-style";
 export {
   ELEMENT_RECORD_STRIDE,
   HIGHLIGHT_HEADER,
@@ -150,6 +156,7 @@ function collectEdgeEmphasis(
     if (occurrence === undefined) continue;
     const edgePickId = edgeKeysByPart?.get(occurrence.instance.partId)?.indexOf(ref.key);
     if (edgePickId === undefined || edgePickId < 0) continue;
+    const runtimeStyle = runtimeEmphasisStyle(context, occurrence.instance, interaction);
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
@@ -159,7 +166,12 @@ function collectEdgeEmphasis(
       selected:
         readInteractionState(interaction).selectedEdges.get(ref.partOccurrenceId)?.has(ref.key) ===
         true,
-      style: resolveEdgeStyle(occurrence.instance, ref, defaultStyle, interaction),
+      style: applyRuntimeSelectionStyle(
+        occurrence.instance,
+        interaction,
+        runtimeStyle,
+        resolveEdgeStyle(occurrence.instance, ref, runtimeStyle.base, interaction),
+      ),
     });
   }
 }
@@ -179,7 +191,13 @@ function collectBodyEmphasis(
     const body = part === undefined ? undefined : getPartSemanticIndex(part).body(ref.bodyId);
     if (body === undefined) continue;
     const explicitOverride = data.bodyOverrides.get(ref.partOccurrenceId)?.get(ref.bodyId);
-    const style = resolveBodyStyle(occurrence.instance, ref.bodyId, defaultStyle, interaction);
+    const runtimeStyle = runtimeEmphasisStyle(context, occurrence.instance, interaction);
+    const style = applyRuntimeSelectionStyle(
+      occurrence.instance,
+      interaction,
+      runtimeStyle,
+      resolveBodyStyle(occurrence.instance, ref.bodyId, runtimeStyle.base, interaction),
+    );
     const selected = data.selectedBodyIds.get(ref.partOccurrenceId)?.has(ref.bodyId) === true;
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -192,7 +210,7 @@ function collectBodyEmphasis(
       keepsResultColor:
         explicitOverride?.color === undefined &&
         explicitOverride?.opacity === undefined &&
-        keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
+        keepsEmphasisResultColor(context, occurrence.instance, style, interaction),
       style,
     });
   }
@@ -236,12 +254,18 @@ function collectElementEmphasis(
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
     const bodyId = metadata?.bodyForElement(ref.elementId);
     const explicitOverride = data.elementOverrides.get(ref.partOccurrenceId)?.get(ref.elementId);
-    const style = resolveElementStyle(
+    const runtimeStyle = runtimeEmphasisStyle(context, occurrence.instance, interaction);
+    const style = applyRuntimeSelectionStyle(
       occurrence.instance,
-      ref.elementId,
-      defaultStyle,
       interaction,
-      bodyId,
+      runtimeStyle,
+      resolveElementStyle(
+        occurrence.instance,
+        ref.elementId,
+        runtimeStyle.base,
+        interaction,
+        bodyId,
+      ),
     );
     const selected = data.selectedElementIds.get(ref.partOccurrenceId)?.has(ref.elementId) === true;
     push(occurrence.instance.partId, {
@@ -254,7 +278,7 @@ function collectElementEmphasis(
       keepsResultColor:
         explicitOverride?.color === undefined &&
         explicitOverride?.opacity === undefined &&
-        keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
+        keepsEmphasisResultColor(context, occurrence.instance, style, interaction),
       style,
     });
   }
@@ -276,12 +300,18 @@ function collectFaceEmphasis(
     const faceMetadata = metadata?.face(ref.elementId, ref.faceIndex);
     if (faceMetadata === undefined) continue;
     const { face, faceId } = faceMetadata;
-    const style = resolveFaceStyle(
+    const runtimeStyle = runtimeEmphasisStyle(context, occurrence.instance, interaction);
+    const style = applyRuntimeSelectionStyle(
       occurrence.instance,
-      ref,
-      defaultStyle,
       interaction,
-      face.bodyId ?? metadata?.bodyForElement(ref.elementId),
+      runtimeStyle,
+      resolveFaceStyle(
+        occurrence.instance,
+        ref,
+        runtimeStyle.base,
+        interaction,
+        face.bodyId ?? metadata?.bodyForElement(ref.elementId),
+      ),
     );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
@@ -291,7 +321,7 @@ function collectFaceEmphasis(
       selected:
         data.selectedFaces.get(ref.partOccurrenceId)?.has(faceKey(ref.elementId, ref.faceIndex)) ===
         true,
-      keepsResultColor: keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
+      keepsResultColor: keepsEmphasisResultColor(context, occurrence.instance, style, interaction),
       style,
     });
   }
@@ -316,14 +346,20 @@ function collectNodeEmphasis(
     const part = parts.get(occurrence.instance.partId);
     const nodeCount = part === undefined ? 0 : partNodeCount(part);
     if (!Number.isSafeInteger(ref.nodeId) || ref.nodeId < 0 || ref.nodeId >= nodeCount) continue;
-    const style = resolveNodeStyle(occurrence.instance, ref, defaultStyle, interaction);
+    const runtimeStyle = runtimeEmphasisStyle(context, occurrence.instance, interaction);
+    const style = applyRuntimeSelectionStyle(
+      occurrence.instance,
+      interaction,
+      runtimeStyle,
+      resolveNodeStyle(occurrence.instance, ref, runtimeStyle.base, interaction),
+    );
     push(occurrence.instance.partId, {
       slot: occurrence.local,
       elementPickId: 0,
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
       selected: data.selectedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true,
-      keepsResultColor: keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
+      keepsResultColor: keepsEmphasisResultColor(context, occurrence.instance, style, interaction),
       style,
     });
   }
@@ -347,4 +383,50 @@ function occurrenceAt(
     },
     local,
   };
+}
+
+function keepsEmphasisResultColor(
+  context: EmphasisContext,
+  instance: PartOccurrence,
+  style: ResolvedStyle,
+  interaction: InteractionState,
+): boolean {
+  const slot = context.slotByInstanceId.get(instance.partOccurrenceId);
+  return (
+    keepsResultColor(instance, defaultStyle, style, interaction) &&
+    (slot === undefined ||
+      keepsInstanceResultColor(instance, defaultStyle, interaction, {
+        selected: runtimeInstanceIsSelected(context.runtime, slot, interaction),
+        highlighted: runtimeInstanceIsHighlighted(context.runtime, slot, interaction),
+      }))
+  );
+}
+
+interface RuntimeEmphasisStyle {
+  readonly base: ResolvedStyle;
+  readonly selected: boolean;
+}
+
+function runtimeEmphasisStyle(
+  context: EmphasisContext,
+  instance: PartOccurrence,
+  interaction: InteractionState,
+): RuntimeEmphasisStyle {
+  const slot = context.slotByInstanceId.get(instance.partOccurrenceId);
+  if (slot === undefined) return { base: defaultStyle, selected: false };
+  return {
+    base: resolveRuntimeInstanceStyle(context.runtime, slot, defaultStyle, interaction, false),
+    selected: runtimeInstanceIsSelected(context.runtime, slot, interaction),
+  };
+}
+
+function applyRuntimeSelectionStyle(
+  instance: PartOccurrence,
+  interaction: InteractionState,
+  runtimeStyle: RuntimeEmphasisStyle,
+  style: ResolvedStyle,
+): ResolvedStyle {
+  return runtimeStyle.selected
+    ? applySelectionPrecedence(runtimeStyle.base, style, instance, interaction, { selected: true })
+    : style;
 }

@@ -12,6 +12,17 @@ export function createPickRegionTargetResolver(
   return (ids) => {
     const instance = resolvePick(context.instances, ids.instancePickId - 1);
     if (instance === undefined) return undefined;
+    const path = context.assemblyPath?.(ids.instancePickId - 1) ?? [];
+    if (granularity === "assembly") {
+      const owner = path.at(-1);
+      return owner === undefined ? undefined : { kind: "assembly", assemblyId: owner.assemblyId };
+    }
+    if (granularity === "assemblyOccurrence") {
+      const owner = path.at(-1);
+      return owner === undefined
+        ? undefined
+        : { kind: "assemblyOccurrence", assemblyOccurrenceId: owner.assemblyOccurrenceId };
+    }
     if (granularity === "partOccurrence")
       return { kind: "partOccurrence", partOccurrenceId: instance.partOccurrenceId };
     if (granularity === "part") return { kind: "part", partId: instance.partId };
@@ -26,7 +37,10 @@ export function createPickRegionTargetResolver(
 function targetForGranularity(
   instanceId: string,
   ids: ResolvedPickIds,
-  granularity: Exclude<InteractionGranularity, "part" | "partOccurrence">,
+  granularity: Exclude<
+    InteractionGranularity,
+    "assembly" | "assemblyOccurrence" | "part" | "partOccurrence"
+  >,
   part: Part,
   metadata: PartSemanticIndex | undefined,
 ): InteractionTarget | undefined {

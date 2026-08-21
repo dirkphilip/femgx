@@ -17,6 +17,10 @@ import {
   setPartOccurrenceSelected,
   setPartHighlighted,
   setPartSelected,
+  setAssemblyHighlighted,
+  setAssemblyOccurrenceHighlighted,
+  setAssemblySelected,
+  setAssemblyOccurrenceSelected,
 } from "./interaction";
 import { hoveredTarget, isHoveredTarget } from "./state";
 import { updateNestedMaps, updateNestedSets, updateSetValues } from "./mechanics";
@@ -48,6 +52,16 @@ export function interactionTargetFromHit(
   granularity: InteractionGranularity,
 ): InteractionTarget | undefined {
   switch (granularity) {
+    case "assembly": {
+      const owner = hit.assemblyPath?.at(-1);
+      return owner === undefined ? undefined : { kind: "assembly", assemblyId: owner.assemblyId };
+    }
+    case "assemblyOccurrence": {
+      const owner = hit.assemblyPath?.at(-1);
+      return owner === undefined
+        ? undefined
+        : { kind: "assemblyOccurrence", assemblyOccurrenceId: owner.assemblyOccurrenceId };
+    }
     case "part":
       return { kind: "part", partId: hit.partId };
     case "partOccurrence":
@@ -94,6 +108,10 @@ export function setTargetSelected(
   selected: boolean,
 ): InteractionState {
   switch (target.kind) {
+    case "assembly":
+      return setAssemblySelected(state, target.assemblyId, selected);
+    case "assemblyOccurrence":
+      return setAssemblyOccurrenceSelected(state, target.assemblyOccurrenceId, selected);
     case "part":
       return setPartSelected(state, target.partId, selected);
     case "partOccurrence":
@@ -127,6 +145,8 @@ export function setTargetsSelected(
   const next = updateSelectedTargetCollections(current, collectTargetGroups(targets), selected);
   if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
+    selectedAssemblyIds: next.assemblyIds,
+    selectedAssemblyOccurrenceIds: next.assemblyOccurrenceIds,
     selectedPartIds: next.partIds,
     selectedPartOccurrenceIds: next.partOccurrenceIds,
     selectedBodyIds: next.bodyIds,
@@ -139,6 +159,8 @@ export function setTargetsSelected(
 
 function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroups {
   const groups: TargetGroups = {
+    assemblyIds: new Set(),
+    assemblyOccurrenceIds: new Set(),
     partIds: new Set(),
     partOccurrenceIds: new Set(),
     bodyIds: new Map(),
@@ -150,6 +172,12 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
   // Each target-kind collection is keyed by its complete identity and deduplicates itself.
   for (const target of targets) {
     switch (target.kind) {
+      case "assembly":
+        groups.assemblyIds.add(target.assemblyId);
+        break;
+      case "assemblyOccurrence":
+        groups.assemblyOccurrenceIds.add(target.assemblyOccurrenceId);
+        break;
       case "part":
         groups.partIds.add(target.partId);
         break;
@@ -180,6 +208,8 @@ function collectTargetGroups(targets: readonly InteractionTarget[]): TargetGroup
 
 function selectedCollections(data: InteractionStateData): TargetCollections {
   return {
+    assemblyIds: data.selectedAssemblyIds,
+    assemblyOccurrenceIds: data.selectedAssemblyOccurrenceIds,
     partIds: data.selectedPartIds,
     partOccurrenceIds: data.selectedPartOccurrenceIds,
     bodyIds: data.selectedBodyIds,
@@ -192,6 +222,8 @@ function selectedCollections(data: InteractionStateData): TargetCollections {
 
 function highlightedCollections(data: InteractionStateData): TargetCollections {
   return {
+    assemblyIds: data.highlightedAssemblyIds,
+    assemblyOccurrenceIds: data.highlightedAssemblyOccurrenceIds,
     partIds: data.highlightedPartIds,
     partOccurrenceIds: data.highlightedPartOccurrenceIds,
     bodyIds: data.highlightedBodyIds,
@@ -208,6 +240,12 @@ function updateTargetCollections(
   enabled: boolean,
 ): TargetCollections {
   return {
+    assemblyIds: updateSetValues(current.assemblyIds, groups.assemblyIds, enabled),
+    assemblyOccurrenceIds: updateSetValues(
+      current.assemblyOccurrenceIds,
+      groups.assemblyOccurrenceIds,
+      enabled,
+    ),
     partIds: updateSetValues(current.partIds, groups.partIds, enabled),
     partOccurrenceIds: updateSetValues(
       current.partOccurrenceIds,
@@ -224,6 +262,8 @@ function updateTargetCollections(
 
 function targetCollectionsEqual(left: TargetCollections, right: TargetCollections): boolean {
   return (
+    left.assemblyIds === right.assemblyIds &&
+    left.assemblyOccurrenceIds === right.assemblyOccurrenceIds &&
     left.partIds === right.partIds &&
     left.partOccurrenceIds === right.partOccurrenceIds &&
     left.bodyIds === right.bodyIds &&
@@ -271,6 +311,10 @@ export function setTargetHighlighted(
   highlighted: boolean,
 ): InteractionState {
   switch (target.kind) {
+    case "assembly":
+      return setAssemblyHighlighted(state, target.assemblyId, highlighted);
+    case "assemblyOccurrence":
+      return setAssemblyOccurrenceHighlighted(state, target.assemblyOccurrenceId, highlighted);
     case "part":
       return setPartHighlighted(state, target.partId, highlighted);
     case "partOccurrence":
@@ -302,6 +346,8 @@ export function setTargetsHighlighted(
   const next = updateTargetCollections(current, collectTargetGroups(targets), highlighted);
   if (targetCollectionsEqual(current, next)) return state;
   return updateInteractionState(state, {
+    highlightedAssemblyIds: next.assemblyIds,
+    highlightedAssemblyOccurrenceIds: next.assemblyOccurrenceIds,
     highlightedPartIds: next.partIds,
     highlightedPartOccurrenceIds: next.partOccurrenceIds,
     highlightedBodyIds: next.bodyIds,
@@ -330,6 +376,10 @@ export function setTargetHovered(
 export function isTargetSelected(state: InteractionState, target: InteractionTarget): boolean {
   const data = readInteractionState(state);
   switch (target.kind) {
+    case "assembly":
+      return data.selectedAssemblyIds.has(target.assemblyId);
+    case "assemblyOccurrence":
+      return data.selectedAssemblyOccurrenceIds.has(target.assemblyOccurrenceId);
     case "part":
       return data.selectedPartIds.has(target.partId);
     case "partOccurrence":
@@ -356,6 +406,10 @@ export function isTargetSelected(state: InteractionState, target: InteractionTar
 export function isTargetHighlighted(state: InteractionState, target: InteractionTarget): boolean {
   const data = readInteractionState(state);
   switch (target.kind) {
+    case "assembly":
+      return data.highlightedAssemblyIds.has(target.assemblyId);
+    case "assemblyOccurrence":
+      return data.highlightedAssemblyOccurrenceIds.has(target.assemblyOccurrenceId);
     case "part":
       return data.highlightedPartIds.has(target.partId);
     case "partOccurrence":

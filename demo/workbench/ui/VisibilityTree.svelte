@@ -57,6 +57,10 @@
     workbench?.commands.toggleVisibility(row.target);
   }
 
+  function selectRow(row: WorkbenchVisibilityRowSnapshot): void {
+    workbench?.commands.selectVisibilityTarget(row.target);
+  }
+
   function toggleBodyHighlight(row: WorkbenchVisibilityRowSnapshot): void {
     if (row.target.kind === "body") workbench?.commands.toggleBodyHighlight(row.target);
   }
@@ -66,8 +70,8 @@
   }
 
   function toggleExpanded(row: WorkbenchVisibilityRowSnapshot): void {
-    if (row.target.kind === "assembly") {
-      workbench?.commands.toggleVisibilityTree(row.target.occurrenceId);
+    if (row.target.kind === "assemblyOccurrence") {
+      workbench?.commands.toggleVisibilityTree(row.target.assemblyOccurrenceId);
     }
   }
 
@@ -137,11 +141,11 @@
         hidden={row.hidden}
         role="treeitem"
         data-visibility-target-kind={row.kind}
-        data-visibility-target-part-occurrence-id={row.target.kind === "assembly"
+        data-visibility-target-part-occurrence-id={row.target.kind === "assemblyOccurrence"
           ? undefined
           : row.target.partOccurrenceId}
-        data-visibility-target-occurrence-id={row.target.kind === "assembly"
-          ? row.target.occurrenceId
+        data-visibility-target-occurrence-id={row.target.kind === "assemblyOccurrence"
+          ? row.target.assemblyOccurrenceId
           : undefined}
         data-visibility-target-body-id={row.target.kind === "body" ? row.target.bodyId : undefined}
         aria-level={row.depth}
@@ -149,7 +153,7 @@
         aria-setsize={row.setSize}
         aria-checked={row.checked}
         aria-hidden={row.hidden}
-        aria-selected="false"
+        aria-selected={row.selected}
         tabindex="-1"
         aria-expanded={row.kind === "assembly" ? row.expanded : undefined}
         onpointerenter={() => setHierarchyHover(row)}
@@ -180,8 +184,8 @@
             checked={row.checked}
             disabled={row.disabled}
             data-testid={row.testId}
-            data-assembly-occurrence-id={row.target.kind === "assembly"
-              ? row.target.occurrenceId
+            data-assembly-occurrence-id={row.target.kind === "assemblyOccurrence"
+              ? row.target.assemblyOccurrenceId
               : undefined}
             data-part-occurrence-id={row.target.kind === "partOccurrence"
               ? row.target.partOccurrenceId
@@ -196,6 +200,14 @@
             <span class="visibility-label" title={row.label}>{row.label}</span>
           {/if}
         </label>
+        <button
+          type="button"
+          class="visibility-select"
+          data-testid={`visibility-select-${row.testId}`}
+          aria-label={`${row.selected ? "Deselect" : "Select"} ${row.label}`}
+          aria-pressed={row.selected}
+          onclick={() => selectRow(row)}>{row.selected ? "●" : "○"}</button
+        >
         {#if row.kind === "body"}
           {#if row.elementCount !== undefined && row.elementCount > 0}
             <button

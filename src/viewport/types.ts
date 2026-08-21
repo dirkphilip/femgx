@@ -129,6 +129,16 @@ export interface ViewportInteraction {
   /** Resolves unique visible targets intersecting a canvas-space rectangle. */
   pickRegion(
     rect: BoxSelectionRect,
+    granularity: "assembly",
+  ): Promise<readonly InteractionTargetFor<"assembly">[]>;
+  /** Resolves visible assembly occurrences intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "assemblyOccurrence",
+  ): Promise<readonly InteractionTargetFor<"assemblyOccurrence">[]>;
+  /** Resolves unique visible targets intersecting a canvas-space rectangle. */
+  pickRegion(
+    rect: BoxSelectionRect,
     granularity: "part",
   ): Promise<readonly InteractionTargetFor<"part">[]>;
   /** Resolves visible placed-part occurrences intersecting a canvas-space rectangle. */

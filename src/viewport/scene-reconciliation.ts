@@ -27,11 +27,20 @@ export function reconcileInteractionState(
   const keepInstance = (partOccurrenceId: PartOccurrenceId): boolean =>
     identityFor(partOccurrenceId) !== undefined;
   const keepPart = (partId: PartId): boolean => parts.has(partId);
+  const keepAssembly = (assemblyId: number): boolean =>
+    runtime.getAssemblyNodeSlots(assemblyId).length > 0;
+  const keepAssemblyOccurrence = (id: string): boolean => runtime.getNodeSlot(id) !== undefined;
   const { hoveredTarget: previousHoveredTarget, ...dataWithoutHover } = data;
-  const nextHoveredTarget = targetInScene(previousHoveredTarget, keepPart, identityFor);
+  const nextHoveredTarget = targetInScene(
+    previousHoveredTarget,
+    keepPart,
+    keepAssembly,
+    keepAssemblyOccurrence,
+    identityFor,
+  );
   const nextWithoutHover: Omit<InteractionStateData, "hoveredTarget"> = {
     ...dataWithoutHover,
-    ...reconcilePartState(data, keepPart),
+    ...reconcilePartState(data, keepPart, keepAssembly, keepAssemblyOccurrence),
     ...reconcileOccurrenceState(data, identityFor, keepInstance),
   };
   const next: InteractionStateData =
@@ -44,8 +53,29 @@ export function reconcileInteractionState(
 function reconcilePartState(
   data: InteractionStateData,
   keepPart: (partId: PartId) => boolean,
-): Pick<InteractionStateData, "highlightedPartIds" | "selectedPartIds" | "partOverrides"> {
+  keepAssembly: (assemblyId: number) => boolean,
+  keepAssemblyOccurrence: (id: string) => boolean,
+): Pick<
+  InteractionStateData,
+  | "highlightedAssemblyIds"
+  | "highlightedAssemblyOccurrenceIds"
+  | "selectedAssemblyIds"
+  | "selectedAssemblyOccurrenceIds"
+  | "highlightedPartIds"
+  | "selectedPartIds"
+  | "partOverrides"
+> {
   return {
+    highlightedAssemblyIds: filterSet(data.highlightedAssemblyIds, keepAssembly),
+    highlightedAssemblyOccurrenceIds: filterSet(
+      data.highlightedAssemblyOccurrenceIds,
+      keepAssemblyOccurrence,
+    ),
+    selectedAssemblyIds: filterSet(data.selectedAssemblyIds, keepAssembly),
+    selectedAssemblyOccurrenceIds: filterSet(
+      data.selectedAssemblyOccurrenceIds,
+      keepAssemblyOccurrence,
+    ),
     highlightedPartIds: filterSet(data.highlightedPartIds, keepPart),
     selectedPartIds: filterSet(data.selectedPartIds, keepPart),
     partOverrides: filterMap(data.partOverrides, keepPart),
@@ -112,9 +142,15 @@ function reconcileOccurrenceState(
 function targetInScene(
   target: InteractionTarget | undefined,
   keepPart: (partId: PartId) => boolean,
+  keepAssembly: (assemblyId: number) => boolean,
+  keepAssemblyOccurrence: (id: string) => boolean,
   identityFor: (partOccurrenceId: PartOccurrenceId) => SceneIdentity | undefined,
 ): InteractionTarget | undefined {
   if (target === undefined) return undefined;
+  if (target.kind === "assembly") return keepAssembly(target.assemblyId) ? target : undefined;
+  if (target.kind === "assemblyOccurrence") {
+    return keepAssemblyOccurrence(target.assemblyOccurrenceId) ? target : undefined;
+  }
   if (target.kind === "part") return keepPart(target.partId) ? target : undefined;
   const owner = identityFor(target.partOccurrenceId);
   if (owner === undefined) return undefined;
@@ -221,7 +257,11 @@ function filterNested<K>(
 function sameInteractionData(left: InteractionStateData, right: InteractionStateData): boolean {
   return (
     left.highlightedPartIds === right.highlightedPartIds &&
+    left.highlightedAssemblyIds === right.highlightedAssemblyIds &&
+    left.highlightedAssemblyOccurrenceIds === right.highlightedAssemblyOccurrenceIds &&
     left.selectedPartIds === right.selectedPartIds &&
+    left.selectedAssemblyIds === right.selectedAssemblyIds &&
+    left.selectedAssemblyOccurrenceIds === right.selectedAssemblyOccurrenceIds &&
     left.highlightedPartOccurrenceIds === right.highlightedPartOccurrenceIds &&
     left.selectedPartOccurrenceIds === right.selectedPartOccurrenceIds &&
     left.selectedBodyIds === right.selectedBodyIds &&

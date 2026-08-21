@@ -123,6 +123,10 @@ export function elementBoxInteraction(
 function targetKey(target: InteractionTarget, probe: ViewportInteractionProbe | undefined): string {
   if (probe !== undefined) probe.targetKeyStrings += 1;
   switch (target.kind) {
+    case "assembly":
+      return `assembly:${target.assemblyId}`;
+    case "assemblyOccurrence":
+      return `assemblyOccurrence:${target.assemblyOccurrenceId}`;
     case "part":
       return `part:${target.partId}`;
     case "partOccurrence":

@@ -130,12 +130,14 @@
       data-testid="selection-granularity"
       aria-label="Selection granularity"
       aria-describedby="interaction-help"
-      title="Choose whether point and box selection targets parts, instances, bodies, elements, faces, nodes, or authored edges."
+      title="Choose whether point and box selection targets assemblies, parts, instances, bodies, elements, faces, nodes, or authored edges."
       value={snapshot?.toolbar.selectionGranularity ?? "element"}
       onchange={setSelectionGranularity}
     >
       <option value="part">Part</option>
       <option value="partOccurrence">Instance</option>
+      <option value="assembly">Assembly</option>
+      <option value="assemblyOccurrence">Assembly occurrence</option>
       <option value="body">Body</option>
       <option value="element">Element</option>
       <option value="face">Face</option>

@@ -1,5 +1,5 @@
 import type { Viewport } from "@/entries/root";
-import type { InteractionState } from "@/entries/interaction";
+import { isTargetSelected, type InteractionState } from "@/entries/interaction";
 import type { SceneOccurrences } from "@/entries/root";
 import type { DemoView } from "../viewport/view";
 import type { WorkbenchModel } from "../models/model";
@@ -172,6 +172,7 @@ function createVisibilityFeatures(
     bodyVisible: (partOccurrenceId, bodyId) => actions.bodyVisible(partOccurrenceId, bodyId),
     bodyHighlighted: (partOccurrenceId, bodyId) =>
       actions.bodyHighlighted(partOccurrenceId, bodyId),
+    targetSelected: (target) => isTargetSelected(options.interaction(), target),
     onChanged: options.publishSnapshot,
   });
   return { actions, panel };

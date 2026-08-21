@@ -1,14 +1,6 @@
 import { type Viewport } from "@/entries/root";
-import {
-  setTargetHovered,
-  setTargetsHighlighted,
-  type InteractionState,
-} from "@/entries/interaction";
-import {
-  interactionTargetsForRow,
-  visibilityRowTargetsEqual,
-  type VisibilityRowTarget,
-} from "../state/visibility-snapshot";
+import { setTargetHovered, type InteractionState } from "@/entries/interaction";
+import { visibilityRowTargetsEqual, type VisibilityRowTarget } from "../state/visibility-snapshot";
 import type { ViewportSlotId } from "../viewport/view";
 import type { ElementDetailHoverTarget, WorkbenchHoverOwner } from "../state/show-state";
 
@@ -42,10 +34,7 @@ export function setHierarchyHover(
     return;
   }
   owner.viewportSlots.clearHover();
-  owner.interaction = setTargetHovered(
-    owner.interaction,
-    target.kind === "assembly" ? undefined : target,
-  );
+  owner.interaction = setTargetHovered(owner.interaction, target);
   owner.hoverOwner = { kind: "hierarchy", row: target };
   owner.render();
 }
@@ -123,28 +112,11 @@ export function applyDisplayedInteraction(owner: WorkbenchHoverController): void
 }
 
 function displayedInteraction(owner: WorkbenchHoverController): InteractionState {
-  const hoverOwner = owner.hoverOwner;
-  if (hoverOwner?.kind !== "hierarchy" || hoverOwner.row.kind !== "assembly") {
-    return owner.interaction;
-  }
-  return setTargetsHighlighted(
-    owner.interaction,
-    interactionTargetsForRow(
-      activeViewport(owner)?.occurrences ?? ownerRuntime(owner),
-      hoverOwner.row,
-    ),
-    true,
-  );
+  return owner.interaction;
 }
 
 function activeViewport(owner: WorkbenchHoverController): Viewport | undefined {
   return owner.activeViewport?.() ?? owner.viewports?.()[0];
-}
-
-function ownerRuntime(owner: WorkbenchHoverController): Viewport["occurrences"] {
-  const viewport = activeViewport(owner);
-  if (viewport === undefined) throw new Error("Workbench hover has no viewport");
-  return viewport.occurrences;
 }
 
 /** Reports whether a viewport slot still owns transient canvas hover. */

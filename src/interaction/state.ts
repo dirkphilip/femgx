@@ -1,4 +1,4 @@
-import type { ElementId, PartOccurrenceId } from "../scene/types";
+import type { AssemblyId, AssemblyOccurrenceId, ElementId, PartOccurrenceId } from "../scene/types";
 import type { NodeId } from "../elements/element";
 import type { EdgeKey } from "../elements/edges";
 import type { BodyId, PartId } from "../geometry/part";
@@ -135,8 +135,12 @@ export interface InteractionState {
 
 /** Private storage for the opaque interaction value. */
 export interface InteractionStateData {
+  readonly highlightedAssemblyIds: ReadonlySet<AssemblyId>;
+  readonly highlightedAssemblyOccurrenceIds: ReadonlySet<AssemblyOccurrenceId>;
   readonly highlightedPartIds: ReadonlySet<PartId>;
   readonly highlightedPartOccurrenceIds: ReadonlySet<PartOccurrenceId>;
+  readonly selectedAssemblyIds: ReadonlySet<AssemblyId>;
+  readonly selectedAssemblyOccurrenceIds: ReadonlySet<AssemblyOccurrenceId>;
   readonly selectedPartIds: ReadonlySet<PartId>;
   readonly selectedPartOccurrenceIds: ReadonlySet<PartOccurrenceId>;
   readonly selectedBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
@@ -229,6 +233,13 @@ function targetsEqual(
   if (left === undefined || right === undefined) return left === right;
   if (left.kind !== right.kind) return false;
   switch (left.kind) {
+    case "assembly":
+      return right.kind === "assembly" && left.assemblyId === right.assemblyId;
+    case "assemblyOccurrence":
+      return (
+        right.kind === "assemblyOccurrence" &&
+        left.assemblyOccurrenceId === right.assemblyOccurrenceId
+      );
     case "part":
       return right.kind === "part" && left.partId === right.partId;
     case "partOccurrence":

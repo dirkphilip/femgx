@@ -169,6 +169,10 @@ function section(label: string): WorkbenchMenuEntry {
 
 function targetLabel(target: SelectTarget): string {
   switch (target.kind) {
+    case "assembly":
+      return `Assembly ${target.assemblyId}`;
+    case "assemblyOccurrence":
+      return `Assembly occurrence ${target.assemblyOccurrenceId}`;
     case "body":
       return `Body ${target.bodyId}`;
     case "node":

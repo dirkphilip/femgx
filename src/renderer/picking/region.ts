@@ -210,7 +210,19 @@ function regionTargetsChangedError(): WebGpuPickReadbackError {
 }
 
 function assertGranularity(value: InteractionGranularity): void {
-  if (!["part", "partOccurrence", "body", "element", "face", "node", "edge"].includes(value)) {
+  if (
+    ![
+      "assembly",
+      "assemblyOccurrence",
+      "part",
+      "partOccurrence",
+      "body",
+      "element",
+      "face",
+      "node",
+      "edge",
+    ].includes(value)
+  ) {
     throw new TypeError(`Unsupported pick-region granularity: ${value}`);
   }
 }
@@ -267,6 +279,8 @@ function regionTextures(pick: PickTargets): RegionTextures | undefined {
 
 function attachmentsFor(granularity: InteractionGranularity): readonly RegionAttachment[] {
   switch (granularity) {
+    case "assembly":
+    case "assemblyOccurrence":
     case "part":
     case "partOccurrence":
       return ["instance"];

@@ -11,6 +11,8 @@ import type { InteractionTarget } from "./target-types";
 /** Bounded aggregate selection metadata for presentation-level queries. */
 export interface SelectedTargetSummary {
   readonly count: number;
+  readonly assemblyIds: ReadonlySet<number>;
+  readonly assemblyOccurrenceIds: ReadonlySet<string>;
   readonly partIds: ReadonlySet<number>;
   readonly partOccurrenceIds: ReadonlySet<string>;
 }
@@ -64,7 +66,13 @@ export function selectedTargetSummary(state: InteractionState): SelectedTargetSu
   ]) {
     for (const partOccurrenceId of groups.keys()) partOccurrenceIds.add(partOccurrenceId);
   }
-  return { count: selectedTargetCount(state), partIds: data.selectedPartIds, partOccurrenceIds };
+  return {
+    count: selectedTargetCount(state),
+    assemblyIds: data.selectedAssemblyIds,
+    assemblyOccurrenceIds: data.selectedAssemblyOccurrenceIds,
+    partIds: data.selectedPartIds,
+    partOccurrenceIds,
+  };
 }
 
 /** Counts all selected targets, or only targets of one interaction kind. */
@@ -75,15 +83,25 @@ export function selectedTargetCount(
   const data = readInteractionState(state);
   if (kind === "part") return data.selectedPartIds.size;
   if (kind === "partOccurrence") return data.selectedPartOccurrenceIds.size;
-  const nested = {
-    body: data.selectedBodyIds,
-    element: data.selectedElementIds,
-    face: data.selectedFaces,
-    node: data.selectedNodeIds,
-    edge: data.selectedEdges,
-  };
-  if (kind !== undefined) return nestedValueCount(nested[kind]);
-  let count = data.selectedPartIds.size + data.selectedPartOccurrenceIds.size;
+  if (kind === "assembly") return data.selectedAssemblyIds.size;
+  if (kind === "assemblyOccurrence") return data.selectedAssemblyOccurrenceIds.size;
+  if (kind === "body") return nestedValueCount(data.selectedBodyIds);
+  if (kind === "element") return nestedValueCount(data.selectedElementIds);
+  if (kind === "face") return nestedValueCount(data.selectedFaces);
+  if (kind === "node") return nestedValueCount(data.selectedNodeIds);
+  if (kind === "edge") return nestedValueCount(data.selectedEdges);
+  const nested: ReadonlyArray<ReadonlyMap<string, { readonly size: number }>> = [
+    data.selectedBodyIds,
+    data.selectedElementIds,
+    data.selectedFaces,
+    data.selectedNodeIds,
+    data.selectedEdges,
+  ];
+  let count =
+    data.selectedAssemblyIds.size +
+    data.selectedAssemblyOccurrenceIds.size +
+    data.selectedPartIds.size +
+    data.selectedPartOccurrenceIds.size;
   for (const groups of Object.values(nested)) count += nestedValueCount(groups);
   return count;
 }
@@ -98,6 +116,12 @@ function nestedValueCount(groups: ReadonlyMap<string, { readonly size: number }>
 export function selectedTargets(state: InteractionState): InteractionTarget[] {
   const data = readInteractionState(state);
   const targets: InteractionTarget[] = [];
+  for (const assemblyId of [...data.selectedAssemblyIds].sort((a, b) => a - b)) {
+    targets.push({ kind: "assembly", assemblyId });
+  }
+  for (const assemblyOccurrenceId of [...data.selectedAssemblyOccurrenceIds].sort()) {
+    targets.push({ kind: "assemblyOccurrence", assemblyOccurrenceId });
+  }
   for (const partId of [...data.selectedPartIds].sort((a, b) => a - b)) {
     targets.push({ kind: "part", partId });
   }
@@ -167,6 +191,8 @@ export function clearSelection(state: InteractionState): InteractionState {
   const data = readInteractionState(state);
   if (
     data.selectedPartIds.size === 0 &&
+    data.selectedAssemblyIds.size === 0 &&
+    data.selectedAssemblyOccurrenceIds.size === 0 &&
     data.selectedPartOccurrenceIds.size === 0 &&
     data.selectedBodyIds.size === 0 &&
     data.selectedElementIds.size === 0 &&
@@ -177,6 +203,8 @@ export function clearSelection(state: InteractionState): InteractionState {
     return state;
   }
   return updateInteractionState(state, {
+    selectedAssemblyIds: new Set(),
+    selectedAssemblyOccurrenceIds: new Set(),
     selectedPartIds: new Set(),
     selectedPartOccurrenceIds: new Set(),
     selectedBodyIds: new Map(),

@@ -90,6 +90,8 @@ describe("InteractionTarget helpers", () => {
     for (const target of targets) expect(isTargetSelected(state, target)).toBe(true);
     expect(selectedTargetSummary(state)).toEqual({
       count: targets.length,
+      assemblyIds: new Set(),
+      assemblyOccurrenceIds: new Set(),
       partIds: new Set([1]),
       partOccurrenceIds: new Set(["1/0"]),
     });

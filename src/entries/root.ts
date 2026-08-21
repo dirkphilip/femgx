@@ -82,7 +82,13 @@ export type {
   PartOccurrenceId,
 } from "../scene/types";
 export { InteractionGranularity } from "../picking/types";
-export type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "../picking/types";
+export type {
+  EdgePickHit,
+  FacePickHit,
+  NodePickHit,
+  PickAssemblyPathEntry,
+  PickHit,
+} from "../picking/types";
 export {
   identityMatrix,
   multiplyMatrices,

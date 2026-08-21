@@ -8,6 +8,7 @@ import { transformPoint } from "../math/mat4";
 import type { DeformationState } from "../results/deform";
 import { resultBindingValue } from "../results/bindings";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import { instanceMatchesAssemblyTarget } from "../scene-runtime/interaction-hierarchy";
 import type { Scene } from "../scene/scene";
 import {
   displayedPartBounds,
@@ -27,6 +28,16 @@ interface SceneNavigationBoundsSnapshot extends SceneNavigationBounds {
   readonly scene: Scene;
   readonly runtime: PackedSceneRuntime;
   readonly deformation: DeformationState | undefined;
+}
+
+interface SelectedBoundsTargets {
+  readonly instances: Map<
+    string,
+    Exclude<InteractionTarget, { kind: "part" | "assembly" | "assemblyOccurrence" }>[]
+  >;
+  readonly partIds: ReadonlySet<number>;
+  readonly assemblyIds: ReadonlySet<number>;
+  readonly assemblyOccurrenceIds: ReadonlySet<string>;
 }
 
 /** Caches geometry-derived navigation bounds between authoritative scene changes. */
@@ -144,17 +155,7 @@ export function selectedSceneBounds(
   interaction: InteractionState,
   deformation?: DeformationState,
 ): Bounds | undefined {
-  const selectedInstances = new Map<string, Exclude<InteractionTarget, { kind: "part" }>[]>();
-  const selectedParts = new Set<number>();
-  for (const target of selectedTargets(interaction)) {
-    if (target.kind === "part") {
-      selectedParts.add(target.partId);
-      continue;
-    }
-    const targets = selectedInstances.get(target.partOccurrenceId) ?? [];
-    targets.push(target);
-    selectedInstances.set(target.partOccurrenceId, targets);
-  }
+  const selected = collectSelectedBoundsTargets(interaction);
   const bounds = emptyBounds();
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     if (!runtime.isInstanceVisible(slot)) continue;
@@ -167,12 +168,24 @@ export function selectedSceneBounds(
       partId === undefined
         ? deformation
         : occurrenceDeformation(deformation, partId, partOccurrenceId);
-    if (partId !== undefined && selectedParts.has(partId)) {
+    if (
+      instanceMatchesAssemblyTarget(
+        runtime,
+        slot,
+        selected.assemblyIds,
+        selected.assemblyOccurrenceIds,
+      )
+    ) {
+      const partBounds = displayedPartBounds(part, localDeformation);
+      if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
+      continue;
+    }
+    if (partId !== undefined && selected.partIds.has(partId)) {
       const partBounds = displayedPartBounds(part, localDeformation);
       if (partBounds !== undefined) includeBounds(bounds, partBounds, transform);
     }
     const targets =
-      partOccurrenceId === undefined ? undefined : selectedInstances.get(partOccurrenceId);
+      partOccurrenceId === undefined ? undefined : selected.instances.get(partOccurrenceId);
     if (targets === undefined) continue;
     if (targets.some((target) => target.kind === "partOccurrence")) {
       const partBounds = displayedPartBounds(part, localDeformation);
@@ -186,6 +199,30 @@ export function selectedSceneBounds(
     }
   }
   return isFiniteBounds(bounds) ? bounds : undefined;
+}
+
+function collectSelectedBoundsTargets(interaction: InteractionState): SelectedBoundsTargets {
+  const instances = new Map<
+    string,
+    Exclude<InteractionTarget, { kind: "part" | "assembly" | "assemblyOccurrence" }>[]
+  >();
+  const partIds = new Set<number>();
+  const assemblyIds = new Set<number>();
+  const assemblyOccurrenceIds = new Set<string>();
+  for (const target of selectedTargets(interaction)) {
+    if (target.kind === "part") {
+      partIds.add(target.partId);
+    } else if (target.kind === "assembly") {
+      assemblyIds.add(target.assemblyId);
+    } else if (target.kind === "assemblyOccurrence") {
+      assemblyOccurrenceIds.add(target.assemblyOccurrenceId);
+    } else {
+      const targets = instances.get(target.partOccurrenceId) ?? [];
+      targets.push(target);
+      instances.set(target.partOccurrenceId, targets);
+    }
+  }
+  return { instances, partIds, assemblyIds, assemblyOccurrenceIds };
 }
 
 function occurrenceDeformation(

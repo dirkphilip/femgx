@@ -5,12 +5,20 @@ import type { Geometry, Part } from "../geometry/part";
 import type { GeometryFaces } from "../geometry/semantic/geometry-semantic-capabilities";
 import type { PartId } from "../geometry/part";
 import type { PartOccurrence } from "../scene/types";
-import type { EdgePickHit, FacePickHit, NodePickHit, PickHit } from "./types";
+import type {
+  EdgePickHit,
+  FacePickHit,
+  NodePickHit,
+  PickAssemblyPathEntry,
+  PickHit,
+} from "./types";
 
 /** The inputs every pick resolution needs: the drawn instances and their parts. */
 export interface PickContext {
   readonly instances: readonly (PartOccurrence | undefined)[];
   readonly parts: ReadonlyMap<PartId, Part>;
+  /** Resolves the root-to-direct-owner assembly path for one instance slot. */
+  readonly assemblyPath?: (instanceSlot: number) => readonly PickAssemblyPathEntry[];
 }
 
 /** The pick ids decoded from a GPU pick pixel (all 1-based, `0` = no hit). */
@@ -47,7 +55,13 @@ export function resolvePickHit(
     return undefined;
   }
   const part = context.parts.get(instance.partId);
-  return deepestHit(instance, part, ids, worldPosition);
+  return deepestHit(
+    instance,
+    part,
+    ids,
+    worldPosition,
+    context.assemblyPath?.(ids.instancePickId - 1) ?? [],
+  );
 }
 
 /** Resolves one private edge id after the optional authored-edge pick pass. */
@@ -78,6 +92,7 @@ export function resolveEdgePickHit(
   const length = Math.hypot(delta[0], delta[1], delta[2]);
   return {
     kind: "edge",
+    ...pathFields(context.assemblyPath?.(instancePickId - 1) ?? []),
     partId: instance.partId,
     partOccurrenceId: instance.partOccurrenceId,
     key: edge.key,
@@ -109,6 +124,7 @@ function deepestHit(
   part: Part | undefined,
   ids: ResolvedPickIds,
   worldPosition: Vec3,
+  assemblyPath: readonly PickAssemblyPathEntry[],
 ): PickHit {
   const semantic = part === undefined ? undefined : getPartSemanticIndex(part);
   const triangleGeometry = part?.geometries.find((geometry) => geometry.primitive === "triangles");
@@ -118,6 +134,7 @@ function deepestHit(
       if (elementId !== undefined) {
         return {
           kind: "element",
+          ...pathFields(assemblyPath),
           partId: instance.partId,
           partOccurrenceId: instance.partOccurrenceId,
           elementId,
@@ -125,20 +142,28 @@ function deepestHit(
           worldPosition,
         };
       }
-      return instanceHit(instance, worldPosition);
+      return instanceHit(instance, worldPosition, assemblyPath);
     }
-    return nodeHit(instance, part, semantic, ids, worldPosition);
+    return nodeHit({ instance, part, semantic, ids, worldPosition, assemblyPath });
   }
   if (part !== undefined && triangleGeometry?.primitive === "triangles" && ids.facePickId > 0) {
-    return faceHit(instance, part, triangleGeometry, ids, worldPosition);
+    return faceHit({
+      instance,
+      part,
+      geometry: triangleGeometry,
+      ids,
+      worldPosition,
+      assemblyPath,
+    });
   }
   if (ids.elementPickId > 0) {
     const elementId = elementIdFromPick(semantic, ids.elementPickId);
     if (elementId === undefined) {
-      return instanceHit(instance, worldPosition);
+      return instanceHit(instance, worldPosition, assemblyPath);
     }
     return {
       kind: "element",
+      ...pathFields(assemblyPath),
       partId: instance.partId,
       partOccurrenceId: instance.partOccurrenceId,
       elementId,
@@ -147,13 +172,18 @@ function deepestHit(
     };
   }
   return {
-    ...instanceHit(instance, worldPosition),
+    ...instanceHit(instance, worldPosition, assemblyPath),
   };
 }
 
-function instanceHit(instance: PartOccurrence, worldPosition: Vec3): PickHit {
+function instanceHit(
+  instance: PartOccurrence,
+  worldPosition: Vec3,
+  assemblyPath: readonly PickAssemblyPathEntry[],
+): PickHit {
   return {
     kind: "partOccurrence",
+    ...pathFields(assemblyPath),
     partId: instance.partId,
     partOccurrenceId: instance.partOccurrenceId,
     worldPosition,
@@ -164,13 +194,15 @@ function validNodeId(semantic: PartSemanticIndex, nodeId: number): boolean {
   return Number.isInteger(nodeId) && nodeId >= 0 && nodeId < semantic.nodeCount;
 }
 
-function nodeHit(
-  instance: PartOccurrence,
-  part: Part,
-  semantic: PartSemanticIndex,
-  ids: ResolvedPickIds,
-  worldPosition: Vec3,
-): NodePickHit {
+function nodeHit(input: {
+  readonly instance: PartOccurrence;
+  readonly part: Part;
+  readonly semantic: PartSemanticIndex;
+  readonly ids: ResolvedPickIds;
+  readonly worldPosition: Vec3;
+  readonly assemblyPath: readonly PickAssemblyPathEntry[];
+}): NodePickHit {
+  const { instance, part, semantic, ids, worldPosition, assemblyPath } = input;
   const nodeId = ids.nodePickId - 1;
   const localPosition = nodePosition(part.nodePositions, nodeId);
   const elementId = elementIdFromPick(semantic, ids.elementPickId);
@@ -179,6 +211,7 @@ function nodeHit(
   const adjacency = indexedPartAdjacency(semantic, faces, nodeId);
   return {
     kind: "node",
+    ...pathFields(assemblyPath),
     partId: instance.partId,
     partOccurrenceId: instance.partOccurrenceId,
     ...(elementId === undefined ? {} : { elementId }),
@@ -200,13 +233,15 @@ function elementIdFromPick(
   return semantic?.hasElement(elementId) === true ? elementId : undefined;
 }
 
-function faceHit(
-  instance: PartOccurrence,
-  part: Part,
-  geometry: Extract<Geometry, { primitive: "triangles" }>,
-  ids: ResolvedPickIds,
-  worldPosition: Vec3,
-): FacePickHit {
+function faceHit(input: {
+  readonly instance: PartOccurrence;
+  readonly part: Part;
+  readonly geometry: Extract<Geometry, { primitive: "triangles" }>;
+  readonly ids: ResolvedPickIds;
+  readonly worldPosition: Vec3;
+  readonly assemblyPath: readonly PickAssemblyPathEntry[];
+}): FacePickHit {
+  const { instance, part, geometry, ids, worldPosition, assemblyPath } = input;
   const faceId = ids.facePickId - 1;
   const face = geometry.faces?.at(faceId);
   if (face === undefined) {
@@ -218,6 +253,7 @@ function faceHit(
   );
   return {
     kind: "face",
+    ...pathFields(assemblyPath),
     partId: instance.partId,
     partOccurrenceId: instance.partOccurrenceId,
     elementId: face.elementId,
@@ -229,6 +265,12 @@ function faceHit(
     worldPosition,
     normal: polygonNormal(worldPoints),
   };
+}
+
+function pathFields(assemblyPath: readonly PickAssemblyPathEntry[]): {
+  readonly assemblyPath?: readonly PickAssemblyPathEntry[];
+} {
+  return assemblyPath.length === 0 ? {} : { assemblyPath };
 }
 
 function bodyFields(

@@ -2,7 +2,7 @@ import type { Camera } from "../../camera/camera";
 import type { Part, PartId } from "../../geometry/part";
 import type { BoxSelectionRect } from "../../interaction/box-selection";
 import type { InteractionTarget } from "../../interaction/target-types";
-import type { PickHit } from "../../picking/types";
+import type { PickAssemblyPathEntry, PickHit } from "../../picking/types";
 import type { PartOccurrence } from "../../scene/types";
 import { resolveEdgePickHit } from "../../picking/pick";
 import { encodeEdgePickSnapshot } from "./edge-pick-frame";
@@ -12,6 +12,8 @@ import { pickWorldPosition, readEdgePickPixel } from "../picking/pick";
 import { pickEdgeTargetsFromRegion } from "../picking/region";
 import type { GpuValidationOptions } from "../diagnostics/validation";
 import { getPartResource } from "../resources/draw-resources";
+import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
+import { assemblyPathForInstance } from "../picking/assembly-path";
 
 export interface EdgePickState {
   snapshotValid: boolean;
@@ -25,18 +27,29 @@ export interface EdgePickContext {
   readonly camera: Camera;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly instances: readonly (PartOccurrence | undefined)[];
+  readonly runtime: PackedSceneRuntime | undefined;
   readonly frame: () => FrameOptions;
 }
 
+interface EdgePickContextOptions {
+  readonly state: EdgePickState;
+  readonly camera: Camera;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly instances: readonly (PartOccurrence | undefined)[];
+  readonly frame: () => FrameOptions;
+  readonly runtime?: PackedSceneRuntime | undefined;
+}
+
 /** Creates a read-only edge-picking context from the current renderer state. */
-export function createEdgePickContext(
-  state: EdgePickState,
-  camera: Camera,
-  parts: ReadonlyMap<PartId, Part>,
-  instances: readonly (PartOccurrence | undefined)[],
-  frame: () => FrameOptions,
-): EdgePickContext {
-  return { state, camera, parts, instances, frame };
+export function createEdgePickContext(options: EdgePickContextOptions): EdgePickContext {
+  return {
+    state: options.state,
+    camera: options.camera,
+    parts: options.parts,
+    instances: options.instances,
+    frame: options.frame,
+    runtime: options.runtime,
+  };
 }
 
 /** Creates the optional edge-picking lifecycle state. */
@@ -67,8 +80,13 @@ export async function pickEdgePixel(
   if (ids.instancePickId === 0 || ids.ndcDepth >= 1) return undefined;
   const edgeKey = edgeKeyForPickId(context, ids.instancePickId, edgePickId);
   if (edgeKey === undefined) return undefined;
+  const assemblyPath = assemblyPathResolver(context.runtime);
   return resolveEdgePickHit(
-    { instances: context.instances, parts: context.parts },
+    {
+      instances: context.instances,
+      parts: context.parts,
+      ...(assemblyPath === undefined ? {} : { assemblyPath }),
+    },
     ids.instancePickId,
     edgeKey,
     pickWorldPosition(frame.canvas, context.camera, x, y, ids.ndcDepth),
@@ -82,15 +100,26 @@ export async function pickEdgeRegion(
 ): Promise<readonly InteractionTarget[]> {
   await ensureEdgePickSnapshot(context);
   const frame = context.frame();
+  const assemblyPath = assemblyPathResolver(context.runtime);
   return pickEdgeTargetsFromRegion({
     device: frame.device,
     canvas: frame.canvas,
     pick: frame.pickTargets,
     readback: frame.pickTargets.readback,
-    context: { instances: context.instances, parts: context.parts },
+    context: {
+      instances: context.instances,
+      parts: context.parts,
+      ...(assemblyPath === undefined ? {} : { assemblyPath }),
+    },
     draw: frame.draw,
     rect,
   });
+}
+
+function assemblyPathResolver(
+  runtime: PackedSceneRuntime | undefined,
+): ((instanceSlot: number) => readonly PickAssemblyPathEntry[]) | undefined {
+  return runtime === undefined ? undefined : (slot) => assemblyPathForInstance(runtime, slot);
 }
 
 async function ensureEdgePickSnapshot(context: EdgePickContext): Promise<void> {

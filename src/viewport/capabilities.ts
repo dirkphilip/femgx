@@ -86,6 +86,14 @@ class ViewportInteractionCapability implements ViewportInteraction {
   }
   pickRegion(
     rect: BoxSelectionRect,
+    granularity: "assembly",
+  ): Promise<readonly InteractionTargetFor<"assembly">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
+    granularity: "assemblyOccurrence",
+  ): Promise<readonly InteractionTargetFor<"assemblyOccurrence">[]>;
+  pickRegion(
+    rect: BoxSelectionRect,
     granularity: "part",
   ): Promise<readonly InteractionTargetFor<"part">[]>;
   pickRegion(

@@ -14,6 +14,7 @@ import { VisibilityHierarchy } from "./visibility-hierarchy";
 import type {
   WorkbenchVisibilityRowSnapshot,
   WorkbenchVisibilitySnapshot,
+  VisibilityRowTarget,
 } from "./visibility-snapshot";
 
 /** Callbacks that keep the runtime as the single source of visibility truth. */
@@ -24,6 +25,7 @@ export interface VisibilityPanelOptions {
   readonly partVisible: (partId: PartId) => boolean;
   readonly bodyVisible: (partOccurrenceId: PartOccurrenceId, bodyId: BodyId) => boolean;
   readonly bodyHighlighted: (partOccurrenceId: PartOccurrenceId, bodyId: BodyId) => boolean;
+  readonly targetSelected: (target: VisibilityRowTarget) => boolean;
   readonly onChanged: () => void;
 }
 
@@ -123,7 +125,7 @@ export class VisibilityPanelController {
     rows.push(() =>
       row({
         key: `assembly:${occurrenceId}`,
-        target: { kind: "assembly", occurrenceId },
+        target: { kind: "assemblyOccurrence", assemblyOccurrenceId: occurrenceId },
         kind: "assembly",
         depth: layout.depth,
         label: displayName,
@@ -134,6 +136,10 @@ export class VisibilityPanelController {
         expanded,
         expandable: childCount > 0,
         highlighted: false,
+        selected: this.options.targetSelected({
+          kind: "assemblyOccurrence",
+          assemblyOccurrenceId: occurrenceId,
+        }),
         hidden: layout.hidden,
         position: layout.position,
         setSize: layout.setSize,
@@ -225,6 +231,7 @@ export class VisibilityPanelController {
         expanded: (bodies?.count ?? 0) > 0,
         expandable: (bodies?.count ?? 0) > 0,
         highlighted: false,
+        selected: this.options.targetSelected({ kind: "partOccurrence", partOccurrenceId }),
         hidden: layout.hidden,
         position: layout.position,
         setSize: layout.setSize,
@@ -271,6 +278,7 @@ export class VisibilityPanelController {
         expanded: false,
         expandable: false,
         highlighted: this.options.bodyHighlighted(partOccurrenceId, body.id),
+        selected: this.options.targetSelected({ kind: "body", partOccurrenceId, bodyId: body.id }),
         elementCount: this.elementCount(input.part, body.id),
         hidden: layout.hidden,
         position: layout.position,

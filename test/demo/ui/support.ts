@@ -155,7 +155,7 @@ function createSnapshot(
 function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
   const assembly: WorkbenchVisibilityRowSnapshot = {
     key: "assembly:1",
-    target: { kind: "assembly", occurrenceId: "1" },
+    target: { kind: "assemblyOccurrence", assemblyOccurrenceId: "1" },
     kind: "assembly",
     depth: 1,
     label: "Root",
@@ -167,6 +167,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     expanded: false,
     expandable: true,
     highlighted: false,
+    selected: false,
     hidden: false,
     position: 1,
     setSize: 1,
@@ -186,6 +187,7 @@ function visibilitySnapshot(): WorkbenchSnapshot["hierarchy"]["visibility"] {
     expanded: false,
     expandable: false,
     highlighted: false,
+    selected: false,
     elementCount: 2,
     hidden: false,
     position: 1,
