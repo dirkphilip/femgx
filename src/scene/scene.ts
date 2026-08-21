@@ -153,31 +153,41 @@ function validateAssemblyRegistry(
   parts: ReadonlyMap<PartId, Part>,
 ): void {
   for (const [key, assembly] of assemblies) {
-    validateAssemblyId(key, "AssemblyDefinition");
-    if (assembly.id !== key) {
+    validateAssemblyDefinition(key, assembly, parts, assemblies);
+  }
+}
+
+/** Validates one changed reusable assembly definition at the authoring boundary. */
+export function validateAssemblyDefinition(
+  key: AssemblyId,
+  assembly: AssemblyDefinition,
+  parts: ReadonlyMap<PartId, Part>,
+  assemblies: ReadonlyMap<AssemblyId, AssemblyDefinition>,
+): void {
+  validateAssemblyId(key, "AssemblyDefinition");
+  if (assembly.id !== key) {
+    throw new Error(
+      `AssemblyDefinition registry key ${key} does not match assembly id ${assembly.id}`,
+    );
+  }
+  const placementIds = new Map<string, number>();
+  for (let index = 0; index < assembly.placements.length; index++) {
+    const placement = assembly.placements[index];
+    if (placement === undefined) {
+      throw new TypeError(`AssemblyDefinition ${assembly.id} placement ${index} is missing`);
+    }
+    const placementIdValue = (placement as { readonly placementId?: unknown }).placementId;
+    const placementId = placementIdValue === undefined ? String(index) : placementIdValue;
+    validatePlacementId(placementId, assembly.id, index);
+    if (placementIds.has(placementId)) {
       throw new Error(
-        `AssemblyDefinition registry key ${key} does not match assembly id ${assembly.id}`,
+        `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placementId}`,
       );
     }
-    const placementIds = new Map<string, number>();
-    for (let index = 0; index < assembly.placements.length; index++) {
-      const placement = assembly.placements[index];
-      if (placement === undefined) {
-        throw new TypeError(`AssemblyDefinition ${assembly.id} placement ${index} is missing`);
-      }
-      const placementIdValue = (placement as { readonly placementId?: unknown }).placementId;
-      const placementId = placementIdValue === undefined ? String(index) : placementIdValue;
-      validatePlacementId(placementId, assembly.id, index);
-      if (placementIds.has(placementId)) {
-        throw new Error(
-          `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placementId}`,
-        );
-      }
-      placementIds.set(placementId, index);
-      validatePlacement(placement, parts, assemblies, assembly.id, index);
-    }
-    cachePlacementIndex(assembly, placementIds);
+    placementIds.set(placementId, index);
+    validatePlacement(placement, parts, assemblies, assembly.id, index);
   }
+  cachePlacementIndex(assembly, placementIds);
 }
 
 function validatePlacementId(

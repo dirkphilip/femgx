@@ -1,7 +1,6 @@
 import type { PartId } from "../geometry/part";
 import type { AssemblyId } from "../scene/types";
 import type { RuntimeState } from "./compile";
-import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
 
 /** Result of a visibility update, compacted to renderer-owned part batches. */
@@ -147,7 +146,7 @@ export function setAssemblyNodeVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  if (nodeId < 0 || nodeId >= state.nodeCount) {
+  if (nodeId < 0 || nodeId >= state.nodeCount || state.nodeActive[nodeId] !== 1) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
@@ -209,19 +208,13 @@ export function setAssemblyVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  const range = findGroupRange(
-    state.sortedAssemblyIds,
-    state.assemblyNodeOffset,
-    state.assemblyNodeList.length,
-    assemblyId,
-  );
-  if (range === undefined) {
+  const nodes = state.assemblyNodeGroups.slots(assemblyId);
+  if (nodes.length === 0) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   const affected = new Set<PartId>();
-  for (let index = range[0]; index < range[1]; index++) {
-    const node = invariantValue(state.assemblyNodeList[index], `assembly node at ${index}`);
+  for (const node of nodes) {
     if (state.nodeAssemblyVisible[node] === flag) {
       continue;
     }

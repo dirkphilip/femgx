@@ -3,8 +3,13 @@ import { validateScene, type Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
-import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
+import {
+  addRuntimeAssemblyNode,
+  removeRuntimeAssemblyNodes,
+  setRuntimeNodeChildren,
+  type RuntimeAssemblyNodeInput,
+} from "./node-storage";
 import {
   getDrawList as computeDrawList,
   setAssemblyNodeVisible,
@@ -65,6 +70,12 @@ interface RuntimeMethods {
   removeInstances(instanceIds: readonly number[]): void;
   /** Replaces one active expanded placement in its existing stable slot. */
   updateInstance(instanceId: number, input: RuntimeInstanceInput): void;
+  /** Adds one expanded assembly node and returns its retained slot. */
+  addAssemblyNode(input: RuntimeAssemblyNodeInput): number;
+  /** Removes already-unlinked expanded assembly nodes. */
+  removeAssemblyNodes(nodeIds: readonly number[]): void;
+  /** Replaces one node's direct assembly-child sequence. */
+  setNodeChildren(nodeId: number, children: readonly number[]): void;
 }
 
 export interface RuntimeInstanceInput {
@@ -75,6 +86,9 @@ export interface RuntimeInstanceInput {
   readonly overrideVisible: boolean;
   readonly worldTransform: Mat4;
 }
+
+/** Private input used while committing a prepared assembly-subtree expansion. */
+export type { RuntimeAssemblyNodeInput } from "./node-storage";
 
 /** Packed scene storage plus internal behavior and stable identity indexes. */
 export type PackedSceneRuntime = RuntimeState & RuntimeMethods;
@@ -88,7 +102,7 @@ function matrixView(transforms: Float32Array, count: number, index: number): Mat
 
 interface RuntimeMaps {
   readonly instanceSlots: Map<PartOccurrenceId, number>;
-  readonly nodeSlots: ReadonlyMap<AssemblyOccurrenceId, number>;
+  readonly nodeSlots: Map<AssemblyOccurrenceId, number>;
 }
 
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
@@ -98,7 +112,8 @@ function runtimeMaps(state: RuntimeState): RuntimeMaps {
     if (instanceId !== undefined) instanceSlots.set(instanceId, slot);
   }
   const nodeSlots = new Map<AssemblyOccurrenceId, number>();
-  for (let node = 0; node < state.nodeNodeIds.length; node++) {
+  for (let node = 0; node < state.nodeCount; node++) {
+    if (state.nodeActive[node] !== 1) continue;
     const nodeId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
     nodeSlots.set(nodeId, node);
   }
@@ -133,6 +148,9 @@ type RuntimeQueries = Omit<
   | "addInstances"
   | "removeInstances"
   | "updateInstance"
+  | "addAssemblyNode"
+  | "removeAssemblyNodes"
+  | "setNodeChildren"
 >;
 
 function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQueries {
@@ -147,7 +165,9 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
       return maps.instanceSlots.get(instanceId);
     },
     getNodeId(nodeId: number): AssemblyOccurrenceId | undefined {
-      return state.nodeNodeIds[nodeId];
+      return nodeId >= 0 && nodeId < state.nodeCount && state.nodeActive[nodeId] === 1
+        ? state.nodeNodeIds[nodeId]
+        : undefined;
     },
     getNodeSlot(nodeId: AssemblyOccurrenceId): number | undefined {
       return maps.nodeSlots.get(nodeId);
@@ -159,12 +179,9 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
       return state.nodeInstanceGroups.slots(nodeId);
     },
     getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array {
-      return groupSlots(
-        state.sortedAssemblyIds,
-        state.assemblyNodeOffset,
-        state.assemblyNodeList,
-        assemblyId,
-      );
+      const slots = new Uint32Array(state.assemblyNodeGroups.slots(assemblyId));
+      slots.sort();
+      return slots;
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return isActive(state, instanceId)
@@ -183,16 +200,6 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
   };
 }
 
-function groupSlots(
-  sortedIds: Uint32Array,
-  offsets: Uint32Array,
-  slots: Uint32Array,
-  id: number,
-): Uint32Array {
-  const range = findGroupRange(sortedIds, offsets, slots.length, id);
-  return range === undefined ? new Uint32Array() : slots.subarray(range[0], range[1]);
-}
-
 function createRuntimeMutations(
   state: RuntimeState,
   maps: RuntimeMaps,
@@ -206,6 +213,9 @@ function createRuntimeMutations(
   | "addInstances"
   | "removeInstances"
   | "updateInstance"
+  | "addAssemblyNode"
+  | "removeAssemblyNodes"
+  | "setNodeChildren"
 > {
   return {
     setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
@@ -231,6 +241,15 @@ function createRuntimeMutations(
     },
     updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
       updateRuntimeInstance(state, instanceId, input);
+    },
+    addAssemblyNode(input: RuntimeAssemblyNodeInput): number {
+      return addRuntimeAssemblyNode(state, maps.nodeSlots, input);
+    },
+    removeAssemblyNodes(nodeIds: readonly number[]): void {
+      removeRuntimeAssemblyNodes(state, maps.nodeSlots, nodeIds);
+    },
+    setNodeChildren(nodeId: number, children: readonly number[]): void {
+      setRuntimeNodeChildren(state, nodeId, children);
     },
   };
 }

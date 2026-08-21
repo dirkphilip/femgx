@@ -7,6 +7,10 @@ import {
   applyOccurrenceMutations,
   prepareOccurrenceMutations,
 } from "../scene-runtime/occurrence-update";
+import {
+  applyHierarchyMutations,
+  prepareHierarchyMutations,
+} from "../scene-runtime/hierarchy-update";
 import type { Scene } from "../scene/scene";
 import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
 import { hasOnlyPartReplacementChanges } from "../scene/update-validation";
@@ -143,6 +147,15 @@ export class ViewportSceneController {
     if (occurrenceMutations !== undefined) {
       return this.applyOccurrenceUpdate(prepared.scene, occurrenceMutations, cancelCamera);
     }
+    const hierarchyMutations = prepareHierarchyMutations(
+      this.currentRuntime,
+      this.currentScene,
+      prepared.scene,
+      prepared.changes,
+    );
+    if (hierarchyMutations !== undefined) {
+      return this.applyHierarchyUpdate(prepared.scene, hierarchyMutations, cancelCamera);
+    }
     if (hasOnlyPartReplacementChanges(prepared.changes)) {
       return this.applyPartRevision(prepared.scene, prepared.changes.parts.replaced, cancelCamera);
     }
@@ -256,6 +269,52 @@ export class ViewportSceneController {
     }
     this.placedBounds.update(this.currentRuntime, changedSlots);
     this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
+    return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
+  }
+
+  private applyHierarchyUpdate(
+    scene: Scene,
+    mutations: NonNullable<ReturnType<typeof prepareHierarchyMutations>>,
+    cancelCamera: () => void,
+  ): SceneUpdateResult {
+    prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
+    cancelCamera();
+    const delta = applyHierarchyMutations(
+      this.currentRuntime,
+      scene,
+      mutations,
+      (partId, authoredVisible) => this.currentVisibility.isPartVisible(partId, authoredVisible),
+      (assemblyId, authoredVisible) =>
+        this.currentVisibility.isAssemblyVisible(assemblyId, authoredVisible),
+    );
+    this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
+    this.currentVisibility.pruneAssemblyOccurrences(delta.removedAssemblyOccurrenceIds);
+    this.currentVisibility.pruneParts(delta.removedPartIds);
+    this.currentVisibility.admitParts(scene, delta.addedPartIds);
+    this.currentVisibility.reconcileAssemblies(scene, mutations.changedAssemblyIds);
+    const nextInteraction = reconcileInteractionState(
+      this.baseInteraction,
+      this.currentRuntime,
+      scene.parts,
+    );
+    const resultUpdate = this.prepareSceneResults(scene, this.currentRuntime);
+    updateRendererOccurrences(
+      this.options.renderer,
+      this.currentRuntime,
+      nextInteraction,
+      delta,
+      scene.parts,
+    );
+    this.currentScene = scene;
+    this.baseInteraction = nextInteraction;
+    this.currentResults = resultUpdate.results;
+    this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
+    this.placedBounds.update(
+      this.currentRuntime,
+      delta.slots.map(({ slot }) => slot),
+    );
+    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
+    applyResolvedViewportResults(this.options.renderer, resultUpdate.results);
     return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
   }
 

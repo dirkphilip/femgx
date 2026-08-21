@@ -113,7 +113,7 @@ class PublicSceneOccurrences implements SceneOccurrences {
     return this.packed.rootAssemblyId;
   }
   get assemblyOccurrenceCount(): number {
-    return this.packed.nodeCount;
+    return this.packed.activeNodeCount;
   }
   get partOccurrenceCount(): number {
     return this.packed.activeInstanceCount;
@@ -125,7 +125,7 @@ class PublicSceneOccurrences implements SceneOccurrences {
     return activePartOccurrenceIdAt(this.packed, ordinal);
   }
   getAssemblyOccurrenceId(ordinal: number): AssemblyOccurrenceId | undefined {
-    return this.packed.getNodeId(ordinal);
+    return activeAssemblyOccurrenceIdAt(this.packed, ordinal);
   }
   *partOccurrences(): IterableIterator<PartOccurrence> {
     for (let slot = 0; slot < this.packed.instanceCount; slot += 1) {
@@ -139,10 +139,8 @@ class PublicSceneOccurrences implements SceneOccurrences {
   }
   *assemblyOccurrences(): IterableIterator<AssemblyOccurrence> {
     for (let ordinal = 0; ordinal < this.packed.nodeCount; ordinal += 1) {
-      const occurrenceId = invariantValue(
-        this.packed.getNodeId(ordinal),
-        `occurrence id at ${ordinal}`,
-      );
+      const occurrenceId = this.packed.getNodeId(ordinal);
+      if (occurrenceId === undefined) continue;
       yield invariantValue(this.getAssemblyOccurrence(occurrenceId), `occurrence ${occurrenceId}`);
     }
   }
@@ -281,6 +279,21 @@ function activePartOccurrenceIdAt(
   let activeOrdinal = 0;
   for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
     const id = runtime.getInstanceId(slot);
+    if (id === undefined) continue;
+    if (activeOrdinal === ordinal) return id;
+    activeOrdinal += 1;
+  }
+  return undefined;
+}
+
+function activeAssemblyOccurrenceIdAt(
+  runtime: PackedSceneRuntime,
+  ordinal: number,
+): AssemblyOccurrenceId | undefined {
+  if (!Number.isInteger(ordinal) || ordinal < 0) return undefined;
+  let activeOrdinal = 0;
+  for (let node = 0; node < runtime.nodeCount; node += 1) {
+    const id = runtime.getNodeId(node);
     if (id === undefined) continue;
     if (activeOrdinal === ordinal) return id;
     activeOrdinal += 1;
