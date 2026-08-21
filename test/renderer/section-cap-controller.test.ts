@@ -205,7 +205,9 @@ describe("section-cap part retirement", () => {
         bundle.draw,
       );
 
-      expect(controller.currentFrame?.sourcePartIds).toEqual(new Map([[retainedCapId, 2]]));
+      expect([...(controller.currentFrame?.sourcePartIds ?? new Map()).entries()]).toEqual([
+        [retainedCapId, 2],
+      ]);
       expect(controller.parts.has(1)).toBe(false);
       expect(controller.parts.has(2)).toBe(true);
       expect(bufferDestroyed(gpu, removedResource.vertexBuffer)).toBe(true);
@@ -243,7 +245,7 @@ describe("section-cap part retirement", () => {
       controller.sync({ ...sectionOptions(runtime, scene, interaction, bundle.draw), parts });
 
       expect(controller.currentFrame?.sourcePartIds.size).toBe(2);
-      expect([...(controller.currentFrame?.sourcePartIds.values() ?? [])]).toEqual([1, 2]);
+      expect(new Set(controller.currentFrame?.sourcePartIds.values())).toEqual(new Set([1, 2]));
       expect(bufferDestroyed(gpu, revisedResource.vertexBuffer)).toBe(true);
       expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
     } finally {

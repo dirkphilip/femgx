@@ -130,6 +130,7 @@ function commitPartRevision(
   for (const partId of partIds) commitPartResources(bundle.draw, prepared, partId);
   commitPartResults(bundle.draw, prepared, partIds);
   commitStagedWrites(bundle.draw, prepared, partIds);
+  bundle.draw.cost.merge(prepared.draw.cost);
   replaceAttachedParts(attachment.attachedParts, prepared.parts, partIds);
   prepared.commitFlags(attachment.styleFlags());
   commitPartLayout(attachment.layout, prepared.layout, partIds);
@@ -232,8 +233,8 @@ function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId:
   replacePreparedHighlight(live, prepared);
   live.emphasisSlots = new Set(prepared.emphasisSlots);
   live.edgeEmphasisSlots = new Set(prepared.edgeEmphasisSlots);
-  new Uint8Array(live.data).set(new Uint8Array(prepared.data));
-  live.orderData.set(prepared.orderData);
+  if (live.data !== prepared.data) new Uint8Array(live.data).set(new Uint8Array(prepared.data));
+  if (live.orderData !== prepared.orderData) live.orderData.set(prepared.orderData);
   live.orderLength = prepared.orderLength;
 }
 
@@ -241,13 +242,14 @@ function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorag
   for (const kind of ["transparent", "selection", "nodeSelection", "edge", "node"] as const) {
     const previous = live.sidecars[kind];
     const next = prepared.sidecars[kind];
-    if (previous !== next) previous?.buffer.destroy();
+    if (previous !== undefined && previous.buffer !== next?.buffer) previous.buffer.destroy();
     live.sidecars[kind] = next;
   }
 }
 
 function replacePreparedHighlight(live: InstanceStorage, prepared: InstanceStorage): void {
-  if (live.highlight !== prepared.highlight && live.highlightOwned) live.highlight.buffer.destroy();
+  if (live.highlight.buffer !== prepared.highlight.buffer && live.highlightOwned)
+    live.highlight.buffer.destroy();
   live.highlight = prepared.highlight;
   live.highlightOwned = prepared.highlightOwned;
 }

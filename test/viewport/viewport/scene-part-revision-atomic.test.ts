@@ -67,6 +67,8 @@ describe("Viewport atomic part revision staging", () => {
       const deformation = draw.deformations.get(1)?.buffer;
       const glyph = draw.orientationGlyphs.parts.get(1)?.groups.get(1)?.recordBuffer;
       const bindGroup = storage?.bindGroup;
+      const recordMirror = storage === undefined ? undefined : new Uint8Array(storage.data).slice();
+      const orderMirror = storage?.orderData.slice();
       const bufferStart = gpu.buffers.length;
       const writeStart = gpu.writes.length;
       fail = true;
@@ -88,6 +90,11 @@ describe("Viewport atomic part revision staging", () => {
       expect(viewport.scene.parts.get(1)).toBe(original);
       expect(draw.storages.get(1)).toBe(storage);
       expect(draw.storages.get(1)?.bindGroup).toBe(bindGroup);
+      const currentStorage = draw.storages.get(1);
+      expect(
+        currentStorage === undefined ? undefined : new Uint8Array(currentStorage.data),
+      ).toEqual(recordMirror);
+      expect(draw.storages.get(1)?.orderData).toEqual(orderMirror);
       expect(draw.primitiveParts.get(1)?.get("triangles")).toBe(geometry);
       expect(draw.resultColors.get(1)?.buffer).toBe(color);
       expect(draw.deformations.get(1)?.buffer).toBe(deformation);
@@ -220,6 +227,8 @@ function rendererDraw(viewport: Awaited<ReturnType<typeof fixture>>) {
         readonly buffer: GPUBuffer;
         readonly orderBuffer: GPUBuffer;
         readonly bindGroup: GPUBindGroup | undefined;
+        readonly data: ArrayBuffer;
+        readonly orderData: Uint32Array;
       }
     >;
     readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;

@@ -19,10 +19,16 @@ export function partResultBindings<Value>(
   source: ReadonlyMap<ResultBindingId, Value>,
   runtime: PackedSceneRuntime,
   layout: ResultBindingLayout,
+  partScope?: ReadonlySet<PartId>,
 ): readonly PartResultBindings<Value>[] {
-  const overrides = occurrenceOverrides(source, runtime, layout);
-  const partIds = new Set<PartId>(runtime.sortedPartIds);
-  for (const binding of source.keys()) if (typeof binding === "number") partIds.add(binding);
+  const overrides = occurrenceOverrides(source, runtime, layout, partScope);
+  const partIds = new Set<PartId>(partScope ?? runtime.sortedPartIds);
+  for (const binding of source.keys()) {
+    if (typeof binding === "number" && (partScope === undefined || partScope.has(binding))) {
+      partIds.add(binding);
+    }
+  }
+  for (const partId of overrides.keys()) partIds.add(partId);
   const bindings: PartResultBindings<Value>[] = [];
   for (const partId of [...partIds].sort((left, right) => left - right)) {
     const slots = layout.partLocalSlots.get(partId);
@@ -40,6 +46,7 @@ function occurrenceOverrides<Value>(
   source: ReadonlyMap<ResultBindingId, Value>,
   runtime: PackedSceneRuntime,
   layout: ResultBindingLayout,
+  partScope: ReadonlySet<PartId> | undefined,
 ): ReadonlyMap<PartId, ReadonlyMap<number, Value>> {
   const byPart = new Map<PartId, Map<number, Value>>();
   for (const [binding, value] of source) {
@@ -47,7 +54,13 @@ function occurrenceOverrides<Value>(
     const slot = runtime.getInstanceSlot(binding);
     const partId = slot === undefined ? undefined : runtime.getPartId(slot);
     const local = slot === undefined ? undefined : layout.slotPartLocal[slot];
-    if (partId === undefined || local === undefined || local < 0) continue;
+    if (
+      partId === undefined ||
+      local === undefined ||
+      local < 0 ||
+      (partScope !== undefined && !partScope.has(partId))
+    )
+      continue;
     let part = byPart.get(partId);
     if (part === undefined) {
       part = new Map();

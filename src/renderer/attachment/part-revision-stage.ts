@@ -24,7 +24,16 @@ import type { AttachmentCallLists } from "./calls";
 import type { HiddenInteractionTuple } from "./interaction";
 import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
-import type { InstanceStorage } from "../resources/instance-storage";
+import {
+  createInstanceStorageRevisionJournal,
+  rollbackStagedInstanceStorage,
+  type InstanceStorage,
+} from "../resources/instance-storage";
+import { stagePartRevisionSidecars } from "./part-revision-storage";
+import {
+  createHighlightRevisionJournal,
+  rollbackStagedHighlight,
+} from "../selection/highlight-storage";
 import { createPartRevisionStagingDevice, type StagedBufferWrite } from "./part-revision-writes";
 import { PartRevisionMap } from "./part-revision-overlay";
 
@@ -211,9 +220,21 @@ function stagePartResults(options: {
       options.layout,
     );
   if (results.deformation !== undefined)
-    syncDeformations(options.draw, results.deformation, options.runtime, options.layout);
+    syncDeformations(
+      options.draw,
+      results.deformation,
+      options.runtime,
+      options.layout,
+      options.partIds,
+    );
   if (results.colors !== undefined)
-    syncResultColors(options.draw, results.colors, options.runtime, options.layout);
+    syncResultColors(
+      options.draw,
+      results.colors,
+      options.runtime,
+      options.layout,
+      options.partIds,
+    );
 }
 
 function stagePartGeometry(
@@ -297,11 +318,13 @@ function cloneStagedStorage(storage: InstanceStorage): InstanceStorage {
   return {
     ...storage,
     deferRelease: true,
-    sidecars: { ...storage.sidecars },
-    data: storage.data.slice(0),
+    revisionJournal: createInstanceStorageRevisionJournal(),
+    sidecars: stagePartRevisionSidecars(storage.sidecars),
+    data: storage.data,
+    highlight: { ...storage.highlight, revisionJournal: createHighlightRevisionJournal() },
     emphasisSlots: new Set(storage.emphasisSlots),
     edgeEmphasisSlots: new Set(storage.edgeEmphasisSlots),
-    orderData: storage.orderData.slice(0),
+    orderData: storage.orderData,
     bindGroup: undefined,
     minimalBindGroup: undefined,
     minimalTransparentBindGroup: undefined,
@@ -362,12 +385,15 @@ function destroyStagedStorage(
   live: InstanceStorage | undefined,
 ): void {
   if (storage === undefined || live === undefined) return;
+  rollbackStagedInstanceStorage(storage);
+  rollbackStagedHighlight(storage.highlight);
   const buffers = new Set<GPUBuffer>();
   for (const kind of ["transparent", "selection", "nodeSelection", "edge", "node"] as const) {
     const sidecar = storage.sidecars[kind];
-    if (sidecar !== undefined && sidecar !== live.sidecars[kind]) buffers.add(sidecar.buffer);
+    if (sidecar !== undefined && sidecar.buffer !== live.sidecars[kind]?.buffer)
+      buffers.add(sidecar.buffer);
   }
-  if (storage.highlightOwned && storage.highlight !== live.highlight)
+  if (storage.highlightOwned && storage.highlight.buffer !== live.highlight.buffer)
     buffers.add(storage.highlight.buffer);
   for (const buffer of buffers) buffer.destroy();
 }

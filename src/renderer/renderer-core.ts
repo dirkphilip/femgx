@@ -246,7 +246,9 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     if (results !== undefined) {
       this.deformation = results.deformation;
       this.resultColors = results.colors;
-      this.setOrientationGlyphs(results.glyphs);
+      // The revision transaction already synchronized only the changed glyph
+      // bindings. A full sync here would walk every retained occurrence.
+      this.orientationGlyphs = results.glyphs;
     }
     this.interaction = interaction;
     this.picking.invalidate();

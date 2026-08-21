@@ -7,6 +7,18 @@ import {
   INSTANCE_EMPHASIS_FLAG,
   INSTANCE_STRIDE,
 } from "./instance-record";
+import {
+  captureStagedInstanceRecord,
+  captureStagedOrderValue,
+  type InstanceStorageRevisionJournal,
+} from "./instance-storage/journal";
+
+export {
+  captureStagedInstanceRecord,
+  createInstanceStorageRevisionJournal,
+  rollbackStagedInstanceStorage,
+  type InstanceStorageRevisionJournal,
+} from "./instance-storage/journal";
 
 export {
   createInstanceRecordTarget,
@@ -65,6 +77,8 @@ export interface InstanceStorage {
   readonly emptyHighlight: HighlightStorage;
   /** Revision-local storage keeps replaced live sidecars alive until commit. */
   readonly deferRelease?: boolean;
+  /** Exact CPU-mirror mutations made while a definition revision is staged. */
+  readonly revisionJournal?: InstanceStorageRevisionJournal;
   readonly sidecars: InstanceSidecars;
   highlight: HighlightStorage;
   /** True when `highlight` is a part-owned optional allocation. */
@@ -145,8 +159,11 @@ export function patchInstances(
     dataFlags[22] =
       (dataFlags[22] ?? 0) |
       ((currentFlags[word] ?? 0) & (INSTANCE_EMPHASIS_FLAG | INSTANCE_EDGE_EMPHASIS_FLAG));
-    if (!sameRecord(next, offset, data)) changedSlots.push(slot);
-    next.set(data, offset);
+    if (!sameRecord(next, offset, data)) {
+      changedSlots.push(slot);
+      captureStagedInstanceRecord(storage, slot);
+      next.set(data, offset);
+    }
   }
   writeChangedRecordRanges(draw.device, {
     buffer: storage.buffer,
@@ -288,7 +305,13 @@ function writeOrder(
       storage.orderBuffer,
       storage.orderData,
       order,
-      { previousLength: storage.orderLength, cost: draw.cost },
+      {
+        previousLength: storage.orderLength,
+        cost: draw.cost,
+        capture: (index) => {
+          captureStagedOrderValue(storage, storage.orderData, index);
+        },
+      },
     );
     return;
   }
@@ -300,6 +323,9 @@ function writeOrder(
   sidecar.length = writeOrderBuffer(draw.device, sidecar.buffer, sidecar.data, order, {
     previousLength: sidecar.length,
     cost: draw.cost,
+    capture: (index) => {
+      captureStagedOrderValue(storage, sidecar.data, index);
+    },
   });
 }
 

@@ -35,6 +35,7 @@ import {
   writeDenseSelectionBuffer,
   writeDenseSelectionData,
   writeSelectionHeader,
+  captureStagedHighlightRange,
   type DenseHighlightPayload,
   type HighlightStorage,
 } from "./highlight-selection-storage";
@@ -42,7 +43,11 @@ import { readInteractionState } from "../../interaction/state";
 import type { PrimitiveStyleOverride } from "../../interaction/interaction";
 import { sparseUpdatesForPart } from "./highlight-filter";
 
-export type { HighlightStorage } from "./highlight-selection-storage";
+export {
+  createHighlightRevisionJournal,
+  rollbackStagedHighlight,
+  type HighlightStorage,
+} from "./highlight-selection-storage";
 export { createHighlightStorage } from "./highlight-storage-allocation";
 
 const ZERO_RECORD = new Uint8Array(ELEMENT_RECORD_STRIDE);
@@ -58,6 +63,7 @@ interface HighlightWriteOptions {
 }
 
 /** Writes the changed header and fixed-size emphasis record ranges. */
+// eslint-disable-next-line max-lines-per-function -- Transaction capture must remain adjacent to each sparse highlight write.
 export function writeElementHighlights(
   device: GPUDevice,
   storage: HighlightTarget,
@@ -105,9 +111,12 @@ export function writeElementHighlights(
   view[2] = table.seed;
   writeSelectionHeader(view, highlight, payload, options.selectedTheme);
   writeChangedRanges(device, storage, header, table.entries, options.cost);
+  captureStagedHighlightRange(highlight, 0, HIGHLIGHT_HEADER);
   highlight.data.set(header);
   if (selectionChanged) {
-    writeDenseSelectionData(highlight.data, highlight, payload);
+    writeDenseSelectionData(highlight.data, highlight, payload, (startWord, endWord) => {
+      captureStagedHighlightRange(highlight, startWord * 4, endWord * 4);
+    });
   }
   if (selectionChanged || storageReallocated) {
     writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost);
@@ -135,6 +144,7 @@ function writeChangedRanges(
     const start = HIGHLIGHT_HEADER + index * ELEMENT_RECORD_STRIDE;
     if (entry === undefined) {
       if (!sameBytes(ZERO_RECORD, highlight.data, start, ELEMENT_RECORD_STRIDE)) {
+        captureStagedHighlightRange(highlight, start, start + ELEMENT_RECORD_STRIDE);
         highlight.data.fill(0, start, start + ELEMENT_RECORD_STRIDE);
         changedRecords.push(index);
       }
@@ -142,6 +152,7 @@ function writeChangedRanges(
     }
     const data = new Uint8Array(entry.data);
     if (!sameBytes(data, highlight.data, start, ELEMENT_RECORD_STRIDE)) {
+      captureStagedHighlightRange(highlight, start, start + ELEMENT_RECORD_STRIDE);
       highlight.data.set(data, start);
       changedRecords.push(index);
     }

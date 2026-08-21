@@ -192,6 +192,27 @@ export class GpuCostAccumulator {
     };
   }
 
+  /** Adds one completed staged transaction without exposing mutable counter state. */
+  public merge(staged: GpuCostAccumulator): void {
+    const snapshot = staged.snapshot();
+    for (const pass of GPU_COST_PASSES) this.passCounts[pass] += snapshot.passes[pass];
+    for (const draw of GPU_COST_DRAWS) {
+      this.drawCounts[draw].calls += snapshot.draws[draw].calls;
+      this.drawCounts[draw].indices += snapshot.draws[draw].indices;
+      this.drawCounts[draw].instances += snapshot.draws[draw].instances;
+    }
+    for (const write of GPU_COST_WRITES) {
+      this.writeCounts[write].calls += snapshot.writes[write].calls;
+      this.writeCounts[write].bytes += snapshot.writes[write].bytes;
+    }
+    for (const work of GPU_COST_CPU) this.cpuCounts[work] += snapshot.cpu[work];
+    this.memoryCounts.allocatedBytes += snapshot.memory.allocatedBytes;
+    this.memoryCounts.releasedBytes += snapshot.memory.releasedBytes;
+    this.memoryCounts.bufferCreates += snapshot.memory.bufferCreates;
+    this.memoryCounts.bufferDestroys += snapshot.memory.bufferDestroys;
+    this.memoryCounts.bindGroupInvalidations += snapshot.memory.bindGroupInvalidations;
+  }
+
   /** Returns a detached snapshot safe for benchmark serialization. */
   public snapshot(): GpuCostSnapshot {
     return {

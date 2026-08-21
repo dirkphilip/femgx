@@ -5,8 +5,10 @@ import { createElementModel } from "@/elements/model";
 import { ElementShape } from "@/elements/shapes";
 import { createPartFromElementModel } from "@/geometry/element-model-part";
 import { createResultField } from "@/results/fields";
+import { setTargetSelected } from "@/interaction/targets";
 import { createSceneBuilder } from "@/scene/scene";
 import { createViewport, type Part, type Viewport } from "@/entries/root";
+import type { GpuCostSnapshot } from "@/renderer/diagnostics/cost";
 import {
   fakeCanvas,
   fakeGpuDevice,
@@ -32,6 +34,9 @@ interface RevisionRow {
   readonly revisedStorageWrites: number;
   readonly revisedBindGroupCreations: number;
   readonly maximumRevisionBuffers: number;
+  readonly revisionInstanceScans: number;
+  readonly revisionPartScans: number;
+  readonly revisionWrites: number;
 }
 
 interface RevisionFixture {
@@ -47,6 +52,8 @@ interface RevisionFixture {
     | { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer; readonly bindGroup: unknown }
     | undefined;
   readonly retainedGeometry: unknown;
+  readonly retainedGlyph: unknown;
+  readonly retainedCap: unknown;
   revisionIndex: number;
 }
 
@@ -88,6 +95,14 @@ async function createFixture(revisedOccurrences: number): Promise<RevisionFixtur
     device: gpu.device,
     results: revisionResults(),
   });
+  viewport.presentation.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
+  viewport.interaction.set(
+    setTargetSelected(
+      viewport.interaction.state,
+      { kind: "element", partOccurrenceId: "1/revised-0", elementId: 0 },
+      true,
+    ),
+  );
   viewport.render();
   const draw = rendererDraw(viewport);
   return {
@@ -100,6 +115,8 @@ async function createFixture(revisedOccurrences: number): Promise<RevisionFixtur
     revisedStorage: draw.storages.get(1),
     retainedStorage: draw.storages.get(2),
     retainedGeometry: draw.primitiveParts.get(2)?.get("triangles"),
+    retainedGlyph: draw.orientationGlyphs.parts.get(2),
+    retainedCap: capPartForSource(rendererCaps(viewport), 2),
     revisionIndex: 0,
   };
 }
@@ -112,19 +129,28 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
   let revisedStorageWrites = 0;
   let revisedBindGroupCreations = 0;
   let maximumRevisionBuffers = 0;
+  let revisionInstanceScans = 0;
+  let revisionPartScans = 0;
+  let revisionWrites = 0;
   for (let sample = 0; sample < 7; sample += 1) {
     const writeStart = fixture.gpu.writes.length;
     const buffersBefore = fixture.gpu.buffers.length;
     const bindGroupsBefore = fixture.gpu.bindGroupCreations;
     const started = performance.now();
     revise(fixture);
+    const cost = rendererCore(fixture.viewport).costSnapshot();
+    revisionInstanceScans += cost.cpu["instance-scan"];
+    revisionPartScans += cost.cpu["part-scan"];
+    revisionWrites += Object.values(cost.writes).reduce((total, write) => total + write.calls, 0);
+    expect(cost.cpu["instance-scan"]).toBeLessThanOrEqual(fixture.revisedOccurrences);
+    expect(cost.cpu["part-scan"]).toBeLessThanOrEqual(1);
     fixture.viewport.render();
     samples.push(performance.now() - started);
     retainedResultWrites += writesToRetainedResults(fixture, writeStart);
     retainedStorageWrites += writesToRetainedStorage(fixture, writeStart);
     revisedStorageWrites += writesToRevisedStorage(fixture, writeStart);
     revisedBindGroupCreations += fixture.gpu.bindGroupCreations - bindGroupsBefore;
-    expect(fixture.gpu.bindGroupCreations - bindGroupsBefore).toBe(1);
+    expect(fixture.gpu.bindGroupCreations - bindGroupsBefore).toBeLessThanOrEqual(4);
     maximumRevisionBuffers = Math.max(
       maximumRevisionBuffers,
       fixture.gpu.buffers.length - buffersBefore,
@@ -137,6 +163,10 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     expect(rendererDraw(fixture.viewport).primitiveParts.get(2)?.get("triangles")).toBe(
       fixture.retainedGeometry,
     );
+    expect(rendererDraw(fixture.viewport).orientationGlyphs.parts.get(2)).toBe(
+      fixture.retainedGlyph,
+    );
+    expect(capPartForSource(rendererCaps(fixture.viewport), 2)).toBe(fixture.retainedCap);
     expect(fixture.viewport.occurrences.partOccurrenceCount).toBe(
       fixture.revisedOccurrences + LIVE_UNRELATED_OCCURRENCES,
     );
@@ -153,6 +183,9 @@ function measureRevision(fixture: RevisionFixture): RevisionRow {
     revisedStorageWrites,
     revisedBindGroupCreations,
     maximumRevisionBuffers,
+    revisionInstanceScans,
+    revisionPartScans,
+    revisionWrites,
   };
 }
 
@@ -242,7 +275,7 @@ function revisionScene(revisedOccurrences: number) {
       kind: "part",
       placementId: `retained-${index}`,
       partId: 2,
-      transform: translation(3, 0, 0),
+      transform: translation(3, 0, index === 0 ? 0 : 20),
     });
   }
   return builder.addAssembly({ id: 1, placements }).setRootAssembly(1).build();
@@ -280,6 +313,19 @@ function revisionResults() {
         values: new Float32Array(12),
       }),
     },
+    orientation: {
+      field: createResultField({
+        id: "revision-orientation",
+        name: "revision orientation",
+        location: "elemental",
+        shape: "vector",
+        count: 1,
+        unit: "source",
+        values: new Float32Array([1, 0, 0]),
+      }),
+      glyph: "arrow" as const,
+      transform: "direction" as const,
+    },
   };
 }
 
@@ -299,7 +345,47 @@ function rendererDraw(viewport: Viewport) {
       { readonly buffer: GPUBuffer; readonly orderBuffer: GPUBuffer; readonly bindGroup: unknown }
     >;
     readonly primitiveParts: ReadonlyMap<number, ReadonlyMap<"triangles", unknown>>;
+    readonly orientationGlyphs: { readonly parts: ReadonlyMap<number, unknown> };
   };
+}
+
+function rendererCaps(viewport: Viewport) {
+  return (
+    viewport as unknown as {
+      readonly renderer: {
+        readonly sectionCaps: {
+          readonly currentFrame: {
+            readonly parts: ReadonlyMap<number, Part>;
+            readonly sourcePartIds: ReadonlyMap<number, number>;
+          };
+        };
+      };
+    }
+  ).renderer.sectionCaps.currentFrame;
+}
+
+function capForSource(
+  frame: ReturnType<typeof rendererCaps>,
+  sourcePartId: number,
+): number | undefined {
+  for (const [capId, partId] of frame.sourcePartIds) if (partId === sourcePartId) return capId;
+  return undefined;
+}
+
+function capPartForSource(
+  frame: ReturnType<typeof rendererCaps>,
+  sourcePartId: number,
+): Part | undefined {
+  const capId = capForSource(frame, sourcePartId);
+  return capId === undefined ? undefined : frame.parts.get(capId);
+}
+
+function rendererCore(viewport: Viewport) {
+  return (
+    viewport as unknown as {
+      readonly renderer: { costSnapshot(): GpuCostSnapshot };
+    }
+  ).renderer;
 }
 
 function rendererCapCount(viewport: Viewport): number {

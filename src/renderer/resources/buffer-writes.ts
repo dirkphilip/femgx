@@ -3,6 +3,7 @@ import type { GpuCostAccumulator, GpuCostWrite } from "../diagnostics/cost";
 interface OrderWriteOptions {
   readonly previousLength: number;
   readonly cost?: GpuCostAccumulator;
+  readonly capture?: (index: number) => void;
 }
 
 interface RecordWriteOptions {
@@ -79,9 +80,12 @@ export function writeOrderBuffer(
       }
       device.queue.writeBuffer(buffer, rangeStart * 4, chunk);
       cost?.write("order", chunk.byteLength);
+      for (let i = rangeStart; i < rangeEnd; i++) {
+        options.capture?.(i);
+        mirror[i] = chunk[i - rangeStart] ?? 0;
+      }
       rangeStart = -1;
     }
   }
-  mirror.set(order);
   return order.length;
 }
