@@ -53,8 +53,9 @@ export function assertActualElementRegionEvidence(
     targetKeyStrings: 0,
     defaultElementTransitions: 1,
     callbackSelectionCopies: 1,
-    statePublications: 1,
     applyCallbacks: 1,
+    hostStatePublications: 1,
+    statePublications: 0,
     rendererSynchronizations: 1,
     requestedRenders: 1,
   });

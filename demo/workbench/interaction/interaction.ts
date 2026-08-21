@@ -72,6 +72,7 @@ export class WorkbenchInteraction {
   private target: SelectTarget | undefined;
   private readonly resolvedPointHits = new WeakMap<object, PickHit | undefined>();
   private selectionResolver: BoxSelectionResolver;
+  private selectionResolverGeneration = 0;
 
   constructor(private readonly options: WorkbenchInteractionOptions) {
     this.selectionResolver =
@@ -251,7 +252,9 @@ export class WorkbenchInteraction {
 
   /** Replaces candidate discovery and invalidates work captured for the old resolver. */
   setBoxSelectionResolver(resolver: BoxSelectionResolver): void {
+    if (this.selectionResolver === resolver) return;
     this.selectionResolver = resolver;
+    this.selectionResolverGeneration += 1;
   }
 
   viewportInteractionOptions(): Pick<
@@ -264,13 +267,19 @@ export class WorkbenchInteraction {
         this.resolvedPointHits.set(request.event, resolved.hit);
         return resolved.target;
       },
-      resolveRegion: ({ event, granularity }) =>
-        resolveDefaultViewportRegion(this.selectionResolver, event, granularity),
+      resolveRegion: async ({ event, granularity }) => {
+        const generation = this.selectionResolverGeneration;
+        const resolver = this.selectionResolver;
+        const selection = await resolveDefaultViewportRegion(resolver, event, granularity);
+        if (generation !== this.selectionResolverGeneration) throw new ResolverSupersededError();
+        return selection;
+      },
       applyInteraction: (request) => {
         this.applyResolvedPoint(request);
         return applyDefaultViewportInteraction(this.options, request);
       },
       onError: (error, phase) => {
+        if (error instanceof ResolverSupersededError) return;
         reportViewportInteractionError(this.options, error, phase);
       },
     };
@@ -334,5 +343,12 @@ export class WorkbenchInteraction {
       this.options.viewport().results.state,
     );
     this.options.setInspection(text, hit !== undefined);
+  }
+}
+
+/** Internal cancellation used when changing the workbench's region strategy. */
+class ResolverSupersededError extends Error {
+  constructor() {
+    super("Box selection resolver changed");
   }
 }
