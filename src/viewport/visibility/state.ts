@@ -77,6 +77,43 @@ export class ViewportVisibilityState {
     );
   }
 
+  /** Prepares hierarchy-owned policy changes without mutating the retained policy object. */
+  reconcileHierarchy(
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    removedPartSlots: readonly number[],
+    removedAssemblyIds: readonly AssemblyOccurrenceId[],
+  ): ViewportVisibilityState {
+    const hiddenParts = reconcileDefinitions(
+      scene.parts.keys(),
+      this.parts.known,
+      this.parts.hidden,
+      scene.visiblePartIds,
+    );
+    const hiddenAssemblies = reconcileDefinitions(
+      scene.assemblies.keys(),
+      this.assemblies.known,
+      this.assemblies.hidden,
+      scene.visibleAssemblyIds,
+    );
+    const hiddenPartOccurrences = new Set(this.hiddenPartOccurrenceSlots);
+    for (const slot of removedPartSlots) hiddenPartOccurrences.delete(slot);
+    const hiddenAssemblyOccurrences = new Set(this.hiddenAssemblyOccurrenceIds);
+    for (const id of removedAssemblyIds) hiddenAssemblyOccurrences.delete(id);
+    return new ViewportVisibilityState(
+      { known: new Set(scene.parts.keys()), hidden: hiddenParts },
+      { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
+      hiddenPartOccurrences,
+      hiddenAssemblyOccurrences,
+      runtime,
+    );
+  }
+
+  /** Reconciles definition visibility after a hierarchy revision with no runtime occurrences. */
+  reconcileUnplacedAssemblyDefinitions(scene: Scene): ViewportVisibilityState {
+    return this.reconcileHierarchy(scene, this.runtime, [], []);
+  }
+
   setPartVisible(runtime: PackedSceneRuntime, partId: PartId, visible: boolean): VisibilityDelta {
     updateHidden(this.parts.hidden, partId, visible);
     return runtime.setPartVisible(partId, visible);
@@ -87,9 +124,21 @@ export class ViewportVisibilityState {
     return this.parts.known.has(partId) ? !this.parts.hidden.has(partId) : authoredVisible;
   }
 
+  /** Resolves the retained viewport policy for a newly expanded assembly occurrence. */
+  isAssemblyVisible(assemblyId: AssemblyId, authoredVisible: boolean): boolean {
+    return this.assemblies.known.has(assemblyId)
+      ? !this.assemblies.hidden.has(assemblyId)
+      : authoredVisible;
+  }
+
   /** Drops viewport-local state for occurrence identities removed by a scene revision. */
   prunePartOccurrences(slots: readonly number[]): void {
     for (const slot of slots) this.hiddenPartOccurrenceSlots.delete(slot);
+  }
+
+  /** Drops occurrence-local assembly policy for collapsed hierarchy subtrees. */
+  pruneAssemblyOccurrences(ids: readonly AssemblyOccurrenceId[]): void {
+    for (const id of ids) this.hiddenAssemblyOccurrenceIds.delete(id);
   }
 
   /** Drops definition policy for parts removed from the authoritative scene. */
@@ -105,6 +154,19 @@ export class ViewportVisibilityState {
     for (const partId of partIds) {
       this.parts.known.add(partId);
       updateHidden(this.parts.hidden, partId, scene.visiblePartIds.has(partId));
+    }
+  }
+
+  /** Reconciles definition visibility without rebuilding retained occurrence policy. */
+  reconcileAssemblies(scene: Scene, changed: ReadonlySet<AssemblyId>): void {
+    for (const assemblyId of changed) {
+      if (!scene.assemblies.has(assemblyId)) {
+        this.assemblies.known.delete(assemblyId);
+        this.assemblies.hidden.delete(assemblyId);
+      } else if (!this.assemblies.known.has(assemblyId)) {
+        this.assemblies.known.add(assemblyId);
+        updateHidden(this.assemblies.hidden, assemblyId, scene.visibleAssemblyIds.has(assemblyId));
+      }
     }
   }
 

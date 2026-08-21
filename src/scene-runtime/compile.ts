@@ -13,20 +13,25 @@ import { SlotGroups } from "./slot-groups";
  */
 export interface RuntimeState {
   readonly rootAssemblyId: AssemblyId;
-  readonly nodeCount: number;
-  readonly nodeNodeIds: readonly AssemblyOccurrenceId[];
+  /** Allocated node extent. Removed nodes remain private holes until reused. */
+  nodeCount: number;
+  activeNodeCount: number;
+  nodeCapacity: number;
+  nodeNodeIds: AssemblyOccurrenceId[];
   /** Allocated slot extent. Removed slots remain private holes until reused. */
   instanceCount: number;
   activeInstanceCount: number;
   instanceCapacity: number;
-  readonly nodeAssemblyIds: Uint32Array;
-  readonly nodeWorldTransforms: Float32Array;
-  readonly nodeParents: Int32Array;
-  readonly nodeFirstChild: Int32Array;
-  readonly nodeNextSibling: Int32Array;
-  readonly nodeAssemblyVisible: Uint8Array;
-  readonly nodeOverrideVisible: Uint8Array;
-  readonly nodeEffectiveVisible: Uint8Array;
+  nodeAssemblyIds: Uint32Array;
+  nodeWorldTransforms: Float32Array;
+  nodeParents: Int32Array;
+  nodeFirstChild: Int32Array;
+  nodeNextSibling: Int32Array;
+  nodeAssemblyVisible: Uint8Array;
+  nodeOverrideVisible: Uint8Array;
+  nodeEffectiveVisible: Uint8Array;
+  nodeActive: Uint8Array;
+  readonly nodeFreeSlots: number[];
   instancePartIds: Uint32Array;
   instanceOwningNode: Uint32Array;
   instancePartVisible: Uint8Array;
@@ -40,15 +45,18 @@ export interface RuntimeState {
   readonly partInstanceGroups: SlotGroups;
   readonly nodeInstanceGroups: SlotGroups;
   sortedPartIds: Uint32Array;
-  readonly sortedAssemblyIds: Uint32Array;
-  readonly assemblyNodeOffset: Uint32Array;
-  readonly assemblyNodeList: Uint32Array;
+  /** Mutable definition-to-expanded-node membership for hierarchy deltas. */
+  readonly assemblyNodeGroups: SlotGroups;
+  /** Direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
+  nodePlacementOrder: number[][];
   visibleCount: number;
 }
 
 type PackedNodes = Pick<
   RuntimeState,
   | "nodeCount"
+  | "activeNodeCount"
+  | "nodeCapacity"
   | "nodeNodeIds"
   | "nodeAssemblyIds"
   | "nodeWorldTransforms"
@@ -58,6 +66,8 @@ type PackedNodes = Pick<
   | "nodeAssemblyVisible"
   | "nodeOverrideVisible"
   | "nodeEffectiveVisible"
+  | "nodeActive"
+  | "nodeFreeSlots"
 >;
 type PackedInstances = Pick<
   RuntimeState,
@@ -100,6 +110,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
   }
   return {
     nodeCount: count,
+    activeNodeCount: count,
+    nodeCapacity: count,
     nodeNodeIds,
     nodeAssemblyIds,
     nodeWorldTransforms,
@@ -109,6 +121,8 @@ function packNodes(nodes: readonly NodeDraft[]): PackedNodes {
     nodeAssemblyVisible,
     nodeOverrideVisible: new Uint8Array(count).fill(1),
     nodeEffectiveVisible,
+    nodeActive: new Uint8Array(count).fill(1),
+    nodeFreeSlots: [],
   };
 }
 
@@ -190,14 +204,32 @@ export function compileSceneState(scene: Scene): RuntimeState {
   const nodeData = packNodes(nodes);
   const instanceData = packInstances(instances);
   const partGroups = buildGroups(instanceData.instancePartIds);
-  const assemblyGroups = buildGroups(nodeData.nodeAssemblyIds);
-  return {
+  const state: RuntimeState = {
     rootAssemblyId: scene.rootAssemblyId,
     ...nodeData,
     ...instanceData,
     sortedPartIds: partGroups.sortedKeys,
-    sortedAssemblyIds: assemblyGroups.sortedKeys,
-    assemblyNodeOffset: assemblyGroups.offsets,
-    assemblyNodeList: assemblyGroups.list,
+    assemblyNodeGroups: new SlotGroups(nodeData.nodeAssemblyIds),
+    nodePlacementOrder: [],
   };
+  state.nodePlacementOrder = buildNodePlacementOrder(scene, state);
+  return state;
+}
+
+function buildNodePlacementOrder(scene: Scene, state: RuntimeState): number[][] {
+  const nodeById = new Map(state.nodeNodeIds.map((id, slot) => [id, slot]));
+  const instanceById = new Map(state.instanceInstanceIds.map((id, slot) => [id, slot]));
+  return Array.from({ length: state.nodeCount }, (_, node) => {
+    const definition = invariantValue(
+      scene.assemblies.get(invariantValue(state.nodeAssemblyIds[node], `assembly at ${node}`)),
+      "assembly",
+    );
+    const ownerId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
+    return definition.placements.map((placement, index) => {
+      const id = `${ownerId}/${placement.placementId ?? index}`;
+      const slot = placement.kind === "part" ? instanceById.get(id) : nodeById.get(id);
+      const resolved = invariantValue(slot, `placement ${id}`);
+      return placement.kind === "part" ? resolved : ~resolved;
+    });
+  });
 }

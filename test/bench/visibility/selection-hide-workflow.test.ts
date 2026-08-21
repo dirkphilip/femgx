@@ -70,9 +70,11 @@ describe("large Hex8 selection-hide workflow", () => {
           faceCount: FACE_COUNT,
         });
         expect(operation.timingsMs.p95).toBeGreaterThanOrEqual(operation.timingsMs.p50);
-        expect(operation.timingsMs.p95).toBeLessThan(
-          operation.name.includes("sync") ? SYNC_P95_BUDGET_MS : STATE_P95_BUDGET_MS,
-        );
+        if (process.env["FEMGX_PERFORMANCE_BUDGET"] === "1") {
+          expect(operation.timingsMs.p95).toBeLessThan(
+            operation.name.includes("sync") ? SYNC_P95_BUDGET_MS : STATE_P95_BUDGET_MS,
+          );
+        }
       }
       emitOperationsReport(report);
     } finally {

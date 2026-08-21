@@ -8,19 +8,20 @@ import { changedPartDefinitions, reconcilePartResources } from "../resources/par
 import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
 import type { InstanceStorage } from "../resources/instance-storage";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
-import { rebuildVisibilitySurface } from "../visibility/skins";
+import { rebuildInteractionVisibilitySurfaces } from "./interaction";
 import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
 import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
   clonePartRevisionLayout,
-  discardStagedPartResources,
   prepareStagedPartRevision,
   type PartRevisionAttachmentHost,
   type PreparedPartRevision,
 } from "./part-revision-stage";
+import { discardStagedPartResources } from "./part-revision-cleanup";
 import { PartRevisionMap, stagePartRevisionFlagSet } from "./part-revision-overlay";
+import { commitStagedPartResults } from "./part-revision-result-resources";
 
 interface PartAttachmentOptions {
   attachedParts: Map<PartId, Part>;
@@ -199,23 +200,7 @@ function commitPartResults(
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
 ): void {
-  for (const partId of partIds) {
-    transferPartResource(draw.deformations, prepared.draw.deformations, partId);
-    transferPartResource(draw.resultColors, prepared.draw.resultColors, partId);
-    transferPartResource(
-      draw.orientationGlyphs.parts,
-      prepared.draw.orientationGlyphs.parts,
-      partId,
-    );
-  }
-  if (draw.orientationGlyphs.paramsBuffer !== prepared.draw.orientationGlyphs.paramsBuffer) {
-    draw.orientationGlyphs.paramsBuffer?.destroy();
-    draw.orientationGlyphs.paramsBuffer = prepared.draw.orientationGlyphs.paramsBuffer;
-  }
-  new Uint8Array(draw.orientationGlyphs.paramsData).set(
-    new Uint8Array(prepared.draw.orientationGlyphs.paramsData),
-  );
-  draw.orientationGlyphs.state = prepared.draw.orientationGlyphs.state;
+  commitStagedPartResults(draw, prepared.draw, partIds, prepared.results);
 }
 
 function commitPartResources(
@@ -223,9 +208,18 @@ function commitPartResources(
   prepared: PreparedPartRevision,
   partId: PartId,
 ): void {
+  commitStagedPartDefinition(draw, prepared.draw, partId);
+}
+
+/** Publishes exact staged definition resources and retires their prior live identities. */
+export function commitStagedPartDefinition(
+  draw: DrawResources,
+  staged: DrawResources,
+  partId: PartId,
+): void {
   destroyPartResources(draw, partId);
-  transferStagedPartResources(draw, prepared.draw, partId);
-  commitStagedStorage(draw, prepared.draw, partId);
+  transferStagedPartResources(draw, staged, partId);
+  commitStagedStorage(draw, staged, partId);
 }
 
 function transferStagedPartResources(
@@ -240,10 +234,23 @@ function transferStagedPartResources(
   transferPartResource(draw.admissionCache, staged.admissionCache, partId);
 }
 
-function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId: PartId): void {
+/** Publishes one affected part's prepared placement storage. */
+export function commitStagedStorage(
+  draw: DrawResources,
+  staged: DrawResources,
+  partId: PartId,
+): void {
   const live = draw.storages.get(partId);
   const prepared = staged.storages.get(partId);
-  if (live === undefined || prepared === undefined || live === prepared) return;
+  if (live === undefined) {
+    if (prepared !== undefined) draw.storages.set(partId, prepared);
+    return;
+  }
+  if (prepared === undefined || live === prepared) return;
+  if (live.buffer !== prepared.buffer || live.orderBuffer !== prepared.orderBuffer) {
+    replaceGrownStorage(draw, partId, live, prepared);
+    return;
+  }
   replacePreparedSidecars(live, prepared);
   replacePreparedHighlight(live, prepared);
   live.emphasisSlots = new Set(prepared.emphasisSlots);
@@ -251,6 +258,26 @@ function commitStagedStorage(draw: DrawResources, staged: DrawResources, partId:
   if (live.data !== prepared.data) new Uint8Array(live.data).set(new Uint8Array(prepared.data));
   if (live.orderData !== prepared.orderData) live.orderData.set(prepared.orderData);
   live.orderLength = prepared.orderLength;
+}
+
+function replaceGrownStorage(
+  draw: DrawResources,
+  partId: PartId,
+  live: InstanceStorage,
+  prepared: InstanceStorage,
+): void {
+  replacePreparedSidecars(live, prepared);
+  replacePreparedHighlight(live, prepared);
+  if (live.buffer !== prepared.buffer) {
+    draw.cost.releaseBuffer(live.buffer.size);
+    live.buffer.destroy();
+  }
+  if (live.orderBuffer !== prepared.orderBuffer) {
+    draw.cost.releaseBuffer(live.orderBuffer.size);
+    live.orderBuffer.destroy();
+  }
+  const { deferRelease: _deferRelease, revisionJournal: _revisionJournal, ...committed } = prepared;
+  draw.storages.set(partId, committed);
 }
 
 function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
@@ -276,9 +303,10 @@ function replacePreparedHighlight(live: InstanceStorage, prepared: InstanceStora
   live.highlightOwned = prepared.highlightOwned;
 }
 
-function commitStagedWrites(
+/** Flushes writes deferred from protected live buffers during preparation. */
+export function commitStagedWrites(
   draw: DrawResources,
-  prepared: PreparedPartRevision,
+  prepared: Pick<PreparedPartRevision, "writes">,
   partIds: ReadonlySet<PartId>,
 ): void {
   const liveBuffers = committedStorageBuffers(draw, partIds);
@@ -302,6 +330,9 @@ function committedStorageBuffers(
       if (sidecar !== undefined) buffers.add(sidecar.buffer);
     }
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
+  }
+  if (draw.orientationGlyphs.paramsBuffer !== undefined) {
+    buffers.add(draw.orientationGlyphs.paramsBuffer);
   }
   return buffers;
 }
@@ -351,7 +382,14 @@ export function prepareAttachmentParts(
   });
   const next = new Map(reconcilePartResources(options.attachedParts, parts, options.bundle.draw));
   if (changed !== undefined && options.runtime !== undefined && options.layout !== undefined) {
-    for (const partId of changed) rebuildPartVisibility(options, next.get(partId));
+    rebuildInteractionVisibilitySurfaces({
+      runtime: options.runtime,
+      layout: options.layout,
+      parts: changed,
+      attachedParts: next,
+      interaction: options.interaction,
+      bundle: options.bundle,
+    });
   }
   for (const partId of changed ?? []) {
     const part = parts.get(partId);
@@ -380,15 +418,4 @@ export function removeAttachmentParts(
   return removed && rebuildCalls
     ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost)
     : undefined;
-}
-
-function rebuildPartVisibility(options: PartAttachmentOptions, part: Part | undefined): void {
-  if (part === undefined || options.runtime === undefined || options.layout === undefined) return;
-  rebuildVisibilitySurface({
-    runtime: options.runtime,
-    layout: options.layout,
-    part,
-    interaction: options.interaction,
-    draw: options.bundle.draw,
-  });
 }

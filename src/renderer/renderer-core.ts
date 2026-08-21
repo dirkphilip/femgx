@@ -25,7 +25,7 @@ import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
 import { buildFrameOptions } from "./frame/frame-options";
 import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
 import { drawCostSnapshot, materializedEdgePartIds } from "./diagnostics/renderer-diagnostics";
-import { RendererPicking } from "./renderer-picking";
+import { createRendererPicking, type RendererPicking } from "./picking/renderer-picking";
 import {
   createGpuTimestampRecorder,
   unavailableGpuTimestampSnapshot,
@@ -35,6 +35,12 @@ import {
 import type { GpuRendererConstruction } from "./renderer-construction";
 import { applyRendererPartRevision } from "./attachment/part-revision";
 import type { PartRevisionResultState } from "./attachment/part-revision-results";
+import {
+  commitRendererOccurrenceUpdate,
+  discardRendererOccurrenceUpdate,
+  prepareRendererOccurrenceUpdate,
+  type PreparedRendererOccurrenceUpdate,
+} from "./occurrence-revision/renderer-transaction";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
 export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
@@ -50,13 +56,13 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public parts = new Map<PartId, Part>();
   public sourceParts: ReadonlyMap<PartId, Part> | undefined;
   public lastCamera: Camera | undefined;
-  private readonly edgePick: EdgePickState;
+  public readonly edgePick: EdgePickState;
   public readonly picking: RendererPicking;
   private edgeDepthTest = true;
   private orbitPivot: Vec3 | undefined;
   public deformation: DeformationState | undefined;
-  private resultColors: ResultColorMap | undefined;
-  private sectionPlane: SectionPlane | undefined;
+  public resultColors: ResultColorMap | undefined;
+  public sectionPlane: SectionPlane | undefined;
   public interaction = createInteractionState();
   public readonly sectionCaps = new SectionCapController();
   private timestampRecorder: GpuTimestampRecorder | undefined;
@@ -67,7 +73,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private destroyed = false;
 
   public constructor(
-    private readonly canvas: HTMLCanvasElement,
+    public readonly canvas: HTMLCanvasElement,
     options: WebGpuRendererOptions,
     construction: GpuRendererConstruction,
   ) {
@@ -93,21 +99,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
         if (!this.destroyed) options.onDeviceLost?.(info);
       },
     });
-    this.picking = new RendererPicking({
-      canvas: this.canvas,
-      lifecycle: this.lifecycle,
-      attachment: this.attachment,
-      edgePick: this.edgePick,
-      sectionCaps: this.sectionCaps,
-      parts: () => this.parts,
-      lastCamera: () => this.lastCamera,
-      setLastCamera: (camera) => {
-        this.lastCamera = camera;
-      },
-      deformation: () => this.deformation,
-      ensureSectionCaps: this.ensureSectionCaps.bind(this),
-      frameOptions: () => this.frameOptions(),
-    });
+    this.picking = createRendererPicking(this);
     writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     this.resize();
   }
@@ -197,27 +189,23 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     if (changed) this.picking.invalidate();
   }
 
-  public updateOccurrences(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    delta: Parameters<RendererAttachment["updateOccurrences"]>[2],
-    parts: ReadonlyMap<PartId, Part>,
-  ): void {
+  /** Completes all fallible placement allocations without changing live renderer state. */
+  public prepareOccurrenceUpdate(
+    options: Parameters<typeof prepareRendererOccurrenceUpdate>[1],
+  ): PreparedRendererOccurrenceUpdate {
     this.ensureAlive();
-    this.interaction = interaction;
-    this.attachment.addParts(parts, delta.addedPartIds, this.parts);
-    const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
-    if (changed)
-      this.attachment.updateOccurrences(
-        runtime,
-        interaction,
-        delta,
-        this.parts,
-        this.lifecycle.bundle,
-      );
-    if (this.sourceParts !== undefined) this.sourceParts = parts;
-    this.sectionCaps.updateOccurrences(delta, this.parts, this.lifecycle.bundle.draw);
-    if (changed) this.picking.invalidate();
+    return prepareRendererOccurrenceUpdate(this, options);
+  }
+
+  /** Publishes a fully prepared placement transaction and invalidates picking once. */
+  public commitOccurrenceUpdate(prepared: PreparedRendererOccurrenceUpdate): void {
+    this.ensureAlive();
+    commitRendererOccurrenceUpdate(this, prepared);
+  }
+
+  /** Releases all resources allocated by an uncommitted placement transaction. */
+  public discardOccurrenceUpdate(prepared: PreparedRendererOccurrenceUpdate): void {
+    discardRendererOccurrenceUpdate(this, prepared);
   }
 
   public updatePartRevisions(

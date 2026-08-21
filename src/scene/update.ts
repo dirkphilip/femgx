@@ -20,6 +20,8 @@ import type { DefinitionRemovalOptions, ExplicitPlacement, SceneUpdate } from ".
 import {
   hasOnlyDirectPartRuntimeChanges,
   hasOnlyPartReplacementChanges,
+  hasIncrementalHierarchyChanges,
+  validateIncrementalHierarchy,
   validateExplicitPlacementId,
 } from "./update-validation";
 import { ScenePlacementDrafts } from "./update-placements";
@@ -227,7 +229,9 @@ class SceneUpdateDraft implements SceneUpdate {
       ),
       placements: this.placementChanges,
     };
-    if (
+    if (hasIncrementalHierarchyChanges(changes)) {
+      validateIncrementalHierarchy(this.source, candidate, changes);
+    } else if (
       !isTransformOnlyChanges(changes) &&
       !hasOnlyDirectPartRuntimeChanges(changes) &&
       !hasOnlyPartReplacementChanges(changes)

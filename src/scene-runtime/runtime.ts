@@ -3,8 +3,13 @@ import { validateScene, type Scene } from "../scene/scene";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { compileSceneState, type RuntimeState } from "./compile";
-import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
+import {
+  addRuntimeAssemblyNode,
+  removeRuntimeAssemblyNodes,
+  setRuntimeNodeChildren,
+  type RuntimeAssemblyNodeInput,
+} from "./node-storage";
 import {
   getDrawList as computeDrawList,
   setAssemblyNodeVisible,
@@ -20,6 +25,7 @@ import {
   removeSortedPartId,
   removeSortedPartIds,
 } from "./sorted-part-ids";
+import { createRuntimeJournalOwner, type RuntimeJournalOwner } from "./runtime-journal";
 
 /**
  * A packed CPU-side view of a scene for rendering: placement transforms,
@@ -31,6 +37,8 @@ import {
  * into the runtime: do not mutate them, or visibleCount desynchronizes.
  */
 interface RuntimeMethods {
+  /** Starts a private sparse mutation journal for one hierarchy transaction. */
+  beginHierarchyTransaction(): RuntimeHierarchyTransaction;
   /** Resolves an instance id to its part id. */
   getPartId(instanceId: number): PartId | undefined;
   /** Resolves a stable instance slot to its authoring placement handle. */
@@ -49,6 +57,8 @@ interface RuntimeMethods {
   getPartInstanceSlots(partId: PartId): Uint32Array;
   /** Returns direct placed-part slots owned by one expanded assembly node. */
   getNodeInstanceSlots(nodeId: number): readonly number[];
+  /** Returns direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
+  getNodePlacementOrder(nodeId: number): readonly number[];
   /** Returns the expanded node slots belonging to an assembly definition. */
   getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array;
   /** Returns visible instance ids in deterministic depth-first order. */
@@ -65,6 +75,21 @@ interface RuntimeMethods {
   removeInstances(instanceIds: readonly number[]): void;
   /** Replaces one active expanded placement in its existing stable slot. */
   updateInstance(instanceId: number, input: RuntimeInstanceInput): void;
+  /** Adds one expanded assembly node and returns its retained slot. */
+  addAssemblyNode(input: RuntimeAssemblyNodeInput): number;
+  /** Removes already-unlinked expanded assembly nodes. */
+  removeAssemblyNodes(nodeIds: readonly number[]): void;
+  /** Replaces one node's direct assembly-child sequence. */
+  setNodeChildren(nodeId: number, children: readonly number[]): void;
+  /** Replaces one node's direct interleaved authored placement sequence. */
+  setNodePlacementOrder(nodeId: number, placements: readonly number[]): void;
+  /** Patches one retained assembly occurrence world transform. */
+  updateNodeTransform(nodeId: number, transform: Mat4): void;
+}
+
+export interface RuntimeHierarchyTransaction {
+  commit(): void;
+  rollback(): void;
 }
 
 export interface RuntimeInstanceInput {
@@ -75,6 +100,9 @@ export interface RuntimeInstanceInput {
   readonly overrideVisible: boolean;
   readonly worldTransform: Mat4;
 }
+
+/** Private input used while committing a prepared assembly-subtree expansion. */
+export type { RuntimeAssemblyNodeInput } from "./node-storage";
 
 /** Packed scene storage plus internal behavior and stable identity indexes. */
 export type PackedSceneRuntime = RuntimeState & RuntimeMethods;
@@ -88,7 +116,7 @@ function matrixView(transforms: Float32Array, count: number, index: number): Mat
 
 interface RuntimeMaps {
   readonly instanceSlots: Map<PartOccurrenceId, number>;
-  readonly nodeSlots: ReadonlyMap<AssemblyOccurrenceId, number>;
+  readonly nodeSlots: Map<AssemblyOccurrenceId, number>;
 }
 
 function runtimeMaps(state: RuntimeState): RuntimeMaps {
@@ -98,7 +126,8 @@ function runtimeMaps(state: RuntimeState): RuntimeMaps {
     if (instanceId !== undefined) instanceSlots.set(instanceId, slot);
   }
   const nodeSlots = new Map<AssemblyOccurrenceId, number>();
-  for (let node = 0; node < state.nodeNodeIds.length; node++) {
+  for (let node = 0; node < state.nodeCount; node++) {
+    if (state.nodeActive[node] !== 1) continue;
     const nodeId = invariantValue(state.nodeNodeIds[node], `node id at ${node}`);
     nodeSlots.set(nodeId, node);
   }
@@ -117,9 +146,11 @@ function createPackedRuntime(state: RuntimeState, maps: RuntimeMaps): PackedScen
 }
 
 function createRuntimeMethods(state: RuntimeState, maps: RuntimeMaps): RuntimeMethods {
+  const journal = createRuntimeJournalOwner(state, maps);
   return {
+    beginHierarchyTransaction: journal.begin,
     ...createRuntimeQueries(state, maps),
-    ...createRuntimeMutations(state, maps),
+    ...createRuntimeMutations(state, maps, journal),
   };
 }
 
@@ -133,6 +164,12 @@ type RuntimeQueries = Omit<
   | "addInstances"
   | "removeInstances"
   | "updateInstance"
+  | "addAssemblyNode"
+  | "removeAssemblyNodes"
+  | "setNodeChildren"
+  | "setNodePlacementOrder"
+  | "beginHierarchyTransaction"
+  | "updateNodeTransform"
 >;
 
 function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQueries {
@@ -147,7 +184,9 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
       return maps.instanceSlots.get(instanceId);
     },
     getNodeId(nodeId: number): AssemblyOccurrenceId | undefined {
-      return state.nodeNodeIds[nodeId];
+      return nodeId >= 0 && nodeId < state.nodeCount && state.nodeActive[nodeId] === 1
+        ? state.nodeNodeIds[nodeId]
+        : undefined;
     },
     getNodeSlot(nodeId: AssemblyOccurrenceId): number | undefined {
       return maps.nodeSlots.get(nodeId);
@@ -158,13 +197,13 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
     getNodeInstanceSlots(nodeId: number): readonly number[] {
       return state.nodeInstanceGroups.slots(nodeId);
     },
+    getNodePlacementOrder(nodeId: number): readonly number[] {
+      return state.nodePlacementOrder[nodeId] ?? [];
+    },
     getAssemblyNodeSlots(assemblyId: AssemblyId): Uint32Array {
-      return groupSlots(
-        state.sortedAssemblyIds,
-        state.assemblyNodeOffset,
-        state.assemblyNodeList,
-        assemblyId,
-      );
+      const slots = new Uint32Array(state.assemblyNodeGroups.slots(assemblyId));
+      slots.sort();
+      return slots;
     },
     getTransform(instanceId: number): Mat4 | undefined {
       return isActive(state, instanceId)
@@ -183,19 +222,10 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
   };
 }
 
-function groupSlots(
-  sortedIds: Uint32Array,
-  offsets: Uint32Array,
-  slots: Uint32Array,
-  id: number,
-): Uint32Array {
-  const range = findGroupRange(sortedIds, offsets, slots.length, id);
-  return range === undefined ? new Uint32Array() : slots.subarray(range[0], range[1]);
-}
-
 function createRuntimeMutations(
   state: RuntimeState,
   maps: RuntimeMaps,
+  journal: RuntimeJournalOwner,
 ): Pick<
   RuntimeMethods,
   | "setInstanceVisible"
@@ -206,32 +236,61 @@ function createRuntimeMutations(
   | "addInstances"
   | "removeInstances"
   | "updateInstance"
+  | "addAssemblyNode"
+  | "removeAssemblyNodes"
+  | "setNodeChildren"
+  | "setNodePlacementOrder"
+  | "updateNodeTransform"
 > {
   return {
-    setInstanceVisible(instanceId: number, visible: boolean): VisibilityDelta {
-      return setInstanceVisible(state, instanceId, visible);
-    },
-    setInstancesVisible(instanceIds: readonly number[], visible: boolean): VisibilityDelta {
-      return setInstancesVisible(state, instanceIds, visible);
-    },
-    setPartVisible(partId: PartId, visible: boolean): VisibilityDelta {
-      return setPartVisible(state, partId, visible);
-    },
-    setAssemblyNodeVisible(nodeId: number, visible: boolean): VisibilityDelta {
-      return setAssemblyNodeVisible(state, nodeId, visible);
-    },
-    setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): VisibilityDelta {
-      return setAssemblyVisible(state, assemblyId, visible);
-    },
+    ...createVisibilityMutations(state),
     addInstances(inputs: readonly RuntimeInstanceInput[]): readonly number[] {
-      return addRuntimeInstances(state, maps, inputs);
+      journal.captureAddedInstances(inputs);
+      return addRuntimeInstances(state, maps, inputs, journal);
     },
     removeInstances(instanceIds: readonly number[]): void {
-      removeRuntimeInstances(state, maps, instanceIds);
+      journal.captureInstances(instanceIds);
+      removeRuntimeInstances(state, maps, instanceIds, journal);
     },
     updateInstance(instanceId: number, input: RuntimeInstanceInput): void {
+      journal.captureInstances([instanceId]);
+      journal.touchInstanceId(input.instanceId);
       updateRuntimeInstance(state, instanceId, input);
     },
+    addAssemblyNode(input: RuntimeAssemblyNodeInput): number {
+      journal.captureAddedNode(input.nodeId);
+      return addRuntimeAssemblyNode(state, maps.nodeSlots, input, journal);
+    },
+    removeAssemblyNodes(nodeIds: readonly number[]): void {
+      journal.captureNodes(nodeIds);
+      removeRuntimeAssemblyNodes(state, maps.nodeSlots, nodeIds, journal);
+    },
+    setNodeChildren(nodeId: number, children: readonly number[]): void {
+      journal.captureNodeLinks(nodeId, children);
+      setRuntimeNodeChildren(state, nodeId, children);
+    },
+    setNodePlacementOrder(nodeId: number, placements: readonly number[]): void {
+      journal.captureNodes([nodeId]);
+      state.nodePlacementOrder[nodeId] = [...placements];
+    },
+    updateNodeTransform(nodeId: number, transform: Mat4): void {
+      journal.captureNodes([nodeId]);
+      state.nodeWorldTransforms.set(transform, nodeId * 16);
+    },
+  };
+}
+
+function createVisibilityMutations(state: RuntimeState) {
+  return {
+    setInstanceVisible: (instanceId: number, visible: boolean) =>
+      setInstanceVisible(state, instanceId, visible),
+    setInstancesVisible: (instanceIds: readonly number[], visible: boolean) =>
+      setInstancesVisible(state, instanceIds, visible),
+    setPartVisible: (partId: PartId, visible: boolean) => setPartVisible(state, partId, visible),
+    setAssemblyNodeVisible: (nodeId: number, visible: boolean) =>
+      setAssemblyNodeVisible(state, nodeId, visible),
+    setAssemblyVisible: (assemblyId: AssemblyId, visible: boolean) =>
+      setAssemblyVisible(state, assemblyId, visible),
   };
 }
 
@@ -239,11 +298,12 @@ function addRuntimeInstance(
   state: RuntimeState,
   maps: RuntimeMaps,
   input: RuntimeInstanceInput,
+  journal: RuntimeJournalOwner,
 ): number {
   if (maps.instanceSlots.has(input.instanceId)) {
     throw new Error(`Part occurrence ${input.instanceId} already exists`);
   }
-  const slot = state.instanceFreeSlots.pop() ?? state.instanceCount++;
+  const slot = journal.popInstanceFreeSlot() ?? state.instanceCount++;
   reserveInstances(state, state.instanceCount);
   writeInstance(state, slot, input);
   maps.instanceSlots.set(input.instanceId, slot);
@@ -258,13 +318,14 @@ function addRuntimeInstances(
   state: RuntimeState,
   maps: RuntimeMaps,
   inputs: readonly RuntimeInstanceInput[],
+  journal: RuntimeJournalOwner,
 ): readonly number[] {
   const slots = new Array<number>(inputs.length);
   const addedPartIds = new Set<PartId>();
   for (let index = 0; index < inputs.length; index += 1) {
     const input = invariantValue(inputs[index], `added instance at ${index}`);
     if (state.partInstanceGroups.slots(input.partId).length === 0) addedPartIds.add(input.partId);
-    slots[index] = addRuntimeInstance(state, maps, input);
+    slots[index] = addRuntimeInstance(state, maps, input, journal);
   }
   if (addedPartIds.size > 0) {
     state.sortedPartIds = mergeSortedPartIds(state.sortedPartIds, addedPartIds);
@@ -272,7 +333,12 @@ function addRuntimeInstances(
   return slots;
 }
 
-function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceId: number): void {
+function removeRuntimeInstance(
+  state: RuntimeState,
+  maps: RuntimeMaps,
+  instanceId: number,
+  journal: RuntimeJournalOwner,
+): void {
   if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
   const id = invariantValue(state.instanceInstanceIds[instanceId], `instance id at ${instanceId}`);
   const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
@@ -284,7 +350,7 @@ function removeRuntimeInstance(state: RuntimeState, maps: RuntimeMaps, instanceI
   state.instanceActive[instanceId] = 0;
   state.instanceVisible[instanceId] = 0;
   state.instanceInstanceIds[instanceId] = "";
-  state.instanceFreeSlots.push(instanceId);
+  journal.pushInstanceFreeSlot(instanceId);
   state.activeInstanceCount -= 1;
 }
 
@@ -292,13 +358,14 @@ function removeRuntimeInstances(
   state: RuntimeState,
   maps: RuntimeMaps,
   instanceIds: readonly number[],
+  journal: RuntimeJournalOwner,
 ): void {
   const removedPartIds = new Set<PartId>();
   for (const instanceId of instanceIds) {
     if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
     const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
     removedPartIds.add(partId);
-    removeRuntimeInstance(state, maps, instanceId);
+    removeRuntimeInstance(state, maps, instanceId, journal);
   }
   const emptiedPartIds = new Set<PartId>();
   for (const partId of removedPartIds) {
@@ -335,8 +402,7 @@ function updateRuntimeInstance(
     state.nodeInstanceGroups.add(input.owningNode, instanceId);
   }
   writeInstance(state, instanceId, input);
-  const visible = state.instanceVisible[instanceId] === 1;
-  if (wasVisible !== visible) state.visibleCount += visible ? 1 : -1;
+  state.visibleCount += (state.instanceVisible[instanceId] ?? 0) - Number(wasVisible);
 }
 
 function isActive(state: RuntimeState, instanceId: number): boolean {

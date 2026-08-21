@@ -17,6 +17,9 @@ const MINIMUM_BOUNDS: Bounds = {
 /** Private segment tree for complete placed-scene bounds under incremental transforms. */
 export class PlacedBoundsIndex {
   public lastUpdatedLeafCount = 0;
+  public lastMergedNodeCount = 0;
+  public capacityGrowthCount = 0;
+  public rebuiltLeafCount = 0;
   private leafCapacity: number;
   private minX: Float64Array;
   private minY: Float64Array;
@@ -29,7 +32,7 @@ export class PlacedBoundsIndex {
 
   constructor(scene: Scene, runtime: PackedSceneRuntime) {
     this.parts = scene.parts;
-    this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
+    this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCapacity * 2));
     const size = this.leafCapacity * 2;
     this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
     this.minY = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
@@ -47,21 +50,68 @@ export class PlacedBoundsIndex {
     for (const partId of partIds) this.partBounds.delete(partId);
   }
 
+  /** Starts a sparse rollback journal before a fallible hierarchy bounds update. */
+  beginTransaction(
+    changedSlots: readonly number[],
+    partIds: ReadonlySet<PartId>,
+  ): PlacedBoundsTransaction {
+    const arrays = this.arrays();
+    const cells = new Map<number, readonly number[]>();
+    for (const slot of new Set(changedSlots)) {
+      for (let node = this.leafCapacity + slot; node > 0; node >>= 1) {
+        if (!cells.has(node)) cells.set(node, readCell(arrays, node));
+      }
+    }
+    const cached = new Map<PartId, { readonly has: boolean; readonly value: Bounds | undefined }>();
+    for (const partId of partIds) {
+      cached.set(partId, { has: this.partBounds.has(partId), value: this.partBounds.get(partId) });
+    }
+    const before = {
+      arrays,
+      cells,
+      cached,
+      parts: this.parts,
+      leafCapacity: this.leafCapacity,
+      lastUpdatedLeafCount: this.lastUpdatedLeafCount,
+      lastMergedNodeCount: this.lastMergedNodeCount,
+      capacityGrowthCount: this.capacityGrowthCount,
+      rebuiltLeafCount: this.rebuiltLeafCount,
+    };
+    let finished = false;
+    return {
+      commit: () => {
+        if (finished) throw new Error("Bounds transaction is already finished");
+        finished = true;
+      },
+      rollback: () => {
+        if (finished) throw new Error("Bounds transaction is already finished");
+        this.restore(before);
+        finished = true;
+      },
+    };
+  }
+
   /** Updates changed occurrence leaves and their logarithmic ancestor paths. */
   update(runtime: PackedSceneRuntime, changedSlots: readonly number[]): void {
     this.lastUpdatedLeafCount = 0;
+    this.lastMergedNodeCount = 0;
     if (runtime.instanceCount > this.leafCapacity) {
       this.rebuild(runtime);
       return;
     }
-    for (const slot of changedSlots) {
+    const slots = new Set(changedSlots);
+    const dirty = new Set<number>();
+    for (const slot of slots) {
       if (slot < 0 || slot >= runtime.instanceCount) continue;
       this.lastUpdatedLeafCount += 1;
       this.writeLeaf(runtime, slot);
       for (let node = (this.leafCapacity + slot) >> 1; node > 0; node >>= 1) {
-        this.merge(node);
+        dirty.add(node);
       }
     }
+    const ordered = [...dirty].sort((left, right) => right - left);
+    for (const node of ordered) this.merge(node);
+    this.lastMergedNodeCount = ordered.length;
   }
 
   get bounds(): Bounds {
@@ -95,7 +145,9 @@ export class PlacedBoundsIndex {
 
   private rebuild(runtime: PackedSceneRuntime): void {
     this.lastUpdatedLeafCount = runtime.instanceCount;
-    this.leafCapacity = nextPowerOfTwo(Math.max(1, runtime.instanceCount));
+    this.rebuiltLeafCount += runtime.instanceCount;
+    this.capacityGrowthCount += 1;
+    while (this.leafCapacity < runtime.instanceCount) this.leafCapacity *= 2;
     const size = this.leafCapacity * 2;
     this.minX = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
     this.minY = new Float64Array(size).fill(Number.POSITIVE_INFINITY);
@@ -128,6 +180,82 @@ export class PlacedBoundsIndex {
     this.maxY[node] = Math.max(this.maxY[left] ?? -Infinity, this.maxY[right] ?? -Infinity);
     this.maxZ[node] = Math.max(this.maxZ[left] ?? -Infinity, this.maxZ[right] ?? -Infinity);
   }
+
+  private arrays(): BoundsArrays {
+    return {
+      minX: this.minX,
+      minY: this.minY,
+      minZ: this.minZ,
+      maxX: this.maxX,
+      maxY: this.maxY,
+      maxZ: this.maxZ,
+    };
+  }
+
+  private restore(before: BoundsSnapshot): void {
+    Object.assign(this, before.arrays, {
+      parts: before.parts,
+      leafCapacity: before.leafCapacity,
+      lastUpdatedLeafCount: before.lastUpdatedLeafCount,
+      lastMergedNodeCount: before.lastMergedNodeCount,
+      capacityGrowthCount: before.capacityGrowthCount,
+      rebuiltLeafCount: before.rebuiltLeafCount,
+    });
+    for (const [node, values] of before.cells) writeCell(before.arrays, node, values);
+    for (const [partId, entry] of before.cached) {
+      if (entry.has) this.partBounds.set(partId, entry.value);
+      else this.partBounds.delete(partId);
+    }
+  }
+}
+
+export interface PlacedBoundsTransaction {
+  commit(): void;
+  rollback(): void;
+}
+
+interface BoundsArrays {
+  readonly minX: Float64Array;
+  readonly minY: Float64Array;
+  readonly minZ: Float64Array;
+  readonly maxX: Float64Array;
+  readonly maxY: Float64Array;
+  readonly maxZ: Float64Array;
+}
+
+interface BoundsSnapshot {
+  readonly arrays: BoundsArrays;
+  readonly cells: ReadonlyMap<number, readonly number[]>;
+  readonly cached: ReadonlyMap<
+    PartId,
+    { readonly has: boolean; readonly value: Bounds | undefined }
+  >;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly leafCapacity: number;
+  readonly lastUpdatedLeafCount: number;
+  readonly lastMergedNodeCount: number;
+  readonly capacityGrowthCount: number;
+  readonly rebuiltLeafCount: number;
+}
+
+function readCell(arrays: BoundsArrays, node: number): readonly number[] {
+  return [
+    arrays.minX[node] ?? Infinity,
+    arrays.minY[node] ?? Infinity,
+    arrays.minZ[node] ?? Infinity,
+    arrays.maxX[node] ?? -Infinity,
+    arrays.maxY[node] ?? -Infinity,
+    arrays.maxZ[node] ?? -Infinity,
+  ];
+}
+
+function writeCell(arrays: BoundsArrays, node: number, values: readonly number[]): void {
+  arrays.minX[node] = values[0] ?? Infinity;
+  arrays.minY[node] = values[1] ?? Infinity;
+  arrays.minZ[node] = values[2] ?? Infinity;
+  arrays.maxX[node] = values[3] ?? -Infinity;
+  arrays.maxY[node] = values[4] ?? -Infinity;
+  arrays.maxZ[node] = values[5] ?? -Infinity;
 }
 
 function transformBounds(bounds: Bounds, transform: Float32Array): Bounds {

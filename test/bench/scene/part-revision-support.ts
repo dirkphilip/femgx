@@ -82,6 +82,22 @@ export function viewportBoundsLeaves(viewport: Viewport): number {
   ).sceneController.placedBounds.lastUpdatedLeafCount;
 }
 
+/** Returns exact sparse bounds work from the latest scene transaction. */
+export function viewportBoundsCounters(viewport: Viewport) {
+  return (
+    viewport as unknown as {
+      readonly sceneController: {
+        readonly placedBounds: {
+          readonly lastUpdatedLeafCount: number;
+          readonly lastMergedNodeCount: number;
+          readonly capacityGrowthCount: number;
+          readonly rebuiltLeafCount: number;
+        };
+      };
+    }
+  ).sceneController.placedBounds;
+}
+
 /** Returns the active renderer-private cap count. */
 export function rendererCapCount(viewport: Viewport): number {
   return rendererCaps(viewport).parts.size;

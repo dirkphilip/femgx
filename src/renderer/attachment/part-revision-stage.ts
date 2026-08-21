@@ -6,19 +6,11 @@ import type { InstanceLayout } from "../runtime-state";
 import { GpuCostAccumulator } from "../diagnostics/cost";
 import { syncAttachmentInteraction, type AttachmentInteractionState } from "./interaction";
 import { reviseAttachmentCalls } from "./calls";
-import { destroyDetachedVisibilitySkinCache, rebuildVisibilitySurface } from "../visibility/skins";
-import {
-  destroyPartResource,
-  type DrawResources,
-  uploadGeometryPart,
-} from "../resources/draw-resources";
+import { rebuildVisibilitySurface } from "../visibility/skins";
+import { type DrawResources, uploadGeometryPart } from "../resources/draw-resources";
 import { syncDeformations } from "../frame/deformation";
-import {
-  destroyOrientationGlyphPart,
-  syncOrientationGlyphs,
-} from "../orientation-glyphs/orientation-glyph";
-import { destroyResultColorBuffer, syncResultColors } from "../resources/result-colors";
-import { destroyDeformationBuffer } from "../frame/deformation";
+import { syncOrientationGlyphs } from "../orientation-glyphs/orientation-glyph";
+import { syncResultColors } from "../resources/result-colors";
 import type { PartRevisionResultState } from "./part-revision-results";
 import type { AttachmentCallLists } from "./calls";
 import type { HiddenInteractionTuple } from "./interaction";
@@ -26,16 +18,13 @@ import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
 import {
   createInstanceStorageRevisionJournal,
-  rollbackStagedInstanceStorage,
   type InstanceStorage,
 } from "../resources/instance-storage";
 import { stagePartRevisionSidecars } from "./part-revision-storage";
-import {
-  createHighlightRevisionJournal,
-  rollbackStagedHighlight,
-} from "../selection/highlight-storage";
+import { createHighlightRevisionJournal } from "../selection/highlight-storage";
 import { createPartRevisionStagingDevice, type StagedBufferWrite } from "./part-revision-writes";
 import { PartRevisionMap } from "./part-revision-overlay";
+import { discardStagedPartResources } from "./part-revision-cleanup";
 
 const PART_REVISION_SIDECARS = [
   "transparent",
@@ -92,6 +81,7 @@ export function prepareStagedPartRevision(options: {
     options.bundle.draw,
     options.partIds,
     stageInteraction,
+    true,
   );
   try {
     return stagePartRevision({ ...options, draw, writes });
@@ -129,7 +119,7 @@ function stagePartRevision(options: {
   readonly draw: DrawResources;
   readonly writes: readonly StagedBufferWrite[];
 }): StagedPartRevision {
-  stagePartGeometry(
+  stagePartDefinitionResources(
     options.draw,
     options.parts,
     options.partIds,
@@ -246,32 +236,44 @@ function stagePartResults(options: {
     );
 }
 
-function stagePartGeometry(
+/** Clears stale definition bindings and uploads exact replacement geometry into a staged draw. */
+export function stagePartDefinitionResources(
   draw: DrawResources,
   parts: ReadonlyMap<PartId, Part>,
   partIds: ReadonlySet<PartId>,
   preferSubset: boolean,
 ): void {
   for (const partId of partIds) {
+    draw.parts.delete(partId);
+    draw.primitiveParts.delete(partId);
+    draw.nodeParts.delete(partId);
+    draw.visibilitySkins.delete(partId);
+    draw.admissionCache.delete(partId);
+    draw.deformations.delete(partId);
+    draw.resultColors.delete(partId);
+    draw.orientationGlyphs.parts.delete(partId);
     const part = parts.get(partId);
     if (part === undefined) continue;
     for (const geometry of part.geometries) uploadGeometryPart(draw, part, geometry, preferSubset);
   }
 }
 
-function stageDrawResources(
+/** Creates a detached draw owner for exact affected-part writes. */
+export function stageDrawResources(
   draw: DrawResources,
   partIds: ReadonlySet<PartId>,
   stageInteraction: boolean,
+  replaceDefinitions: boolean,
 ): { readonly draw: DrawResources; readonly writes: readonly StagedBufferWrite[] } {
   const writes: StagedBufferWrite[] = [];
   const protectedBuffers = protectedStorageBuffers(draw, partIds);
   const device = createPartRevisionStagingDevice(draw.device, protectedBuffers, writes);
+  const cost = new GpuCostAccumulator();
   const staged = {
     ...draw,
     device,
     deferReleases: true,
-    cost: new GpuCostAccumulator(),
+    cost,
     parts: new PartRevisionMap(draw.parts),
     primitiveParts: new PartRevisionMap(draw.primitiveParts),
     nodeParts: new PartRevisionMap(draw.nodeParts),
@@ -282,18 +284,21 @@ function stageDrawResources(
     resultColors: new Map(),
     orientationGlyphs: {
       ...draw.orientationGlyphs,
+      cost,
       // A definition revision cannot change the resolved glyph presentation.
       // Retaining this shared uniform also keeps unchanged glyph bind groups valid.
       paramsData: draw.orientationGlyphs.paramsData.slice(0),
       parts: new Map(),
     },
   };
-  for (const partId of partIds) {
-    staged.parts.delete(partId);
-    staged.primitiveParts.delete(partId);
-    staged.nodeParts.delete(partId);
-    staged.visibilitySkins.delete(partId);
-    staged.admissionCache.delete(partId);
+  if (replaceDefinitions) {
+    for (const partId of partIds) {
+      staged.parts.delete(partId);
+      staged.primitiveParts.delete(partId);
+      staged.nodeParts.delete(partId);
+      staged.visibilitySkins.delete(partId);
+      staged.admissionCache.delete(partId);
+    }
   }
   return { draw: staged, writes };
 }
@@ -364,59 +369,8 @@ function protectedStorageBuffers(
     }
     if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
   }
+  if (draw.orientationGlyphs.paramsBuffer !== undefined) {
+    buffers.add(draw.orientationGlyphs.paramsBuffer);
+  }
   return buffers;
-}
-
-/** Releases every detached resource owned by an uncommitted revision. */
-export function discardStagedPartResources(
-  draw: DrawResources,
-  live: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): void {
-  for (const partId of partIds) {
-    destroyStagedGeometry(draw, partId);
-    destroyPartResults(draw, partId);
-    destroyStagedStorage(draw.storages.get(partId), live.storages.get(partId));
-    const skins = draw.visibilitySkins.get(partId);
-    if (skins !== undefined) destroyDetachedVisibilitySkinCache(draw, skins);
-  }
-  if (draw.orientationGlyphs.paramsBuffer !== live.orientationGlyphs.paramsBuffer) {
-    draw.orientationGlyphs.paramsBuffer?.destroy();
-  }
-}
-
-function destroyStagedStorage(
-  storage: InstanceStorage | undefined,
-  live: InstanceStorage | undefined,
-): void {
-  if (storage === undefined || live === undefined) return;
-  rollbackStagedInstanceStorage(storage);
-  rollbackStagedHighlight(storage.highlight);
-  const buffers = new Set<GPUBuffer>();
-  for (const kind of PART_REVISION_SIDECARS) {
-    const sidecar = storage.sidecars[kind];
-    if (sidecar !== undefined && sidecar.buffer !== live.sidecars[kind]?.buffer)
-      buffers.add(sidecar.buffer);
-  }
-  if (storage.highlightOwned && storage.highlight.buffer !== live.highlight.buffer)
-    buffers.add(storage.highlight.buffer);
-  for (const buffer of buffers) buffer.destroy();
-}
-
-function destroyStagedGeometry(draw: DrawResources, partId: PartId): void {
-  const primitives = draw.primitiveParts.get(partId);
-  if (primitives !== undefined) {
-    for (const resource of primitives.values()) destroyPartResource(resource);
-    return;
-  }
-  const resource = draw.parts.get(partId);
-  if (resource !== undefined) destroyPartResource(resource);
-  const nodes = draw.nodeParts.get(partId);
-  if (nodes !== undefined) destroyPartResource(nodes);
-}
-
-function destroyPartResults(draw: DrawResources, partId: PartId): void {
-  destroyDeformationBuffer(draw.deformations, partId, draw.cost);
-  destroyResultColorBuffer(draw, partId);
-  destroyOrientationGlyphPart(draw.orientationGlyphs, partId);
 }

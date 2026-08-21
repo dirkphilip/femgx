@@ -1,6 +1,7 @@
 import { requestWebGpuDevice } from "../platform/device";
 import type { PartId } from "../geometry/part";
 import { GpuRenderer } from "./renderer-core";
+import type { PreparedRendererOccurrenceUpdate } from "./occurrence-revision/renderer-transaction";
 import { createGpuBundle } from "./recovery";
 import { readGpuValidationOptions } from "./diagnostics/validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
@@ -88,7 +89,62 @@ export function updateRendererOccurrences(
   if (!(renderer instanceof GpuRenderer)) {
     throw new Error("Incremental scene updates require the built-in WebGPU renderer");
   }
-  renderer.updateOccurrences(runtime, interaction, delta, parts);
+  renderer.lifecycle.ensureUsable();
+  renderer.interaction = interaction;
+  renderer.attachment.addParts(parts, delta.addedPartIds, renderer.parts);
+  const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
+  if (changed) {
+    renderer.attachment.updateOccurrences(
+      runtime,
+      interaction,
+      delta,
+      renderer.parts,
+      renderer.lifecycle.bundle,
+    );
+  }
+  if (renderer.sourceParts !== undefined) renderer.sourceParts = parts;
+  renderer.sectionCaps.updateOccurrences(delta, renderer.parts, renderer.lifecycle.bundle.draw);
+  if (changed) renderer.picking.invalidate();
+}
+
+/** Prepares private structural occurrence changes without mutating the live renderer. */
+export function prepareRendererOccurrenceUpdate(
+  renderer: WebGpuRenderer,
+  revision: {
+    readonly runtime: PackedSceneRuntime;
+    readonly interaction: InteractionState;
+    readonly delta: RuntimeOccurrenceDelta;
+    readonly parts: ReadonlyMap<PartId, Part>;
+    readonly results?: PartRevisionResultState;
+    readonly replacedPartIds?: ReadonlySet<PartId>;
+  },
+): PreparedRendererOccurrenceUpdate {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
+  }
+  return renderer.prepareOccurrenceUpdate(revision);
+}
+
+/** Commits a renderer occurrence revision after every scene owner has prepared. */
+export function commitRendererOccurrenceUpdate(
+  renderer: WebGpuRenderer,
+  prepared: PreparedRendererOccurrenceUpdate,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
+  }
+  renderer.commitOccurrenceUpdate(prepared);
+}
+
+/** Discards an uncommitted renderer occurrence revision. */
+export function discardRendererOccurrenceUpdate(
+  renderer: WebGpuRenderer,
+  prepared: PreparedRendererOccurrenceUpdate,
+): void {
+  if (!(renderer instanceof GpuRenderer)) {
+    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
+  }
+  renderer.discardOccurrenceUpdate(prepared);
 }
 
 /** Prepares exact added definitions before the live runtime is mutated. */

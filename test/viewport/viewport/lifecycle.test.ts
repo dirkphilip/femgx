@@ -139,8 +139,26 @@ describe("Viewport", () => {
     viewport.render();
     viewport.resize();
     viewport.replaceScene(scene(10));
-    const sourcePart = scene(20).parts.get(1);
+    const implicitSource = scene(20);
+    const sourcePart = implicitSource.parts.get(1);
     if (sourcePart === undefined) throw new Error("test part is missing");
+    const sourceRoot = implicitSource.assemblies.get(1);
+    if (sourceRoot === undefined) throw new Error("test root is missing");
+    viewport.replaceScene({
+      ...implicitSource,
+      assemblies: new Map([
+        [
+          1,
+          {
+            ...sourceRoot,
+            placements: sourceRoot.placements.map((placement) => ({
+              ...placement,
+              placementId: "retained",
+            })),
+          },
+        ],
+      ]),
+    });
     const addedPart = createPartRecord(
       2,
       {

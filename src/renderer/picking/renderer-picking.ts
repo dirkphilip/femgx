@@ -1,27 +1,26 @@
-import type { Camera } from "../camera/camera";
-import type { BoxSelectionRect } from "../interaction/box-selection";
-import type { InteractionTarget } from "../interaction/target-types";
-import type { ElementRegionSelection } from "../interaction/element-region-selection";
-import type { InteractionGranularity } from "../picking/types";
-import type { Part, PartId } from "../geometry/part";
-import type { Vec3 } from "../math/vec3";
-import type { PickHit } from "../picking/types";
-import type { DeformationState } from "../results/deform";
-import type { RendererAttachment } from "./attachment";
-import type { FrameOptions } from "./frame/frame-types";
-import { encodePickSnapshot } from "./frame/frame";
-import type { GpuDeviceLifecycle } from "./recovery";
+import type { Camera } from "../../camera/camera";
+import type { BoxSelectionRect } from "../../interaction/box-selection";
+import type { InteractionTarget } from "../../interaction/target-types";
+import type { ElementRegionSelection } from "../../interaction/element-region-selection";
+import type { InteractionGranularity, PickHit } from "../../picking/types";
+import type { Part, PartId } from "../../geometry/part";
+import type { Vec3 } from "../../math/vec3";
+import type { DeformationState } from "../../results/deform";
+import type { RendererAttachment } from "../attachment";
+import type { FrameOptions } from "../frame/frame-types";
+import { encodePickSnapshot } from "../frame/frame";
+import type { GpuDeviceLifecycle } from "../recovery";
 import {
   createEdgePickContext,
   pickEdgePixel,
   pickEdgeRegion,
   type EdgePickState,
-} from "./edges/edge-picking";
-import { pickHitFromPixel, resetPickTargets } from "./picking/pick";
-import { pickTargetsFromRegion } from "./picking/region";
-import { createElementPickScratch } from "./picking/element-region";
-import { syncDeformations } from "./frame/deformation";
-import type { SectionCapController } from "./section-cap-controller";
+} from "../edges/edge-picking";
+import { pickHitFromPixel, resetPickTargets } from "./pick";
+import { pickTargetsFromRegion } from "./region";
+import { createElementPickScratch } from "./element-region";
+import { syncDeformations } from "../frame/deformation";
+import type { SectionCapController } from "../section-cap-controller";
 
 interface RendererPickingOwner {
   readonly canvas: HTMLCanvasElement;
@@ -35,6 +34,38 @@ interface RendererPickingOwner {
   readonly deformation: () => DeformationState | undefined;
   readonly ensureSectionCaps: (runtime: NonNullable<RendererAttachment["runtime"]>) => void;
   readonly frameOptions: () => FrameOptions;
+}
+
+export interface RendererPickingHost {
+  readonly canvas: HTMLCanvasElement;
+  readonly lifecycle: GpuDeviceLifecycle;
+  readonly attachment: RendererAttachment;
+  readonly edgePick: EdgePickState;
+  readonly sectionCaps: SectionCapController;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  lastCamera: Camera | undefined;
+  readonly deformation: DeformationState | undefined;
+  ensureSectionCaps(runtime: NonNullable<RendererAttachment["runtime"]>): void;
+  frameOptions(): FrameOptions;
+}
+
+/** Binds picking to the renderer state without duplicating state ownership. */
+export function createRendererPicking(host: RendererPickingHost): RendererPicking {
+  return new RendererPicking({
+    canvas: host.canvas,
+    lifecycle: host.lifecycle,
+    attachment: host.attachment,
+    edgePick: host.edgePick,
+    sectionCaps: host.sectionCaps,
+    parts: () => host.parts,
+    lastCamera: () => host.lastCamera,
+    setLastCamera: (camera) => {
+      host.lastCamera = camera;
+    },
+    deformation: () => host.deformation,
+    ensureSectionCaps: host.ensureSectionCaps.bind(host),
+    frameOptions: host.frameOptions.bind(host),
+  });
 }
 
 /** Owns the lazy ordinary/edge pick snapshots and their invalidation state. */

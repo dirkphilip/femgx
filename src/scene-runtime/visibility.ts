@@ -1,7 +1,6 @@
 import type { PartId } from "../geometry/part";
 import type { AssemblyId } from "../scene/types";
 import type { RuntimeState } from "./compile";
-import { findGroupRange } from "./group-index";
 import { invariantValue } from "./invariants";
 
 /** Result of a visibility update, compacted to renderer-owned part batches. */
@@ -147,7 +146,7 @@ export function setAssemblyNodeVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  if (nodeId < 0 || nodeId >= state.nodeCount) {
+  if (nodeId < 0 || nodeId >= state.nodeCount || state.nodeActive[nodeId] !== 1) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
@@ -209,19 +208,13 @@ export function setAssemblyVisible(
   visible: boolean,
 ): VisibilityDelta {
   const previousVisibleCount = state.visibleCount;
-  const range = findGroupRange(
-    state.sortedAssemblyIds,
-    state.assemblyNodeOffset,
-    state.assemblyNodeList.length,
-    assemblyId,
-  );
-  if (range === undefined) {
+  const nodes = state.assemblyNodeGroups.slots(assemblyId);
+  if (nodes.length === 0) {
     return makeDelta(state, new Set(), previousVisibleCount);
   }
   const flag = visible ? 1 : 0;
   const affected = new Set<PartId>();
-  for (let index = range[0]; index < range[1]; index++) {
-    const node = invariantValue(state.assemblyNodeList[index], `assembly node at ${index}`);
+  for (const node of nodes) {
     if (state.nodeAssemblyVisible[node] === flag) {
       continue;
     }
@@ -238,10 +231,19 @@ export function setAssemblyVisible(
 export function getDrawList(state: RuntimeState): Uint32Array {
   const drawList = new Uint32Array(state.visibleCount);
   let write = 0;
-  for (let instanceId = 0; instanceId < state.instanceCount; instanceId++) {
-    if (state.instanceActive[instanceId] === 1 && state.instanceVisible[instanceId] === 1) {
-      drawList[write] = instanceId;
-      write++;
+  const stack = [~0];
+  while (stack.length > 0) {
+    const encoded = invariantValue(stack.pop(), "authored draw traversal");
+    if (encoded >= 0) {
+      if (state.instanceActive[encoded] === 1 && state.instanceVisible[encoded] === 1) {
+        drawList[write++] = encoded;
+      }
+      continue;
+    }
+    const node = ~encoded;
+    const placements = state.nodePlacementOrder[node] ?? [];
+    for (let index = placements.length - 1; index >= 0; index -= 1) {
+      stack.push(invariantValue(placements[index], `placement ${index} at node ${node}`));
     }
   }
   return drawList;
