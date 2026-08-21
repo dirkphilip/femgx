@@ -9,7 +9,8 @@ import {
 } from "@/entries/interaction";
 import { createCamera } from "@/entries/camera";
 import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
-import { pickTargetsFromRegion, type PickRegionProbe } from "@/renderer/picking/region";
+import { pickTargetsFromRegion } from "@/renderer/picking/region";
+import { createElementPickScratch } from "@/renderer/picking/element-region";
 import { createPickDepthReadback } from "@/renderer/picking/depth";
 import { createPickTargets, ensurePickTargets } from "@/renderer/picking/pick";
 import {
@@ -36,6 +37,7 @@ import {
 } from "../operation-report";
 import { exposedGc, forceGc } from "./gc-evidence";
 import { assertActualElementRegionEvidence } from "./element-region-discovery-evidence";
+import { emptyVisibleProbe } from "./element-region-probe";
 
 const CELLS = 354;
 const IDS_PER_OCCURRENCE = CELLS * CELLS * 2;
@@ -72,7 +74,6 @@ afterAll(() => {
   restoreFakeWindow();
   restoreGpu?.();
 });
-
 describe("actual packed element-region discovery evidence", () => {
   it("reports visible, Through, and callback/default work from 250k through one million ids", async () => {
     const runners = [visibleOne, visibleFour, throughOne, throughFour, lifecycle];
@@ -94,7 +95,6 @@ describe("actual packed element-region discovery evidence", () => {
     );
     emitOperationsReport(report);
   }, 60_000);
-
   it.skipIf(exposedGc() === undefined)(
     "records heap and forced-GC evidence around the actual broad paths without a budget",
     async () => {
@@ -126,11 +126,11 @@ describe("actual packed element-region discovery evidence", () => {
     60_000,
   );
 });
-
 async function visibleRunner(sourcePart: Part, occurrenceCount: number): Promise<EvidenceRunner> {
   const width = occurrenceCount === 1 ? 708 : 1_416;
   const height = occurrenceCount === 1 ? 354 : 708;
   const probe = emptyVisibleProbe();
+  const scratch = createElementPickScratch();
   const details: Record<string, number> = {};
   const gpu = fakeGpuDevice({ pickValueAt: pickValueAt(width, occurrenceCount) });
   const pick = createPickTargets(await createPickDepthReadback(gpu.device));
@@ -154,6 +154,7 @@ async function visibleRunner(sourcePart: Part, occurrenceCount: number): Promise
       rect: { left: 0, top: 0, right: width, bottom: height, width, height },
       granularity: "element",
       probe,
+      elementScratch: scratch,
     });
     latest = packed(result);
     assertSelection(latest, occurrenceCount);
@@ -169,7 +170,6 @@ async function visibleRunner(sourcePart: Part, occurrenceCount: number): Promise
     },
   );
 }
-
 function throughRunner(sourcePart: Part, occurrenceCount: number): EvidenceRunner {
   const probe = emptyThroughProbe();
   const details: Record<string, number> = {};
@@ -366,15 +366,6 @@ function packed(result: ElementRegionSelection | readonly unknown[]): ElementReg
 function requireSelection(value: ElementRegionSelection | undefined): ElementRegionSelection {
   if (value === undefined) throw new Error("Element discovery has not produced a selection");
   return value;
-}
-
-function emptyVisibleProbe(): PickRegionProbe {
-  return {
-    rawIdentityObjects: 0,
-    resolvedTargetDescriptors: 0,
-    elementPickGroups: 0,
-    elementPickIds: 0,
-  };
 }
 
 function emptyThroughProbe(): ThroughBoxSelectionProbe {
