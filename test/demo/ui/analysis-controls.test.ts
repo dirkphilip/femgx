@@ -120,6 +120,8 @@ describe("workbench analysis-controls", () => {
     expect([...granularity.options].map((option) => option.value)).toEqual([
       "part",
       "partOccurrence",
+      "assembly",
+      "assemblyOccurrence",
       "body",
       "element",
       "face",

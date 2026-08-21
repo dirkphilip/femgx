@@ -8,7 +8,9 @@ import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scen
 
 /** One assembly definition and occurrence along a physical hit's owner path. */
 export interface PickAssemblyPathEntry {
+  /** Reusable assembly definition on the root-to-owner path. */
   readonly assemblyId: AssemblyId;
+  /** Expanded occurrence of the assembly definition on the path. */
   readonly assemblyOccurrenceId: AssemblyOccurrenceId;
 }
 
