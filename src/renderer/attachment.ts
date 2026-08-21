@@ -21,15 +21,17 @@ import {
   type AttachmentOrderParts,
 } from "./attachment/reconciliation";
 import type { HiddenInteractionTuple } from "./attachment/interaction";
-import { writeNodeOrders, type SelectionState } from "./selection-state";
+import type { SelectionState } from "./selection-state";
 import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
   rebuildTransparentOrders as rebuildTransparentOrdersForParts,
 } from "./attachment/orders";
 import { rebuildAttachmentCalls } from "./attachment/calls";
-import { destroyVisibilitySkinCaches, rebuildVisibilitySurface } from "./visibility/skins";
+import { destroyVisibilitySkinCaches } from "./visibility/skins";
 import {
+  rebuildInteractionVisibilitySurfaces,
   syncAttachmentInteraction,
+  syncOccurrenceInteractionEmphasis,
   type AttachmentInteractionState,
 } from "./attachment/interaction";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
@@ -209,25 +211,21 @@ export class RendererAttachment {
     });
     this.instances = state.instances;
     this.slotByInstanceId = state.slotByInstanceId;
+    syncOccurrenceInteractionEmphasis({
+      runtime,
+      layout,
+      interaction,
+      parts: this.attachedParts,
+      bundle,
+      transparentFlags: this.transparentFlags,
+      slotByInstanceId: this.slotByInstanceId,
+      changedSlots: delta.slots.map(({ slot }) => slot),
+      affectedParts: delta.affectedPartIds,
+    });
     const partOptions = this.partAttachmentOptions(bundle);
     removeAttachmentParts(partOptions, sourceParts, delta.removedPartIds, false);
     this.applyAttachmentOrders(runtime, layout, delta.affectedPartIds, bundle, optionalParts);
     return true;
-  }
-
-  public updateNodeOrders(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
-    const runtime = this.runtime;
-    const layout = this.layout;
-    if (runtime === undefined || layout === undefined) return;
-    writeNodeOrders({
-      runtime,
-      layout,
-      parts,
-      selection: this.selection,
-      interaction: this.interactionState,
-      bundle,
-    });
-    this.rebuildCalls(bundle.draw.cost);
   }
 
   public updateElements(
@@ -273,7 +271,17 @@ export class RendererAttachment {
     this.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
     if (result.calls !== undefined) Object.assign(this, result.calls);
     if (result.visibilityParts !== undefined) {
-      this.rebuildVisibilitySurface(runtime, layout, result.visibilityParts, bundle);
+      Object.assign(
+        this,
+        rebuildInteractionVisibilitySurfaces({
+          runtime,
+          layout,
+          parts: result.visibilityParts,
+          attachedParts: this.attachedParts,
+          interaction: this.interactionState,
+          bundle,
+        }),
+      );
     }
     return result.changed;
   }
@@ -416,25 +424,5 @@ export class RendererAttachment {
       interaction: this.interactionState,
       bundle,
     };
-  }
-
-  private rebuildVisibilitySurface(
-    runtime: PackedSceneRuntime,
-    layout: InstanceLayout,
-    parts: ReadonlySet<PartId>,
-    bundle: GpuBundle,
-  ): void {
-    for (const partId of parts) {
-      const part = this.attachedParts.get(partId);
-      if (part === undefined) continue;
-      rebuildVisibilitySurface({
-        runtime,
-        layout,
-        part,
-        interaction: this.interactionState,
-        draw: bundle.draw,
-      });
-    }
-    this.rebuildCalls(bundle.draw.cost);
   }
 }

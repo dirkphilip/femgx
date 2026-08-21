@@ -62,6 +62,7 @@ export class GpuRenderer implements WebGpuRenderer {
   private readonly timestampQueriesRequested: boolean;
   private orientationGlyphs: OrientationGlyphState | undefined;
   private originTriadNominalScale = 1;
+  private interactionNeedsRecoverySync = false;
   private destroyed = false;
 
   public constructor(
@@ -130,8 +131,9 @@ export class GpuRenderer implements WebGpuRenderer {
     }
     const attachmentChanged = this.attachment.attach(runtime, this.lifecycle.bundle);
     if (attachmentChanged) this.sectionCaps.invalidate();
-    if (attachmentChanged || partsChanged) {
-      this.attachment.updateNodeOrders(this.parts, this.lifecycle.bundle);
+    if (attachmentChanged && this.interactionNeedsRecoverySync) {
+      this.attachment.updateElements(runtime, this.interaction, this.lifecycle.bundle, this.parts);
+      this.interactionNeedsRecoverySync = false;
     }
     const layout = this.attachment.layout;
     if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
@@ -380,6 +382,7 @@ export class GpuRenderer implements WebGpuRenderer {
         this.timestampQueriesRequested,
       );
       this.attachment.clear(this.lifecycle.bundle);
+      this.interactionNeedsRecoverySync = true;
       this.sectionCaps.recover(this.parts, this.resultColors);
       this.picking.resetAfterRecovery();
       writeBundleBackgroundColors(this.lifecycle.bundle, this.background);

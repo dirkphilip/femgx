@@ -49,6 +49,15 @@ const visibilityCache = new WeakMap<
   WeakMap<DenseElementLayout, DenseElementCacheEntry>
 >();
 
+/** Drops cached membership after an in-place occurrence/layout mutation. */
+export function invalidateDenseElementSelectionCaches(
+  runtime: PackedSceneRuntime,
+  layout: DenseElementLayout,
+): void {
+  selectionCache.get(runtime)?.delete(layout);
+  visibilityCache.get(runtime)?.delete(layout);
+}
+
 /**
  * Resolves authored selected element ids to private part-local bitsets. The
  * returned occurrences are deterministic and contain no invalid or duplicate ids.
