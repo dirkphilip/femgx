@@ -126,7 +126,35 @@ export function bodyUpdate(slot: number, bodyId: number): EmphasisUpdate {
 
 /** Shared renderer test helper. */
 export function elementScene(): { readonly scene: Scene; readonly runtime: SceneRuntime } {
-  const geometry: SemanticTestGeometry = {
+  const geometry = elementTestGeometry();
+  const part: Part = partFor(geometry);
+  const scene = createSceneBuilder()
+    .addPart(part)
+    .addAssembly({
+      id: 1,
+      name: "root",
+      placements: [
+        {
+          kind: "part",
+          placementId: "0",
+          partId: 1,
+          transform: translationMatrix(0, 0, 0),
+        },
+        {
+          kind: "part",
+          placementId: "1",
+          partId: 1,
+          transform: translationMatrix(2, 0, 0),
+        },
+      ],
+    })
+    .setRootAssembly(1)
+    .build();
+  return { scene, runtime: createPackedSceneRuntime(scene) };
+}
+
+function elementTestGeometry(): SemanticTestGeometry {
+  return {
     positions: new Float32Array(18),
     indices: new Uint32Array(18),
     primitive: "triangles" as const,
@@ -170,20 +198,6 @@ export function elementScene(): { readonly scene: Scene; readonly runtime: Scene
       },
     ],
   };
-  const part: Part = partFor(geometry);
-  const scene = createSceneBuilder()
-    .addPart(part)
-    .addAssembly({
-      id: 1,
-      name: "root",
-      placements: [
-        { kind: "part", partId: 1, transform: translationMatrix(0, 0, 0) },
-        { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
-      ],
-    })
-    .setRootAssembly(1)
-    .build();
-  return { scene, runtime: createPackedSceneRuntime(scene) };
 }
 
 /** Shared renderer test helper. */

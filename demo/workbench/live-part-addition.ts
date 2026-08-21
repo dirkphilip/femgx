@@ -148,8 +148,8 @@ function gridPlacements(options: GridPlacementOptions): readonly ExplicitPlaceme
   return placements;
 }
 
-function placementId(placement: { readonly placementId?: string }, index: number): string {
-  return placement.placementId ?? String(index);
+function placementId(placement: { readonly placementId: string }): string {
+  return placement.placementId;
 }
 
 function uniquePlacementId(used: Set<string>, candidate: string): string {

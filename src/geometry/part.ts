@@ -138,7 +138,9 @@ export function geometryUsesPartNodeTable(part: Part, geometry: Geometry): boole
  *   .addAssembly({
  *     id: 20,
  *     name: "root",
- *     placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+ *     placements: [
+ *       { kind: "part", placementId: "root-part", partId: part.id, transform: identityMatrix() },
+ *     ],
  *   })
  *   .setRootAssembly(20)
  *   .build();

@@ -63,17 +63,25 @@ function transparencyScene(parts: readonly Part[]): Scene {
     placements: [
       {
         kind: "part" as const,
+        placementId: "interior",
         partId: INTERIOR_PART_ID,
         transform: translationMatrix(0.5, 0.5, 0.5),
       },
-      { kind: "part" as const, partId: SHELL_PART_ID, transform: identityMatrix() },
       {
         kind: "part" as const,
+        placementId: "shell",
+        partId: SHELL_PART_ID,
+        transform: identityMatrix(),
+      },
+      {
+        kind: "part" as const,
+        placementId: "overlap-a",
         partId: OVERLAP_PART_ID,
         transform: translationMatrix(0.25, 0.25, 0.25),
       },
       {
         kind: "part" as const,
+        placementId: "overlap-b",
         partId: OVERLAP_PART_ID,
         transform: translationMatrix(0.4, 0.4, 0.4),
       },

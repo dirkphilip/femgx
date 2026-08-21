@@ -77,7 +77,12 @@ function createFixture(): { readonly model: WorkbenchModel; readonly runtime: Sc
         placementId: `p${childId}-${instanceIndex}`,
       })),
     });
-    return { kind: "assembly" as const, assemblyId: childId, transform: identityMatrix() };
+    return {
+      kind: "assembly" as const,
+      placementId: `child-${childId}`,
+      assemblyId: childId,
+      transform: identityMatrix(),
+    };
   });
   const scene = builder
     .addAssembly({ id: ROOT_ID, name: "Benchmark root", placements: childPlacements })

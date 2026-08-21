@@ -369,16 +369,23 @@ function planarElementFamily(spec: WebGpuBenchmarkSpec): PlanarGridOptions["elem
 function createPlacements(
   spec: WebGpuBenchmarkSpec,
   parts: readonly Part[],
-): { readonly kind: "part"; readonly partId: number; readonly transform: Float32Array }[] {
+): {
+  readonly kind: "part";
+  readonly placementId: string;
+  readonly partId: number;
+  readonly transform: Float32Array;
+}[] {
   if (spec.kind === "placement-heavy") {
     return Array.from({ length: spec.instanceCount }, (_, index) => ({
       kind: "part" as const,
+      placementId: `placement-${index}`,
       partId: parts[0]?.id ?? 1,
       transform: translationMatrix((index % 100) * 1.2, Math.floor(index / 100) * 1.2, 0),
     }));
   }
   return parts.map((part, index) => ({
     kind: "part" as const,
+    placementId: `part-${index}`,
     partId: part.id,
     transform: translationMatrix((index % 32) * 1.2, Math.floor(index / 32) * 1.2, 0),
   }));

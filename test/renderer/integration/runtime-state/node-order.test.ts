@@ -25,7 +25,12 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: fragmentedSelectionPart.id, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: fragmentedSelectionPart.id,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -85,9 +90,24 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 2, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "2",
+            partId: 2,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -177,9 +197,24 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: triangle.id, transform: identityMatrix() },
-          { kind: "part", partId: line.id, transform: identityMatrix() },
-          { kind: "part", partId: mixed.id, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: triangle.id,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: line.id,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "2",
+            partId: mixed.id,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)
@@ -238,8 +273,18 @@ describe("renderer runtime state", () => {
         id: 1,
         name: "root",
         placements: [
-          { kind: "part", partId: 1, transform: identityMatrix() },
-          { kind: "part", partId: 2, transform: identityMatrix() },
+          {
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: identityMatrix(),
+          },
+          {
+            kind: "part",
+            placementId: "1",
+            partId: 2,
+            transform: identityMatrix(),
+          },
         ],
       })
       .setRootAssembly(1)

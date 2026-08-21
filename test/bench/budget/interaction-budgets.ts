@@ -156,8 +156,9 @@ export const interactionScalingCases: readonly ScalingCase[] = [
           .addAssembly({
             id: 1,
             name: "root",
-            placements: parts.map((part) => ({
+            placements: parts.map((part, index) => ({
               kind: "part" as const,
+              placementId: String(index),
               partId: part.id,
               transform: translationMatrix(part.id, 0, 0),
             })),

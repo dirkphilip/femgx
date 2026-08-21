@@ -44,13 +44,7 @@ function expandPlacement(
   children: number[],
   placement: Placement,
 ): void {
-  const id = placement.placementId;
-  if (id === undefined) {
-    throw new Error(
-      `AssemblyDefinition ${context.assemblyId} uses an implicit placement identity; migrate it before a live hierarchy edit`,
-    );
-  }
-  const childId = `${context.nodeId}/${id}`;
+  const childId = `${context.nodeId}/${placement.placementId}`;
   const world = multiplyMatrices(context.world, placement.transform);
   if (placement.kind === "part") {
     context.additions.push(

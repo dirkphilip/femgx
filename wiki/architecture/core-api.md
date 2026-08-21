@@ -61,7 +61,9 @@ const scene = createSceneBuilder()
   .addAssembly({
     id: 1,
     name: "root",
-    placements: [{ kind: "part", partId: part.id, transform: identityMatrix() }],
+    placements: [
+      { kind: "part", placementId: "root-part", partId: part.id, transform: identityMatrix() },
+    ],
   })
   .setRootAssembly(1)
   .build();

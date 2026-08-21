@@ -26,8 +26,18 @@ function sceneRuntime() {
       id: 1,
       name: "root",
       placements: [
-        { kind: "part" as const, partId: 1, transform: translationMatrix(0, 0, 0) },
-        { kind: "part" as const, partId: 1, transform: translationMatrix(2, 0, 0) },
+        {
+          kind: "part" as const,
+          placementId: "0",
+          partId: 1,
+          transform: translationMatrix(0, 0, 0),
+        },
+        {
+          kind: "part" as const,
+          placementId: "1",
+          partId: 1,
+          transform: translationMatrix(2, 0, 0),
+        },
       ],
     })
     .setRootAssembly(1)

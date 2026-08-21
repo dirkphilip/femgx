@@ -413,12 +413,13 @@ function galleryScene(
   const root = {
     id: ROOT_ASSEMBLY_ID,
     name: "element-gallery",
-    placements: layout.map((entry) => {
+    placements: layout.map((entry, index) => {
       const part = partById.get(entry.partId);
       if (part === undefined) throw new Error(`Element fixture layout has no part ${entry.partId}`);
       const [column, row] = entry.cell;
       return {
         kind: "part" as const,
+        placementId: `gallery-${index}`,
         partId: entry.partId,
         transform:
           entry.centering === "bounds"

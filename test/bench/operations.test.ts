@@ -344,8 +344,9 @@ function buildElementalResultFixture(placementCount: number): ElementalResultFix
         1,
         {
           id: 1,
-          placements: Array.from({ length: placementCount }, () => ({
+          placements: Array.from({ length: placementCount }, (_, index) => ({
             kind: "part" as const,
+            placementId: String(index),
             partId: bodyFixture.part.id,
             transform: identityMatrix(),
           })),

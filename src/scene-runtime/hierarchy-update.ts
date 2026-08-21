@@ -215,11 +215,6 @@ function samePlacementSequence(before: AssemblyDefinition, after: AssemblyDefini
 function explicitPlacements(assembly: AssemblyDefinition): ReadonlyMap<string, Placement> {
   const placements = new Map<string, Placement>();
   for (const placement of assembly.placements) {
-    if (placement.placementId === undefined) {
-      throw new Error(
-        `AssemblyDefinition ${assembly.id} uses an implicit placement identity; migrate it before a live hierarchy edit`,
-      );
-    }
     if (placements.has(placement.placementId)) {
       throw new Error(
         `AssemblyDefinition ${assembly.id} contains duplicate placement id ${placement.placementId}`,

@@ -262,6 +262,7 @@ function denseSelectionFixture(elementCount: number, placementCount = 1) {
       name: "dense-selection",
       placements: Array.from({ length: placementCount }, (_, index) => ({
         kind: "part" as const,
+        placementId: String(index),
         partId: 99,
         transform: translationMatrix(index, 0, 0),
       })),

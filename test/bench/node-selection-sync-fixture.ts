@@ -21,7 +21,7 @@ export function createMultiPlacementNodeFixture(base: NodeSelectionFixture): Nod
       placements: Array.from({ length: MULTI_OCCURRENCE_COUNT }, (_, index) => ({
         kind: "part" as const,
         partId: base.part.id,
-        placementId: `placement-${index}`,
+        placementId: String(index),
         transform: translationMatrix(index * 2, 0, 0),
       })),
     })

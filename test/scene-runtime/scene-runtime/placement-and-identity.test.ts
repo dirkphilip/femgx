@@ -18,23 +18,43 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
-            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            {
+              kind: "part",
+              placementId: "root-part",
+              partId: 1,
+              transform: translationMatrix(1, 0, 0),
+            },
+            {
+              kind: "assembly",
+              placementId: "child",
+              assemblyId: 2,
+              transform: identityMatrix(),
+            },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
+        {
+          id: 2,
+          placements: [
+            {
+              kind: "part",
+              placementId: "nested-part",
+              partId: 2,
+              transform: identityMatrix(),
+            },
+          ],
+        },
       ],
       [1, 2],
       [2],
     );
     const runtime = createPackedSceneRuntime(scene);
-    expect(runtime.getInstanceId(0)).toBe("1/0");
-    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+    expect(runtime.getInstanceId(0)).toBe("1/root-part");
+    expect(runtime.getInstanceId(1)).toBe("1/child/nested-part");
     expect(runtime.getInstanceId(2)).toBeUndefined();
     runtime.setAssemblyVisible(2, false);
     runtime.setInstanceVisible(0, false);
-    expect(runtime.getInstanceId(0)).toBe("1/0");
-    expect(runtime.getInstanceId(1)).toBe("1/1/0");
+    expect(runtime.getInstanceId(0)).toBe("1/root-part");
+    expect(runtime.getInstanceId(1)).toBe("1/child/nested-part");
   });
 
   it("keeps explicit placement handles stable across reorder and transform edits", () => {
@@ -130,27 +150,56 @@ describe("createPackedSceneRuntime", () => {
       ],
       [
         "unsupported placement kind",
-        () => sceneWithPlacement({ kind: "mesh", transform: identityMatrix() } as never),
+        () =>
+          sceneWithPlacement({
+            kind: "mesh",
+            placementId: "mesh",
+            transform: identityMatrix(),
+          } as never),
         /unsupported kind mesh/,
       ],
       [
         "missing part reference",
-        () => sceneWithPlacement({ kind: "part", partId: 99, transform: identityMatrix() }),
+        () =>
+          sceneWithPlacement({
+            kind: "part",
+            placementId: "0",
+            partId: 99,
+            transform: identityMatrix(),
+          }),
         /references missing part 99/,
       ],
       [
         "missing assembly reference",
-        () => sceneWithPlacement({ kind: "assembly", assemblyId: 99, transform: identityMatrix() }),
+        () =>
+          sceneWithPlacement({
+            kind: "assembly",
+            placementId: "0",
+            assemblyId: 99,
+            transform: identityMatrix(),
+          }),
         /references missing assembly 99/,
       ],
       [
         "short transform",
-        () => sceneWithPlacement({ kind: "part", partId: 1, transform: new Float32Array(15) }),
+        () =>
+          sceneWithPlacement({
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: new Float32Array(15),
+          }),
         /transform must contain exactly 16 components/,
       ],
       [
         "non-finite transform",
-        () => sceneWithPlacement({ kind: "part", partId: 1, transform: nonFiniteTransform }),
+        () =>
+          sceneWithPlacement({
+            kind: "part",
+            placementId: "0",
+            partId: 1,
+            transform: nonFiniteTransform,
+          }),
         /transform component 3 must be finite/,
       ],
       [
@@ -172,14 +221,28 @@ describe("createPackedSceneRuntime", () => {
                 1,
                 {
                   id: 1,
-                  placements: [{ kind: "assembly", assemblyId: 2, transform: identityMatrix() }],
+                  placements: [
+                    {
+                      kind: "assembly",
+                      placementId: "cycle",
+                      assemblyId: 2,
+                      transform: identityMatrix(),
+                    },
+                  ],
                 },
               ],
               [
                 2,
                 {
                   id: 2,
-                  placements: [{ kind: "assembly", assemblyId: 1, transform: identityMatrix() }],
+                  placements: [
+                    {
+                      kind: "assembly",
+                      placementId: "back",
+                      assemblyId: 1,
+                      transform: identityMatrix(),
+                    },
+                  ],
                 },
               ],
             ]),
@@ -200,11 +263,31 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
-            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            {
+              kind: "assembly",
+              placementId: "0",
+              assemblyId: 2,
+              transform: identityMatrix(),
+            },
+            {
+              kind: "assembly",
+              placementId: "1",
+              assemblyId: 2,
+              transform: identityMatrix(),
+            },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] },
+        {
+          id: 2,
+          placements: [
+            {
+              kind: "part",
+              placementId: "0",
+              partId: 1,
+              transform: identityMatrix(),
+            },
+          ],
+        },
       ],
       [1],
     );
@@ -222,11 +305,31 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: identityMatrix() },
-            { kind: "assembly", assemblyId: 2, transform: identityMatrix() },
+            {
+              kind: "part",
+              placementId: "0",
+              partId: 1,
+              transform: identityMatrix(),
+            },
+            {
+              kind: "assembly",
+              placementId: "1",
+              assemblyId: 2,
+              transform: identityMatrix(),
+            },
           ],
         },
-        { id: 2, placements: [{ kind: "part", partId: 2, transform: identityMatrix() }] },
+        {
+          id: 2,
+          placements: [
+            {
+              kind: "part",
+              placementId: "0",
+              partId: 2,
+              transform: identityMatrix(),
+            },
+          ],
+        },
       ],
       [1, 2],
     );
@@ -244,9 +347,24 @@ describe("createPackedSceneRuntime", () => {
         {
           id: 1,
           placements: [
-            { kind: "part", partId: 1, transform: translationMatrix(1, 0, 0) },
-            { kind: "part", partId: 1, transform: translationMatrix(2, 0, 0) },
-            { kind: "part", partId: 1, transform: translationMatrix(3, 0, 0) },
+            {
+              kind: "part",
+              placementId: "0",
+              partId: 1,
+              transform: translationMatrix(1, 0, 0),
+            },
+            {
+              kind: "part",
+              placementId: "1",
+              partId: 1,
+              transform: translationMatrix(2, 0, 0),
+            },
+            {
+              kind: "part",
+              placementId: "2",
+              partId: 1,
+              transform: translationMatrix(3, 0, 0),
+            },
           ],
         },
       ],

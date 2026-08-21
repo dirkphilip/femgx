@@ -18,6 +18,8 @@ import { invariantValue } from "./invariants";
 export interface PartOccurrence {
   /** Stable identity of this expanded placed-part occurrence. */
   readonly partOccurrenceId: PartOccurrenceId;
+  /** Direct authored placement identity within the owning assembly definition. */
+  readonly placementId: string;
   /** Reusable part definition referenced by this occurrence. */
   readonly partId: PartId;
   /** Expanded assembly occurrence that directly owns this part occurrence. */
@@ -44,6 +46,8 @@ export interface PartOccurrence {
 export interface AssemblyOccurrence {
   /** Stable identity of this expanded placement of an assembly definition. */
   readonly assemblyOccurrenceId: AssemblyOccurrenceId;
+  /** Direct authored placement identity, or `undefined` for the expanded root. */
+  readonly placementId: string | undefined;
   /** Reusable assembly definition expanded at this occurrence. */
   readonly assemblyId: AssemblyId;
   /** Parent occurrence, or `undefined` for the expanded root. */
@@ -162,6 +166,7 @@ class PublicSceneOccurrences implements SceneOccurrences {
     );
     return {
       partOccurrenceId,
+      placementId: authoredPlacementId(partOccurrenceId),
       partId,
       assemblyOccurrenceId: occurrenceId,
       visible: this.packed.instanceVisible[slot] === 1,
@@ -182,6 +187,7 @@ class PublicSceneOccurrences implements SceneOccurrences {
     const partOccurrenceCount = this.packed.getNodeInstanceSlots(node).length;
     return {
       assemblyOccurrenceId: occurrenceId,
+      placementId: parent === -1 ? undefined : authoredPlacementId(occurrenceId),
       assemblyId,
       parentAssemblyOccurrenceId:
         parent === -1
@@ -259,6 +265,14 @@ function countChildren(runtime: PackedSceneRuntime, node: number): number {
     child = invariantValue(runtime.nodeNextSibling[child], `next sibling at node ${child}`);
   }
   return count;
+}
+
+function authoredPlacementId(occurrenceId: string): string {
+  const separator = occurrenceId.lastIndexOf("/");
+  if (separator < 0 || separator === occurrenceId.length - 1) {
+    throw new Error(`Occurrence ${occurrenceId} has no authored placement identity`);
+  }
+  return occurrenceId.slice(separator + 1);
 }
 
 function directPartOccurrenceIdAt(

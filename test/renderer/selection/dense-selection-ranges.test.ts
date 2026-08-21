@@ -203,8 +203,9 @@ function selectionFixture(
 ): SelectionFixture {
   const partOccurrenceId = options.partOccurrenceId ?? "1/0";
   const placementCount = options.placementCount ?? 1;
-  const placements = Array.from({ length: placementCount }, () => ({
+  const placements = Array.from({ length: placementCount }, (_, index) => ({
     kind: "part" as const,
+    placementId: String(index),
     partId: part.id,
     transform: identityMatrix(),
   }));

@@ -85,7 +85,7 @@ function collectSubtreePatch(
     patches.nodeTransforms.set(node, entry.world);
     for (let index = 0; index < assembly.placements.length; index += 1) {
       const placement = invariantValue(assembly.placements[index], `placement at ${index}`);
-      const id = placementPath(entry.id, placement, index);
+      const id = placementPath(entry.id, placement);
       const world = multiplyMatrices(entry.world, placement.transform);
       if (placement.kind === "assembly") stack.push({ id, world });
       else {
@@ -101,9 +101,8 @@ function collectSubtreePatch(
 function placementPath(
   ownerId: AssemblyOccurrenceId,
   placement: PartPlacement | AssemblyPlacement,
-  index?: number,
 ): PartOccurrenceId & AssemblyOccurrenceId {
-  return `${ownerId}/${placement.placementId ?? invariantValue(index, "placement index")}`;
+  return `${ownerId}/${placement.placementId}`;
 }
 
 function nodeTransform(

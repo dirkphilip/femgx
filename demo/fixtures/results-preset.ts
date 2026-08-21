@@ -29,9 +29,15 @@ export function createResultsPreset(): ModelPreset {
       id: 20,
       name: "results-block",
       placements: [
-        { kind: "part", partId: RESULTS_PART_ID, transform: identityMatrix() },
         {
           kind: "part",
+          placementId: "base",
+          partId: RESULTS_PART_ID,
+          transform: identityMatrix(),
+        },
+        {
+          kind: "part",
+          placementId: "transformed",
           partId: RESULTS_PART_ID,
           transform: multiplyMatrices(
             translationMatrix(9.5, 5, 0.2),

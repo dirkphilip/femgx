@@ -44,7 +44,15 @@ export function structuralScene(overrides: Partial<Scene> = {}): Scene {
     rootAssemblyId: 1,
     parts: new Map([[1, emptyPart(1)]]),
     assemblies: new Map([
-      [1, { id: 1, placements: [{ kind: "part", partId: 1, transform: identityMatrix() }] }],
+      [
+        1,
+        {
+          id: 1,
+          placements: [
+            { kind: "part", placementId: "part", partId: 1, transform: identityMatrix() },
+          ],
+        },
+      ],
     ]),
     visiblePartIds: new Set([1]),
     visibleAssemblyIds: new Set([1]),

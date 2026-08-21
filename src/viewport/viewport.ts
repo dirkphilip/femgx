@@ -79,7 +79,9 @@ export type {
  *   .addAssembly({
  *     id: 2,
  *     name: "root",
- *     placements: [{ kind: "part", partId: 1, transform: identityMatrix() }],
+ *     placements: [
+ *       { kind: "part", placementId: "root-part", partId: 1, transform: identityMatrix() },
+ *     ],
  *   })
  *   .setRootAssembly(2)
  *   .build();

@@ -124,7 +124,7 @@ class DraftWriter {
         `placement ${placementIndex} in assembly ${item.assemblyId}`,
       );
       const placementWorld = multiplyMatrices(item.world, placement.transform);
-      const placementPath = `${item.path}/${placement.placementId ?? placementIndex}`;
+      const placementPath = `${item.path}/${placement.placementId}`;
       if (placement.kind === "part") {
         const node = invariantValue(
           this.nodes[item.nodeIndex],

@@ -234,8 +234,12 @@ describe("WebGPU benchmark models", () => {
     const runtime = createPackedSceneRuntime(benchmarkCase.scene);
     const targets = authoredElementTargets(benchmarkCase, runtime);
     expect(targets).toHaveLength(48);
-    expect(targets[0]).toEqual({ kind: "element", partOccurrenceId: "1/0", elementId: 1 });
-    expect(targets.at(-1)).toEqual({ kind: "element", partOccurrenceId: "1/0", elementId: 48 });
+    expect(targets[0]).toEqual({ kind: "element", partOccurrenceId: "1/part-0", elementId: 1 });
+    expect(targets.at(-1)).toEqual({
+      kind: "element",
+      partOccurrenceId: "1/part-0",
+      elementId: 48,
+    });
   });
 
   it("keeps the opt-in orientation workload aligned to structured element ids", () => {
@@ -408,7 +412,6 @@ describe("WebGPU benchmark models", () => {
     const lazy = createLazyBenchmarkModel(spec);
     expect(lazy.scene.parts.size).toBe(0);
     const loaded = await lazy.deferredLoad?.();
-    expect(loaded?.scene.parts.size).toBe(1);
-    expect(loaded?.scene.parts.get(1)?.bodies?.count).toBe(256);
+    expect([loaded?.scene.parts.size, loaded?.scene.parts.get(1)?.bodies?.count]).toEqual([1, 256]);
   });
 });

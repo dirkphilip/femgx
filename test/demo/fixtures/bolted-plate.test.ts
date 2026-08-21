@@ -159,13 +159,13 @@ describe("createBoltedPlateFixture", () => {
   it("produces deterministic, stable instance ordering", () => {
     const fixture = createBoltedPlateFixture();
     const instances = runtimeInstances(fixture.scene);
-    expect(instances[0]?.partOccurrenceId).toBe("1/0/0");
-    expect(instances[1]?.partOccurrenceId).toBe("1/0/1");
-    expect(instances[2]?.partOccurrenceId).toBe("1/1/0/0");
-    expect(instances[3]?.partOccurrenceId).toBe("1/1/0/1/0");
-    expect(instances[4]?.partOccurrenceId).toBe("1/1/0/1/1");
-    expect(instances[5]?.partOccurrenceId).toBe("1/1/0/2");
-    expect(instances[instances.length - 1]?.partOccurrenceId).toBe("1/1/7/2");
+    expect(instances[0]?.partOccurrenceId).toBe("1/plate-stack/plate-base");
+    expect(instances[1]?.partOccurrenceId).toBe("1/plate-stack/plate-overlap");
+    expect(instances[2]?.partOccurrenceId).toBe("1/fasteners/fastener-0/bolt");
+    expect(instances[3]?.partOccurrenceId).toBe("1/fasteners/fastener-0/washers/top-washer");
+    expect(instances[4]?.partOccurrenceId).toBe("1/fasteners/fastener-0/washers/bottom-washer");
+    expect(instances[5]?.partOccurrenceId).toBe("1/fasteners/fastener-0/nut");
+    expect(instances[instances.length - 1]?.partOccurrenceId).toBe("1/fasteners/fastener-7/nut");
   });
 
   it("reports the model bounds including protruding fasteners", () => {

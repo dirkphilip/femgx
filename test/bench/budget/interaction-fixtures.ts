@@ -30,7 +30,12 @@ const emphasisScene = {
       {
         id: 1,
         placements: [
-          { kind: "part" as const, partId: emphasisPart.id, transform: translationMatrix(0, 0, 0) },
+          {
+            kind: "part" as const,
+            placementId: "emphasis",
+            partId: emphasisPart.id,
+            transform: translationMatrix(0, 0, 0),
+          },
         ],
       },
     ],

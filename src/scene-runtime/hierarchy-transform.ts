@@ -11,8 +11,8 @@ export function relinkNodeOrder(runtime: PackedSceneRuntime, scene: Scene, node:
   const assemblyId = invariantValue(runtime.nodeAssemblyIds[node], `assembly at node ${node}`);
   const definition = invariantValue(scene.assemblies.get(assemblyId), `assembly ${assemblyId}`);
   const ownerId = invariantValue(runtime.getNodeId(node), `node id at ${node}`);
-  const placements = definition.placements.map((placement, index) => {
-    const id = path(ownerId, placement.placementId ?? String(index));
+  const placements = definition.placements.map((placement) => {
+    const id = path(ownerId, placement.placementId);
     const slot = placement.kind === "part" ? runtime.getInstanceSlot(id) : runtime.getNodeSlot(id);
     const resolved = invariantValue(slot, `placement ${id}`);
     return placement.kind === "part" ? resolved : ~resolved;

@@ -17,6 +17,7 @@ describe("incremental attachment calls", () => {
         name: "root",
         placements: Array.from({ length: 5 }, (_, index) => ({
           kind: "part" as const,
+          placementId: String(index),
           partId: index + 1,
           transform: identityMatrix(),
         })),

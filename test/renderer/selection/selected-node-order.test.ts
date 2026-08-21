@@ -88,8 +88,9 @@ function selectionFixture(placements: number, nodeCount: number) {
     .addAssembly({
       id: 1,
       name: "root",
-      placements: Array.from({ length: placements }, () => ({
+      placements: Array.from({ length: placements }, (_, index) => ({
         kind: "part" as const,
+        placementId: String(index),
         partId: 1,
         transform: identityMatrix(),
       })),

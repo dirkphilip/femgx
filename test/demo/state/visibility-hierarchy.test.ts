@@ -47,6 +47,7 @@ function flatHierarchy(count: number): SceneOccurrences {
       if (!Number.isInteger(ordinal) || ordinal < 0 || ordinal >= count) return undefined;
       return {
         assemblyOccurrenceId: id,
+        placementId: ordinal === 0 ? undefined : id,
         assemblyId: 1,
         parentAssemblyOccurrenceId: ordinal === 0 ? undefined : "0",
         childCount: ordinal === 0 ? count - 1 : 0,
