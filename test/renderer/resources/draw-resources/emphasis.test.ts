@@ -4,6 +4,7 @@ import {
   createDrawResources,
   encodeInstanceRecord,
   INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_RESULT_COLOR_FLAG,
   INSTANCE_SELECTED_FLAG,
   patchInstances,
   defaultStyle,
@@ -74,6 +75,34 @@ describe("GPU draw path", () => {
       ]);
       const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
       expect(flags[22]).toBe(INSTANCE_SELECTED_FLAG | INSTANCE_EMPHASIS_FLAG);
+    } finally {
+      restore();
+    }
+  });
+
+  it("preserves authored-result retention while admitting emphasis", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const draw = createDrawResources(gpu.device);
+      patchInstances(draw, part.id, [
+        {
+          slot: 0,
+          data: encodeInstanceRecord(translationMatrix(0, 0, 0), defaultStyle, 1, true, true),
+        },
+      ]);
+      const update = {
+        slot: 0,
+        elementPickId: 1,
+        facePickId: 0,
+        nodePickId: 0,
+        style: defaultStyle,
+      };
+      syncInstanceEmphasisAdmission(draw, new Map([[part.id, [update]]]), new Set([part.id]));
+      const flags = new Uint32Array(draw.storages.get(part.id)?.data ?? new ArrayBuffer(0));
+      expect(flags[22]).toBe(
+        INSTANCE_SELECTED_FLAG | INSTANCE_RESULT_COLOR_FLAG | INSTANCE_EMPHASIS_FLAG,
+      );
     } finally {
       restore();
     }

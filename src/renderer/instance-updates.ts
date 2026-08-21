@@ -1,5 +1,6 @@
 import type { InteractionState } from "../interaction/interaction";
 import { resolveInstanceStyle } from "../interaction/interaction";
+import { keepsInstanceResultColor } from "../interaction/result-color";
 import { readInteractionState } from "../interaction/state";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartId } from "../geometry/part";
@@ -95,6 +96,7 @@ export function collectInstanceUpdates(
         slot + 1,
         interactionData.selectedPartIds.has(partId) ||
           interactionData.selectedPartOccurrenceIds.has(instance.partOccurrenceId),
+        keepsInstanceResultColor(instance, defaultStyle, interaction),
       ),
     };
     const list = updates.get(partId);

@@ -106,7 +106,9 @@ function instanceHighlighting(nodeIndex: string): string {
   var exactSelection = false;
   if (selected) {
     color = instance.color;
-    resultColorEnabled = false;
+    resultColorEnabled =
+      instanceKeepsResultColor(instance.selected) &&
+      resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal);
   }
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
 ${bodyAndElementHighlighting}
@@ -312,7 +314,9 @@ fn pointVertex(
   var exactSelection = false;
   if (selected && !nodeOverlay) {
     color = instance.color;
-    resultColorEnabled = false;
+    resultColorEnabled =
+      instanceKeepsResultColor(instance.selected) &&
+      resultColorActive(drawOrder[instanceIndex], nodePickId, elementOrdinal);
   }
   if (instanceHasPrimitiveEmphasis(instance.selected)) {
   let denseNode = denseNodeSelected(drawOrder[instanceIndex], nodePickId);

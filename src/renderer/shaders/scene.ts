@@ -1,6 +1,7 @@
 import {
   INSTANCE_EDGE_EMPHASIS_FLAG,
   INSTANCE_EMPHASIS_FLAG,
+  INSTANCE_RESULT_COLOR_FLAG,
   INSTANCE_SELECTED_FLAG,
 } from "../resources/instance-storage";
 export { emphasisStructs } from "./emphasis";
@@ -70,6 +71,10 @@ struct Instance {
 
 fn instanceSelected(flags: u32) -> bool {
   return (flags & ${INSTANCE_SELECTED_FLAG}u) != 0u;
+}
+
+fn instanceKeepsResultColor(flags: u32) -> bool {
+  return (flags & ${INSTANCE_RESULT_COLOR_FLAG}u) != 0u;
 }
 
 fn instanceHasPrimitiveEmphasis(flags: u32) -> bool {

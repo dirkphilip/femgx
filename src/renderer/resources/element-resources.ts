@@ -3,10 +3,10 @@ import {
   emphasizedElementRefs,
   resolveBodyStyle,
   resolveElementStyle,
-  resolveInstanceStyle,
   type InteractionState,
   type ResolvedStyle,
 } from "../../interaction/interaction";
+import { keepsResultColor } from "../../interaction/result-color";
 import { emphasizedBodyRefs, isBodyVisible } from "../../interaction/bodies";
 import { isElementVisible } from "../../interaction/elements";
 import { emphasizedFaceRefs, resolveFaceStyle } from "../../interaction/faces";
@@ -192,7 +192,7 @@ function collectBodyEmphasis(
       keepsResultColor:
         explicitOverride?.color === undefined &&
         explicitOverride?.opacity === undefined &&
-        (selected || keepsResultColor(occurrence.instance, style, interaction)),
+        keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
       style,
     });
   }
@@ -254,7 +254,7 @@ function collectElementEmphasis(
       keepsResultColor:
         explicitOverride?.color === undefined &&
         explicitOverride?.opacity === undefined &&
-        (selected || keepsResultColor(occurrence.instance, style, interaction)),
+        keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
       style,
     });
   }
@@ -291,7 +291,7 @@ function collectFaceEmphasis(
       selected:
         data.selectedFaces.get(ref.partOccurrenceId)?.has(faceKey(ref.elementId, ref.faceIndex)) ===
         true,
-      keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
+      keepsResultColor: keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
       style,
     });
   }
@@ -323,19 +323,10 @@ function collectNodeEmphasis(
       facePickId: 0,
       nodePickId: ref.nodeId + 1,
       selected: data.selectedNodeIds.get(ref.partOccurrenceId)?.has(ref.nodeId) === true,
-      keepsResultColor: keepsResultColor(occurrence.instance, style, interaction),
+      keepsResultColor: keepsResultColor(occurrence.instance, defaultStyle, style, interaction),
       style,
     });
   }
-}
-
-function keepsResultColor(
-  instance: PartOccurrence,
-  style: ResolvedStyle,
-  interaction: InteractionState,
-): boolean {
-  const base = resolveInstanceStyle(instance, defaultStyle, interaction);
-  return style.color === base.color && style.opacity === base.opacity;
 }
 
 /** Resolves a ref's instance slot to its part-local slot and part id. */
