@@ -163,6 +163,7 @@ function mappedRange(
     options.elementPickValue ?? 0,
     options.facePickValue ?? 0,
     options.nodePickValue ?? 0,
+    options.edgePickValue ?? 0,
   ];
   for (const [index, copy] of copies.entries()) {
     for (let y = 0; y < copy.height; y += 1) {
@@ -186,8 +187,9 @@ function mappedRange(
     bytes.set(encodePickId(options.facePickValue ?? 0), READBACK_BYTE_STRIDE * 2);
     bytes.set(encodePickId(options.nodePickValue ?? 0), READBACK_BYTE_STRIDE * 3);
   }
-  if (copies.length === 4) {
-    new DataView(bytes.buffer).setFloat32(READBACK_BYTE_STRIDE * 4, options.ndcDepth ?? 1, true);
+  if (copies.length === 4 || copies.length === 5) {
+    const depthOffset = copies.length === 5 ? READBACK_BYTE_STRIDE * 5 : READBACK_BYTE_STRIDE * 4;
+    new DataView(bytes.buffer).setFloat32(depthOffset, options.ndcDepth ?? 1, true);
   }
   return bytes.buffer;
 }

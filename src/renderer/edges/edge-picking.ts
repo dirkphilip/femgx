@@ -8,7 +8,7 @@ import { resolveEdgePickHit } from "../../picking/pick";
 import { encodeEdgePickSnapshot } from "./edge-pick-frame";
 import { createEdgePickPipeline } from "./edge-pick-pipeline";
 import type { FrameOptions } from "../frame/frame-types";
-import { pickWorldPosition, readEdgePickPixel, readPickPixel } from "../picking/pick";
+import { pickWorldPosition, readEdgePickPixel } from "../picking/pick";
 import { pickEdgeTargetsFromRegion } from "../picking/region";
 import type { GpuValidationOptions } from "../diagnostics/validation";
 import { getPartResource } from "../resources/draw-resources";
@@ -57,9 +57,14 @@ export async function pickEdgePixel(
 ): Promise<PickHit | undefined> {
   await ensureEdgePickSnapshot(context);
   const frame = context.frame();
-  const ids = await readPickPixel(frame.device, frame.canvas, frame.pickTargets, x, y);
+  const { ids, edgePickId } = await readEdgePickPixel(
+    frame.device,
+    frame.canvas,
+    frame.pickTargets,
+    x,
+    y,
+  );
   if (ids.instancePickId === 0 || ids.ndcDepth >= 1) return undefined;
-  const edgePickId = await readEdgePickPixel(frame.device, frame.canvas, frame.pickTargets, x, y);
   const edgeKey = edgeKeyForPickId(context, ids.instancePickId, edgePickId);
   if (edgeKey === undefined) return undefined;
   return resolveEdgePickHit(

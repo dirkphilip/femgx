@@ -203,14 +203,22 @@ describe("WebGPU renderer", () => {
   });
 
   it("materializes exact edge-pick geometry without enabling the presentation overlay", async () => {
-    const gpu = fakeGpuDevice();
+    const gpu = fakeGpuDevice({ pickValue: 1, edgePickValue: 1, ndcDepth: 0.5 });
     installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildFaceScene();
     renderer.render(createPackedSceneRuntime(scene), camera, scene.parts);
 
-    await renderer.pick(400, 300, "edge");
+    await expect(renderer.pick(400, 300, "edge")).resolves.toMatchObject({
+      kind: "edge",
+      key: "0,1",
+    });
+    const textureCreations = gpu.textureCreations;
+    expect(gpu.mapAsyncCount).toBe(1);
     expect(gpu.submissionCount).toBeGreaterThan(1);
+    await renderer.pick(400, 300, "edge");
+    expect(gpu.mapAsyncCount).toBe(2);
+    expect(gpu.textureCreations).toBe(textureCreations);
     renderer.destroy();
   });
 });

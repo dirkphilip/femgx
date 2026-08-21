@@ -52,6 +52,7 @@ export interface FakeGpuOptions {
     readonly x: number;
     readonly y: number;
   }) => number;
+  readonly edgePickValue?: number;
   readonly ndcDepth?: number;
   readonly mapAsync?: () => Promise<void>;
   readonly onCopyTextureToBuffer?: (source: GPUTexelCopyTextureInfo) => void;
