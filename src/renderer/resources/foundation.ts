@@ -103,10 +103,15 @@ export function createBuffer(
     size,
     usage: usage | GPUBufferUsage.COPY_DST,
   });
-  // queue.writeBuffer copies the source before returning; an intermediate
-  // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
-  device.queue.writeBuffer(buffer, 0, data);
-  return buffer;
+  try {
+    // queue.writeBuffer copies the source before returning; an intermediate
+    // Uint8Array copy needlessly doubles JavaScript staging for large geometry.
+    device.queue.writeBuffer(buffer, 0, data);
+    return buffer;
+  } catch (error) {
+    buffer.destroy();
+    throw error;
+  }
 }
 
 /** Mutable bind-group slots shared by every per-part renderer resource. */

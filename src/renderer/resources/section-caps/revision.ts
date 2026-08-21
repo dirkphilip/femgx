@@ -9,6 +9,7 @@ import {
   destroyInstancePartResources,
   destroyPartResources,
   type DrawResources,
+  uploadGeometryPart,
 } from "../draw-resources";
 import {
   appendRevisedSectionCapParts,
@@ -76,6 +77,7 @@ export function prepareSectionCapRevision(
       reusable: retained,
       revisedPartIds: options.partIds,
     });
+    uploadRevisedCapGeometry(options.draw, frame, options.partIds);
   } catch (error) {
     discardNewCapResources(options.draw, owner.retained, options.partIds);
     throw error;
@@ -98,6 +100,20 @@ export function prepareSectionCapRevision(
     interaction: options.interaction,
     dirty: false,
   };
+}
+
+function uploadRevisedCapGeometry(
+  draw: DrawResources,
+  frame: SectionCapFrame,
+  partIds: ReadonlySet<PartId>,
+): void {
+  for (const sourcePartId of partIds) {
+    for (const capId of frame.sourceCapIds.get(sourcePartId) ?? []) {
+      const cap = frame.parts.get(capId);
+      if (cap === undefined) continue;
+      for (const geometry of cap.geometries) uploadGeometryPart(draw, cap, geometry);
+    }
+  }
 }
 
 function dirtyRevision(
