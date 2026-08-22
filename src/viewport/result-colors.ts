@@ -7,14 +7,12 @@ import type { Scene } from "../scene/scene";
 import type { PartOccurrenceId } from "../scene/types";
 import { RevisedBindingMap, revisedResultBindings } from "./results/revision-bindings";
 import type { ResultResolutionView } from "./results/resolution-view";
+import { resolvedViewportResultData, type ResolvedViewportResults } from "./results/resolved-owner";
 import type {
   ViewportResultField,
   ViewportResultsState,
   ViewportScalarState,
 } from "./results-types";
-
-const colorsByState = new WeakMap<ViewportResultsState, ResultColorMap | undefined>();
-const partsByState = new WeakMap<ViewportResultsState, ReadonlyMap<PartId, Part> | undefined>();
 
 /** One resolved scalar override targeted at a stable placed-part identity. */
 export interface OccurrenceScalarBinding {
@@ -25,7 +23,7 @@ export interface OccurrenceScalarBinding {
 
 /** Returns the internal dense GPU color data for a resolved scalar field. */
 export function viewportResultColors(state: ViewportResultsState): ResultColorMap | undefined {
-  return colorsByState.get(state);
+  return resolvedViewportResultData(state)?.colors;
 }
 
 /** Retains unchanged per-binding table identities across an immutable part revision. */
@@ -35,25 +33,19 @@ export function reconcileViewportResultColors(
   view: ResultResolutionView,
   revisedPartIds: ReadonlySet<PartId>,
 ): void {
-  const current = colorsByState.get(state);
-  const prior = colorsByState.get(previous);
-  if (current === undefined || prior === undefined) return;
-  const colors = new RevisedBindingMap(prior, current, revisedResultBindings(view, revisedPartIds));
-  colorsByState.set(state, colors);
-}
-
-/** Moves internal resolved color metadata to an equivalent immutable result state. */
-export function transferViewportResultColors(
-  source: ViewportResultsState,
-  target: ViewportResultsState,
-): void {
-  colorsByState.set(target, colorsByState.get(source));
-  partsByState.set(target, partsByState.get(source));
+  const current = resolvedViewportResultData(state);
+  const prior = resolvedViewportResultData(previous);
+  if (current?.colors === undefined || prior?.colors === undefined) return;
+  current.colors = new RevisedBindingMap(
+    prior.colors,
+    current.colors,
+    revisedResultBindings(view, revisedPartIds),
+  );
 }
 
 /** Derives or reuses one dense color table per reusable rendered part. */
 export function resolveViewportResultColors(
-  state: ViewportResultsState,
+  state: ResolvedViewportResults,
   scalar: ViewportScalarState | undefined,
   scene: Scene,
   view: ResultResolutionView,
@@ -62,6 +54,8 @@ export function resolveViewportResultColors(
     readonly occurrences: readonly OccurrenceScalarBinding[];
   },
 ): void {
+  const data = resolvedViewportResultData(state);
+  if (data === undefined) throw new Error("Resolved result owner is missing renderer data");
   const { previous, occurrences } = options;
   const reusable =
     scalar === undefined ? undefined : reusableResultColors(previous, scalar, scene, view);
@@ -82,17 +76,15 @@ export function resolveViewportResultColors(
     ).get(occurrence.partId);
     if (table !== undefined) colors.set(occurrence.partOccurrenceId, table);
   }
-  colorsByState.set(state, colors.size === 0 ? undefined : colors);
-  partsByState.set(
-    state,
+  data.colors = colors.size === 0 ? undefined : colors;
+  data.renderedParts =
     scalar === undefined && occurrences.length === 0
       ? undefined
       : reusable === undefined
         ? renderedParts(scene, view, scalar?.config.partId)
         : previous === undefined
           ? undefined
-          : partsByState.get(previous),
-  );
+          : resolvedViewportResultData(previous)?.renderedParts;
 }
 
 /** Validates that every rendered semantic id is covered by the authored field. */
@@ -181,7 +173,7 @@ function sameRenderedParts(
   scene: Scene,
   view: ResultResolutionView,
 ): boolean {
-  const sources = partsByState.get(previous);
+  const sources = resolvedViewportResultData(previous)?.renderedParts;
   const partIds = view.renderedPartIds;
   if (sources === undefined || sources.size !== partIds.size) return false;
   for (const partId of partIds) {

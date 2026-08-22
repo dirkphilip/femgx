@@ -13,13 +13,13 @@ import {
   mergedNodePickIds,
   reconcileViewportResultColors,
   resolveViewportResultColors,
-  transferViewportResultColors,
   type OccurrenceScalarBinding,
 } from "./result-colors";
 import { validateViewportDeformationCoverage } from "./results/deformation";
 import {
   reconcilePartRevisionDeformation,
   reconcilePartRevisionRecords,
+  reconcileRenderedParts,
   reconcileSharedPartRevisionDeformation,
   replacePartRevisionDeformation,
   reusablePartDeformation,
@@ -32,6 +32,11 @@ import {
 } from "./results/resolution-view";
 import { scopedPartRevisionConfig } from "./results/revision-scope";
 import { resolveScalar } from "./results/scalar-resolution";
+import {
+  createResolvedViewportResults,
+  resolvedViewportResultData,
+  type ResolvedViewportResults,
+} from "./results/resolved-owner";
 import type {
   ViewportDeformationConfig,
   ViewportResultsConfig,
@@ -55,22 +60,18 @@ export type {
   ViewportScalarState,
 } from "./results-types";
 
-const orientationRecords = new WeakMap<ViewportResultsState, OrientationRecordMap | undefined>();
-const orientationWidths = new WeakMap<ViewportResultsState, number>();
-const sharedDeformations = new WeakMap<ViewportResultsState, DeformationState | undefined>();
-
 export { viewportResultColors } from "./result-colors";
 
 /** Returns internal resolved orientation records for the renderer handoff. */
 export function viewportOrientationRecords(
   state: ViewportResultsState,
 ): OrientationRecordMap | undefined {
-  return orientationRecords.get(state);
+  return resolvedViewportResultData(state)?.orientationRecords;
 }
 
 /** Returns the widest active authored glyph role for the renderer handoff. */
 export function viewportOrientationWidth(state: ViewportResultsState): number {
-  return orientationWidths.get(state) ?? 1;
+  return resolvedViewportResultData(state)?.orientationWidth ?? 1;
 }
 
 /** Resolves a viewport result configuration against one scene/runtime pair. */
@@ -93,7 +94,7 @@ function resolveViewportResultsWithView(
   scene: Scene,
   view: ResultResolutionView,
   previous?: ViewportResultsState,
-): ViewportResultsState {
+): ResolvedViewportResults {
   validateResultsConfig(config);
   const scalar = resolveScalar(config.scalar, scene, view, previous);
   const occurrenceTargets = resolveOccurrenceTargets(config.occurrences ?? [], view);
@@ -104,14 +105,22 @@ function resolveViewportResultsWithView(
   const resolvedOrientation = resolveOrientation(config.orientation, scene, view, deformation);
   const resolvedLoads = resolveLoads(config.loads, scene, view, deformation);
   const orientation = resolvedOrientation?.state;
-  const state = {
-    config,
-    scalar,
-    deformation,
-    orientation,
-    loads: resolvedLoads?.config,
-  };
-  sharedDeformations.set(state, sharedDeformation);
+  const state = createResolvedViewportResults(
+    {
+      config,
+      scalar,
+      deformation,
+      orientation,
+      loads: resolvedLoads?.config,
+    },
+    {
+      colors: undefined,
+      renderedParts: undefined,
+      sharedDeformation,
+      orientationRecords: undefined,
+      orientationWidth: 1,
+    },
+  );
   resolveViewportResultColors(state, scalar, scene, view, {
     previous,
     occurrences: occurrenceScalars,
@@ -124,14 +133,13 @@ function resolveViewportResultsWithView(
     view,
     deformation,
   );
-  orientationRecords.set(state, mergeResultRecords(sharedRecords, occurrenceRecords.records));
-  orientationWidths.set(
-    state,
-    Math.max(
-      orientation?.widthPixels ?? 1,
-      resolvedLoads?.config.widthPixels ?? 1,
-      occurrenceRecords.widthPixels,
-    ),
+  const data = resolvedViewportResultData(state);
+  if (data === undefined) throw new Error("Resolved result owner is missing renderer data");
+  data.orientationRecords = mergeResultRecords(sharedRecords, occurrenceRecords.records);
+  data.orientationWidth = Math.max(
+    orientation?.widthPixels ?? 1,
+    resolvedLoads?.config.widthPixels ?? 1,
+    occurrenceRecords.widthPixels,
   );
   return state;
 }
@@ -150,24 +158,51 @@ export function resolveViewportPartRevisionResults(
   const scoped = scopedPartRevisionConfig(config, view, revisedPartIds);
   if (scoped === undefined) return previous;
   const partial = resolveViewportResultsWithView(scoped, scene, revisedView, undefined);
+  const partialData = resolvedViewportResultData(partial);
+  if (partialData === undefined) throw new Error("Resolved result owner is missing renderer data");
+  const previousData = resolvedViewportResultData(previous);
   const shared = reconcileSharedPartRevisionDeformation(
-    sharedDeformations.get(partial),
+    partialData.sharedDeformation,
     revisedPartIds,
     (partId) => resolveDeformation(config.deformation, scene, view, undefined, partId),
   );
-  const reconciled = {
-    ...partial,
-    config,
-    deformation: reconcilePartRevisionDeformation(
-      replacePartRevisionDeformation(partial.deformation, shared, config, revisedPartIds),
-      previous.deformation,
-      view,
-      revisedPartIds,
-    ),
-  };
-  sharedDeformations.set(reconciled, shared);
-  reconcileViewportResultColors(partial, previous, view, revisedPartIds);
-  transferResultMetadata(partial, reconciled, previous, view, revisedPartIds);
+  const reconciled = createResolvedViewportResults(
+    {
+      config,
+      scalar: partial.scalar,
+      deformation: reconcilePartRevisionDeformation(
+        replacePartRevisionDeformation(partial.deformation, shared, config, revisedPartIds),
+        previous.deformation,
+        view,
+        revisedPartIds,
+      ),
+      orientation: partial.orientation,
+      loads: partial.loads,
+    },
+    {
+      ...partialData,
+      sharedDeformation: shared,
+      renderedParts: reconcileRenderedParts(
+        previousData?.renderedParts,
+        partialData.renderedParts,
+        revisedPartIds,
+      ),
+    },
+  );
+  reconcileViewportResultColors(reconciled, previous, view, revisedPartIds);
+  const reconciledData = resolvedViewportResultData(reconciled);
+  if (reconciledData === undefined)
+    throw new Error("Resolved result owner is missing renderer data");
+  reconciledData.orientationRecords = reconcilePartRevisionRecords(
+    partialData.orientationRecords,
+    previousData?.orientationRecords,
+    view,
+    revisedPartIds,
+  );
+  reconciledData.orientationWidth = Math.max(
+    partialData.orientationWidth,
+    previousData?.orientationWidth ?? 1,
+  );
   return reconciled;
 }
 
@@ -324,7 +359,9 @@ function resolveDeformation(
     targetPartId === undefined
       ? reusablePartDeformation(
           previous,
-          previous === undefined ? undefined : sharedDeformations.get(previous),
+          previous === undefined
+            ? undefined
+            : resolvedViewportResultData(previous)?.sharedDeformation,
           config,
         )
       : undefined;
@@ -353,22 +390,4 @@ function resolveDeformation(
     displacements.set(part.id, createNodalDisplacementBuffer(maxNodeId + 1, config.field));
   }
   return { scale, displacements };
-}
-
-function transferResultMetadata(
-  source: ViewportResultsState,
-  target: ViewportResultsState,
-  previous: ViewportResultsState,
-  view: ResultResolutionView,
-  revisedPartIds: ReadonlySet<PartId>,
-): void {
-  transferViewportResultColors(source, target);
-  const records = reconcilePartRevisionRecords(
-    orientationRecords.get(source),
-    orientationRecords.get(previous),
-    view,
-    revisedPartIds,
-  );
-  orientationRecords.set(target, records);
-  orientationWidths.set(target, orientationWidths.get(source) ?? 1);
 }
