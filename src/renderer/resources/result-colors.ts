@@ -120,7 +120,10 @@ function uploadResultColors(
   tables: readonly (ResultColorTable | undefined)[],
 ): void {
   const current = draw.resultColors.get(partId);
-  if (sameResultTables(current?.source, tables)) return;
+  if (sameResultTables(current?.source, tables)) {
+    if (current !== undefined) current.source = tables;
+    return;
+  }
   const data = resultColorData(tables);
   if (current !== undefined && current.buffer.size === data.byteLength) {
     current.source = tables;

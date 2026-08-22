@@ -36,11 +36,14 @@ describe("dense result color storage", () => {
       const writes = gpu.writes.length;
       syncResultColors(sync, new Map([[7, table]]));
       expect(gpu.writes).toHaveLength(writes);
-      syncResultColors(
-        sync,
-        new Map([[7, { location: "elemental" as const, values: new Float32Array(table.values) }]]),
-      );
+      const equivalent = {
+        location: "elemental" as const,
+        values: new Float32Array(table.values),
+      };
+      syncResultColors(sync, new Map([[7, equivalent]]));
       expect(gpu.writes).toHaveLength(writes);
+      expect(sync.resultColors.get(7)?.source).toEqual([equivalent]);
+      expect(sync.resultColors.get(7)?.source[0]).toBe(equivalent);
     } finally {
       restore();
     }
