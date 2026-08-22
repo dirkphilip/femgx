@@ -3,6 +3,9 @@ import svelte from "eslint-plugin-svelte";
 import tseslint from "typescript-eslint";
 import jsdoc from "eslint-plugin-jsdoc";
 import regexp from "eslint-plugin-regexp";
+import angularTemplate from "@angular-eslint/eslint-plugin-template";
+import angularTemplateParser from "@angular-eslint/template-parser";
+import composition from "./eslint-rules/index.mjs";
 
 export default tseslint.config(
   {
@@ -79,6 +82,12 @@ export default tseslint.config(
         console: "readonly",
         process: "readonly",
       },
+    },
+  },
+  {
+    files: ["angular/main.js"],
+    languageOptions: {
+      globals: { document: "readonly", HTMLElement: "readonly" },
     },
   },
   {
@@ -166,6 +175,92 @@ export default tseslint.config(
             "Do not install workbench state properties dynamically; give the owning state object an explicit surface instead.",
         },
       ],
+    },
+  },
+  {
+    files: ["demo/angular/src/**/*.ts"],
+    plugins: { composition },
+    rules: {
+      "composition/max-class-callables": "error",
+      "composition/max-interface-callables": "error",
+      "composition/max-imports": "error",
+      "composition/no-bind": "error",
+      "@typescript-eslint/no-extraneous-class": "off",
+      "max-lines": ["error", { max: 400, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true }],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.object.name='Object'][callee.property.name=/^definePropert(?:y|ies)$/]",
+          message:
+            "Do not install Angular state properties dynamically; give the owning object an explicit surface instead.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Reflect'][callee.property.name='defineProperty']",
+          message:
+            "Do not install Angular state properties dynamically; give the owning object an explicit surface instead.",
+        },
+        {
+          selector: "CallExpression[callee.object.name='Object'][callee.property.name='assign']",
+          message:
+            "Do not merge Angular owner surfaces dynamically; compose an explicit owner instead.",
+        },
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^@/",
+              message: "Angular code must consume published package entries, not source aliases.",
+            },
+            {
+              regex: "^(?:\\.\\.?/)+src/",
+              message: "Angular code must not import library source internals.",
+            },
+            {
+              regex: "^(?:\\.\\.?/)+demo/(?:workbench|devtools|benchmark)/",
+              message: "Angular code must not depend on the legacy demo graph or tooling.",
+            },
+            {
+              regex: "^(?:\\.\\.?/)+(?:test|e2e)/",
+              message: "Angular production code must not import test or e2e helpers.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["**/*.component.html"],
+    languageOptions: {
+      parser: angularTemplateParser,
+      parserOptions: { project: false, projectService: false },
+    },
+    plugins: { "@angular-eslint/template": angularTemplate },
+    rules: {
+      ...tseslint.configs.disableTypeChecked.rules,
+      ...Object.fromEntries(
+        Object.keys(jsdoc.configs["flat/recommended-typescript-flavor"].rules).map((rule) => [
+          rule,
+          "off",
+        ]),
+      ),
+      "@typescript-eslint/consistent-type-imports": "off",
+      "@typescript-eslint/consistent-type-exports": "off",
+      "@angular-eslint/template/alt-text": "error",
+      "@angular-eslint/template/button-has-type": "error",
+      "@angular-eslint/template/click-events-have-key-events": "error",
+      "@angular-eslint/template/elements-content": "error",
+      "@angular-eslint/template/interactive-supports-focus": "error",
+      "@angular-eslint/template/label-has-associated-control": "error",
+      "@angular-eslint/template/mouse-events-have-key-events": "error",
+      "@angular-eslint/template/no-autofocus": "error",
+      "@angular-eslint/template/no-inline-styles": "error",
+      "@angular-eslint/template/role-has-required-aria": "error",
+      "@angular-eslint/template/valid-aria": "error",
     },
   },
   {

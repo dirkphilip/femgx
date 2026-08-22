@@ -7,6 +7,7 @@
     "allowImportingTsExtensions": true,
     "paths": {
       "@/*": ["./src/*"],
+      "fixtures/*": ["./fixtures/*"],
       "femgx": ["./src/entries/root.ts"],
       "femgx/model": ["./src/entries/model.ts"]
     },

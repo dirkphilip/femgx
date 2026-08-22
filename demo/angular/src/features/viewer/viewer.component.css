@@ -1,0 +1,89 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.viewer-shell {
+  display: grid;
+  gap: 1.5rem;
+  margin: 0 auto;
+  max-width: 72rem;
+  padding: 2rem;
+}
+
+.eyebrow {
+  color: #93c5fd;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  margin-bottom: 0.75rem;
+}
+
+header p:last-child {
+  color: #cbd5e1;
+  margin-bottom: 0;
+}
+
+.viewport-card {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 3rem rgb(2 6 23 / 35%);
+  padding: 1rem;
+}
+
+.viewport-card h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+canvas {
+  background: #020617;
+  border-radius: 0.5rem;
+  display: block;
+  min-height: 20rem;
+  width: 100%;
+}
+
+.status {
+  color: #cbd5e1;
+  margin: 0.75rem 0 0;
+}
+
+button {
+  background: #2563eb;
+  border: 0;
+  border-radius: 0.5rem;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  margin-top: 0.75rem;
+  padding: 0.65rem 1rem;
+}
+
+button:focus-visible {
+  outline: 0.15rem solid #93c5fd;
+  outline-offset: 0.15rem;
+}
+
+@media (max-width: 30rem) {
+  .viewer-shell {
+    padding: 1rem;
+  }
+
+  canvas {
+    min-height: 16rem;
+  }
+}

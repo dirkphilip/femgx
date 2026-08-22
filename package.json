@@ -77,8 +77,9 @@
     "build:docs": "typedoc --options config/typedoc.json",
     "check:svelte": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "typecheck:ts": "tsc --noEmit",
-    "typecheck": "npm run typecheck:ts && npm run check:svelte",
-    "lint": "npm run lint:actions && npm run lint:demo-boundary && npm run lint:fixture-boundary && npm run lint:demo-architecture && npm run lint:demo-size && npm run lint:folder-structure && npm run lint:attachment-publication && npm run lint:public-docs && npm run lint:markdown && npm run lint:styles && npm run lint:wgsl && eslint . --max-warnings 0 --cache --cache-strategy content --cache-location .cache/eslint && npm run lint:dependencies && npm run lint:dead-code",
+    "typecheck": "npm run typecheck:ts && npm run typecheck:angular && npm run check:svelte",
+    "typecheck:angular": "ngc -p tsconfig.app.json --noEmit",
+    "lint": "npm run lint:actions && npm run lint:demo-boundary && npm run lint:fixture-boundary && npm run lint:demo-architecture && npm run lint:angular-architecture && npm run lint:demo-size && npm run lint:folder-structure && npm run lint:attachment-publication && npm run lint:public-docs && npm run lint:markdown && npm run lint:styles && npm run lint:wgsl && eslint . --max-warnings 0 --cache --cache-strategy content --cache-location .cache/eslint && npm run lint:dependencies && npm run lint:angular-dependencies && npm run lint:dead-code",
     "lint:fix": "npm run lint:actions && npm run lint:demo-boundary && npm run lint:fixture-boundary && npm run lint:demo-architecture && npm run lint:demo-size && npm run lint:folder-structure && eslint . --fix && npm run lint:dependencies && npm run lint:dead-code",
     "lint:actions": "node scripts/check-github-actions.mjs",
     "lint:actionlint": "node scripts/actionlint.mjs",
@@ -89,6 +90,7 @@
     "lint:demo-boundary": "node scripts/check-demo-import-boundary.mjs",
     "lint:fixture-boundary": "node scripts/check-fixture-boundary.mjs",
     "lint:demo-architecture": "node scripts/check-demo-workbench-architecture.mjs",
+    "lint:angular-architecture": "node scripts/check-angular-architecture.mjs",
     "lint:demo-size": "node scripts/check-demo-size.mjs",
     "lint:folder-structure": "node scripts/check-folder-structure.mjs",
     "lint:attachment-publication": "node scripts/check-attachment-publication.mjs",
@@ -98,11 +100,13 @@
     "lint:wgsl": "vitest run test/scripts/wgsl-validation.test.ts --reporter=dot",
     "lint:package": "npm run build && publint run --strict --pack=false",
     "lint:dependencies": "depcruise src --config config/dependency-cruiser.mjs && depcruise demo/workbench --config config/dependency-cruiser-workbench.mjs",
+    "lint:angular-dependencies": "depcruise demo/angular/src --config config/dependency-cruiser-angular.mjs",
     "lint:dead-code": "knip --include files,dependencies,unlisted,unresolved,binaries",
     "review:diff": "node scripts/review-diff.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:angular",
+    "test:angular": "vitest run --config config/vitest.angular.config.ts",
     "test:core": "vitest run --exclude 'test/demo/**' --exclude 'test/renderer/**' --exclude 'test/viewport/**' --exclude 'test/platform/**' --exclude 'test/scripts/**' --exclude 'test/bench/**'",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --exclude 'test/demo/**'",
@@ -151,7 +155,8 @@
     "entry": [
       "e2e/core/core-host.ts",
       "e2e/core/authored-interior-edges-host.ts",
-      "examples/host-integration/main.ts"
+      "examples/host-integration/main.ts",
+      "angular/main.js"
     ],
     "ignore": [
       "scripts/*.d.mts"
@@ -161,6 +166,14 @@
     ]
   },
   "devDependencies": {
+    "@analogjs/vite-plugin-angular": "^2.7.0",
+    "@angular-eslint/eslint-plugin-template": "^22.1.0",
+    "@angular-eslint/template-parser": "^22.1.0",
+    "@angular/build": "^22.1.3",
+    "@angular/compiler": "^22.1.3",
+    "@angular/compiler-cli": "^22.1.3",
+    "@angular/core": "^22.1.3",
+    "@angular/platform-browser": "^22.1.3",
     "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
     "@gltf-transform/core": "^4.4.2",

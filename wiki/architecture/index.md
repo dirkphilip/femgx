@@ -9,6 +9,8 @@
   APIs.
 - [[architecture/architecture-overview|Architecture overview]] — scene model,
   renderer split, and ownership boundaries.
+- [[architecture/angular-workbench|Angular workbench]] — Gate 0 ownership,
+  package-import, lifecycle, and migration boundaries for the replacement shell.
 - [[architecture/demo-library-boundary|Demo / library boundary]] — what the
   demo owns as a thin consumer and what reusable behavior lives in `src/`.
 - [[architecture/packed-runtime|Packed scene runtime]] — packed typed-array
@@ -17,6 +19,7 @@
   and deliberate public boundaries.
 
 [architecture/api-design|API design north star]: api-design.md
+[architecture/angular-workbench|Angular workbench]: angular-workbench.md
 [architecture/architecture-overview|Architecture overview]: architecture-overview.md
 [architecture/bodies|Part bodies]: bodies.md
 [architecture/core-api|Core API review]: core-api.md
