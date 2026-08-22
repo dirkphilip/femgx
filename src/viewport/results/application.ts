@@ -16,6 +16,7 @@ import {
   type ViewportResultsState,
 } from "../results";
 import { revisedResultBindings } from "./revision-bindings";
+import { createResultResolutionView } from "./resolution-view";
 
 interface ViewportResultsApplication {
   readonly results: ViewportResultsConfig;
@@ -78,7 +79,7 @@ function revisedResultState(
   runtime: PackedSceneRuntime,
   partIds: ReadonlySet<PartId>,
 ) {
-  const bindings = revisedResultBindings(runtime, partIds);
+  const bindings = revisedResultBindings(createResultResolutionView(runtime), partIds);
   return {
     deformation:
       deformation === undefined

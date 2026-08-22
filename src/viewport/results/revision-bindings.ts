@@ -1,20 +1,17 @@
 import type { PartId } from "../../geometry/part";
-import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartOccurrenceId } from "../../scene/types";
+import type { ResultResolutionView } from "./resolution-view";
 
 type ResultBindingId = PartId | PartOccurrenceId;
 
 /** Builds the only shared or occurrence result bindings a part revision may replace. */
 export function revisedResultBindings(
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   revisedPartIds: ReadonlySet<PartId>,
 ): ReadonlySet<ResultBindingId> {
   const bindings = new Set<ResultBindingId>(revisedPartIds);
   for (const partId of revisedPartIds) {
-    for (const slot of runtime.getPartInstanceSlots(partId)) {
-      const occurrenceId = runtime.getInstanceId(slot);
-      if (occurrenceId !== undefined) bindings.add(occurrenceId);
-    }
+    for (const occurrenceId of view.occurrencesForPart(partId)) bindings.add(occurrenceId);
   }
   return bindings;
 }

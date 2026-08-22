@@ -3,11 +3,10 @@ import type { ResultColorMap, ResultColorTable } from "../results/colors";
 import { elementalResultIndex, scalarAt, type ScalarField } from "../results/fields";
 import { mapScalarToColor, type ScalarColorMap } from "../results/mapping";
 import { getPartSemanticIndex } from "../geometry/part-semantic-index";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type { PartOccurrenceId } from "../scene/types";
-import { renderedPartIds } from "./results-roles";
 import { RevisedBindingMap, revisedResultBindings } from "./results/revision-bindings";
+import type { ResultResolutionView } from "./results/resolution-view";
 import type {
   ViewportResultField,
   ViewportResultsState,
@@ -33,17 +32,13 @@ export function viewportResultColors(state: ViewportResultsState): ResultColorMa
 export function reconcileViewportResultColors(
   state: ViewportResultsState,
   previous: ViewportResultsState,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   revisedPartIds: ReadonlySet<PartId>,
 ): void {
   const current = colorsByState.get(state);
   const prior = colorsByState.get(previous);
   if (current === undefined || prior === undefined) return;
-  const colors = new RevisedBindingMap(
-    prior,
-    current,
-    revisedResultBindings(runtime, revisedPartIds),
-  );
+  const colors = new RevisedBindingMap(prior, current, revisedResultBindings(view, revisedPartIds));
   colorsByState.set(state, colors);
 }
 
@@ -61,7 +56,7 @@ export function resolveViewportResultColors(
   state: ViewportResultsState,
   scalar: ViewportScalarState | undefined,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   options: {
     readonly previous: ViewportResultsState | undefined;
     readonly occurrences: readonly OccurrenceScalarBinding[];
@@ -69,20 +64,20 @@ export function resolveViewportResultColors(
 ): void {
   const { previous, occurrences } = options;
   const reusable =
-    scalar === undefined ? undefined : reusableResultColors(previous, scalar, scene, runtime);
+    scalar === undefined ? undefined : reusableResultColors(previous, scalar, scene, view);
   const colors =
     scalar === undefined
       ? new Map<PartId | PartOccurrenceId, ResultColorTable>()
       : new Map(
           reusable ??
-            buildResultColors(scalar.field, scalar.colorMap, scene, runtime, scalar.config.partId),
+            buildResultColors(scalar.field, scalar.colorMap, scene, view, scalar.config.partId),
         );
   for (const occurrence of occurrences) {
     const table = buildResultColors(
       occurrence.scalar.field,
       occurrence.scalar.colorMap,
       scene,
-      runtime,
+      view,
       occurrence.partId,
     ).get(occurrence.partId);
     if (table !== undefined) colors.set(occurrence.partOccurrenceId, table);
@@ -93,7 +88,7 @@ export function resolveViewportResultColors(
     scalar === undefined && occurrences.length === 0
       ? undefined
       : reusable === undefined
-        ? renderedParts(scene, runtime, scalar?.config.partId)
+        ? renderedParts(scene, view, scalar?.config.partId)
         : previous === undefined
           ? undefined
           : partsByState.get(previous),
@@ -104,14 +99,14 @@ export function resolveViewportResultColors(
 export function validateResultCoverage(
   field: ViewportResultField,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): void {
   if (field.location === "nodal") {
-    validateNodalCoverage(field, scene, runtime, partId);
+    validateNodalCoverage(field, scene, view, partId);
     return;
   }
-  for (const renderedPartId of targetPartIds(runtime, partId)) {
+  for (const renderedPartId of targetPartIds(view, partId)) {
     const part = scene.parts.get(renderedPartId);
     const elements = part?.elements;
     const metadata = part === undefined ? undefined : getPartSemanticIndex(part);
@@ -160,14 +155,14 @@ function reusableResultColors(
   previous: ViewportResultsState | undefined,
   scalar: ViewportScalarState,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
 ): ResultColorMap | undefined {
   if (
     previous?.scalar === undefined ||
     previous.scalar.colorMap !== scalar.colorMap ||
     previous.scalar.config.partId !== scalar.config.partId ||
     !sameFieldSource(previous.scalar.field, scalar.field) ||
-    !sameRenderedParts(previous, scene, runtime)
+    !sameRenderedParts(previous, scene, view)
   ) {
     return undefined;
   }
@@ -184,10 +179,10 @@ function reusableResultColors(
 function sameRenderedParts(
   previous: ViewportResultsState,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
 ): boolean {
   const sources = partsByState.get(previous);
-  const partIds = renderedPartIds(runtime);
+  const partIds = view.renderedPartIds;
   if (sources === undefined || sources.size !== partIds.size) return false;
   for (const partId of partIds) {
     if (sources.get(partId) !== scene.parts.get(partId)) return false;
@@ -198,22 +193,21 @@ function sameRenderedParts(
 /** Tests whether one shared or occurrence-bound result entry targets a revised definition. */
 export function bindingUsesRevisedPart(
   bindingId: PartId | PartOccurrenceId,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   revisedPartIds: ReadonlySet<PartId>,
 ): boolean {
   if (typeof bindingId === "number") return revisedPartIds.has(bindingId);
-  const slot = runtime.getInstanceSlot(bindingId);
-  const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+  const partId = view.partIdForOccurrence(bindingId);
   return partId === undefined || revisedPartIds.has(partId);
 }
 
 function renderedParts(
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): ReadonlyMap<PartId, Part> {
   const parts = new Map<PartId, Part>();
-  for (const renderedPartId of targetPartIds(runtime, partId)) {
+  for (const renderedPartId of targetPartIds(view, partId)) {
     const part = scene.parts.get(renderedPartId);
     if (part !== undefined) parts.set(renderedPartId, part);
   }
@@ -224,23 +218,23 @@ function buildResultColors(
   field: ViewportResultField,
   colorMap: ScalarColorMap,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): ResultColorMap {
   return field.location === "nodal"
-    ? buildNodalResultColors(field, colorMap, scene, runtime, partId)
-    : buildElementalResultColors(field, colorMap, scene, runtime, partId);
+    ? buildNodalResultColors(field, colorMap, scene, view, partId)
+    : buildElementalResultColors(field, colorMap, scene, view, partId);
 }
 
 function buildElementalResultColors(
   field: ScalarField<"elemental">,
   colorMap: ScalarColorMap,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): ResultColorMap {
   const colors = new Map<PartId, ResultColorTable>();
-  for (const renderedPartId of targetPartIds(runtime, partId)) {
+  for (const renderedPartId of targetPartIds(view, partId)) {
     const part = scene.parts.get(renderedPartId);
     if (part === undefined || part.elements === undefined || part.elements.count === 0) continue;
     const elements = part.elements;
@@ -277,11 +271,11 @@ function buildNodalResultColors(
   field: ScalarField<"nodal">,
   colorMap: ScalarColorMap,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): ResultColorMap {
   const colors = new Map<PartId, ResultColorTable>();
-  for (const renderedPartId of targetPartIds(runtime, partId)) {
+  for (const renderedPartId of targetPartIds(view, partId)) {
     const part = scene.parts.get(renderedPartId);
     const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (nodePickIds === undefined) continue;
@@ -314,10 +308,10 @@ function validateElementId(
 function validateNodalCoverage(
   field: ScalarField<"nodal">,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   partId?: PartId,
 ): void {
-  for (const renderedPartId of targetPartIds(runtime, partId)) {
+  for (const renderedPartId of targetPartIds(view, partId)) {
     const part = scene.parts.get(renderedPartId);
     const nodePickIds = part === undefined ? undefined : mergedNodePickIds(part);
     if (part === undefined || nodePickIds === undefined) {
@@ -335,8 +329,8 @@ function validateNodalCoverage(
   }
 }
 
-function targetPartIds(runtime: PackedSceneRuntime, partId?: PartId): ReadonlySet<PartId> {
-  const rendered = renderedPartIds(runtime);
+function targetPartIds(view: ResultResolutionView, partId?: PartId): ReadonlySet<PartId> {
+  const rendered = view.renderedPartIds;
   if (partId === undefined) return rendered;
   if (!rendered.has(partId)) {
     throw new Error(`Viewport scalar part ${partId} is not rendered by the current runtime`);

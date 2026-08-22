@@ -7,9 +7,9 @@ import {
   type ElementalOrientationRecords,
 } from "../results/orientation-records";
 import { resolveNodalLoadRecords } from "../results/load-records";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { Scene } from "../scene/scene";
 import type { PartOccurrenceId } from "../scene/types";
+import type { ResultResolutionView } from "./results/resolution-view";
 import type {
   ViewportDeformationConfig,
   ViewportElementFrameConfig,
@@ -99,14 +99,14 @@ function validateRoleSet(roles: Record<string, unknown>, context: string): void 
 export function resolveOrientation(
   config: ViewportElementVectorConfig | ViewportElementFrameConfig | undefined,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   deformation: DeformationState | undefined,
   target?: { readonly partId: PartId; readonly bindingId: PartOccurrenceId },
 ): ResolvedOrientation | undefined {
   if (config === undefined) return undefined;
   const records = new Map<ResultBindingId, ElementalOrientationRecords>();
   const lengthScale = config.lengthScale ?? 1;
-  for (const partId of target === undefined ? renderedPartIds(runtime) : [target.partId]) {
+  for (const partId of target === undefined ? view.renderedPartIds : [target.partId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     if (config.glyph !== "triad" && config.partId !== undefined && partId !== config.partId)
@@ -166,13 +166,13 @@ function orientationState(
 export function resolveLoads(
   config: ViewportLoadConfig | undefined,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   deformation: DeformationState | undefined,
   target?: { readonly partId: PartId; readonly bindingId: PartOccurrenceId },
 ): ResolvedLoads | undefined {
   if (config === undefined) return undefined;
   const records = new Map<ResultBindingId, ElementalOrientationRecords>();
-  for (const partId of target === undefined ? renderedPartIds(runtime) : [target.partId]) {
+  for (const partId of target === undefined ? view.renderedPartIds : [target.partId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     if (partId !== config.field.partId) continue;
@@ -205,16 +205,6 @@ function decorateRecords(
     transformModes: new Uint32Array(records.elementIds.length).fill(transform === "normal" ? 1 : 0),
     lengthScales: new Float32Array(records.elementIds.length).fill(lengthScale),
   };
-}
-
-/** Returns the distinct part definitions represented by a packed runtime. */
-export function renderedPartIds(runtime: PackedSceneRuntime): ReadonlySet<PartId> {
-  const partIds = new Set<PartId>();
-  for (let slot = 0; slot < runtime.instanceCount; slot += 1) {
-    const partId = runtime.getPartId(slot);
-    if (partId !== undefined) partIds.add(partId);
-  }
-  return partIds;
 }
 
 function validateScalarConfig(value: unknown): void {

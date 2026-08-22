@@ -1,6 +1,5 @@
 import { createScalarColorMap, type ScalarColorMap } from "../../results/mapping";
 import { scalarRange, type ValueRange } from "../../results/range";
-import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
 import { sameFieldSource, validateResultCoverage } from "../result-colors";
 import type {
@@ -9,12 +8,13 @@ import type {
   ViewportScalarConfig,
   ViewportScalarState,
 } from "../results-types";
+import type { ResultResolutionView } from "./resolution-view";
 
 /** Resolves and validates one scalar role against the rendered runtime. */
 export function resolveScalar(
   config: ViewportScalarConfig | undefined,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   previous: ViewportResultsState | undefined,
 ): ViewportScalarState | undefined {
   if (config === undefined) return undefined;
@@ -22,7 +22,7 @@ export function resolveScalar(
   const range = resolveRange(field, config.range, config.colorMap);
   const colorMap = resolveColorMap(config, field, range, previous);
   validateMapRange(range, colorMap);
-  validateResultCoverage(field, scene, runtime, config.partId);
+  validateResultCoverage(field, scene, view, config.partId);
   return { config, field, range, colorMap };
 }
 
