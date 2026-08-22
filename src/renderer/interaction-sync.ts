@@ -322,7 +322,7 @@ export function syncInteractionEmphasis(
   );
   syncInstanceEmphasisAdmission(
     {
-      device: options.bundle.device,
+      writePort: options.bundle.draw.writePort,
       cost: options.bundle.draw.cost,
       storages: options.bundle.draw.storages,
     },

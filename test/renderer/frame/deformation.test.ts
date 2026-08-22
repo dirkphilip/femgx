@@ -9,6 +9,7 @@ import {
   type DeformationSync,
 } from "@/renderer/frame/deformation";
 import type { DeformationState } from "@/results/deform";
+import { directBufferWritePort } from "@/renderer/resources/buffer-write-port";
 import { fakeGpuDevice, installGpuGlobals, type FakeGpu } from "../fake-gpu";
 
 type StorageMap = Map<
@@ -38,7 +39,12 @@ function state(
 function syncWith(gpu: FakeGpu): { sync: DeformationSync; storages: StorageMap } {
   const storages: StorageMap = new Map();
   return {
-    sync: { device: gpu.device, deformations: new Map(), storages },
+    sync: {
+      device: gpu.device,
+      writePort: directBufferWritePort(gpu.device),
+      deformations: new Map(),
+      storages,
+    },
     storages,
   };
 }

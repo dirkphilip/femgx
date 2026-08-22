@@ -13,6 +13,7 @@ import {
   type InstanceStorageRevisionJournal,
 } from "./instance-storage/journal";
 import { createStorageBuffers } from "./instance-storage/create-storage-buffers";
+import type { BufferWritePort } from "./buffer-write-port";
 
 export {
   captureStagedInstanceRecord,
@@ -124,6 +125,7 @@ export interface InstanceStorage {
 
 export interface InstanceStorageOwner {
   readonly device: GPUDevice;
+  readonly writePort: BufferWritePort;
   readonly cost: GpuCostAccumulator;
   readonly storages: Map<number, InstanceStorage>;
   readonly emptyOrderBuffer: GPUBuffer;
@@ -167,7 +169,7 @@ export function patchInstances(
       next.set(data, offset);
     }
   }
-  writeChangedRecordRanges(draw.device, {
+  writeChangedRecordRanges(draw.writePort, {
     buffer: storage.buffer,
     next,
     recordOffset: 0,
@@ -193,11 +195,11 @@ export function initializeInstancePart(
   const capacity = data.byteLength / INSTANCE_STRIDE;
   const storage = createStorage(draw, capacity, undefined, { data, orderData, orderLength });
   draw.storages.set(partId, storage);
-  draw.device.queue.writeBuffer(storage.buffer, 0, data);
+  draw.writePort.writeBuffer(storage.buffer, 0, data);
   draw.cost.write("instance", data.byteLength);
   if (orderLength > 0) {
     const order = orderData.subarray(0, orderLength);
-    draw.device.queue.writeBuffer(storage.orderBuffer, 0, order);
+    draw.writePort.writeBuffer(storage.orderBuffer, 0, order);
     draw.cost.write("order", order.byteLength);
   }
 }
@@ -303,7 +305,7 @@ function writeOrder(
   const storage = ensureStorage(draw, partId, kind === "draw" ? Math.max(1, order.length) : 1);
   if (kind === "draw") {
     storage.orderLength = writeOrderBuffer(
-      draw.device,
+      draw.writePort,
       storage.orderBuffer,
       storage.orderData,
       order,
@@ -322,7 +324,7 @@ function writeOrder(
     return;
   }
   const sidecar = ensureOrderSidecar(draw, storage, kind, order.length);
-  sidecar.length = writeOrderBuffer(draw.device, sidecar.buffer, sidecar.data, order, {
+  sidecar.length = writeOrderBuffer(draw.writePort, sidecar.buffer, sidecar.data, order, {
     previousLength: sidecar.length,
     cost: draw.cost,
     capture: (index) => {
@@ -413,7 +415,7 @@ function copyCoreData(
 ): void {
   new Uint8Array(storage.data).set(new Uint8Array(existing.data));
   storage.orderData.set(existing.orderData.subarray(0, existing.orderLength));
-  draw.device.queue.writeBuffer(storage.buffer, 0, storage.data);
+  draw.writePort.writeBuffer(storage.buffer, 0, storage.data);
   draw.cost.write("instance", storage.data.byteLength);
   writeExistingOrder(draw, storage.orderBuffer, storage.orderData, existing.orderLength);
 }
@@ -426,7 +428,7 @@ function writeExistingOrder(
 ): void {
   if (length > 0) {
     const bytes = data.subarray(0, length);
-    draw.device.queue.writeBuffer(buffer, 0, bytes);
+    draw.writePort.writeBuffer(buffer, 0, bytes);
     draw.cost.write("order", bytes.byteLength);
   }
 }

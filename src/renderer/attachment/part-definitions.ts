@@ -313,7 +313,7 @@ export function commitStagedWrites(
   const liveBuffers = committedStorageBuffers(draw, partIds);
   for (const write of prepared.writes) {
     if (!liveBuffers.has(write.buffer)) continue;
-    draw.device.queue.writeBuffer(write.buffer, write.offset, write.data);
+    draw.writePort.writeBuffer(write.buffer, write.offset, write.data);
   }
 }
 
