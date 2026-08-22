@@ -1,7 +1,7 @@
 import type { Camera } from "../../camera/camera";
 import type { Part } from "../../geometry/part";
 import type { PartId } from "../../geometry/part";
-import type { DrawCallContext } from "../resources/draw-resources";
+import type { DrawCall, DrawCallContext } from "../resources/draw-resources";
 import { drawBatches } from "./batch";
 import { drawOrientationGlyphs } from "../orientation-glyphs/draw";
 import { ensurePickTargets } from "../picking/pick";
@@ -20,6 +20,7 @@ import type { FrameOptions } from "./frame-types";
 import {
   drawAuthoredPrimitiveGroups,
   drawContext,
+  drawSectionCapContext,
   drawNodeOverlay,
   drawSelectionPass,
 } from "./draw-groups";
@@ -227,7 +228,7 @@ function drawOpaquePass(options: OpaquePassOptions): void {
   opaquePass.draw(3);
   frame.draw.cost.draw("background", 3);
   drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, { pass: "color" });
-  drawSectionCaps(opaquePass, frame.draw, context, frame.capCalls, "color");
+  drawCapCalls(opaquePass, frame, frame.capCalls, "color");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     pushDebugGroup(opaquePass, "helpers");
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
@@ -282,7 +283,7 @@ function drawTransparencyPass(options: TransparencyPassOptions): void {
       pass: "transparent",
     });
   }
-  drawSectionCaps(pass, frame.draw, context, frame.transparentCapCalls, "transparent");
+  drawCapCalls(pass, frame, frame.transparentCapCalls, "transparent");
   drawSelectionPass(pass, frame, context, "selection-hidden");
   drawOrientationGlyphs(pass, frame, context, frame.calls, "hidden");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
@@ -363,9 +364,21 @@ export function encodePickSnapshot(
   pushDebugGroup(pickPass, "picking");
   frame.draw.cost.pass("pick");
   drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
-  drawSectionCaps(pickPass, frame.draw, context, frame.allCapCalls, "pick");
+  drawCapCalls(pickPass, frame, frame.allCapCalls, "pick");
   popDebugGroup(pickPass);
   pickPass.end();
   if (timestampFrame !== undefined) frame.timestampRecorder?.resolve(pickEncoder, timestampFrame);
   frame.device.queue.submit([pickEncoder.finish()]);
+}
+
+function drawCapCalls(
+  pass: GPURenderPassEncoder,
+  frame: FrameOptions,
+  calls: readonly DrawCall[] | undefined,
+  intent: "color" | "transparent" | "pick",
+): void {
+  if (calls === undefined || calls.length === 0) return;
+  const capFrame = frame.sectionCaps;
+  if (capFrame === undefined) throw new Error("Section-cap draw calls have no owning frame");
+  drawSectionCaps(pass, frame.draw, drawSectionCapContext(frame, capFrame), calls, intent);
 }

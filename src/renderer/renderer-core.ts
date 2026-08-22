@@ -152,7 +152,13 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
     if (colorsChanged) {
       this.sectionCaps.invalidate();
       if (runtime !== undefined && layout !== undefined)
-        syncResultColors(this.lifecycle.bundle.draw, results?.colors, runtime, layout);
+        syncResultColors(
+          this.lifecycle.bundle.draw,
+          results?.colors,
+          runtime,
+          layout,
+          new Set(this.parts.keys()),
+        );
     }
     this.results = results;
   }
@@ -404,7 +410,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
       );
       this.attachment.clear(this.lifecycle.bundle);
       this.interactionNeedsRecoverySync = true;
-      this.sectionCaps.recover(this.parts, this.results?.colors);
+      this.sectionCaps.recover();
       this.picking.resetAfterRecovery();
       writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     }

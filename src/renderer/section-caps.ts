@@ -33,6 +33,7 @@ import {
   type DrawCall,
   type DrawResources,
 } from "./resources/draw-resources";
+import { syncResultColors } from "./resources/result-colors";
 
 interface CapBuildOptions {
   readonly runtime: PackedSceneRuntime;
@@ -100,6 +101,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
   const calls: DrawCall[] = [];
   const transparentCalls: DrawCall[] = [];
   const allCalls: DrawCall[] = [];
+  const newCapIds = new Set<PartId>();
   const resultColors =
     retained === undefined
       ? new Map<PartId, ResultColorTable>()
@@ -140,6 +142,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
         const capId = prior?.id ?? next?.id;
         nextId = next?.nextId ?? nextId;
         if (capId === undefined) throw new Error("Section-cap part identity allocation failed");
+        if (prior === undefined) newCapIds.add(capId);
         const style = capStyle(options.interaction, instance, element.id, metadata);
         const capPart = prior ?? makeCapPart(capId, cap, element, sourcePositions.length / 3);
         capParts.set(capId, capPart);
@@ -164,7 +167,7 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
       }
     }
   }
-  return {
+  const frame = {
     parts: capParts,
     sourcePartIds,
     sourceCapIds,
@@ -177,6 +180,8 @@ export function buildSectionCapFrame(options: CapBuildOptions): SectionCapFrame 
     resultColors,
     nextCapId: nextId,
   };
+  syncResultColors(options.draw, frame.resultColors, undefined, undefined, newCapIds);
+  return frame;
 }
 
 function capSourceSlots(options: CapBuildOptions, partId: PartId): Iterable<number> {

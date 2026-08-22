@@ -1,7 +1,6 @@
-import type { Part, PartId } from "../../../geometry/part";
+import type { PartId } from "../../../geometry/part";
 import type { InteractionState } from "../../../interaction/interaction";
 import type { PackedSceneRuntime } from "../../../scene-runtime/runtime";
-import type { ResultColorMap } from "../../../results/colors";
 import type { SectionPlane } from "../../../math/section-plane";
 import { stagedPartRevisionKeys } from "../../attachment/part-revision-overlay";
 import { buildSectionCapFrame, type SectionCapFrame } from "../../section-caps";
@@ -11,24 +10,14 @@ import {
   type DrawResources,
   uploadGeometryPart,
 } from "../draw-resources";
-import {
-  appendRevisedSectionCapParts,
-  reconcileRevisedSectionCapColors,
-  removeSectionCaps,
-  reviseSectionCapColors,
-  reviseSectionCapParts,
-} from "./section-cap-frame-overlay";
+import { removeSectionCaps } from "./section-cap-frame";
 import type { RuntimeOccurrenceDelta } from "../../../scene-runtime/occurrence-update";
-import { PartRevisionMap } from "../../attachment/part-revision-overlay";
 
 export interface PreparedSectionCapRevision {
   readonly frame: SectionCapFrame | undefined;
   readonly retained: SectionCapFrame | undefined;
   readonly oldCapIds: ReadonlySet<PartId>;
   readonly newCapIds: ReadonlySet<PartId>;
-  readonly renderedParts: ReadonlyMap<PartId, Part>;
-  readonly renderedColors: ResultColorMap | undefined;
-  readonly sourceColors: ResultColorMap | undefined;
   readonly runtime: PackedSceneRuntime;
   readonly interaction: InteractionState;
   readonly dirty: boolean;
@@ -53,8 +42,6 @@ interface RevisionOwnerState {
   readonly retained: SectionCapFrame | undefined;
   readonly runtime: PackedSceneRuntime | undefined;
   readonly dirty: boolean;
-  readonly renderedParts: ReadonlyMap<PartId, Part>;
-  readonly renderedColors: ResultColorMap | undefined;
 }
 
 type SectionCapRevisionOptions = Omit<Parameters<typeof buildSectionCapFrame>[0], "plane"> & {
@@ -68,12 +55,6 @@ export function prepareSectionCapRevision(
   options: SectionCapRevisionOptions,
 ): PreparedSectionCapRevision {
   const oldCapIds = capIdsFor(owner.retained, options.partIds);
-  const revisedParts = reviseSectionCapParts(
-    owner.renderedParts,
-    options.parts,
-    options.partIds,
-    oldCapIds,
-  );
   if (
     options.plane === undefined ||
     owner.frame === undefined ||
@@ -81,7 +62,7 @@ export function prepareSectionCapRevision(
     owner.runtime !== options.runtime ||
     owner.dirty
   ) {
-    return dirtyRevision(owner, options, oldCapIds, revisedParts);
+    return dirtyRevision(owner, options, oldCapIds);
   }
   const plane = options.plane;
   const retained = removeSectionCaps(owner.retained, oldCapIds);
@@ -104,14 +85,6 @@ export function prepareSectionCapRevision(
     retained: frame,
     oldCapIds,
     newCapIds,
-    renderedParts: appendRevisedSectionCapParts(revisedParts, frame, options.partIds),
-    renderedColors: reconcileRevisedSectionCapColors(
-      reviseSectionCapColors(owner.renderedColors, options.partIds, oldCapIds),
-      options.resultColors,
-      frame,
-      options.partIds,
-    ),
-    sourceColors: options.resultColors,
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: false,
@@ -149,7 +122,7 @@ export function prepareSectionCapOccurrenceRevision(
     });
     const newLookup = capIdsForSlots(frame, slots);
     const resourceLookups = uploadCapGeometry(options.draw, frame, newLookup.ids);
-    return occurrenceRevisionResult(owner, options, frame, {
+    return occurrenceRevisionResult(options, frame, {
       oldLookup,
       newLookup,
       resourceLookups,
@@ -161,7 +134,6 @@ export function prepareSectionCapOccurrenceRevision(
 }
 
 function occurrenceRevisionResult(
-  owner: RevisionOwnerState,
   options: Omit<SectionCapRevisionOptions, "partIds"> & { readonly delta: RuntimeOccurrenceDelta },
   frame: SectionCapFrame,
   work: OccurrenceCapWork,
@@ -171,17 +143,6 @@ function occurrenceRevisionResult(
     retained: frame,
     oldCapIds: work.oldLookup.ids,
     newCapIds: work.newLookup.ids,
-    renderedParts: exactRenderedParts(owner.renderedParts, options.parts, frame, {
-      sourceIds: options.delta.affectedPartIds,
-      removed: work.oldLookup.ids,
-      added: work.newLookup.ids,
-    }),
-    renderedColors: exactRenderedColors(owner.renderedColors, options.resultColors, frame, {
-      sourceIds: options.delta.affectedPartIds,
-      removed: work.oldLookup.ids,
-      added: work.newLookup.ids,
-    }),
-    sourceColors: options.resultColors,
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: false,
@@ -207,17 +168,6 @@ function exactDirtyOccurrence(
     retained,
     oldCapIds,
     newCapIds: new Set(),
-    renderedParts: exactRenderedParts(owner.renderedParts, options.parts, undefined, {
-      sourceIds: options.delta.affectedPartIds,
-      removed: oldCapIds,
-      added: new Set(),
-    }),
-    renderedColors: exactRenderedColors(owner.renderedColors, options.resultColors, undefined, {
-      sourceIds: options.delta.affectedPartIds,
-      removed: oldCapIds,
-      added: new Set(),
-    }),
-    sourceColors: options.resultColors,
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: true,
@@ -257,53 +207,6 @@ interface OccurrenceCapWork {
   readonly resourceLookups: number;
 }
 
-function exactRenderedParts(
-  current: ReadonlyMap<PartId, Part>,
-  source: ReadonlyMap<PartId, Part>,
-  frame: SectionCapFrame | undefined,
-  changes: ExactCapChanges,
-): ReadonlyMap<PartId, Part> {
-  const next = new PartRevisionMap(current);
-  for (const id of changes.removed) next.delete(id);
-  for (const id of changes.sourceIds) {
-    const part = source.get(id);
-    if (part === undefined) next.delete(id);
-    else if (current.get(id) !== part) next.set(id, part);
-  }
-  for (const id of changes.added) {
-    const part = frame?.parts.get(id);
-    if (part !== undefined) next.set(id, part);
-  }
-  return next;
-}
-
-function exactRenderedColors(
-  current: ResultColorMap | undefined,
-  source: ResultColorMap | undefined,
-  frame: SectionCapFrame | undefined,
-  changes: ExactCapChanges,
-): ResultColorMap | undefined {
-  if (current === undefined && source === undefined && changes.added.size === 0) return undefined;
-  const next = new PartRevisionMap(current ?? new Map());
-  for (const id of changes.removed) next.delete(id);
-  for (const id of changes.sourceIds) {
-    const colors = source?.get(id);
-    if (colors === undefined) next.delete(id);
-    else next.set(id, colors);
-  }
-  for (const id of changes.added) {
-    const colors = frame?.resultColors.get(id);
-    if (colors !== undefined) next.set(id, colors);
-  }
-  return next;
-}
-
-interface ExactCapChanges {
-  readonly sourceIds: ReadonlySet<PartId>;
-  readonly removed: ReadonlySet<PartId>;
-  readonly added: ReadonlySet<PartId>;
-}
-
 function uploadCapGeometry(
   draw: DrawResources,
   frame: SectionCapFrame,
@@ -337,7 +240,6 @@ function dirtyRevision(
   owner: RevisionOwnerState,
   options: SectionCapRevisionOptions,
   oldCapIds: ReadonlySet<PartId>,
-  renderedParts: ReadonlyMap<PartId, Part>,
 ): PreparedSectionCapRevision {
   const frame = owner.frame === undefined ? undefined : removeSectionCaps(owner.frame, oldCapIds);
   const retained =
@@ -347,9 +249,6 @@ function dirtyRevision(
     retained,
     oldCapIds,
     newCapIds: new Set(),
-    renderedParts,
-    renderedColors: reviseSectionCapColors(owner.renderedColors, options.partIds, oldCapIds),
-    sourceColors: options.resultColors,
     runtime: options.runtime,
     interaction: options.interaction,
     dirty: true,
@@ -408,6 +307,7 @@ function transferCapResources(live: DrawResources, staged: DrawResources, capId:
   transferMapEntry(live.storages, staged.storages, capId);
   transferMapEntry(live.visibilitySkins, staged.visibilitySkins, capId);
   transferMapEntry(live.admissionCache, staged.admissionCache, capId);
+  transferMapEntry(live.resultColors, staged.resultColors, capId);
 }
 
 function transferMapEntry<T>(target: Map<PartId, T>, source: ReadonlyMap<PartId, T>, id: PartId) {

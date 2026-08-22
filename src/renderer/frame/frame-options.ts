@@ -5,6 +5,7 @@ import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
 import type { ResultColorMap } from "../../results/colors";
+import type { SectionCapFrame } from "../section-caps";
 
 const EMPTY_CALLS: readonly DrawCall[] = [];
 
@@ -22,13 +23,7 @@ interface FrameOptionSources {
     readonly usesExteriorFaceSubsets: boolean;
   };
   readonly sectionCaps: {
-    readonly currentFrame:
-      | {
-          readonly calls: FrameOptions["capCalls"];
-          readonly transparentCalls: FrameOptions["transparentCapCalls"];
-          readonly allCalls: FrameOptions["allCapCalls"];
-        }
-      | undefined;
+    readonly currentFrame: SectionCapFrame | undefined;
   };
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
@@ -57,9 +52,7 @@ export interface RendererFrameOptionsOwner {
   readonly nodeSize: number;
   readonly results: RendererResultSnapshot | undefined;
   readonly sectionPlane: SectionPlane | undefined;
-  readonly sectionCaps: FrameOptionSources["sectionCaps"] & {
-    readonly resultColors: ResultColorMap | undefined;
-  };
+  readonly sectionCaps: FrameOptionSources["sectionCaps"];
   readonly orbitPivot: readonly [number, number, number] | undefined;
   readonly originTriadEnabled: boolean;
   readonly originTriadNominalScale: number;
@@ -80,7 +73,7 @@ export function buildRendererFrameOptions(owner: RendererFrameOptionsOwner): Fra
     nodeSize: owner.nodeSize,
     deformation: owner.results?.deformation,
     sectionPlane: owner.sectionPlane,
-    resultColors: owner.sectionCaps.resultColors,
+    resultColors: owner.results?.colors,
     sectionCaps: owner.sectionCaps,
     orbitPivot: owner.orbitPivot,
     originTriadEnabled: owner.originTriadEnabled,
@@ -107,6 +100,7 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     capCalls: caps?.calls ?? EMPTY_CALLS,
     transparentCapCalls: caps?.transparentCalls ?? EMPTY_CALLS,
     allCapCalls: caps?.allCalls ?? EMPTY_CALLS,
+    sectionCaps: caps,
     usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
     pickTargets: options.bundle.pickTargets,
     colorFormat: options.colorFormat,

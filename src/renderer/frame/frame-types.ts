@@ -5,6 +5,7 @@ import type { PickTargets } from "../picking/pick";
 import type { RenderResources } from "./pipelines";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
 import type { ResultColorMap } from "../../results/colors";
+import type { SectionCapFrame } from "../section-caps";
 
 /** Everything the per-frame command encoding needs from the renderer. */
 export interface FrameOptions {
@@ -26,6 +27,8 @@ export interface FrameOptions {
   readonly capCalls?: readonly DrawCall[];
   readonly transparentCapCalls?: readonly DrawCall[];
   readonly allCapCalls?: readonly DrawCall[];
+  /** Generated cap state owned by the active section-cap frame. */
+  readonly sectionCaps: SectionCapFrame | undefined;
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */

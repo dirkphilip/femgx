@@ -132,7 +132,7 @@ export class RendererPicking {
         layout,
       );
       this.owner.ensureSectionCaps(runtime);
-      encodePickSnapshot(camera, this.owner.sectionCaps.parts, this.owner.frameOptions());
+      encodePickSnapshot(camera, this.owner.parts, this.owner.frameOptions());
       this.snapshotValid = true;
       this.owner.edgePick.snapshotValid = false;
     }

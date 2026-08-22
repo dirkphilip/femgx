@@ -22,14 +22,7 @@ import {
 } from "./resources/draw-resources";
 import type { ResultColorMap } from "../results/colors";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
-import {
-  appendRevisedSectionCapParts,
-  mergeRevisedPartIds,
-  reconcileRevisedSectionCapColors,
-  removeSectionCaps,
-  reviseSectionCapColors,
-  reviseSectionCapParts,
-} from "./resources/section-caps/section-cap-frame-overlay";
+import { mergeRevisedPartIds, removeSectionCaps } from "./resources/section-caps/section-cap-frame";
 import {
   commitSectionCapResources,
   discardSectionCapRevision,
@@ -57,20 +50,9 @@ export class SectionCapController {
   private dirty = true;
   private rebuildUsingRetained = false;
   private revisedPartIds: ReadonlySet<PartId> | undefined;
-  private renderedParts: ReadonlyMap<PartId, Part> = new Map();
-  private sourceColors: ResultColorMap | undefined;
-  private renderedColors: ResultColorMap | undefined;
 
   public get currentFrame(): SectionCapFrame | undefined {
     return this.frame;
-  }
-
-  public get parts(): ReadonlyMap<PartId, Part> {
-    return this.renderedParts;
-  }
-
-  public get resultColors(): ResultColorMap | undefined {
-    return this.renderedColors;
   }
 
   public invalidate(): void {
@@ -125,7 +107,6 @@ export class SectionCapController {
     if (sectionCapVisibilityCanOnlyReduce(previous, interaction)) {
       this.frame = filterSectionCapFrame({ frame: this.frame, runtime, parts, interaction, draw });
       this.interaction = interaction;
-      this.updateRenderedParts(parts);
       return;
     }
     this.dirty = true;
@@ -133,12 +114,8 @@ export class SectionCapController {
   }
 
   /** Rebuilds only cap fragments whose source immutable part definition changed. */
-  public replaceParts(
-    partIds: ReadonlySet<PartId>,
-    parts: ReadonlyMap<PartId, Part>,
-    draw: DrawResources,
-  ): void {
-    this.removeParts(partIds, parts, draw);
+  public replaceParts(partIds: ReadonlySet<PartId>, draw: DrawResources): void {
+    this.removeParts(partIds, draw);
     this.dirty = true;
     this.rebuildUsingRetained = true;
     this.revisedPartIds = mergeRevisedPartIds(this.revisedPartIds, partIds);
@@ -156,8 +133,6 @@ export class SectionCapController {
         retained: this.retained,
         runtime: this.runtime,
         dirty: this.dirty,
-        renderedParts: this.renderedParts,
-        renderedColors: this.renderedColors,
       },
       options,
     );
@@ -173,8 +148,6 @@ export class SectionCapController {
         retained: this.retained,
         runtime: this.runtime,
         dirty: this.dirty,
-        renderedParts: this.renderedParts,
-        renderedColors: this.renderedColors,
       },
       options,
     );
@@ -206,9 +179,6 @@ export class SectionCapController {
     commitSectionCapResources(prepared, staged, live);
     this.frame = prepared.frame;
     this.retained = prepared.retained;
-    this.renderedParts = prepared.renderedParts;
-    this.renderedColors = prepared.renderedColors;
-    this.sourceColors = prepared.sourceColors;
     this.runtime = prepared.runtime;
     this.interaction = prepared.interaction;
     this.dirty = prepared.dirty;
@@ -226,14 +196,10 @@ export class SectionCapController {
       this.release(options.draw);
       this.runtime = options.runtime;
       this.interaction = options.interaction;
-      this.sourceColors = options.resultColors;
       this.dirty = false;
-      this.renderedParts = options.parts;
-      this.renderedColors = options.resultColors;
       return;
     }
     if (!this.dirty && this.runtime === options.runtime) return;
-    this.sourceColors = options.resultColors;
     const reusable = this.rebuildUsingRetained ? this.retained : undefined;
     const revisedPartIds = reusable === undefined ? undefined : this.revisedPartIds;
     if (reusable === undefined) this.release(options.draw);
@@ -257,8 +223,6 @@ export class SectionCapController {
     this.dirty = false;
     this.rebuildUsingRetained = false;
     this.revisedPartIds = undefined;
-    if (revisedPartIds === undefined) this.updateRenderedParts(options.parts, options.resultColors);
-    else this.updateRevisedRenderedParts(revisedPartIds);
   }
 
   public reset(draw: DrawResources): void {
@@ -266,22 +230,16 @@ export class SectionCapController {
     this.runtime = undefined;
     this.interaction = undefined;
     this.dirty = true;
-    this.renderedParts = new Map();
-    this.sourceColors = undefined;
-    this.renderedColors = undefined;
     this.revisedPartIds = undefined;
   }
 
   /** Drops stale references after the lifecycle has destroyed the old bundle. */
-  public recover(parts: ReadonlyMap<PartId, Part>, colors: ResultColorMap | undefined): void {
+  public recover(): void {
     this.frame = undefined;
     this.retained = undefined;
     this.runtime = undefined;
     this.interaction = undefined;
     this.dirty = true;
-    this.renderedParts = parts;
-    this.sourceColors = colors;
-    this.renderedColors = colors;
     this.revisedPartIds = undefined;
   }
 
@@ -308,47 +266,14 @@ export class SectionCapController {
     );
   }
 
-  private updateRenderedParts(
-    parts: ReadonlyMap<PartId, Part>,
-    colors: ResultColorMap | undefined = this.sourceColors,
-  ): void {
-    const frame = this.frame;
-    this.renderedParts =
-      frame === undefined || frame.parts.size === 0 ? parts : new Map([...parts, ...frame.parts]);
-    this.renderedColors =
-      frame === undefined || frame.resultColors.size === 0
-        ? colors
-        : new Map([...(colors ?? []), ...frame.resultColors]);
-  }
-
-  private updateRevisedRenderedParts(partIds: ReadonlySet<PartId>): void {
-    const frame = this.frame;
-    if (frame === undefined) return;
-    this.renderedParts = appendRevisedSectionCapParts(this.renderedParts, frame, partIds);
-    this.renderedColors = reconcileRevisedSectionCapColors(
-      this.renderedColors,
-      this.sourceColors,
-      frame,
-      partIds,
-    );
-  }
-
-  private removeParts(
-    partIds: ReadonlySet<PartId>,
-    parts: ReadonlyMap<PartId, Part>,
-    draw: DrawResources,
-  ): void {
+  private removeParts(partIds: ReadonlySet<PartId>, draw: DrawResources): void {
     if (partIds.size === 0) {
       this.invalidate();
       return;
     }
     const frame = this.frame;
     const retained = this.retained;
-    if (frame === undefined || retained === undefined) {
-      this.renderedParts = parts;
-      this.renderedColors = reviseSectionCapColors(this.renderedColors, partIds, new Set());
-      return;
-    }
+    if (frame === undefined || retained === undefined) return;
     const capIds = new Set<PartId>();
     for (const partId of partIds) {
       for (const capId of retained.sourceCapIds.get(partId) ?? []) capIds.add(capId);
@@ -359,8 +284,6 @@ export class SectionCapController {
     }
     this.retained = removeSectionCaps(retained, capIds);
     this.frame = frame === retained ? this.retained : removeSectionCaps(frame, capIds);
-    this.renderedParts = reviseSectionCapParts(this.renderedParts, parts, partIds, capIds);
-    this.renderedColors = reviseSectionCapColors(this.renderedColors, partIds, capIds);
   }
 }
 
