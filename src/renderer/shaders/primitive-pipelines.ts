@@ -42,7 +42,7 @@ interface PipelineSpec {
   readonly passFormats: readonly GPUTextureFormat[];
   readonly blendStates?: readonly (GPUBlendState | undefined)[];
   readonly sampleCount: number;
-  readonly depthCompare?: GPUCompareFunction;
+  readonly depthCompare: GPUCompareFunction;
   readonly depthWriteEnabled?: boolean;
   readonly depthBias?: number;
 }
@@ -77,6 +77,7 @@ export async function createBasePipelines(
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "triangle",
       geometry: triangleGeometry,
+      depthCompare: "less",
       fragments: {
         color: shaders.triangleColorFragment,
         transparency: shaders.triangleTransparencyFragment,
@@ -90,11 +91,13 @@ export async function createBasePipelines(
       passFormats: [format],
       depthFormat,
       sampleCount: COLOR_SAMPLE_COUNT,
+      depthCompare: "less",
       depthBias: -1,
     }),
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "line",
       geometry: instancedPrimitiveGeometry("lines", shaders.lineVertex),
+      depthCompare: "less-equal",
       fragments: {
         color: shaders.colorFragment,
         transparency: shaders.transparencyFragment,
@@ -105,6 +108,7 @@ export async function createBasePipelines(
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "point",
       geometry: instancedPrimitiveGeometry("points", shaders.pointVertex),
+      depthCompare: "less-equal",
       fragments: {
         color: shaders.colorFragment,
         transparency: shaders.transparencyFragment,
@@ -112,7 +116,16 @@ export async function createBasePipelines(
         pickFragment: shaders.nodePickFragment,
       },
     }),
-  ]).then(([triangles, denseSelectionTrianglesColor, lines, points]) => ({
+  ]).then(assembleBasePipelines);
+}
+
+function assembleBasePipelines([triangles, denseSelectionTrianglesColor, lines, points]: readonly [
+  PrimitivePipelines,
+  GPURenderPipeline,
+  PrimitivePipelines,
+  PrimitivePipelines,
+]): BasePipelines {
+  return {
     trianglesColor: triangles.color,
     denseSelectionTrianglesColor,
     trianglesTransparent: triangles.transparent,
@@ -123,7 +136,7 @@ export async function createBasePipelines(
     pointsColor: points.color,
     pointsTransparent: points.transparent,
     pointsPick: points.pick,
-  }));
+  };
 }
 
 interface FragmentPipelines {
@@ -141,10 +154,11 @@ function createPrimitivePipelines(
   options: {
     readonly label: string;
     readonly geometry: ReturnType<typeof instancedPrimitiveGeometry>;
+    readonly depthCompare: GPUCompareFunction;
     readonly fragments: FragmentPipelines;
   },
 ): Promise<PrimitivePipelines> {
-  const { label, geometry, fragments } = options;
+  const { label, geometry, depthCompare, fragments } = options;
   return Promise.all([
     createPipeline(device, layout, `${label} color`, {
       geometry,
@@ -152,6 +166,7 @@ function createPrimitivePipelines(
       passFormats: [format],
       depthFormat,
       sampleCount: COLOR_SAMPLE_COUNT,
+      depthCompare,
     }),
     createPipeline(device, layout, `${label} transparency`, {
       geometry,
@@ -169,6 +184,7 @@ function createPrimitivePipelines(
       passFormats: PICK_FORMATS,
       depthFormat,
       sampleCount: 1,
+      depthCompare,
     }),
   ]).then(([color, transparent, pick]) => ({ color, transparent, pick }));
 }
@@ -194,7 +210,7 @@ function createPipeline(
     depthStencil: {
       format: spec.depthFormat,
       depthWriteEnabled: spec.depthWriteEnabled ?? true,
-      depthCompare: spec.depthCompare ?? spec.geometry.depthCompare,
+      depthCompare: spec.depthCompare,
       ...(spec.depthBias === undefined ? {} : { depthBias: spec.depthBias }),
     },
     multisample: { count: spec.sampleCount },
