@@ -1,4 +1,5 @@
 import type { InteractionState } from "../../interaction/interaction";
+import type { PartId } from "../../geometry/part";
 import { withInteractionVisibility } from "../../interaction/state";
 import {
   applyOccurrenceMutations,
@@ -86,7 +87,14 @@ function prepareRendererUpdate(
     delta,
     parts: options.scene.parts,
     results: partRevisionResultState(results, options.runtime, delta.affectedPartIds),
+    replacedPartIds: placedAddedPartIds(delta),
   });
+}
+
+function placedAddedPartIds(
+  delta: ReturnType<typeof applyOccurrenceMutations>,
+): ReadonlySet<PartId> {
+  return new Set([...delta.addedPartIds].filter((partId) => delta.affectedPartIds.has(partId)));
 }
 
 function prepareBoundsUpdate(
@@ -95,7 +103,12 @@ function prepareBoundsUpdate(
 ): ReturnType<PlacedBoundsIndex["beginTransaction"]> {
   const slots = delta.slots.map(({ slot }) => slot);
   const update = options.placedBounds.beginTransaction(slots, delta.addedPartIds);
-  options.placedBounds.updateParts(options.scene.parts, delta.addedPartIds);
-  options.placedBounds.update(options.runtime, slots);
-  return update;
+  try {
+    options.placedBounds.updateParts(options.scene.parts, delta.addedPartIds);
+    options.placedBounds.update(options.runtime, slots);
+    return update;
+  } catch (error) {
+    update.rollback();
+    throw error;
+  }
 }
