@@ -64,6 +64,8 @@ export function prepareRendererOccurrenceUpdate(
     bundle: renderer.lifecycle.bundle,
     ...(results === undefined ? {} : { results }),
     ...(replacedPartIds === undefined ? {} : { replacedPartIds }),
+    edgesVisible: renderer.attachment.edgesVisible,
+    nodesVisible: renderer.attachment.nodesVisible,
   });
   try {
     const caps = renderer.sectionCaps.prepareOccurrenceRevision({

@@ -61,6 +61,8 @@ interface OccurrenceAttachmentOwner extends AttachmentCallLists {
   readonly attachedParts: Map<PartId, Part>;
   interactionState: InteractionState;
   interactionBeforeLastInstanceUpdate: InteractionState | undefined;
+  readonly edgesVisible: boolean;
+  readonly nodesVisible: boolean;
   readonly usesExteriorFaceSubsets: boolean;
   styleFlags(): AttachmentFlagState;
 }
@@ -73,6 +75,8 @@ interface OccurrenceUpdateOptions {
   readonly sourceParts: Map<PartId, Part>;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly bundle: GpuBundle;
+  readonly edgesVisible: boolean;
+  readonly nodesVisible: boolean;
   readonly results?: PartRevisionResultState;
   readonly replacedPartIds?: ReadonlySet<PartId>;
 }
@@ -192,6 +196,8 @@ function stageOccurrenceChanges(options: {
   readonly slotByInstanceId: PartRevisionMap<string, number>;
   readonly attachedParts: ReadonlyMap<PartId, Part>;
   readonly draw: DrawResources;
+  readonly edgesVisible: boolean;
+  readonly nodesVisible: boolean;
 }) {
   const state: AttachmentState = {
     flags: options.flags.values,
@@ -204,6 +210,7 @@ function stageOccurrenceChanges(options: {
     delta: options.delta,
     interaction: options.interaction,
     state,
+    edgesVisible: options.edgesVisible,
     draw: options.draw,
   });
   const bundle = { ...options.bundle, device: options.draw.device, draw: options.draw };
@@ -231,6 +238,8 @@ function stageOccurrenceChanges(options: {
     },
     bundle,
     optionalParts,
+    edgesVisible: options.edgesVisible,
+    nodesVisible: options.nodesVisible,
     previousCalls: options.attachment,
   });
 }
