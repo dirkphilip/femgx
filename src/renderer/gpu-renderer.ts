@@ -46,7 +46,6 @@ export async function drainGpuTimestampSamples(renderer: WebGpuRenderer): Promis
   await renderer.drainTimestampSamples();
 }
 
-/** Hands internal result composition to the concrete renderer without widening its public contract. */
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */
 export async function createWebGpuRenderer(
   options: WebGpuRendererOptions,
