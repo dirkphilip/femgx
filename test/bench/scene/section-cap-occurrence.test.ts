@@ -5,7 +5,7 @@ import { ElementShape } from "@/elements/shapes";
 import { createPartFromElementModel } from "@/geometry/element-model-part";
 import { createInteractionState } from "@/interaction/interaction";
 import { identityMatrix, translationMatrix } from "@/math/mat4";
-import { stageDrawResources } from "@/renderer/attachment/part-revision-stage";
+import { prepareDrawRevision } from "@/renderer/attachment/prepared-draw-revision";
 import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 import { SectionCapController } from "@/renderer/section-cap-controller";
 import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
@@ -47,7 +47,13 @@ describe("section-cap occurrence scaling", () => {
         const delta = occurrenceDelta();
         let counters: unknown;
         const measured = measureMs(() => {
-          const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+          const staged = prepareDrawRevision({
+            live: bundle.draw,
+            affectedPartIds: delta.affectedPartIds,
+            replacedPartIds: new Set<number>(),
+            stageInteraction: true,
+            kind: "occurrence",
+          });
           const prepared = controller.prepareOccurrenceRevision({
             runtime,
             parts: scene.parts,
@@ -60,6 +66,7 @@ describe("section-cap occurrence scaling", () => {
           });
           counters = prepared.counters;
           controller.discardOccurrenceRevision(prepared, staged.draw);
+          staged.discard();
         });
         expect(controller.currentFrame?.parts.size).toBe(occurrenceCount);
         console.log(`${occurrenceCount} caps, changed=1: ${measured.toFixed(3)} ms`);

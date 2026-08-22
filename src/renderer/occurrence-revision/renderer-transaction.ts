@@ -71,7 +71,7 @@ export function prepareRendererOccurrenceUpdate(
       interaction,
       deformation: results?.deformation ?? renderer.results?.deformation,
       resultColors: results?.colors ?? renderer.results?.colors,
-      draw: attachment.draw,
+      draw: attachment.drawRevision.draw,
     });
     return { attachment, caps, runtime, interaction, parts, results };
   } catch (error) {
@@ -88,7 +88,7 @@ export function commitRendererOccurrenceUpdate(
   prepared.attachment.commit();
   renderer.sectionCaps.commitOccurrenceRevision(
     prepared.caps,
-    prepared.attachment.draw,
+    prepared.attachment.drawRevision.draw,
     renderer.lifecycle.bundle.draw,
   );
   if (renderer.sourceParts !== undefined) renderer.sourceParts = prepared.parts;
@@ -104,6 +104,9 @@ export function discardRendererOccurrenceUpdate(
   renderer: RendererOccurrenceOwner,
   prepared: PreparedRendererOccurrenceUpdate,
 ): void {
-  renderer.sectionCaps.discardOccurrenceRevision(prepared.caps, prepared.attachment.draw);
+  renderer.sectionCaps.discardOccurrenceRevision(
+    prepared.caps,
+    prepared.attachment.drawRevision.draw,
+  );
   prepared.attachment.discard();
 }

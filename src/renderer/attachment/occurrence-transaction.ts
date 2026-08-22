@@ -21,20 +21,9 @@ import {
   stagePartRevisionFlagSet,
   type PartRevisionFlagSet,
 } from "./part-revision-overlay";
-import { stageDrawResources, stagePartDefinitionResources } from "./part-revision-stage";
-import { discardStagedOccurrenceResources } from "./occurrence-resources";
-import {
-  commitStagedPartDefinition,
-  commitStagedStorage,
-  commitStagedWrites,
-} from "./part-definitions";
-import { commitStagedPartResults } from "./part-revision-result-resources";
+import { stagePartDefinitionResources } from "./part-revision-stage";
+import { prepareDrawRevision, type PreparedDrawRevision } from "./prepared-draw-revision";
 import type { PartRevisionResultState } from "./part-revision-results";
-import { syncDeformations } from "../frame/deformation";
-import { syncOrientationGlyphs } from "../orientation-glyphs/orientation-glyph";
-import { syncResultColors } from "../resources/result-colors";
-import type { DrawResources } from "../resources/draw-resources";
-import type { StagedBufferWrite } from "./part-revision-writes";
 import type { AttachmentCallLists } from "./calls";
 import {
   internalAttachmentPublicationToken,
@@ -83,7 +72,7 @@ interface OccurrenceUpdateOptions {
 
 /** Detached renderer placement state whose GPU allocations are complete. */
 export interface PreparedAttachmentOccurrenceUpdate {
-  readonly draw: DrawResources;
+  readonly drawRevision: PreparedDrawRevision;
   readonly layout: InstanceLayout;
   readonly parts: PartRevisionMap<PartId, Part>;
   readonly sourceParts: PartRevisionMap<PartId, Part>;
@@ -115,11 +104,7 @@ export function prepareAttachmentOccurrenceUpdate(
       completed: () => completed,
     });
   } catch (error) {
-    discardStagedOccurrenceResources(
-      state.draw,
-      options.bundle.draw,
-      options.delta.affectedPartIds,
-    );
+    state.drawRevision.discard();
     throw error;
   }
 }
@@ -140,7 +125,13 @@ function prepareOccurrenceState(options: OccurrenceUpdateOptions, liveLayout: In
   );
   const slotLocals = stageSlotLocals(liveLayout.slotPartLocal);
   const layout = stageOccurrenceLayout(liveLayout, slotLocals.values, partIds);
-  const staged = stageDrawResources(options.bundle.draw, partIds, true, false);
+  const drawRevision = prepareDrawRevision({
+    live: options.bundle.draw,
+    affectedPartIds: partIds,
+    replacedPartIds,
+    stageInteraction: true,
+    kind: "occurrence",
+  });
   return {
     flags,
     instances,
@@ -149,8 +140,7 @@ function prepareOccurrenceState(options: OccurrenceUpdateOptions, liveLayout: In
     attachedParts,
     slotLocals,
     layout,
-    draw: staged.draw,
-    writes: staged.writes,
+    drawRevision,
     replacedPartIds,
   };
 }
@@ -160,19 +150,13 @@ function stagePreparedOccurrence(
   state: ReturnType<typeof prepareOccurrenceState>,
 ): AttachmentCallLists {
   stagePartDefinitionResources(
-    state.draw,
+    state.drawRevision.draw,
     state.attachedParts,
     state.replacedPartIds,
     options.attachment.usesExteriorFaceSubsets,
   );
   const calls = stageOccurrenceChanges({ ...options, ...state });
-  stageResults(
-    state.draw,
-    options.results,
-    options.runtime,
-    state.layout,
-    options.delta.affectedPartIds,
-  );
+  state.drawRevision.stageResults(options.results, options.runtime, state.layout);
   if (state.replacedPartIds.size === 0) return calls;
   return rebuildInteractionVisibilitySurfaces({
     runtime: options.runtime,
@@ -180,7 +164,11 @@ function stagePreparedOccurrence(
     parts: state.replacedPartIds,
     attachedParts: state.attachedParts,
     interaction: options.interaction,
-    bundle: { ...options.bundle, device: state.draw.device, draw: state.draw },
+    bundle: {
+      ...options.bundle,
+      device: state.drawRevision.draw.device,
+      draw: state.drawRevision.draw,
+    },
   });
 }
 
@@ -195,7 +183,7 @@ function stageOccurrenceChanges(options: {
   readonly instances: ReturnType<typeof stagePartRevisionArray<PartOccurrence | undefined>>;
   readonly slotByInstanceId: PartRevisionMap<string, number>;
   readonly attachedParts: ReadonlyMap<PartId, Part>;
-  readonly draw: DrawResources;
+  readonly drawRevision: PreparedDrawRevision;
   readonly edgesVisible: boolean;
   readonly nodesVisible: boolean;
 }) {
@@ -212,9 +200,9 @@ function stageOccurrenceChanges(options: {
     state,
     edgesVisible: options.edgesVisible,
     nodesVisible: options.nodesVisible,
-    draw: options.draw,
+    draw: options.drawRevision.draw,
   });
-  const bundle = { ...options.bundle, device: options.draw.device, draw: options.draw };
+  const bundle = stagedBundle(options.bundle, options.drawRevision);
   syncOccurrenceInteractionEmphasis({
     runtime: options.runtime,
     layout: options.layout,
@@ -245,6 +233,10 @@ function stageOccurrenceChanges(options: {
   });
 }
 
+function stagedBundle(bundle: GpuBundle, revision: PreparedDrawRevision): GpuBundle {
+  return { ...bundle, device: revision.draw.device, draw: revision.draw };
+}
+
 type PreparedOptions = Parameters<typeof prepareAttachmentOccurrenceUpdate>[0] & {
   readonly calls: Pick<
     AttachmentCallLists,
@@ -263,8 +255,7 @@ type PreparedOptions = Parameters<typeof prepareAttachmentOccurrenceUpdate>[0] &
   readonly liveSourceParts: Map<PartId, Part>;
   readonly sourceParts: PartRevisionMap<PartId, Part>;
   readonly attachedParts: PartRevisionMap<PartId, Part>;
-  readonly draw: DrawResources;
-  readonly writes: readonly StagedBufferWrite[];
+  readonly drawRevision: PreparedDrawRevision;
   readonly replacedPartIds: ReadonlySet<PartId>;
   readonly complete: () => void;
   readonly completed: () => boolean;
@@ -272,7 +263,7 @@ type PreparedOptions = Parameters<typeof prepareAttachmentOccurrenceUpdate>[0] &
 
 function preparedUpdate(options: PreparedOptions): PreparedAttachmentOccurrenceUpdate {
   return {
-    draw: options.draw,
+    drawRevision: options.drawRevision,
     layout: options.layout,
     parts: options.attachedParts,
     sourceParts: options.sourceParts,
@@ -283,11 +274,7 @@ function preparedUpdate(options: PreparedOptions): PreparedAttachmentOccurrenceU
     },
     discard: () => {
       if (options.completed()) return;
-      discardStagedOccurrenceResources(
-        options.draw,
-        options.bundle.draw,
-        options.delta.affectedPartIds,
-      );
+      options.drawRevision.discard();
       options.complete();
     },
   };
@@ -297,18 +284,8 @@ function commitPrepared(options: PreparedOptions): void {
   if (options.completed()) throw new Error("Occurrence revision is no longer pending");
   const liveLayout = options.attachment.layout;
   if (liveLayout === undefined) throw new Error("Occurrence revision layout is unavailable");
-  const partIds = options.delta.affectedPartIds;
-  for (const partId of options.replacedPartIds) {
-    commitStagedPartDefinition(options.bundle.draw, options.draw, partId);
-  }
-  for (const partId of partIds) {
-    if (!options.replacedPartIds.has(partId)) {
-      commitStagedStorage(options.bundle.draw, options.draw, partId);
-    }
-  }
-  commitStagedPartResults(options.bundle.draw, options.draw, partIds, options.results);
-  commitStagedWrites(options.bundle.draw, options, partIds);
-  commitDrawOverlays(options.bundle.draw, options.draw);
+  options.drawRevision.commit();
+  options.complete();
   commitOccurrenceLayout(liveLayout, options.layout, options.slotLocals);
   options.flags.commit(options.attachment.styleFlags());
   options.instances.commit(options.attachment.instances);
@@ -329,9 +306,6 @@ function commitPrepared(options: PreparedOptions): void {
     partIds: options.delta.removedPartIds,
     draw: options.bundle.draw,
   });
-  options.bundle.draw.cost.merge(options.draw.cost);
-  options.bundle.draw.cost.completeTransaction();
-  options.complete();
 }
 
 function stageParts(
@@ -346,32 +320,4 @@ function stageParts(
     source.set(partId, part);
     attached.set(partId, part);
   }
-}
-
-function stageResults(
-  draw: DrawResources,
-  results: PartRevisionResultState | undefined,
-  runtime: PackedSceneRuntime,
-  layout: InstanceLayout,
-  partIds: ReadonlySet<PartId>,
-): void {
-  const staged = results?.staged;
-  if (staged === undefined) return;
-  if (staged.glyphs !== undefined)
-    syncOrientationGlyphs(draw.orientationGlyphs, staged.glyphs, runtime, layout);
-  if (staged.deformation !== undefined)
-    syncDeformations(draw, staged.deformation, runtime, layout, partIds);
-  if (staged.colors !== undefined) syncResultColors(draw, staged.colors, runtime, layout, partIds);
-}
-
-function commitDrawOverlays(live: DrawResources, staged: DrawResources): void {
-  commitOverlay(live.parts, staged.parts);
-  commitOverlay(live.primitiveParts, staged.primitiveParts);
-  commitOverlay(live.nodeParts, staged.nodeParts);
-  commitOverlay(live.visibilitySkins, staged.visibilitySkins);
-  commitOverlay(live.admissionCache, staged.admissionCache);
-}
-
-function commitOverlay<K, V>(target: Map<K, V>, source: Map<K, V>): void {
-  if (source instanceof PartRevisionMap) source.commit(target);
 }

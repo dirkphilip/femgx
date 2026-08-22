@@ -5,8 +5,6 @@ import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuBundle } from "../recovery";
 import type { DrawCallLists, InstanceLayout } from "../runtime-state";
 import { changedPartDefinitions, reconcilePartResources } from "../resources/part-resources";
-import { destroyPartResources, type DrawResources } from "../resources/draw-resources";
-import type { InstanceStorage } from "../resources/instance-storage";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { rebuildInteractionVisibilitySurfaces } from "./interaction";
 import type { AttachmentInteractionState } from "./interaction";
@@ -19,9 +17,7 @@ import {
   type PartRevisionAttachmentHost,
   type PreparedPartRevision,
 } from "./part-revision-stage";
-import { discardStagedPartResources } from "./part-revision-cleanup";
 import { PartRevisionMap, stagePartRevisionFlagSet } from "./part-revision-overlay";
-import { commitStagedPartResults } from "./part-revision-result-resources";
 
 interface PartAttachmentOptions {
   attachedParts: Map<PartId, Part>;
@@ -74,7 +70,7 @@ export function replaceAttachedPartDefinitions(
     partIds,
     ...revision,
   });
-  commitPartRevision(attachment, prepared, partIds, revision.bundle);
+  commitPartRevision(attachment, prepared, partIds);
 }
 
 /** Prepares an attached definition revision without mutating its live owner. */
@@ -120,14 +116,10 @@ export function commitPartRevision(
   attachment: PartRevisionAttachmentHost,
   prepared: PreparedPartRevision,
   partIds: ReadonlySet<PartId>,
-  bundle: GpuBundle,
 ): void {
   const runtime = attachment.runtime;
   if (runtime === undefined) throw new Error("Part revision runtime is unavailable");
-  for (const partId of partIds) commitPartResources(bundle.draw, prepared, partId);
-  commitPartResults(bundle.draw, prepared, partIds);
-  commitStagedWrites(bundle.draw, prepared, partIds);
-  bundle.draw.cost.merge(prepared.draw.cost);
+  prepared.drawRevision.commit();
   replaceAttachedParts(attachment.attachedParts, prepared.parts, partIds);
   prepared.commitFlags(attachment.styleFlags());
   commitPartLayout(attachment.layout, prepared.layout, partIds);
@@ -136,12 +128,8 @@ export function commitPartRevision(
 }
 
 /** Discards one prepared definition revision without touching live resources. */
-export function discardPartRevision(
-  prepared: PreparedPartRevision,
-  live: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): void {
-  discardStagedPartResources(prepared.draw, live, partIds);
+export function discardPartRevision(prepared: PreparedPartRevision): void {
+  prepared.drawRevision.discard();
 }
 
 function commitPartLayout(
@@ -187,169 +175,6 @@ function applyInteractionState(
     state.appliedHiddenIds,
     state.usesExteriorFaceSubsets,
   );
-}
-
-function commitPartResults(
-  draw: DrawResources,
-  prepared: PreparedPartRevision,
-  partIds: ReadonlySet<PartId>,
-): void {
-  commitStagedPartResults(draw, prepared.draw, partIds, prepared.results);
-}
-
-function commitPartResources(
-  draw: DrawResources,
-  prepared: PreparedPartRevision,
-  partId: PartId,
-): void {
-  commitStagedPartDefinition(draw, prepared.draw, partId);
-}
-
-/** Publishes exact staged definition resources and retires their prior live identities. */
-export function commitStagedPartDefinition(
-  draw: DrawResources,
-  staged: DrawResources,
-  partId: PartId,
-): void {
-  destroyPartResources(draw, partId);
-  transferStagedPartResources(draw, staged, partId);
-  commitStagedStorage(draw, staged, partId);
-}
-
-function transferStagedPartResources(
-  draw: DrawResources,
-  staged: DrawResources,
-  partId: PartId,
-): void {
-  transferPartResource(draw.parts, staged.parts, partId);
-  transferPartResource(draw.primitiveParts, staged.primitiveParts, partId);
-  transferPartResource(draw.nodeParts, staged.nodeParts, partId);
-  transferPartResource(draw.visibilitySkins, staged.visibilitySkins, partId);
-  transferPartResource(draw.admissionCache, staged.admissionCache, partId);
-}
-
-/** Publishes one affected part's prepared placement storage. */
-export function commitStagedStorage(
-  draw: DrawResources,
-  staged: DrawResources,
-  partId: PartId,
-): void {
-  const live = draw.storages.get(partId);
-  const prepared = staged.storages.get(partId);
-  if (live === undefined) {
-    if (prepared !== undefined) draw.storages.set(partId, prepared);
-    return;
-  }
-  if (prepared === undefined || live === prepared) return;
-  if (live.buffer !== prepared.buffer || live.orderBuffer !== prepared.orderBuffer) {
-    replaceGrownStorage(draw, partId, live, prepared);
-    return;
-  }
-  replacePreparedSidecars(live, prepared);
-  replacePreparedHighlight(live, prepared);
-  live.emphasisSlots = new Set(prepared.emphasisSlots);
-  live.edgeEmphasisSlots = new Set(prepared.edgeEmphasisSlots);
-  if (live.data !== prepared.data) new Uint8Array(live.data).set(new Uint8Array(prepared.data));
-  if (live.orderData !== prepared.orderData) live.orderData.set(prepared.orderData);
-  live.orderLength = prepared.orderLength;
-}
-
-function replaceGrownStorage(
-  draw: DrawResources,
-  partId: PartId,
-  live: InstanceStorage,
-  prepared: InstanceStorage,
-): void {
-  replacePreparedSidecars(live, prepared);
-  replacePreparedHighlight(live, prepared);
-  if (live.buffer !== prepared.buffer) {
-    draw.cost.releaseBuffer(live.buffer.size);
-    live.buffer.destroy();
-  }
-  if (live.orderBuffer !== prepared.orderBuffer) {
-    draw.cost.releaseBuffer(live.orderBuffer.size);
-    live.orderBuffer.destroy();
-  }
-  const { deferRelease: _deferRelease, revisionJournal: _revisionJournal, ...committed } = prepared;
-  draw.storages.set(partId, committed);
-}
-
-function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
-  for (const kind of [
-    "transparent",
-    "selection",
-    "nodeSelection",
-    "nodeSelectionCompact",
-    "edge",
-    "node",
-  ] as const) {
-    const previous = live.sidecars[kind];
-    const next = prepared.sidecars[kind];
-    if (previous !== undefined && previous.buffer !== next?.buffer) previous.buffer.destroy();
-    live.sidecars[kind] = next;
-  }
-}
-
-function replacePreparedHighlight(live: InstanceStorage, prepared: InstanceStorage): void {
-  if (live.highlight.buffer !== prepared.highlight.buffer && live.highlightOwned)
-    live.highlight.buffer.destroy();
-  live.highlight = prepared.highlight;
-  live.highlightOwned = prepared.highlightOwned;
-}
-
-/** Flushes writes deferred from protected live buffers during preparation. */
-export function commitStagedWrites(
-  draw: DrawResources,
-  prepared: Pick<PreparedPartRevision, "writes">,
-  partIds: ReadonlySet<PartId>,
-): void {
-  const liveBuffers = committedStorageBuffers(draw, partIds);
-  for (const write of prepared.writes) {
-    if (!liveBuffers.has(write.buffer)) continue;
-    draw.writePort.writeBuffer(write.buffer, write.offset, write.data);
-  }
-}
-
-function committedStorageBuffers(
-  draw: DrawResources,
-  partIds: ReadonlySet<PartId>,
-): Set<GPUBuffer> {
-  const buffers = new Set<GPUBuffer>();
-  for (const partId of partIds) {
-    const storage = draw.storages.get(partId);
-    if (storage === undefined) continue;
-    buffers.add(storage.buffer);
-    buffers.add(storage.orderBuffer);
-    for (const sidecar of sidecars(storage)) {
-      if (sidecar !== undefined) buffers.add(sidecar.buffer);
-    }
-    if (storage.highlightOwned) buffers.add(storage.highlight.buffer);
-  }
-  if (draw.orientationGlyphs.paramsBuffer !== undefined) {
-    buffers.add(draw.orientationGlyphs.paramsBuffer);
-  }
-  return buffers;
-}
-
-function sidecars(storage: InstanceStorage) {
-  return [
-    storage.sidecars.transparent,
-    storage.sidecars.selection,
-    storage.sidecars.nodeSelection,
-    storage.sidecars.nodeSelectionCompact,
-    storage.sidecars.edge,
-    storage.sidecars.node,
-  ];
-}
-
-function transferPartResource<T>(
-  target: Map<PartId, T>,
-  source: ReadonlyMap<PartId, T>,
-  partId: PartId,
-): void {
-  const resource = source.get(partId);
-  if (resource === undefined) target.delete(partId);
-  else target.set(partId, resource);
 }
 
 function replaceAttachedParts(

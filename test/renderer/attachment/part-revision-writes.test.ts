@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { createPartRevisionStagingWritePort } from "@/renderer/attachment/part-revision-writes";
+import { createPartRevisionStagingWritePort } from "@/renderer/attachment/prepared-draw-revision";
 import { directBufferWritePort } from "@/renderer/resources/buffer-write-port";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 const sourcePath = fileURLToPath(
-  new URL("../../../src/renderer/attachment/part-revision-writes.ts", import.meta.url),
+  new URL("../../../src/renderer/attachment/prepared-draw-revision.ts", import.meta.url),
 );
 
 describe("part revision write port", () => {
