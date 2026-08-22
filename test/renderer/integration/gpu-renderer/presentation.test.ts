@@ -27,7 +27,7 @@ describe("WebGPU renderer", () => {
     await expect(renderer.recover()).rejects.toThrow(/externally/i);
   });
 
-  it("draws the edge overlay only for edge-styled instances and honors the depth-test flag", async () => {
+  it("draws the presentation-owned edge overlay and honors the depth-test flag", async () => {
     const gpu = fakeGpuDevice();
     installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
@@ -40,7 +40,8 @@ describe("WebGPU renderer", () => {
       { pipeline: "pipeline-10", indexCount: 3, instanceCount: 3 },
     ]);
 
-    const edge = setPartOverride(createInteractionState(), 1, { edge: true });
+    const edge = createInteractionState();
+    renderer.setEdgesVisible(true);
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 1, overlay: 1 });
@@ -79,7 +80,7 @@ describe("WebGPU renderer", () => {
     renderer.destroy();
   });
 
-  it("does not admit resolved presentation work for edge-styled point-only parts", async () => {
+  it("does not admit resolved presentation work for point-only parts", async () => {
     const gpu = fakeGpuDevice();
     installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
@@ -88,11 +89,7 @@ describe("WebGPU renderer", () => {
     const shaderCount = gpu.shaderModuleDescriptors.length;
     const pipelineCount = gpu.renderPipelineDescriptors.length;
 
-    renderer.updateInstances(
-      runtime,
-      setPartOverride(createInteractionState(), 1, { edge: true }),
-      [0],
-    );
+    renderer.updateInstances(runtime, createInteractionState(), [0]);
     renderer.render(runtime, camera, scene.parts);
 
     expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 0, overlay: 0 });

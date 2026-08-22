@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { createInteractionState } from "@/interaction/interaction";
 import { hideSelectedElements } from "@/interaction/selection-queries";
 import { readInteractionState, readInteractionVisibility } from "@/interaction/state";
 import { setTargetsSelected } from "@/interaction/targets";
@@ -114,7 +114,7 @@ async function createFixture(): Promise<Fixture> {
     partOccurrenceId,
     elementId,
   }));
-  const base = setPartOverride(createInteractionState(), PART_ID, { edge: true, nodes: true });
+  const base = createInteractionState();
   const selected = setTargetsSelected(base, targets, true);
   const hidden = hideSelectedElements(selected);
   assertState(selected, hidden, partOccurrenceId);
@@ -122,6 +122,7 @@ async function createFixture(): Promise<Fixture> {
   const attachment = new RendererAttachment();
   attachment.prepareParts(scene.parts, bundle);
   attachment.attach(runtime, bundle);
+  attachment.setOverlayVisibility(true, true, bundle);
   apply({ scene, runtime, bundle, attachment }, base);
   return { scene, runtime, bundle, attachment, targets, base, selected, hidden };
 }

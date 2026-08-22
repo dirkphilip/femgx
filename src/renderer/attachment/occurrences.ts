@@ -87,8 +87,12 @@ export function applyOccurrenceAttachment(options: {
   readonly interaction: InteractionState;
   readonly state: AttachmentState;
   readonly draw: DrawResources;
+  readonly edgesVisible?: boolean;
 }): AttachmentOrderParts {
   const orderChanges = previousOptionalOrders(options.delta, options.state);
+  if (options.edgesVisible !== undefined) {
+    addAll(orderChanges.edge, options.delta.affectedPartIds);
+  }
   addAll(orderChanges.node, options.delta.affectedPartIds);
   reserveGlobalSlots(options.layout, options.runtime.instanceCount);
   removePreviousLocals(options.layout, options.delta);
@@ -112,8 +116,6 @@ export function applyOccurrenceAttachment(options: {
     options.state.flags,
     changedSlots,
   );
-  addAll(orderChanges.edge, collected.edgeChanged);
-  addAll(orderChanges.node, collected.nodeChanged);
   addAll(orderChanges.transparent, collected.transparentChanged);
   for (const [partId, partUpdates] of collected.updates) {
     patchInstances(options.draw, partId, partUpdates);

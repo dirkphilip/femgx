@@ -232,23 +232,10 @@ export function createImportedModel(fileName: string, imported: ImportedModelDat
   };
 }
 
-/** Resolves the part style while applying the workbench's display overlays. */
-export function partStyleOverride(
-  model: WorkbenchModel,
-  partId: PartId,
-  edges: boolean,
-  nodes: boolean,
-): StyleOverride {
+/** Resolves the authored part style used by the workbench. */
+export function partStyleOverride(model: WorkbenchModel, partId: PartId): StyleOverride {
   const authored = model.partStyles.get(partId) ?? { color: fallbackColor };
-  if (!edges && !nodes) return authored;
-  const part = model.scene.parts.get(partId);
-  return {
-    ...authored,
-    ...(edges ? { edge: true } : {}),
-    ...(nodes && part?.geometries.some((geometry) => geometry.primitive !== "points")
-      ? { nodes: true }
-      : {}),
-  };
+  return authored;
 }
 
 /**
@@ -257,11 +244,9 @@ export function partStyleOverride(
  */
 export function* modelPartStyleOverrides(
   model: WorkbenchModel,
-  edges: boolean,
-  nodes: boolean,
 ): IterableIterator<readonly [PartId, StyleOverride]> {
   for (const partId of model.scene.parts.keys()) {
-    yield [partId, partStyleOverride(model, partId, edges, nodes)];
+    yield [partId, partStyleOverride(model, partId)];
   }
 }
 

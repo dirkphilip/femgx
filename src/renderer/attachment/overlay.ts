@@ -74,25 +74,10 @@ export function changedInstanceParts(
 export function rebuildChangedStyleOrders(options: {
   readonly runtime: PackedSceneRuntime;
   readonly layout: InstanceLayout;
-  readonly edgeChanged: ReadonlySet<PartId>;
   readonly transparentChanged: ReadonlySet<PartId>;
-  readonly edgeFlags: readonly boolean[];
-  readonly edgeEmphasisFlags: readonly boolean[];
   readonly transparentFlags: readonly boolean[];
-  readonly edgesVisible?: boolean;
   readonly draw: DrawResources;
 }): boolean {
-  if (options.edgeChanged.size > 0) {
-    rebuildEdgeOrders({
-      runtime: options.runtime,
-      layout: options.layout,
-      parts: options.edgeChanged,
-      flags: options.edgeFlags,
-      emphasisFlags: options.edgeEmphasisFlags,
-      ...(options.edgesVisible === undefined ? {} : { visible: options.edgesVisible }),
-      draw: options.draw,
-    });
-  }
   if (options.transparentChanged.size > 0) {
     rebuildTransparentOrders(
       options.runtime,
@@ -102,5 +87,5 @@ export function rebuildChangedStyleOrders(options: {
       options.draw,
     );
   }
-  return options.edgeChanged.size > 0 || options.transparentChanged.size > 0;
+  return options.transparentChanged.size > 0;
 }

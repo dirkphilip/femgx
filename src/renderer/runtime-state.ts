@@ -176,9 +176,11 @@ function assignPartLocals(
 }
 
 /**
- * Returns the visible part-local slots whose resolved style requests node
- * annotations. Point parts are excluded because their primary glyph already
- * represents the authored node.
+ * Returns the visible part-local slots admitted to the node overlay. The
+ * renderer presentation owner may include every slot; the flag path remains
+ * an internal compact-order fallback for staged attachment work. Point parts
+ * are excluded because their primary glyph already represents the authored
+ * node.
  */
 export function buildNodeOrder(options: {
   readonly layout: InstanceLayout;
@@ -210,8 +212,8 @@ export function buildDrawOrder(
 }
 
 /**
- * Returns the visible part-local slots of a part whose resolved style requests
- * the edge overlay, in ascending draw order.
+ * Returns the visible part-local slots admitted to the edge overlay, in
+ * ascending draw order.
  */
 export function buildEdgeOrder(options: {
   readonly layout: InstanceLayout;

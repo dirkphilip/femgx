@@ -1,6 +1,6 @@
 import { orbitCamera, type Camera } from "@/camera/camera";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { createInteractionState } from "@/interaction/interaction";
 import {
   readInteractionState,
   readInteractionVisibility,
@@ -91,6 +91,8 @@ export async function measureSelectionHideWorkflow(
     }),
   ];
   options.renderer.setSectionPlane(undefined);
+  options.renderer.setEdgesVisible(false);
+  options.renderer.setNodesVisible(false);
   return {
     nodes: true,
     authoredEdges: true,
@@ -104,9 +106,11 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   const { slots, selectedTargets, totalElementCount, id, unsectionedOpaqueIndices } = options;
   const { benchmarkCase, renderer, runtime } = options;
   const presentationStart = performance.now();
-  const presentation = presentationInteraction(benchmarkCase);
+  const presentation = presentationInteraction();
   const presentationStateMs = performance.now() - presentationStart;
   if (id === "active-section") renderer.setSectionPlane(sectionPlane(benchmarkCase, runtime));
+  renderer.setEdgesVisible(true);
+  renderer.setNodesVisible(true);
   const presentationSyncStart = performance.now();
   renderer.updateInstances(runtime, presentation, slots);
   renderer.updateElements(runtime, presentation, slots);
@@ -158,12 +162,8 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   };
 }
 
-function presentationInteraction(benchmarkCase: WebGpuBenchmarkCase): InteractionState {
-  let state = createInteractionState();
-  for (const partId of benchmarkCase.scene.parts.keys()) {
-    state = setPartOverride(state, partId, { edge: true, nodes: true });
-  }
-  return state;
+function presentationInteraction(): InteractionState {
+  return createInteractionState();
 }
 
 function sectionPlane(

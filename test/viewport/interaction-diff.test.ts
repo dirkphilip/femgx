@@ -105,7 +105,7 @@ describe("changedInstanceSlots", () => {
     const empty = createInteractionState();
     const overridden = setPartOverride(empty, 2, { color: { r: 1, g: 0, b: 0, a: 1 } });
     expect(changedInstanceSlots(rt, empty, overridden)).toEqual([3, 4]);
-    const changed = setPartOverride(overridden, 2, { edge: true });
+    const changed = setPartOverride(overridden, 2, { opacity: 0.5 });
     expect(changedInstanceSlots(rt, overridden, changed)).toEqual([3, 4]);
     const cleared = setPartOverride(changed, 2, undefined);
     expect(changedInstanceSlots(rt, changed, cleared)).toEqual([3, 4]);

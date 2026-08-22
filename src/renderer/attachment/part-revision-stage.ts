@@ -52,6 +52,8 @@ export interface PartRevisionAttachmentHost extends AttachmentCallLists {
   layout: InstanceLayout | undefined;
   readonly selection: SelectionState;
   readonly slotByInstanceId: ReadonlyMap<string, number>;
+  readonly edgesVisible: boolean;
+  readonly nodesVisible: boolean;
   appliedHiddenIds: HiddenInteractionTuple;
   usesExteriorFaceSubsets: boolean;
   styleFlags(): AttachmentFlagState;
@@ -207,6 +209,8 @@ function stagedInteractionState(
     transparentFlags: flags.transparentFlags,
     edgeFlags: flags.edgeFlags,
     edgeEmphasisFlags: flags.edgeEmphasisFlags,
+    edgesVisible: attachment.edgesVisible,
+    nodesVisible: attachment.nodesVisible,
     slotByInstanceId: attachment.slotByInstanceId,
     selection: { selectedNodeFlags: flags.selectedNodeFlags, nodeFlags: flags.nodeFlags },
   };

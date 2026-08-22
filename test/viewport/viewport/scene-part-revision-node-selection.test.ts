@@ -109,6 +109,7 @@ async function nodeViewport(device: GPUDevice, nodeIds: readonly number[]) {
   for (const nodeId of nodeIds)
     interaction = setTargetSelected(interaction, nodeTarget(nodeId), true);
   viewport.interaction.set(interaction);
+  viewport.presentation.setNodesVisible(true);
   viewport.render();
   return viewport;
 }

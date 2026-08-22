@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { createInteractionState } from "../../src/interaction/interaction";
 import { setElementVisible } from "../../src/interaction/elements";
 import { setBodyVisible } from "../../src/interaction/bodies";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
@@ -249,7 +249,8 @@ describe("bounded visibility skins", () => {
       attachment.prepareParts(scene.parts, bundle);
       attachment.attach(runtime, bundle);
 
-      const styled = setPartOverride(createInteractionState(), part.id, { edge: true });
+      attachment.setOverlayVisibility(true, false, bundle);
+      const styled = createInteractionState();
       attachment.updateInstances(runtime, styled, [0, 1], bundle);
       let interaction = setElementVisible(
         styled,

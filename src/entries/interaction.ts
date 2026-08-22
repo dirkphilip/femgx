@@ -13,7 +13,6 @@ export {
   type InteractionState,
   type InteractionTheme,
   type PrimitiveStyleOverride,
-  type ResolvedStyle,
   type StyleOverride,
 } from "../interaction/interaction";
 export {

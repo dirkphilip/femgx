@@ -168,16 +168,6 @@ function collectDirtyParts(options: DirtyPartCollectionOptions): void {
     nextOccurrenceIds: nextData.selectedAssemblyOccurrenceIds,
     parts: selectionParts,
   });
-  diffMapValues(previousData.partOverrides, nextData.partOverrides, (partId) => {
-    addPart(partId, nodeParts);
-  });
-  diffMapValues(
-    previousData.partOccurrenceOverrides,
-    nextData.partOccurrenceOverrides,
-    (instanceId) => {
-      addInstance(instanceId, nodeParts);
-    },
-  );
   diffSetMembers(
     previousData.selectedPartOccurrenceIds,
     nextData.selectedPartOccurrenceIds,

@@ -226,13 +226,7 @@ async function runPicking(current: Viewport): Promise<void> {
   const region = { left: 0, top: 0, right: width, bottom: height, width, height };
   const selection = await current.interaction.pickRegion(region, "element");
   if (selection.count > 0) {
-    current.interaction.set(
-      setElementRegionSelected(
-        setPartOverride(createInteractionState(), 1, { edge: true, nodes: true }),
-        selection,
-        "add",
-      ),
-    );
+    current.interaction.set(setElementRegionSelected(createInteractionState(), selection, "add"));
     current.render();
   }
   const projected = projectPoint(current.view.camera, [0, -0.2, 0]);
@@ -260,10 +254,10 @@ async function runPicking(current: Viewport): Promise<void> {
 function runPresentation(current: Viewport): void {
   const interaction = setPartOverride(createInteractionState(), 1, {
     color: { r: 0.2, g: 0.7, b: 1, a: 1 },
-    edge: true,
-    nodes: true,
   });
   current.interaction.set(interaction);
+  current.presentation.setEdgesVisible(true);
+  current.presentation.setNodesVisible(true);
   current.presentation.setBackground("dark");
   current.presentation.setEdgeDepthTest(false);
   current.presentation.setPointSizePixels(10);

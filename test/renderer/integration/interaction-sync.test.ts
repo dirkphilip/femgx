@@ -3,7 +3,6 @@ import { createPart } from "@/geometry/part";
 import {
   createInteractionState,
   setAssemblySelected,
-  setPartOccurrenceOverride,
   setPartOverride,
 } from "@/interaction/interaction";
 import { translationMatrix } from "@/math/mat4";
@@ -76,18 +75,14 @@ describe("interactionDirtyParts", () => {
     expect(changed).toEqual(new Set([1]));
   });
 
-  it("marks node orders dirty when part or part-occurrence style overrides change", () => {
+  it("does not mark node orders dirty when a material style changes", () => {
     const { runtime } = sceneRuntime();
     const layout = buildInstanceLayout(runtime);
     const empty = createInteractionState();
-    const partState = setPartOverride(empty, 1, { nodes: true });
-    const instanceState = setPartOccurrenceOverride(empty, "1/1", { nodes: true });
+    const partState = setPartOverride(empty, 1, { opacity: 0.5 });
 
     expect(interactionDirtyParts(runtime, layout, empty, partState, false).nodeParts).toEqual(
-      new Set([1]),
-    );
-    expect(interactionDirtyParts(runtime, layout, empty, instanceState, false).nodeParts).toEqual(
-      new Set([1]),
+      new Set(),
     );
   });
 

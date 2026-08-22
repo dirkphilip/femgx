@@ -59,8 +59,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public readonly edgePick: EdgePickState;
   public readonly picking: RendererPicking;
   private edgeDepthTest = true;
-  private edgesVisible: boolean | undefined;
-  private nodesVisible: boolean | undefined;
+  private edgesVisible = false;
+  private nodesVisible = false;
   private orbitPivot: Vec3 | undefined;
   public deformation: DeformationState | undefined;
   public resultColors: ResultColorMap | undefined;

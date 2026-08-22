@@ -155,11 +155,11 @@ describe("Viewport incremental part occurrences", () => {
     });
     viewport.interaction.set(
       setPartOverride(viewport.interaction.state, 1, {
-        edge: true,
-        nodes: true,
         opacity: 0.5,
       }),
     );
+    viewport.presentation.setEdgesVisible(true);
+    viewport.presentation.setNodesVisible(true);
     viewport.render();
     updateOccurrences.mockClear();
 

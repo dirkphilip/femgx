@@ -55,15 +55,6 @@ describe("body interaction state", () => {
     expect(isBodyEmphasized(state, ref)).toBe(true);
   });
 
-  it("rejects node membership on body overrides", () => {
-    expect(() => setBodyOverride(createInteractionState(), ref, { nodes: true } as never)).toThrow(
-      "edge and nodes are only supported on part and part-occurrence overrides",
-    );
-    expect(() => setBodyOverride(createInteractionState(), ref, { edge: true } as never)).toThrow(
-      "edge and nodes are only supported on part and part-occurrence overrides",
-    );
-  });
-
   it("collects body refs deterministically and clears the last state", () => {
     let state = createInteractionState();
     state = setBodySelected(state, { partOccurrenceId: "2/0", bodyId: 9 }, true);

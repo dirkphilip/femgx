@@ -41,6 +41,7 @@ export function syncSelectionState(options: {
   readonly bundle: GpuBundle;
   readonly selectionParts: ReadonlySet<PartId>;
   readonly nodeParts: ReadonlySet<PartId>;
+  readonly nodesVisible?: boolean;
   readonly changedInstanceIds: readonly number[] | undefined;
   readonly denseSelections: DenseElementSelections;
   readonly denseNodeSelections: DenseNodeSelections;
@@ -77,7 +78,14 @@ export function syncSelectionState(options: {
     });
   const nodeChanged =
     options.nodeParts.size > 0 &&
-    writeNodeOrders({ ...options, interaction: options.interaction }, options.nodeParts);
+    writeNodeOrders(
+      {
+        ...options,
+        interaction: options.interaction,
+        ...(options.nodesVisible === true ? { visible: true } : {}),
+      },
+      options.nodeParts,
+    );
   return nodeChanged || selectionChanged;
 }
 

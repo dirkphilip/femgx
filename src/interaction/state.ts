@@ -33,27 +33,17 @@ export interface StyleOverride {
   readonly opacity?: number;
   /** Authored line width in CSS pixels. Supported only on part and instance layers. */
   readonly lineWidthPixels?: number;
-  /** Whether the instance's mesh edges are overlaid as lines on its surface. */
-  readonly edge?: boolean;
-  /** Whether the instance's authored node annotations are overlaid. */
-  readonly nodes?: boolean;
 }
 
 /**
  * Style fields supported by body, element, and interaction-theme layers.
  * @category Interaction and picking
  */
-export type PrimitiveStyleOverride = Omit<StyleOverride, "edge" | "nodes" | "lineWidthPixels">;
+export type PrimitiveStyleOverride = Omit<StyleOverride, "lineWidthPixels">;
 
 /** Validates a public style override without normalizing caller-owned values. */
 export function validateStyleOverride(override: StyleOverride | undefined): void {
   if (override === undefined) return;
-  if (override.edge !== undefined && typeof override.edge !== "boolean") {
-    throw new TypeError("edge must be a boolean");
-  }
-  if (override.nodes !== undefined && typeof override.nodes !== "boolean") {
-    throw new TypeError("nodes must be a boolean");
-  }
   if (override.lineWidthPixels !== undefined) validateLineWidth(override.lineWidthPixels);
   if (override.opacity !== undefined) validateUnit("opacity", override.opacity);
   if (override.emissive !== undefined) validateUnit("emissive", override.emissive);
@@ -65,13 +55,10 @@ export function validateStyleOverride(override: StyleOverride | undefined): void
   }
 }
 
-/** Rejects part-occurrence overlay membership from primitive-specific layers. */
+/** Validates a style override used by primitive-specific layers. */
 export function validatePrimitiveStyleOverride(override: PrimitiveStyleOverride | undefined): void {
   if (override !== undefined && "lineWidthPixels" in override) {
     throw new TypeError("lineWidthPixels is only supported on part and part-occurrence overrides");
-  }
-  if (override !== undefined && ("edge" in override || "nodes" in override)) {
-    throw new TypeError("edge and nodes are only supported on part and part-occurrence overrides");
   }
   validateStyleOverride(override);
 }

@@ -6,7 +6,6 @@ import {
   createInteractionState,
   setElementSelected,
   setElementVisible,
-  setPartOverride,
   setTargetHovered,
   setElementOverride,
   setNodeSelected,
@@ -30,7 +29,8 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
-    const nodes = setPartOverride(createInteractionState(), 1, { nodes: true });
+    const nodes = createInteractionState();
+    renderer.setNodesVisible(true);
     renderer.updateInstances(runtime, nodes, [0, 1, 2]);
     renderer.updateElements(runtime, nodes, [0, 1, 2]);
 
@@ -61,7 +61,9 @@ describe("WebGPU renderer", () => {
     });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
-    const presentation = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
+    const presentation = createInteractionState();
+    renderer.setEdgesVisible(true);
+    renderer.setNodesVisible(true);
     renderer.updateInstances(runtime, presentation, [0, 1, 2]);
     renderer.updateElements(runtime, presentation, [0, 1, 2]);
     renderer.setPointSizePixels(14);

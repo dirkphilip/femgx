@@ -16,11 +16,9 @@ import {
   runtimeInstanceIsSelected,
 } from "./selection/runtime-instance-style";
 
-/** Per-part record updates plus the parts whose overlay membership changed. */
+/** Per-part record updates plus the parts whose transparent membership changed. */
 export interface CollectedInstanceUpdates {
   readonly updates: ReadonlyMap<PartId, readonly InstanceUpdate[]>;
-  readonly edgeChanged: ReadonlySet<PartId>;
-  readonly nodeChanged: ReadonlySet<PartId>;
   readonly transparentChanged: ReadonlySet<PartId>;
 }
 
@@ -67,8 +65,6 @@ export function collectInstanceUpdates(
   changedInstanceIds: readonly number[],
 ): CollectedInstanceUpdates {
   const updates = new Map<PartId, InstanceUpdate[]>();
-  const edgeChanged = new Set<PartId>();
-  const nodeChanged = new Set<PartId>();
   const transparentChanged = new Set<PartId>();
   for (const slot of changedInstanceIds) {
     if (slot < 0 || slot >= runtime.instanceCount) continue;
@@ -79,14 +75,6 @@ export function collectInstanceUpdates(
     const style = resolveRuntimeInstanceStyle(runtime, slot, defaultStyle, interaction);
     const selected = runtimeInstanceIsSelected(runtime, slot, interaction);
     const highlighted = runtimeInstanceIsHighlighted(runtime, slot, interaction);
-    if (flags.edgeFlags[slot] !== style.edge) {
-      flags.edgeFlags[slot] = style.edge;
-      edgeChanged.add(partId);
-    }
-    if (flags.nodeFlags[slot] !== style.nodes) {
-      flags.nodeFlags[slot] = style.nodes;
-      nodeChanged.add(partId);
-    }
     const transparent = style.color.a * style.opacity < 1;
     if (flags.transparentFlags[slot] !== transparent) {
       flags.transparentFlags[slot] = transparent;
@@ -112,5 +100,5 @@ export function collectInstanceUpdates(
       list.push(update);
     }
   }
-  return { updates, edgeChanged, nodeChanged, transparentChanged };
+  return { updates, transparentChanged };
 }

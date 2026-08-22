@@ -4,7 +4,7 @@ import {
   createPartFromElementModel,
   ElementShape,
 } from "../../src/entries/model";
-import { createInteractionState, setPartOverride } from "../../src/entries/interaction";
+import { createInteractionState } from "../../src/entries/interaction";
 import { projectPoint } from "../../src/entries/camera";
 import {
   createSceneBuilder,
@@ -66,8 +66,8 @@ async function run(viewport: Viewport): Promise<void> {
     },
     { durationMs: 0 },
   );
-  const interaction = setPartOverride(createInteractionState(), 1, { edge: true });
-  viewport.interaction.set(interaction);
+  viewport.interaction.set(createInteractionState());
+  viewport.presentation.setEdgesVisible(true);
   viewport.visibility.setElementVisible({ partOccurrenceId: "1/cavity", elementId: 1 }, false);
   viewport.render();
   await presentedFrame();

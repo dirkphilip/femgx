@@ -1,6 +1,6 @@
 import type { Camera } from "../../src/camera/camera";
 import { percentiles } from "./statistics";
-import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { createInteractionState } from "../../src/interaction/interaction";
 import { hideSelectedElements } from "../../src/interaction/selection-queries";
 import {
   interactionTargetFromHit,
@@ -46,7 +46,9 @@ export async function measureCombinedOverlayBenchmark(
   if (!SUPPORTED_CASES.has(options.benchmarkCase.id)) return undefined;
   const { renderer, benchmarkCase, runtime } = options;
   const slots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
-  const nodesOnly = overlayInteraction(benchmarkCase, false);
+  renderer.setEdgesVisible(false);
+  renderer.setNodesVisible(true);
+  const nodesOnly = overlayInteraction();
   const nodeSyncStart = performance.now();
   renderer.updateInstances(runtime, nodesOnly, slots);
   renderer.updateElements(runtime, nodesOnly, slots);
@@ -54,7 +56,8 @@ export async function measureCombinedOverlayBenchmark(
   const coldNodeFrame = await timedFrame(options);
   const coldNodeGpuCost = readGpuCostSnapshot(renderer);
   assertNodeWork(options, coldNodeGpuCost);
-  const interaction = overlayInteraction(benchmarkCase, true);
+  renderer.setEdgesVisible(true);
+  const interaction = overlayInteraction();
   const edgeSyncStart = performance.now();
   renderer.updateInstances(runtime, interaction, slots);
   renderer.updateElements(runtime, interaction, slots);
@@ -82,6 +85,8 @@ export async function measureCombinedOverlayBenchmark(
   const largeSelection = await measureOverlaySelection(options, interaction);
   const interactive = await measureInteractiveSamples(options);
   const edgeMemory = denseEdgeTypedMemory(benchmarkCase);
+  renderer.setEdgesVisible(false);
+  renderer.setNodesVisible(false);
   renderer.updateInstances(runtime, createInteractionState(), slots);
   renderer.updateElements(runtime, createInteractionState(), slots);
   await renderFrame(options);
@@ -113,12 +118,8 @@ export async function measureCombinedOverlayBenchmark(
   };
 }
 
-function overlayInteraction(benchmarkCase: WebGpuBenchmarkCase, edges: boolean) {
-  let interaction = createInteractionState();
-  for (const partId of benchmarkCase.scene.parts.keys()) {
-    interaction = setPartOverride(interaction, partId, { edge: edges, nodes: true });
-  }
-  return interaction;
+function overlayInteraction(): ReturnType<typeof createInteractionState> {
+  return createInteractionState();
 }
 
 async function measureOverlayHover(
@@ -331,7 +332,7 @@ export async function captureHiddenInterior(options: HiddenInteriorCaptureOption
   const elementCount = part?.elements?.count ?? 0;
   if (elementCount < 2) throw new Error(`${options.benchmarkCase.id} has no solid interior`);
 
-  let interaction = overlayInteraction(options.benchmarkCase, true);
+  let interaction = overlayInteraction();
   const targets = authoredElementTargets(
     options.benchmarkCase,
     options.runtime,

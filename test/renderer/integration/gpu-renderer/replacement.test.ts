@@ -71,7 +71,8 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
-    const edge = setPartOverride(createInteractionState(), 1, { edge: true });
+    const edge = createInteractionState();
+    renderer.setEdgesVisible(true);
     renderer.updateInstances(runtime, edge, [0, 1, 2]);
 
     runtime.setInstanceVisible(1, false);

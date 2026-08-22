@@ -64,8 +64,8 @@ export class RendererAttachment extends AttachmentPublicationState {
   private edgeEmphasisFlags: boolean[] = [];
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
-  private edgesVisible: boolean | undefined;
-  private nodesVisible: boolean | undefined;
+  public edgesVisible = false;
+  public nodesVisible = false;
   readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   attachedParts = new Map<PartId, Part>();
 
@@ -141,7 +141,7 @@ export class RendererAttachment extends AttachmentPublicationState {
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
     if (layout === undefined) return attached;
-    const { updates, edgeChanged, transparentChanged } = collectInstanceUpdates(
+    const { updates, transparentChanged } = collectInstanceUpdates(
       runtime,
       layout,
       interaction,
@@ -156,12 +156,8 @@ export class RendererAttachment extends AttachmentPublicationState {
     const styleOrdersChanged = rebuildChangedStyleOrders({
       runtime,
       layout,
-      edgeChanged,
       transparentChanged,
-      edgeFlags: this.edgeFlags,
-      edgeEmphasisFlags: this.edgeEmphasisFlags,
       transparentFlags: this.transparentFlags,
-      ...(this.edgesVisible === undefined ? {} : { edgesVisible: this.edgesVisible }),
       draw: bundle.draw,
     });
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
@@ -201,6 +197,7 @@ export class RendererAttachment extends AttachmentPublicationState {
       interaction,
       state,
       draw: bundle.draw,
+      edgesVisible: this.edgesVisible,
     });
     this.commitRuntimeSnapshot(runtime, layout, state);
     syncOccurrenceInteractionEmphasis({
@@ -246,6 +243,8 @@ export class RendererAttachment extends AttachmentPublicationState {
       transparentFlags: this.transparentFlags,
       edgeFlags: this.edgeFlags,
       edgeEmphasisFlags: this.edgeEmphasisFlags,
+      edgesVisible: this.edgesVisible,
+      nodesVisible: this.nodesVisible,
       slotByInstanceId: this.slotByInstanceId,
       selection: this.selection,
     };
@@ -265,8 +264,8 @@ export class RendererAttachment extends AttachmentPublicationState {
   }
 
   public setOverlayVisibility(
-    edgesVisible: boolean | undefined,
-    nodesVisible: boolean | undefined,
+    edgesVisible: boolean,
+    nodesVisible: boolean,
     bundle: GpuBundle,
   ): boolean {
     if (this.edgesVisible === edgesVisible && this.nodesVisible === nodesVisible) return false;
@@ -287,8 +286,8 @@ export class RendererAttachment extends AttachmentPublicationState {
       interaction: this.interactionState,
       bundle,
       force: true,
-      ...(edgesVisible === undefined ? {} : { edgesVisible }),
-      ...(nodesVisible === undefined ? {} : { nodesVisible }),
+      edgesVisible,
+      nodesVisible,
     });
     this.rebuildCalls(bundle.draw.cost);
     return true;
@@ -397,19 +396,20 @@ export class RendererAttachment extends AttachmentPublicationState {
     parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
   ): void {
+    const activeParts = new Set([...parts].filter((partId) => layout.partSlots.has(partId)));
     if (
       rebuildOverlayOrders({
         runtime,
         layout,
-        parts,
+        parts: activeParts,
         edgeFlags: this.edgeFlags,
         edgeEmphasisFlags: this.edgeEmphasisFlags,
         attachedParts: this.attachedParts,
         selection: this.selection,
         interaction: this.interactionState,
         bundle,
-        ...(this.edgesVisible === undefined ? {} : { edgesVisible: this.edgesVisible }),
-        ...(this.nodesVisible === undefined ? {} : { nodesVisible: this.nodesVisible }),
+        edgesVisible: this.edgesVisible,
+        nodesVisible: this.nodesVisible,
       })
     )
       this.rebuildCalls(bundle.draw.cost);

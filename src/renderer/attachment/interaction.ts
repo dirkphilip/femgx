@@ -39,6 +39,8 @@ export interface AttachmentInteractionState {
   transparentFlags: boolean[];
   edgeFlags: boolean[];
   edgeEmphasisFlags: boolean[];
+  edgesVisible: boolean;
+  nodesVisible: boolean;
   slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   selection: SelectionState;
 }
@@ -130,6 +132,7 @@ export function syncAttachmentInteraction(options: {
     affectedParts: scope.affectedParts,
     selectionParts: scope.dirtyParts.selectionParts,
     nodeParts: scope.dirtyParts.nodeParts,
+    nodesVisible: state.nodesVisible,
     fullSync: options.fullSync,
     state,
   });
@@ -279,6 +282,7 @@ function syncBuffers(options: {
   readonly affectedParts: ReadonlySet<PartId>;
   readonly selectionParts: ReadonlySet<PartId>;
   readonly nodeParts: ReadonlySet<PartId>;
+  readonly nodesVisible: boolean;
   readonly fullSync: boolean;
   readonly state: AttachmentInteractionState;
 }): {
@@ -310,6 +314,7 @@ function syncBuffers(options: {
     bundle: options.bundle,
     selectionParts: options.selectionParts,
     nodeParts: options.nodeParts,
+    nodesVisible: options.nodesVisible,
     changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
     denseSelections,
     denseNodeSelections,
@@ -349,6 +354,7 @@ function syncEdgeBuffers(options: {
       parts: edgeChanged,
       flags: options.state.edgeFlags,
       emphasisFlags: options.state.edgeEmphasisFlags,
+      visible: options.state.edgesVisible,
       draw: options.bundle.draw,
     });
   }

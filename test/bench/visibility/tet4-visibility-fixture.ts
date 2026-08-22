@@ -32,6 +32,7 @@ export async function visibilityFixture(
   const attachment = new RendererAttachment();
   attachment.prepareParts(scene.parts, bundle);
   attachment.attach(runtime, bundle);
+  attachment.setOverlayVisibility(true, false, bundle);
   const occurrenceId = runtime.getInstanceId(0);
   if (occurrenceId === undefined) throw new Error("Tet4 visibility occurrence is missing");
   const hidden = Array.from(ids.subarray(0, Math.floor(ids.length / 2))).reduce(
