@@ -128,6 +128,35 @@ is internal, so internal consumers import the owning module directly. Do not
 expose runtime slots, GPU record layouts, storage capacities, or other derived
 implementation details by default.
 
+### Ownership boundaries and composition
+
+- Give every long-lived concern one concrete owner with explicit construction,
+  state, lifecycle, and destruction. Dependencies point toward that owner;
+  implementation modules do not install reverse edges back into coordinators or
+  UI.
+- Define an interface only for a genuine ownership boundary, replaceable
+  implementation, or focused test seam. Do not create one interface per class
+  or use interfaces to disguise an unresolved owner.
+- Pass cohesive owners, immutable values, or narrow semantic operation ports.
+  Do not pass controller-shaped configuration records dominated by functions,
+  universal command maps, callback registries, or dynamically installed
+  methods.
+- A facade exposes only the semantic state and actions required by its consumer.
+  It must not mirror or forward another owner, coordinator, renderer, or
+  `Viewport` surface.
+- Treat `.bind(this)` and arrow functions that merely register, rename, or relay
+  owner methods as the same forwarding smell. Replacing one syntax with the
+  other does not establish ownership or satisfy composition limits.
+- UI and platform event callbacks are legitimate only at the boundary that owns
+  their listener installation and removal. They call inward through a semantic
+  operation and do not become a general application wiring mechanism.
+- Protect important composition rules with accepted and rejected architecture
+  fixtures. Include callback bags, bound/arrow forwarding, facade mirrors,
+  reverse imports, duplicate lifecycle owners, and dynamic method installation
+  among the rejected cases where applicable. Numeric import/callable limits are
+  backstops; distributing forwarding across more files is still a design
+  failure.
+
 Tests under `test/` mirror subsystem ownership, with deliberate repository-level
 suites under `test/bench`, `test/demo`, `test/public-api`, and `test/scripts`.
 The demo is split between user-facing `demo/workbench/`, diagnostics and browser
