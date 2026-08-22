@@ -52,6 +52,40 @@ describe("GPU render resources", () => {
       const pipelineVertex = (label: string): GPUShaderModule | undefined =>
         gpu.renderPipelineDescriptors.find((descriptor) => descriptor.label === label)?.vertex
           .module;
+      const primitiveParity = [
+        {
+          base: "triangle color",
+          selection: "triangle selection visible",
+          entryPoint: "vertexMain",
+          bufferCount: 0,
+        },
+        {
+          base: "line color",
+          selection: "line selection visible",
+          entryPoint: "vertexMain",
+          bufferCount: 1,
+        },
+        {
+          base: "point color",
+          selection: "point selection visible",
+          entryPoint: "pointVertexMain",
+          bufferCount: 1,
+        },
+      ] as const;
+      for (const parity of primitiveParity) {
+        const base = gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === parity.base,
+        );
+        const selection = gpu.renderPipelineDescriptors.find(
+          (descriptor) => descriptor.label === parity.selection,
+        );
+        expect(base?.vertex.entryPoint).toBe(parity.entryPoint);
+        expect(selection?.vertex.entryPoint).toBe(parity.entryPoint);
+        expect(base?.vertex.buffers).toHaveLength(parity.bufferCount);
+        expect(selection?.vertex.buffers).toEqual(base?.vertex.buffers);
+        expect(base?.primitive).toMatchObject({ topology: "triangle-list", cullMode: "none" });
+        expect(selection?.primitive).toEqual(base?.primitive);
+      }
       expect(pipelineVertex("triangle color")).not.toBe(pipelineVertex("line color"));
       expect(pipelineVertex("dense-selection triangle color")).toBe(
         pipelineVertex("triangle color"),

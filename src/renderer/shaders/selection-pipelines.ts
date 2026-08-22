@@ -8,13 +8,14 @@ import {
   TRANSPARENCY_REVEALAGE_BLEND_STATE,
   TRANSPARENCY_REVEALAGE_FORMAT,
 } from "../frame/transparency";
-import { COLOR_SAMPLE_COUNT, vertexLayout } from "../resources/foundation";
+import { COLOR_SAMPLE_COUNT } from "../resources/foundation";
 import {
   createValidatedRenderPipeline,
   createValidatedShaderModule,
   type GpuValidationOptions,
 } from "../diagnostics/validation";
 import { nodeSpritePipelineGeometry } from "./node-overlay";
+import { instancedPrimitiveGeometry } from "./instanced-primitive-geometry";
 
 export interface SelectionPipelines {
   readonly trianglesSelectionVisible: GPURenderPipeline;
@@ -43,7 +44,7 @@ interface SelectionPipelineOptions {
 
 interface PrimitiveSelectionOptions {
   readonly label: string;
-  readonly geometry: Pick<GPURenderPipelineDescriptor, "vertex" | "primitive">;
+  readonly geometry: Required<Pick<GPURenderPipelineDescriptor, "vertex" | "primitive">>;
   readonly visibleFragment: GPUShaderModule;
   readonly hiddenFragment: GPUShaderModule;
 }
@@ -89,38 +90,21 @@ function selectionPipelineVariants(
     createPrimitiveSelectionPipelines({
       ...options,
       label: "triangle",
-      geometry: {
-        vertex: { module: options.selectionVertex, entryPoint: "vertexMain", buffers: [] },
-        primitive: { topology: "triangle-list", cullMode: "none" },
-      },
+      geometry: instancedPrimitiveGeometry("triangles", options.selectionVertex),
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
       ...options,
       label: "line",
-      geometry: {
-        vertex: {
-          module: options.lineSelectionVertex,
-          entryPoint: "vertexMain",
-          buffers: [vertexLayout],
-        },
-        primitive: { topology: "triangle-list", cullMode: "none" },
-      },
+      geometry: instancedPrimitiveGeometry("lines", options.lineSelectionVertex),
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
     }),
     createPrimitiveSelectionPipelines({
       ...options,
       label: "point",
-      geometry: {
-        vertex: {
-          module: options.pointVertex,
-          entryPoint: "pointVertexMain",
-          buffers: [vertexLayout],
-        },
-        primitive: { topology: "triangle-list", cullMode: "none" },
-      },
+      geometry: instancedPrimitiveGeometry("points", options.pointVertex),
       visibleFragment: selection,
       hiddenFragment: selectionTransparency,
     }),
@@ -208,7 +192,8 @@ function selectionPipelineBase(
 ): SelectionPipelineBase {
   return {
     layout: options.layout,
-    ...options.geometry,
+    vertex: options.geometry.vertex,
+    primitive: options.geometry.primitive,
     multisample: { count: COLOR_SAMPLE_COUNT },
     depthStencil: {
       format: options.depthFormat,
