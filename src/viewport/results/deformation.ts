@@ -1,18 +1,17 @@
 import type { PartId } from "../../geometry/part";
-import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { Scene } from "../../scene/scene";
 import { mergedNodePickIds } from "../result-colors";
-import { renderedPartIds } from "../results-roles";
 import type { ViewportDeformationConfig } from "../results-types";
+import type { ResultResolutionView } from "./resolution-view";
 
 /** Validates every rendered node required by an authored deformation field. */
 export function validateViewportDeformationCoverage(
   config: ViewportDeformationConfig,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   targetPartId: PartId | undefined,
 ): void {
-  for (const partId of targetPartId === undefined ? renderedPartIds(runtime) : [targetPartId]) {
+  for (const partId of targetPartId === undefined ? view.renderedPartIds : [targetPartId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     const nodePickIds = mergedNodePickIds(part);

@@ -4,7 +4,6 @@ import type { PartId } from "../geometry/part";
 import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import {
-  renderedPartIds,
   resolveLoads,
   resolveOrientation,
   validateResultsConfig,
@@ -26,7 +25,12 @@ import {
   reusablePartDeformation,
 } from "./results/revision";
 import { mergeResultRecords } from "./result-records";
-import { partRevisionRuntime, scopedPartRevisionConfig } from "./results/revision-scope";
+import {
+  createPartRevisionResultResolutionView,
+  createResultResolutionView,
+  type ResultResolutionView,
+} from "./results/resolution-view";
+import { scopedPartRevisionConfig } from "./results/revision-scope";
 import { resolveScalar } from "./results/scalar-resolution";
 import type {
   ViewportDeformationConfig,
@@ -76,15 +80,29 @@ export function resolveViewportResults(
   runtime: PackedSceneRuntime,
   previous?: ViewportResultsState,
 ): ViewportResultsState {
+  return resolveViewportResultsWithView(
+    config,
+    scene,
+    createResultResolutionView(runtime),
+    previous,
+  );
+}
+
+function resolveViewportResultsWithView(
+  config: ViewportResultsConfig,
+  scene: Scene,
+  view: ResultResolutionView,
+  previous?: ViewportResultsState,
+): ViewportResultsState {
   validateResultsConfig(config);
-  const scalar = resolveScalar(config.scalar, scene, runtime, previous);
-  const occurrenceTargets = resolveOccurrenceTargets(config.occurrences ?? [], runtime);
-  const occurrenceScalars = resolveOccurrenceScalars(occurrenceTargets, scene, runtime);
-  const sharedDeformation = resolveDeformation(config.deformation, scene, runtime, previous);
-  const occurrenceDeformations = resolveOccurrenceDeformations(occurrenceTargets, scene, runtime);
+  const scalar = resolveScalar(config.scalar, scene, view, previous);
+  const occurrenceTargets = resolveOccurrenceTargets(config.occurrences ?? [], view);
+  const occurrenceScalars = resolveOccurrenceScalars(occurrenceTargets, scene, view);
+  const sharedDeformation = resolveDeformation(config.deformation, scene, view, previous);
+  const occurrenceDeformations = resolveOccurrenceDeformations(occurrenceTargets, scene, view);
   const deformation = mergeOccurrenceDeformations(sharedDeformation, occurrenceDeformations);
-  const resolvedOrientation = resolveOrientation(config.orientation, scene, runtime, deformation);
-  const resolvedLoads = resolveLoads(config.loads, scene, runtime, deformation);
+  const resolvedOrientation = resolveOrientation(config.orientation, scene, view, deformation);
+  const resolvedLoads = resolveLoads(config.loads, scene, view, deformation);
   const orientation = resolvedOrientation?.state;
   const state = {
     config,
@@ -94,7 +112,7 @@ export function resolveViewportResults(
     loads: resolvedLoads?.config,
   };
   sharedDeformations.set(state, sharedDeformation);
-  resolveViewportResultColors(state, scalar, scene, runtime, {
+  resolveViewportResultColors(state, scalar, scene, view, {
     previous,
     occurrences: occurrenceScalars,
   });
@@ -103,7 +121,7 @@ export function resolveViewportResults(
     occurrenceTargets,
     config,
     scene,
-    runtime,
+    view,
     deformation,
   );
   orientationRecords.set(state, mergeResultRecords(sharedRecords, occurrenceRecords.records));
@@ -127,18 +145,15 @@ export function resolveViewportPartRevisionResults(
   revisedPartIds: ReadonlySet<PartId>,
 ): ViewportResultsState {
   if (previous.config !== config) return resolveViewportResults(config, scene, runtime, previous);
-  const scoped = scopedPartRevisionConfig(config, runtime, revisedPartIds);
+  const view = createResultResolutionView(runtime);
+  const revisedView = createPartRevisionResultResolutionView(view, revisedPartIds);
+  const scoped = scopedPartRevisionConfig(config, view, revisedPartIds);
   if (scoped === undefined) return previous;
-  const partial = resolveViewportResults(
-    scoped,
-    scene,
-    partRevisionRuntime(runtime, revisedPartIds),
-    undefined,
-  );
+  const partial = resolveViewportResultsWithView(scoped, scene, revisedView, undefined);
   const shared = reconcileSharedPartRevisionDeformation(
     sharedDeformations.get(partial),
     revisedPartIds,
-    (partId) => resolveDeformation(config.deformation, scene, runtime, undefined, partId),
+    (partId) => resolveDeformation(config.deformation, scene, view, undefined, partId),
   );
   const reconciled = {
     ...partial,
@@ -146,13 +161,13 @@ export function resolveViewportPartRevisionResults(
     deformation: reconcilePartRevisionDeformation(
       replacePartRevisionDeformation(partial.deformation, shared, config, revisedPartIds),
       previous.deformation,
-      runtime,
+      view,
       revisedPartIds,
     ),
   };
   sharedDeformations.set(reconciled, shared);
-  reconcileViewportResultColors(partial, previous, runtime, revisedPartIds);
-  transferResultMetadata(partial, reconciled, previous, runtime, revisedPartIds);
+  reconcileViewportResultColors(partial, previous, view, revisedPartIds);
+  transferResultMetadata(partial, reconciled, previous, view, revisedPartIds);
   return reconciled;
 }
 
@@ -169,12 +184,11 @@ interface OccurrenceDeformation {
 
 function resolveOccurrenceTargets(
   configs: readonly ViewportOccurrenceResultsConfig[],
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
 ): readonly OccurrenceTarget[] {
   return configs.map((config) => {
-    const slot = runtime.getInstanceSlot(config.partOccurrenceId);
-    const partId = slot === undefined ? undefined : runtime.getPartId(slot);
-    if (slot === undefined || partId === undefined) {
+    const partId = view.partIdForOccurrence(config.partOccurrenceId);
+    if (partId === undefined) {
       throw new Error(
         `Viewport result occurrence ${config.partOccurrenceId} is not rendered by the current runtime`,
       );
@@ -203,12 +217,12 @@ function validateOccurrencePartOwnership(
 function resolveOccurrenceScalars(
   targets: readonly OccurrenceTarget[],
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
 ): readonly OccurrenceScalarBinding[] {
   return targets.flatMap((target) => {
     const config = target.config.scalar;
     if (config === undefined) return [];
-    const scalar = resolveScalar({ ...config, partId: target.partId }, scene, runtime, undefined);
+    const scalar = resolveScalar({ ...config, partId: target.partId }, scene, view, undefined);
     return scalar === undefined ? [] : [{ ...target, scalar }];
   });
 }
@@ -216,12 +230,12 @@ function resolveOccurrenceScalars(
 function resolveOccurrenceDeformations(
   targets: readonly OccurrenceTarget[],
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
 ): readonly OccurrenceDeformation[] {
   return targets.flatMap((target) => {
     const config = target.config.deformation;
     if (config === undefined) return [];
-    const state = resolveDeformation(config, scene, runtime, undefined, target.partId);
+    const state = resolveDeformation(config, scene, view, undefined, target.partId);
     return state === undefined ? [] : [{ target, state }];
   });
 }
@@ -251,7 +265,7 @@ function resolveOccurrenceRecords(
   targets: readonly OccurrenceTarget[],
   config: ViewportResultsConfig,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   deformation: DeformationState | undefined,
 ): { readonly records: OrientationRecordMap | undefined; readonly widthPixels: number } {
   let records: OrientationRecordMap | undefined;
@@ -267,14 +281,14 @@ function resolveOccurrenceRecords(
     const orientation = resolveOrientation(
       target.config.orientation ?? config.orientation,
       scene,
-      runtime,
+      view,
       deformation,
       binding,
     );
     const loads = resolveLoads(
       target.config.loads ?? config.loads,
       scene,
-      runtime,
+      view,
       deformation,
       binding,
     );
@@ -296,7 +310,7 @@ function scaledValues(values: Float32Array, scale: number): Float32Array {
 function resolveDeformation(
   config: ViewportDeformationConfig | undefined,
   scene: Scene,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   previous: ViewportResultsState | undefined,
   targetPartId?: PartId,
 ): DeformationState | undefined {
@@ -305,7 +319,7 @@ function resolveDeformation(
   if (!Number.isFinite(scale)) {
     throw new Error(`Viewport deformation scale must be finite, got ${scale}`);
   }
-  validateViewportDeformationCoverage(config, scene, runtime, targetPartId);
+  validateViewportDeformationCoverage(config, scene, view, targetPartId);
   const reusable =
     targetPartId === undefined
       ? reusablePartDeformation(
@@ -316,7 +330,7 @@ function resolveDeformation(
       : undefined;
   if (reusable !== undefined) return { scale, displacements: reusable };
   const displacements = new Map<PartId, Float32Array>();
-  for (const partId of targetPartId === undefined ? renderedPartIds(runtime) : [targetPartId]) {
+  for (const partId of targetPartId === undefined ? view.renderedPartIds : [targetPartId]) {
     const part = scene.parts.get(partId);
     if (part === undefined) continue;
     const nodePickIds = mergedNodePickIds(part);
@@ -345,14 +359,14 @@ function transferResultMetadata(
   source: ViewportResultsState,
   target: ViewportResultsState,
   previous: ViewportResultsState,
-  runtime: PackedSceneRuntime,
+  view: ResultResolutionView,
   revisedPartIds: ReadonlySet<PartId>,
 ): void {
   transferViewportResultColors(source, target);
   const records = reconcilePartRevisionRecords(
     orientationRecords.get(source),
     orientationRecords.get(previous),
-    runtime,
+    view,
     revisedPartIds,
   );
   orientationRecords.set(target, records);
