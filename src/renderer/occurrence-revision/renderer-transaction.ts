@@ -16,6 +16,7 @@ import type { SectionCapController } from "../section-cap-controller";
 import type { SectionPlane } from "../../math/section-plane";
 import type { DeformationState } from "../../results/deform";
 import type { ResultColorMap } from "../../results/colors";
+import type { PreparedRendererOccurrenceUpdate as PreparedRendererOccurrencePort } from "../types";
 
 interface RendererOccurrenceOwner {
   readonly attachment: RendererAttachment;
@@ -32,13 +33,34 @@ interface RendererOccurrenceOwner {
 }
 
 /** Renderer-private prepared placement transaction passed through the viewport owner. */
-export interface PreparedRendererOccurrenceUpdate {
-  readonly attachment: PreparedAttachmentOccurrenceUpdate;
-  readonly caps: PreparedSectionCapRevision;
-  readonly runtime: PackedSceneRuntime;
-  readonly interaction: InteractionState;
-  readonly parts: ReadonlyMap<PartId, Part>;
-  readonly results: PartRevisionResultState | undefined;
+export type PreparedRendererOccurrenceUpdate = PreparedRendererOccurrencePort<
+  PreparedAttachmentOccurrenceUpdate,
+  PreparedSectionCapRevision
+>;
+
+/** Applies a direct occurrence delta through the live renderer owners. */
+export function applyRendererOccurrenceUpdate(
+  renderer: RendererOccurrenceOwner,
+  runtime: PackedSceneRuntime,
+  interaction: InteractionState,
+  delta: RuntimeOccurrenceDelta,
+  parts: ReadonlyMap<PartId, Part>,
+): void {
+  renderer.interaction = interaction;
+  renderer.attachment.addParts(parts, delta.addedPartIds, renderer.parts);
+  const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
+  if (changed) {
+    renderer.attachment.updateOccurrences(
+      runtime,
+      interaction,
+      delta,
+      renderer.parts,
+      renderer.lifecycle.bundle,
+    );
+  }
+  if (renderer.sourceParts !== undefined) renderer.sourceParts = parts;
+  renderer.sectionCaps.updateOccurrences(delta, renderer.parts, renderer.lifecycle.bundle.draw);
+  if (changed) renderer.picking.invalidate();
 }
 
 /** Completes every fallible renderer allocation for one occurrence revision. */

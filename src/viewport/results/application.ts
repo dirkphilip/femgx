@@ -1,8 +1,4 @@
-import {
-  setRendererOrientationGlyphs,
-  setRendererResultColors,
-  type WebGpuRenderer,
-} from "../../renderer/gpu-renderer";
+import type { WebGpuRenderer } from "../../renderer/gpu-renderer";
 import type { PartRevisionResultState } from "../../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
@@ -45,12 +41,9 @@ export function applyResolvedViewportResults(
   renderer: WebGpuRenderer,
   results: ViewportResultsState | undefined,
 ): void {
-  setRendererOrientationGlyphs(renderer, glyphState(results));
+  renderer.setOrientationGlyphs(glyphState(results));
   renderer.setDeformation(results?.deformation);
-  setRendererResultColors(
-    renderer,
-    results === undefined ? undefined : viewportResultColors(results),
-  );
+  renderer.setResultColors(results === undefined ? undefined : viewportResultColors(results));
 }
 
 /** Converts resolved viewport results to the renderer-private revision transaction input. */

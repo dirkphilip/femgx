@@ -19,7 +19,6 @@ import {
   installGpuTestGlobals,
   installGpuTestEnvironment,
 } from "./support";
-import { setRendererResultColors } from "@/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("culls hidden parts from the draw order without rewriting records", async () => {
@@ -373,7 +372,7 @@ describe("WebGPU renderer", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
-    setRendererResultColors(renderer, elementalColors());
+    renderer.setResultColors(elementalColors());
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
     renderer.render(runtime, camera, scene.parts);
     expect(elementalResultWrites(gpu)).toHaveLength(2);
@@ -392,7 +391,7 @@ describe("WebGPU renderer", () => {
       { color: { r: 0, g: 1, b: 0, a: 1 } },
     );
     renderer.updateElements(runtime, interaction);
-    setRendererResultColors(renderer, elementalColors());
+    renderer.setResultColors(elementalColors());
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
     renderer.render(runtime, camera, scene.parts);
     expect(elementalResultWrites(gpu)).toHaveLength(1);

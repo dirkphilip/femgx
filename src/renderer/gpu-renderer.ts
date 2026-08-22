@@ -1,24 +1,14 @@
 import { requestWebGpuDevice } from "../platform/device";
 import type { PartId } from "../geometry/part";
 import { GpuRenderer } from "./renderer-core";
-import type { PreparedRendererOccurrenceUpdate } from "./occurrence-revision/renderer-transaction";
 import { createGpuBundle } from "./recovery";
 import { readGpuValidationOptions } from "./diagnostics/validation";
 import type { WebGpuRenderer, WebGpuRendererOptions } from "./types";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
-import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
-import type { ResultColorMap } from "../results/colors";
 import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnostics/timestamps";
-import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
-import type { InteractionState } from "../interaction/interaction";
-import type { Part } from "../geometry/part";
-import type { PartRevisionResultState } from "./attachment/part-revision-results";
-
-export type { PartRevisionResultState } from "./attachment/part-revision-results";
-import { prepareAddedAttachmentParts } from "./attachment/part-definitions";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
+export type { PartRevisionResultState } from "./attachment/part-revision-results";
 
 export type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
 export type { GpuCostSnapshot } from "./diagnostics/cost";
@@ -54,132 +44,6 @@ export async function drainGpuTimestampSamples(renderer: WebGpuRenderer): Promis
     throw new Error("GPU timestamp accounting is unavailable for this renderer implementation");
   }
   await renderer.drainTimestampSamples();
-}
-
-/** Hands internal result composition to the concrete renderer without widening its public contract. */
-export function setRendererOrientationGlyphs(
-  renderer: WebGpuRenderer,
-  state: OrientationGlyphState | undefined,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Elemental orientation glyphs require the built-in WebGPU renderer");
-  }
-  renderer.setOrientationGlyphs(state);
-}
-
-/** Hands internal dense scalar colors to the concrete renderer without widening its public API. */
-export function setRendererResultColors(
-  renderer: WebGpuRenderer,
-  colors: ResultColorMap | undefined,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Authored scalar colors require the built-in WebGPU renderer");
-  }
-  renderer.setResultColors(colors);
-}
-
-/** Applies private structural occurrence changes without widening the public renderer API. */
-export function updateRendererOccurrences(
-  renderer: WebGpuRenderer,
-  runtime: PackedSceneRuntime,
-  interaction: InteractionState,
-  delta: RuntimeOccurrenceDelta,
-  parts: ReadonlyMap<PartId, Part>,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  renderer.lifecycle.ensureUsable();
-  renderer.interaction = interaction;
-  renderer.attachment.addParts(parts, delta.addedPartIds, renderer.parts);
-  const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
-  if (changed) {
-    renderer.attachment.updateOccurrences(
-      runtime,
-      interaction,
-      delta,
-      renderer.parts,
-      renderer.lifecycle.bundle,
-    );
-  }
-  if (renderer.sourceParts !== undefined) renderer.sourceParts = parts;
-  renderer.sectionCaps.updateOccurrences(delta, renderer.parts, renderer.lifecycle.bundle.draw);
-  if (changed) renderer.picking.invalidate();
-}
-
-/** Prepares private structural occurrence changes without mutating the live renderer. */
-export function prepareRendererOccurrenceUpdate(
-  renderer: WebGpuRenderer,
-  revision: {
-    readonly runtime: PackedSceneRuntime;
-    readonly interaction: InteractionState;
-    readonly delta: RuntimeOccurrenceDelta;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly results?: PartRevisionResultState;
-    readonly replacedPartIds?: ReadonlySet<PartId>;
-  },
-): PreparedRendererOccurrenceUpdate {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  return renderer.prepareOccurrenceUpdate(revision);
-}
-
-/** Commits a renderer occurrence revision after every scene owner has prepared. */
-export function commitRendererOccurrenceUpdate(
-  renderer: WebGpuRenderer,
-  prepared: PreparedRendererOccurrenceUpdate,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  renderer.commitOccurrenceUpdate(prepared);
-}
-
-/** Discards an uncommitted renderer occurrence revision. */
-export function discardRendererOccurrenceUpdate(
-  renderer: WebGpuRenderer,
-  prepared: PreparedRendererOccurrenceUpdate,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  renderer.discardOccurrenceUpdate(prepared);
-}
-
-/** Prepares exact added definitions before the live runtime is mutated. */
-export function prepareRendererPartAdditions(
-  renderer: WebGpuRenderer,
-  parts: ReadonlyMap<PartId, Part>,
-  partIds: ReadonlySet<PartId>,
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  prepareAddedAttachmentParts(parts, partIds);
-}
-
-/** Applies exact immutable part revisions without widening the public renderer contract. */
-export function updateRendererPartRevisions(
-  renderer: WebGpuRenderer,
-  revision: {
-    readonly runtime: PackedSceneRuntime;
-    readonly interaction: InteractionState;
-    readonly parts: ReadonlyMap<PartId, Part>;
-    readonly partIds: ReadonlySet<PartId>;
-    readonly results: PartRevisionResultState;
-  },
-): void {
-  if (!(renderer instanceof GpuRenderer)) {
-    throw new Error("Incremental scene updates require the built-in WebGPU renderer");
-  }
-  renderer.updatePartRevisions(
-    revision.runtime,
-    revision.interaction,
-    revision.parts,
-    revision.partIds,
-    revision.results,
-  );
 }
 
 /** Creates a WebGPU renderer, or throws a typed error when unavailable. */

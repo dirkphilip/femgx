@@ -23,20 +23,6 @@ import { createElementPickScratch } from "./element-region";
 import { syncDeformations } from "../frame/deformation";
 import type { SectionCapController } from "../section-cap-controller";
 
-interface RendererPickingOwner {
-  readonly canvas: HTMLCanvasElement;
-  readonly lifecycle: GpuDeviceLifecycle;
-  readonly attachment: RendererAttachment;
-  readonly edgePick: EdgePickState;
-  readonly sectionCaps: SectionCapController;
-  readonly parts: () => ReadonlyMap<PartId, Part>;
-  readonly lastCamera: () => Camera | undefined;
-  readonly setLastCamera: (camera: Camera) => void;
-  readonly deformation: () => DeformationState | undefined;
-  readonly ensureSectionCaps: (runtime: NonNullable<RendererAttachment["runtime"]>) => void;
-  readonly frameOptions: () => FrameOptions;
-}
-
 export interface RendererPickingHost {
   readonly canvas: HTMLCanvasElement;
   readonly lifecycle: GpuDeviceLifecycle;
@@ -50,32 +36,13 @@ export interface RendererPickingHost {
   frameOptions(): FrameOptions;
 }
 
-/** Binds picking to the renderer state without duplicating state ownership. */
-export function createRendererPicking(host: RendererPickingHost): RendererPicking {
-  return new RendererPicking({
-    canvas: host.canvas,
-    lifecycle: host.lifecycle,
-    attachment: host.attachment,
-    edgePick: host.edgePick,
-    sectionCaps: host.sectionCaps,
-    parts: () => host.parts,
-    lastCamera: () => host.lastCamera,
-    setLastCamera: (camera) => {
-      host.lastCamera = camera;
-    },
-    deformation: () => host.deformation,
-    ensureSectionCaps: host.ensureSectionCaps.bind(host),
-    frameOptions: host.frameOptions.bind(host),
-  });
-}
-
 /** Owns the lazy ordinary/edge pick snapshots and their invalidation state. */
 export class RendererPicking {
   private snapshotValid = false;
 
   private readonly elementScratch = createElementPickScratch();
 
-  public constructor(private readonly owner: RendererPickingOwner) {}
+  public constructor(private readonly owner: RendererPickingHost) {}
 
   public invalidate(): void {
     this.snapshotValid = false;
@@ -96,7 +63,7 @@ export class RendererPicking {
   public async pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
     if (this.owner.attachment.runtime === undefined) return undefined;
     if (!this.ensureSnapshot()) return undefined;
-    const camera = this.owner.lastCamera();
+    const camera = this.owner.lastCamera;
     if (camera === undefined) return undefined;
     if (granularity === "edge") return pickEdgePixel(this.edgeContext(camera), x, y);
     return pickHitFromPixel({
@@ -117,7 +84,7 @@ export class RendererPicking {
     if (this.owner.attachment.runtime === undefined) return emptyRegion(granularity);
     if (!this.ensureSnapshot()) return emptyRegion(granularity);
     if (granularity === "edge") {
-      const camera = this.owner.lastCamera();
+      const camera = this.owner.lastCamera;
       return camera === undefined ? [] : pickEdgeRegion(this.edgeContext(camera), rect);
     }
     const pick = this.owner.lifecycle.bundle.pickTargets;
@@ -148,17 +115,17 @@ export class RendererPicking {
     return hit?.worldPosition;
   }
 
-  private ensureSnapshot(camera = this.owner.lastCamera()): boolean {
+  private ensureSnapshot(camera = this.owner.lastCamera): boolean {
     if (camera === undefined) return false;
-    if (camera !== this.owner.lastCamera()) {
-      this.owner.setLastCamera(camera);
+    if (camera !== this.owner.lastCamera) {
+      this.owner.lastCamera = camera;
       this.invalidate();
     }
     if (!this.snapshotValid) {
       const runtime = this.owner.attachment.runtime;
       const layout = this.owner.attachment.layout;
       if (runtime === undefined || layout === undefined) return false;
-      syncDeformations(this.owner.lifecycle.bundle.draw, this.owner.deformation(), runtime, layout);
+      syncDeformations(this.owner.lifecycle.bundle.draw, this.owner.deformation, runtime, layout);
       this.owner.ensureSectionCaps(runtime);
       encodePickSnapshot(camera, this.owner.sectionCaps.parts, this.owner.frameOptions());
       this.snapshotValid = true;
@@ -171,9 +138,9 @@ export class RendererPicking {
     return createEdgePickContext({
       state: this.owner.edgePick,
       camera,
-      parts: this.owner.parts(),
+      parts: this.owner.parts,
       instances: this.owner.attachment.instances,
-      frame: this.owner.frameOptions,
+      frame: this.owner.frameOptions(),
       runtime: this.owner.attachment.runtime,
     });
   }
@@ -182,7 +149,7 @@ export class RendererPicking {
     const runtime = this.owner.attachment.runtime;
     return {
       instances: this.owner.attachment.instances,
-      parts: this.owner.parts(),
+      parts: this.owner.parts,
       ...(runtime === undefined
         ? {}
         : { assemblyPath: (slot: number) => assemblyPathForInstance(runtime, slot) }),

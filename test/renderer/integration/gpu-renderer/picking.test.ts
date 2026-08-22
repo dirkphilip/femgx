@@ -17,7 +17,6 @@ import {
   camera,
   installGpuTestEnvironment,
 } from "./support";
-import { setRendererResultColors } from "@/renderer/gpu-renderer";
 
 describe("WebGPU renderer", () => {
   it("reuses pick snapshots until pick-relevant state changes", async () => {
@@ -88,7 +87,7 @@ describe("WebGPU renderer", () => {
       new Map([[1, { location: "nodal" as const, values: new Float32Array(16).fill(2) }]]),
       undefined,
     ]) {
-      setRendererResultColors(renderer, colors);
+      renderer.setResultColors(colors);
       renderer.render(runtime, camera, scene.parts);
       const drawCallsAfterVisibleRender = gpu.drawCalls.length;
       await renderer.pick(100, 100);
