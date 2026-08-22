@@ -6,6 +6,7 @@ import {
   type ResultColorStorage,
 } from "@/renderer/resources/result-colors";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
+import { directBufferWritePort } from "@/renderer/resources/buffer-write-port";
 
 type TestInstanceStorage = {
   bindGroup: GPUBindGroup | undefined;
@@ -104,6 +105,7 @@ function syncOwner(
 ): ResultColorDrawResources & { readonly storages: Map<number, TestInstanceStorage> } {
   return {
     device,
+    writePort: directBufferWritePort(device),
     resultColors: new Map<number, ResultColorStorage>(),
     emptyResultColorBuffer: createEmptyResultColorBuffer(device),
     storages: new Map<number, TestInstanceStorage>(),

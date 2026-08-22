@@ -4,6 +4,7 @@ import type { ElementalOrientationRecords } from "../../results/orientation-reco
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { OrientationGlyphGroupResource } from "./types";
+import type { BufferWritePort } from "../resources/buffer-write-port";
 
 export interface OrientationInstanceLayout {
   readonly partLocalSlots: ReadonlyMap<PartId, Int32Array>;
@@ -38,6 +39,7 @@ export function effectiveRecordGroups(
 /** Synchronizes one record group's compact part-local occurrence order. */
 export function syncGlyphOrder(
   device: GPUDevice,
+  writePort: BufferWritePort,
   cost: GpuCostAccumulator,
   resource: OrientationGlyphGroupResource,
   order: Uint32Array,
@@ -50,7 +52,7 @@ export function syncGlyphOrder(
   resource.orderData.fill(0);
   resource.orderData.set(order);
   resource.orderCount = order.length;
-  device.queue.writeBuffer(resource.orderBuffer, 0, order);
+  writePort.writeBuffer(resource.orderBuffer, 0, order);
   cost.write("vector-glyph", order.byteLength);
 }
 

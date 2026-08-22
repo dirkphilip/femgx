@@ -3,6 +3,7 @@ import type { ResultBindingId } from "../../results/bindings";
 import type { ElementalOrientationRecords } from "../../results/orientation-records";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { OrientationGlyphRecordSource } from "./data";
+import type { BufferWritePort } from "../resources/buffer-write-port";
 
 /** Renderer-owned glyph presentation mode. */
 export type OrientationGlyphMode = "arrow" | "axis" | "triad";
@@ -48,6 +49,7 @@ export interface OrientationGlyphPartResource {
 /** Device-bound owner for all active orientation glyph buffers. */
 export interface OrientationGlyphDrawResources {
   readonly device: GPUDevice;
+  readonly writePort: BufferWritePort;
   readonly cost: GpuCostAccumulator;
   paramsBuffer: GPUBuffer | undefined;
   readonly paramsData: ArrayBuffer;

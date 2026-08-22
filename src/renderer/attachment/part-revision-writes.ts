@@ -1,3 +1,5 @@
+import type { BufferWriteData, BufferWritePort } from "../resources/buffer-write-port";
+
 /** A deferred write targeting a retained GPU buffer during revision staging. */
 export interface StagedBufferWrite {
   readonly buffer: GPUBuffer;
@@ -5,41 +7,26 @@ export interface StagedBufferWrite {
   readonly data: Uint8Array;
 }
 
-/** Creates a device facade that records writes to live buffers but allocates normally. */
-export function createPartRevisionStagingDevice(
-  device: GPUDevice,
+/** Creates a write port that defers only writes targeting retained live buffers. */
+export function createPartRevisionStagingWritePort(
+  direct: BufferWritePort,
   protectedBuffers: ReadonlySet<GPUBuffer>,
   writes: StagedBufferWrite[],
-): GPUDevice {
-  const queue = new Proxy(device.queue, {
-    get(target, key, receiver) {
-      if (key === "writeBuffer") return stagedWriteBuffer(target, protectedBuffers, writes);
-      const value: unknown = Reflect.get(target, key, receiver);
-      if (typeof value !== "function") return value;
-      const bound: unknown = value.bind(target);
-      return bound;
-    },
-  });
-  return new Proxy(device, {
-    get(target, key, receiver) {
-      if (key === "queue") return queue;
-      const value: unknown = Reflect.get(target, key, receiver);
-      if (typeof value !== "function") return value;
-      const bound: unknown = value.bind(target);
-      return bound;
-    },
-  });
+): BufferWritePort {
+  return {
+    writeBuffer: stagedWriteBuffer(direct, protectedBuffers, writes),
+  };
 }
 
 function stagedWriteBuffer(
-  queue: GPUQueue,
+  direct: BufferWritePort,
   protectedBuffers: ReadonlySet<GPUBuffer>,
   writes: StagedBufferWrite[],
 ) {
   return (
     buffer: GPUBuffer,
     offset: number,
-    data: BufferSource,
+    data: BufferWriteData,
     dataOffset?: number,
     size?: number,
   ): void => {
@@ -47,19 +34,46 @@ function stagedWriteBuffer(
       writes.push({ buffer, offset, data: copyWriteData(data, dataOffset, size) });
       return;
     }
-    queue.writeBuffer(buffer, offset, data, dataOffset, size);
+    direct.writeBuffer(buffer, offset, data, dataOffset, size);
   };
 }
 
 function copyWriteData(
-  data: BufferSource,
+  data: BufferWriteData,
   dataOffset: number | undefined,
   size: number | undefined,
 ) {
-  const bytes =
-    data instanceof ArrayBuffer
-      ? new Uint8Array(data)
-      : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  const start = dataOffset ?? 0;
-  return bytes.slice(start, size === undefined ? undefined : start + size);
+  const bytes = sourceBytes(data);
+  const elementSize = sourceElementSize(data);
+  const startElement = dataOffset ?? 0;
+  const sizeElements = size ?? bytes.byteLength / elementSize - startElement;
+  validateWriteRange(startElement, sizeElements, bytes.byteLength / elementSize);
+  const start = startElement * elementSize;
+  const byteSize = sizeElements * elementSize;
+  return bytes.slice(start, start + byteSize);
+}
+
+function sourceBytes(data: BufferWriteData): Uint8Array {
+  if (ArrayBuffer.isView(data))
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  return new Uint8Array(data);
+}
+
+function sourceElementSize(data: BufferWriteData): number {
+  if (!ArrayBuffer.isView(data) || !("BYTES_PER_ELEMENT" in data)) return 1;
+  const size = data.BYTES_PER_ELEMENT;
+  return typeof size === "number" ? size : 1;
+}
+
+function validateWriteRange(start: number, size: number, length: number): void {
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(size) ||
+    start < 0 ||
+    size < 0 ||
+    start > length ||
+    size > length - start
+  ) {
+    throw new RangeError("GPUQueue.writeBuffer dataOffset and size exceed the source data");
+  }
 }

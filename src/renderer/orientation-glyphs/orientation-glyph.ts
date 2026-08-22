@@ -4,6 +4,7 @@ import type { ElementalOrientationRecords } from "../../results/orientation-reco
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { InstanceStorage } from "../resources/instance-storage";
+import { directBufferWritePort } from "../resources/buffer-write-port";
 import {
   orientationGlyphRecordSource,
   ORIENTATION_GLYPH_NORMAL_MATRIX_FLOATS,
@@ -39,6 +40,7 @@ export function createOrientationGlyphDrawResources(
 ): OrientationGlyphDrawResources {
   return {
     device,
+    writePort: directBufferWritePort(device),
     cost,
     paramsBuffer: undefined,
     paramsData: new ArrayBuffer(PARAMS_SIZE),
@@ -77,7 +79,7 @@ export function syncOrientationGlyphs(
       activeBindings.add(resolved.bindingId);
       const group = ensureGroupResource(resources, resource, resolved.bindingId, resolved.records);
       syncRecords(resources, group, resolved.records);
-      syncGlyphOrder(resources.device, resources.cost, group, resolved.order);
+      syncGlyphOrder(resources.device, resources.writePort, resources.cost, group, resolved.order);
     }
     if (normalMatrices !== undefined) writeNormalMatrices(resources, resource, normalMatrices);
     for (const [bindingId, stale] of resource.groups) {
@@ -249,7 +251,7 @@ function syncRecords(
   }
   resource.recordData.fill(0);
   resource.recordData.set(packed);
-  resources.device.queue.writeBuffer(resource.recordBuffer, 0, packed);
+  resources.writePort.writeBuffer(resource.recordBuffer, 0, packed);
   resources.cost.write("vector-glyph", packed.byteLength);
   resource.recordCount = records.elementIds.length;
   resource.source = orientationGlyphRecordSource(records);
@@ -276,7 +278,7 @@ function writeParams(resources: OrientationGlyphDrawResources, state: Orientatio
     size: PARAMS_SIZE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  resources.device.queue.writeBuffer(resources.paramsBuffer, 0, resources.paramsData);
+  resources.writePort.writeBuffer(resources.paramsBuffer, 0, resources.paramsData);
   resources.cost.write("vector-glyph", PARAMS_SIZE);
 }
 

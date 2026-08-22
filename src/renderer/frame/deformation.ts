@@ -4,6 +4,7 @@ import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { partResultBindings, type ResultBindingLayout } from "../resources/result-binding-layout";
 import { invalidateBindGroups, sameTables } from "../resources/foundation";
+import type { BufferWritePort } from "../resources/buffer-write-port";
 
 /** Bytes of the deformation uniform (scale plus alignment padding). */
 export const DEFORMATION_UNIFORM_SIZE = 16;
@@ -28,6 +29,7 @@ const disabledDeformation: DeformationState = {
 /** The draw-path inputs the deformation sync needs to upload and rebind. */
 export interface DeformationSync {
   readonly device: GPUDevice;
+  readonly writePort: BufferWritePort;
   readonly cost?: GpuCostAccumulator;
   readonly deformations: Map<PartId, DeformationStorage>;
   readonly storages: ReadonlyMap<
@@ -205,7 +207,7 @@ function uploadDeformation(
   }
   if (current !== undefined && current.buffer.size === size) {
     current.source = tables;
-    sync.device.queue.writeBuffer(current.buffer, 0, values);
+    sync.writePort.writeBuffer(current.buffer, 0, values);
     sync.cost?.write("deformation", values.byteLength);
     return;
   }
@@ -221,7 +223,7 @@ function uploadDeformation(
   }
   sync.deformations.set(partId, { buffer, source: tables });
   sync.cost?.allocateBuffer(buffer.size);
-  sync.device.queue.writeBuffer(buffer, 0, values);
+  sync.writePort.writeBuffer(buffer, 0, values);
   sync.cost?.write("deformation", values.byteLength);
 }
 

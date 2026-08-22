@@ -3,6 +3,7 @@ import { ELEMENT_RECORD_STRIDE, HIGHLIGHT_HEADER } from "../resources/element-re
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import type { DenseElementSelection } from "./element-selection";
 import type { DenseNodeSelection } from "./node-selection";
+import { directBufferWritePort, type BufferWritePort } from "../resources/buffer-write-port";
 
 /** The storage fields required to pack dense element and node membership. */
 export interface HighlightSelectionStorage {
@@ -267,10 +268,11 @@ export function writeDenseSelectionBuffer(
   storage: HighlightSelectionStorage,
   next: Uint8Array,
   cost?: GpuCostAccumulator,
+  writePort: BufferWritePort = directBufferWritePort(device),
 ): void {
   const start = HIGHLIGHT_HEADER + storage.sparseCapacity * ELEMENT_RECORD_STRIDE;
   const payload = next.subarray(start);
   if (payload.byteLength === 0) return;
-  device.queue.writeBuffer(storage.buffer, start, payload);
+  writePort.writeBuffer(storage.buffer, start, payload);
   cost?.write("highlight", payload.byteLength);
 }

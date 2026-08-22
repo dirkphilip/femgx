@@ -54,7 +54,7 @@ export function writeNormalMatrices(
     resource.normalData[index] = next;
   }
   if (!changed) return;
-  resources.device.queue.writeBuffer(resource.normalBuffer, 0, resource.normalData);
+  resources.writePort.writeBuffer(resource.normalBuffer, 0, resource.normalData);
   resources.cost.write("vector-glyph", resource.normalData.byteLength);
 }
 

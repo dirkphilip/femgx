@@ -25,6 +25,7 @@ import type { DrawResources } from "./draw-types";
 import type { VisibilitySkin } from "../visibility/types";
 import { compactNodeSpriteData } from "./point-sprites";
 import { uploadFullGeometry } from "./geometry/full-upload";
+import { directBufferWritePort } from "./buffer-write-port";
 
 export type { DrawResources } from "./draw-types";
 export type { SelectionDrawRange } from "./foundation";
@@ -106,6 +107,7 @@ export function createDrawResources(
   cost.allocateBuffer(emptyResultColorBuffer.size);
   return {
     device,
+    writePort: directBufferWritePort(device),
     cost,
     destroyed: false,
     parts: new Map(),

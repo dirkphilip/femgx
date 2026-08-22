@@ -1,4 +1,5 @@
 import type { GpuCostAccumulator, GpuCostWrite } from "../diagnostics/cost";
+import type { BufferWritePort } from "./buffer-write-port";
 
 interface OrderWriteOptions {
   readonly previousLength: number;
@@ -24,30 +25,33 @@ const MAX_UNCHANGED_RECORDS_TO_BRIDGE = 2;
  * A small deterministic gap is included to trade a few unchanged records for
  * fewer queue submissions without ever spanning a large sparse interval.
  */
-export function writeChangedRecordRanges(device: GPUDevice, options: RecordWriteOptions): void {
+export function writeChangedRecordRanges(
+  writer: BufferWritePort,
+  options: RecordWriteOptions,
+): void {
   const changed = [...new Set(options.recordIndices)].sort((left, right) => left - right);
   let rangeStart = -1;
   let previousIndex = -2;
   for (const index of changed) {
     const gap = index - previousIndex - 1;
     if (rangeStart < 0 || gap > MAX_UNCHANGED_RECORDS_TO_BRIDGE) {
-      if (rangeStart >= 0) writeRecordRange(device, options, rangeStart, previousIndex + 1);
+      if (rangeStart >= 0) writeRecordRange(writer, options, rangeStart, previousIndex + 1);
       rangeStart = index;
     }
     previousIndex = index;
   }
-  if (rangeStart >= 0) writeRecordRange(device, options, rangeStart, previousIndex + 1);
+  if (rangeStart >= 0) writeRecordRange(writer, options, rangeStart, previousIndex + 1);
 }
 
 function writeRecordRange(
-  device: GPUDevice,
+  writer: BufferWritePort,
   options: RecordWriteOptions,
   startRecord: number,
   endRecord: number,
 ): void {
   const start = options.recordOffset + startRecord * options.recordStride;
   const end = options.recordOffset + endRecord * options.recordStride;
-  device.queue.writeBuffer(options.buffer, start, options.next.subarray(start, end));
+  writer.writeBuffer(options.buffer, start, options.next.subarray(start, end));
   options.cost?.write(options.category ?? "other", end - start);
 }
 
@@ -58,7 +62,7 @@ function writeRecordRange(
  * compacted draw list.
  */
 export function writeOrderBuffer(
-  device: GPUDevice,
+  writer: BufferWritePort,
   buffer: GPUBuffer,
   mirror: Uint32Array,
   order: Uint32Array,
@@ -78,7 +82,7 @@ export function writeOrderBuffer(
       for (let i = rangeStart; i < rangeEnd; i++) {
         chunk[i - rangeStart] = i < order.length ? (order[i] ?? 0) : 0;
       }
-      device.queue.writeBuffer(buffer, rangeStart * 4, chunk);
+      writer.writeBuffer(buffer, rangeStart * 4, chunk);
       cost?.write("order", chunk.byteLength);
       for (let i = rangeStart; i < rangeEnd; i++) {
         options.capture?.(i);

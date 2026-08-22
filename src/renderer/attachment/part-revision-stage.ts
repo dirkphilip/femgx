@@ -22,7 +22,7 @@ import {
 } from "../resources/instance-storage";
 import { stagePartRevisionSidecars } from "./part-revision-storage";
 import { createHighlightRevisionJournal } from "../selection/highlight-storage";
-import { createPartRevisionStagingDevice, type StagedBufferWrite } from "./part-revision-writes";
+import { createPartRevisionStagingWritePort, type StagedBufferWrite } from "./part-revision-writes";
 import { PartRevisionMap } from "./part-revision-overlay";
 import { discardStagedPartResources } from "./part-revision-cleanup";
 
@@ -268,11 +268,11 @@ export function stageDrawResources(
 ): { readonly draw: DrawResources; readonly writes: readonly StagedBufferWrite[] } {
   const writes: StagedBufferWrite[] = [];
   const protectedBuffers = protectedStorageBuffers(draw, partIds);
-  const device = createPartRevisionStagingDevice(draw.device, protectedBuffers, writes);
+  const writePort = createPartRevisionStagingWritePort(draw.writePort, protectedBuffers, writes);
   const cost = new GpuCostAccumulator();
   const staged = {
     ...draw,
-    device,
+    writePort,
     deferReleases: true,
     cost,
     parts: new PartRevisionMap(draw.parts),
@@ -285,6 +285,7 @@ export function stageDrawResources(
     resultColors: new Map(),
     orientationGlyphs: {
       ...draw.orientationGlyphs,
+      writePort,
       cost,
       // A definition revision cannot change the resolved glyph presentation.
       // Retaining this shared uniform also keeps unchanged glyph bind groups valid.

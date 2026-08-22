@@ -42,6 +42,7 @@ import {
 import { readInteractionState } from "../../interaction/state";
 import type { PrimitiveStyleOverride } from "../../interaction/interaction";
 import { sparseUpdatesForPart } from "./highlight-filter";
+import { directBufferWritePort, type BufferWritePort } from "../resources/buffer-write-port";
 
 export {
   createHighlightRevisionJournal,
@@ -54,6 +55,7 @@ const ZERO_RECORD = new Uint8Array(ELEMENT_RECORD_STRIDE);
 const EMPTY_HIGHLIGHT_HEADER = new Uint32Array(4);
 
 interface HighlightWriteOptions {
+  readonly writePort?: BufferWritePort;
   readonly cost?: GpuCostAccumulator;
   readonly selection?: DenseElementSelection | undefined;
   readonly visibility?: DenseElementSelection | undefined;
@@ -70,6 +72,7 @@ export function writeElementHighlights(
   updates: readonly EmphasisUpdate[],
   options: HighlightWriteOptions = {},
 ): void {
+  const writePort = options.writePort ?? directBufferWritePort(device);
   const entries = updates.map(toHighlightTableEntry);
   const table = buildHighlightTable(entries);
   const selection = options.selection;
@@ -82,7 +85,7 @@ export function writeElementHighlights(
     visibility === undefined &&
     nodeSelection === undefined
   ) {
-    releaseHighlightStorage(device, storage, options.cost);
+    releaseHighlightStorage(device, storage, options.cost, writePort);
     return;
   }
   const storageReallocated = ensureHighlightStorage(device, storage, {
@@ -110,7 +113,7 @@ export function writeElementHighlights(
   view[1] = table.bucketCount;
   view[2] = table.seed;
   writeSelectionHeader(view, highlight, payload, options.selectedTheme);
-  writeChangedRanges(device, storage, header, table.entries, options.cost);
+  writeChangedRanges(writePort, storage, header, table.entries, options.cost);
   captureStagedHighlightRange(highlight, 0, HIGHLIGHT_HEADER);
   highlight.data.set(header);
   if (selectionChanged) {
@@ -119,7 +122,7 @@ export function writeElementHighlights(
     });
   }
   if (selectionChanged || storageReallocated) {
-    writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost);
+    writeDenseSelectionBuffer(device, highlight, highlight.data, options.cost, writePort);
   }
   highlight.denseSelection = selection;
   highlight.denseVisibility = visibility;
@@ -127,7 +130,7 @@ export function writeElementHighlights(
 }
 
 function writeChangedRanges(
-  device: GPUDevice,
+  writePort: BufferWritePort,
   storage: HighlightTarget,
   header: Uint8Array,
   entries: readonly (HighlightTableEntry | undefined)[],
@@ -135,7 +138,7 @@ function writeChangedRanges(
 ): void {
   const highlight = storage.highlight;
   if (!sameBytes(header, highlight.data, 0, HIGHLIGHT_HEADER)) {
-    device.queue.writeBuffer(storage.highlight.buffer, 0, header);
+    writePort.writeBuffer(storage.highlight.buffer, 0, header);
     cost?.write("highlight", HIGHLIGHT_HEADER);
   }
   const changedRecords: number[] = [];
@@ -157,7 +160,7 @@ function writeChangedRanges(
       changedRecords.push(index);
     }
   }
-  writeChangedRecordRanges(device, {
+  writeChangedRecordRanges(writePort, {
     buffer: storage.highlight.buffer,
     next: highlight.data,
     recordOffset: HIGHLIGHT_HEADER,
@@ -184,10 +187,11 @@ function releaseHighlightStorage(
   device: GPUDevice,
   storage: HighlightTarget,
   cost?: GpuCostAccumulator,
+  writePort = directBufferWritePort(device),
 ): void {
   if (!storage.highlightOwned) return;
   const current = storage.highlight;
-  device.queue.writeBuffer(current.buffer, 0, EMPTY_HIGHLIGHT_HEADER);
+  writePort.writeBuffer(current.buffer, 0, EMPTY_HIGHLIGHT_HEADER);
   cost?.write("highlight", EMPTY_HIGHLIGHT_HEADER.byteLength);
   if (!storage.deferRelease) {
     cost?.releaseBuffer(current.buffer.size);
@@ -225,6 +229,7 @@ export interface ElementHighlightSync {
   readonly draw: {
     readonly storages: ReadonlyMap<PartId, HighlightTarget>;
     readonly cost: GpuCostAccumulator;
+    readonly writePort: BufferWritePort;
   };
   readonly runtime: PackedSceneRuntime;
   readonly layout: DenseElementLayout;
@@ -282,6 +287,7 @@ export function syncElementHighlights(
         interaction,
       }),
       {
+        writePort: sync.draw.writePort,
         cost: sync.draw.cost,
         selection,
         visibility,

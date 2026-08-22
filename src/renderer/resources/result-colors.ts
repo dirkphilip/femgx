@@ -4,6 +4,7 @@ import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { partResultBindings, type ResultBindingLayout } from "./result-binding-layout";
 import { invalidateBindGroups, sameTables } from "./foundation";
+import type { BufferWritePort } from "./buffer-write-port";
 
 /** One renderer-owned dense scalar table shared by every draw of a reusable part. */
 export interface ResultColorStorage {
@@ -14,6 +15,7 @@ export interface ResultColorStorage {
 /** Draw resources needed to synchronize renderer-owned scalar colors. */
 export interface ResultColorDrawResources {
   readonly device: GPUDevice;
+  readonly writePort: BufferWritePort;
   readonly cost?: GpuCostAccumulator;
   readonly resultColors: Map<PartId, ResultColorStorage>;
   readonly emptyResultColorBuffer: GPUBuffer;
@@ -118,7 +120,7 @@ function uploadResultColors(
   const data = resultColorData(tables);
   if (current !== undefined && current.buffer.size === data.byteLength) {
     current.source = tables;
-    draw.device.queue.writeBuffer(current.buffer, 0, data);
+    draw.writePort.writeBuffer(current.buffer, 0, data);
     draw.cost?.write("result", data.byteLength);
     return;
   }
@@ -130,7 +132,7 @@ function uploadResultColors(
   if (current !== undefined) releaseResultColors(draw, partId, current);
   draw.resultColors.set(partId, { buffer, source: tables });
   draw.cost?.allocateBuffer(buffer.size);
-  draw.device.queue.writeBuffer(buffer, 0, data);
+  draw.writePort.writeBuffer(buffer, 0, data);
   draw.cost?.write("result", data.byteLength);
   invalidateBindGroups(draw.storages.get(partId));
 }

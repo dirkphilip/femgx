@@ -11,6 +11,7 @@ import type { PartResource } from "./foundation";
 import type { VisibilitySkinCache } from "../visibility/types";
 import type { ResultColorStorage } from "./result-colors";
 import type { ResultColorMap } from "../../results/colors";
+import type { BufferWritePort } from "./buffer-write-port";
 
 /** Cached state used to avoid re-evaluating unchanged feature admission. */
 export interface PipelineAdmissionCacheEntry {
@@ -27,6 +28,7 @@ export interface PipelineAdmissionCacheEntry {
 /** GPU resources retained by the per-part draw path. */
 export interface DrawResources {
   readonly device: GPUDevice;
+  readonly writePort: BufferWritePort;
   /** A revision stage defers retirement of live optional buffers until commit. */
   readonly deferReleases?: boolean;
   readonly cost: GpuCostAccumulator;
