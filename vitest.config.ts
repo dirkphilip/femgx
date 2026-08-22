@@ -17,6 +17,9 @@ export default defineConfig({
       "test/bench/visibility/tet4-visibility-sync.test.ts",
       "test/bench/affected-part-sync.test.ts",
       "test/bench/cold-attachment.test.ts",
+      // Angular services run through the Angular Vite compiler in their
+      // dedicated test config rather than the library-only default config.
+      "test/angular/**",
       // Svelte component tests run with the plugin in the demo component gate.
       "test/demo/ui*.test.ts",
       "test/demo/ui/**/*.test.ts",

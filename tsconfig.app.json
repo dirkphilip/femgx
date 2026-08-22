@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "declaration": false,
+    "declarationMap": false,
+    "experimentalDecorators": true,
+    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
+    "noEmit": false,
+    "sourceMap": true,
+    "target": "ES2022"
+  },
+  "angularCompilerOptions": {
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "include": ["demo/angular/**/*.ts"]
+}

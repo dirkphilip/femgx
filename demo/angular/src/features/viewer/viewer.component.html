@@ -1,0 +1,15 @@
+<main class="viewer-shell">
+  <header>
+    <p class="eyebrow">FemGx · Angular foundation</p>
+    <h1>One authored Tet4 scene</h1>
+    <p>Gate 0 proves the Angular ownership and WebGPU lifecycle seam.</p>
+  </header>
+  <section class="viewport-card" aria-labelledby="viewport-title">
+    <h2 id="viewport-title">Inspection viewport</h2>
+    <canvas #canvas aria-label="Authored Tet4 finite-element scene"></canvas>
+    <p class="status" aria-live="polite" data-lifecycle>{{ statusMessage() }}</p>
+    @if (retryable()) {
+      <button type="button" (click)="retry()">Try WebGPU again</button>
+    }
+  </section>
+</main>
