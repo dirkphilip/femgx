@@ -22,7 +22,7 @@ const NODE_SPRITE_VERTEX_ENTRIES = {
 export function nodeSpritePipelineGeometry(
   vertexModule: GPUShaderModule,
   order: NodeSpriteOrder,
-): Pick<GPURenderPipelineDescriptor, "vertex" | "primitive"> {
+): Required<Pick<GPURenderPipelineDescriptor, "vertex" | "primitive">> {
   return {
     vertex: {
       module: vertexModule,

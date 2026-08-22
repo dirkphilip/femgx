@@ -4,8 +4,9 @@ import {
   TRANSPARENCY_REVEALAGE_FORMAT,
 } from "../frame/transparency";
 import { PICK_TEXTURE_FORMAT } from "../picking/pick-format";
-import { COLOR_SAMPLE_COUNT, vertexLayout } from "../resources/foundation";
+import { COLOR_SAMPLE_COUNT } from "../resources/foundation";
 import { createValidatedRenderPipeline } from "../diagnostics/validation";
+import { instancedPrimitiveGeometry } from "./instanced-primitive-geometry";
 
 export interface BasePipelineShaders {
   readonly triangleVertex: GPUShaderModule;
@@ -36,27 +37,14 @@ export interface BasePipelines {
 
 interface PipelineSpec {
   readonly depthFormat: GPUTextureFormat;
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
+  readonly geometry: ReturnType<typeof instancedPrimitiveGeometry>;
   readonly fragmentModule: GPUShaderModule;
   readonly passFormats: readonly GPUTextureFormat[];
   readonly blendStates?: readonly (GPUBlendState | undefined)[];
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
   readonly sampleCount: number;
   readonly depthCompare?: GPUCompareFunction;
   readonly depthWriteEnabled?: boolean;
   readonly depthBias?: number;
-  readonly vertexBuffers?: GPUVertexBufferLayout[];
-}
-
-interface PrimitiveSpec {
-  readonly vertexModule: GPUShaderModule;
-  readonly vertexEntry: string;
-  readonly primitive: GPUPrimitiveTopology;
-  readonly cullMode: GPUCullMode;
-  readonly depthCompare?: GPUCompareFunction;
-  readonly vertexBuffers?: GPUVertexBufferLayout[];
 }
 
 interface PrimitivePipelines {
@@ -84,11 +72,11 @@ export async function createBasePipelines(
   depthFormat: GPUTextureFormat,
   shaders: BasePipelineShaders,
 ): Promise<BasePipelines> {
-  const variants = primitiveVariants(shaders);
+  const triangleGeometry = instancedPrimitiveGeometry("triangles", shaders.triangleVertex);
   return Promise.all([
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "triangle",
-      variant: variants.triangles,
+      geometry: triangleGeometry,
       fragments: {
         color: shaders.triangleColorFragment,
         transparency: shaders.triangleTransparencyFragment,
@@ -97,7 +85,7 @@ export async function createBasePipelines(
       },
     }),
     createPipeline(device, layout, "dense-selection triangle color", {
-      ...variants.triangles,
+      geometry: triangleGeometry,
       fragmentModule: shaders.triangleColorFragment,
       passFormats: [format],
       depthFormat,
@@ -106,7 +94,7 @@ export async function createBasePipelines(
     }),
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "line",
-      variant: variants.lines,
+      geometry: instancedPrimitiveGeometry("lines", shaders.lineVertex),
       fragments: {
         color: shaders.colorFragment,
         transparency: shaders.transparencyFragment,
@@ -116,7 +104,7 @@ export async function createBasePipelines(
     }),
     createPrimitivePipelines(device, layout, format, depthFormat, {
       label: "point",
-      variant: variants.points,
+      geometry: instancedPrimitiveGeometry("points", shaders.pointVertex),
       fragments: {
         color: shaders.colorFragment,
         transparency: shaders.transparencyFragment,
@@ -138,34 +126,6 @@ export async function createBasePipelines(
   }));
 }
 
-function primitiveVariants(
-  shaders: BasePipelineShaders,
-): Record<"triangles" | "lines" | "points", PrimitiveSpec> {
-  return {
-    triangles: {
-      vertexModule: shaders.triangleVertex,
-      vertexEntry: "vertexMain",
-      primitive: "triangle-list" as const,
-      cullMode: "none" as const,
-      vertexBuffers: [],
-    },
-    lines: {
-      vertexModule: shaders.lineVertex,
-      vertexEntry: "vertexMain",
-      primitive: "triangle-list" as const,
-      cullMode: "none" as const,
-      depthCompare: "less-equal" as const,
-    },
-    points: {
-      vertexModule: shaders.pointVertex,
-      vertexEntry: "pointVertexMain",
-      primitive: "triangle-list" as const,
-      cullMode: "none" as const,
-      depthCompare: "less-equal" as const,
-    },
-  };
-}
-
 interface FragmentPipelines {
   readonly color: GPUShaderModule;
   readonly transparency: GPUShaderModule;
@@ -180,21 +140,21 @@ function createPrimitivePipelines(
   depthFormat: GPUTextureFormat,
   options: {
     readonly label: string;
-    readonly variant: PrimitiveSpec;
+    readonly geometry: ReturnType<typeof instancedPrimitiveGeometry>;
     readonly fragments: FragmentPipelines;
   },
 ): Promise<PrimitivePipelines> {
-  const { label, variant, fragments } = options;
+  const { label, geometry, fragments } = options;
   return Promise.all([
     createPipeline(device, layout, `${label} color`, {
-      ...variant,
+      geometry,
       fragmentModule: fragments.color,
       passFormats: [format],
       depthFormat,
       sampleCount: COLOR_SAMPLE_COUNT,
     }),
     createPipeline(device, layout, `${label} transparency`, {
-      ...variant,
+      geometry,
       fragmentModule: fragments.transparency,
       passFormats: TRANSPARENT_FORMATS,
       blendStates: TRANSPARENCY_BLEND_STATES,
@@ -204,8 +164,7 @@ function createPrimitivePipelines(
       depthCompare: "less-equal",
     }),
     createPipeline(device, layout, `${label} picking`, {
-      ...variant,
-      vertexModule: fragments.pickVertex,
+      geometry: { ...geometry, vertex: { ...geometry.vertex, module: fragments.pickVertex } },
       fragmentModule: fragments.pickFragment,
       passFormats: PICK_FORMATS,
       depthFormat,
@@ -222,11 +181,7 @@ function createPipeline(
 ): Promise<GPURenderPipeline> {
   return createValidatedRenderPipeline(device, label, {
     layout,
-    vertex: {
-      module: spec.vertexModule,
-      entryPoint: spec.vertexEntry,
-      buffers: spec.vertexBuffers ?? [vertexLayout],
-    },
+    vertex: spec.geometry.vertex,
     fragment: {
       module: spec.fragmentModule,
       entryPoint: "fragmentMain",
@@ -235,11 +190,11 @@ function createPipeline(
         return blend === undefined ? { format: passFormat } : { format: passFormat, blend };
       }),
     },
-    primitive: { topology: spec.primitive, cullMode: spec.cullMode },
+    primitive: spec.geometry.primitive,
     depthStencil: {
       format: spec.depthFormat,
       depthWriteEnabled: spec.depthWriteEnabled ?? true,
-      depthCompare: spec.depthCompare ?? "less",
+      depthCompare: spec.depthCompare ?? spec.geometry.depthCompare,
       ...(spec.depthBias === undefined ? {} : { depthBias: spec.depthBias }),
     },
     multisample: { count: spec.sampleCount },
