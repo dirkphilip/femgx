@@ -334,7 +334,7 @@ function installOrientationBenchmarkState(
     lengthScale: 1,
     widthPixels: 2,
   };
-  renderer.setOrientationGlyphs(state);
+  renderer.setResultSnapshot({ deformation: undefined, colors: undefined, glyphs: state });
 }
 
 function countUniqueVertices(benchmarkCase: WebGpuBenchmarkCase): number {

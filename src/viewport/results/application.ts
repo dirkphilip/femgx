@@ -1,5 +1,5 @@
 import type { WebGpuRenderer } from "../../renderer/gpu-renderer";
-import type { PartRevisionResultState } from "../../renderer/gpu-renderer";
+import type { PartRevisionResultState, RendererResultSnapshot } from "../../renderer/gpu-renderer";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartId } from "../../geometry/part";
 import type { Scene } from "../../scene/scene";
@@ -36,14 +36,12 @@ export function applyViewportResults(
   return resolved;
 }
 
-/** Applies one resolved result state to all renderer-owned result roles. */
+/** Publishes one resolved result snapshot to the renderer. */
 export function applyResolvedViewportResults(
   renderer: WebGpuRenderer,
   results: ViewportResultsState | undefined,
 ): void {
-  renderer.setOrientationGlyphs(glyphState(results));
-  renderer.setDeformation(results?.deformation);
-  renderer.setResultColors(results === undefined ? undefined : viewportResultColors(results));
+  renderer.setResultSnapshot(rendererResultSnapshot(results));
 }
 
 /** Converts resolved viewport results to the renderer-private revision transaction input. */
@@ -52,37 +50,50 @@ export function partRevisionResultState(
   runtime: PackedSceneRuntime,
   partIds: ReadonlySet<PartId>,
 ): PartRevisionResultState {
-  const colors = results === undefined ? undefined : viewportResultColors(results);
-  const glyphs = glyphState(results);
+  const snapshot = rendererResultSnapshot(results);
+  const base =
+    snapshot ??
+    ({
+      deformation: undefined,
+      colors: undefined,
+      glyphs: undefined,
+    } satisfies RendererResultSnapshot);
   return {
-    deformation: results?.deformation,
-    colors,
-    glyphs,
-    staged:
-      results === undefined
-        ? undefined
-        : revisedResultState(results.deformation, colors, glyphs, runtime, partIds),
+    ...base,
+    staged: snapshot === undefined ? undefined : revisedResultState(base, runtime, partIds),
   };
 }
 
 function revisedResultState(
-  deformation: ViewportResultsState["deformation"],
-  colors: ReturnType<typeof viewportResultColors>,
-  glyphs: ReturnType<typeof glyphState>,
+  snapshot: RendererResultSnapshot,
   runtime: PackedSceneRuntime,
   partIds: ReadonlySet<PartId>,
 ) {
   const bindings = revisedResultBindings(createResultResolutionView(runtime), partIds);
   return {
     deformation:
-      deformation === undefined
+      snapshot.deformation === undefined
         ? undefined
-        : { ...deformation, displacements: revisedBindings(deformation.displacements, bindings) },
-    colors: colors === undefined ? undefined : revisedBindings(colors, bindings),
+        : {
+            ...snapshot.deformation,
+            displacements: revisedBindings(snapshot.deformation.displacements, bindings),
+          },
+    colors: snapshot.colors === undefined ? undefined : revisedBindings(snapshot.colors, bindings),
     glyphs:
-      glyphs === undefined
+      snapshot.glyphs === undefined
         ? undefined
-        : { ...glyphs, parts: revisedBindings(glyphs.parts, bindings) },
+        : { ...snapshot.glyphs, parts: revisedBindings(snapshot.glyphs.parts, bindings) },
+  };
+}
+
+function rendererResultSnapshot(
+  results: ViewportResultsState | undefined,
+): RendererResultSnapshot | undefined {
+  if (results === undefined) return undefined;
+  return {
+    deformation: results.deformation,
+    colors: viewportResultColors(results),
+    glyphs: glyphState(results),
   };
 }
 

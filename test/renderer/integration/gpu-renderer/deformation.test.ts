@@ -1,4 +1,5 @@
 import { expect, it, describe } from "vitest";
+import type { DeformationState } from "@/results/deform";
 import {
   createWebGpuRenderer,
   createPackedSceneRuntime,
@@ -30,7 +31,7 @@ describe("WebGPU renderer deformation", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setDeformation({
+    setDeformation(renderer, {
       scale: 2,
       displacements: new Map([[1, new Float32Array(3 * 3)]]),
     });
@@ -53,7 +54,7 @@ describe("WebGPU renderer deformation", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setDeformation({
+    setDeformation(renderer, {
       scale: 2,
       displacements: new Map([[1, new Float32Array(9)]]),
     });
@@ -63,7 +64,7 @@ describe("WebGPU renderer deformation", () => {
     );
     expect(deformationBuffer).toBeDefined();
 
-    renderer.setDeformation(undefined);
+    setDeformation(renderer, undefined);
     renderer.render(runtime, camera, scene.parts);
 
     expect(deformationBuffer?.destroyed).toBe(true);
@@ -87,14 +88,14 @@ describe("WebGPU renderer deformation", () => {
       scale: 1,
       displacements: new Map([[1, new Float32Array(3 * 3)]]),
     };
-    renderer.setDeformation(deformation);
+    setDeformation(renderer, deformation);
     renderer.render(runtime, camera, scene.parts);
     const storage = gpu.buffers.find((buffer) => buffer.size === 56 && (buffer.usage & 16) !== 0);
     const uploads = () => gpu.writes.filter((write) => write.buffer === storage?.resource).length;
     expect(uploads()).toBe(1);
     renderer.render(runtime, camera, scene.parts);
     expect(uploads()).toBe(1);
-    renderer.setDeformation({
+    setDeformation(renderer, {
       ...deformation,
       displacements: new Map([[1, new Float32Array(9)]]),
     });
@@ -107,12 +108,27 @@ describe("WebGPU renderer deformation", () => {
     const gpu = fakeGpuDevice();
     installGpuTestEnvironment(gpu.device);
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
+    const scene = buildScene();
+    const runtime = createPackedSceneRuntime(scene);
+    const valid = { scale: 2, displacements: new Map([[1, new Float32Array(9)]]) };
+    renderer.setResultSnapshot({ deformation: valid, colors: undefined, glyphs: undefined });
     expect(() => {
-      renderer.setDeformation({
-        scale: 1,
-        displacements: new Map([[1, new Float32Array(5)]]),
+      renderer.setResultSnapshot({
+        deformation: { scale: 1, displacements: new Map([[1, new Float32Array(5)]]) },
+        colors: new Map(),
+        glyphs: undefined,
       });
     }).toThrow(/not a multiple of 3/);
+    renderer.render(runtime, camera, scene.parts);
+    const floats = new Float32Array(uniformWrite(gpu)?.bytes.buffer ?? new ArrayBuffer(0), 0, 4);
+    expect(floats[0]).toBe(valid.scale);
     renderer.destroy();
   });
 });
+
+function setDeformation(
+  renderer: Awaited<ReturnType<typeof createWebGpuRenderer>>,
+  deformation: DeformationState | undefined,
+): void {
+  renderer.setResultSnapshot({ deformation, colors: undefined, glyphs: undefined });
+}

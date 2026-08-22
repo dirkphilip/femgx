@@ -6,16 +6,16 @@ import {
   prepareAttachmentOccurrenceUpdate,
   type PreparedAttachmentOccurrenceUpdate,
 } from "../attachment/occurrence-transaction";
-import type { PartRevisionResultState } from "../attachment/part-revision-results";
+import type {
+  PartRevisionResultState,
+  RendererResultSnapshot,
+} from "../attachment/part-revision-results";
 import type { RendererAttachment } from "../attachment";
-import type { OrientationGlyphState } from "../orientation-glyphs/orientation-glyph";
 import type { RendererPicking } from "../picking/renderer-picking";
 import type { GpuDeviceLifecycle } from "../recovery";
 import type { PreparedSectionCapRevision } from "../resources/section-caps/revision";
 import type { SectionCapController } from "../section-cap-controller";
 import type { SectionPlane } from "../../math/section-plane";
-import type { DeformationState } from "../../results/deform";
-import type { ResultColorMap } from "../../results/colors";
 import type { PreparedRendererOccurrenceUpdate as PreparedRendererOccurrencePort } from "../types";
 
 interface RendererOccurrenceOwner {
@@ -27,9 +27,7 @@ interface RendererOccurrenceOwner {
   sourceParts: ReadonlyMap<PartId, Part> | undefined;
   interaction: InteractionState;
   sectionPlane: SectionPlane | undefined;
-  deformation: DeformationState | undefined;
-  resultColors: ResultColorMap | undefined;
-  orientationGlyphs: OrientationGlyphState | undefined;
+  results: RendererResultSnapshot | undefined;
 }
 
 /** Renderer-private prepared placement transaction passed through the viewport owner. */
@@ -96,8 +94,8 @@ export function prepareRendererOccurrenceUpdate(
       delta,
       plane: renderer.sectionPlane,
       interaction,
-      deformation: results?.deformation ?? renderer.deformation,
-      resultColors: results?.colors ?? renderer.resultColors,
+      deformation: results?.deformation ?? renderer.results?.deformation,
+      resultColors: results?.colors ?? renderer.results?.colors,
       draw: attachment.draw,
     });
     return { attachment, caps, runtime, interaction, parts, results };
@@ -121,9 +119,7 @@ export function commitRendererOccurrenceUpdate(
   if (renderer.sourceParts !== undefined) renderer.sourceParts = prepared.parts;
   renderer.interaction = prepared.interaction;
   if (prepared.results !== undefined) {
-    renderer.deformation = prepared.results.deformation;
-    renderer.resultColors = prepared.results.colors;
-    renderer.orientationGlyphs = prepared.results.glyphs;
+    renderer.results = prepared.results;
   }
   renderer.picking.invalidate();
 }

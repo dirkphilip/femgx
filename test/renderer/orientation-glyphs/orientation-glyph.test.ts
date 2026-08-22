@@ -8,6 +8,7 @@ import { createSceneBuilder } from "@/scene/scene";
 import { normalMatrix3, packOrientationRecords } from "@/renderer/orientation-glyphs/data";
 import { orientationGlyphVertexShader } from "@/renderer/orientation-glyphs/shader";
 import { createWebGpuRenderer, readGpuCostSnapshot } from "@/renderer/gpu-renderer";
+import type { OrientationGlyphState } from "@/renderer/orientation-glyphs/orientation-glyph";
 import { fakeCanvas, fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 
 const originalNavigator = globalThis.navigator;
@@ -29,6 +30,13 @@ function installNavigator(device: GPUDevice): void {
       },
     },
   });
+}
+
+function setGlyphs(
+  renderer: Awaited<ReturnType<typeof createWebGpuRenderer>>,
+  glyphs: OrientationGlyphState,
+): void {
+  renderer.setResultSnapshot({ deformation: undefined, colors: undefined, glyphs });
 }
 
 function orientationPart() {
@@ -152,7 +160,7 @@ describe("orientation glyph data", () => {
       .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "normal",
@@ -190,7 +198,7 @@ describe("orientation glyph data", () => {
       .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "normal",
@@ -225,7 +233,7 @@ describe("orientation glyph data", () => {
         })
         .setRootAssembly(1)
         .build();
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "normal",
@@ -281,7 +289,7 @@ describe("orientation glyph data", () => {
       .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "direction",
@@ -305,7 +313,7 @@ describe("orientation glyph data", () => {
     expect(second.writes["vector-glyph"]).toEqual({ calls: 0, bytes: 0 });
 
     const afterStableFrame = gpu.writes.length;
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "direction",
@@ -317,7 +325,7 @@ describe("orientation glyph data", () => {
     expect(widthWrites[0]?.bytes.byteLength).toBe(16);
 
     const afterWidth = gpu.writes.length;
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([[1, records]]),
       mode: "arrow",
       transform: "direction",
@@ -361,7 +369,7 @@ describe("orientation glyph data", () => {
       .setRootAssembly(1)
       .build();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setOrientationGlyphs({
+    setGlyphs(renderer, {
       parts: new Map([
         [1, records],
         ["1/1" as never, override],

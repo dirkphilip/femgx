@@ -17,7 +17,7 @@ describe("viewport results workflow", () => {
   it("keeps preserved elemental result colors out of host interaction", async () => {
     installTestGpuGlobals();
     installNavigator();
-    const setResultColors = vi.spyOn(GpuRenderer.prototype, "setResultColors");
+    const setResultSnapshot = vi.spyOn(GpuRenderer.prototype, "setResultSnapshot");
     const fieldA = createResultField({
       id: "stress-a",
       name: "Stress A",
@@ -46,7 +46,7 @@ describe("viewport results workflow", () => {
       results: config(fieldA),
     });
     const hostInteraction = viewport.interaction.state;
-    const resultColors = () => setResultColors.mock.calls.at(-1)?.[0];
+    const resultColors = () => setResultSnapshot.mock.calls.at(-1)?.[0]?.colors;
     const colorA = resultColors()?.get(1)?.values.slice(4, 8);
 
     expect(viewport.updateScene(() => undefined)).toEqual({ results: "preserved" });

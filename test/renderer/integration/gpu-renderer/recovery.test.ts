@@ -69,15 +69,17 @@ describe("WebGPU renderer", () => {
     renderer.setNodeSizePixels(7);
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.25 });
     renderer.render(runtime, camera, scene.parts);
-    renderer.setDeformation({
-      scale: 1,
-      displacements: new Map([[1, new Float32Array([1, 0, 0])]]),
+    renderer.setResultSnapshot({
+      deformation: { scale: 1, displacements: new Map([[1, new Float32Array([1, 0, 0])]]) },
+      colors: undefined,
+      glyphs: undefined,
     });
     renderer.render(runtime, camera, scene.parts);
     const latestDisplacements = new Float32Array([2, 0, 0, 0, 2, 0]);
-    renderer.setDeformation({
-      scale: 3,
-      displacements: new Map([[1, latestDisplacements]]),
+    renderer.setResultSnapshot({
+      deformation: { scale: 3, displacements: new Map([[1, latestDisplacements]]) },
+      colors: undefined,
+      glyphs: undefined,
     });
     renderer.render(runtime, camera, scene.parts);
     const first = gpus[0];
@@ -372,7 +374,7 @@ describe("WebGPU renderer", () => {
     const renderer = await createWebGpuRenderer({ canvas: fakeCanvas() });
     const scene = buildSectionScene();
     const runtime = createPackedSceneRuntime(scene);
-    renderer.setResultColors(elementalColors());
+    setColors(renderer, elementalColors());
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
     renderer.render(runtime, camera, scene.parts);
     expect(elementalResultWrites(gpu)).toHaveLength(2);
@@ -391,7 +393,7 @@ describe("WebGPU renderer", () => {
       { color: { r: 0, g: 1, b: 0, a: 1 } },
     );
     renderer.updateElements(runtime, interaction);
-    renderer.setResultColors(elementalColors());
+    setColors(renderer, elementalColors());
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
     renderer.render(runtime, camera, scene.parts);
     expect(elementalResultWrites(gpu)).toHaveLength(1);
@@ -409,6 +411,13 @@ function elementalColors() {
       },
     ],
   ]);
+}
+
+function setColors(
+  renderer: Awaited<ReturnType<typeof createWebGpuRenderer>>,
+  colors: ReturnType<typeof elementalColors>,
+): void {
+  renderer.setResultSnapshot({ deformation: undefined, colors, glyphs: undefined });
 }
 
 function elementalResultWrites(gpu: ReturnType<typeof fakeGpuDevice>) {

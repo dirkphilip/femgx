@@ -8,7 +8,10 @@ import type { GpuCostSnapshot } from "./diagnostics/cost";
 import { createGpuTimestampRecorder, type GpuTimestampSnapshot } from "./diagnostics/timestamps";
 
 export { originTriadNominalScale } from "./overlays/origin-triad";
-export type { PartRevisionResultState } from "./attachment/part-revision-results";
+export type {
+  PartRevisionResultState,
+  RendererResultSnapshot,
+} from "./attachment/part-revision-results";
 
 export type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
 export type { GpuCostSnapshot } from "./diagnostics/cost";

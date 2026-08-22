@@ -1,13 +1,10 @@
 import type { Camera } from "../../camera/camera";
 import type { Part, PartId } from "../../geometry/part";
 import type { InteractionState } from "../../interaction/interaction";
-import type { DeformationState } from "../../results/deform";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { RendererAttachment } from "../attachment";
-import {
-  syncOrientationGlyphs,
-  type OrientationGlyphState,
-} from "../orientation-glyphs/orientation-glyph";
+import type { RendererResultSnapshot } from "../attachment/part-revision-results";
+import { syncOrientationGlyphs } from "../orientation-glyphs/orientation-glyph";
 import type { GpuDeviceLifecycle } from "../recovery";
 import type { SectionCapController } from "../section-cap-controller";
 import { syncResultColors } from "../resources/result-colors";
@@ -23,8 +20,7 @@ export interface RendererFrameHost {
   sourceParts: ReadonlyMap<PartId, Part> | undefined;
   parts: Map<PartId, Part>;
   lastCamera: Camera | undefined;
-  deformation: DeformationState | undefined;
-  orientationGlyphs: OrientationGlyphState | undefined;
+  results: RendererResultSnapshot | undefined;
   originTriadNominalScale: number;
   interaction: InteractionState;
   interactionNeedsRecoverySync: boolean;
@@ -62,10 +58,10 @@ export function renderRendererFrame(
   }
   const layout = host.attachment.layout;
   if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
-  syncDeformations(bundle.draw, host.deformation, runtime, layout);
+  syncDeformations(bundle.draw, host.results?.deformation, runtime, layout);
   host.ensureSectionCaps(runtime);
   syncResultColors(bundle.draw, host.sectionCaps.resultColors, runtime, layout);
-  syncOrientationGlyphs(bundle.draw.orientationGlyphs, host.orientationGlyphs, runtime, layout);
+  syncOrientationGlyphs(bundle.draw.orientationGlyphs, host.results?.glyphs, runtime, layout);
   if (partsChanged || cameraChanged || attachmentChanged) host.picking.invalidate();
   encodeVisibleFrame(camera, host.sectionCaps.parts, host.frameOptions());
 }

@@ -5,8 +5,8 @@ import type { ElementRegionSelection } from "../../interaction/element-region-se
 import type { InteractionGranularity, PickHit } from "../../picking/types";
 import type { Part, PartId } from "../../geometry/part";
 import type { Vec3 } from "../../math/vec3";
-import type { DeformationState } from "../../results/deform";
 import type { RendererAttachment } from "../attachment";
+import type { RendererResultSnapshot } from "../attachment/part-revision-results";
 import type { FrameOptions } from "../frame/frame-types";
 import { encodePickSnapshot } from "../frame/frame";
 import type { GpuDeviceLifecycle } from "../recovery";
@@ -31,7 +31,7 @@ export interface RendererPickingHost {
   readonly sectionCaps: SectionCapController;
   readonly parts: ReadonlyMap<PartId, Part>;
   lastCamera: Camera | undefined;
-  readonly deformation: DeformationState | undefined;
+  readonly results: RendererResultSnapshot | undefined;
   ensureSectionCaps(runtime: NonNullable<RendererAttachment["runtime"]>): void;
   frameOptions(): FrameOptions;
 }
@@ -125,7 +125,12 @@ export class RendererPicking {
       const runtime = this.owner.attachment.runtime;
       const layout = this.owner.attachment.layout;
       if (runtime === undefined || layout === undefined) return false;
-      syncDeformations(this.owner.lifecycle.bundle.draw, this.owner.deformation, runtime, layout);
+      syncDeformations(
+        this.owner.lifecycle.bundle.draw,
+        this.owner.results?.deformation,
+        runtime,
+        layout,
+      );
       this.owner.ensureSectionCaps(runtime);
       encodePickSnapshot(camera, this.owner.sectionCaps.parts, this.owner.frameOptions());
       this.snapshotValid = true;
