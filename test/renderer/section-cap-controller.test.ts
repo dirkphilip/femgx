@@ -8,7 +8,7 @@ import { setElementVisible } from "../../src/interaction/elements";
 import { setElementSelected } from "../../src/interaction/interaction";
 import { identityMatrix } from "../../src/math/mat4";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
-import { stageDrawResources } from "../../src/renderer/attachment/part-revision-stage";
+import { prepareDrawRevision } from "../../src/renderer/attachment/prepared-draw-revision";
 import { uploadPart } from "../../src/renderer/resources/draw-resources";
 import { SectionCapController } from "../../src/renderer/section-cap-controller";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -201,7 +201,13 @@ describe("section-cap part retirement", () => {
         addedPartIds: new Set<number>(),
         removedPartIds: new Set([1]),
       };
-      const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+      const staged = prepareDrawRevision({
+        live: bundle.draw,
+        affectedPartIds: delta.affectedPartIds,
+        replacedPartIds: new Set<number>(),
+        stageInteraction: true,
+        kind: "occurrence",
+      });
       const prepared = controller.prepareOccurrenceRevision({
         runtime,
         parts: new Map([[2, retainedSourcePart]]),
@@ -213,6 +219,7 @@ describe("section-cap part retirement", () => {
         delta,
       });
       controller.commitOccurrenceRevision(prepared, staged.draw, bundle.draw);
+      staged.commit();
 
       expect([...(controller.currentFrame?.sourcePartIds ?? new Map()).entries()]).toEqual([
         [retainedCapId, 2],

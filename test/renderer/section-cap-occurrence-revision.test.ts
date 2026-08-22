@@ -5,7 +5,7 @@ import { ElementShape } from "@/elements/shapes";
 import { createPartFromElementModel } from "@/geometry/element-model-part";
 import { createInteractionState } from "@/interaction/interaction";
 import { identityMatrix, translationMatrix } from "@/math/mat4";
-import { stageDrawResources } from "@/renderer/attachment/part-revision-stage";
+import { prepareDrawRevision } from "@/renderer/attachment/prepared-draw-revision";
 import {
   PartRevisionMap,
   partRevisionMapOverlaySize,
@@ -69,7 +69,13 @@ describe("section-cap occurrence revisions", () => {
         worldTransform: translationMatrix(0, 0, 0.25),
       });
       const delta = occurrenceDelta();
-      const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+      const staged = prepareDrawRevision({
+        live: bundle.draw,
+        affectedPartIds: delta.affectedPartIds,
+        replacedPartIds: new Set<number>(),
+        stageInteraction: true,
+        kind: "occurrence",
+      });
       const prepared = controller.prepareOccurrenceRevision({
         runtime: updatedRuntime,
         parts: scene.parts,
@@ -84,6 +90,7 @@ describe("section-cap occurrence revisions", () => {
       expect(controller.currentFrame).toBe(before);
       expect(bufferDestroyed(gpu, changedResource.vertexBuffer)).toBe(false);
       controller.commitOccurrenceRevision(prepared, staged.draw, bundle.draw);
+      staged.commit();
 
       expect(controller.currentFrame?.parts.get(retainedCapId)).toBe(retainedPart);
       expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
@@ -135,7 +142,13 @@ describe("section-cap occurrence revisions", () => {
         worldTransform: translationMatrix(0, 0, 0.25),
       });
       const delta = occurrenceDelta();
-      const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+      const staged = prepareDrawRevision({
+        live: bundle.draw,
+        affectedPartIds: delta.affectedPartIds,
+        replacedPartIds: new Set<number>(),
+        stageInteraction: true,
+        kind: "occurrence",
+      });
       failAt = buffersBefore + 1;
 
       expect(() =>
@@ -150,6 +163,7 @@ describe("section-cap occurrence revisions", () => {
           delta,
         }),
       ).toThrow("injected cap allocation failure");
+      staged.discard();
       transaction.rollback();
 
       expect(controller.currentFrame).toBe(before);
@@ -193,7 +207,13 @@ describe("section-cap occurrence revisions", () => {
           worldTransform: translationMatrix(0, 0, edit % 2 === 0 ? 0.25 : 0),
         });
         const delta = occurrenceDelta();
-        const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+        const staged = prepareDrawRevision({
+          live: bundle.draw,
+          affectedPartIds: delta.affectedPartIds,
+          replacedPartIds: new Set<number>(),
+          stageInteraction: true,
+          kind: "occurrence",
+        });
         const prepared = controller.prepareOccurrenceRevision({
           runtime,
           parts: scene.parts,
@@ -210,6 +230,7 @@ describe("section-cap occurrence revisions", () => {
           resourceLookups: 1,
         });
         controller.commitOccurrenceRevision(prepared, staged.draw, bundle.draw);
+        staged.commit();
       }
 
       const frame = controller.currentFrame;
