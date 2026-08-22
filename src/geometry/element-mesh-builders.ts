@@ -15,6 +15,7 @@ import { LineMeshBuilder, TriangleMeshAssembler, type MeshVertex } from "./mesh-
 import { elementNodePosition } from "./node-position";
 import { authoredEdgeSourcesForOrdinals } from "./authored-edges";
 import { edgeIndexOf, sortUint32Range } from "../elements/topology-helpers";
+import { sortIndexRows } from "../math/index-merge-sort";
 
 /** Inputs for one validated triangle-group geometry build. */
 interface VolumeGeometryInput {
@@ -301,42 +302,7 @@ function resolveFaceNeighbors(layout: FaceLayout): void {
 
 function sortedFaceRows(layout: FaceLayout): Uint32Array {
   const count = layout.source.elementIds.length;
-  const result = new Uint32Array(count);
-  const scratch = new Uint32Array(count);
-  for (let index = 0; index < count; index += 1) result[index] = index;
-  for (let width = 1; width < count; width *= 2) {
-    for (let start = 0; start < count; start += width * 2) {
-      mergeFaceRows(layout, result, scratch, {
-        start,
-        middle: Math.min(start + width, count),
-        end: Math.min(start + width * 2, count),
-      });
-    }
-    result.set(scratch);
-  }
-  return result;
-}
-
-function mergeFaceRows(
-  layout: FaceLayout,
-  source: Uint32Array,
-  target: Uint32Array,
-  range: { readonly start: number; readonly middle: number; readonly end: number },
-): void {
-  const { start, middle, end } = range;
-  let left = start;
-  let right = middle;
-  for (let output = start; output < end; output += 1) {
-    const leftRow = source[left] ?? 0;
-    const rightRow = source[right] ?? 0;
-    if (left < middle && (right >= end || compareCanonicalFaces(layout, leftRow, rightRow) <= 0)) {
-      target[output] = leftRow;
-      left += 1;
-    } else {
-      target[output] = rightRow;
-      right += 1;
-    }
-  }
+  return sortIndexRows(count, (left, right) => compareCanonicalFaces(layout, left, right));
 }
 
 function compareCanonicalFaces(layout: FaceLayout, left: number, right: number): number {
