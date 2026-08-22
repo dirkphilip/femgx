@@ -19,11 +19,31 @@ function countCallableMembers(declarations, sourceCode) {
   for (const declaration of declarations) {
     for (const member of declaration.body.body) {
       if (!callableMember(member)) continue;
-      const fallback = member.type === "TSCallSignatureDeclaration" ? "call" : "construct";
-      names.add(memberName(member, sourceCode, fallback));
+      const signatureKind =
+        member.type === "TSCallSignatureDeclaration"
+          ? "call-signature"
+          : member.type === "TSConstructSignatureDeclaration"
+            ? "construct-signature"
+            : "member";
+      names.add(`${signatureKind}:${memberName(member, sourceCode, signatureKind)}`);
     }
   }
   return names.size;
+}
+
+function interfaceScope(node, sourceCode) {
+  return sourceCode
+    .getAncestors(node)
+    .filter((ancestor) => ancestor.type === "TSModuleDeclaration")
+    .map((ancestor) => moduleName(ancestor, sourceCode))
+    .join(".");
+}
+
+function moduleName(node, sourceCode) {
+  const id = node.id;
+  if (id.type === "Identifier") return id.name;
+  if (id.type === "Literal") return String(id.value);
+  return sourceCode.getText(id);
 }
 
 const rule = {
@@ -43,18 +63,19 @@ const rule = {
     return {
       TSInterfaceDeclaration(node) {
         const name = node.id.name;
-        const matching = declarations.get(name) ?? [];
+        const key = `${interfaceScope(node, context.sourceCode)}:${name}`;
+        const matching = declarations.get(key) ?? [];
         matching.push(node);
-        declarations.set(name, matching);
+        declarations.set(key, matching);
       },
       "Program:exit"() {
-        for (const [name, matching] of declarations) {
+        for (const matching of declarations.values()) {
           const count = countCallableMembers(matching, context.sourceCode);
           if (count <= max) continue;
           context.report({
             node: matching[0],
             messageId: "limit",
-            data: { name, count, max },
+            data: { name: matching[0].id.name, count, max },
           });
         }
       },

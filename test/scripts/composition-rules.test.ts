@@ -30,8 +30,8 @@ const methods = (count: number, visibility = "", prefix = "method"): string =>
     "\n",
   );
 
-const signatures = (count: number): string =>
-  Array.from({ length: count }, (_, index) => `method${index}(): void;`).join("\n");
+const signatures = (count: number, prefix = "method"): string =>
+  Array.from({ length: count }, (_, index) => `${prefix}${index}(): void;`).join("\n");
 
 describe("composition ESLint rules", () => {
   tester.run("max-class-callables", composition.rules["max-class-callables"], {
@@ -39,6 +39,9 @@ describe("composition ESLint rules", () => {
       {
         code: `class Focused {
           ${methods(18)}
+          run(value: string): void;
+          run(value: number): void;
+          run(value: string | number): void {}
           private helper(): void {}
           get ready(): boolean { return true; }
           set ready(value: boolean) { void value; }
@@ -79,8 +82,49 @@ describe("composition ESLint rules", () => {
         code: `interface GodPort { ${signatures(15)} callback: () => void; }`,
         errors: [{ messageId: "limit", data: { name: "GodPort", count: 16, max: 15 } }],
       },
+      {
+        code: `interface SignaturePort {
+          (): void;
+          call: () => void;
+          new (): object;
+          construct: () => object;
+        }`,
+        options: [3],
+        errors: [{ messageId: "limit", data: { name: "SignaturePort", count: 4, max: 3 } }],
+      },
+      {
+        code: `interface MergedPort { first(): void; }
+          interface MergedPort { second(): void; }`,
+        options: [1],
+        errors: [{ messageId: "limit", data: { name: "MergedPort", count: 2, max: 1 } }],
+      },
     ],
   });
+
+  tester.run(
+    "max-interface-callables namespace scopes",
+    composition.rules["max-interface-callables"],
+    {
+      valid: [
+        {
+          code: `namespace First {
+          interface Port { ${signatures(15, "first")} }
+        }
+        namespace Second {
+          interface Port { ${signatures(15, "second")} }
+        }`,
+        },
+      ],
+      invalid: [
+        {
+          code: `namespace First {
+            interface Port { ${signatures(16, "first")} }
+          }`,
+          errors: [{ messageId: "limit", data: { name: "Port", count: 16, max: 15 } }],
+        },
+      ],
+    },
+  );
 
   tester.run("max-imports", composition.rules["max-imports"], {
     valid: [{ code: 'import "one"; import "two";', options: [2] }],
