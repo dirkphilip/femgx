@@ -170,15 +170,15 @@ Vertices without a node, without a matching displacement, or whose displacement 
 `createNodalDisplacementBuffer(nodeCount, field)` builds the per-node displacement buffer consumed by the
 GPU renderer's deformed-shape path: one vec3 per model node indexed by `NodeId`. Pass the owning
 model's node count (the largest node id used by the part's vertices plus one). `NaN`/missing values
-are zeroed so the node stays put. Feed it into
-the renderer's `setDeformation` state for one part.
+are zeroed so the node stays put. Use it as the `deformation` role in the renderer's atomic result
+snapshot.
 
 ## GPU deformed shapes (`renderer/frame/deformation.ts`)
 
 The WebGPU renderer displaces vertices on the GPU without rebuilding geometry:
 
-- `renderer.setDeformation({ scale, displacements })`
-  sets the per-frame deformation state; `render()` rewrites the small
+- `renderer.setResultSnapshot({ deformation: { scale, displacements }, colors, glyphs })`
+  publishes the complete result snapshot; `render()` rewrites the small
   deformation uniform (scale plus alignment padding) every frame and uploads each
   part's displacement buffer once, reusing it until the array reference changes.
 - `displacements` is a `ReadonlyMap<PartId, Float32Array>`; each buffer holds
