@@ -123,7 +123,7 @@ export function stagedPartRevisionKeys<K, V>(values: Map<K, V>): Iterable<K> {
   return values instanceof PartRevisionMap ? values.stagedKeys() : [];
 }
 
-/** A copy-on-write flag array that commits only slots owned by the revision. */
+/** A detached flag array that publishes only when its revision commits. */
 export interface PartRevisionFlags {
   readonly values: boolean[];
   commit(target: boolean[]): void;
@@ -180,7 +180,7 @@ export interface PartRevisionFlagSet {
   commit(target: AttachmentFlagState): void;
 }
 
-/** Stages every attachment-owned flag mirror without copying retained slots. */
+/** Stages every attachment-owned flag mirror with read-efficient detached arrays. */
 export function stagePartRevisionFlagSet(source: AttachmentFlagState): PartRevisionFlagSet {
   const edgeFlags = stagePartRevisionFlags(source.edgeFlags);
   const edgeEmphasisFlags = stagePartRevisionFlags(source.edgeEmphasisFlags);
@@ -207,34 +207,14 @@ export function stagePartRevisionFlagSet(source: AttachmentFlagState): PartRevis
 
 /** Stages writes to one retained slot-indexed flag mirror. */
 export function stagePartRevisionFlags(source: boolean[]): PartRevisionFlags {
-  const changes = new Map<number, boolean>();
-  let length = source.length;
-  const values = new Proxy(source, {
-    get(target, key, receiver) {
-      if (key === "length") return length;
-      const index = arrayIndex(key);
-      if (index !== undefined)
-        return index >= length ? undefined : (changes.get(index) ?? target[index]);
-      const value: unknown = Reflect.get(target, key, receiver);
-      return value;
-    },
-    set(target, key, value, receiver) {
-      if (key === "length") {
-        length = Number(value);
-        return true;
-      }
-      const index = arrayIndex(key);
-      if (index === undefined) return Reflect.set(target, key, value, receiver);
-      if (index >= length) length = index + 1;
-      changes.set(index, value === true);
-      return true;
-    },
-  });
+  const values = source.slice();
   return {
     values,
     commit(target) {
-      target.length = length;
-      for (const [index, value] of changes) if (index < length) target[index] = value;
+      target.length = values.length;
+      for (let index = 0; index < values.length; index += 1) {
+        target[index] = values[index] ?? false;
+      }
     },
   };
 }

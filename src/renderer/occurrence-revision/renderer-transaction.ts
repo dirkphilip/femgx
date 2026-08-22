@@ -36,31 +36,6 @@ export type PreparedRendererOccurrenceUpdate = PreparedRendererOccurrencePort<
   PreparedSectionCapRevision
 >;
 
-/** Applies a direct occurrence delta through the live renderer owners. */
-export function applyRendererOccurrenceUpdate(
-  renderer: RendererOccurrenceOwner,
-  runtime: PackedSceneRuntime,
-  interaction: InteractionState,
-  delta: RuntimeOccurrenceDelta,
-  parts: ReadonlyMap<PartId, Part>,
-): void {
-  renderer.interaction = interaction;
-  renderer.attachment.addParts(parts, delta.addedPartIds, renderer.parts);
-  const changed = delta.slots.length > 0 || delta.removedPartIds.size > 0;
-  if (changed) {
-    renderer.attachment.updateOccurrences(
-      runtime,
-      interaction,
-      delta,
-      renderer.parts,
-      renderer.lifecycle.bundle,
-    );
-  }
-  if (renderer.sourceParts !== undefined) renderer.sourceParts = parts;
-  renderer.sectionCaps.updateOccurrences(delta, renderer.parts, renderer.lifecycle.bundle.draw);
-  if (changed) renderer.picking.invalidate();
-}
-
 /** Completes every fallible renderer allocation for one occurrence revision. */
 export function prepareRendererOccurrenceUpdate(
   renderer: RendererOccurrenceOwner,

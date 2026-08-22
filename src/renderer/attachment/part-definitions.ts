@@ -13,7 +13,6 @@ import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
 import { internalAttachmentPublicationToken } from "./call-publication";
 import type { PartRevisionResultState } from "./part-revision-results";
-import { releasePartDefinitions } from "./occurrences";
 import {
   clonePartRevisionLayout,
   prepareStagedPartRevision,
@@ -43,19 +42,6 @@ export function prepareAddedAttachmentParts(
     if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
     getPartSemanticIndex(part);
     cost?.cpu("definition-validation", 1);
-  }
-}
-
-/** Admits exact added definitions without scanning or replacing retained resources. */
-export function addAttachmentParts(
-  attachedParts: Map<PartId, Part>,
-  parts: ReadonlyMap<PartId, Part>,
-  partIds: ReadonlySet<PartId>,
-): void {
-  for (const partId of partIds) {
-    const part = parts.get(partId);
-    if (part === undefined) throw new Error(`Added part ${partId} is not registered`);
-    attachedParts.set(partId, part);
   }
 }
 
@@ -408,22 +394,4 @@ export function prepareAttachmentParts(
       ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost)
       : undefined;
   return { parts: next, calls };
-}
-
-/** Retires exact removed definitions without scanning the retained registry. */
-export function removeAttachmentParts(
-  options: PartAttachmentOptions,
-  sourceParts: Map<PartId, Part>,
-  partIds: ReadonlySet<PartId>,
-  rebuildCalls = true,
-): DrawCallLists | undefined {
-  const removed = releasePartDefinitions({
-    ...options,
-    sourceParts,
-    partIds,
-    draw: options.bundle.draw,
-  });
-  return removed && rebuildCalls
-    ? rebuildAttachmentCalls(options.layout, options.bundle.draw.cost)
-    : undefined;
 }

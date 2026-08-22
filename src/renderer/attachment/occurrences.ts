@@ -88,12 +88,13 @@ export function applyOccurrenceAttachment(options: {
   readonly state: AttachmentState;
   readonly draw: DrawResources;
   readonly edgesVisible?: boolean;
+  readonly nodesVisible?: boolean;
 }): AttachmentOrderParts {
   const orderChanges = previousOptionalOrders(options.delta, options.state);
   if (options.edgesVisible !== undefined) {
     addAll(orderChanges.edge, options.delta.affectedPartIds);
   }
-  addAll(orderChanges.node, options.delta.affectedPartIds);
+  if (options.nodesVisible !== false) addAll(orderChanges.node, options.delta.affectedPartIds);
   reserveGlobalSlots(options.layout, options.runtime.instanceCount);
   removePreviousLocals(options.layout, options.delta);
   assignCurrentLocals(options.runtime, options.layout, options.delta);

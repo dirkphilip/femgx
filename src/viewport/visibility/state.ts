@@ -181,45 +181,6 @@ export class ViewportVisibilityState {
       : authoredVisible;
   }
 
-  /** Drops viewport-local state for occurrence identities removed by a scene revision. */
-  prunePartOccurrences(slots: readonly number[]): void {
-    for (const slot of slots) this.hiddenPartOccurrenceSlots.delete(slot);
-  }
-
-  /** Drops occurrence-local assembly policy for collapsed hierarchy subtrees. */
-  pruneAssemblyOccurrences(ids: readonly AssemblyOccurrenceId[]): void {
-    for (const id of ids) this.hiddenAssemblyOccurrenceIds.delete(id);
-  }
-
-  /** Drops definition policy for parts removed from the authoritative scene. */
-  pruneParts(partIds: ReadonlySet<PartId>): void {
-    for (const partId of partIds) {
-      this.parts.known.delete(partId);
-      this.parts.hidden.delete(partId);
-    }
-  }
-
-  /** Seeds definition policy for newly registered parts from authored visibility. */
-  admitParts(scene: Scene, partIds: ReadonlySet<PartId>): void {
-    for (const partId of partIds) {
-      this.parts.known.add(partId);
-      updateHidden(this.parts.hidden, partId, scene.visiblePartIds.has(partId));
-    }
-  }
-
-  /** Reconciles definition visibility without rebuilding retained occurrence policy. */
-  reconcileAssemblies(scene: Scene, changed: ReadonlySet<AssemblyId>): void {
-    for (const assemblyId of changed) {
-      if (!scene.assemblies.has(assemblyId)) {
-        this.assemblies.known.delete(assemblyId);
-        this.assemblies.hidden.delete(assemblyId);
-      } else if (!this.assemblies.known.has(assemblyId)) {
-        this.assemblies.known.add(assemblyId);
-        updateHidden(this.assemblies.hidden, assemblyId, scene.visibleAssemblyIds.has(assemblyId));
-      }
-    }
-  }
-
   setAssemblyVisible(
     runtime: PackedSceneRuntime,
     assemblyId: AssemblyId,

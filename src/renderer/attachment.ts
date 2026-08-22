@@ -32,16 +32,11 @@ import {
   internalAttachmentPublicationToken,
 } from "./attachment/call-publication";
 import { destroyVisibilitySkinCaches } from "./visibility/skins";
-import { syncOccurrenceInteractionEmphasis } from "./attachment/interaction";
 import type { AttachmentInteractionState } from "./attachment/interaction";
 import { updateAttachmentElements } from "./attachment/elements";
-import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
-import { applyOccurrenceAttachment } from "./attachment/occurrences";
 import {
-  addAttachmentParts,
   prepareAddedAttachmentParts,
   prepareAttachmentParts,
-  removeAttachmentParts,
   replaceAttachedPartDefinitions,
 } from "./attachment/part-definitions";
 import type { PartRevisionResultState } from "./attachment/part-revision-results";
@@ -80,16 +75,6 @@ export class RendererAttachment extends AttachmentPublicationState {
   /** Validates renderer-owned metadata for exact added definitions before commit. */
   public prepareAddedParts(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void {
     prepareAddedAttachmentParts(parts, partIds);
-  }
-
-  /** Admits exact added definitions without broad resource reconciliation. */
-  public addParts(
-    parts: ReadonlyMap<PartId, Part>,
-    partIds: ReadonlySet<PartId>,
-    sourceParts?: Map<PartId, Part>,
-  ): void {
-    addAttachmentParts(this.attachedParts, parts, partIds);
-    if (sourceParts !== undefined) addAttachmentParts(sourceParts, parts, partIds);
   }
 
   /** Replaces only changed immutable part resources while retaining occurrence storage. */
@@ -172,49 +157,6 @@ export class RendererAttachment extends AttachmentPublicationState {
       this.rebuildCalls(bundle.draw.cost);
     }
     return attached || transformChanged || visibilityChanged || styleOrdersChanged;
-  }
-
-  /** Applies exact direct-placement membership changes to an attached runtime. */
-  public updateOccurrences(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    delta: RuntimeOccurrenceDelta,
-    sourceParts: Map<PartId, Part>,
-    bundle: GpuBundle,
-  ): boolean {
-    const layout = this.layout;
-    if (this.runtime !== runtime || layout === undefined) return false;
-    this.commitInteractionState(
-      interaction,
-      this.interactionState,
-      internalAttachmentPublicationToken,
-    );
-    const state = this.attachmentState();
-    const optionalParts = applyOccurrenceAttachment({
-      runtime,
-      layout,
-      delta,
-      interaction,
-      state,
-      draw: bundle.draw,
-      edgesVisible: this.edgesVisible,
-    });
-    this.commitRuntimeSnapshot(runtime, layout, state);
-    syncOccurrenceInteractionEmphasis({
-      runtime,
-      layout,
-      interaction,
-      parts: this.attachedParts,
-      bundle,
-      transparentFlags: this.transparentFlags,
-      slotByInstanceId: this.slotByInstanceId,
-      changedSlots: delta.slots.map(({ slot }) => slot),
-      affectedParts: delta.affectedPartIds,
-    });
-    const partOptions = this.partAttachmentOptions(bundle);
-    removeAttachmentParts(partOptions, sourceParts, delta.removedPartIds, false);
-    this.applyAttachmentOrders(runtime, layout, delta.affectedPartIds, bundle, optionalParts);
-    return true;
   }
 
   public updateElements(

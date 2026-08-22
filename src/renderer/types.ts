@@ -66,13 +66,6 @@ export interface WebGpuRenderer {
     interaction: InteractionState,
     changedInstanceIds?: readonly number[],
   ): void;
-  /** Applies a direct scene occurrence delta through the renderer lifecycle. */
-  updateOccurrences(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    delta: RuntimeOccurrenceDelta,
-    parts: ReadonlyMap<PartId, Part>,
-  ): void;
   /** Prepares a private occurrence revision without publishing it. */
   prepareOccurrenceUpdate(options: {
     readonly runtime: PackedSceneRuntime;

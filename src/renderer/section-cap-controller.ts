@@ -132,18 +132,6 @@ export class SectionCapController {
     this.rebuildUsingRetained = true;
   }
 
-  /** Applies occurrence changes while retiring exact removed-part cap fragments. */
-  public updateOccurrences(
-    delta: RuntimeOccurrenceDelta,
-    parts: ReadonlyMap<PartId, Part>,
-    draw: DrawResources,
-  ): void {
-    this.removeParts(delta.removedPartIds, parts, draw);
-    if ([...delta.affectedPartIds].some((partId) => !delta.removedPartIds.has(partId))) {
-      this.invalidate();
-    }
-  }
-
   /** Rebuilds only cap fragments whose source immutable part definition changed. */
   public replaceParts(
     partIds: ReadonlySet<PartId>,

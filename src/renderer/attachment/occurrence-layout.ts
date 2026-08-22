@@ -37,27 +37,13 @@ export function stageOccurrenceLayout(
   };
 }
 
-/** Stages sparse writes to the global-slot to part-local index. */
+/** Stages a detached global-slot to part-local index for fast read-heavy rebuilds. */
 export function stageSlotLocals(source: Int32Array): StagedSlotLocals {
-  const changes = new Map<number, number>();
-  const values = new Proxy(source, {
-    get(target, key) {
-      if (key === "length") return target.length;
-      const index = arrayIndex(key);
-      if (index !== undefined) return changes.get(index) ?? target[index];
-      return Reflect.get(target, key, target) as unknown;
-    },
-    set(target, key, value) {
-      const index = arrayIndex(key);
-      if (index === undefined) return Reflect.set(target, key, value, target);
-      changes.set(index, Number(value));
-      return true;
-    },
-  });
+  const values = source.slice();
   return {
     values,
     commit(target) {
-      for (const [index, value] of changes) target.slotPartLocal[index] = value;
+      target.slotPartLocal = values;
     },
   };
 }
@@ -89,10 +75,4 @@ export function commitOccurrenceLayout(
 
 function commitOverlay<K, V>(target: Map<K, V>, source: Map<K, V>): void {
   if (source instanceof PartRevisionMap) source.commit(target);
-}
-
-function arrayIndex(key: PropertyKey): number | undefined {
-  if (typeof key !== "string" || !/^(?:0|[1-9]\d*)$/.test(key)) return undefined;
-  const index = Number(key);
-  return Number.isSafeInteger(index) ? index : undefined;
 }

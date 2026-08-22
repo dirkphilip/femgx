@@ -4,6 +4,7 @@ import { createInteractionState } from "@/interaction/interaction";
 import { setTargetsSelected } from "@/interaction/targets";
 import { identityMatrix } from "@/math/mat4";
 import { RendererAttachment } from "@/renderer/attachment";
+import { prepareAttachmentOccurrenceUpdate } from "@/renderer/attachment/occurrence-transaction";
 import { createGpuBundle, destroyGpuBundle } from "@/renderer/recovery";
 import { HIGHLIGHT_HEADER } from "@/renderer/selection/highlight-layout";
 import {
@@ -158,13 +159,18 @@ function applyTransition(fixture: Fixture, prepared: ReturnType<typeof prepareSc
   const update = prepareOccurrenceMutations(fixture.runtime, prepared.scene, prepared.changes);
   if (update === undefined) throw new Error("Expected occurrence mutations");
   const delta = applyOccurrenceMutations(fixture.runtime, update);
-  fixture.attachment.updateOccurrences(
-    fixture.runtime,
-    fixture.interaction,
+  const preparedAttachment = prepareAttachmentOccurrenceUpdate({
+    attachment: fixture.attachment,
+    runtime: fixture.runtime,
+    interaction: fixture.interaction,
     delta,
-    new Map(prepared.scene.parts),
-    fixture.bundle,
-  );
+    sourceParts: new Map(fixture.scene.parts),
+    parts: prepared.scene.parts,
+    bundle: fixture.bundle,
+    edgesVisible: fixture.attachment.edgesVisible,
+    nodesVisible: fixture.attachment.nodesVisible,
+  });
+  preparedAttachment.commit();
 }
 
 function applySceneUpdate(
