@@ -1,6 +1,7 @@
 import type { SectionPlane } from "../../math/section-plane";
 import type { DeformationState } from "../../results/deform";
 import type { GpuBundle } from "../recovery";
+import type { GpuDeviceLifecycle } from "../recovery";
 import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
@@ -42,6 +43,51 @@ interface FrameOptionSources {
   readonly originTriadEnabled: boolean;
   readonly originTriadNominalScale: number;
   readonly timestampRecorder: GpuTimestampRecorder | undefined;
+}
+
+/** Narrow renderer state boundary used to build one immutable frame snapshot. */
+export interface RendererFrameOptionsOwner {
+  readonly canvas: HTMLCanvasElement;
+  readonly context: GPUCanvasContext;
+  readonly lifecycle: Pick<GpuDeviceLifecycle, "bundle">;
+  readonly attachment: FrameOptionSources["attachment"];
+  readonly format: GPUTextureFormat;
+  readonly depthFormat: GPUTextureFormat;
+  readonly edgeDepthTest: boolean;
+  readonly pointSize: number;
+  readonly nodeSize: number;
+  readonly deformation: DeformationState | undefined;
+  readonly sectionPlane: SectionPlane | undefined;
+  readonly sectionCaps: FrameOptionSources["sectionCaps"] & {
+    readonly resultColors: ResultColorMap | undefined;
+  };
+  readonly orbitPivot: readonly [number, number, number] | undefined;
+  readonly originTriadEnabled: boolean;
+  readonly originTriadNominalScale: number;
+  readonly timestampRecorder: GpuTimestampRecorder | undefined;
+}
+
+/** Builds a frame snapshot from the concrete renderer's live state. */
+export function buildRendererFrameOptions(owner: RendererFrameOptionsOwner): FrameOptions {
+  return buildFrameOptions({
+    canvas: owner.canvas,
+    context: owner.context,
+    bundle: owner.lifecycle.bundle,
+    attachment: owner.attachment,
+    colorFormat: owner.format,
+    depthFormat: owner.depthFormat,
+    edgeDepthTest: owner.edgeDepthTest,
+    pointSize: owner.pointSize,
+    nodeSize: owner.nodeSize,
+    deformation: owner.deformation,
+    sectionPlane: owner.sectionPlane,
+    resultColors: owner.sectionCaps.resultColors,
+    sectionCaps: owner.sectionCaps,
+    orbitPivot: owner.orbitPivot,
+    originTriadEnabled: owner.originTriadEnabled,
+    originTriadNominalScale: owner.originTriadNominalScale,
+    timestampRecorder: owner.timestampRecorder,
+  });
 }
 
 /** Builds the immutable frame input record from current renderer state. */

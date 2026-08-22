@@ -7,7 +7,9 @@ import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { DeformationState } from "../results/deform";
 import type { ResultColorMap } from "../results/colors";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { RendererAttachment } from "./attachment";
+import { prepareAddedAttachmentParts } from "./attachment/part-definitions";
 import { destroyInstanceResources } from "./resources/draw-resources";
 import { SectionCapController, sameSectionPlane } from "./section-cap-controller";
 import type { ViewportBackground, WebGpuRenderer, WebGpuRendererOptions } from "./types";
@@ -22,10 +24,10 @@ import {
   type OrientationGlyphState,
 } from "./orientation-glyphs/orientation-glyph";
 import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
-import { buildFrameOptions } from "./frame/frame-options";
+import { buildRendererFrameOptions, type RendererFrameOptionsOwner } from "./frame/frame-options";
 import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
 import { drawCostSnapshot, materializedEdgePartIds } from "./diagnostics/renderer-diagnostics";
-import { createRendererPicking, type RendererPicking } from "./picking/renderer-picking";
+import { RendererPicking, type RendererPickingHost } from "./picking/renderer-picking";
 import {
   createGpuTimestampRecorder,
   unavailableGpuTimestampSnapshot,
@@ -36,6 +38,7 @@ import type { GpuRendererConstruction } from "./renderer-construction";
 import { applyRendererPartRevision } from "./attachment/part-revision";
 import type { PartRevisionResultState } from "./attachment/part-revision-results";
 import {
+  applyRendererOccurrenceUpdate,
   commitRendererOccurrenceUpdate,
   discardRendererOccurrenceUpdate,
   prepareRendererOccurrenceUpdate,
@@ -43,14 +46,14 @@ import {
 } from "./occurrence-revision/renderer-transaction";
 
 /** The WebGPU renderer implementation; see `gpu-renderer.ts` for the API. */
-export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
-  private readonly context: GPUCanvasContext;
-  private readonly format: GPUTextureFormat;
-  private readonly depthFormat: GPUTextureFormat;
+export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererFrameOptionsOwner {
+  public readonly context: GPUCanvasContext;
+  public readonly format: GPUTextureFormat;
+  public readonly depthFormat: GPUTextureFormat;
   public readonly lifecycle: GpuDeviceLifecycle;
-  private pointSize: number;
-  private nodeSize: number;
-  private readonly originTriadEnabled: boolean;
+  public pointSize: number;
+  public nodeSize: number;
+  public readonly originTriadEnabled: boolean;
   private background: ViewportBackground;
   public readonly attachment = new RendererAttachment();
   public parts = new Map<PartId, Part>();
@@ -58,16 +61,16 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public lastCamera: Camera | undefined;
   public readonly edgePick: EdgePickState;
   public readonly picking: RendererPicking;
-  private edgeDepthTest = true;
+  public edgeDepthTest = true;
   private edgesVisible = false;
   private nodesVisible = false;
-  private orbitPivot: Vec3 | undefined;
+  public orbitPivot: Vec3 | undefined;
   public deformation: DeformationState | undefined;
   public resultColors: ResultColorMap | undefined;
   public sectionPlane: SectionPlane | undefined;
   public interaction = createInteractionState();
   public readonly sectionCaps = new SectionCapController();
-  private timestampRecorder: GpuTimestampRecorder | undefined;
+  public timestampRecorder: GpuTimestampRecorder | undefined;
   private readonly timestampQueriesRequested: boolean;
   public orientationGlyphs: OrientationGlyphState | undefined;
   public originTriadNominalScale = 1;
@@ -101,7 +104,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
         if (!this.destroyed) options.onDeviceLost?.(info);
       },
     });
-    this.picking = createRendererPicking(this);
+    this.picking = new RendererPicking(this satisfies RendererPickingHost);
     writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     this.resize();
   }
@@ -191,6 +194,16 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
     if (changed) this.picking.invalidate();
   }
 
+  public updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: RuntimeOccurrenceDelta,
+    parts: ReadonlyMap<PartId, Part>,
+  ): void {
+    this.ensureAlive();
+    applyRendererOccurrenceUpdate(this, runtime, interaction, delta, parts);
+  }
+
   /** Completes all fallible placement allocations without changing live renderer state. */
   public prepareOccurrenceUpdate(
     options: Parameters<typeof prepareRendererOccurrenceUpdate>[1],
@@ -208,6 +221,14 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   /** Releases all resources allocated by an uncommitted placement transaction. */
   public discardOccurrenceUpdate(prepared: PreparedRendererOccurrenceUpdate): void {
     discardRendererOccurrenceUpdate(this, prepared);
+  }
+
+  public preparePartAdditions(
+    parts: ReadonlyMap<PartId, Part>,
+    partIds: ReadonlySet<PartId>,
+  ): void {
+    this.ensureAlive();
+    prepareAddedAttachmentParts(parts, partIds);
   }
 
   public updatePartRevisions(
@@ -405,25 +426,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   private readonly ensureAlive = (): undefined => (this.lifecycle.ensureUsable(), undefined);
 
   public frameOptions() {
-    return buildFrameOptions({
-      canvas: this.canvas,
-      context: this.context,
-      bundle: this.lifecycle.bundle,
-      attachment: this.attachment,
-      colorFormat: this.format,
-      depthFormat: this.depthFormat,
-      edgeDepthTest: this.edgeDepthTest,
-      pointSize: this.pointSize,
-      nodeSize: this.nodeSize,
-      deformation: this.deformation,
-      sectionPlane: this.sectionPlane,
-      resultColors: this.sectionCaps.resultColors,
-      sectionCaps: this.sectionCaps,
-      orbitPivot: this.orbitPivot,
-      originTriadEnabled: this.originTriadEnabled,
-      originTriadNominalScale: this.originTriadNominalScale,
-      timestampRecorder: this.timestampRecorder,
-    });
+    return buildRendererFrameOptions(this);
   }
 
   public ensureSectionCaps(runtime: PackedSceneRuntime): void {

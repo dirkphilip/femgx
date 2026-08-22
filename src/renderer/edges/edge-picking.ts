@@ -28,7 +28,7 @@ export interface EdgePickContext {
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly instances: readonly (PartOccurrence | undefined)[];
   readonly runtime: PackedSceneRuntime | undefined;
-  readonly frame: () => FrameOptions;
+  readonly frame: FrameOptions;
 }
 
 interface EdgePickContextOptions {
@@ -36,7 +36,7 @@ interface EdgePickContextOptions {
   readonly camera: Camera;
   readonly parts: ReadonlyMap<PartId, Part>;
   readonly instances: readonly (PartOccurrence | undefined)[];
-  readonly frame: () => FrameOptions;
+  readonly frame: FrameOptions;
   readonly runtime?: PackedSceneRuntime | undefined;
 }
 
@@ -69,7 +69,7 @@ export async function pickEdgePixel(
   y: number,
 ): Promise<PickHit | undefined> {
   await ensureEdgePickSnapshot(context);
-  const frame = context.frame();
+  const frame = context.frame;
   const { ids, edgePickId } = await readEdgePickPixel(
     frame.device,
     frame.canvas,
@@ -99,7 +99,7 @@ export async function pickEdgeRegion(
   rect: BoxSelectionRect,
 ): Promise<readonly InteractionTarget[]> {
   await ensureEdgePickSnapshot(context);
-  const frame = context.frame();
+  const frame = context.frame;
   const assemblyPath = assemblyPathResolver(context.runtime);
   return pickEdgeTargetsFromRegion({
     device: frame.device,
@@ -124,7 +124,7 @@ function assemblyPathResolver(
 
 async function ensureEdgePickSnapshot(context: EdgePickContext): Promise<void> {
   if (context.state.snapshotValid) return;
-  const frame = context.frame();
+  const frame = context.frame;
   const pipeline = await ensureEdgePickPipeline(context.state, frame);
   encodeEdgePickSnapshot(context.camera, context.parts, frame, pipeline);
   context.state.snapshotValid = true;
@@ -156,6 +156,6 @@ function edgeKeyForPickId(
   if (edgePickId <= 0) return undefined;
   const instance = context.instances[instancePickId - 1];
   if (instance === undefined) return undefined;
-  const resource = getPartResource(context.frame().draw, instance.partId, "triangles");
+  const resource = getPartResource(context.frame.draw, instance.partId, "triangles");
   return resource?.edgePick?.edgeKeys[edgePickId - 1];
 }

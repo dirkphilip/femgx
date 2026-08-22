@@ -9,7 +9,6 @@ import type { ViewportVisibilityState } from "../visibility/state";
 import { reconcileInteractionState } from "../scene-reconciliation";
 import { withInteractionVisibility } from "../../interaction/state";
 import type { WebGpuRenderer } from "../../renderer/gpu-renderer";
-import { prepareRendererOccurrenceUpdate } from "../../renderer/gpu-renderer";
 import { prepareSceneResults } from "../results/scene-transition";
 import { partRevisionResultState } from "../results/application";
 import type { ViewportResultsState } from "../results";
@@ -69,7 +68,7 @@ export function prepareHierarchyRendererUpdate(options: {
   readonly visibility: ViewportVisibilityState;
   readonly currentResults: ViewportResultsState | undefined;
 }): {
-  readonly rendererUpdate: ReturnType<typeof prepareRendererOccurrenceUpdate>;
+  readonly rendererUpdate: ReturnType<WebGpuRenderer["prepareOccurrenceUpdate"]>;
   readonly interaction: InteractionState;
   readonly results: ViewportResultsState | undefined;
   readonly outcome: ReturnType<typeof prepareSceneResults>["outcome"];
@@ -80,7 +79,7 @@ export function prepareHierarchyRendererUpdate(options: {
   );
   const resultUpdate = prepareSceneResults(options.currentResults, options.scene, options.runtime);
   return {
-    rendererUpdate: prepareRendererOccurrenceUpdate(options.renderer, {
+    rendererUpdate: options.renderer.prepareOccurrenceUpdate({
       runtime: options.runtime,
       interaction,
       delta: options.delta,

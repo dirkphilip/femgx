@@ -31,14 +31,6 @@ import {
 } from "./core/hierarchy-scene";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
-import {
-  commitRendererOccurrenceUpdate,
-  discardRendererOccurrenceUpdate,
-  prepareRendererPartAdditions,
-  type prepareRendererOccurrenceUpdate,
-  updateRendererOccurrences,
-  updateRendererPartRevisions,
-} from "../renderer/gpu-renderer";
 
 interface SceneControllerOptions {
   readonly scene: Scene;
@@ -220,7 +212,7 @@ export class ViewportSceneController {
     mutations: NonNullable<ReturnType<typeof prepareOccurrenceMutations>>,
     cancelCamera: () => void,
   ): SceneUpdateResult {
-    prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
+    this.options.renderer.preparePartAdditions(scene.parts, mutations.addedPartIds);
     cancelCamera();
     const delta = applyOccurrenceMutations(this.currentRuntime, mutations);
     this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
@@ -237,8 +229,7 @@ export class ViewportSceneController {
       nextInteraction,
       this.currentVisibility.interactionVisibility(),
     );
-    updateRendererOccurrences(
-      this.options.renderer,
+    this.options.renderer.updateOccurrences(
       this.currentRuntime,
       nextRenderInteraction,
       delta,
@@ -279,13 +270,13 @@ export class ViewportSceneController {
       this.currentRuntime,
       partIds,
     );
-    updateRendererPartRevisions(this.options.renderer, {
-      runtime: this.currentRuntime,
-      interaction: nextRenderInteraction,
-      parts: scene.parts,
+    this.options.renderer.updatePartRevisions(
+      this.currentRuntime,
+      nextRenderInteraction,
+      scene.parts,
       partIds,
-      results: partRevisionResultState(resultUpdate.results, this.currentRuntime, partIds),
-    });
+      partRevisionResultState(resultUpdate.results, this.currentRuntime, partIds),
+    );
     cancelCamera();
     this.currentScene = scene;
     this.baseInteraction = nextInteraction;
@@ -307,9 +298,9 @@ export class ViewportSceneController {
     cancelCamera: () => void,
   ): SceneUpdateResult {
     if (isHierarchyNoop(mutations)) return this.applyUnplacedAssemblyDefinitionUpdate(scene);
-    prepareRendererPartAdditions(this.options.renderer, scene.parts, mutations.addedPartIds);
+    this.options.renderer.preparePartAdditions(scene.parts, mutations.addedPartIds);
     const transaction = this.currentRuntime.beginHierarchyTransaction();
-    let rendererUpdate: ReturnType<typeof prepareRendererOccurrenceUpdate> | undefined;
+    let rendererUpdate: ReturnType<WebGpuRenderer["prepareOccurrenceUpdate"]> | undefined;
     let boundsUpdate: ReturnType<PlacedBoundsIndex["beginTransaction"]> | undefined;
     try {
       const delta = applySceneHierarchyMutations({
@@ -343,7 +334,7 @@ export class ViewportSceneController {
       );
       cancelCamera();
       this.updateHierarchyBounds(scene, delta, revisedPartIds);
-      commitRendererOccurrenceUpdate(this.options.renderer, rendererUpdate);
+      this.options.renderer.commitOccurrenceUpdate(rendererUpdate);
       transaction.commit();
       boundsUpdate.commit();
       this.currentScene = scene;
@@ -354,7 +345,7 @@ export class ViewportSceneController {
       return { committed: true, outcome: prepared.outcome, rendererSynchronized: true };
     } catch (error) {
       if (rendererUpdate !== undefined) {
-        discardRendererOccurrenceUpdate(this.options.renderer, rendererUpdate);
+        this.options.renderer.discardOccurrenceUpdate(rendererUpdate);
       }
       boundsUpdate?.rollback();
       transaction.rollback();

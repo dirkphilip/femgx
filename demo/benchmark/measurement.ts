@@ -13,7 +13,6 @@ import {
   readMaterializedEdgePartIds,
   readGpuCostSnapshot,
   readGpuTimestampSnapshot,
-  setRendererOrientationGlyphs,
   type WebGpuRenderer,
 } from "../../src/renderer/gpu-renderer";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -335,7 +334,7 @@ function installOrientationBenchmarkState(
     lengthScale: 1,
     widthPixels: 2,
   };
-  setRendererOrientationGlyphs(renderer, state);
+  renderer.setOrientationGlyphs(state);
 }
 
 function countUniqueVertices(benchmarkCase: WebGpuBenchmarkCase): number {

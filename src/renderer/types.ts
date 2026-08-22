@@ -5,13 +5,17 @@ import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
 import type { DeformationState } from "../results/deform";
+import type { ResultColorMap } from "../results/colors";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
+import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import type { PartId } from "../geometry/part";
 import type { PickHit } from "../picking/types";
 import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { SectionPlane } from "../math/section-plane";
+import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
+import type { PartRevisionResultState } from "./attachment/part-revision-results";
 
 /**
  * Built-in WebGPU viewport background presentations.
@@ -36,7 +40,7 @@ export interface WebGpuRendererOptions {
   readonly onDeviceLost?: (info: DeviceLostInfo) => void;
 }
 
-/** Public WebGPU renderer contract used by the viewport and advanced hosts. */
+/** Internal WebGPU renderer port used by the viewport and renderer diagnostics. */
 export interface WebGpuRenderer {
   render(
     runtime: PackedSceneRuntime,
@@ -48,6 +52,10 @@ export interface WebGpuRenderer {
   resetScene(parts: ReadonlyMap<PartId, Part>): void;
   /** Sets or clears the per-frame CPU deformation state. */
   setDeformation(deformation: DeformationState | undefined): void;
+  /** Sets or clears authored scalar result colors. */
+  setResultColors(colors: ResultColorMap | undefined): void;
+  /** Sets or clears elemental orientation/load glyphs. */
+  setOrientationGlyphs(state: OrientationGlyphState | undefined): void;
   /** Sets or clears the single world-space scene clipping plane. */
   setSectionPlane(plane: SectionPlane | undefined): void;
   /** Writes only GPU subranges affected by changed instance slots. */
@@ -61,6 +69,36 @@ export interface WebGpuRenderer {
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds?: readonly number[],
+  ): void;
+  /** Applies a direct scene occurrence delta through the renderer lifecycle. */
+  updateOccurrences(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    delta: RuntimeOccurrenceDelta,
+    parts: ReadonlyMap<PartId, Part>,
+  ): void;
+  /** Prepares a private occurrence revision without publishing it. */
+  prepareOccurrenceUpdate(options: {
+    readonly runtime: PackedSceneRuntime;
+    readonly interaction: InteractionState;
+    readonly delta: RuntimeOccurrenceDelta;
+    readonly parts: ReadonlyMap<PartId, Part>;
+    readonly results?: PartRevisionResultState;
+    readonly replacedPartIds?: ReadonlySet<PartId>;
+  }): PreparedRendererOccurrenceUpdate;
+  /** Publishes one prepared occurrence revision. */
+  commitOccurrenceUpdate(prepared: PreparedRendererOccurrenceUpdate): void;
+  /** Discards one uncommitted occurrence revision. */
+  discardOccurrenceUpdate(prepared: PreparedRendererOccurrenceUpdate): void;
+  /** Prepares exact added definitions before the runtime is mutated. */
+  preparePartAdditions(parts: ReadonlyMap<PartId, Part>, partIds: ReadonlySet<PartId>): void;
+  /** Applies exact immutable part revisions. */
+  updatePartRevisions(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    parts: ReadonlyMap<PartId, Part>,
+    partIds: ReadonlySet<PartId>,
+    results: PartRevisionResultState,
   ): void;
   /** Controls whether the edge overlay compares against the depth buffer. */
   setEdgeDepthTest(enabled: boolean): void;
@@ -95,4 +133,14 @@ export interface WebGpuRenderer {
   recover(): Promise<void>;
   /** The GPU device backing the renderer. */
   readonly device: GPUDevice;
+}
+
+/** Opaque prepared occurrence payload exchanged across the viewport renderer port. */
+export interface PreparedRendererOccurrenceUpdate<Attachment = unknown, Caps = unknown> {
+  readonly attachment: Attachment;
+  readonly caps: Caps;
+  readonly runtime: PackedSceneRuntime;
+  readonly interaction: InteractionState;
+  readonly parts: ReadonlyMap<PartId, Part>;
+  readonly results: PartRevisionResultState | undefined;
 }
