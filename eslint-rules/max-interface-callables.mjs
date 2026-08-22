@@ -25,7 +25,9 @@ function countCallableMembers(declarations, sourceCode) {
           : member.type === "TSConstructSignatureDeclaration"
             ? "construct-signature"
             : "member";
-      names.add(`${signatureKind}:${memberName(member, sourceCode, signatureKind)}`);
+      const key =
+        signatureKind === "member" ? memberName(member, sourceCode, signatureKind) : signatureKind;
+      names.add(`${signatureKind}:${key}`);
     }
   }
   return names.size;

@@ -76,6 +76,15 @@ describe("composition ESLint rules", () => {
           data: string;
         }`,
       },
+      {
+        code: `interface OverloadedPort {
+          (value: string): void;
+          (value: number): void;
+          new (value: string): object;
+          new (value: number): object;
+        }`,
+        options: [2],
+      },
     ],
     invalid: [
       {
