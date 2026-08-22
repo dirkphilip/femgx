@@ -112,8 +112,7 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   renderer.setEdgesVisible(true);
   renderer.setNodesVisible(true);
   const presentationSyncStart = performance.now();
-  renderer.updateInstances(runtime, presentation, slots);
-  renderer.updateElements(runtime, presentation, slots);
+  renderer.syncInteraction(runtime, presentation, slots);
   const presentationSyncMs = performance.now() - presentationSyncStart;
   await renderFrame(options, options.camera);
   const presentationGpuCost = readGpuCostSnapshot(renderer);
@@ -133,8 +132,7 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   const restored = setTargetsSelected(visible, selectedTargets, false);
   const restoreStateMs = performance.now() - restoreStateStart;
   const restoreSyncStart = performance.now();
-  renderer.updateInstances(runtime, restored, slots);
-  renderer.updateElements(runtime, restored, slots);
+  renderer.syncInteraction(runtime, restored, slots);
   const restoreSyncMs = performance.now() - restoreSyncStart;
   await renderFrame(options, options.camera);
   const restoredGpuCost = readGpuCostSnapshot(renderer);
@@ -242,8 +240,7 @@ async function measurePhase(
 ): Promise<SelectionHideWorkflowPhase> {
   const before = readGpuCostSnapshot(options.renderer);
   const syncStart = performance.now();
-  options.renderer.updateInstances(options.runtime, state, slots);
-  options.renderer.updateElements(options.runtime, state, slots);
+  options.renderer.syncInteraction(options.runtime, state, slots);
   const interactionSyncMs = performance.now() - syncStart;
   const after = readGpuCostSnapshot(options.renderer);
   const frames = await measureFrames(options, options.camera);

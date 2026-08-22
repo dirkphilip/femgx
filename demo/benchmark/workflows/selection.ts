@@ -213,7 +213,7 @@ async function measureSelectedTargets(
   const beforeSync = readGpuCostSnapshot(renderer);
   const syncStart = performance.now();
   const changedSlots = occurrenceSlots(runtime, targets);
-  renderer.updateElements(runtime, selected, changedSlots);
+  renderer.syncInteraction(runtime, selected, changedSlots);
   const interactionSyncMs = performance.now() - syncStart;
   const interactionHighlightWriteBytes = highlightWriteBytesSince(
     beforeSync,
@@ -251,7 +251,7 @@ async function measureSelectedTargets(
     steadyFrames.push(await renderFrame(renderer, runtime, camera, parts, device));
   }
   const clearStart = performance.now();
-  renderer.updateElements(runtime, createInteractionState(), changedSlots);
+  renderer.syncInteraction(runtime, createInteractionState(), changedSlots);
   await renderFrame(renderer, runtime, camera, parts, device);
   assertNoElementEmphasisDraw(readGpuCostSnapshot(renderer), `${benchmarkCase.id} ${id} clear`);
   const clearSelectionMs = performance.now() - clearStart;

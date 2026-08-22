@@ -91,8 +91,7 @@ export async function measureOverlayInteractiveSamples(
     renderer.setEdgesVisible(edges);
     renderer.setNodesVisible(nodes);
     const interaction = createInteractionState();
-    renderer.updateInstances(runtime, interaction, slots);
-    renderer.updateElements(runtime, interaction, slots);
+    renderer.syncInteraction(runtime, interaction, slots);
     return measureSample(renderer, benchmarkCase, runtime, camera, true);
   };
   try {
@@ -105,8 +104,7 @@ export async function measureOverlayInteractiveSamples(
     renderer.setEdgesVisible(false);
     renderer.setNodesVisible(false);
     const interaction = createInteractionState();
-    renderer.updateInstances(runtime, interaction, slots);
-    renderer.updateElements(runtime, interaction, slots);
+    renderer.syncInteraction(runtime, interaction, slots);
   }
 }
 

@@ -190,7 +190,7 @@ export class ViewportSceneController {
   ): SceneUpdateResult {
     cancelCamera();
     const changedSlots = applyTransformPatch(this.currentRuntime, patch);
-    this.options.renderer.updateInstances(
+    this.options.renderer.syncInstanceTransforms(
       this.currentRuntime,
       this.renderInteraction,
       changedSlots,

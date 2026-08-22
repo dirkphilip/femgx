@@ -54,17 +54,17 @@ export interface WebGpuRenderer {
   setResultSnapshot(results: RendererResultSnapshot | undefined): void;
   /** Sets or clears the single world-space scene clipping plane. */
   setSectionPlane(plane: SectionPlane | undefined): void;
-  /** Writes only GPU subranges affected by changed instance slots. */
-  updateInstances(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    changedInstanceIds: readonly number[],
-  ): void;
-  /** Writes diffed emphasis records for bodies, elements, faces, and nodes. */
-  updateElements(
+  /** Publishes one interaction revision through the instance and emphasis kernels. */
+  syncInteraction(
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds?: readonly number[],
+  ): void;
+  /** Writes only GPU subranges affected by placement or transform changes. */
+  syncInstanceTransforms(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    changedInstanceIds: readonly number[],
   ): void;
   /** Prepares a private occurrence revision without publishing it. */
   prepareOccurrenceUpdate(options: {
