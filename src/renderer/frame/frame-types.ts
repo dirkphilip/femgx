@@ -1,5 +1,6 @@
 import type { DeformationState } from "../../results/deform";
 import type { SectionPlane } from "../../math/section-plane";
+import type { Part, PartId } from "../../geometry/part";
 import type { DrawCall, DrawResources } from "../resources/draw-resources";
 import type { PickTargets } from "../picking/pick";
 import type { RenderResources } from "./pipelines";
@@ -26,6 +27,10 @@ export interface FrameOptions {
   readonly capCalls?: readonly DrawCall[];
   readonly transparentCapCalls?: readonly DrawCall[];
   readonly allCapCalls?: readonly DrawCall[];
+  /** Generated cap parts owned by the active section-cap frame. */
+  readonly capParts: ReadonlyMap<PartId, Part>;
+  /** Scalar colors owned by the active section-cap frame. */
+  readonly capResultColors: ResultColorMap | undefined;
   readonly pickTargets: PickTargets;
   readonly depthFormat: GPUTextureFormat;
   /** Whether the edge overlay culls edges occluded by depth (`less`). */

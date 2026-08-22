@@ -60,8 +60,16 @@ export function renderRendererFrame(
   if (layout === undefined) throw new Error("Renderer attachment layout is unavailable");
   syncDeformations(bundle.draw, host.results?.deformation, runtime, layout);
   host.ensureSectionCaps(runtime);
-  syncResultColors(bundle.draw, host.sectionCaps.resultColors, runtime, layout);
+  syncResultColors(bundle.draw, host.results?.colors, runtime, layout, new Set(parts.keys()));
+  const capIds = new Set(host.sectionCaps.currentFrame?.parts.keys());
+  syncResultColors(
+    bundle.draw,
+    host.sectionCaps.currentFrame?.resultColors,
+    runtime,
+    layout,
+    capIds,
+  );
   syncOrientationGlyphs(bundle.draw.orientationGlyphs, host.results?.glyphs, runtime, layout);
   if (partsChanged || cameraChanged || attachmentChanged) host.picking.invalidate();
-  encodeVisibleFrame(camera, host.sectionCaps.parts, host.frameOptions());
+  encodeVisibleFrame(camera, parts, host.frameOptions());
 }

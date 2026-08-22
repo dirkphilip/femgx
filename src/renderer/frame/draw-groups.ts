@@ -91,6 +91,8 @@ export function drawNodeOverlay(
 export function drawContext(
   frame: FrameOptions,
   parts: ReadonlyMap<PartId, Part>,
+  resultColors: FrameOptions["resultColors"] = frame.resultColors,
+  deformation: FrameOptions["deformation"] = frame.deformation,
 ): DrawCallContext {
   return {
     frameBindGroup: frame.resources.frameBindGroup,
@@ -99,9 +101,14 @@ export function drawContext(
     minimalInstanceLayout: frame.resources.minimalInstanceLayout,
     parts,
     pipelines: frame.resources.pipelines,
-    resultColors: frame.resultColors,
+    resultColors,
     usesExteriorFaceSubsets: frame.usesExteriorFaceSubsets,
-    ...(frame.deformation === undefined ? {} : { deformation: frame.deformation }),
+    ...(deformation === undefined ? {} : { deformation }),
     ...(frame.sectionPlane === undefined ? {} : { sectionPlane: frame.sectionPlane }),
   };
+}
+
+/** Builds the context owned by the active generated-cap frame. */
+export function drawSectionCapContext(frame: FrameOptions): DrawCallContext {
+  return drawContext(frame, frame.capParts, frame.capResultColors, undefined);
 }

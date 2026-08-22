@@ -3,7 +3,7 @@ import type { ResultColorMap, ResultColorTable } from "../../results/colors";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { partResultBindings, type ResultBindingLayout } from "./result-binding-layout";
-import { invalidateBindGroups, sameTables } from "./foundation";
+import { invalidateBindGroups } from "./foundation";
 import type { BufferWritePort } from "./buffer-write-port";
 
 /** One renderer-owned dense scalar table shared by every draw of a reusable part. */
@@ -53,7 +53,10 @@ export function syncResultColors(
   partScope?: ReadonlySet<PartId>,
 ): void {
   if (colors === undefined) {
-    for (const [partId, storage] of draw.resultColors) releaseResultColors(draw, partId, storage);
+    for (const [partId, storage] of draw.resultColors) {
+      if (partScope !== undefined && !partScope.has(partId)) continue;
+      releaseResultColors(draw, partId, storage);
+    }
     return;
   }
   const bindings =
@@ -67,6 +70,7 @@ export function syncResultColors(
     uploadResultColors(draw, binding.partId, binding.values);
   }
   for (const [partId, storage] of draw.resultColors) {
+    if (partScope !== undefined && !partScope.has(partId)) continue;
     if (active.has(partId)) continue;
     releaseResultColors(draw, partId, storage);
   }
@@ -116,7 +120,7 @@ function uploadResultColors(
   tables: readonly (ResultColorTable | undefined)[],
 ): void {
   const current = draw.resultColors.get(partId);
-  if (sameTables(current?.source, tables)) return;
+  if (sameResultTables(current?.source, tables)) return;
   const data = resultColorData(tables);
   if (current !== undefined && current.buffer.size === data.byteLength) {
     current.source = tables;
@@ -135,6 +139,24 @@ function uploadResultColors(
   draw.writePort.writeBuffer(buffer, 0, data);
   draw.cost?.write("result", data.byteLength);
   invalidateBindGroups(draw.storages.get(partId));
+}
+
+function sameResultTables(
+  previous: readonly (ResultColorTable | undefined)[] | undefined,
+  next: readonly (ResultColorTable | undefined)[],
+): boolean {
+  if (previous?.length !== next.length) return false;
+  for (let index = 0; index < next.length; index += 1) {
+    const left = previous[index];
+    const right = next[index];
+    if (left === right) continue;
+    if (left === undefined || right === undefined || left.location !== right.location) return false;
+    if (left.values.length !== right.values.length) return false;
+    for (let value = 0; value < right.values.length; value += 1) {
+      if (left.values[value] !== right.values[value]) return false;
+    }
+  }
+  return true;
 }
 
 function releaseResultColors(

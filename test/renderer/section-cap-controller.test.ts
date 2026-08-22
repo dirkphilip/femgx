@@ -152,7 +152,6 @@ describe("section-cap part retirement", () => {
       });
 
       expect(controller.currentFrame).toBeUndefined();
-      expect(controller.parts).toBe(scene.parts);
       expect(gpu.buffers).toHaveLength(buffers);
     } finally {
       destroyGpuBundle(bundle);
@@ -218,8 +217,8 @@ describe("section-cap part retirement", () => {
       expect([...(controller.currentFrame?.sourcePartIds ?? new Map()).entries()]).toEqual([
         [retainedCapId, 2],
       ]);
-      expect(controller.parts.has(1)).toBe(false);
-      expect(controller.parts.has(2)).toBe(true);
+      expect(controller.currentFrame?.parts.has(1)).toBe(false);
+      expect(controller.currentFrame?.parts.has(retainedCapId)).toBe(true);
       expect(bufferDestroyed(gpu, removedResource.vertexBuffer)).toBe(true);
       expect(bufferDestroyed(gpu, retainedResource.vertexBuffer)).toBe(false);
     } finally {
@@ -251,7 +250,7 @@ describe("section-cap part retirement", () => {
       if (replacement === undefined) throw new Error("replacement definition is missing");
       const parts = new Map(scene.parts).set(1, replacement);
 
-      controller.replaceParts(new Set([1]), parts, bundle.draw);
+      controller.replaceParts(new Set([1]), bundle.draw);
       controller.sync({ ...sectionOptions(runtime, scene, interaction, bundle.draw), parts });
 
       expect(controller.currentFrame?.sourcePartIds.size).toBe(2);
@@ -287,7 +286,7 @@ describe("section-cap part retirement", () => {
       const parts = new Map(scene.parts).set(1, replacement);
       const hidden = setElementVisible(visible, { partOccurrenceId: firstId, elementId: 7 }, false);
 
-      controller.replaceParts(new Set([1]), parts, bundle.draw);
+      controller.replaceParts(new Set([1]), bundle.draw);
       controller.syncInteraction(hidden, runtime, parts, bundle.draw);
       controller.sync({ ...sectionOptions(runtime, scene, hidden, bundle.draw), parts });
 

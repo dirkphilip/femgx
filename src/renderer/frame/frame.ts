@@ -20,6 +20,7 @@ import type { FrameOptions } from "./frame-types";
 import {
   drawAuthoredPrimitiveGroups,
   drawContext,
+  drawSectionCapContext,
   drawNodeOverlay,
   drawSelectionPass,
 } from "./draw-groups";
@@ -227,7 +228,7 @@ function drawOpaquePass(options: OpaquePassOptions): void {
   opaquePass.draw(3);
   frame.draw.cost.draw("background", 3);
   drawAuthoredPrimitiveGroups(opaquePass, frame.draw, context, frame.calls, { pass: "color" });
-  drawSectionCaps(opaquePass, frame.draw, context, frame.capCalls, "color");
+  drawSectionCaps(opaquePass, frame.draw, drawSectionCapContext(frame), frame.capCalls, "color");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
     pushDebugGroup(opaquePass, "helpers");
     drawOriginTriad(opaquePass, frame.resources.originTriad, "visible");
@@ -282,7 +283,13 @@ function drawTransparencyPass(options: TransparencyPassOptions): void {
       pass: "transparent",
     });
   }
-  drawSectionCaps(pass, frame.draw, context, frame.transparentCapCalls, "transparent");
+  drawSectionCaps(
+    pass,
+    frame.draw,
+    drawSectionCapContext(frame),
+    frame.transparentCapCalls,
+    "transparent",
+  );
   drawSelectionPass(pass, frame, context, "selection-hidden");
   drawOrientationGlyphs(pass, frame, context, frame.calls, "hidden");
   if (frame.originTriadEnabled && frame.resources.originTriad !== undefined) {
@@ -357,13 +364,14 @@ export function encodePickSnapshot(
     frame.depthFormat,
   );
   const context = drawContext(frame, parts);
+  const capContext = drawSectionCapContext(frame);
   const pickEncoder = frame.device.createCommandEncoder({ label: "femgx picking frame" });
   const timestampFrame = frame.timestampRecorder?.beginFrame();
   const pickPass = beginPickPass(pickEncoder, frame.pickTargets, timestampFrame?.writes("pick"));
   pushDebugGroup(pickPass, "picking");
   frame.draw.cost.pass("pick");
   drawAuthoredPrimitiveGroups(pickPass, frame.draw, context, frame.calls, { pass: "pick" });
-  drawSectionCaps(pickPass, frame.draw, context, frame.allCapCalls, "pick");
+  drawSectionCaps(pickPass, frame.draw, capContext, frame.allCapCalls, "pick");
   popDebugGroup(pickPass);
   pickPass.end();
   if (timestampFrame !== undefined) frame.timestampRecorder?.resolve(pickEncoder, timestampFrame);

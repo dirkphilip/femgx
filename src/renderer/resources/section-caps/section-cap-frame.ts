@@ -1,5 +1,4 @@
-import type { Part, PartId } from "../../../geometry/part";
-import type { ResultColorMap } from "../../../results/colors";
+import type { PartId } from "../../../geometry/part";
 import { PartRevisionMap } from "../../attachment/part-revision-overlay";
 import type { SectionCapFrame } from "../../section-caps";
 import { removeSectionCapCalls } from "./section-cap-calls";
@@ -65,74 +64,6 @@ export function mergeRevisedPartIds(
   added: ReadonlySet<PartId>,
 ): ReadonlySet<PartId> {
   return previous === undefined ? new Set(added) : new Set([...previous, ...added]);
-}
-
-/** Updates only the changed source and cap entries in rendered-part ownership. */
-export function reviseSectionCapParts(
-  previous: ReadonlyMap<PartId, Part>,
-  parts: ReadonlyMap<PartId, Part>,
-  partIds: ReadonlySet<PartId>,
-  capIds: ReadonlySet<PartId>,
-): ReadonlyMap<PartId, Part> {
-  const next = new PartRevisionMap(previous);
-  for (const partId of partIds) {
-    const part = parts.get(partId);
-    if (part === undefined) next.delete(partId);
-    else next.set(partId, part);
-  }
-  for (const capId of capIds) next.delete(capId);
-  return next;
-}
-
-/** Adds only newly rebuilt cap entries to the already revised rendered-part map. */
-export function appendRevisedSectionCapParts(
-  previous: ReadonlyMap<PartId, Part>,
-  frame: SectionCapFrame,
-  partIds: ReadonlySet<PartId>,
-): ReadonlyMap<PartId, Part> {
-  const next = new PartRevisionMap(previous);
-  for (const partId of partIds) {
-    for (const capId of frame.sourceCapIds.get(partId) ?? []) {
-      const cap = frame.parts.get(capId);
-      if (cap !== undefined) next.set(capId, cap);
-    }
-  }
-  return next;
-}
-
-/** Removes only stale source/cap result table entries. */
-export function reviseSectionCapColors(
-  previous: ResultColorMap | undefined,
-  partIds: ReadonlySet<PartId>,
-  capIds: ReadonlySet<PartId>,
-): ResultColorMap | undefined {
-  if (previous === undefined) return undefined;
-  const next = new PartRevisionMap(previous);
-  for (const partId of partIds) next.delete(partId);
-  for (const capId of capIds) next.delete(capId);
-  return next;
-}
-
-/** Installs changed source and cap result colors after an exact cap rebuild. */
-export function reconcileRevisedSectionCapColors(
-  previous: ResultColorMap | undefined,
-  source: ResultColorMap | undefined,
-  frame: SectionCapFrame,
-  partIds: ReadonlySet<PartId>,
-): ResultColorMap | undefined {
-  if (previous === undefined && source === undefined) return undefined;
-  const next = new PartRevisionMap(previous ?? source ?? new Map());
-  for (const partId of partIds) {
-    const sourceColor = source?.get(partId);
-    if (sourceColor === undefined) next.delete(partId);
-    else next.set(partId, sourceColor);
-    for (const capId of frame.sourceCapIds.get(partId) ?? []) {
-      const capColor = frame.resultColors.get(capId);
-      if (capColor === undefined) next.delete(capId);
-      else next.set(capId, capColor);
-    }
-  }
-  return next;
 }
 
 function retainedSourceCapIds(

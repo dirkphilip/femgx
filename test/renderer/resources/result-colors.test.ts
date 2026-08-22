@@ -5,6 +5,7 @@ import {
   type ResultColorDrawResources,
   type ResultColorStorage,
 } from "@/renderer/resources/result-colors";
+import type { ResultColorTable } from "@/results/colors";
 import { fakeGpuDevice, installGpuGlobals } from "../fake-gpu";
 import { directBufferWritePort } from "@/renderer/resources/buffer-write-port";
 
@@ -34,6 +35,11 @@ describe("dense result color storage", () => {
       expect(floats.slice(2)).toEqual(new Float32Array([1, 2, 0, 0, 0, 0, 0, 0, 1, 0.5, 0.25, 1]));
       const writes = gpu.writes.length;
       syncResultColors(sync, new Map([[7, table]]));
+      expect(gpu.writes).toHaveLength(writes);
+      syncResultColors(
+        sync,
+        new Map([[7, { location: "elemental" as const, values: new Float32Array(table.values) }]]),
+      );
       expect(gpu.writes).toHaveLength(writes);
     } finally {
       restore();
@@ -94,6 +100,38 @@ describe("dense result color storage", () => {
       expect(storage?.source).toEqual([shared, override, shared]);
       expect(Array.from(words.slice(0, 4))).toEqual([3, 4, 16, 4]);
       expect(storage?.buffer.size).toBe(112);
+    } finally {
+      restore();
+    }
+  });
+
+  it("reconciles a scoped cap table without retiring ordinary part storage", () => {
+    const restore = installGpuGlobals();
+    try {
+      const gpu = fakeGpuDevice();
+      const sync = syncOwner(gpu.device);
+      const ordinary = { location: "nodal" as const, values: new Float32Array(8) };
+      const cap = { location: "elemental" as const, values: new Float32Array(8) };
+      syncResultColors(
+        sync,
+        new Map<number, ResultColorTable>([
+          [3, ordinary],
+          [0xfffffffe, cap],
+        ]),
+      );
+      const ordinaryBuffer = sync.resultColors.get(3)?.buffer;
+
+      syncResultColors(
+        sync,
+        new Map([[0xfffffffe, cap]]),
+        undefined,
+        undefined,
+        new Set([0xfffffffe]),
+      );
+
+      expect(sync.resultColors.has(3)).toBe(true);
+      expect(sync.resultColors.get(3)?.buffer).toBe(ordinaryBuffer);
+      expect(sync.resultColors.has(0xfffffffe)).toBe(true);
     } finally {
       restore();
     }
