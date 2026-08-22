@@ -5,15 +5,17 @@ const repositoryRoot = process.argv[2]
   ? resolve(process.argv[2])
   : resolve(import.meta.dirname, "..");
 const fixtureRoot = join(repositoryRoot, "fixtures");
-const importPattern = /(?:from|import\()\s*["']([^"']+)["']/gu;
+const importPattern =
+  /\b(?:from|import\s*\(|export\s+(?:\*|\{[^}]*\})\s+from)\s*["']([^"']+)["']/gu;
 const packageSpecifiers = new Set(["femgx", "femgx/model"]);
+const sourceFilePattern = /\.(?:cjs|cts|js|jsx|mjs|mts|svelte|ts|tsx)$/u;
 
 function filesUnder(directory) {
   const files = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) files.push(...filesUnder(path));
-    else if (/\.(?:ts|tsx)$/u.test(entry.name)) files.push(path);
+    else if (sourceFilePattern.test(entry.name)) files.push(path);
   }
   return files.sort();
 }

@@ -31,9 +31,9 @@ describe("check-fixture-boundary", () => {
 
   it("rejects application, test, and source-internal imports", () => {
     const result = runFixtureBoundary({
-      "fixtures/fe/tet4.ts":
-        'import { createSceneBuilder } from "../../demo/workbench/models/model";\n',
-      "src/scene/scene.ts": 'import { value } from "../../fixtures/fe/support";\n',
+      "fixtures/fe/tet4.mjs":
+        'export { createSceneBuilder } from "../../demo/workbench/models/model";\n',
+      "src/scene/scene.mjs": 'export { value } from "../../fixtures/fe/support";\n',
     });
 
     expect(result.status).toBe(1);
