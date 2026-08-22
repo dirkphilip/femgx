@@ -71,6 +71,17 @@ export class SceneNavigationBoundsCache {
     return snapshot;
   }
 
+  /** Protects a camera using the same cached bounds consumed by camera fitting. */
+  protect(
+    camera: Camera,
+    scene: Scene,
+    runtime: PackedSceneRuntime,
+    deformation?: DeformationState,
+  ): Camera {
+    const bounds = this.get(scene, runtime, deformation);
+    return protectCameraWithinBounds(camera, bounds.bounds, bounds.protectedBounds);
+  }
+
   /** Invalidates bounds after mutable runtime visibility changes. */
   invalidate(): void {
     this.snapshot = undefined;

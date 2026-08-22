@@ -42,14 +42,14 @@ reference and local transform, and an occurrence owns runtime-scoped visibility
 and interaction state. Editing one placement in a reused assembly definition
 therefore affects every occurrence expanded from that placement.
 
-`Viewport` remains the single lifecycle owner. Its stable non-owning facades
-are `viewport.view` for camera/navigation, `viewport.interaction` for live
+`Viewport` remains the single lifecycle owner. Its stable capability owners are
+`viewport.view` for camera/navigation, `viewport.interaction` for live
 interaction state and physical picking, `viewport.visibility` for scene-owned
 visibility mutations, `viewport.results` for the current authored snapshot,
 and `viewport.presentation` for clipping and renderer-owned presentation.
-They delegate into one live owner rather than caching a scene, runtime, or
-renderer snapshot. All capability reads and mutations use the same destroyed
-state boundary as the root lifecycle.
+They share the viewport's live scene, renderer, and lifecycle owners rather
+than caching a scene, runtime, or renderer snapshot. All capability reads and
+mutations use the same destroyed state boundary as the root lifecycle.
 
 ## Canonical data flow
 

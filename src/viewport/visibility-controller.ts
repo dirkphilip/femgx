@@ -8,7 +8,8 @@ import type { ElementId, ElementRef } from "../scene/types";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneNavigationBoundsCache } from "./scene-bounds";
 import type { ViewportSceneController } from "./scene-controller";
-import type { Viewport } from "./types";
+import type { Viewport, ViewportVisibility } from "./types";
+import type { ViewportLifecycleBoundary } from "./core/lifecycle-boundary";
 import { UnknownSceneIdentityError } from "./visibility-error";
 import { registerViewportVisibilityPolicy } from "./visibility/policy";
 
@@ -16,13 +17,12 @@ interface VisibilityControllerOptions {
   readonly viewport?: Viewport;
   readonly sceneController: ViewportSceneController;
   readonly renderer: WebGpuRenderer;
-  readonly isBatching: () => boolean;
-  readonly invalidate: () => void;
+  readonly lifecycle: ViewportLifecycleBoundary;
   readonly navigationBoundsCache: SceneNavigationBoundsCache;
 }
 
 /** Owns viewport visibility mutations and their deferred renderer updates. */
-export class ViewportVisibilityController {
+export class ViewportVisibilityController implements ViewportVisibility {
   private readonly pendingVisibility = new Set<PartId>();
   private readonly pendingInteractionSlots = new Set<number>();
 
@@ -34,6 +34,7 @@ export class ViewportVisibilityController {
   }
 
   setPartVisible(partId: PartId, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     if (!this.options.sceneController.scene.parts.has(partId)) {
       throw new UnknownSceneIdentityError("part", partId);
     }
@@ -45,6 +46,7 @@ export class ViewportVisibilityController {
   }
 
   setAssemblyOccurrenceVisible(occurrenceId: AssemblyOccurrenceId, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     const runtime = this.options.sceneController.runtime;
     const node = runtime.getNodeSlot(occurrenceId);
     if (node === undefined)
@@ -60,6 +62,7 @@ export class ViewportVisibilityController {
   }
 
   setAssemblyVisible(assemblyId: AssemblyId, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     if (!this.options.sceneController.scene.assemblies.has(assemblyId)) {
       throw new UnknownSceneIdentityError("assembly", assemblyId);
     }
@@ -71,10 +74,19 @@ export class ViewportVisibilityController {
   }
 
   setPartOccurrenceVisible(partOccurrenceId: PartOccurrenceId, visible: boolean): void {
-    this.setPartOccurrences([partOccurrenceId], visible);
+    this.options.lifecycle.ensureAlive();
+    this.applyPartOccurrences([partOccurrenceId], visible);
   }
 
   setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
+    this.applyPartOccurrences(partOccurrenceIds, visible);
+  }
+
+  private applyPartOccurrences(
+    partOccurrenceIds: Iterable<PartOccurrenceId>,
+    visible: boolean,
+  ): void {
     const runtime = this.options.sceneController.runtime;
     const slots: number[] = [];
     const seen = new Uint8Array(runtime.instanceCount);
@@ -92,6 +104,7 @@ export class ViewportVisibilityController {
   }
 
   setBodyVisible(ref: BodyRef, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     const resolved = this.resolveBody(ref);
     if (!this.options.sceneController.visibility.setBodyVisible(ref, visible)) return;
     this.options.sceneController.markVisibilityChanged();
@@ -99,6 +112,7 @@ export class ViewportVisibilityController {
   }
 
   setElementVisible(ref: ElementRef, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     const resolved = this.resolveElement(ref);
     if (!this.options.sceneController.visibility.setElementVisible(ref, visible)) return;
     this.options.sceneController.markVisibilityChanged();
@@ -106,6 +120,7 @@ export class ViewportVisibilityController {
   }
 
   setBodiesVisible(refs: Iterable<BodyRef>, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
     const grouped = new Map<PartOccurrenceId, Set<BodyId>>();
     const partIds = new Set<PartId>();
     for (const ref of refs) {
@@ -121,6 +136,11 @@ export class ViewportVisibilityController {
   }
 
   setElementsVisible(refs: Iterable<ElementRef>, visible: boolean): void {
+    this.options.lifecycle.ensureAlive();
+    this.applyElementsVisible(refs, visible);
+  }
+
+  private applyElementsVisible(refs: Iterable<ElementRef>, visible: boolean): void {
     const grouped = new Map<PartOccurrenceId, Set<ElementId>>();
     const partIds = new Set<PartId>();
     for (const ref of refs) {
@@ -136,6 +156,7 @@ export class ViewportVisibilityController {
   }
 
   hideSelectedElements(): void {
+    this.options.lifecycle.ensureAlive();
     const selected = readInteractionState(
       this.options.sceneController.interaction,
     ).selectedElementIds;
@@ -143,10 +164,11 @@ export class ViewportVisibilityController {
     for (const [partOccurrenceId, elementIds] of selected) {
       for (const elementId of elementIds) refs.push({ partOccurrenceId, elementId });
     }
-    this.setElementsVisible(refs, false);
+    this.applyElementsVisible(refs, false);
   }
 
   showAll(): void {
+    this.options.lifecycle.ensureAlive();
     const changed = this.options.sceneController.visibility.showAll(
       this.options.sceneController.runtime,
     );
@@ -156,16 +178,19 @@ export class ViewportVisibilityController {
   }
 
   isBodyDirectlyVisible(ref: BodyRef): boolean {
+    this.options.lifecycle.ensureAlive();
     this.resolveBody(ref);
     return this.options.sceneController.visibility.isBodyVisible(ref);
   }
 
   isElementDirectlyVisible(ref: ElementRef): boolean {
+    this.options.lifecycle.ensureAlive();
     this.resolveElement(ref);
     return this.options.sceneController.visibility.isElementVisible(ref);
   }
 
   isBodyEffectivelyVisible(ref: BodyRef): boolean {
+    this.options.lifecycle.ensureAlive();
     const resolved = this.resolveBody(ref);
     return (
       this.options.sceneController.runtime.isInstanceVisible(resolved.slot) &&
@@ -174,6 +199,7 @@ export class ViewportVisibilityController {
   }
 
   isElementEffectivelyVisible(ref: ElementRef): boolean {
+    this.options.lifecycle.ensureAlive();
     const resolved = this.resolveElement(ref);
     const bodyId = resolved.semantic.bodyForElement(ref.elementId);
     return (
@@ -218,7 +244,7 @@ export class ViewportVisibilityController {
     const slots = new Set<number>();
     for (const partId of ids)
       for (const slot of runtime.getPartInstanceSlots(partId)) slots.add(slot);
-    if (this.options.isBatching()) {
+    if (this.options.lifecycle.isBatching) {
       for (const slot of slots) this.pendingInteractionSlots.add(slot);
     } else if (slots.size > 0) {
       const changed = [...slots].sort((a, b) => a - b);
@@ -226,7 +252,7 @@ export class ViewportVisibilityController {
       this.options.renderer.syncInteraction(runtime, interaction, changed);
     }
     this.options.navigationBoundsCache.invalidate();
-    this.options.invalidate();
+    this.options.lifecycle.invalidate();
   }
 
   private resolveBody(ref: BodyRef): ResolvedPrimitive {
@@ -260,12 +286,12 @@ export class ViewportVisibilityController {
   private applyChanged(changed: readonly PartId[]): void {
     if (changed.length === 0) return;
     this.options.navigationBoundsCache.invalidate();
-    if (this.options.isBatching()) {
+    if (this.options.lifecycle.isBatching) {
       for (const partId of changed) this.pendingVisibility.add(partId);
     } else {
       this.options.renderer.updateVisibility(this.options.sceneController.runtime, changed);
     }
-    this.options.invalidate();
+    this.options.lifecycle.invalidate();
   }
 }
 

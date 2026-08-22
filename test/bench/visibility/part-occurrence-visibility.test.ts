@@ -100,9 +100,12 @@ function visibilityFixture(): {
     controller: new ViewportVisibilityController({
       sceneController,
       renderer,
-      isBatching: () => false,
-      invalidate: () => {
-        invalidations += 1;
+      lifecycle: {
+        ensureAlive: () => undefined,
+        isBatching: false,
+        invalidate: () => {
+          invalidations += 1;
+        },
       },
       navigationBoundsCache: new SceneNavigationBoundsCache(),
     }),
