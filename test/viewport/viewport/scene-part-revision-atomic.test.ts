@@ -95,7 +95,7 @@ describe("Viewport atomic part revision staging", () => {
           new Set([1]),
           scenario.nextInteraction(viewport),
           renderer.lifecycle.bundle,
-          renderer.results,
+          renderer.revisionResults,
         );
       };
       expect(update).toThrow(`failed staged ${scenario.label}`);
@@ -373,22 +373,34 @@ function rendererInternals(viewport: Awaited<ReturnType<typeof fixture>>) {
         ) => void;
       };
       readonly lifecycle: { readonly bundle: unknown };
-      readonly deformation: unknown;
-      readonly resultColors: unknown;
-      readonly orientationGlyphs: unknown;
+      readonly results:
+        | {
+            readonly deformation: unknown;
+            readonly colors: unknown;
+            readonly glyphs: unknown;
+          }
+        | undefined;
     };
   };
   const renderer = owner.renderer;
   return {
     ...renderer,
-    results: {
-      deformation: renderer.deformation,
-      colors: renderer.resultColors,
-      glyphs: renderer.orientationGlyphs,
+    results:
+      renderer.results === undefined
+        ? undefined
+        : {
+            deformation: renderer.results.deformation,
+            colors: renderer.results.colors,
+            glyphs: renderer.results.glyphs,
+          },
+    revisionResults: {
+      deformation: renderer.results?.deformation,
+      colors: renderer.results?.colors,
+      glyphs: renderer.results?.glyphs,
       staged: {
-        deformation: renderer.deformation,
-        colors: renderer.resultColors,
-        glyphs: renderer.orientationGlyphs,
+        deformation: renderer.results?.deformation,
+        colors: renderer.results?.colors,
+        glyphs: renderer.results?.glyphs,
       },
     },
   };

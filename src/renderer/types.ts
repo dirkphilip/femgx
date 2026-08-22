@@ -4,8 +4,6 @@ import type { Vec3 } from "../math/vec3";
 import type { Part } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { DeviceLostInfo } from "../platform/device";
-import type { DeformationState } from "../results/deform";
-import type { ResultColorMap } from "../results/colors";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import type { PartId } from "../geometry/part";
@@ -14,8 +12,10 @@ import type { InteractionGranularity } from "../picking/types";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { ElementRegionSelection } from "../interaction/element-region-selection";
 import type { SectionPlane } from "../math/section-plane";
-import type { OrientationGlyphState } from "./orientation-glyphs/orientation-glyph";
-import type { PartRevisionResultState } from "./attachment/part-revision-results";
+import type {
+  PartRevisionResultState,
+  RendererResultSnapshot,
+} from "./attachment/part-revision-results";
 
 /**
  * Built-in WebGPU viewport background presentations.
@@ -50,12 +50,8 @@ export interface WebGpuRenderer {
   ): void;
   /** Reconciles cached geometry before a viewport scene replacement. */
   resetScene(parts: ReadonlyMap<PartId, Part>): void;
-  /** Sets or clears the per-frame CPU deformation state. */
-  setDeformation(deformation: DeformationState | undefined): void;
-  /** Sets or clears authored scalar result colors. */
-  setResultColors(colors: ResultColorMap | undefined): void;
-  /** Sets or clears elemental orientation/load glyphs. */
-  setOrientationGlyphs(state: OrientationGlyphState | undefined): void;
+  /** Atomically publishes or clears the complete renderer-owned result snapshot. */
+  setResultSnapshot(results: RendererResultSnapshot | undefined): void;
   /** Sets or clears the single world-space scene clipping plane. */
   setSectionPlane(plane: SectionPlane | undefined): void;
   /** Writes only GPU subranges affected by changed instance slots. */

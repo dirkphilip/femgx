@@ -45,9 +45,7 @@ describe("Viewport", () => {
   it("clears every renderer result role during full scene replacement", async () => {
     installTestGpuGlobals();
     installNavigator();
-    const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
-    const setDeformation = vi.spyOn(GpuRenderer.prototype, "setDeformation");
-    const setResultColors = vi.spyOn(GpuRenderer.prototype, "setResultColors");
+    const setResultSnapshot = vi.spyOn(GpuRenderer.prototype, "setResultSnapshot");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(false),
@@ -55,14 +53,10 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    setOrientationGlyphs.mockClear();
-    setDeformation.mockClear();
-    setResultColors.mockClear();
+    setResultSnapshot.mockClear();
     viewport.replaceScene(scene());
 
-    expect(setOrientationGlyphs).toHaveBeenLastCalledWith(undefined);
-    expect(setDeformation).toHaveBeenLastCalledWith(undefined);
-    expect(setResultColors).toHaveBeenLastCalledWith(undefined);
+    expect(setResultSnapshot).toHaveBeenLastCalledWith(undefined);
     expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });
@@ -70,7 +64,7 @@ describe("Viewport", () => {
   it("resynchronizes compatible orientation results and clears incompatible ones", async () => {
     installTestGpuGlobals();
     installNavigator();
-    const setOrientationGlyphs = vi.spyOn(GpuRenderer.prototype, "setOrientationGlyphs");
+    const setResultSnapshot = vi.spyOn(GpuRenderer.prototype, "setResultSnapshot");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(false),
@@ -78,7 +72,7 @@ describe("Viewport", () => {
       device: fakeGpuDevice().device,
     });
 
-    setOrientationGlyphs.mockClear();
+    setResultSnapshot.mockClear();
     const compatiblePart = identityScene(false).parts.get(1);
     if (compatiblePart === undefined) throw new Error("test part is missing");
     expect(
@@ -88,10 +82,10 @@ describe("Viewport", () => {
     ).toEqual({
       results: "preserved",
     });
-    expect(setOrientationGlyphs).not.toHaveBeenCalled();
+    expect(setResultSnapshot).not.toHaveBeenCalled();
     expect(viewport.results.state?.orientation).toBeDefined();
 
-    setOrientationGlyphs.mockClear();
+    setResultSnapshot.mockClear();
     const incompatiblePart = scene().parts.get(1);
     if (incompatiblePart === undefined) throw new Error("test part is missing");
     expect(
@@ -101,7 +95,7 @@ describe("Viewport", () => {
     ).toMatchObject({
       results: "cleared",
     });
-    expect(setOrientationGlyphs).not.toHaveBeenCalled();
+    expect(setResultSnapshot).not.toHaveBeenCalled();
     expect(viewport.results.state).toBeUndefined();
     viewport.destroy();
   });

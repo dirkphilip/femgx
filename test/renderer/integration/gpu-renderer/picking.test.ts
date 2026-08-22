@@ -62,9 +62,10 @@ describe("WebGPU renderer", () => {
     await renderer.pick(150, 100);
     expect(gpu.drawCalls).toHaveLength(10);
 
-    renderer.setDeformation({
-      scale: 1,
-      displacements: new Map([[1, new Float32Array(9)]]),
+    renderer.setResultSnapshot({
+      deformation: { scale: 1, displacements: new Map([[1, new Float32Array(9)]]) },
+      colors: undefined,
+      glyphs: undefined,
     });
     renderer.render(runtime, movedCamera, scene.parts);
     await renderer.pick(150, 100);
@@ -87,7 +88,7 @@ describe("WebGPU renderer", () => {
       new Map([[1, { location: "nodal" as const, values: new Float32Array(16).fill(2) }]]),
       undefined,
     ]) {
-      renderer.setResultColors(colors);
+      renderer.setResultSnapshot({ deformation: undefined, colors, glyphs: undefined });
       renderer.render(runtime, camera, scene.parts);
       const drawCallsAfterVisibleRender = gpu.drawCalls.length;
       await renderer.pick(100, 100);

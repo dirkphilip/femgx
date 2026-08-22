@@ -4,8 +4,6 @@ import type { Part, PartId } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionGranularity, PickHit } from "../picking/types";
-import type { DeformationState } from "../results/deform";
-import type { ResultColorMap } from "../results/colors";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { RendererAttachment } from "./attachment";
@@ -19,10 +17,7 @@ import { GpuDeviceLifecycle } from "./recovery";
 import { writeBundleBackgroundColors } from "./frame/background";
 import type { GpuCostSnapshot } from "./diagnostics/cost";
 import type { SectionPlane } from "../math/section-plane";
-import {
-  syncOrientationGlyphs,
-  type OrientationGlyphState,
-} from "./orientation-glyphs/orientation-glyph";
+import { syncOrientationGlyphs } from "./orientation-glyphs/orientation-glyph";
 import { createEdgePickState, type EdgePickState } from "./edges/edge-picking";
 import { buildRendererFrameOptions, type RendererFrameOptionsOwner } from "./frame/frame-options";
 import { renderRendererFrame, type RendererFrameHost } from "./frame/render-frame";
@@ -36,7 +31,10 @@ import {
 } from "./diagnostics/timestamps";
 import type { GpuRendererConstruction } from "./renderer-construction";
 import { applyRendererPartRevision } from "./attachment/part-revision";
-import type { PartRevisionResultState } from "./attachment/part-revision-results";
+import type {
+  PartRevisionResultState,
+  RendererResultSnapshot,
+} from "./attachment/part-revision-results";
 import {
   applyRendererOccurrenceUpdate,
   commitRendererOccurrenceUpdate,
@@ -65,14 +63,12 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
   private edgesVisible = false;
   private nodesVisible = false;
   public orbitPivot: Vec3 | undefined;
-  public deformation: DeformationState | undefined;
-  public resultColors: ResultColorMap | undefined;
+  public results: RendererResultSnapshot | undefined;
   public sectionPlane: SectionPlane | undefined;
   public interaction = createInteractionState();
   public readonly sectionCaps = new SectionCapController();
   public timestampRecorder: GpuTimestampRecorder | undefined;
   private readonly timestampQueriesRequested: boolean;
-  public orientationGlyphs: OrientationGlyphState | undefined;
   public originTriadNominalScale = 1;
   public interactionNeedsRecoverySync = false;
   private destroyed = false;
@@ -128,44 +124,39 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
     destroyInstanceResources(this.lifecycle.bundle.draw);
     this.parts = new Map();
     this.lastCamera = this.sourceParts = undefined;
-    this.resultColors = this.deformation = undefined;
+    this.results = undefined;
     this.interaction = createInteractionState();
-    this.orientationGlyphs = undefined;
     this.picking.invalidate();
   }
 
-  public setDeformation(deformation: DeformationState | undefined): void {
+  public setResultSnapshot(results: RendererResultSnapshot | undefined): void {
     this.ensureAlive();
-    if (deformation !== undefined) validateDeformation(deformation);
-    if (this.deformation !== deformation) {
+    if (results?.deformation !== undefined) validateDeformation(results.deformation);
+    const previous = this.results;
+    const deformationChanged = previous?.deformation !== results?.deformation;
+    const colorsChanged = previous?.colors !== results?.colors;
+    const glyphsChanged = previous?.glyphs !== results?.glyphs;
+    if (!deformationChanged && !colorsChanged && !glyphsChanged) return;
+    if (deformationChanged) {
       this.picking.invalidate();
       this.sectionCaps.invalidate();
     }
-    this.deformation = deformation;
-  }
-
-  public setResultColors(colors: ResultColorMap | undefined): void {
-    this.ensureAlive();
-    if (this.resultColors === colors) return;
-    this.resultColors = colors;
-    this.sectionCaps.invalidate();
     const runtime = this.attachment.runtime;
     const layout = this.attachment.layout;
-    if (runtime !== undefined && layout !== undefined)
-      syncResultColors(this.lifecycle.bundle.draw, colors, runtime, layout);
-  }
-
-  public setOrientationGlyphs(state: OrientationGlyphState | undefined): void {
-    this.ensureAlive();
-    if (this.attachment.runtime !== undefined && this.attachment.layout !== undefined) {
+    if (glyphsChanged && runtime !== undefined && layout !== undefined) {
       syncOrientationGlyphs(
         this.lifecycle.bundle.draw.orientationGlyphs,
-        state,
-        this.attachment.runtime,
-        this.attachment.layout,
+        results?.glyphs,
+        runtime,
+        layout,
       );
     }
-    this.orientationGlyphs = state;
+    if (colorsChanged) {
+      this.sectionCaps.invalidate();
+      if (runtime !== undefined && layout !== undefined)
+        syncResultColors(this.lifecycle.bundle.draw, results?.colors, runtime, layout);
+    }
+    this.results = results;
   }
 
   public setSectionPlane(plane: SectionPlane | undefined): void {
@@ -252,15 +243,13 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
         partIds,
         results,
         plane: this.sectionPlane,
-        deformation: results?.deformation ?? this.deformation,
-        resultColors: results?.colors ?? this.resultColors,
+        deformation: results?.deformation ?? this.results?.deformation,
+        resultColors: results?.colors ?? this.results?.colors,
       },
     );
     if (results !== undefined) {
-      this.deformation = results.deformation;
-      this.resultColors = results.colors;
-      // The revision transaction already synchronized only changed glyph bindings.
-      this.orientationGlyphs = results.glyphs;
+      // The revision transaction already synchronized only changed result bindings.
+      this.results = results;
     }
     this.interaction = interaction;
     this.picking.invalidate();
@@ -417,7 +406,7 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
       );
       this.attachment.clear(this.lifecycle.bundle);
       this.interactionNeedsRecoverySync = true;
-      this.sectionCaps.recover(this.parts, this.resultColors);
+      this.sectionCaps.recover(this.parts, this.results?.colors);
       this.picking.resetAfterRecovery();
       writeBundleBackgroundColors(this.lifecycle.bundle, this.background);
     }
@@ -435,8 +424,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
       parts: this.parts,
       plane: this.sectionPlane,
       interaction: this.interaction,
-      deformation: this.deformation,
-      resultColors: this.resultColors,
+      deformation: this.results?.deformation,
+      resultColors: this.results?.colors,
       draw: this.lifecycle.bundle.draw,
     });
   }

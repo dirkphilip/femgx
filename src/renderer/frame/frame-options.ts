@@ -1,7 +1,6 @@
 import type { SectionPlane } from "../../math/section-plane";
-import type { DeformationState } from "../../results/deform";
-import type { GpuBundle } from "../recovery";
-import type { GpuDeviceLifecycle } from "../recovery";
+import type { GpuBundle, GpuDeviceLifecycle } from "../recovery";
+import type { RendererResultSnapshot } from "../attachment/part-revision-results";
 import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
@@ -36,7 +35,7 @@ interface FrameOptionSources {
   readonly edgeDepthTest: boolean;
   readonly pointSize: number;
   readonly nodeSize: number;
-  readonly deformation: DeformationState | undefined;
+  readonly deformation: RendererResultSnapshot["deformation"];
   readonly sectionPlane: SectionPlane | undefined;
   readonly resultColors: ResultColorMap | undefined;
   readonly orbitPivot: readonly [number, number, number] | undefined;
@@ -56,7 +55,7 @@ export interface RendererFrameOptionsOwner {
   readonly edgeDepthTest: boolean;
   readonly pointSize: number;
   readonly nodeSize: number;
-  readonly deformation: DeformationState | undefined;
+  readonly results: RendererResultSnapshot | undefined;
   readonly sectionPlane: SectionPlane | undefined;
   readonly sectionCaps: FrameOptionSources["sectionCaps"] & {
     readonly resultColors: ResultColorMap | undefined;
@@ -79,7 +78,7 @@ export function buildRendererFrameOptions(owner: RendererFrameOptionsOwner): Fra
     edgeDepthTest: owner.edgeDepthTest,
     pointSize: owner.pointSize,
     nodeSize: owner.nodeSize,
-    deformation: owner.deformation,
+    deformation: owner.results?.deformation,
     sectionPlane: owner.sectionPlane,
     resultColors: owner.sectionCaps.resultColors,
     sectionCaps: owner.sectionCaps,
