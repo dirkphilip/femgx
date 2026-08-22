@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { createElement, type Element } from "../../src/elements/element";
 import {
   createElementModel,
-  elementModelMembership,
   type ElementModelOptions,
   ElementModelValidationError,
 } from "../../src/elements/model";
@@ -32,6 +31,14 @@ describe("createElementModel authored bodies", () => {
     expect(Array.isArray(authored.elements)).toBe(false);
     expect(authored.elements.count).toBe(2);
     expect(authored.elements.at(0)).not.toBe(authored.elements.at(0));
+    expect(authored.elements.at(-1)?.id).toBe(2);
+    expect(authored.elements.at(-3)).toBeUndefined();
+    expect(
+      [...authored.elements.entries()].map(([ordinal, element]) => [ordinal, element.id]),
+    ).toEqual([
+      [0, 1],
+      [1, 2],
+    ]);
     expect(authored.elements.get(2)?.nodeIds).toEqual([2, 3]);
   });
 
@@ -40,7 +47,6 @@ describe("createElementModel authored bodies", () => {
 
     expect(Array.isArray(direct.bodies)).toBe(false);
     expect([...(direct.bodies ?? [])]).toEqual([{ id: 4, name: "surface", elementIds: [1] }]);
-    expect(elementModelMembership(direct).bodyIdForElement(1)).toBe(4);
   });
 
   it("copies authored arrays so later host mutation cannot alter the model", () => {
@@ -75,7 +81,6 @@ describe("createElementModel authored bodies", () => {
   it("has no direct body ownership when bodies are omitted", () => {
     const direct = model();
     expect(direct.bodies).toBeUndefined();
-    expect(elementModelMembership(direct).bodyIdForElement(1)).toBeUndefined();
     expect(elementModelStorage(direct).bodyIds).toBeUndefined();
   });
 
