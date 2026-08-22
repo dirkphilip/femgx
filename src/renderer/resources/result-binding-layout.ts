@@ -22,7 +22,7 @@ export function partResultBindings<Value>(
   partScope?: ReadonlySet<PartId>,
 ): readonly PartResultBindings<Value>[] {
   const overrides = occurrenceOverrides(source, runtime, layout, partScope);
-  const partIds = new Set<PartId>(partScope ?? runtime.sortedPartIds);
+  const partIds = new Set<PartId>(partScope ?? runtime.getPartIds());
   for (const binding of source.keys()) {
     if (typeof binding === "number" && (partScope === undefined || partScope.has(binding))) {
       partIds.add(binding);

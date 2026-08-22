@@ -2,7 +2,6 @@ import type { Scene } from "../scene/scene";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
 import { buildSceneDrafts, type InstanceDraft, type NodeDraft } from "./drafts";
 import { invariantValue } from "./invariants";
-import type { KeyedGroupIndex } from "./group-index";
 import { SlotGroups } from "./slot-groups";
 
 /**
@@ -44,7 +43,6 @@ export interface RuntimeState {
   readonly instanceFreeSlots: number[];
   readonly partInstanceGroups: SlotGroups;
   readonly nodeInstanceGroups: SlotGroups;
-  sortedPartIds: Uint32Array;
   /** Mutable definition-to-expanded-node membership for hierarchy deltas. */
   readonly assemblyNodeGroups: SlotGroups;
   /** Direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
@@ -166,35 +164,6 @@ function packInstances(instances: readonly InstanceDraft[]): PackedInstances {
   };
 }
 
-function buildGroups(keys: ArrayLike<number>): KeyedGroupIndex {
-  const order = Array.from(keys, (_, index) => index);
-  order.sort((a, b) => {
-    const keyA = invariantValue(keys[a], `group key at ${a}`);
-    const keyB = invariantValue(keys[b], `group key at ${b}`);
-    return keyA - keyB || a - b;
-  });
-  const sortedKeys: number[] = [];
-  const offset: number[] = [];
-  const list: number[] = [];
-  let previousKey: number | undefined;
-  for (let i = 0; i < order.length; i++) {
-    const index = invariantValue(order[i], `group order index at ${i}`);
-    const key = invariantValue(keys[index], `group key at ${index}`);
-    if (previousKey === undefined || key !== previousKey) {
-      sortedKeys.push(key);
-      offset.push(list.length);
-      previousKey = key;
-    }
-    list.push(index);
-  }
-  offset.push(list.length);
-  return {
-    sortedKeys: new Uint32Array(sortedKeys),
-    offsets: new Uint32Array(offset),
-    list: new Uint32Array(list),
-  };
-}
-
 /**
  * Compiles a validated authoring scene into packed, deterministic runtime
  * storage.
@@ -203,12 +172,10 @@ export function compileSceneState(scene: Scene): RuntimeState {
   const { nodes, instances } = buildSceneDrafts(scene);
   const nodeData = packNodes(nodes);
   const instanceData = packInstances(instances);
-  const partGroups = buildGroups(instanceData.instancePartIds);
   const state: RuntimeState = {
     rootAssemblyId: scene.rootAssemblyId,
     ...nodeData,
     ...instanceData,
-    sortedPartIds: partGroups.sortedKeys,
     assemblyNodeGroups: new SlotGroups(nodeData.nodeAssemblyIds),
     nodePlacementOrder: [],
   };
