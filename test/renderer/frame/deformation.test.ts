@@ -270,7 +270,7 @@ describe("syncDeformations", () => {
       const shared = new Float32Array([1, 2, 3]);
       const override = new Float32Array([4, 5, 6]);
       const runtime = {
-        sortedPartIds: new Uint32Array([1]),
+        getPartIds: () => new Uint32Array([1]),
         getInstanceSlot: (id: string) => (id === "1/right" ? 1 : undefined),
         getPartId: () => 1,
       } as never;

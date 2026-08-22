@@ -61,7 +61,7 @@ export function buildInstanceLayout(
 ): InstanceLayout {
   const instanceCount = runtime.instanceCount;
   const slotPartLocal = new Int32Array(instanceCount).fill(-1);
-  const partOrder = Array.from(runtime.sortedPartIds);
+  const partOrder = Array.from(runtime.getPartIds());
   const partSlots = new Map<PartId, Uint32Array>();
   for (const partId of partOrder) {
     const slots = runtime.getPartInstanceSlots(partId);

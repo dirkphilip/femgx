@@ -28,7 +28,7 @@ describe("createPackedSceneRuntime", () => {
     );
     const runtime = createPackedSceneRuntime(scene);
     expect(runtime.instancePartIds[0]).toBe(MAX_PART_ID);
-    expect(runtime.sortedPartIds[0]).toBe(MAX_PART_ID);
+    expect(runtime.getPartIds()[0]).toBe(MAX_PART_ID);
     expect(runtime.getPartId(0)).toBe(MAX_PART_ID);
   });
 

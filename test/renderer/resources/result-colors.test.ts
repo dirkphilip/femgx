@@ -70,7 +70,7 @@ describe("dense result color storage", () => {
       const shared = { location: "elemental" as const, values: new Float32Array(8) };
       const override = { location: "elemental" as const, values: new Float32Array(8).fill(1) };
       const runtime = {
-        sortedPartIds: new Uint32Array([7]),
+        getPartIds: () => new Uint32Array([7]),
         getInstanceSlot: (id: string) => (id === "1/right" ? 1 : undefined),
         getPartId: () => 7,
       } as never;

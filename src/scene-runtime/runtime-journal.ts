@@ -169,7 +169,6 @@ interface RuntimeSnapshot {
   readonly activeInstanceCount: number;
   readonly instanceCapacity: number;
   readonly visibleCount: number;
-  readonly sortedPartIds: Uint32Array;
   readonly arrays: Pick<
     RuntimeState,
     | "nodeAssemblyIds"
@@ -203,7 +202,6 @@ function snapshotRuntime(state: RuntimeState): RuntimeSnapshot {
     activeInstanceCount: state.activeInstanceCount,
     instanceCapacity: state.instanceCapacity,
     visibleCount: state.visibleCount,
-    sortedPartIds: state.sortedPartIds,
     arrays: {
       nodeAssemblyIds: state.nodeAssemblyIds,
       nodeWorldTransforms: state.nodeWorldTransforms,
@@ -237,7 +235,6 @@ function restoreRuntime(state: RuntimeState, before: RuntimeSnapshot): void {
     activeInstanceCount: before.activeInstanceCount,
     instanceCapacity: before.instanceCapacity,
     visibleCount: before.visibleCount,
-    sortedPartIds: before.sortedPartIds,
   });
   state.nodeNodeIds.length = before.nodeCapacity;
   state.nodePlacementOrder.length = before.nodeCapacity;

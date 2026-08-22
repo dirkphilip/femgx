@@ -19,12 +19,6 @@ import {
   setPartVisible,
   type VisibilityDelta,
 } from "./visibility";
-import {
-  insertSortedPartId,
-  mergeSortedPartIds,
-  removeSortedPartId,
-  removeSortedPartIds,
-} from "./sorted-part-ids";
 import { createRuntimeJournalOwner, type RuntimeJournalOwner } from "./runtime-journal";
 
 /**
@@ -55,6 +49,8 @@ interface RuntimeMethods {
   isInstanceVisible(instanceId: number): boolean;
   /** Returns the precomputed instance slots belonging to a part. */
   getPartInstanceSlots(partId: PartId): Uint32Array;
+  /** Returns placed part ids in ascending order. */
+  getPartIds(): PartIdView;
   /** Returns direct placed-part slots owned by one expanded assembly node. */
   getNodeInstanceSlots(nodeId: number): readonly number[];
   /** Returns direct part/assembly slots in authored order; assembly slots are bitwise-not encoded. */
@@ -194,6 +190,9 @@ function createRuntimeQueries(state: RuntimeState, maps: RuntimeMaps): RuntimeQu
     getPartInstanceSlots(partId: PartId): Uint32Array {
       return new Uint32Array(state.partInstanceGroups.slots(partId));
     },
+    getPartIds(): PartIdView {
+      return state.partInstanceGroups.sortedKeys();
+    },
     getNodeInstanceSlots(nodeId: number): readonly number[] {
       return state.nodeInstanceGroups.slots(nodeId);
     },
@@ -294,6 +293,8 @@ function createVisibilityMutations(state: RuntimeState) {
   };
 }
 
+type PartIdView = ArrayLike<PartId> & Iterable<PartId>;
+
 function addRuntimeInstance(
   state: RuntimeState,
   maps: RuntimeMaps,
@@ -321,14 +322,9 @@ function addRuntimeInstances(
   journal: RuntimeJournalOwner,
 ): readonly number[] {
   const slots = new Array<number>(inputs.length);
-  const addedPartIds = new Set<PartId>();
   for (let index = 0; index < inputs.length; index += 1) {
     const input = invariantValue(inputs[index], `added instance at ${index}`);
-    if (state.partInstanceGroups.slots(input.partId).length === 0) addedPartIds.add(input.partId);
     slots[index] = addRuntimeInstance(state, maps, input, journal);
-  }
-  if (addedPartIds.size > 0) {
-    state.sortedPartIds = mergeSortedPartIds(state.sortedPartIds, addedPartIds);
   }
   return slots;
 }
@@ -360,19 +356,9 @@ function removeRuntimeInstances(
   instanceIds: readonly number[],
   journal: RuntimeJournalOwner,
 ): void {
-  const removedPartIds = new Set<PartId>();
   for (const instanceId of instanceIds) {
     if (!isActive(state, instanceId)) throw new Error(`Instance slot ${instanceId} is inactive`);
-    const partId = invariantValue(state.instancePartIds[instanceId], `part at ${instanceId}`);
-    removedPartIds.add(partId);
     removeRuntimeInstance(state, maps, instanceId, journal);
-  }
-  const emptiedPartIds = new Set<PartId>();
-  for (const partId of removedPartIds) {
-    if (state.partInstanceGroups.slots(partId).length === 0) emptiedPartIds.add(partId);
-  }
-  if (emptiedPartIds.size > 0) {
-    state.sortedPartIds = removeSortedPartIds(state.sortedPartIds, emptiedPartIds);
   }
 }
 
@@ -390,12 +376,7 @@ function updateRuntimeInstance(
   const wasVisible = state.instanceVisible[instanceId] === 1;
   if (previousPart !== input.partId) {
     state.partInstanceGroups.remove(previousPart, instanceId);
-    if (state.partInstanceGroups.slots(previousPart).length === 0) {
-      state.sortedPartIds = removeSortedPartId(state.sortedPartIds, previousPart);
-    }
-    const newPart = state.partInstanceGroups.slots(input.partId).length === 0;
     state.partInstanceGroups.add(input.partId, instanceId);
-    if (newPart) state.sortedPartIds = insertSortedPartId(state.sortedPartIds, input.partId);
   }
   if (previousNode !== input.owningNode) {
     state.nodeInstanceGroups.remove(previousNode, instanceId);

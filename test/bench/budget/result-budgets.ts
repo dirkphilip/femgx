@@ -13,7 +13,7 @@ for (let slot = 0; slot < OCCURRENCE_COUNT; slot += 1) {
   if (slot % OVERRIDE_STRIDE === 0) source.set(id, override);
 }
 const runtime = {
-  sortedPartIds: new Uint32Array([1]),
+  getPartIds: () => new Uint32Array([1]),
   getInstanceSlot: (id: string) => instanceSlots.get(id),
   getPartId: () => 1,
 } as never;

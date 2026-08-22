@@ -2,6 +2,7 @@
 export class SlotGroups {
   private readonly groups = new Map<number, number[]>();
   private positions: Int32Array;
+  private sortedKeyView: Uint32Array | undefined;
   private journal: SlotGroupJournal | undefined;
 
   constructor(keys: ArrayLike<number>) {
@@ -16,10 +17,12 @@ export class SlotGroups {
     this.capture(key, slot);
     this.reserve(slot + 1);
     if ((this.positions[slot] ?? -1) >= 0) throw new Error(`Slot ${slot} already has a group`);
+    const isNewKey = !this.groups.has(key);
     const group = this.groups.get(key) ?? [];
     this.positions[slot] = group.length;
     group.push(slot);
     this.groups.set(key, group);
+    if (isNewKey) this.sortedKeyView = undefined;
   }
 
   remove(key: number, slot: number): void {
@@ -35,17 +38,34 @@ export class SlotGroups {
       this.positions[last] = position;
     }
     this.positions[slot] = -1;
-    if (group.length === 0) this.groups.delete(key);
+    if (group.length === 0) {
+      this.groups.delete(key);
+      this.sortedKeyView = undefined;
+    }
   }
 
   slots(key: number): readonly number[] {
     return this.groups.get(key) ?? EMPTY_SLOTS;
   }
 
+  /** Returns the distinct group keys in ascending order. */
+  sortedKeys(): SortedKeyView {
+    if (this.sortedKeyView === undefined) {
+      this.sortedKeyView = Uint32Array.from(
+        [...this.groups.keys()].sort((left, right) => left - right),
+      );
+    }
+    return this.sortedKeyView;
+  }
+
   /** Starts one sparse rollback journal for changed group keys. */
   beginJournal(): void {
     if (this.journal !== undefined) throw new Error("A slot-group journal is already active");
-    this.journal = { positions: this.positions, groups: new Map() };
+    this.journal = {
+      positions: this.positions,
+      sortedKeyView: this.sortedKeyView,
+      groups: new Map(),
+    };
   }
 
   /** Keeps mutations recorded since {@link beginJournal}. */
@@ -64,6 +84,7 @@ export class SlotGroups {
       else this.groups.set(key, [...before]);
     }
     this.positions = journal.positions;
+    this.sortedKeyView = journal.sortedKeyView;
     for (const before of journal.groups.values()) {
       if (before === undefined) continue;
       for (let index = 0; index < before.length; index += 1) {
@@ -94,7 +115,10 @@ export class SlotGroups {
 
 interface SlotGroupJournal {
   readonly positions: Int32Array;
+  readonly sortedKeyView: Uint32Array | undefined;
   readonly groups: Map<number, readonly number[] | undefined>;
 }
+
+type SortedKeyView = ArrayLike<number> & Iterable<number>;
 
 const EMPTY_SLOTS: readonly number[] = [];
