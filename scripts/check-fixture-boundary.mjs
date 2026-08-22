@@ -5,8 +5,7 @@ const repositoryRoot = process.argv[2]
   ? resolve(process.argv[2])
   : resolve(import.meta.dirname, "..");
 const fixtureRoot = join(repositoryRoot, "fixtures");
-const importPattern =
-  /\b(?:from|import\s*\(|export\s+(?:\*|\{[^}]*\})\s+from)\s*["']([^"']+)["']/gu;
+const importPattern = /\b(?:import\s*\(\s*|import\s+|from\s+)["']([^"']+)["']/gu;
 const packageSpecifiers = new Set(["femgx", "femgx/model"]);
 const sourceFilePattern = /\.(?:cjs|cts|js|jsx|mjs|mts|svelte|ts|tsx)$/u;
 

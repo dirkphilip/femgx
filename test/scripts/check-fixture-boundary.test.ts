@@ -40,4 +40,20 @@ describe("check-fixture-boundary", () => {
     expect(result.stderr).toContain("unauthorized fixture import");
     expect(result.stderr).toContain("library source cannot import repository fixtures");
   });
+
+  it("rejects every supported TypeScript re-export form", () => {
+    const result = runFixtureBoundary({
+      "fixtures/fe/reexports.mts": [
+        'export * as demoNamespace from "../../demo/workbench/models/model";',
+        'export type * from "../../demo/workbench/models/model";',
+        'export type * as demoTypes from "../../demo/workbench/models/model";',
+        'export type { createSceneBuilder } from "../../demo/workbench/models/model";',
+      ].join("\n"),
+      "src/scene/scene.ts": 'export type { value } from "../../fixtures/fe/support";\n',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.match(/unauthorized fixture import/g)).toHaveLength(4);
+    expect(result.stderr).toContain("library source cannot import repository fixtures");
+  });
 });
