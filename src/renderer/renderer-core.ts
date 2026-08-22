@@ -5,7 +5,6 @@ import { createInteractionState, type InteractionState } from "../interaction/in
 import type { BoxSelectionRect } from "../interaction/box-selection";
 import type { InteractionGranularity, PickHit } from "../picking/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
-import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { RendererAttachment } from "./attachment";
 import { prepareAddedAttachmentParts } from "./attachment/part-definitions";
 import { destroyInstanceResources } from "./resources/draw-resources";
@@ -36,7 +35,6 @@ import type {
   RendererResultSnapshot,
 } from "./attachment/part-revision-results";
 import {
-  applyRendererOccurrenceUpdate,
   commitRendererOccurrenceUpdate,
   discardRendererOccurrenceUpdate,
   prepareRendererOccurrenceUpdate,
@@ -183,16 +181,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
     if (changed) this.sectionCaps.invalidate();
     this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
     if (changed) this.picking.invalidate();
-  }
-
-  public updateOccurrences(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    delta: RuntimeOccurrenceDelta,
-    parts: ReadonlyMap<PartId, Part>,
-  ): void {
-    this.ensureAlive();
-    applyRendererOccurrenceUpdate(this, runtime, interaction, delta, parts);
   }
 
   /** Completes all fallible placement allocations without changing live renderer state. */

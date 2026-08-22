@@ -10,6 +10,7 @@ import {
   type InstanceStorage,
 } from "@/renderer/resources/instance-storage";
 import { uploadPart } from "@/renderer/resources/draw-resources";
+import { prepareAttachmentOccurrenceUpdate } from "@/renderer/attachment/occurrence-transaction";
 import { defaultStyle } from "@/renderer/resources/foundation";
 import {
   applyOccurrenceMutations,
@@ -85,13 +86,18 @@ describe("cold renderer attachment", () => {
 
       const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
       const partDefinitions = new Map(scene.parts);
-      attachment.updateOccurrences(
+      const preparedAttachment = prepareAttachmentOccurrenceUpdate({
+        attachment,
         runtime,
-        createInteractionState(),
+        interaction: createInteractionState(),
         delta,
-        partDefinitions,
+        sourceParts: partDefinitions,
+        parts: prepared.scene.parts,
         bundle,
-      );
+        edgesVisible: attachment.edgesVisible,
+        nodesVisible: attachment.nodesVisible,
+      });
+      preparedAttachment.commit();
 
       expect(bundle.draw.parts.has(1)).toBe(false);
       expect(partDefinitions.has(1)).toBe(false);
@@ -156,14 +162,19 @@ describe("cold renderer attachment", () => {
       const writesBefore = gpu.writes.length;
 
       const delta = applyOccurrenceMutations(runtime, occurrenceUpdate);
-      attachment.addParts(prepared.scene.parts, delta.addedPartIds);
-      attachment.updateOccurrences(
+      const sourceParts = new Map(scene.parts);
+      const preparedAttachment = prepareAttachmentOccurrenceUpdate({
+        attachment,
         runtime,
-        createInteractionState(),
+        interaction: createInteractionState(),
         delta,
-        new Map(prepared.scene.parts),
+        sourceParts,
+        parts: prepared.scene.parts,
         bundle,
-      );
+        edgesVisible: attachment.edgesVisible,
+        nodesVisible: attachment.nodesVisible,
+      });
+      preparedAttachment.commit();
       const addedGeometry = uploadPart(bundle.draw, addedPart);
 
       expect(uploadPart(bundle.draw, addedPart)).toBe(addedGeometry);

@@ -10,6 +10,7 @@ import {
   isTargetSelected,
   identityScene,
   nodalResult,
+  GpuRenderer,
   RendererAttachment,
   resultScene,
   setPartOverride,
@@ -18,6 +19,49 @@ import {
 } from "./support";
 
 describe("Viewport incremental part occurrences", () => {
+  it("rolls back runtime and renderer state when prepared placement resources fail", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    let fail = false;
+    const gpu = fakeGpuDevice({
+      onCreateBuffer: (_creation, descriptor) => {
+        if (fail && descriptor.label === "femgx instance order") {
+          throw new Error("injected occurrence order allocation failure");
+        }
+      },
+    });
+    const scene = identityScene(false);
+    const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
+    viewport.visibility.setPartOccurrenceVisible("1/keep", false);
+    viewport.render();
+    const bufferStart = gpu.buffers.length;
+    const writeStart = gpu.writes.length;
+    const liveBuffers = new Set(gpu.buffers.map(({ resource }) => resource));
+    fail = true;
+
+    expect(() =>
+      viewport.updateScene((update) => {
+        update.addPlacement(1, {
+          kind: "part",
+          placementId: "failed",
+          partId: 1,
+          transform: translationMatrix(3, 0, 0),
+        });
+      }),
+    ).toThrow("injected occurrence order allocation failure");
+
+    expect(viewport.scene).toBe(scene);
+    expect(viewport.occurrences.getPartOccurrence("1/failed")).toBeUndefined();
+    expect(viewport.occurrences.isPartOccurrenceVisible("1/keep")).toBe(false);
+    expect(gpu.buffers.slice(bufferStart).some(({ destroyed }) => destroyed)).toBe(true);
+    expect(gpu.writes.slice(writeStart).some(({ buffer }) => liveBuffers.has(buffer))).toBe(false);
+    fail = false;
+    expect(() => {
+      viewport.render();
+    }).not.toThrow();
+    viewport.destroy();
+  });
+
   it("admits an unplaced definition without broad attachment preparation", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -28,7 +72,7 @@ describe("Viewport incremental part occurrences", () => {
     });
     viewport.render();
     const occurrences = viewport.occurrences;
-    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const prepareOccurrenceUpdate = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
     const added = createPart(2, {
       geometries: [
         {
@@ -45,7 +89,7 @@ describe("Viewport incremental part occurrences", () => {
 
     expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.get(2)).toBe(added);
-    expect(updateOccurrences).not.toHaveBeenCalled();
+    expect(prepareOccurrenceUpdate).toHaveBeenCalledTimes(1);
     viewport.destroy();
   });
 
@@ -60,7 +104,8 @@ describe("Viewport incremental part occurrences", () => {
     viewport.render();
     const occurrences = viewport.occurrences;
     const prepareParts = vi.spyOn(RendererAttachment.prototype, "prepareParts");
-    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const prepareOccurrenceUpdate = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
+    prepareOccurrenceUpdate.mockClear();
     const added = createPart(2, {
       geometries: [
         {
@@ -85,7 +130,7 @@ describe("Viewport incremental part occurrences", () => {
     expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.get(2)).toBe(added);
     expect(viewport.occurrences.getPartId("1/new-part")).toBe(2);
-    expect(updateOccurrences).toHaveBeenCalledTimes(1);
+    expect(prepareOccurrenceUpdate).toHaveBeenCalledTimes(1);
     expect(prepareParts).not.toHaveBeenCalled();
     viewport.destroy();
   });
@@ -107,7 +152,7 @@ describe("Viewport incremental part occurrences", () => {
         { kind: "part", placementId: "keep", partId: 1, transform: translationMatrix(1, 0, 0) },
       ],
     );
-    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const prepareOccurrenceUpdate = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
     const clear = vi.spyOn(RendererAttachment.prototype, "clear");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
@@ -115,7 +160,7 @@ describe("Viewport incremental part occurrences", () => {
       device: fakeGpuDevice().device,
     });
     viewport.render();
-    updateOccurrences.mockClear();
+    prepareOccurrenceUpdate.mockClear();
     clear.mockClear();
 
     viewport.updateScene((update) => {
@@ -139,7 +184,7 @@ describe("Viewport incremental part occurrences", () => {
     expect(viewport.occurrences.getPartId("1/keep")).toBe(2);
     expect(viewport.occurrences.getPartId("1/added")).toBe(2);
     expect(viewport.occurrences.getPartOccurrence("1/remove")).toBeUndefined();
-    expect(updateOccurrences).toHaveBeenCalledTimes(1);
+    expect(prepareOccurrenceUpdate).toHaveBeenCalledTimes(1);
     expect(clear).not.toHaveBeenCalled();
     viewport.destroy();
   });
@@ -147,7 +192,7 @@ describe("Viewport incremental part occurrences", () => {
   it("retains optional edge, node, and transparency orders for changed occurrences", async () => {
     installTestGpuGlobals();
     installNavigator();
-    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const prepareOccurrenceUpdate = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: identityScene(false),
@@ -161,7 +206,7 @@ describe("Viewport incremental part occurrences", () => {
     viewport.presentation.setEdgesVisible(true);
     viewport.presentation.setNodesVisible(true);
     viewport.render();
-    updateOccurrences.mockClear();
+    prepareOccurrenceUpdate.mockClear();
 
     viewport.updateScene((update) => {
       update.removePlacement(1, "keep");
@@ -173,7 +218,8 @@ describe("Viewport incremental part occurrences", () => {
       });
     });
 
-    const attachment = updateOccurrences.mock.instances[0] as RendererAttachment | undefined;
+    const renderer = prepareOccurrenceUpdate.mock.instances[0] as GpuRenderer | undefined;
+    const attachment = renderer?.attachment;
     expect(attachment?.edgeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.nodeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
     expect(attachment?.transparentCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
@@ -249,7 +295,7 @@ describe("Viewport incremental part occurrences", () => {
       ],
     );
     const gpu = fakeGpuDevice();
-    const updateOccurrences = vi.spyOn(RendererAttachment.prototype, "updateOccurrences");
+    const prepareOccurrenceUpdate = vi.spyOn(GpuRenderer.prototype, "prepareOccurrenceUpdate");
     const clear = vi.spyOn(RendererAttachment.prototype, "clear");
     const viewport = await createViewport({ canvas: fakeCanvas(), scene, device: gpu.device });
     viewport.render();
@@ -261,14 +307,15 @@ describe("Viewport incremental part occurrences", () => {
     );
     interaction = setTargetSelected(interaction, { kind: "part", partId: 2 }, true);
     viewport.interaction.set(interaction);
-    updateOccurrences.mockClear();
+    prepareOccurrenceUpdate.mockClear();
     clear.mockClear();
 
     viewport.updateScene((update) => {
       update.removePart(1, { placements: "remove" });
     });
 
-    const attachment = updateOccurrences.mock.instances[0] as RendererAttachment | undefined;
+    const renderer = prepareOccurrenceUpdate.mock.instances[0] as GpuRenderer | undefined;
+    const attachment = renderer?.attachment;
     expect(viewport.occurrences).toBe(occurrences);
     expect(viewport.scene.parts.has(1)).toBe(false);
     expect(viewport.occurrences.getPartOccurrence("1/removed")).toBeUndefined();
@@ -277,7 +324,7 @@ describe("Viewport incremental part occurrences", () => {
     expect(isTargetSelected(viewport.interaction.state, { kind: "part", partId: 2 })).toBe(true);
     expect(attachment?.layout?.partOrder).toEqual([2]);
     expect(attachment?.calls).toEqual([{ partId: 2, instanceCount: 1 }]);
-    expect(updateOccurrences).toHaveBeenCalledTimes(1);
+    expect(prepareOccurrenceUpdate).toHaveBeenCalledTimes(1);
     expect(clear).not.toHaveBeenCalled();
     expect(gpu.buffers.some((buffer) => buffer.destroyed)).toBe(true);
     expect(gpu.buffers.some((buffer) => !buffer.destroyed)).toBe(true);

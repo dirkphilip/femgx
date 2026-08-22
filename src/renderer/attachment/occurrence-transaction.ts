@@ -211,6 +211,7 @@ function stageOccurrenceChanges(options: {
     interaction: options.interaction,
     state,
     edgesVisible: options.edgesVisible,
+    nodesVisible: options.nodesVisible,
     draw: options.draw,
   });
   const bundle = { ...options.bundle, device: options.draw.device, draw: options.draw };

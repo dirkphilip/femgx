@@ -4,10 +4,7 @@ import { withInteractionVisibility } from "../interaction/state";
 import { createPackedSceneRuntime, type PackedSceneRuntime } from "../scene-runtime/runtime";
 import { createSceneOccurrences, type SceneOccurrences } from "../scene-runtime/occurrences";
 import { applyTransformPatch, prepareTransformPatch } from "../scene-runtime/transform-update";
-import {
-  applyOccurrenceMutations,
-  prepareOccurrenceMutations,
-} from "../scene-runtime/occurrence-update";
+import { prepareOccurrenceMutations } from "../scene-runtime/occurrence-update";
 import { isHierarchyNoop, prepareHierarchyMutations } from "../scene-runtime/hierarchy-update";
 import type { Scene } from "../scene/scene";
 import { prepareSceneTransition, type SceneUpdate } from "../scene/update";
@@ -21,7 +18,7 @@ import {
   partRevisionResultState,
 } from "./results/application";
 import { reconcileInteractionState } from "./scene-reconciliation";
-import { preparePartRevisionResults, prepareSceneResults } from "./results/scene-transition";
+import { preparePartRevisionResults } from "./results/scene-transition";
 import { ViewportVisibilityState } from "./visibility/state";
 import { prepareSceneReplacement } from "./core/scene-replacement";
 import {
@@ -29,6 +26,7 @@ import {
   prepareHierarchyRendererUpdate,
   reconcileHierarchyState,
 } from "./core/hierarchy-scene";
+import { applySceneOccurrenceUpdate } from "./core/occurrence-scene";
 import type { WebGpuRenderer } from "../renderer/gpu-renderer";
 import type { SceneUpdateOutcome } from "./types";
 
@@ -212,41 +210,24 @@ export class ViewportSceneController {
     mutations: NonNullable<ReturnType<typeof prepareOccurrenceMutations>>,
     cancelCamera: () => void,
   ): SceneUpdateResult {
-    this.options.renderer.preparePartAdditions(scene.parts, mutations.addedPartIds);
-    cancelCamera();
-    const delta = applyOccurrenceMutations(this.currentRuntime, mutations);
-    this.currentVisibility.prunePartOccurrences(delta.removedOccurrenceSlots);
-    this.currentVisibility.pruneParts(delta.removedPartIds);
-    this.currentVisibility.admitParts(scene, delta.addedPartIds);
-    this.currentVisibility.reconcilePrimitiveVisibility(scene, this.currentRuntime);
-    const nextInteraction = reconcileInteractionState(
-      this.baseInteraction,
-      this.currentRuntime,
-      scene.parts,
-    );
-    const resultUpdate = prepareSceneResults(this.currentResults, scene, this.currentRuntime);
-    const nextRenderInteraction = withInteractionVisibility(
-      nextInteraction,
-      this.currentVisibility.interactionVisibility(),
-    );
-    this.options.renderer.updateOccurrences(
-      this.currentRuntime,
-      nextRenderInteraction,
-      delta,
-      scene.parts,
-    );
+    const update = applySceneOccurrenceUpdate({
+      renderer: this.options.renderer,
+      runtime: this.currentRuntime,
+      scene,
+      mutations,
+      visibility: this.currentVisibility,
+      interaction: this.baseInteraction,
+      results: this.currentResults,
+      placedBounds: this.placedBounds,
+      cancelCamera,
+    });
+    this.currentVisibility = update.visibility;
+    this.baseInteraction = update.interaction;
+    this.renderInteraction = update.renderInteraction;
+    this.currentResults = update.results;
     this.currentScene = scene;
-    this.baseInteraction = nextInteraction;
-    this.renderInteraction = nextRenderInteraction;
-    this.currentResults = resultUpdate.results;
-    this.placedBounds.updateParts(scene.parts, delta.addedPartIds);
-    this.placedBounds.update(
-      this.currentRuntime,
-      delta.slots.map(({ slot }) => slot),
-    );
-    this.originTriadNominalScale = originTriadScaleFromBounds(this.placedBounds.bounds);
-    applyResolvedViewportResults(this.options.renderer, resultUpdate.results);
-    return { committed: true, outcome: resultUpdate.outcome, rendererSynchronized: true };
+    this.originTriadNominalScale = update.originTriadScale;
+    return { committed: true, outcome: update.outcome, rendererSynchronized: true };
   }
 
   private applyPartRevision(

@@ -8,6 +8,7 @@ import { setElementVisible } from "../../src/interaction/elements";
 import { setElementSelected } from "../../src/interaction/interaction";
 import { identityMatrix } from "../../src/math/mat4";
 import { createGpuBundle, destroyGpuBundle } from "../../src/renderer/recovery";
+import { stageDrawResources } from "../../src/renderer/attachment/part-revision-stage";
 import { uploadPart } from "../../src/renderer/resources/draw-resources";
 import { SectionCapController } from "../../src/renderer/section-cap-controller";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
@@ -193,17 +194,26 @@ describe("section-cap part retirement", () => {
       const removedResource = uploadPart(bundle.draw, removedPart);
       const retainedResource = uploadPart(bundle.draw, retainedPart);
 
-      controller.updateOccurrences(
-        {
-          slots: [],
-          affectedPartIds: new Set([1]),
-          removedOccurrenceSlots: [0],
-          addedPartIds: new Set(),
-          removedPartIds: new Set([1]),
-        },
-        new Map([[2, retainedSourcePart]]),
-        bundle.draw,
-      );
+      runtime.removeInstances([0]);
+      const delta = {
+        slots: [{ slot: 0, beforePartId: 1, afterPartId: undefined }],
+        affectedPartIds: new Set([1]),
+        removedOccurrenceSlots: [0],
+        addedPartIds: new Set<number>(),
+        removedPartIds: new Set([1]),
+      };
+      const staged = stageDrawResources(bundle.draw, delta.affectedPartIds, true, false);
+      const prepared = controller.prepareOccurrenceRevision({
+        runtime,
+        parts: new Map([[2, retainedSourcePart]]),
+        plane: { normal: [0, 0, 1], distance: -0.5 },
+        interaction: createInteractionState(),
+        deformation: undefined,
+        resultColors: undefined,
+        draw: staged.draw,
+        delta,
+      });
+      controller.commitOccurrenceRevision(prepared, staged.draw, bundle.draw);
 
       expect([...(controller.currentFrame?.sourcePartIds ?? new Map()).entries()]).toEqual([
         [retainedCapId, 2],
