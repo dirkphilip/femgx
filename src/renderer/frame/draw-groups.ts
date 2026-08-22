@@ -3,6 +3,7 @@ import type { DrawCall, DrawCallContext, DrawResources } from "../resources/draw
 import { drawBatches } from "./batch";
 import type { FrameOptions } from "./frame-types";
 import { popDebugGroup, pushDebugGroup } from "./debug";
+import type { SectionCapFrame } from "../section-caps";
 
 /** Internal exact-depth precedence for authored opaque primitive groups. */
 export const AUTHORED_PRIMITIVE_PRECEDENCE = ["triangles", "lines", "points"] as const;
@@ -109,6 +110,9 @@ export function drawContext(
 }
 
 /** Builds the context owned by the active generated-cap frame. */
-export function drawSectionCapContext(frame: FrameOptions): DrawCallContext {
-  return drawContext(frame, frame.capParts, frame.capResultColors, undefined);
+export function drawSectionCapContext(
+  frame: FrameOptions,
+  capFrame: SectionCapFrame,
+): DrawCallContext {
+  return drawContext(frame, capFrame.parts, capFrame.resultColors, undefined);
 }

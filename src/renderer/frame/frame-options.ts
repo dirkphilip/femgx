@@ -5,7 +5,7 @@ import type { FrameOptions } from "./frame-types";
 import type { DrawCall } from "../resources/draw-resources";
 import type { GpuTimestampRecorder } from "../diagnostics/timestamps";
 import type { ResultColorMap } from "../../results/colors";
-import type { Part, PartId } from "../../geometry/part";
+import type { SectionCapFrame } from "../section-caps";
 
 const EMPTY_CALLS: readonly DrawCall[] = [];
 
@@ -23,15 +23,7 @@ interface FrameOptionSources {
     readonly usesExteriorFaceSubsets: boolean;
   };
   readonly sectionCaps: {
-    readonly currentFrame:
-      | {
-          readonly parts: ReadonlyMap<PartId, Part>;
-          readonly calls: FrameOptions["capCalls"];
-          readonly transparentCalls: FrameOptions["transparentCapCalls"];
-          readonly allCalls: FrameOptions["allCapCalls"];
-          readonly resultColors: ResultColorMap;
-        }
-      | undefined;
+    readonly currentFrame: SectionCapFrame | undefined;
   };
   readonly colorFormat: GPUTextureFormat;
   readonly depthFormat: GPUTextureFormat;
@@ -108,8 +100,7 @@ export function buildFrameOptions(options: FrameOptionSources): FrameOptions {
     capCalls: caps?.calls ?? EMPTY_CALLS,
     transparentCapCalls: caps?.transparentCalls ?? EMPTY_CALLS,
     allCapCalls: caps?.allCalls ?? EMPTY_CALLS,
-    capParts: caps?.parts ?? new Map(),
-    capResultColors: caps?.resultColors,
+    sectionCaps: caps,
     usesExteriorFaceSubsets: options.attachment.usesExteriorFaceSubsets,
     pickTargets: options.bundle.pickTargets,
     colorFormat: options.colorFormat,
