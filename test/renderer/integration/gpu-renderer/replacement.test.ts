@@ -53,8 +53,8 @@ describe("WebGPU renderer", () => {
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
     const interaction = createState();
-    if (level === "instance") renderer.updateInstances(runtime, interaction, [0]);
-    else renderer.updateElements(runtime, interaction);
+    if (level === "instance") renderer.syncInteraction(runtime, interaction, [0]);
+    else renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     const pipelineBase = level === "instance" ? 10 : 0;
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
@@ -73,10 +73,10 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     const edge = createInteractionState();
     renderer.setEdgesVisible(true);
-    renderer.updateInstances(runtime, edge, [0, 1, 2]);
+    renderer.syncInteraction(runtime, edge, [0, 1, 2]);
 
     runtime.setInstanceVisible(1, false);
-    renderer.updateInstances(runtime, edge, [1]);
+    renderer.syncInteraction(runtime, edge, [1]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-22",
@@ -85,7 +85,7 @@ describe("WebGPU renderer", () => {
     });
 
     runtime.setInstanceVisible(1, true);
-    renderer.updateInstances(runtime, edge, [0, 1, 2]);
+    renderer.syncInteraction(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.pipelineDraws.at(-1)).toEqual({
       pipeline: "pipeline-22",
@@ -203,7 +203,7 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/0", elementId: 101 },
       true,
     );
-    renderer.updateElements(runtime, selected);
+    renderer.syncInteraction(runtime, selected);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(3);
 
@@ -240,7 +240,7 @@ describe("WebGPU renderer", () => {
       .build();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateElements(
+    renderer.syncInteraction(
       runtime,
       setElementSelected(
         createInteractionState(),
@@ -265,7 +265,7 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/0", elementId: 101 },
       true,
     );
-    renderer.updateElements(runtime, selected);
+    renderer.syncInteraction(runtime, selected);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].indices).toBe(6);
     expect(readGpuCostSnapshot(renderer).draws["selection-hidden"].indices).toBe(6);
@@ -297,7 +297,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws.opaque.indices).toBe(3);
 
-    renderer.updateElements(
+    renderer.syncInteraction(
       runtime,
       setElementVisible(
         createInteractionState(),

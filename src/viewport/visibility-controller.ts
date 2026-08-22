@@ -203,8 +203,7 @@ export class ViewportVisibilityController {
     if (interactionSlots.length > 0) {
       const runtime = this.options.sceneController.runtime;
       const interaction = this.options.sceneController.rendererInteraction;
-      this.options.renderer.updateInstances(runtime, interaction, interactionSlots);
-      this.options.renderer.updateElements(runtime, interaction, interactionSlots);
+      this.options.renderer.syncInteraction(runtime, interaction, interactionSlots);
     }
   }
 
@@ -224,8 +223,7 @@ export class ViewportVisibilityController {
     } else if (slots.size > 0) {
       const changed = [...slots].sort((a, b) => a - b);
       const interaction = this.options.sceneController.rendererInteraction;
-      this.options.renderer.updateInstances(runtime, interaction, changed);
-      this.options.renderer.updateElements(runtime, interaction, changed);
+      this.options.renderer.syncInteraction(runtime, interaction, changed);
     }
     this.options.navigationBoundsCache.invalidate();
     this.options.invalidate();

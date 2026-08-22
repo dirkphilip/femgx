@@ -30,13 +30,12 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
     const nodes = createInteractionState();
     renderer.setNodesVisible(true);
-    renderer.updateInstances(runtime, nodes, [0, 1, 2]);
-    renderer.updateElements(runtime, nodes, [0, 1, 2]);
+    renderer.syncInteraction(runtime, nodes, [0, 1, 2]);
 
     const hidden = runtime.setPartVisible(1, false);
     renderer.updateVisibility(runtime, hidden.affectedPartIds);
     const hovered = setTargetHovered(nodes, { kind: "partOccurrence", partOccurrenceId: "1/0" });
-    renderer.updateElements(runtime, hovered, [0]);
+    renderer.syncInteraction(runtime, hovered, [0]);
     const callsBefore = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.length).toBe(callsBefore);
@@ -63,8 +62,7 @@ describe("WebGPU renderer", () => {
     const presentation = createInteractionState();
     renderer.setEdgesVisible(true);
     renderer.setNodesVisible(true);
-    renderer.updateInstances(runtime, presentation, [0, 1, 2]);
-    renderer.updateElements(runtime, presentation, [0, 1, 2]);
+    renderer.syncInteraction(runtime, presentation, [0, 1, 2]);
     renderer.setPointSizePixels(14);
     renderer.setNodeSizePixels(7);
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.25 });
@@ -121,8 +119,7 @@ describe("WebGPU renderer", () => {
         (descriptor) => descriptor.label === "presentation depth resolve",
       ),
     ).toBe(false);
-    renderer.updateInstances(runtime, presentation, [0, 1, 2]);
-    renderer.updateElements(runtime, presentation, [0, 1, 2]);
+    renderer.syncInteraction(runtime, presentation, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(second.drawCalls.length).toBeGreaterThan(0);
     expect(
@@ -181,7 +178,7 @@ describe("WebGPU renderer", () => {
       true,
     );
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateElements(runtime, selected);
+    renderer.syncInteraction(runtime, selected);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).draws["selection-visible"].instances).toBe(1);
 
@@ -208,8 +205,7 @@ describe("WebGPU renderer", () => {
       true,
     );
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateInstances(runtime, selected, [0]);
-    renderer.updateElements(runtime, selected, [0]);
+    renderer.syncInteraction(runtime, selected, [0]);
     const first = gpus[0];
     if (first === undefined) throw new Error("missing initial fake device");
     const allocationStart = first.buffers.length;
@@ -227,8 +223,7 @@ describe("WebGPU renderer", () => {
     const recovered = gpus[1];
     if (recovered === undefined) throw new Error("missing recovered fake device");
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateInstances(runtime, selected, [0]);
-    renderer.updateElements(runtime, selected, [0]);
+    renderer.syncInteraction(runtime, selected, [0]);
     const recoveredDrawStart = recovered.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(recovered.drawCalls.slice(recoveredDrawStart)).toContainEqual({
@@ -290,8 +285,7 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/0", elementId: 7 },
       true,
     );
-    renderer.updateInstances(runtime, selected, [0]);
-    renderer.updateElements(runtime, selected);
+    renderer.syncInteraction(runtime, selected, [0]);
     renderer.render(runtime, camera, scene.parts);
 
     expect(buffers.every((buffer) => !buffer.destroyed)).toBe(true);
@@ -311,14 +305,12 @@ describe("WebGPU renderer", () => {
     expect(gpu.drawCalls.filter((call) => call.indexCount === 3)).not.toHaveLength(0);
 
     const hidden = setElementVisible(visible, { partOccurrenceId: "1/0", elementId: 7 }, false);
-    renderer.updateInstances(runtime, hidden, [0]);
-    renderer.updateElements(runtime, hidden, [0]);
+    renderer.syncInteraction(runtime, hidden, [0]);
     const hideStart = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.slice(hideStart).filter((call) => call.indexCount === 3)).toHaveLength(0);
 
-    renderer.updateInstances(runtime, visible, [0]);
-    renderer.updateElements(runtime, visible, [0]);
+    renderer.syncInteraction(runtime, visible, [0]);
     const restoreStart = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(
@@ -338,12 +330,12 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     const hidden = setElementVisible(visible, { partOccurrenceId: "1/0", elementId: 7 }, false);
-    renderer.updateInstances(runtime, hidden, [0]);
+    renderer.syncInteraction(runtime, hidden, [0]);
     const hideStart = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
 
     expect(gpu.drawCalls.slice(hideStart).filter((call) => call.indexCount === 3)).toHaveLength(0);
-    renderer.updateInstances(runtime, visible, [0]);
+    renderer.syncInteraction(runtime, visible, [0]);
     const restoreStart = gpu.drawCalls.length;
     renderer.render(runtime, camera, scene.parts);
     expect(
@@ -392,7 +384,7 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/0", elementId: 7 },
       { color: { r: 0, g: 1, b: 0, a: 1 } },
     );
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     setColors(renderer, elementalColors());
     renderer.setSectionPlane({ normal: [0, 0, 1], distance: -0.5 });
     renderer.render(runtime, camera, scene.parts);

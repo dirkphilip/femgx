@@ -16,6 +16,7 @@ import {
   fakeGpuDevice,
   geometryBounds,
   installTestGpuGlobals,
+  GpuRenderer,
 } from "./support";
 
 describe("Viewport", () => {
@@ -49,6 +50,7 @@ describe("Viewport", () => {
     installNavigator();
     const updateInstances = vi.spyOn(RendererAttachment.prototype, "updateInstances");
     const updateElements = vi.spyOn(RendererAttachment.prototype, "updateElements");
+    const syncInteraction = vi.spyOn(GpuRenderer.prototype, "syncInteraction");
     const viewport = await createViewport({
       canvas: fakeCanvas(),
       scene: scene(),
@@ -65,6 +67,8 @@ describe("Viewport", () => {
     viewport.interaction.set(setPartOverride(viewport.interaction.state, 1, { emissive: 0.25 }));
     expect(updateInstances).toHaveBeenCalledOnce();
     expect(updateElements).toHaveBeenCalledTimes(2);
+    expect(syncInteraction).toHaveBeenCalledTimes(2);
+    expect(syncInteraction.mock.calls[1]?.[2]).toEqual([0]);
     viewport.destroy();
   });
 });

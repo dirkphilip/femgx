@@ -165,7 +165,35 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
     this.picking.invalidate();
   }
 
-  public updateInstances(
+  public syncInteraction(
+    runtime: PackedSceneRuntime,
+    interaction: InteractionState,
+    changedInstanceIds?: readonly number[],
+  ): void {
+    this.ensureAlive();
+    const instanceChanged =
+      changedInstanceIds !== undefined && changedInstanceIds.length > 0
+        ? this.attachment.updateInstances(
+            runtime,
+            interaction,
+            changedInstanceIds,
+            this.lifecycle.bundle,
+          )
+        : false;
+    const emphasisChanged = this.attachment.updateElements(
+      runtime,
+      interaction,
+      this.lifecycle.bundle,
+      this.parts,
+      changedInstanceIds,
+    );
+    this.interaction = interaction;
+    if (instanceChanged) this.sectionCaps.invalidate();
+    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
+    if (instanceChanged || emphasisChanged) this.picking.invalidate();
+  }
+
+  public syncInstanceTransforms(
     runtime: PackedSceneRuntime,
     interaction: InteractionState,
     changedInstanceIds: readonly number[],
@@ -241,24 +269,6 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost, RendererF
     }
     this.interaction = interaction;
     this.picking.invalidate();
-  }
-
-  public updateElements(
-    runtime: PackedSceneRuntime,
-    interaction: InteractionState,
-    changedInstanceIds?: readonly number[],
-  ): void {
-    this.ensureAlive();
-    this.interaction = interaction;
-    const changed = this.attachment.updateElements(
-      runtime,
-      interaction,
-      this.lifecycle.bundle,
-      this.parts,
-      changedInstanceIds,
-    );
-    this.sectionCaps.syncInteraction(interaction, runtime, this.parts, this.lifecycle.bundle.draw);
-    if (changed) this.picking.invalidate();
   }
 
   public setEdgeDepthTest(enabled: boolean): void {

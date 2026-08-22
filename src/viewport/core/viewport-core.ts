@@ -392,8 +392,7 @@ export class ViewportCore implements Viewport {
     const changed = interactionChanged
       ? changedInstanceSlots(runtime, this.appliedInteraction, interaction)
       : [];
-    if (changed.length > 0) this.renderer.updateInstances(runtime, interaction, changed);
-    if (interactionChanged) this.renderer.updateElements(runtime, interaction, changed);
+    if (interactionChanged) this.renderer.syncInteraction(runtime, interaction, changed);
     this.lifecycle.updateOrientationGizmo(this.cameraRef.camera);
     this.renderer.render(
       runtime,

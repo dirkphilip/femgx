@@ -10,9 +10,10 @@ import { forEachInstanceUnderAssemblyTargets } from "../scene-runtime/interactio
 /**
  * Computes the instance slots whose GPU record may change when an interaction
  * state moves from `previous` to `next`, so the viewport can feed exactly
- * those slots to `WebGpuRenderer.updateInstances` instead of rescanning the
- * whole runtime. Most element-, node-, and face-level emphasis is intentionally excluded: it
- * flows through `updateElements`, which diffs its own buffers. Element
+ * those slots to `WebGpuRenderer.syncInteraction` instead of rescanning the
+ * whole runtime. Most element-, node-, and face-level emphasis is intentionally excluded from
+ * the instance kernel: it flows through the same semantic operation, which diffs its own buffers.
+ * Element
  * highlights also mark their owning slot here so consumers can observe the
  * complete interaction transition through the instance diff.
  *

@@ -129,7 +129,7 @@ async function measureNodeScenario(
   const interactionStateMs = performance.now() - stateStart;
   const facts = denseNodeFacts(context, selected, targetCount);
   const syncStart = performance.now();
-  context.renderer.updateElements(context.runtime, selected, [context.slot]);
+  context.renderer.syncInteraction(context.runtime, selected, [context.slot]);
   const interactionSyncMs = performance.now() - syncStart;
   const interactionSyncGpuCost = readGpuCostSnapshot(context.renderer);
   const firstSelectedFrame = await measureFrame(context, context.camera);
@@ -153,7 +153,7 @@ async function measureNodeScenario(
     movingFrames.push(await renderBenchmarkFrame({ ...context, camera }));
   }
   const clearStart = performance.now();
-  context.renderer.updateElements(context.runtime, createInteractionState(), [context.slot]);
+  context.renderer.syncInteraction(context.runtime, createInteractionState(), [context.slot]);
   await renderBenchmarkFrame(context);
   const clearSelectionMs = performance.now() - clearStart;
   return {
@@ -280,7 +280,7 @@ function nodeSelectionContext(options: NodeSelectionMeasureOptions): NodeSelecti
 async function presentFinalSelection(context: NodeSelectionContext): Promise<void> {
   const targets = authoredNodeTargets(context.partOccurrenceId, context.nodeCount);
   const selected = setTargetsSelected(createInteractionState(), targets, true);
-  context.renderer.updateElements(context.runtime, selected, [context.slot]);
+  context.renderer.syncInteraction(context.runtime, selected, [context.slot]);
   await renderBenchmarkFrame(context);
 }
 

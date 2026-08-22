@@ -163,8 +163,7 @@ function syncInteraction(
   interaction: InteractionState,
   changedSlots: readonly number[],
 ): void {
-  options.renderer.updateInstances(options.runtime, interaction, changedSlots);
-  options.renderer.updateElements(options.runtime, interaction, changedSlots);
+  options.renderer.syncInteraction(options.runtime, interaction, changedSlots);
 }
 
 function instanceTargets(runtime: PackedSceneRuntime, count: number): InteractionTarget[] {

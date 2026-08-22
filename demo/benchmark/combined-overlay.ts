@@ -50,8 +50,7 @@ export async function measureCombinedOverlayBenchmark(
   renderer.setNodesVisible(true);
   const nodesOnly = overlayInteraction();
   const nodeSyncStart = performance.now();
-  renderer.updateInstances(runtime, nodesOnly, slots);
-  renderer.updateElements(runtime, nodesOnly, slots);
+  renderer.syncInteraction(runtime, nodesOnly, slots);
   const coldNodeInteractionSyncMs = performance.now() - nodeSyncStart;
   const coldNodeFrame = await timedFrame(options);
   const coldNodeGpuCost = readGpuCostSnapshot(renderer);
@@ -59,8 +58,7 @@ export async function measureCombinedOverlayBenchmark(
   renderer.setEdgesVisible(true);
   const interaction = overlayInteraction();
   const edgeSyncStart = performance.now();
-  renderer.updateInstances(runtime, interaction, slots);
-  renderer.updateElements(runtime, interaction, slots);
+  renderer.syncInteraction(runtime, interaction, slots);
   const coldEdgeInteractionSyncMs = performance.now() - edgeSyncStart;
   const coldEdgeFrame = await timedFrame(options);
   const coldEdgeGpuCost = readGpuCostSnapshot(renderer);
@@ -87,8 +85,7 @@ export async function measureCombinedOverlayBenchmark(
   const edgeMemory = denseEdgeTypedMemory(benchmarkCase);
   renderer.setEdgesVisible(false);
   renderer.setNodesVisible(false);
-  renderer.updateInstances(runtime, createInteractionState(), slots);
-  renderer.updateElements(runtime, createInteractionState(), slots);
+  renderer.syncInteraction(runtime, createInteractionState(), slots);
   await renderFrame(options);
   const nodeWork = nodeDrawWork(options);
   return {
@@ -140,7 +137,7 @@ async function measureOverlayHover(
   const interactionStateMs = performance.now() - stateStart;
   const beforeSync = readGpuCostSnapshot(renderer);
   const syncStart = performance.now();
-  renderer.updateElements(runtime, hovered, [slot]);
+  renderer.syncInteraction(runtime, hovered, [slot]);
   const interactionSyncMs = performance.now() - syncStart;
   const interactionHighlightWriteBytes = highlightWriteBytesSince(
     beforeSync,
@@ -159,7 +156,7 @@ async function measureOverlayHover(
   const steady: number[] = [];
   for (let index = 0; index < STEADY_SAMPLES; index += 1) steady.push(await renderFrame(options));
   const clearStart = performance.now();
-  renderer.updateElements(runtime, interaction, [slot]);
+  renderer.syncInteraction(runtime, interaction, [slot]);
   await renderFrame(options);
   assertNoElementEmphasisDraw(
     readGpuCostSnapshot(renderer),
@@ -197,7 +194,7 @@ async function measureOverlaySelection(
   if (slot === undefined) throw new Error(`${options.benchmarkCase.id} overlay selection is empty`);
   const beforeSync = readGpuCostSnapshot(options.renderer);
   const syncStart = performance.now();
-  options.renderer.updateElements(options.runtime, selected, [slot]);
+  options.renderer.syncInteraction(options.runtime, selected, [slot]);
   const interactionSyncMs = performance.now() - syncStart;
   const interactionHighlightWriteBytes = highlightWriteBytesSince(
     beforeSync,
@@ -215,7 +212,7 @@ async function measureOverlaySelection(
   );
   assertNoElementEmphasisDraw(gpuCost, `${options.benchmarkCase.id} overlay selection`);
   await options.holdSelectionForCapture?.();
-  options.renderer.updateElements(options.runtime, interaction, [slot]);
+  options.renderer.syncInteraction(options.runtime, interaction, [slot]);
   await renderFrame(options);
   assertNoElementEmphasisDraw(
     readGpuCostSnapshot(options.renderer),
@@ -339,8 +336,7 @@ export async function captureHiddenInterior(options: HiddenInteriorCaptureOption
     Math.floor(elementCount / 2),
   );
   interaction = hideSelectedElements(setTargetsSelected(interaction, targets, true));
-  options.renderer.updateInstances(options.runtime, interaction, slots);
-  options.renderer.updateElements(options.runtime, interaction, slots);
+  options.renderer.syncInteraction(options.runtime, interaction, slots);
   await renderHiddenInterior(options);
   const draws = readGpuCostSnapshot(options.renderer).draws;
   if (draws["edges"].indices === 0 || draws["nodes"].indices === 0) {
@@ -349,8 +345,7 @@ export async function captureHiddenInterior(options: HiddenInteriorCaptureOption
   await options.hold();
 
   const restored = createInteractionState();
-  options.renderer.updateInstances(options.runtime, restored, slots);
-  options.renderer.updateElements(options.runtime, restored, slots);
+  options.renderer.syncInteraction(options.runtime, restored, slots);
   await renderHiddenInterior(options);
 }
 

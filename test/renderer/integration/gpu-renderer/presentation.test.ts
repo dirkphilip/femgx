@@ -42,7 +42,7 @@ describe("WebGPU renderer", () => {
 
     const edge = createInteractionState();
     renderer.setEdgesVisible(true);
-    renderer.updateInstances(runtime, edge, [0, 1, 2]);
+    renderer.syncInteraction(runtime, edge, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 1, overlay: 1 });
     expect(readGpuCostSnapshot(renderer).targets).toMatchObject({ presentationOverlay: true });
@@ -89,7 +89,7 @@ describe("WebGPU renderer", () => {
     const shaderCount = gpu.shaderModuleDescriptors.length;
     const pipelineCount = gpu.renderPipelineDescriptors.length;
 
-    renderer.updateInstances(runtime, createInteractionState(), [0]);
+    renderer.syncInteraction(runtime, createInteractionState(), [0]);
     renderer.render(runtime, camera, scene.parts);
 
     expect(readGpuCostSnapshot(renderer).passes).toMatchObject({ "overlay-depth": 0, overlay: 0 });
@@ -108,7 +108,7 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     const transparent = setPartOverride(createInteractionState(), 1, { opacity: 0.5 });
-    renderer.updateInstances(runtime, transparent, [0, 1, 2]);
+    renderer.syncInteraction(runtime, transparent, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
 
     expect(gpu.pipelineDraws.slice(-2)).toEqual([
@@ -125,7 +125,7 @@ describe("WebGPU renderer", () => {
     const scene = buildScene();
     const runtime = createPackedSceneRuntime(scene);
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateInstances(
+    renderer.syncInteraction(
       runtime,
       setPartOverride(createInteractionState(), 1, { opacity: 0 }),
       [0, 1, 2],

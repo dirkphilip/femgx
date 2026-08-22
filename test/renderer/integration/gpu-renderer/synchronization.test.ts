@@ -57,19 +57,19 @@ describe("WebGPU renderer", () => {
       opacity: 0.1,
     });
     const beforeStyle = instanceWrites().length;
-    renderer.updateInstances(runtime, override, [0]);
+    renderer.syncInteraction(runtime, override, [0]);
     expect(writeRanges(beforeStyle)).toEqual([
       [0, 96],
       [0, 4],
     ]);
 
     const beforeNoop = instanceWrites().length;
-    renderer.updateInstances(runtime, override, [0]);
+    renderer.syncInteraction(runtime, override, [0]);
     expect(instanceWrites().length).toBe(beforeNoop);
 
     runtime.setInstanceVisible(1, false);
     const beforeVisibility = instanceWrites().length;
-    renderer.updateInstances(runtime, override, [1]);
+    renderer.syncInteraction(runtime, override, [1]);
     expect(writeRanges(beforeVisibility)).toEqual([
       [96, 96],
       [4, 8],
@@ -79,7 +79,7 @@ describe("WebGPU renderer", () => {
     expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 1 });
 
     runtime.setInstanceVisible(1, true);
-    renderer.updateInstances(runtime, override, [0, 1, 2]);
+    renderer.syncInteraction(runtime, override, [0, 1, 2]);
     renderer.render(runtime, camera, scene.parts);
     expect(gpu.drawCalls.at(-1)).toEqual({ indexCount: 3, instanceCount: 3 });
   });
@@ -95,17 +95,17 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     const hovered = setTargetHovered(empty, { kind: "partOccurrence", partOccurrenceId: "1/1" });
-    renderer.updateElements(runtime, hovered, [1]);
+    renderer.syncInteraction(runtime, hovered, [1]);
     expect(readGpuCostSnapshot(renderer).cpu).toMatchObject({
-      "instance-scan": 1,
+      "instance-scan": 2,
       "order-rebuild": 0,
       "call-rebuild": 0,
     });
 
     renderer.render(runtime, camera, scene.parts);
     const selected = setPartOccurrenceSelected(hovered, "1/1", true);
-    renderer.updateElements(runtime, selected, [1]);
-    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
+    renderer.syncInteraction(runtime, selected, [1]);
+    expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(2);
 
     renderer.render(runtime, camera, scene.parts);
     const elementSelected = setElementSelected(
@@ -113,7 +113,7 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/1", elementId: 0 },
       true,
     );
-    renderer.updateElements(runtime, elementSelected, []);
+    renderer.syncInteraction(runtime, elementSelected, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
@@ -122,13 +122,13 @@ describe("WebGPU renderer", () => {
       { partOccurrenceId: "1/1", nodeId: 0 },
       true,
     );
-    renderer.updateElements(runtime, nodeSelected, []);
+    renderer.syncInteraction(runtime, nodeSelected, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
     expect(readGpuCostSnapshot(renderer).cpu["order-rebuild"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
     const alphaOverride = setPartOccurrenceOverride(nodeSelected, "1/1", { opacity: 0.5 });
-    renderer.updateElements(runtime, alphaOverride, []);
+    renderer.syncInteraction(runtime, alphaOverride, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
@@ -140,7 +140,7 @@ describe("WebGPU renderer", () => {
       },
       { opacity: 0.25 },
     );
-    renderer.updateElements(runtime, elementOverride, []);
+    renderer.syncInteraction(runtime, elementOverride, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
     renderer.destroy();
   });
@@ -157,12 +157,12 @@ describe("WebGPU renderer", () => {
     renderer.render(runtime, camera, scene.parts);
 
     interaction = setBodyVisible(interaction, body, false);
-    renderer.updateElements(runtime, interaction, []);
+    renderer.syncInteraction(runtime, interaction, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
 
     renderer.render(runtime, camera, scene.parts);
     interaction = setElementVisible(interaction, { partOccurrenceId: "1/0", elementId: 0 }, false);
-    renderer.updateElements(runtime, interaction, []);
+    renderer.syncInteraction(runtime, interaction, []);
     expect(readGpuCostSnapshot(renderer).cpu["instance-scan"]).toBe(1);
     renderer.destroy();
   });

@@ -55,7 +55,7 @@ export async function measureHoverBenchmark(
   await device.queue.onSubmittedWorkDone();
   const beforeSync = readGpuCostSnapshot(renderer);
   const syncStart = performance.now();
-  renderer.updateElements(runtime, hovered, [slot]);
+  renderer.syncInteraction(runtime, hovered, [slot]);
   const interactionSyncMs = performance.now() - syncStart;
   const interactionHighlightWriteBytes = highlightWriteBytesSince(
     beforeSync,
@@ -74,7 +74,7 @@ export async function measureHoverBenchmark(
   for (let index = 0; index < STEADY_SAMPLES; index += 1)
     steady.push(await renderBenchmarkFrame(options));
   const clearStart = performance.now();
-  renderer.updateElements(runtime, createInteractionState(), [slot]);
+  renderer.syncInteraction(runtime, createInteractionState(), [slot]);
   await renderBenchmarkFrame(options);
   assertNoElementEmphasisDraw(readGpuCostSnapshot(renderer), `${benchmarkCase.id} hover clear`);
   return {

@@ -36,13 +36,13 @@ describe("WebGPU renderer", () => {
     const styled = setPartOverride(interaction, 1, {
       color: { r: 1, g: 0, b: 0, a: 1 },
     });
-    renderer.updateInstances(runtime, styled, [0]);
+    renderer.syncInteraction(runtime, styled, [0]);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(300, 300);
     expect(gpu.drawCalls).toHaveLength(3);
 
     const wider = setPartOverride(interaction, 1, { lineWidthPixels: 12 });
-    renderer.updateInstances(runtime, wider, [0]);
+    renderer.syncInteraction(runtime, wider, [0]);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(300, 300);
     expect(gpu.drawCalls).toHaveLength(5);
@@ -107,35 +107,35 @@ describe("WebGPU renderer", () => {
     let interaction = createInteractionState();
 
     renderer.render(runtime, camera, scene.parts);
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(2);
 
     interaction = setBodyVisible(interaction, body, false);
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(4);
 
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(5);
 
     interaction = setBodyVisible(interaction, body, true);
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(7);
 
     interaction = setBodySelected(interaction, body, true);
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(10);
 
     interaction = setBodyHighlighted(interaction, body, true);
-    renderer.updateElements(runtime, interaction);
+    renderer.syncInteraction(runtime, interaction);
     renderer.render(runtime, camera, scene.parts);
     await renderer.pick(100, 100);
     expect(gpu.drawCalls).toHaveLength(13);
