@@ -1,6 +1,6 @@
 import type { createPackedTet4Part } from "../../../demo/benchmark/packed-tet4";
 import { createInteractionState } from "@/interaction/interaction";
-import { updateInteractionState } from "@/interaction/state";
+import { setElementVisible } from "@/interaction/elements";
 import { identityMatrix } from "@/math/mat4";
 import { RendererAttachment } from "@/renderer/attachment";
 import { createGpuBundle } from "@/renderer/recovery";
@@ -34,11 +34,11 @@ export async function visibilityFixture(
   attachment.attach(runtime, bundle);
   const occurrenceId = runtime.getInstanceId(0);
   if (occurrenceId === undefined) throw new Error("Tet4 visibility occurrence is missing");
-  const hidden = updateInteractionState(createInteractionState(), {
-    hiddenElementIds: new Map([
-      [occurrenceId, new Set(ids.subarray(0, Math.floor(ids.length / 2)))],
-    ]),
-  });
+  const hidden = Array.from(ids.subarray(0, Math.floor(ids.length / 2))).reduce(
+    (state, elementId) =>
+      setElementVisible(state, { partOccurrenceId: occurrenceId, elementId }, false),
+    createInteractionState(),
+  );
   return {
     part,
     scene,

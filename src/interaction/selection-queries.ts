@@ -1,12 +1,15 @@
 import type { BodyRef } from "./refs";
 import {
   readInteractionState,
+  readInteractionVisibility,
   updateInteractionState,
+  withInteractionVisibility,
   type InteractionState,
   type StyleOverride,
 } from "./state";
 import { updateNestedSets } from "./mechanics";
 import type { InteractionTarget } from "./target-types";
+import type { ElementRef } from "../scene/types";
 
 /** Bounded aggregate selection metadata for presentation-level queries. */
 export interface SelectedTargetSummary {
@@ -26,20 +29,18 @@ export interface SelectedElementVisibilitySummary {
 /** Counts selected elements that remain visible across all occurrences. */
 export function selectedElementVisibilitySummary(
   state: InteractionState,
+  isVisible: (ref: ElementRef) => boolean = (ref) =>
+    readInteractionVisibility(state)
+      .hiddenElementIds.get(ref.partOccurrenceId)
+      ?.has(ref.elementId) !== true,
 ): SelectedElementVisibilitySummary {
   const data = readInteractionState(state);
   let selectedCount = 0;
   let visibleCount = 0;
   for (const [partOccurrenceId, selectedIds] of data.selectedElementIds) {
     selectedCount += selectedIds.size;
-    const hiddenIds = data.hiddenElementIds.get(partOccurrenceId);
-    if (hiddenIds === undefined) {
-      visibleCount += selectedIds.size;
-      continue;
-    }
-    for (const elementId of selectedIds) {
-      if (!hiddenIds.has(elementId)) visibleCount += 1;
-    }
+    for (const elementId of selectedIds)
+      if (isVisible({ partOccurrenceId, elementId })) visibleCount += 1;
   }
   return { selectedCount, visibleCount };
 }
@@ -47,10 +48,15 @@ export function selectedElementVisibilitySummary(
 /** Hides every selected element through one immutable nested-set transition. */
 export function hideSelectedElements(state: InteractionState): InteractionState {
   const data = readInteractionState(state);
-  const hiddenElementIds = updateNestedSets(data.hiddenElementIds, data.selectedElementIds, true);
-  return hiddenElementIds === data.hiddenElementIds
+  const visibility = readInteractionVisibility(state);
+  const hiddenElementIds = updateNestedSets(
+    visibility.hiddenElementIds,
+    data.selectedElementIds,
+    true,
+  );
+  return hiddenElementIds === visibility.hiddenElementIds
     ? state
-    : updateInteractionState(state, { hiddenElementIds });
+    : withInteractionVisibility(state, { ...visibility, hiddenElementIds });
 }
 
 /** Counts selected identities and occurrences without materializing or sorting them. */

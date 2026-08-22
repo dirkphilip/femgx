@@ -109,6 +109,9 @@ function denseFixture(
       }),
     },
     interaction: { state: createInteractionState() },
+    visibility: {
+      isElementEffectivelyVisible: () => true,
+    },
     results: { state: undefined },
     presentation,
   } as unknown as Viewport;

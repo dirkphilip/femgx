@@ -6,7 +6,6 @@ import type {
 import { setBodyVisible } from "@/interaction/bodies";
 import { setElementVisible } from "@/interaction/elements";
 import { createInteractionState } from "@/interaction/interaction";
-import { readInteractionState } from "@/interaction/state";
 import { buildGraphVisibilitySkinIndices } from "@/renderer/visibility/graph-skin";
 import { buildVisibilityTriangleIndices } from "@/renderer/visibility/skin-indices";
 import { visibilitySignature } from "@/renderer/visibility/signature";
@@ -28,7 +27,7 @@ describe("visibility signatures and skin construction", () => {
       false,
     );
     interaction = setBodyVisible(interaction, { partOccurrenceId: "generic", bodyId: 7 }, false);
-    const signature = visibilitySignature("generic", readInteractionState(interaction), {
+    const signature = visibilitySignature("generic", interaction, {
       element: (id) =>
         ids.includes(id)
           ? {

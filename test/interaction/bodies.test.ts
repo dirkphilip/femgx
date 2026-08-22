@@ -16,7 +16,7 @@ import {
   setBodyVisible,
 } from "../../src/interaction/bodies";
 import { setTargetHovered } from "../../src/interaction/targets";
-import { readInteractionState } from "../../src/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../src/interaction/state";
 import { identityMatrix } from "../../src/math/mat4";
 import type { PartOccurrence } from "../../src/scene/types";
 
@@ -78,7 +78,7 @@ describe("body interaction state", () => {
       { partOccurrenceId: "3/0", bodyId: 2 },
     ]);
     const cleared = setBodyVisible(state, ref, true);
-    expect(readInteractionState(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
+    expect(readInteractionVisibility(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
   });
 });
 

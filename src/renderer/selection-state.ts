@@ -117,57 +117,92 @@ export function writeNodeOrders(
     readonly selection: SelectionState;
     readonly bundle: GpuBundle;
     readonly interaction: InteractionState;
+    readonly visible?: boolean;
   },
   affectedParts?: ReadonlySet<PartId>,
 ): boolean {
   const parts = affectedParts ?? new Set(options.layout.partOrder);
   let changed = false;
   for (const partId of parts) {
-    options.bundle.draw.cost.cpu("order-rebuild", 1);
-    const order = buildNodeOrder({
-      layout: options.layout,
-      runtime: options.runtime,
-      partId,
-      nodeFlags: options.selection.nodeFlags,
-      parts: options.parts,
-    });
-    if (options.layout.partNodeCounts.get(partId) !== order.length) changed = true;
-    writeNodeOrder(options.bundle.draw, partId, order);
-    options.layout.partNodeCounts.set(partId, order.length);
-    const selectedNodeOrder = buildSelectedNodeOrder({
-      runtime: options.runtime,
-      layout: options.layout,
-      partId,
-      parts: options.parts,
-      interaction: options.interaction,
-    });
-    const selectedNodeCount =
-      selectedNodeOrder.denseOccurrences.length + selectedNodeOrder.sparseNodeIds.length;
-    if (options.layout.partSelectedNodeCounts.get(partId) !== selectedNodeCount) {
-      changed = true;
-    }
-    writeNodeSelectionOrder(options.bundle.draw, partId, selectedNodeOrder.denseOccurrences);
-    writeSelectedNodeCompactOrder(
-      options.bundle.draw,
-      partId,
-      selectedNodeOrder.sparseOccurrences,
-      selectedNodeOrder.sparseNodeIds,
-    );
-    options.layout.partSelectedNodeCounts.set(partId, selectedNodeCount);
-    const calls = [];
-    if (selectedNodeOrder.denseOccurrences.length > 0) {
-      calls.push({ partId, instanceCount: selectedNodeOrder.denseOccurrences.length });
-    }
-    if (selectedNodeOrder.sparseNodeIds.length > 0) {
-      calls.push({
-        partId,
-        instanceCount: selectedNodeOrder.sparseNodeIds.length,
-        selectedNodeMode: "compact" as const,
-      });
-    }
-    options.layout.partSelectedNodeDrawCalls.set(partId, calls);
+    const partChanged = writeNodeOrdersForPart(options, partId);
+    changed ||= partChanged;
   }
   return changed;
+}
+
+function writeNodeOrdersForPart(
+  options: Parameters<typeof writeNodeOrders>[0],
+  partId: PartId,
+): boolean {
+  options.bundle.draw.cost.cpu("order-rebuild", 1);
+  const order =
+    options.visible === false
+      ? new Uint32Array()
+      : buildNodeOrder({
+          layout: options.layout,
+          runtime: options.runtime,
+          partId,
+          nodeFlags: options.selection.nodeFlags,
+          parts: options.parts,
+          includeAll: options.visible === true,
+        });
+  const previousCount = options.layout.partNodeCounts.get(partId);
+  writeNodeOrder(options.bundle.draw, partId, order);
+  options.layout.partNodeCounts.set(partId, order.length);
+  const selectedNodeOrder =
+    options.visible === false
+      ? {
+          denseOccurrences: new Uint32Array(),
+          sparseOccurrences: new Uint32Array(),
+          sparseNodeIds: new Uint32Array(),
+        }
+      : buildSelectedNodeOrder({
+          runtime: options.runtime,
+          layout: options.layout,
+          partId,
+          parts: options.parts,
+          interaction: options.interaction,
+        });
+  const selectedNodeCount =
+    selectedNodeOrder.denseOccurrences.length + selectedNodeOrder.sparseNodeIds.length;
+  const previousSelectedCount = options.layout.partSelectedNodeCounts.get(partId);
+  writeNodeSelectionOrder(options.bundle.draw, partId, selectedNodeOrder.denseOccurrences);
+  writeSelectedNodeCompactOrder(
+    options.bundle.draw,
+    partId,
+    selectedNodeOrder.sparseOccurrences,
+    selectedNodeOrder.sparseNodeIds,
+  );
+  options.layout.partSelectedNodeCounts.set(partId, selectedNodeCount);
+  options.layout.partSelectedNodeDrawCalls.set(
+    partId,
+    selectedNodeDrawCalls(partId, selectedNodeOrder),
+  );
+  return previousCount !== order.length || previousSelectedCount !== selectedNodeCount;
+}
+
+function selectedNodeDrawCalls(
+  partId: PartId,
+  selectedNodeOrder: ReturnType<typeof buildSelectedNodeOrder>,
+): Array<{
+  readonly partId: PartId;
+  readonly instanceCount: number;
+  readonly selectedNodeMode?: "compact";
+}> {
+  const calls: Array<{
+    readonly partId: PartId;
+    readonly instanceCount: number;
+    readonly selectedNodeMode?: "compact";
+  }> = [];
+  if (selectedNodeOrder.denseOccurrences.length > 0)
+    calls.push({ partId, instanceCount: selectedNodeOrder.denseOccurrences.length });
+  if (selectedNodeOrder.sparseNodeIds.length > 0)
+    calls.push({
+      partId,
+      instanceCount: selectedNodeOrder.sparseNodeIds.length,
+      selectedNodeMode: "compact",
+    });
+  return calls;
 }
 
 function syncSelectedInstanceOrders(options: {

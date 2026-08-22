@@ -18,7 +18,7 @@ import {
   setTargetSelected,
 } from "../../src/interaction/targets";
 import { setBodyOverride } from "../../src/interaction/bodies";
-import { readInteractionState } from "../../src/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../src/interaction/state";
 import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import { identityMatrix } from "../../src/math/mat4";
 import type { ElementRef, PartOccurrence } from "../../src/scene/types";
@@ -280,7 +280,7 @@ describe("element interaction", () => {
     expect(isElementVisible(hidden, other)).toBe(true);
     expect(setElementVisible(hidden, ref, false)).toBe(hidden);
     expect(setElementVisible(hidden, ref, true)).not.toBe(hidden);
-    expect(readInteractionState(hidden).hiddenElementIds.get(ref.partOccurrenceId)).toEqual(
+    expect(readInteractionVisibility(hidden).hiddenElementIds.get(ref.partOccurrenceId)).toEqual(
       new Set([2]),
     );
   });

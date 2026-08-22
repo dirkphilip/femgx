@@ -64,6 +64,10 @@ export interface WebGpuRenderer {
   ): void;
   /** Controls whether the edge overlay compares against the depth buffer. */
   setEdgeDepthTest(enabled: boolean): void;
+  /** Enables or disables the renderer-owned edge overlay. */
+  setEdgesVisible(enabled: boolean): void;
+  /** Enables or disables the renderer-owned node overlay. */
+  setNodesVisible(enabled: boolean): void;
   /** Changes the WebGPU-rendered viewport background presentation. */
   setBackground(background: ViewportBackground): void;
   /** Changes the point-element screen-space diameter in CSS pixels. */

@@ -2,15 +2,15 @@ import { describe, expect, it } from "vitest";
 import { type Viewport, type Scene } from "@/entries/root";
 import {
   createInteractionState,
-  isBodyVisible,
-  isElementVisible,
   isTargetSelected,
   selectedTargets,
-  setElementVisible,
-  setBodyVisible,
   setTargetSelected,
   type InteractionState,
 } from "@/entries/interaction";
+import { isBodyVisible, setBodyVisible } from "@/interaction/bodies";
+import { isElementVisible, setElementVisible } from "@/interaction/elements";
+import { hideSelectedElements } from "@/interaction/selection-queries";
+import { withInteractionVisibility } from "@/interaction/state";
 import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { WorkbenchVisibilityActions } from "../../../demo/workbench/state/visibility-actions";
@@ -54,12 +54,12 @@ describe("WorkbenchVisibilityActions", () => {
 
     harness.actions.hideSelected();
 
-    expect(harness.appliedInteractionCount).toBe(1);
+    expect(harness.appliedInteractionCount).toBe(0);
     expect(harness.panelSyncCount).toBe(1);
     expect(harness.renderCount).toBe(1);
     expect(harness.feedback).toEqual(["Hidden 2 selected elements."]);
-    expect(isElementVisible(harness.interaction, firstTarget)).toBe(false);
-    expect(isElementVisible(harness.interaction, secondTarget)).toBe(false);
+    expect(isElementVisible(harness.visibility, firstTarget)).toBe(false);
+    expect(isElementVisible(harness.visibility, secondTarget)).toBe(false);
     expect(isTargetSelected(harness.interaction, firstTarget)).toBe(true);
     expect(isTargetSelected(harness.interaction, secondTarget)).toBe(true);
     expect(isTargetSelected(harness.interaction, nodeTarget)).toBe(true);
@@ -162,6 +162,13 @@ describe("WorkbenchVisibilityActions", () => {
         return operation();
       },
       visibility: {
+        showAll(): void {
+          visibilityState = withInteractionVisibility(visibilityState, {
+            hiddenBodyIds: new Map(),
+            hiddenElementIds: new Map(),
+          });
+          calls.push("show-all");
+        },
         setAssemblyVisible(assemblyId: number, visible: boolean): void {
           calls.push(`assembly:${assemblyId}:${visible}`);
         },
@@ -176,6 +183,7 @@ describe("WorkbenchVisibilityActions", () => {
         },
       },
     } as unknown as Viewport;
+    let visibilityState = interaction;
     const actions = new WorkbenchVisibilityActions({
       viewport: () => viewport,
       scene: () => scene,
@@ -198,27 +206,16 @@ describe("WorkbenchVisibilityActions", () => {
 
     actions.showAll();
 
-    expect(appliedInteractionCount).toBe(1);
+    expect(appliedInteractionCount).toBe(0);
     expect(panelSyncCount).toBe(1);
     expect(renderCount).toBe(1);
-    expect(calls[0]).toBe("batch");
-    const expectedCalls = [
-      "batch",
-      ...[...scene.assemblies.keys()].map((id) => `assembly:${id}:true`),
-      ...Array.from(
-        runtime.assemblyOccurrences(),
-        ({ assemblyOccurrenceId: id }) => `occurrence:${id}:true`,
-      ),
-      ...[...scene.parts.keys()].map((id) => `part:${id}:true`),
-      ...Array.from(runtime.partOccurrences(), ({ partOccurrenceId: id }) => `instance:${id}:true`),
-    ];
-    expect(calls).toEqual(expectedCalls);
+    expect(calls).toEqual(["show-all"]);
 
     for (const instance of runtime.partOccurrences()) {
       const bodies = scene.parts.get(instance.partId)?.bodies ?? [];
       for (const body of bodies) {
         expect(
-          isBodyVisible(interaction, {
+          isBodyVisible(visibilityState, {
             partOccurrenceId: instance.partOccurrenceId,
             bodyId: body.id,
           }),
@@ -226,7 +223,7 @@ describe("WorkbenchVisibilityActions", () => {
       }
       for (const element of scene.parts.get(instance.partId)?.elements ?? []) {
         expect(
-          isElementVisible(interaction, {
+          isElementVisible(visibilityState, {
             partOccurrenceId: instance.partOccurrenceId,
             elementId: element.id,
           }),
@@ -238,13 +235,37 @@ describe("WorkbenchVisibilityActions", () => {
 
 function createActionHarness(scene: Scene, runtime: SceneOccurrences, initial: InteractionState) {
   let interaction = initial;
+  let visibilityState = initial;
   let appliedInteractionCount = 0;
   let panelSyncCount = 0;
   let renderCount = 0;
   const feedback: string[] = [];
   return {
     actions: new WorkbenchVisibilityActions({
-      viewport: () => ({}) as Viewport,
+      viewport: () =>
+        ({
+          visibility: {
+            setBodyVisible: (ref: Parameters<typeof setBodyVisible>[1], visible: boolean) => {
+              visibilityState = setBodyVisible(visibilityState, ref, visible);
+            },
+            setElementVisible: (ref: Parameters<typeof setElementVisible>[1], visible: boolean) => {
+              visibilityState = setElementVisible(visibilityState, ref, visible);
+            },
+            hideSelectedElements: () => {
+              visibilityState = hideSelectedElements(interaction);
+            },
+            showAll: () => {
+              visibilityState = withInteractionVisibility(visibilityState, {
+                hiddenBodyIds: new Map(),
+                hiddenElementIds: new Map(),
+              });
+            },
+            isBodyEffectivelyVisible: (ref: Parameters<typeof isBodyVisible>[1]) =>
+              isBodyVisible(visibilityState, ref),
+            isElementEffectivelyVisible: (ref: Parameters<typeof isElementVisible>[1]) =>
+              isElementVisible(visibilityState, ref),
+          },
+        }) as unknown as Viewport,
       scene: () => scene,
       runtime: () => runtime,
       interaction: () => interaction,
@@ -267,6 +288,9 @@ function createActionHarness(scene: Scene, runtime: SceneOccurrences, initial: I
     }),
     get interaction(): InteractionState {
       return interaction;
+    },
+    get visibility(): InteractionState {
+      return visibilityState;
     },
     get appliedInteractionCount(): number {
       return appliedInteractionCount;

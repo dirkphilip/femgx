@@ -8,6 +8,8 @@ import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { PartId } from "../geometry/part";
 import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
+import type { ElementRef } from "../scene/types";
+import type { BodyRef } from "../interaction/refs";
 import type { Scene } from "../scene/scene";
 import type { SceneUpdate } from "../scene/update";
 import type { SceneOccurrences } from "../scene-runtime/occurrences";
@@ -203,6 +205,26 @@ export interface ViewportVisibility {
    * @throws {UnknownSceneIdentityError} when any supplied id is absent.
    */
   setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void;
+  /** Changes direct visibility for one body occurrence. */
+  setBodyVisible(ref: BodyRef, visible: boolean): void;
+  /** Changes direct visibility for one element occurrence. */
+  setElementVisible(ref: ElementRef, visible: boolean): void;
+  /** Changes direct visibility for many body occurrences atomically. */
+  setBodiesVisible(refs: Iterable<BodyRef>, visible: boolean): void;
+  /** Changes direct visibility for many element occurrences atomically. */
+  setElementsVisible(refs: Iterable<ElementRef>, visible: boolean): void;
+  /** Hides all currently selected element occurrences without changing selection. */
+  hideSelectedElements(): void;
+  /** Restores all semantic visibility layers without changing interaction styling. */
+  showAll(): void;
+  /** Returns the direct body visibility layer, excluding ancestor visibility. */
+  isBodyDirectlyVisible(ref: BodyRef): boolean;
+  /** Returns the direct element visibility layer, excluding ancestor visibility. */
+  isElementDirectlyVisible(ref: ElementRef): boolean;
+  /** Returns body visibility after occurrence and definition visibility are applied. */
+  isBodyEffectivelyVisible(ref: BodyRef): boolean;
+  /** Returns element visibility after occurrence, body, and definition visibility are applied. */
+  isElementEffectivelyVisible(ref: ElementRef): boolean;
 }
 
 /** Authored result state and atomic result replacement operations. */
@@ -231,6 +253,10 @@ export interface ViewportPresentation {
   setNodeSizePixels(size: number): void;
   /** Enables or disables depth testing for rendered edges. */
   setEdgeDepthTest(enabled: boolean): void;
+  /** Enables or disables the renderer-owned edge overlay. */
+  setEdgesVisible(enabled: boolean): void;
+  /** Enables or disables the renderer-owned node overlay. */
+  setNodesVisible(enabled: boolean): void;
 }
 
 /**

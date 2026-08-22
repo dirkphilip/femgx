@@ -1,27 +1,59 @@
-import type { PartId } from "../../geometry/part";
+import type { BodyId, PartId } from "../../geometry/part";
+import { updateNestedSet, updateNestedSets } from "../../interaction/mechanics";
+import type { InteractionVisibility } from "../../interaction/state";
 import type { Scene } from "../../scene/scene";
-import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../../scene/types";
+import type {
+  AssemblyId,
+  AssemblyOccurrenceId,
+  ElementId,
+  ElementRef,
+  PartOccurrenceId,
+} from "../../scene/types";
+import type { BodyRef } from "../../interaction/refs";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { VisibilityDelta } from "../../scene-runtime/visibility";
+import {
+  applyDefinitionPolicy,
+  applyOccurrencePolicy,
+  reconcilePrimitiveVisibility,
+  retainedIds,
+  retainedPartSlots,
+} from "./reconciliation";
 
 /** Viewport-local visibility policy retained across scene revisions. */
 export class ViewportVisibilityState {
-  private constructor(
-    private readonly parts: DefinitionVisibility<PartId>,
-    private readonly assemblies: DefinitionVisibility<AssemblyId>,
-    private readonly hiddenPartOccurrenceSlots: Set<number>,
-    private readonly hiddenAssemblyOccurrenceIds: Set<AssemblyOccurrenceId>,
-    private readonly runtime: PackedSceneRuntime,
-  ) {}
+  private readonly parts: DefinitionVisibility<PartId>;
+  private readonly assemblies: DefinitionVisibility<AssemblyId>;
+  private readonly hiddenPartOccurrenceSlots: Set<number>;
+  private readonly hiddenAssemblyOccurrenceIds: Set<AssemblyOccurrenceId>;
+  private readonly runtime: PackedSceneRuntime;
+  private hiddenBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  private hiddenElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
+
+  private constructor(state: VisibilityStateData) {
+    this.parts = state.parts;
+    this.assemblies = state.assemblies;
+    this.hiddenPartOccurrenceSlots = state.hiddenPartOccurrenceSlots;
+    this.hiddenAssemblyOccurrenceIds = state.hiddenAssemblyOccurrenceIds;
+    this.runtime = state.runtime;
+    this.hiddenBodyIds = state.hiddenBodyIds;
+    this.hiddenElementIds = state.hiddenElementIds;
+  }
 
   static create(scene: Scene, runtime: PackedSceneRuntime): ViewportVisibilityState {
-    return new ViewportVisibilityState(
-      definitionVisibility(scene.parts.keys(), scene.visiblePartIds),
-      definitionVisibility(scene.assemblies.keys(), scene.visibleAssemblyIds),
-      new Set(),
-      new Set(),
+    return new ViewportVisibilityState({
+      parts: definitionVisibility(scene.parts.keys(), scene.visiblePartIds),
+      assemblies: definitionVisibility(scene.assemblies.keys(), scene.visibleAssemblyIds),
+      hiddenPartOccurrenceSlots: new Set(),
+      hiddenAssemblyOccurrenceIds: new Set(),
       runtime,
-    );
+      hiddenBodyIds: new Map(),
+      hiddenElementIds: new Map(),
+    });
+  }
+
+  interactionVisibility(): InteractionVisibility {
+    return { hiddenBodyIds: this.hiddenBodyIds, hiddenElementIds: this.hiddenElementIds };
   }
 
   snapshot(): ViewportVisibilityPolicy {
@@ -66,15 +98,24 @@ export class ViewportVisibilityState {
     const hiddenAssemblyOccurrences = retainedIds(this.hiddenAssemblyOccurrenceIds, (id) =>
       runtime.getNodeSlot(id),
     );
+    const primitiveVisibility = reconcilePrimitiveVisibility(
+      this.hiddenBodyIds,
+      this.hiddenElementIds,
+      this.runtime,
+      runtime,
+      scene.parts,
+    );
     applyDefinitionPolicy(runtime, scene, hiddenParts, hiddenAssemblies);
     applyOccurrencePolicy(runtime, hiddenPartOccurrences, hiddenAssemblyOccurrences);
-    return new ViewportVisibilityState(
-      { known: new Set(scene.parts.keys()), hidden: hiddenParts },
-      { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
-      hiddenPartOccurrences,
-      hiddenAssemblyOccurrences,
+    return new ViewportVisibilityState({
+      parts: { known: new Set(scene.parts.keys()), hidden: hiddenParts },
+      assemblies: { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
+      hiddenPartOccurrenceSlots: hiddenPartOccurrences,
+      hiddenAssemblyOccurrenceIds: hiddenAssemblyOccurrences,
       runtime,
-    );
+      hiddenBodyIds: primitiveVisibility.hiddenBodyIds,
+      hiddenElementIds: primitiveVisibility.hiddenElementIds,
+    });
   }
 
   /** Prepares hierarchy-owned policy changes without mutating the retained policy object. */
@@ -100,13 +141,22 @@ export class ViewportVisibilityState {
     for (const slot of removedPartSlots) hiddenPartOccurrences.delete(slot);
     const hiddenAssemblyOccurrences = new Set(this.hiddenAssemblyOccurrenceIds);
     for (const id of removedAssemblyIds) hiddenAssemblyOccurrences.delete(id);
-    return new ViewportVisibilityState(
-      { known: new Set(scene.parts.keys()), hidden: hiddenParts },
-      { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
-      hiddenPartOccurrences,
-      hiddenAssemblyOccurrences,
+    const primitiveVisibility = reconcilePrimitiveVisibility(
+      this.hiddenBodyIds,
+      this.hiddenElementIds,
+      this.runtime,
       runtime,
+      scene.parts,
     );
+    return new ViewportVisibilityState({
+      parts: { known: new Set(scene.parts.keys()), hidden: hiddenParts },
+      assemblies: { known: new Set(scene.assemblies.keys()), hidden: hiddenAssemblies },
+      hiddenPartOccurrenceSlots: hiddenPartOccurrences,
+      hiddenAssemblyOccurrenceIds: hiddenAssemblyOccurrences,
+      runtime,
+      hiddenBodyIds: primitiveVisibility.hiddenBodyIds,
+      hiddenElementIds: primitiveVisibility.hiddenElementIds,
+    });
   }
 
   /** Reconciles definition visibility after a hierarchy revision with no runtime occurrences. */
@@ -197,11 +247,131 @@ export class ViewportVisibilityState {
     for (const slot of slots) updateHidden(this.hiddenPartOccurrenceSlots, slot, visible);
     return runtime.setInstancesVisible(slots, visible);
   }
+
+  setBodyVisible(ref: BodyRef, visible: boolean): boolean {
+    const hiddenBodyIds = updateNestedSet(
+      this.hiddenBodyIds,
+      ref.partOccurrenceId,
+      ref.bodyId,
+      !visible,
+    );
+    if (hiddenBodyIds === this.hiddenBodyIds) return false;
+    this.hiddenBodyIds = hiddenBodyIds;
+    return true;
+  }
+
+  setElementVisible(ref: ElementRef, visible: boolean): boolean {
+    const hiddenElementIds = updateNestedSet(
+      this.hiddenElementIds,
+      ref.partOccurrenceId,
+      ref.elementId,
+      !visible,
+    );
+    if (hiddenElementIds === this.hiddenElementIds) return false;
+    this.hiddenElementIds = hiddenElementIds;
+    return true;
+  }
+
+  setBodiesVisible(
+    refs: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>,
+    visible: boolean,
+  ): boolean {
+    const hiddenBodyIds = updateNestedSets(this.hiddenBodyIds, refs, !visible);
+    if (hiddenBodyIds === this.hiddenBodyIds) return false;
+    this.hiddenBodyIds = hiddenBodyIds;
+    return true;
+  }
+
+  setElementsVisible(
+    refs: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>,
+    visible: boolean,
+  ): boolean {
+    const hiddenElementIds = updateNestedSets(this.hiddenElementIds, refs, !visible);
+    if (hiddenElementIds === this.hiddenElementIds) return false;
+    this.hiddenElementIds = hiddenElementIds;
+    return true;
+  }
+
+  isBodyVisible(ref: BodyRef): boolean {
+    return this.hiddenBodyIds.get(ref.partOccurrenceId)?.has(ref.bodyId) !== true;
+  }
+
+  isElementVisible(ref: ElementRef): boolean {
+    return this.hiddenElementIds.get(ref.partOccurrenceId)?.has(ref.elementId) !== true;
+  }
+
+  reconcilePrimitiveVisibility(scene: Scene, runtime: PackedSceneRuntime): void {
+    const primitiveVisibility = reconcilePrimitiveVisibility(
+      this.hiddenBodyIds,
+      this.hiddenElementIds,
+      this.runtime,
+      runtime,
+      scene.parts,
+    );
+    this.hiddenBodyIds = primitiveVisibility.hiddenBodyIds;
+    this.hiddenElementIds = primitiveVisibility.hiddenElementIds;
+  }
+
+  showAll(runtime: PackedSceneRuntime): readonly PartId[] {
+    const affected = new Set<PartId>();
+    for (const partOccurrenceId of [
+      ...this.hiddenBodyIds.keys(),
+      ...this.hiddenElementIds.keys(),
+    ]) {
+      const slot = runtime.getInstanceSlot(partOccurrenceId);
+      const partId = slot === undefined ? undefined : runtime.getPartId(slot);
+      if (partId !== undefined) affected.add(partId);
+    }
+    for (const partId of this.parts.hidden) {
+      if (runtime.getPartInstanceSlots(partId).length > 0) affected.add(partId);
+      runtime.setPartVisible(partId, true);
+    }
+    for (const assemblyId of this.assemblies.hidden) {
+      for (const slot of runtime.getAssemblyNodeSlots(assemblyId)) {
+        for (const instance of runtime.getNodeInstanceSlots(slot)) {
+          const partId = runtime.getPartId(instance);
+          if (partId !== undefined) affected.add(partId);
+        }
+      }
+      runtime.setAssemblyVisible(assemblyId, true);
+    }
+    for (const slot of this.hiddenPartOccurrenceSlots) {
+      const partId = runtime.getPartId(slot);
+      if (partId !== undefined) affected.add(partId);
+      runtime.setInstanceVisible(slot, true);
+    }
+    for (const id of this.hiddenAssemblyOccurrenceIds) {
+      const node = runtime.getNodeSlot(id);
+      if (node === undefined) continue;
+      for (const instance of runtime.getNodeInstanceSlots(node)) {
+        const partId = runtime.getPartId(instance);
+        if (partId !== undefined) affected.add(partId);
+      }
+      runtime.setAssemblyNodeVisible(node, true);
+    }
+    this.parts.hidden.clear();
+    this.assemblies.hidden.clear();
+    this.hiddenPartOccurrenceSlots.clear();
+    this.hiddenAssemblyOccurrenceIds.clear();
+    this.hiddenBodyIds = new Map();
+    this.hiddenElementIds = new Map();
+    return [...affected];
+  }
 }
 
 interface DefinitionVisibility<T> {
   readonly known: Set<T>;
   readonly hidden: Set<T>;
+}
+
+interface VisibilityStateData {
+  readonly parts: DefinitionVisibility<PartId>;
+  readonly assemblies: DefinitionVisibility<AssemblyId>;
+  readonly hiddenPartOccurrenceSlots: Set<number>;
+  readonly hiddenAssemblyOccurrenceIds: Set<AssemblyOccurrenceId>;
+  readonly runtime: PackedSceneRuntime;
+  readonly hiddenBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  readonly hiddenElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
 }
 
 export interface ViewportVisibilityPolicy {
@@ -242,45 +412,4 @@ function reconcileDefinitions<T>(
   return new Set(
     [...ids].filter((id) => (known.has(id) ? hidden.has(id) : !authoredVisible.has(id))),
   );
-}
-
-function retainedIds<T>(hidden: ReadonlySet<T>, resolve: (id: T) => number | undefined): Set<T> {
-  return new Set([...hidden].filter((id) => resolve(id) !== undefined));
-}
-
-function retainedPartSlots(
-  hidden: ReadonlySet<number>,
-  previous: PackedSceneRuntime,
-  runtime: PackedSceneRuntime,
-): Set<number> {
-  const retained = new Set<number>();
-  for (const slot of hidden) {
-    const id = previous.getInstanceId(slot);
-    const next = id === undefined ? undefined : runtime.getInstanceSlot(id);
-    if (next !== undefined) retained.add(next);
-  }
-  return retained;
-}
-
-function applyDefinitionPolicy(
-  runtime: PackedSceneRuntime,
-  scene: Scene,
-  hiddenParts: ReadonlySet<PartId>,
-  hiddenAssemblies: ReadonlySet<AssemblyId>,
-): void {
-  for (const partId of scene.parts.keys()) runtime.setPartVisible(partId, !hiddenParts.has(partId));
-  for (const assemblyId of scene.assemblies.keys()) {
-    runtime.setAssemblyVisible(assemblyId, !hiddenAssemblies.has(assemblyId));
-  }
-}
-
-function applyOccurrencePolicy(
-  runtime: PackedSceneRuntime,
-  hiddenParts: ReadonlySet<number>,
-  hiddenAssemblies: ReadonlySet<AssemblyOccurrenceId>,
-): void {
-  for (const slot of hiddenParts) runtime.setInstanceVisible(slot, false);
-  for (const id of hiddenAssemblies) {
-    runtime.setAssemblyNodeVisible(runtime.getNodeSlot(id) ?? -1, false);
-  }
 }

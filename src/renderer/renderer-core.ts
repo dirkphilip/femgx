@@ -59,6 +59,8 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public readonly edgePick: EdgePickState;
   public readonly picking: RendererPicking;
   private edgeDepthTest = true;
+  private edgesVisible: boolean | undefined;
+  private nodesVisible: boolean | undefined;
   private orbitPivot: Vec3 | undefined;
   public deformation: DeformationState | undefined;
   public resultColors: ResultColorMap | undefined;
@@ -264,6 +266,24 @@ export class GpuRenderer implements WebGpuRenderer, RendererFrameHost {
   public setEdgeDepthTest(enabled: boolean): void {
     this.ensureAlive();
     this.edgeDepthTest = enabled;
+  }
+
+  public setEdgesVisible(enabled: boolean): void {
+    this.ensureAlive();
+    if (this.edgesVisible === enabled) return;
+    this.edgesVisible = enabled;
+    if (this.attachment.setOverlayVisibility(enabled, this.nodesVisible, this.lifecycle.bundle)) {
+      this.picking.invalidate();
+    }
+  }
+
+  public setNodesVisible(enabled: boolean): void {
+    this.ensureAlive();
+    if (this.nodesVisible === enabled) return;
+    this.nodesVisible = enabled;
+    if (this.attachment.setOverlayVisibility(this.edgesVisible, enabled, this.lifecycle.bundle)) {
+      this.picking.invalidate();
+    }
   }
 
   public setBackground(background: ViewportBackground): void {

@@ -149,10 +149,8 @@ export interface InteractionStateData {
     PartOccurrenceId,
     ReadonlyMap<BodyId, PrimitiveStyleOverride>
   >;
-  readonly hiddenBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
   readonly selectedElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
   readonly highlightedElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
-  readonly hiddenElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
   readonly elementOverrides: ReadonlyMap<
     PartOccurrenceId,
     ReadonlyMap<ElementId, PrimitiveStyleOverride>
@@ -170,6 +168,18 @@ export interface InteractionStateData {
 }
 
 const dataByState = new WeakMap<InteractionState, InteractionStateData>();
+const visibilityByState = new WeakMap<InteractionState, InteractionVisibility>();
+
+/** Internal semantic visibility projection consumed by renderer code. */
+export interface InteractionVisibility {
+  readonly hiddenBodyIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<BodyId>>;
+  readonly hiddenElementIds: ReadonlyMap<PartOccurrenceId, ReadonlySet<ElementId>>;
+}
+
+const EMPTY_VISIBILITY: InteractionVisibility = {
+  hiddenBodyIds: new Map(),
+  hiddenElementIds: new Map(),
+};
 
 /** Creates the frozen public token for private interaction data. */
 export function createInteractionStateValue(data: InteractionStateData): InteractionState {
@@ -178,6 +188,21 @@ export function createInteractionStateValue(data: InteractionStateData): Interac
   });
   dataByState.set(state, data);
   return state;
+}
+
+/** Associates a renderer-only visibility projection with an interaction token. */
+export function withInteractionVisibility(
+  state: InteractionState,
+  visibility: InteractionVisibility,
+): InteractionState {
+  const next = createInteractionStateValue(readInteractionState(state));
+  visibilityByState.set(next, visibility);
+  return next;
+}
+
+/** Reads the visibility projection associated with an interaction token. */
+export function readInteractionVisibility(state: InteractionState): InteractionVisibility {
+  return visibilityByState.get(state) ?? EMPTY_VISIBILITY;
 }
 
 /** Internal state access for the renderer, viewport, and interaction modules. */
@@ -192,7 +217,10 @@ export function updateInteractionState(
   state: InteractionState,
   patch: Partial<InteractionStateData>,
 ): InteractionState {
-  return createInteractionStateValue({ ...readInteractionState(state), ...patch });
+  const next = createInteractionStateValue({ ...readInteractionState(state), ...patch });
+  const visibility = visibilityByState.get(state);
+  if (visibility !== undefined) visibilityByState.set(next, visibility);
+  return next;
 }
 
 /** Replaces the one hovered target without mutating the previous state. */

@@ -7,14 +7,17 @@ import {
   type ElementTessellation,
   type GeometryInput,
   type Scene,
+  type ElementRef,
 } from "../../src/entries/root";
 import {
   createInteractionState,
-  setBodyVisible,
-  setElementVisible,
   type ElementRegionSelection,
   type InteractionState,
 } from "../../src/entries/interaction";
+import { setBodyVisible } from "../../src/interaction/bodies";
+import { setElementVisible } from "../../src/interaction/elements";
+import { isBodyVisible } from "../../src/interaction/bodies";
+import { isElementVisible } from "../../src/interaction/elements";
 import { createCamera } from "../../src/entries/camera";
 import { createSceneOccurrenceSnapshot } from "../../src/scene-runtime/occurrences";
 import type { BoxSelectionRequest } from "../../demo/workbench/selection/box-selection-resolver";
@@ -181,6 +184,14 @@ function viewport(
       }),
     },
     interaction: { state: interaction },
+    visibility: {
+      isElementEffectivelyVisible: ({ partOccurrenceId, elementId }: ElementRef) => {
+        if (!isElementVisible(interaction, { partOccurrenceId, elementId })) return false;
+        const part = scene.parts.get(runtime.getPartId(partOccurrenceId) ?? -1);
+        const bodyId = part?.elements?.get(elementId)?.bodyId;
+        return bodyId === undefined || isBodyVisible(interaction, { partOccurrenceId, bodyId });
+      },
+    },
     results: {
       state: {
         config: {},

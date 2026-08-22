@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createInteractionState } from "@/interaction/interaction";
-import { readInteractionState, updateInteractionState } from "@/interaction/state";
+import { readInteractionVisibility } from "@/interaction/state";
+import { setElementVisible } from "@/interaction/elements";
 import { setTargetsSelected } from "@/interaction/targets";
 import { createStructuredFeModel } from "../../../demo/benchmark/structured-fe";
 import { boundaryFaceRefsForModel } from "@/elements/faces";
@@ -59,14 +60,9 @@ const halfTet4Interaction = setTargetsSelected(
   tet4Targets.slice(0, TET4_ELEMENT_COUNT / 2),
   true,
 );
-const halfTet4HiddenInteraction = updateInteractionState(createInteractionState(), {
-  hiddenElementIds: new Map([
-    [
-      tet4InstanceId,
-      new Set(tet4Targets.slice(0, TET4_ELEMENT_COUNT / 2).map(({ elementId }) => elementId)),
-    ],
-  ]),
-});
+const halfTet4HiddenInteraction = tet4Targets
+  .slice(0, TET4_ELEMENT_COUNT / 2)
+  .reduce((state, target) => setElementVisible(state, target, false), createInteractionState());
 const halfTet4HiddenSelectedInteraction = setTargetsSelected(
   halfTet4HiddenInteraction,
   tet4Targets.slice(TET4_ELEMENT_COUNT / 2, TET4_ELEMENT_COUNT / 2 + 1),
@@ -216,8 +212,8 @@ describe("large-model scaling", () => {
         halfTet4HiddenSelectedInteraction,
         bundle.draw,
       );
-      expect(readInteractionState(halfTet4HiddenSelectedInteraction).hiddenElementIds).toBe(
-        readInteractionState(halfTet4HiddenInteraction).hiddenElementIds,
+      expect(readInteractionVisibility(halfTet4HiddenSelectedInteraction).hiddenElementIds).toBe(
+        readInteractionVisibility(halfTet4HiddenInteraction).hiddenElementIds,
       );
       expect(hiddenController.currentFrame).toBe(hiddenFrame);
       expect(gpu.buffers).toHaveLength(hiddenBuffers);

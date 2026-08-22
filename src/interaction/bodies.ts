@@ -2,7 +2,9 @@ import type { BodyRef } from "./refs";
 import {
   isHoveredTarget,
   readInteractionState,
+  readInteractionVisibility,
   updateInteractionState,
+  withInteractionVisibility,
   type InteractionState,
   type PrimitiveStyleOverride,
   validatePrimitiveStyleOverride,
@@ -13,6 +15,7 @@ import {
   isNestedValueEmphasized,
   isNestedValueVisible,
   updateNestedMap,
+  updateNestedSet,
   updateNestedState,
 } from "./mechanics";
 
@@ -80,15 +83,16 @@ export function setBodyVisible(
   ref: BodyRef,
   visible: boolean,
 ): InteractionState {
-  const data = readInteractionState(state);
-  return updateNestedState({
-    state,
-    current: data.hiddenBodyIds,
-    outerKey: ref.partOccurrenceId,
-    innerKey: ref.bodyId,
-    enabled: !visible,
-    replace: (next) => updateInteractionState(state, { hiddenBodyIds: next }),
-  });
+  const visibility = readInteractionVisibility(state);
+  const hiddenBodyIds = updateNestedSet(
+    visibility.hiddenBodyIds,
+    ref.partOccurrenceId,
+    ref.bodyId,
+    !visible,
+  );
+  return hiddenBodyIds === visibility.hiddenBodyIds
+    ? state
+    : withInteractionVisibility(state, { ...visibility, hiddenBodyIds });
 }
 
 /**
@@ -97,7 +101,7 @@ export function setBodyVisible(
  */
 export function isBodyVisible(state: InteractionState, ref: BodyRef): boolean {
   return isNestedValueVisible(
-    readInteractionState(state).hiddenBodyIds,
+    readInteractionVisibility(state).hiddenBodyIds,
     ref.partOccurrenceId,
     ref.bodyId,
   );
@@ -110,7 +114,7 @@ export function isBodyVisible(state: InteractionState, ref: BodyRef): boolean {
 export function isBodyEmphasized(state: InteractionState, ref: BodyRef): boolean {
   const data = readInteractionState(state);
   return isNestedValueEmphasized({
-    hidden: data.hiddenBodyIds,
+    hidden: readInteractionVisibility(state).hiddenBodyIds,
     highlighted: data.highlightedBodyIds,
     selected: data.selectedBodyIds,
     overrides: data.bodyOverrides,
@@ -133,7 +137,12 @@ export function emphasizedBodyRefs(state: InteractionState): readonly BodyRef[] 
     (ref) => `${ref.partOccurrenceId}/${ref.bodyId}`,
     (push) => {
       appendSortedNestedRefs(
-        [data.highlightedBodyIds, data.selectedBodyIds, data.bodyOverrides, data.hiddenBodyIds],
+        [
+          data.highlightedBodyIds,
+          data.selectedBodyIds,
+          data.bodyOverrides,
+          readInteractionVisibility(state).hiddenBodyIds,
+        ],
         (partOccurrenceId, bodyId) => {
           push({ partOccurrenceId, bodyId });
         },

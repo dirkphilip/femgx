@@ -3,7 +3,8 @@ import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
 import { createInteractionState, setPartOverride } from "@/interaction/interaction";
 import {
   readInteractionState,
-  updateInteractionState,
+  readInteractionVisibility,
+  withInteractionVisibility,
   type InteractionState,
 } from "@/interaction/state";
 import { hideSelectedElements } from "@/interaction/selection-queries";
@@ -121,7 +122,10 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   assertHiddenState(hidden.state, selectedTargets, benchmarkCase.id);
 
   const restoreStateStart = performance.now();
-  const visible = updateInteractionState(hidden.state, { hiddenElementIds: new Map() });
+  const visible = withInteractionVisibility(hidden.state, {
+    hiddenBodyIds: readInteractionVisibility(hidden.state).hiddenBodyIds,
+    hiddenElementIds: new Map(),
+  });
   const restored = setTargetsSelected(visible, selectedTargets, false);
   const restoreStateMs = performance.now() - restoreStateStart;
   const restoreSyncStart = performance.now();
@@ -411,7 +415,8 @@ function assertHiddenState(
   const data = readInteractionState(state);
   if (
     data.selectedElementIds.get(first.partOccurrenceId)?.size !== targets.length ||
-    data.hiddenElementIds.get(first.partOccurrenceId)?.size !== targets.length
+    readInteractionVisibility(state).hiddenElementIds.get(first.partOccurrenceId)?.size !==
+      targets.length
   ) {
     throw new Error(`${caseId} hide did not preserve the selected half exactly`);
   }
@@ -427,6 +432,7 @@ function visibleElementCount(
   if (first?.kind !== "element") return 0;
   const total = authoredElementCount(benchmarkCase, runtime);
   return (
-    total - (readInteractionState(state).hiddenElementIds.get(first.partOccurrenceId)?.size ?? 0)
+    total -
+    (readInteractionVisibility(state).hiddenElementIds.get(first.partOccurrenceId)?.size ?? 0)
   );
 }

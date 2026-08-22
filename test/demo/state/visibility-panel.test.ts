@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   createInteractionState,
-  isBodyVisible,
   isTargetHighlighted,
   isTargetSelected,
 } from "@/entries/interaction";
+import { isBodyVisible } from "@/interaction/bodies";
 import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createResultsPreset } from "../../../demo/fixtures/results-preset";

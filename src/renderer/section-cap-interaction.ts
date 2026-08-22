@@ -1,13 +1,13 @@
 import type { InteractionState } from "../interaction/interaction";
-import { readInteractionState } from "../interaction/state";
+import { readInteractionVisibility } from "../interaction/state";
 
 /** Returns whether immutable interaction state changes cap geometry admission. */
 export function sectionCapVisibilityChanged(
   previous: InteractionState,
   next: InteractionState,
 ): boolean {
-  const before = readInteractionState(previous);
-  const after = readInteractionState(next);
+  const before = readInteractionVisibility(previous);
+  const after = readInteractionVisibility(next);
   return (
     !sameHiddenElements(before.hiddenBodyIds, after.hiddenBodyIds) ||
     !sameHiddenElements(before.hiddenElementIds, after.hiddenElementIds)
@@ -19,8 +19,8 @@ export function sectionCapVisibilityCanOnlyReduce(
   previous: InteractionState,
   next: InteractionState,
 ): boolean {
-  const before = readInteractionState(previous);
-  const after = readInteractionState(next);
+  const before = readInteractionVisibility(previous);
+  const after = readInteractionVisibility(next);
   return (
     hiddenSetsIncluded(before.hiddenBodyIds, after.hiddenBodyIds) &&
     hiddenSetsIncluded(before.hiddenElementIds, after.hiddenElementIds)

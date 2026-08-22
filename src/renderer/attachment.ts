@@ -20,23 +20,21 @@ import {
   type AttachmentFlagState,
   type AttachmentOrderParts,
 } from "./attachment/reconciliation";
-import type { SelectionState } from "./selection-state";
+import { type SelectionState } from "./selection-state";
 import {
-  rebuildEdgeOrders as rebuildEdgeOrdersForParts,
-  rebuildTransparentOrders as rebuildTransparentOrdersForParts,
-} from "./attachment/orders";
+  changedInstanceParts,
+  rebuildChangedStyleOrders,
+  rebuildOverlayOrders,
+} from "./attachment/overlay";
 import { rebuildAttachmentCalls } from "./attachment/calls";
 import {
   AttachmentPublicationState,
   internalAttachmentPublicationToken,
 } from "./attachment/call-publication";
 import { destroyVisibilitySkinCaches } from "./visibility/skins";
-import {
-  rebuildInteractionVisibilitySurfaces,
-  syncAttachmentInteraction,
-  syncOccurrenceInteractionEmphasis,
-  type AttachmentInteractionState,
-} from "./attachment/interaction";
+import { syncOccurrenceInteractionEmphasis } from "./attachment/interaction";
+import type { AttachmentInteractionState } from "./attachment/interaction";
+import { updateAttachmentElements } from "./attachment/elements";
 import type { RuntimeOccurrenceDelta } from "../scene-runtime/occurrence-update";
 import { applyOccurrenceAttachment } from "./attachment/occurrences";
 import {
@@ -66,6 +64,8 @@ export class RendererAttachment extends AttachmentPublicationState {
   private edgeEmphasisFlags: boolean[] = [];
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
+  private edgesVisible: boolean | undefined;
+  private nodesVisible: boolean | undefined;
   readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
   attachedParts = new Map<PartId, Part>();
 
@@ -153,38 +153,29 @@ export class RendererAttachment extends AttachmentPublicationState {
       transformChanged ||= instanceRecordsChanged(bundle.draw, partId, partUpdates);
       patchInstances(bundle.draw, partId, partUpdates);
     }
-    if (edgeChanged.size > 0) {
-      rebuildEdgeOrdersForParts({
-        runtime,
-        layout,
-        parts: edgeChanged,
-        flags: this.edgeFlags,
-        emphasisFlags: this.edgeEmphasisFlags,
-        draw: bundle.draw,
-      });
-    }
-    if (transparentChanged.size > 0) {
-      rebuildTransparentOrdersForParts(
-        runtime,
-        layout,
-        transparentChanged,
-        this.transparentFlags,
-        bundle.draw,
-      );
-    }
+    const styleOrdersChanged = rebuildChangedStyleOrders({
+      runtime,
+      layout,
+      edgeChanged,
+      transparentChanged,
+      edgeFlags: this.edgeFlags,
+      edgeEmphasisFlags: this.edgeEmphasisFlags,
+      transparentFlags: this.transparentFlags,
+      ...(this.edgesVisible === undefined ? {} : { edgesVisible: this.edgesVisible }),
+      draw: bundle.draw,
+    });
     const visibilityChanged = runtime.visibleCount !== layout.visibleCount;
     if (visibilityChanged) {
-      this.applyChangedInstanceVisibility(runtime, layout, changedInstanceIds, bundle);
-    } else if (edgeChanged.size > 0 || transparentChanged.size > 0) {
+      this.applyAttachmentOrders(
+        runtime,
+        layout,
+        changedInstanceParts(runtime, changedInstanceIds),
+        bundle,
+      );
+    } else if (styleOrdersChanged) {
       this.rebuildCalls(bundle.draw.cost);
     }
-    return (
-      attached ||
-      transformChanged ||
-      visibilityChanged ||
-      edgeChanged.size > 0 ||
-      transparentChanged.size > 0
-    );
+    return attached || transformChanged || visibilityChanged || styleOrdersChanged;
   }
 
   /** Applies exact direct-placement membership changes to an attached runtime. */
@@ -236,15 +227,18 @@ export class RendererAttachment extends AttachmentPublicationState {
     parts: ReadonlyMap<PartId, Part>,
     changedInstanceIds?: readonly number[],
   ): boolean {
-    const attached = this.attach(runtime, bundle);
-    const layout = this.layout;
-    if (layout === undefined) return attached;
-    const fullSync = attached || changedInstanceIds === undefined;
-    const changedSlots =
-      changedInstanceIds === undefined || attached
-        ? Array.from({ length: runtime.instanceCount }, (_, slot) => slot)
-        : changedInstanceIds;
-    const state: AttachmentInteractionState = {
+    return updateAttachmentElements({
+      attachment: this,
+      runtime,
+      interaction,
+      bundle,
+      parts,
+      changedInstanceIds,
+    });
+  }
+
+  public elementInteractionState(): AttachmentInteractionState {
+    return {
       interaction: this.interactionState,
       beforeLastInstanceUpdate: this.interactionBeforeLastInstanceUpdate,
       appliedHiddenIds: this.appliedHiddenIds,
@@ -255,39 +249,6 @@ export class RendererAttachment extends AttachmentPublicationState {
       slotByInstanceId: this.slotByInstanceId,
       selection: this.selection,
     };
-    const result = syncAttachmentInteraction({
-      state,
-      runtime,
-      layout,
-      interaction,
-      parts,
-      bundle,
-      attached,
-      fullSync,
-      changedSlots,
-    });
-    this.commitInteractionState(
-      state.interaction,
-      state.beforeLastInstanceUpdate,
-      internalAttachmentPublicationToken,
-      state.appliedHiddenIds,
-      state.usesExteriorFaceSubsets,
-    );
-    if (result.visibilityParts !== undefined) {
-      this.commitCalls(
-        rebuildInteractionVisibilitySurfaces({
-          runtime,
-          layout,
-          parts: result.visibilityParts,
-          attachedParts: this.attachedParts,
-          interaction: this.interactionState,
-          bundle,
-        }),
-        internalAttachmentPublicationToken,
-      );
-    } else if (result.calls !== undefined)
-      this.commitCalls(result.calls, internalAttachmentPublicationToken);
-    return result.changed;
   }
 
   public updateVisibility(
@@ -301,6 +262,36 @@ export class RendererAttachment extends AttachmentPublicationState {
     bundle.draw.cost.cpu("part-scan", affectedPartIds.length);
     this.applyAttachmentOrders(runtime, layout, new Set(affectedPartIds), bundle);
     return attached || affectedPartIds.length > 0;
+  }
+
+  public setOverlayVisibility(
+    edgesVisible: boolean | undefined,
+    nodesVisible: boolean | undefined,
+    bundle: GpuBundle,
+  ): boolean {
+    if (this.edgesVisible === edgesVisible && this.nodesVisible === nodesVisible) return false;
+    this.edgesVisible = edgesVisible;
+    this.nodesVisible = nodesVisible;
+    const layout = this.layout;
+    const runtime = this.runtime;
+    if (layout === undefined || runtime === undefined) return true;
+    const parts = new Set(layout.partOrder);
+    rebuildOverlayOrders({
+      runtime,
+      layout,
+      parts,
+      edgeFlags: this.edgeFlags,
+      edgeEmphasisFlags: this.edgeEmphasisFlags,
+      attachedParts: this.attachedParts,
+      selection: this.selection,
+      interaction: this.interactionState,
+      bundle,
+      force: true,
+      ...(edgesVisible === undefined ? {} : { edgesVisible }),
+      ...(nodesVisible === undefined ? {} : { nodesVisible }),
+    });
+    this.rebuildCalls(bundle.draw.cost);
+    return true;
   }
 
   public clear(bundle?: GpuBundle): void {
@@ -326,6 +317,7 @@ export class RendererAttachment extends AttachmentPublicationState {
     this.commitRuntimeSnapshot(runtime, layout, state);
     this.commitCalls(calls, internalAttachmentPublicationToken);
     this.resetAppliedHiddenIds(internalAttachmentPublicationToken);
+    this.rewriteOverlayVisibility(runtime, layout, new Set(layout.partOrder), bundle);
   }
 
   private incrementalAttach(
@@ -396,21 +388,31 @@ export class RendererAttachment extends AttachmentPublicationState {
       }),
       internalAttachmentPublicationToken,
     );
+    this.rewriteOverlayVisibility(runtime, layout, parts, bundle);
   }
 
-  private applyChangedInstanceVisibility(
+  private rewriteOverlayVisibility(
     runtime: PackedSceneRuntime,
     layout: InstanceLayout,
-    changedInstanceIds: readonly number[],
+    parts: ReadonlySet<PartId>,
     bundle: GpuBundle,
   ): void {
-    const parts = new Set<PartId>();
-    for (const slot of changedInstanceIds) {
-      const partId =
-        slot < 0 || slot >= runtime.instanceCount ? undefined : runtime.instancePartIds[slot];
-      if (partId !== undefined) parts.add(partId);
-    }
-    this.applyAttachmentOrders(runtime, layout, parts, bundle);
+    if (
+      rebuildOverlayOrders({
+        runtime,
+        layout,
+        parts,
+        edgeFlags: this.edgeFlags,
+        edgeEmphasisFlags: this.edgeEmphasisFlags,
+        attachedParts: this.attachedParts,
+        selection: this.selection,
+        interaction: this.interactionState,
+        bundle,
+        ...(this.edgesVisible === undefined ? {} : { edgesVisible: this.edgesVisible }),
+        ...(this.nodesVisible === undefined ? {} : { nodesVisible: this.nodesVisible }),
+      })
+    )
+      this.rebuildCalls(bundle.draw.cost);
   }
 
   styleFlags(): AttachmentFlagState {

@@ -5,7 +5,11 @@ import {
   sortedNumbers,
   sortedStringMapEntries,
 } from "../../interaction/mechanics";
-import { readInteractionState, type InteractionStateData } from "../../interaction/state";
+import {
+  readInteractionState,
+  readInteractionVisibility,
+  type InteractionStateData,
+} from "../../interaction/state";
 import type { ElementRef, PartOccurrenceId } from "../../scene/types";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
@@ -85,12 +89,11 @@ export function collectDenseHiddenElements(
   parts: ReadonlyMap<PartId, Part>,
   interaction: InteractionState,
 ): DenseElementSelections {
-  const data = readInteractionState(interaction);
   return collectDenseElementMemberships(
     runtime,
     layout,
     parts,
-    data.hiddenElementIds,
+    readInteractionVisibility(interaction).hiddenElementIds,
     visibilityCache,
   );
 }
@@ -163,7 +166,9 @@ export function sparseElementEmphasisRefs(
           push({ partOccurrenceId: instanceId, elementId });
       }
       appendElementRefs(data.elementOverrides, push);
-      for (const [instanceId, ids] of sortedStringMapEntries(data.hiddenElementIds)) {
+      for (const [instanceId, ids] of sortedStringMapEntries(
+        readInteractionVisibility(interaction).hiddenElementIds,
+      )) {
         if (instanceUsesDenseSelection(runtime, layout, denseHidden, instanceId)) continue;
         for (const elementId of sortedNumbers(ids))
           push({ partOccurrenceId: instanceId, elementId });

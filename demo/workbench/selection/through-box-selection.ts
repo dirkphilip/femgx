@@ -116,8 +116,7 @@ function appendVisibleOccurrenceTargets(
     const element = partQuery.elements[elementIndex];
     if (element === undefined) continue;
     if (probe !== undefined) probe.elementsVisited += 1;
-    if (!isElementOccurrenceVisible(view.interaction.state, part, partOccurrenceId, element))
-      continue;
+    if (!isElementOccurrenceVisible(view, partOccurrenceId, element)) continue;
     if (elementQuery === undefined) {
       elementQuery = {
         part,

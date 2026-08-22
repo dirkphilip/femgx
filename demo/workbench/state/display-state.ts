@@ -114,10 +114,12 @@ interface DisplayStateOptions {
 export function applyDisplayState(options: DisplayStateOptions): void {
   const state = setPartOverrides(
     options.interaction,
-    modelPartStyleOverrides(options.model, options.toggles.edges, options.toggles.nodes),
+    modelPartStyleOverrides(options.model, false, false),
   );
   options.setInteraction(state);
   options.applyDisplayedInteraction();
   options.viewport.presentation.setEdgeDepthTest(true);
+  options.viewport.presentation.setEdgesVisible(options.toggles.edges);
+  options.viewport.presentation.setNodesVisible(options.toggles.nodes);
   options.reflect();
 }

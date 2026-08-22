@@ -2,7 +2,7 @@ import type { PartId } from "../geometry/part";
 import type { InteractionState } from "../interaction/interaction";
 import type { InteractionTarget } from "../interaction/target-types";
 import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
-import { readInteractionState } from "../interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../interaction/state";
 import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import { forEachInstanceUnderAssemblyTargets } from "../scene-runtime/interaction-hierarchy";
@@ -69,7 +69,7 @@ export function changedInstanceSlots(
     nextData.highlightedElementIds,
     addInstance,
   );
-  diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
+  addVisibilitySlots(previous, next, addInstance);
   if (previousData.hoveredTarget !== nextData.hoveredTarget) {
     addAssemblyTarget(previousData.hoveredTarget, runtime, changed);
     addAssemblyTarget(nextData.hoveredTarget, runtime, changed);
@@ -77,6 +77,18 @@ export function changedInstanceSlots(
     addInstance(hoveredInstanceId(nextData.hoveredTarget));
   }
   return Array.from(changed).sort((a, b) => a - b);
+}
+
+function addVisibilitySlots(
+  previous: InteractionState,
+  next: InteractionState,
+  addInstance: (partOccurrenceId: PartOccurrenceId | undefined) => void,
+): void {
+  diffNestedSetMembers(
+    readInteractionVisibility(previous).hiddenElementIds,
+    readInteractionVisibility(next).hiddenElementIds,
+    addInstance,
+  );
 }
 
 function addAssemblyTarget(
