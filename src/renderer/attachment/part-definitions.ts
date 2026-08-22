@@ -11,6 +11,7 @@ import type { GpuCostAccumulator } from "../diagnostics/cost";
 import { rebuildInteractionVisibilitySurfaces } from "./interaction";
 import type { AttachmentInteractionState } from "./interaction";
 import { rebuildAttachmentCalls } from "./calls";
+import { internalAttachmentPublicationToken } from "./call-publication";
 import type { PartRevisionResultState } from "./part-revision-results";
 import { releasePartDefinitions } from "./occurrences";
 import {
@@ -74,8 +75,11 @@ export function replaceAttachedPartDefinitions(
   const layout = attachment.layout;
   if (runtime === undefined || layout === undefined) {
     replaceAttachedParts(attachment.attachedParts, parts, partIds);
-    attachment.interactionState = revision.interaction;
-    attachment.interactionBeforeLastInstanceUpdate = undefined;
+    attachment.commitInteractionState(
+      revision.interaction,
+      undefined,
+      internalAttachmentPublicationToken,
+    );
     return;
   }
   const prepared = preparePartRevision({
@@ -142,7 +146,7 @@ export function commitPartRevision(
   prepared.commitFlags(attachment.styleFlags());
   commitPartLayout(attachment.layout, prepared.layout, partIds);
   applyInteractionState(attachment, prepared.interactionState);
-  Object.assign(attachment, prepared.calls);
+  attachment.commitCalls(prepared.calls, internalAttachmentPublicationToken);
 }
 
 /** Discards one prepared definition revision without touching live resources. */
@@ -190,10 +194,13 @@ function applyInteractionState(
   attachment: PartRevisionAttachmentHost,
   state: AttachmentInteractionState,
 ): void {
-  attachment.interactionState = state.interaction;
-  attachment.interactionBeforeLastInstanceUpdate = state.beforeLastInstanceUpdate;
-  attachment.appliedHiddenIds = state.appliedHiddenIds;
-  attachment.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
+  attachment.commitInteractionState(
+    state.interaction,
+    state.beforeLastInstanceUpdate,
+    internalAttachmentPublicationToken,
+    state.appliedHiddenIds,
+    state.usesExteriorFaceSubsets,
+  );
 }
 
 function commitPartResults(

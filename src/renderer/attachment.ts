@@ -2,12 +2,13 @@ import type { Part, PartId } from "../geometry/part";
 import { createInteractionState, type InteractionState } from "../interaction/interaction";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
 import type { PartOccurrence, PartOccurrenceId } from "../scene/types";
-import { patchInstances, type DrawCall } from "./resources/draw-resources";
+import { patchInstances } from "./resources/draw-resources";
 import type { GpuBundle } from "./recovery";
 import type { GpuCostAccumulator } from "./diagnostics/cost";
 import { collectInstanceUpdates, instanceRecordsChanged } from "./instance-updates";
 import {
   buildInstanceLayout,
+  emptyDrawCallLists,
   type PreviousInstanceLayout,
   type InstanceLayout,
 } from "./runtime-state";
@@ -19,13 +20,16 @@ import {
   type AttachmentFlagState,
   type AttachmentOrderParts,
 } from "./attachment/reconciliation";
-import type { HiddenInteractionTuple } from "./attachment/interaction";
 import type { SelectionState } from "./selection-state";
 import {
   rebuildEdgeOrders as rebuildEdgeOrdersForParts,
   rebuildTransparentOrders as rebuildTransparentOrdersForParts,
 } from "./attachment/orders";
 import { rebuildAttachmentCalls } from "./attachment/calls";
+import {
+  AttachmentPublicationState,
+  internalAttachmentPublicationToken,
+} from "./attachment/call-publication";
 import { destroyVisibilitySkinCaches } from "./visibility/skins";
 import {
   rebuildInteractionVisibilitySurfaces,
@@ -53,15 +57,9 @@ import type { PartRevisionResultState } from "./attachment/part-revision-results
  * stable occurrence identity. Transform, visibility, interaction, deformation,
  * and highlight changes remain incremental subrange updates.
  */
-export class RendererAttachment {
+export class RendererAttachment extends AttachmentPublicationState {
   public runtime: PackedSceneRuntime | undefined;
   public layout: InstanceLayout | undefined;
-  public calls: readonly DrawCall[] = [];
-  public transparentCalls: readonly DrawCall[] = [];
-  public edgeCalls: readonly DrawCall[] = [];
-  public nodeCalls: readonly DrawCall[] = [];
-  public selectionCalls: readonly DrawCall[] = [];
-  public selectedNodeCalls: readonly DrawCall[] = [];
   public instances: Array<PartOccurrence | undefined> = [];
   public slotByInstanceId = new Map<PartOccurrenceId, number>();
   private edgeFlags: boolean[] = [];
@@ -69,18 +67,14 @@ export class RendererAttachment {
   private nodeFlags: boolean[] = [];
   private transparentFlags: boolean[] = [];
   readonly selection: SelectionState = { selectedNodeFlags: [], nodeFlags: this.nodeFlags };
-  interactionState = createInteractionState();
-  interactionBeforeLastInstanceUpdate: InteractionState | undefined;
-  appliedHiddenIds: HiddenInteractionTuple = [undefined, undefined];
   attachedParts = new Map<PartId, Part>();
-
-  public usesExteriorFaceSubsets = true;
 
   /** Retains geometry for unchanged part definitions and drops replaced ones. */
   public prepareParts(parts: ReadonlyMap<PartId, Part>, bundle: GpuBundle): void {
     const result = prepareAttachmentParts(this.partAttachmentOptions(bundle), parts);
     this.attachedParts = result.parts;
-    if (result.calls !== undefined) Object.assign(this, result.calls);
+    if (result.calls !== undefined)
+      this.commitCalls(result.calls, internalAttachmentPublicationToken);
   }
 
   /** Validates renderer-owned metadata for exact added definitions before commit. */
@@ -138,8 +132,11 @@ export class RendererAttachment {
     changedInstanceIds: readonly number[],
     bundle: GpuBundle,
   ): boolean {
-    this.interactionBeforeLastInstanceUpdate = this.interactionState;
-    this.interactionState = interaction;
+    this.commitInteractionState(
+      interaction,
+      this.interactionState,
+      internalAttachmentPublicationToken,
+    );
     bundle.draw.cost.cpu("instance-scan", changedInstanceIds.length);
     const attached = this.attach(runtime, bundle);
     const layout = this.layout;
@@ -200,8 +197,11 @@ export class RendererAttachment {
   ): boolean {
     const layout = this.layout;
     if (this.runtime !== runtime || layout === undefined) return false;
-    this.interactionBeforeLastInstanceUpdate = this.interactionState;
-    this.interactionState = interaction;
+    this.commitInteractionState(
+      interaction,
+      this.interactionState,
+      internalAttachmentPublicationToken,
+    );
     const state = this.attachmentState();
     const optionalParts = applyOccurrenceAttachment({
       runtime,
@@ -211,8 +211,7 @@ export class RendererAttachment {
       state,
       draw: bundle.draw,
     });
-    this.instances = state.instances;
-    this.slotByInstanceId = state.slotByInstanceId;
+    this.commitRuntimeSnapshot(runtime, layout, state);
     syncOccurrenceInteractionEmphasis({
       runtime,
       layout,
@@ -267,14 +266,15 @@ export class RendererAttachment {
       fullSync,
       changedSlots,
     });
-    this.interactionState = state.interaction;
-    this.interactionBeforeLastInstanceUpdate = state.beforeLastInstanceUpdate;
-    this.appliedHiddenIds = state.appliedHiddenIds;
-    this.usesExteriorFaceSubsets = state.usesExteriorFaceSubsets;
-    if (result.calls !== undefined) Object.assign(this, result.calls);
+    this.commitInteractionState(
+      state.interaction,
+      state.beforeLastInstanceUpdate,
+      internalAttachmentPublicationToken,
+      state.appliedHiddenIds,
+      state.usesExteriorFaceSubsets,
+    );
     if (result.visibilityParts !== undefined) {
-      Object.assign(
-        this,
+      this.commitCalls(
         rebuildInteractionVisibilitySurfaces({
           runtime,
           layout,
@@ -283,8 +283,10 @@ export class RendererAttachment {
           interaction: this.interactionState,
           bundle,
         }),
+        internalAttachmentPublicationToken,
       );
-    }
+    } else if (result.calls !== undefined)
+      this.commitCalls(result.calls, internalAttachmentPublicationToken);
     return result.changed;
   }
 
@@ -304,27 +306,26 @@ export class RendererAttachment {
   public clear(bundle?: GpuBundle): void {
     if (bundle !== undefined) destroyVisibilitySkinCaches(bundle.draw);
     this.runtime = this.layout = undefined;
-    this.calls = this.transparentCalls = this.edgeCalls = this.nodeCalls = [];
-    this.selectionCalls = this.selectedNodeCalls = [];
-    this.edgeFlags = [];
-    this.edgeEmphasisFlags = [];
+    this.commitCalls(emptyDrawCallLists(), internalAttachmentPublicationToken);
+    [this.edgeFlags, this.edgeEmphasisFlags] = [[], []];
     this.nodeFlags.length = 0;
     this.transparentFlags = [];
     this.selection.selectedNodeFlags.length = 0;
-    this.interactionState = createInteractionState();
-    this.interactionBeforeLastInstanceUpdate = undefined;
-    this.appliedHiddenIds = [undefined, undefined];
-    this.usesExteriorFaceSubsets = true;
+    this.commitInteractionState(
+      createInteractionState(),
+      undefined,
+      internalAttachmentPublicationToken,
+      [undefined, undefined],
+      true,
+    );
   }
 
   private fullAttach(runtime: PackedSceneRuntime, layout: InstanceLayout, bundle: GpuBundle): void {
     const state = this.attachmentState();
-    Object.assign(this, applyFullAttachment({ runtime, layout, state, draw: bundle.draw }));
-    this.instances = state.instances;
-    this.slotByInstanceId = state.slotByInstanceId;
-    this.appliedHiddenIds = [undefined, undefined];
-    this.runtime = runtime;
-    this.layout = layout;
+    const calls = applyFullAttachment({ runtime, layout, state, draw: bundle.draw });
+    this.commitRuntimeSnapshot(runtime, layout, state);
+    this.commitCalls(calls, internalAttachmentPublicationToken);
+    this.resetAppliedHiddenIds(internalAttachmentPublicationToken);
   }
 
   private incrementalAttach(
@@ -342,10 +343,7 @@ export class RendererAttachment {
       state,
       draw: bundle.draw,
     });
-    this.instances = state.instances;
-    this.slotByInstanceId = state.slotByInstanceId;
-    this.runtime = runtime;
-    this.layout = layout;
+    this.commitRuntimeSnapshot(runtime, layout, state);
     if (affectedParts.size > 0) {
       this.applyAttachmentOrders(runtime, layout, affectedParts, bundle);
     }
@@ -365,6 +363,17 @@ export class RendererAttachment {
     };
   }
 
+  private commitRuntimeSnapshot(
+    runtime: PackedSceneRuntime,
+    layout: InstanceLayout,
+    state: AttachmentState,
+  ): void {
+    this.instances = state.instances;
+    this.slotByInstanceId = state.slotByInstanceId;
+    this.runtime = runtime;
+    this.layout = layout;
+  }
+
   private applyAttachmentOrders(
     runtime: PackedSceneRuntime,
     layout: InstanceLayout,
@@ -372,8 +381,7 @@ export class RendererAttachment {
     bundle: GpuBundle,
     optionalParts?: AttachmentOrderParts,
   ): void {
-    Object.assign(
-      this,
+    this.commitCalls(
       rebuildAttachmentOrders({
         runtime,
         layout,
@@ -386,6 +394,7 @@ export class RendererAttachment {
         previousCalls: this,
         ...(optionalParts === undefined ? {} : { optionalParts }),
       }),
+      internalAttachmentPublicationToken,
     );
   }
 
@@ -415,7 +424,7 @@ export class RendererAttachment {
   }
 
   private rebuildCalls(cost: GpuCostAccumulator): void {
-    Object.assign(this, rebuildAttachmentCalls(this.layout, cost));
+    this.commitCalls(rebuildAttachmentCalls(this.layout, cost), internalAttachmentPublicationToken);
   }
 
   private partAttachmentOptions(bundle: GpuBundle) {

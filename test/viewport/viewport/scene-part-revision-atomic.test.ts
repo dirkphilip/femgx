@@ -64,6 +64,15 @@ describe("Viewport atomic part revision staging", () => {
       });
       const viewport = await fixture(gpu.device);
       const draw = rendererDraw(viewport);
+      const attachment = rendererInternals(viewport).attachment;
+      const originalCallLists = [
+        attachment.calls,
+        attachment.transparentCalls,
+        attachment.edgeCalls,
+        attachment.nodeCalls,
+        attachment.selectionCalls,
+        attachment.selectedNodeCalls,
+      ];
       const original = viewport.scene.parts.get(1);
       const storage = draw.storages.get(1);
       const geometry = draw.primitiveParts.get(1)?.get("triangles");
@@ -92,6 +101,12 @@ describe("Viewport atomic part revision staging", () => {
       expect(update).toThrow(`failed staged ${scenario.label}`);
 
       expect(viewport.scene.parts.get(1)).toBe(original);
+      expect(attachment.calls).toBe(originalCallLists[0]);
+      expect(attachment.transparentCalls).toBe(originalCallLists[1]);
+      expect(attachment.edgeCalls).toBe(originalCallLists[2]);
+      expect(attachment.nodeCalls).toBe(originalCallLists[3]);
+      expect(attachment.selectionCalls).toBe(originalCallLists[4]);
+      expect(attachment.selectedNodeCalls).toBe(originalCallLists[5]);
       expect(draw.storages.get(1)).toBe(storage);
       expect(draw.storages.get(1)?.bindGroup).toBe(bindGroup);
       const currentStorage = draw.storages.get(1);
@@ -343,6 +358,12 @@ function rendererInternals(viewport: Awaited<ReturnType<typeof fixture>>) {
   const owner = viewport as unknown as {
     readonly renderer: {
       readonly attachment: {
+        readonly calls: readonly unknown[];
+        readonly transparentCalls: readonly unknown[];
+        readonly edgeCalls: readonly unknown[];
+        readonly nodeCalls: readonly unknown[];
+        readonly selectionCalls: readonly unknown[];
+        readonly selectedNodeCalls: readonly unknown[];
         replaceParts: (
           parts: ReadonlyMap<number, Part>,
           partIds: ReadonlySet<number>,

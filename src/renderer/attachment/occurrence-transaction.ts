@@ -37,6 +37,10 @@ import type { DrawResources } from "../resources/draw-resources";
 import type { StagedBufferWrite } from "./part-revision-writes";
 import type { AttachmentCallLists } from "./calls";
 import {
+  internalAttachmentPublicationToken,
+  type AttachmentPublicationToken,
+} from "./call-publication";
+import {
   commitOccurrenceLayout,
   stageOccurrenceLayout,
   stageSlotLocals,
@@ -44,6 +48,12 @@ import {
 } from "./occurrence-layout";
 
 interface OccurrenceAttachmentOwner extends AttachmentCallLists {
+  commitCalls(calls: AttachmentCallLists, token: AttachmentPublicationToken): void;
+  commitInteractionState(
+    interaction: InteractionState,
+    beforeLastInstanceUpdate: InteractionState | undefined,
+    token: AttachmentPublicationToken,
+  ): void;
   readonly runtime: PackedSceneRuntime | undefined;
   readonly layout: InstanceLayout | undefined;
   readonly instances: Array<PartOccurrence | undefined>;
@@ -295,9 +305,12 @@ function commitPrepared(options: PreparedOptions): void {
   options.slotByInstanceId.commit(options.attachment.slotByInstanceId);
   options.attachedParts.commit(options.attachment.attachedParts);
   options.sourceParts.commit(options.liveSourceParts);
-  Object.assign(options.attachment, options.calls);
-  options.attachment.interactionBeforeLastInstanceUpdate = options.attachment.interactionState;
-  options.attachment.interactionState = options.interaction;
+  options.attachment.commitCalls(options.calls, internalAttachmentPublicationToken);
+  options.attachment.commitInteractionState(
+    options.interaction,
+    options.attachment.interactionState,
+    internalAttachmentPublicationToken,
+  );
   releasePartDefinitions({
     runtime: options.runtime,
     layout: liveLayout,

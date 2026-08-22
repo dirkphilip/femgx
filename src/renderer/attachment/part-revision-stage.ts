@@ -13,6 +13,7 @@ import { syncOrientationGlyphs } from "../orientation-glyphs/orientation-glyph";
 import { syncResultColors } from "../resources/result-colors";
 import type { PartRevisionResultState } from "./part-revision-results";
 import type { AttachmentCallLists } from "./calls";
+import type { AttachmentPublicationToken } from "./call-publication";
 import type { HiddenInteractionTuple } from "./interaction";
 import type { AttachmentFlagState } from "./reconciliation";
 import type { SelectionState } from "../selection-state";
@@ -36,6 +37,14 @@ const PART_REVISION_SIDECARS = [
 ] as const;
 
 export interface PartRevisionAttachmentHost extends AttachmentCallLists {
+  commitCalls(calls: AttachmentCallLists, token: AttachmentPublicationToken): void;
+  commitInteractionState(
+    interaction: InteractionState,
+    beforeLastInstanceUpdate: InteractionState | undefined,
+    token: AttachmentPublicationToken,
+    appliedHiddenIds?: HiddenInteractionTuple,
+    usesExteriorFaceSubsets?: boolean,
+  ): void;
   interactionState: InteractionState;
   interactionBeforeLastInstanceUpdate: InteractionState | undefined;
   readonly attachedParts: Map<PartId, Part>;
