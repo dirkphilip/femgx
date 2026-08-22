@@ -21,6 +21,15 @@ interface StagedBufferWrite {
   readonly data: Uint8Array;
 }
 
+export const DRAW_REVISION_SIDECARS = [
+  "transparent",
+  "selection",
+  "nodeSelection",
+  "nodeSelectionCompact",
+  "edge",
+  "node",
+] as const;
+
 export type DrawRevisionKind = "part" | "occurrence";
 
 export interface CommitDrawRevisionOptions {
@@ -123,14 +132,7 @@ function replaceGrownStorage(
 }
 
 function replacePreparedSidecars(live: InstanceStorage, prepared: InstanceStorage): void {
-  for (const kind of [
-    "transparent",
-    "selection",
-    "nodeSelection",
-    "nodeSelectionCompact",
-    "edge",
-    "node",
-  ] as const) {
+  for (const kind of DRAW_REVISION_SIDECARS) {
     const previous = live.sidecars[kind];
     const next = prepared.sidecars[kind];
     if (previous !== undefined && previous.buffer !== next?.buffer) previous.buffer.destroy();
@@ -282,14 +284,7 @@ function discardStorage(staged: DrawResources, live: DrawResources, partId: Part
   const buffers = new Set<GPUBuffer>();
   if (storage.buffer !== current.buffer) buffers.add(storage.buffer);
   if (storage.orderBuffer !== current.orderBuffer) buffers.add(storage.orderBuffer);
-  for (const kind of [
-    "transparent",
-    "selection",
-    "nodeSelection",
-    "nodeSelectionCompact",
-    "edge",
-    "node",
-  ] as const) {
+  for (const kind of DRAW_REVISION_SIDECARS) {
     const sidecar = storage.sidecars[kind];
     if (sidecar !== undefined && sidecar.buffer !== current.sidecars[kind]?.buffer)
       buffers.add(sidecar.buffer);

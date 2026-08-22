@@ -51,7 +51,7 @@ export function applyRendererPartRevision(
     bundle: options.bundle,
     results: options.results,
   });
-  let drawCommitted = false;
+  let drawCommitStarted = false;
   try {
     const caps = sectionCaps.preparePartRevision({
       runtime: options.runtime,
@@ -63,15 +63,15 @@ export function applyRendererPartRevision(
       resultColors: options.resultColors,
       draw: prepared.drawRevision.draw,
     });
-    commitPartRevision(attachment, prepared, options.partIds);
-    drawCommitted = true;
     sectionCaps.commitPartRevision(caps, prepared.drawRevision.draw, options.bundle.draw);
+    drawCommitStarted = true;
+    commitPartRevision(attachment, prepared, options.partIds);
     for (const partId of options.partIds) {
       const part = nextParts.get(partId);
       if (part !== undefined) renderedParts.set(partId, part);
     }
   } catch (error) {
-    if (!drawCommitted) discardPartRevision(prepared);
+    if (!drawCommitStarted) discardPartRevision(prepared);
     throw error;
   }
   return sourceParts === undefined ? undefined : options.parts;

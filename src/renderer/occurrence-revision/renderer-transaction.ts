@@ -85,12 +85,12 @@ export function commitRendererOccurrenceUpdate(
   renderer: RendererOccurrenceOwner,
   prepared: PreparedRendererOccurrenceUpdate,
 ): void {
-  prepared.attachment.commit();
   renderer.sectionCaps.commitOccurrenceRevision(
     prepared.caps,
     prepared.attachment.drawRevision.draw,
     renderer.lifecycle.bundle.draw,
   );
+  prepared.attachment.commit();
   if (renderer.sourceParts !== undefined) renderer.sourceParts = prepared.parts;
   renderer.interaction = prepared.interaction;
   if (prepared.results !== undefined) {

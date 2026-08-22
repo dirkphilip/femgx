@@ -47,7 +47,6 @@ export interface PreparedPartRevision {
   readonly flags: AttachmentFlagState;
   readonly commitFlags: (target: AttachmentFlagState) => void;
   readonly interaction: InteractionState;
-  readonly results: PartRevisionResultState | undefined;
   readonly interactionState: AttachmentInteractionState;
   readonly calls: AttachmentCallLists;
 }

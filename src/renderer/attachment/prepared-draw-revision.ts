@@ -17,18 +17,10 @@ import type { PartRevisionResultState } from "./part-revision-results";
 import {
   commitDrawRevisionResources,
   discardDrawRevisionResources,
+  DRAW_REVISION_SIDECARS,
   type DrawRevisionKind,
 } from "./prepared-draw-revision-resources";
 import { stagePartRevisionSidecars } from "./part-revision-storage";
-
-const REVISION_SIDECARS = [
-  "transparent",
-  "selection",
-  "nodeSelection",
-  "nodeSelectionCompact",
-  "edge",
-  "node",
-] as const;
 
 interface PreparedDrawRevisionOptions {
   readonly live: DrawResources;
@@ -49,7 +41,7 @@ export class PreparedDrawRevision {
   private readonly kind: DrawRevisionKind;
   private resultState: PartRevisionResultState | undefined;
   private resultsStaged = false;
-  private lifecycle: "pending" | "committed" | "discarded" = "pending";
+  private lifecycle: "pending" | "committing" | "committed" | "discarded" | "failed" = "pending";
 
   public constructor(options: PreparedDrawRevisionOptions) {
     this.draw = options.staged;
@@ -83,18 +75,24 @@ export class PreparedDrawRevision {
   /** Publishes all owned GPU resources and deferred writes exactly once. */
   public commit(): void {
     this.assertPending();
-    commitDrawRevisionResources({
-      live: this.live,
-      staged: this.draw,
-      affectedPartIds: this.affectedPartIds,
-      replacedPartIds: this.replacedPartIds,
-      kind: this.kind,
-      writes: this.writes,
-      results: this.resultState,
-    });
-    this.live.cost.merge(this.draw.cost);
-    this.live.cost.completeTransaction();
-    this.lifecycle = "committed";
+    this.lifecycle = "committing";
+    try {
+      commitDrawRevisionResources({
+        live: this.live,
+        staged: this.draw,
+        affectedPartIds: this.affectedPartIds,
+        replacedPartIds: this.replacedPartIds,
+        kind: this.kind,
+        writes: this.writes,
+        results: this.resultState,
+      });
+      this.live.cost.merge(this.draw.cost);
+      this.live.cost.completeTransaction();
+      this.lifecycle = "committed";
+    } catch (error) {
+      this.lifecycle = "failed";
+      throw error;
+    }
   }
 
   /** Rolls back journals and destroys only allocations owned by this revision. */
@@ -293,7 +291,7 @@ function protectedStorageBuffers(
     if (storage === undefined) continue;
     buffers.add(storage.buffer);
     buffers.add(storage.orderBuffer);
-    for (const kind of REVISION_SIDECARS) {
+    for (const kind of DRAW_REVISION_SIDECARS) {
       const sidecar = storage.sidecars[kind];
       if (sidecar !== undefined) buffers.add(sidecar.buffer);
     }
