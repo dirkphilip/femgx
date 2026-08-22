@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { reviseAttachmentCalls } from "@/renderer/attachment/calls";
+import { RendererAttachment } from "@/renderer/attachment";
+import { internalAttachmentPublicationToken } from "@/renderer/attachment/call-publication";
 import { GpuCostAccumulator } from "@/renderer/diagnostics/cost";
-import { buildDrawCalls, buildInstanceLayout } from "@/renderer/runtime-state";
+import { buildDrawCalls, buildInstanceLayout, emptyDrawCallLists } from "@/renderer/runtime-state";
 import { createPackedSceneRuntime } from "@/scene-runtime/runtime";
 import { createSceneBuilder } from "@/scene/scene";
 import { identityMatrix } from "@/math/mat4";
@@ -41,5 +43,29 @@ describe("incremental attachment calls", () => {
     expect(restored.calls.map(({ partId }) => partId)).toEqual([1, 2, 3, 4, 5]);
     expect(restored.calls[0]).toBe(retained[0]);
     expect(restored.calls[3]).toBe(retained[2]);
+  });
+
+  it("publishes all draw-call lists through one attachment-owned record", () => {
+    const attachment = new RendererAttachment();
+    const calls = emptyDrawCallLists();
+
+    attachment.commitCalls(calls, internalAttachmentPublicationToken);
+
+    expect(attachment.calls).toBe(calls.calls);
+    expect(attachment.transparentCalls).toBe(calls.transparentCalls);
+    expect(attachment.edgeCalls).toBe(calls.edgeCalls);
+    expect(attachment.nodeCalls).toBe(calls.nodeCalls);
+    expect(attachment.selectionCalls).toBe(calls.selectionCalls);
+    expect(attachment.selectedNodeCalls).toBe(calls.selectedNodeCalls);
+
+    const replacement = emptyDrawCallLists();
+    attachment.commitCalls(replacement, internalAttachmentPublicationToken);
+    expect(attachment.calls).toBe(replacement.calls);
+    expect(attachment.transparentCalls).toBe(replacement.transparentCalls);
+    expect(attachment.edgeCalls).toBe(replacement.edgeCalls);
+    expect(attachment.nodeCalls).toBe(replacement.nodeCalls);
+    expect(attachment.selectionCalls).toBe(replacement.selectionCalls);
+    expect(attachment.selectedNodeCalls).toBe(replacement.selectedNodeCalls);
+    expect(attachment.calls).not.toBe(calls.calls);
   });
 });
