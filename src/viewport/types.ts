@@ -264,8 +264,8 @@ export interface ViewportPresentation {
  *
  * `Viewport` is the sole public rendering lifecycle. It consumes one
  * immutable {@link Scene}, owns its derived live occurrence view, and
- * exposes stable, non-owning capability facades for camera/navigation,
- * interaction/picking, visibility, results, and presentation. Runtime slots,
+ * exposes stable capability owners for camera/navigation, interaction/picking,
+ * visibility, results, and presentation. Runtime slots,
  * GPU buffers, and renderer construction are intentionally not public API.
  *
  * Call {@link destroy} when the host removes the viewport. `destroy` releases

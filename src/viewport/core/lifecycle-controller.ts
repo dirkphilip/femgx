@@ -2,6 +2,7 @@ import type { CameraFocusController } from "../camera-focus";
 import type { OrientationGizmoHandle } from "../orientation-gizmo";
 import type { WebGpuRenderer } from "../../renderer/gpu-renderer";
 import type { Camera } from "../../camera/camera";
+import type { ViewportLifecycleBoundary } from "./lifecycle-boundary";
 
 interface LifecycleControllerOptions {
   readonly renderer: WebGpuRenderer;
@@ -17,7 +18,7 @@ interface LifecycleControllerOptions {
 }
 
 /** Owns the viewport's recovery state machine and final resource teardown. */
-export class ViewportLifecycleController {
+export class ViewportLifecycleController implements ViewportLifecycleBoundary {
   private batchDepth = 0;
   private batchDirty = false;
   private frame: number | undefined;

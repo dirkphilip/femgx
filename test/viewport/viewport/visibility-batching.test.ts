@@ -8,6 +8,7 @@ import {
   identityScene,
   setTargetSelected,
   createViewport,
+  GpuRenderer,
   fakeCanvas,
   fakeGpuDevice,
   installTestGpuGlobals,
@@ -121,6 +122,29 @@ describe("Viewport", () => {
     viewport.presentation.clearSectionPlane();
     expect(viewport.presentation.sectionPlane).toBeUndefined();
     expect(latestSectionPlaneUniform(gpu)).toEqual(new Float32Array([0, 0, 0, 0]));
+    viewport.destroy();
+  });
+
+  it("does not publish cleared presentation state when the renderer rejects", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: scene(),
+      device: fakeGpuDevice().device,
+    });
+    viewport.presentation.setSectionPlane({ normal: [0, 0, 1], distance: 2 });
+    const setSectionPlane = vi.spyOn(GpuRenderer.prototype, "setSectionPlane");
+    setSectionPlane.mockImplementationOnce(() => {
+      throw new Error("section plane update failed");
+    });
+
+    expect(() => {
+      viewport.presentation.clearSectionPlane();
+    }).toThrow("section plane update failed");
+    expect(viewport.presentation.sectionPlane).toEqual({ normal: [0, 0, 1], distance: 2 });
+
+    setSectionPlane.mockRestore();
     viewport.destroy();
   });
 

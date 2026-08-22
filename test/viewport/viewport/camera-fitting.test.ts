@@ -32,15 +32,14 @@ describe("Viewport", () => {
       device: gpu.device,
     });
     displayedBounds.mockClear();
-
     input.wheel(-100);
     input.wheel(-100);
-    expect(displayedBounds).toHaveBeenCalledTimes(1);
+    expect(displayedBounds).not.toHaveBeenCalled();
 
     viewport.visibility.setPartOccurrenceVisible("1/0", false);
     viewport.visibility.setPartOccurrenceVisible("1/0", true);
     input.wheel(100);
-    expect(displayedBounds).toHaveBeenCalledTimes(2);
+    expect(displayedBounds).toHaveBeenCalledOnce();
     viewport.destroy();
     displayedBounds.mockRestore();
   });

@@ -8,7 +8,8 @@ import {
 import { createInteractionState } from "../../src/interaction/interaction";
 import { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { CameraFocusController } from "../../src/viewport/camera-focus";
-import { sceneWorldBounds } from "../../src/viewport/scene-bounds";
+import { SceneNavigationBoundsCache, sceneWorldBounds } from "../../src/viewport/scene-bounds";
+import { ViewportSceneController } from "../../src/viewport/scene-controller";
 import { createViewport } from "../../src/viewport/viewport";
 import { fakeCanvas } from "../renderer/fake-gpu";
 import { fakeGpuDevice, installNavigator, installTestGpuGlobals, scene } from "./viewport/support";
@@ -103,16 +104,18 @@ describe("camera focus gizmo actions", () => {
     vi.stubGlobal("cancelAnimationFrame", () => undefined);
 
     const currentScene = scene();
-    const runtime = createPackedSceneRuntime(currentScene);
     const initial = createCamera({ position: [4, 3, 8], target: [0, 0, 0] });
     const cameraRef = { camera: initial };
+    const sceneController = new ViewportSceneController({
+      scene: currentScene,
+      interaction: createInteractionState(),
+      renderer: {} as never,
+    });
     const focus = new CameraFocusController({
       cameraRef,
       canvas: fakeCanvas(),
-      scene: () => currentScene,
-      runtime: () => runtime,
-      interaction: createInteractionState,
-      deformation: () => undefined,
+      sceneController,
+      navigationBoundsCache: new SceneNavigationBoundsCache(),
       invalidate: vi.fn(),
     });
 
@@ -139,17 +142,19 @@ describe("camera focus gizmo actions", () => {
     vi.stubGlobal("cancelAnimationFrame", () => undefined);
 
     const currentScene = scene();
-    const runtime = createPackedSceneRuntime(currentScene);
     const cameraRef = {
       camera: createCamera({ position: [0, 0, 8], target: [0, 0, 0] }),
     };
+    const sceneController = new ViewportSceneController({
+      scene: currentScene,
+      interaction: createInteractionState(),
+      renderer: {} as never,
+    });
     const focus = new CameraFocusController({
       cameraRef,
       canvas: fakeCanvas(),
-      scene: () => currentScene,
-      runtime: () => runtime,
-      interaction: createInteractionState,
-      deformation: () => undefined,
+      sceneController,
+      navigationBoundsCache: new SceneNavigationBoundsCache(),
       invalidate: vi.fn(),
     });
     const initial = cameraRef.camera;
