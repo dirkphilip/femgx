@@ -6,7 +6,9 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "femgx": ["./src/entries/root.ts"],
+      "femgx/model": ["./src/entries/model.ts"]
     },
     "types": ["@webgpu/types", "node", "svelte"],
 
@@ -29,5 +31,14 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["src", "test", "demo", "demo/**/*.svelte", "e2e", "*.config.ts", "config/**/*.ts"]
+  "include": [
+    "src",
+    "test",
+    "demo",
+    "fixtures",
+    "demo/**/*.svelte",
+    "e2e",
+    "*.config.ts",
+    "config/**/*.ts"
+  ]
 }

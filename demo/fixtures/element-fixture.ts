@@ -29,6 +29,7 @@ import {
   buildTetModel,
   buildWedge6Model,
 } from "./element-models";
+import { createTet4Fixture } from "../../fixtures/fe/tet4";
 
 /** Stable part identifiers for the helper and generic mapping examples. */
 export interface ElementFixtureParts {
@@ -246,7 +247,11 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
   const pointLineModel = buildPointLineModel(gridSize, cellSize);
   const lineModel = buildPointLineModel(gridSize, cellSize, "linear");
   const line3Model = buildPointLineModel(gridSize, cellSize, "quadratic");
-  const tet4Model = buildTetModel(gridSize, cellSize, false);
+  const sharedTet4 =
+    options.gridSize === undefined && options.cellSize === undefined
+      ? createTet4Fixture()
+      : undefined;
+  const tet4Model = sharedTet4?.elementModel ?? buildTetModel(gridSize, cellSize, false);
   const tet10Model = buildTetModel(gridSize, cellSize, true);
   const hex8Model = buildHexModel(gridSize, cellSize, false);
   const hex20Model = buildHexModel(gridSize, cellSize, true);
@@ -277,7 +282,7 @@ export function createElementFixture(options: ElementFixtureOptions = {}): Eleme
     createPartFromElementModel(POINT_PART_ID, elementsOf(pointLineModel, "point")),
     createPartFromElementModel(LINE_PART_ID, elementsOf(lineModel, "line", 1)),
     createPartFromElementModel(LINE3_PART_ID, elementsOf(line3Model, "line", 2)),
-    createPartFromElementModel(TET4_PART_ID, tet4Model),
+    sharedTet4?.part ?? createPartFromElementModel(TET4_PART_ID, tet4Model),
     createPartFromElementModel(TET10_PART_ID, tet10Model),
     createPartFromElementModel(HEX8_PART_ID, hex8Model),
     createPartFromElementModel(HEX20_PART_ID, hex20Model),

@@ -1,0 +1,43 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
+import { describe, expect, it } from "vitest";
+
+const script = fileURLToPath(new URL("../../scripts/check-fixture-boundary.mjs", import.meta.url));
+
+function runFixtureBoundary(files: Record<string, string>) {
+  const root = mkdtempSync(join(tmpdir(), "check-fixture-boundary-"));
+  for (const [path, source] of Object.entries(files)) {
+    const target = join(root, path);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, source);
+  }
+  return spawnSync(process.execPath, [script, root], { encoding: "utf8" });
+}
+
+describe("check-fixture-boundary", () => {
+  it("accepts public package imports and fixture-local helpers", () => {
+    const result = runFixtureBoundary({
+      "fixtures/fe/tet4.ts": 'import { createSceneBuilder } from "femgx";\n',
+      "fixtures/fe/support.ts": "export const value = 1;\n",
+      "src/index.ts": "export {};\n",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Fixture import boundary OK");
+  });
+
+  it("rejects application, test, and source-internal imports", () => {
+    const result = runFixtureBoundary({
+      "fixtures/fe/tet4.ts":
+        'import { createSceneBuilder } from "../../demo/workbench/models/model";\n',
+      "src/scene/scene.ts": 'import { value } from "../../fixtures/fe/support";\n',
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unauthorized fixture import");
+    expect(result.stderr).toContain("library source cannot import repository fixtures");
+  });
+});
