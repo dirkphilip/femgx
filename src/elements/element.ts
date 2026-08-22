@@ -57,20 +57,6 @@ export function createElement(
   return { id, shape, nodeIds: [...nodeIds] };
 }
 
-/**
- * Creates an element around connectivity already owned by a validated internal
- * conversion. The caller must not expose or mutate `nodeIds` after this handoff.
- * @internal
- */
-export function createOwnedElement(
-  id: ElementId,
-  shape: ElementShape,
-  nodeIds: readonly NodeId[],
-): Element {
-  validateOwnedElement(id, nodeIds);
-  return { id, shape, nodeIds };
-}
-
 function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly NodeId[]): void {
   validateElementId(id);
   const topology = topologyFor(shape);
@@ -88,12 +74,6 @@ function validateElement(id: ElementId, shape: ElementShape, nodeIds: readonly N
     }
     assertUniqueNodeId(id, nodeId, seen);
   }
-}
-
-function validateOwnedElement(id: ElementId, nodeIds: readonly NodeId[]): void {
-  validateElementId(id);
-  const seen = new Set<NodeId>();
-  for (const nodeId of nodeIds) assertUniqueNodeId(id, nodeId, seen);
 }
 
 function validateElementId(id: ElementId): void {

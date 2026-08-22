@@ -23,13 +23,6 @@ export interface ElementModelColumns {
   readonly bodies?: readonly Body[];
 }
 
-interface ModelQueries {
-  readonly elementOrdinal: (model: ElementModel, id: ElementId) => number | undefined;
-  readonly elementAt: (model: ElementModel, ordinal: number) => Element | undefined;
-  readonly bodyOrdinal: (model: ElementModel, id: number) => number | undefined;
-  readonly bodyAt: (model: ElementModel, ordinal: number) => Body | undefined;
-}
-
 interface BodyColumns {
   readonly elementBodyIds: Uint32Array;
   readonly bodyIds: Uint32Array;
@@ -46,29 +39,24 @@ export function buildElementModel(
   nodes: ArrayLike<number>,
   records: readonly Element[],
   options: ElementModelOptions,
-  queries: ModelQueries,
 ): ElementModel {
   return buildModelFromRecords(
     nodes,
     options.nodeIds ?? sequentialIds(nodes.length / 3),
     records,
     options.bodies,
-    queries,
   );
 }
 
 /** Validates copied numeric columns and publishes one immutable model snapshot. */
-export function buildElementModelFromColumns(
-  input: ElementModelColumns,
-  queries: ModelQueries,
-): ElementModel {
+export function buildElementModelFromColumns(input: ElementModelColumns): ElementModel {
   const nodes = copyNodeColumns(input.nodes, input.nodeIds);
   const elements = copyElementColumns({
     ...input,
     nodeIds: nodes.ids,
     nodeOrdinals: nodes.ordinals,
   });
-  return publishModel(nodes, elements, input.bodies, queries);
+  return publishModel(nodes, elements, input.bodies);
 }
 
 function buildModelFromRecords(
@@ -76,7 +64,6 @@ function buildModelFromRecords(
   nodeIds: ArrayLike<NodeId>,
   records: readonly Element[],
   bodies: readonly Body[] | undefined,
-  queries: ModelQueries,
 ): ElementModel {
   const nodeColumns = copyNodeColumns(nodes, nodeIds);
   validateElementRecords(records, nodeColumns.ids, nodeColumns.ordinals);
@@ -100,7 +87,7 @@ function buildModelFromRecords(
     connectivity.set(element.nodeIds, cursor);
     cursor += element.nodeIds.length;
   }
-  return publishModel(nodeColumns, { ids, shapes, offsets, connectivity }, bodies, queries);
+  return publishModel(nodeColumns, { ids, shapes, offsets, connectivity }, bodies);
 }
 
 function copyNodeColumns(
@@ -247,7 +234,6 @@ function publishModel(
     readonly connectivity: Uint32Array;
   },
   bodies: readonly Body[] | undefined,
-  queries: ModelQueries,
 ): ElementModel {
   const nodeOrdinals = sortedOrdinals(nodes.ids, "Node");
   const elementOrdinals = elementOrdinalsFor(elements.ids);
@@ -259,10 +245,8 @@ function publishModel(
     elementNodeOffsets: elements.offsets,
     elementNodeIds: elements.connectivity,
     ...(bodyColumns === undefined ? {} : { elementBodyIds: bodyColumns.elementBodyIds }),
-    ...(bodyColumns === undefined
-      ? {}
-      : { bodies: new ModelBodies(() => published, queries.bodyOrdinal, queries.bodyAt) }),
-    elements: new ModelElements(() => published, queries.elementOrdinal, queries.elementAt),
+    ...(bodyColumns === undefined ? {} : { bodies: new ModelBodies(() => published) }),
+    elements: new ModelElements(() => published),
   };
   registerElementModelStorage(published, {
     shapeCodes: elements.shapes,

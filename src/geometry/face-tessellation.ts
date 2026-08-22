@@ -1,42 +1,10 @@
-import type { Element, NodeId } from "../elements/element";
-import type { ElementFace } from "../elements/faces";
 import { at } from "../elements/indices";
 import type { ElementModel } from "../elements/model";
 import { elementModelNodeIdAt, elementModelTopologyAt } from "../elements/model-topology";
-import { topologyFor } from "../elements/shapes";
 import type { MeshVertex, TriangleMeshAssembler } from "./mesh-builder";
 import { average, cross, dot, length, subtract, type Vec3 } from "../math/vec3";
 import { elementNodePosition } from "./node-position";
 import { edgeIndexOf } from "../elements/topology-helpers";
-
-/**
- * Subdivides an oriented element face into triangles, each wound to face
- * outward. Linear faces fan from the first corner; quadratic faces are
- * subdivided through their mid-edge nodes. Every vertex keeps the authored
- * model node it came from, which the renderer uses to make the mesh
- * node-pickable and deformation-attached.
- */
-
-/** Splits an interleaved face loop into separate corner and mid-edge nodes. */
-function faceNodeIds(
-  element: Element,
-  face: ElementFace,
-): { readonly cornerNodeIds: readonly NodeId[]; readonly midNodeIds: readonly NodeId[] } {
-  const nodeIds = face.nodeIds;
-  if (topologyFor(element.shape).order < 2) {
-    return { cornerNodeIds: nodeIds, midNodeIds: [] };
-  }
-  const cornerNodeIds: NodeId[] = [];
-  const midNodeIds: NodeId[] = [];
-  nodeIds.forEach((nodeId, index) => {
-    if (index % 2 === 0) {
-      cornerNodeIds.push(nodeId);
-    } else {
-      midNodeIds.push(nodeId);
-    }
-  });
-  return { cornerNodeIds, midNodeIds };
-}
 
 /** Returns the canonical Tri6 or Quad8 subdivision for interleaved nodes. */
 export function quadraticSubdivision<T>(nodes: readonly T[]): ReadonlyArray<readonly [T, T, T]> {
@@ -73,53 +41,6 @@ export function quadraticSubdivision<T>(nodes: readonly T[]): ReadonlyArray<read
     ];
   }
   throw new Error(`Quadratic subdivision requires six or eight nodes, got ${nodes.length}`);
-}
-
-/** Subdivides a face into triangles, each wound to face outward. */
-export function tessellateFace(
-  model: ElementModel,
-  element: Element,
-  face: ElementFace,
-): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
-  const { cornerNodeIds, midNodeIds } = faceNodeIds(element, face);
-  const corners: readonly MeshVertex[] = cornerNodeIds.map((id) => ({
-    point: elementNodePosition(model, id),
-    nodeId: id,
-  }));
-  const outward = outwardDirection(
-    model,
-    element,
-    corners.map((corner) => corner.point),
-  );
-  if (midNodeIds.length === 0) {
-    const triangles: Array<readonly [MeshVertex, MeshVertex, MeshVertex]> = [];
-    for (let i = 1; i < corners.length - 1; i += 1) {
-      triangles.push(orient(outward, at(corners, 0), at(corners, i), at(corners, i + 1)));
-    }
-    return triangles;
-  }
-  const mids: readonly MeshVertex[] = midNodeIds.map((id) => ({
-    point: elementNodePosition(model, id),
-    nodeId: id,
-  }));
-  if (corners.length === 3) {
-    const a = at(corners, 0);
-    const b = at(corners, 1);
-    const c = at(corners, 2);
-    const mab = at(mids, 0);
-    const mbc = at(mids, 1);
-    const mca = at(mids, 2);
-    return orientedQuadratic([a, mab, b, mbc, c, mca], outward);
-  }
-  const a = at(corners, 0);
-  const b = at(corners, 1);
-  const c = at(corners, 2);
-  const d = at(corners, 3);
-  const mab = at(mids, 0);
-  const mbc = at(mids, 1);
-  const mcd = at(mids, 2);
-  const mda = at(mids, 3);
-  return orientedQuadratic([a, mab, b, mbc, c, mcd, d, mda], outward);
 }
 
 /**
@@ -204,25 +125,6 @@ function outwardDirectionForRow(
   const faceCentroid = average(points);
   const outward = subtract(faceCentroid, elementCentroid);
   return length(outward) > 0 ? outward : faceNormal(points);
-}
-
-function orientedQuadratic(
-  nodes: readonly MeshVertex[],
-  outward: Vec3,
-): ReadonlyArray<readonly [MeshVertex, MeshVertex, MeshVertex]> {
-  return quadraticSubdivision(nodes).map(([a, b, c]) => orient(outward, a, b, c));
-}
-
-/** Direction from the element interior toward the face (for outward winding). */
-function outwardDirection(model: ElementModel, element: Element, corners: readonly Vec3[]): Vec3 {
-  const family = topologyFor(element.shape).family;
-  if (family === "triangle" || family === "quad") {
-    return faceNormal(corners);
-  }
-  const elementCentroid = average(element.nodeIds.map((id) => elementNodePosition(model, id)));
-  const faceCentroid = average(corners);
-  const outward = subtract(faceCentroid, elementCentroid);
-  return length(outward) > 0 ? outward : faceNormal(corners);
 }
 
 /** Wraps a triangle so its geometric normal aligns with `outward`. */
