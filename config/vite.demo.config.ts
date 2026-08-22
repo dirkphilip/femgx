@@ -7,6 +7,10 @@ import { sourceAlias } from "./source-alias.ts";
 /** Vite configuration for the static demo site, including GitHub Pages. */
 export default defineConfig({
   resolve: { alias: sourceAlias, mainFields: ["module"] },
+  // The Angular plugin owns Angular compilation but otherwise disables Vite's
+  // TypeScript transform. Keep Vite's transform available for the existing
+  // Svelte/core entry points that share this demo server.
+  oxc: {},
   plugins: [
     angular({
       tsconfig: "tsconfig.app.json",
