@@ -1,4 +1,4 @@
-import type { PartId } from "../../geometry/part";
+import type { Part, PartId } from "../../geometry/part";
 import type { DeformationState } from "../../results/deform";
 import type { OrientationRecordMap } from "../results-roles";
 import { RevisedBindingMap, revisedResultBindings } from "./revision-bindings";
@@ -94,6 +94,22 @@ export function reconcilePartRevisionRecords(
     revisedResultBindings(view, revisedPartIds),
   );
   return records;
+}
+
+/** Retains untouched rendered-part sources while replacing revised definitions. */
+export function reconcileRenderedParts(
+  previous: ReadonlyMap<PartId, Part> | undefined,
+  current: ReadonlyMap<PartId, Part> | undefined,
+  revisedPartIds: ReadonlySet<PartId>,
+): ReadonlyMap<PartId, Part> | undefined {
+  if (previous === undefined) return current;
+  const rendered = new Map(previous);
+  for (const partId of revisedPartIds) {
+    const part = current?.get(partId);
+    if (part === undefined) rendered.delete(partId);
+    else rendered.set(partId, part);
+  }
+  return rendered.size === 0 ? undefined : rendered;
 }
 
 function scaledValues(values: Float32Array, scale: number): Float32Array {
