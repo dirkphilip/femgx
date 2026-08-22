@@ -99,7 +99,7 @@ function visibleElements(
   partOccurrenceId: string,
 ): readonly ElementTessellation[] {
   return [...(part.elements ?? [])].filter((element) => {
-    return isElementOccurrenceVisible(viewport.interaction.state, part, partOccurrenceId, element);
+    return isElementOccurrenceVisible(viewport, partOccurrenceId, element);
   });
 }
 

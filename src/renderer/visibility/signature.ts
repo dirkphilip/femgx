@@ -1,6 +1,6 @@
 import type { ElementTessellation, Part } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
-import type { InteractionStateData } from "../../interaction/state";
+import { readInteractionVisibility, type InteractionState } from "../../interaction/state";
 import type { PartOccurrenceId } from "../../scene/types";
 import type { VisibilitySignature } from "./types";
 
@@ -34,12 +34,13 @@ export function visibilityPartMetadata(part: Part): VisibilityPartMetadata {
 /** Builds one deterministic sparse identity plus optional dense membership. */
 export function visibilitySignature(
   instanceId: PartOccurrenceId,
-  data: InteractionStateData,
+  interaction: InteractionState,
   metadata: VisibilityPartMetadata,
 ): VisibilitySignature {
-  const bodyIds = relevantIds(data.hiddenBodyIds.get(instanceId), metadata.hasKnownBody);
+  const visibility = readInteractionVisibility(interaction);
+  const bodyIds = relevantIds(visibility.hiddenBodyIds.get(instanceId), metadata.hasKnownBody);
   const { ids: elementIds, words: elementWords } = relevantElements(
-    data.hiddenElementIds.get(instanceId),
+    visibility.hiddenElementIds.get(instanceId),
     metadata,
   );
   if (bodyIds.length === 0 && elementIds.length === 0) return EMPTY_SIGNATURE;

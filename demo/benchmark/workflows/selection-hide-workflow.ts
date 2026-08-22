@@ -1,9 +1,10 @@
 import { orbitCamera, type Camera } from "@/camera/camera";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { createInteractionState } from "@/interaction/interaction";
 import {
   readInteractionState,
-  updateInteractionState,
+  readInteractionVisibility,
+  withInteractionVisibility,
   type InteractionState,
 } from "@/interaction/state";
 import { hideSelectedElements } from "@/interaction/selection-queries";
@@ -90,6 +91,8 @@ export async function measureSelectionHideWorkflow(
     }),
   ];
   options.renderer.setSectionPlane(undefined);
+  options.renderer.setEdgesVisible(false);
+  options.renderer.setNodesVisible(false);
   return {
     nodes: true,
     authoredEdges: true,
@@ -103,9 +106,11 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   const { slots, selectedTargets, totalElementCount, id, unsectionedOpaqueIndices } = options;
   const { benchmarkCase, renderer, runtime } = options;
   const presentationStart = performance.now();
-  const presentation = presentationInteraction(benchmarkCase);
+  const presentation = presentationInteraction();
   const presentationStateMs = performance.now() - presentationStart;
   if (id === "active-section") renderer.setSectionPlane(sectionPlane(benchmarkCase, runtime));
+  renderer.setEdgesVisible(true);
+  renderer.setNodesVisible(true);
   const presentationSyncStart = performance.now();
   renderer.updateInstances(runtime, presentation, slots);
   renderer.updateElements(runtime, presentation, slots);
@@ -121,7 +126,10 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   assertHiddenState(hidden.state, selectedTargets, benchmarkCase.id);
 
   const restoreStateStart = performance.now();
-  const visible = updateInteractionState(hidden.state, { hiddenElementIds: new Map() });
+  const visible = withInteractionVisibility(hidden.state, {
+    hiddenBodyIds: readInteractionVisibility(hidden.state).hiddenBodyIds,
+    hiddenElementIds: new Map(),
+  });
   const restored = setTargetsSelected(visible, selectedTargets, false);
   const restoreStateMs = performance.now() - restoreStateStart;
   const restoreSyncStart = performance.now();
@@ -154,12 +162,8 @@ async function measureVariant(options: VariantOptions): Promise<SelectionHideWor
   };
 }
 
-function presentationInteraction(benchmarkCase: WebGpuBenchmarkCase): InteractionState {
-  let state = createInteractionState();
-  for (const partId of benchmarkCase.scene.parts.keys()) {
-    state = setPartOverride(state, partId, { edge: true, nodes: true });
-  }
-  return state;
+function presentationInteraction(): InteractionState {
+  return createInteractionState();
 }
 
 function sectionPlane(
@@ -411,7 +415,8 @@ function assertHiddenState(
   const data = readInteractionState(state);
   if (
     data.selectedElementIds.get(first.partOccurrenceId)?.size !== targets.length ||
-    data.hiddenElementIds.get(first.partOccurrenceId)?.size !== targets.length
+    readInteractionVisibility(state).hiddenElementIds.get(first.partOccurrenceId)?.size !==
+      targets.length
   ) {
     throw new Error(`${caseId} hide did not preserve the selected half exactly`);
   }
@@ -427,6 +432,7 @@ function visibleElementCount(
   if (first?.kind !== "element") return 0;
   const total = authoredElementCount(benchmarkCase, runtime);
   return (
-    total - (readInteractionState(state).hiddenElementIds.get(first.partOccurrenceId)?.size ?? 0)
+    total -
+    (readInteractionVisibility(state).hiddenElementIds.get(first.partOccurrenceId)?.size ?? 0)
   );
 }

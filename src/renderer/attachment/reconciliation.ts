@@ -245,6 +245,8 @@ export function rebuildAttachmentOrders(options: {
   readonly selection: SelectionState;
   readonly bundle: GpuBundle;
   readonly optionalParts?: AttachmentOrderParts;
+  readonly edgesVisible?: boolean;
+  readonly nodesVisible?: boolean;
   readonly previousCalls: AttachmentCallLists;
 }): DrawCallLists {
   const activeParts = new Set(
@@ -257,6 +259,7 @@ export function rebuildAttachmentOrders(options: {
     parts: activeOptionalParts(activeParts, options.optionalParts?.edge),
     flags: options.flags.edgeFlags,
     emphasisFlags: options.flags.edgeEmphasisFlags,
+    ...(options.edgesVisible === undefined ? {} : { visible: options.edgesVisible }),
     draw: options.bundle.draw,
   });
   rebuildTransparentOrders(
@@ -274,6 +277,7 @@ export function rebuildAttachmentOrders(options: {
       selection: options.selection,
       interaction: options.interaction,
       bundle: options.bundle,
+      ...(options.nodesVisible === true ? { visible: true } : {}),
     },
     activeOptionalParts(activeParts, options.optionalParts?.node),
   );

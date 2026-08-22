@@ -18,7 +18,7 @@ import {
   setTargetSelected,
 } from "../../src/interaction/targets";
 import { setBodyOverride } from "../../src/interaction/bodies";
-import { readInteractionState } from "../../src/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../src/interaction/state";
 import { isElementVisible, setElementVisible } from "../../src/interaction/elements";
 import { identityMatrix } from "../../src/math/mat4";
 import type { ElementRef, PartOccurrence } from "../../src/scene/types";
@@ -113,15 +113,6 @@ describe("instance style resolution", () => {
     expect(resolveInstanceStyle(item, base, createInteractionState())).toBe(base);
   });
 
-  it("resolves node membership from part to instance with instance precedence", () => {
-    let state = setPartOverride(createInteractionState(), item.partId, { nodes: true });
-    expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
-    state = setPartOccurrenceOverride(state, item.partOccurrenceId, { nodes: false });
-    expect(resolveInstanceStyle(item, base, state).nodes).toBe(false);
-    state = setPartOccurrenceOverride(state, item.partOccurrenceId, { nodes: true });
-    expect(resolveInstanceStyle(item, base, state).nodes).toBe(true);
-  });
-
   it("resolves line width only through part and part-occurrence overrides", () => {
     let state = setPartOverride(createInteractionState(), item.partId, { lineWidthPixels: 6 });
     expect(resolveInstanceStyle(item, base, state).lineWidthPixels).toBe(6);
@@ -132,28 +123,6 @@ describe("instance style resolution", () => {
         lineWidthPixels: 4,
       } as never),
     ).toThrow("lineWidthPixels is only supported on part and part-occurrence overrides");
-  });
-
-  it("rejects overlay membership on primitive-specific override boundaries", () => {
-    const invalid = { nodes: true } as never;
-    expect(() =>
-      setElementOverride(
-        createInteractionState(),
-        { partOccurrenceId: "1/0", elementId: 2 },
-        invalid,
-      ),
-    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
-    expect(() =>
-      createInteractionState({
-        highlighted: invalid,
-        selected: {},
-      }),
-    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
-    expect(() =>
-      setElementOverride(createInteractionState(), { partOccurrenceId: "1/0", elementId: 2 }, {
-        edge: true,
-      } as never),
-    ).toThrow("edge and nodes are only supported on part and part-occurrence overrides");
   });
 
   it("rejects non-finite and out-of-range alpha values at override boundaries", () => {
@@ -280,7 +249,7 @@ describe("element interaction", () => {
     expect(isElementVisible(hidden, other)).toBe(true);
     expect(setElementVisible(hidden, ref, false)).toBe(hidden);
     expect(setElementVisible(hidden, ref, true)).not.toBe(hidden);
-    expect(readInteractionState(hidden).hiddenElementIds.get(ref.partOccurrenceId)).toEqual(
+    expect(readInteractionVisibility(hidden).hiddenElementIds.get(ref.partOccurrenceId)).toEqual(
       new Set([2]),
     );
   });

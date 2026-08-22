@@ -52,7 +52,7 @@ describe("batched part-occurrence overrides", () => {
 
 describe("batched part overrides", () => {
   it("applies a large iterable in one immutable transition", () => {
-    const override = { edge: false } as const;
+    const override = { opacity: 0.5 } as const;
     const entries = Array.from({ length: 10_000 }, (_, partId) => [partId, override] as const);
 
     const state = setPartOverrides(createInteractionState(), entries);

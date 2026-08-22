@@ -13,7 +13,6 @@ export {
   type InteractionState,
   type InteractionTheme,
   type PrimitiveStyleOverride,
-  type ResolvedStyle,
   type StyleOverride,
 } from "../interaction/interaction";
 export {
@@ -37,14 +36,7 @@ export {
   type InteractionTargetFor,
   type ElementRegionSelection,
 } from "../interaction/targets";
-export {
-  emphasizedBodyRefs,
-  isBodyEmphasized,
-  isBodyVisible,
-  setBodyOverride,
-  setBodyVisible,
-} from "../interaction/bodies";
-export { isElementVisible, setElementVisible } from "../interaction/elements";
+export { emphasizedBodyRefs, isBodyEmphasized, setBodyOverride } from "../interaction/bodies";
 export type { BodyRef, EdgeRef, FaceRef, NodeRef } from "../interaction/refs";
 export {
   installBoxSelection,

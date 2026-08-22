@@ -123,6 +123,7 @@ async function withFixture(
   try {
     attachment.prepareParts(scene.parts, bundle);
     attachment.attach(runtime, bundle);
+    attachment.setOverlayVisibility(false, true, bundle);
     attachment.updateElements(runtime, interaction, bundle, scene.parts);
     await run({ scene, runtime, interaction, attachment, bundle });
   } finally {

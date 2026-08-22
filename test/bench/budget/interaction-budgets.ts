@@ -39,7 +39,7 @@ const PART_OVERRIDE_SCALING_COUNTS = [25_000, 50_000, 100_000] as const;
 const partOverrideEntries = new Map(
   PART_OVERRIDE_SCALING_COUNTS.map((count) => [
     count,
-    Array.from({ length: count }, (_, partId) => [partId, { edge: false }] as const),
+    Array.from({ length: count }, (_, partId) => [partId, { opacity: 0.5 }] as const),
   ]),
 );
 

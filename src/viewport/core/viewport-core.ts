@@ -204,6 +204,8 @@ export class ViewportCore implements Viewport {
       setPointSizePixels: this.setPointSizePixels.bind(this),
       setNodeSizePixels: this.setNodeSizePixels.bind(this),
       setEdgeDepthTest: this.setEdgeDepthTest.bind(this),
+      setEdgesVisible: this.setEdgesVisible.bind(this),
+      setNodesVisible: this.setNodesVisible.bind(this),
     });
   }
 
@@ -343,6 +345,18 @@ export class ViewportCore implements Viewport {
     this.invalidate();
   }
 
+  private setEdgesVisible(enabled: boolean): void {
+    this.ensureAlive();
+    this.renderer.setEdgesVisible(enabled);
+    this.invalidate();
+  }
+
+  private setNodesVisible(enabled: boolean): void {
+    this.ensureAlive();
+    this.renderer.setNodesVisible(enabled);
+    this.invalidate();
+  }
+
   private pick(x: number, y: number, granularity?: "edge"): Promise<PickHit | undefined> {
     this.ensureAlive();
     return this.renderer.pick(x, y, granularity);
@@ -373,7 +387,7 @@ export class ViewportCore implements Viewport {
       return;
     }
     const runtime = this.sceneController.runtime;
-    const interaction = this.sceneController.interaction;
+    const interaction = this.sceneController.rendererInteraction;
     const interactionChanged = this.appliedInteraction !== interaction;
     const changed = interactionChanged
       ? changedInstanceSlots(runtime, this.appliedInteraction, interaction)

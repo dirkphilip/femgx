@@ -5,11 +5,7 @@ import {
   type Scene,
   type Viewport,
 } from "../../src/entries/root";
-import {
-  createInteractionState,
-  setPartOverride,
-  setTargetSelected,
-} from "../../src/entries/interaction";
+import { createInteractionState, setTargetSelected } from "../../src/entries/interaction";
 import {
   createElement,
   createElementModel,
@@ -98,7 +94,7 @@ export function runDepthStableEdges(
     { ...camera, position: [4, 3, 5], target: [1, 1, 0.2], up: [0, 1, 0] },
     { durationMs: 0 },
   );
-  let interaction = setPartOverride(createInteractionState(), 1, { edge: true, nodes: true });
+  let interaction = createInteractionState();
   for (const nodeId of [13, 14]) {
     interaction = setTargetSelected(
       interaction,
@@ -107,6 +103,8 @@ export function runDepthStableEdges(
     );
   }
   current.interaction.set(interaction);
+  current.presentation.setEdgesVisible(true);
+  current.presentation.setNodesVisible(true);
   current.render();
   const shallow = projectPoint(current.view.camera, [1, 1, 0.4]);
   const steep = projectPoint(current.view.camera, [2, 1, 0.2]);
@@ -137,7 +135,8 @@ export function runDepthEdgeOcclusion(current: Viewport, setStatus: SetStatus): 
     },
     { durationMs: 0 },
   );
-  current.interaction.set(setPartOverride(createInteractionState(), 1, { edge: true }));
+  current.interaction.set(createInteractionState());
+  current.presentation.setEdgesVisible(true);
   current.render();
   const covered = projectPoint(current.view.camera, [0, 1, 1]);
   if (covered === undefined) throw new Error("occluded edge probe did not project");

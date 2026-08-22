@@ -1,7 +1,7 @@
 import type { Part, PartId } from "../../geometry/part";
 import { getPartSemanticIndex } from "../../geometry/part-semantic-index";
 import type { InteractionState } from "../../interaction/interaction";
-import { readInteractionState } from "../../interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../interaction/state";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { EmphasisUpdate } from "../resources/element-resources";
 import type { DenseElementLayout, DenseElementSelection } from "./element-selection";
@@ -24,6 +24,7 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
   if (part === undefined) return options.updates;
   const metadata = getPartSemanticIndex(part);
   const data = readInteractionState(options.interaction);
+  const visibility = readInteractionVisibility(options.interaction);
   const globalSlots = options.layout.partLocalSlots.get(options.partId);
   return options.updates.filter((update) => {
     if (update.selected !== true || update.elementPickId === 0) return true;
@@ -41,7 +42,7 @@ export function sparseUpdatesForPart(options: SparseUpdateOptions): readonly Emp
     return (
       update.hidden === true ||
       data.highlightedElementIds.get(instanceId)?.has(elementId) === true ||
-      data.hiddenElementIds.get(instanceId)?.has(elementId) === true ||
+      visibility.hiddenElementIds.get(instanceId)?.has(elementId) === true ||
       data.elementOverrides.get(instanceId)?.has(elementId) === true ||
       (data.hoveredTarget?.kind === "element" &&
         data.hoveredTarget.partOccurrenceId === instanceId &&

@@ -30,17 +30,22 @@ export function rebuildEdgeOrders(options: {
   readonly parts: ReadonlySet<PartId>;
   readonly flags: readonly boolean[];
   readonly emphasisFlags: readonly boolean[];
+  readonly visible?: boolean;
   readonly draw: DrawResources;
 }): void {
   for (const partId of options.parts) {
     options.draw.cost.cpu("order-rebuild", 1);
-    const order = buildEdgeOrder(
-      options.layout,
-      options.runtime,
-      partId,
-      options.flags,
-      options.emphasisFlags,
-    );
+    const order =
+      options.visible === false
+        ? new Uint32Array()
+        : buildEdgeOrder({
+            layout: options.layout,
+            runtime: options.runtime,
+            partId,
+            edgeFlags: options.flags,
+            edgeEmphasisFlags: options.emphasisFlags,
+            includeAll: options.visible === true,
+          });
     writeEdgeOrder(options.draw, partId, order);
     options.layout.partEdgeCounts.set(partId, order.length);
   }

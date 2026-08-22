@@ -7,6 +7,8 @@ import type { ViewportBackground } from "../renderer/gpu-renderer";
 import type { EdgePickHit, InteractionGranularity, PickHit } from "../picking/types";
 import type { PartId } from "../geometry/part";
 import type { AssemblyId, AssemblyOccurrenceId, PartOccurrenceId } from "../scene/types";
+import type { ElementRef } from "../scene/types";
+import type { BodyRef } from "../interaction/refs";
 import type { ViewportVisibilityController } from "./visibility-controller";
 import type {
   CameraTransitionOptions,
@@ -135,6 +137,28 @@ function createViewportVisibilityCapability(
   controller: ViewportVisibilityController,
 ): ViewportVisibility {
   return {
+    ...createVisibilityActions(owner, controller),
+    ...createVisibilityBatchActions(owner, controller),
+    ...createVisibilityQueries(owner, controller),
+  };
+}
+
+function createVisibilityActions(
+  owner: CapabilityOwner,
+  controller: ViewportVisibilityController,
+): Pick<
+  ViewportVisibility,
+  | "setPartVisible"
+  | "setAssemblyOccurrenceVisible"
+  | "setAssemblyVisible"
+  | "setPartOccurrenceVisible"
+  | "setPartOccurrences"
+  | "setBodyVisible"
+  | "setElementVisible"
+  | "setBodiesVisible"
+  | "setElementsVisible"
+> {
+  return {
     setPartVisible(partId: PartId, visible: boolean): void {
       owner.ensureAlive();
       controller.setPartVisible(partId, visible);
@@ -154,6 +178,68 @@ function createViewportVisibilityCapability(
     setPartOccurrences(partOccurrenceIds: Iterable<PartOccurrenceId>, visible: boolean): void {
       owner.ensureAlive();
       controller.setPartOccurrences(partOccurrenceIds, visible);
+    },
+    setBodyVisible(ref: BodyRef, visible: boolean): void {
+      owner.ensureAlive();
+      controller.setBodyVisible(ref, visible);
+    },
+    setElementVisible(ref: ElementRef, visible: boolean): void {
+      owner.ensureAlive();
+      controller.setElementVisible(ref, visible);
+    },
+    setBodiesVisible(refs: Iterable<BodyRef>, visible: boolean): void {
+      owner.ensureAlive();
+      controller.setBodiesVisible(refs, visible);
+    },
+    setElementsVisible(refs: Iterable<ElementRef>, visible: boolean): void {
+      owner.ensureAlive();
+      controller.setElementsVisible(refs, visible);
+    },
+  };
+}
+
+function createVisibilityBatchActions(
+  owner: CapabilityOwner,
+  controller: ViewportVisibilityController,
+): Pick<ViewportVisibility, "hideSelectedElements" | "showAll"> {
+  return {
+    hideSelectedElements(): void {
+      owner.ensureAlive();
+      controller.hideSelectedElements();
+    },
+    showAll(): void {
+      owner.ensureAlive();
+      controller.showAll();
+    },
+  };
+}
+
+function createVisibilityQueries(
+  owner: CapabilityOwner,
+  controller: ViewportVisibilityController,
+): Pick<
+  ViewportVisibility,
+  | "isBodyDirectlyVisible"
+  | "isElementDirectlyVisible"
+  | "isBodyEffectivelyVisible"
+  | "isElementEffectivelyVisible"
+> {
+  return {
+    isBodyDirectlyVisible(ref: BodyRef): boolean {
+      owner.ensureAlive();
+      return controller.isBodyDirectlyVisible(ref);
+    },
+    isElementDirectlyVisible(ref: ElementRef): boolean {
+      owner.ensureAlive();
+      return controller.isElementDirectlyVisible(ref);
+    },
+    isBodyEffectivelyVisible(ref: BodyRef): boolean {
+      owner.ensureAlive();
+      return controller.isBodyEffectivelyVisible(ref);
+    },
+    isElementEffectivelyVisible(ref: ElementRef): boolean {
+      owner.ensureAlive();
+      return controller.isElementEffectivelyVisible(ref);
     },
   };
 }
@@ -189,6 +275,8 @@ interface PresentationCapabilityOptions extends CapabilityOwner {
   readonly setPointSizePixels: (size: number) => void;
   readonly setNodeSizePixels: (size: number) => void;
   readonly setEdgeDepthTest: (enabled: boolean) => void;
+  readonly setEdgesVisible: (enabled: boolean) => void;
+  readonly setNodesVisible: (enabled: boolean) => void;
 }
 
 function createViewportPresentationCapability(
@@ -222,6 +310,14 @@ function createViewportPresentationCapability(
     setEdgeDepthTest(enabled): void {
       options.ensureAlive();
       options.setEdgeDepthTest(enabled);
+    },
+    setEdgesVisible(enabled): void {
+      options.ensureAlive();
+      options.setEdgesVisible(enabled);
+    },
+    setNodesVisible(enabled): void {
+      options.ensureAlive();
+      options.setNodesVisible(enabled);
     },
   };
 }

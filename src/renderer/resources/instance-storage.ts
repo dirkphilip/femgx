@@ -275,9 +275,8 @@ export function writeSelectedNodeCompactOrder(
 }
 
 /**
- * Replaces the compacted edge-overlay order list of a part (visible instances
- * whose resolved style requests the line overlay). Like `writeDrawOrder`, only
- * the changed u32 subranges reach the GPU.
+ * Replaces the compacted edge-overlay order list of a part. Like
+ * `writeDrawOrder`, only the changed u32 subranges reach the GPU.
  */
 export function writeEdgeOrder(
   draw: InstanceStorageOwner,

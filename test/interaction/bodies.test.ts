@@ -16,7 +16,7 @@ import {
   setBodyVisible,
 } from "../../src/interaction/bodies";
 import { setTargetHovered } from "../../src/interaction/targets";
-import { readInteractionState } from "../../src/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../src/interaction/state";
 import { identityMatrix } from "../../src/math/mat4";
 import type { PartOccurrence } from "../../src/scene/types";
 
@@ -55,15 +55,6 @@ describe("body interaction state", () => {
     expect(isBodyEmphasized(state, ref)).toBe(true);
   });
 
-  it("rejects node membership on body overrides", () => {
-    expect(() => setBodyOverride(createInteractionState(), ref, { nodes: true } as never)).toThrow(
-      "edge and nodes are only supported on part and part-occurrence overrides",
-    );
-    expect(() => setBodyOverride(createInteractionState(), ref, { edge: true } as never)).toThrow(
-      "edge and nodes are only supported on part and part-occurrence overrides",
-    );
-  });
-
   it("collects body refs deterministically and clears the last state", () => {
     let state = createInteractionState();
     state = setBodySelected(state, { partOccurrenceId: "2/0", bodyId: 9 }, true);
@@ -78,7 +69,7 @@ describe("body interaction state", () => {
       { partOccurrenceId: "3/0", bodyId: 2 },
     ]);
     const cleared = setBodyVisible(state, ref, true);
-    expect(readInteractionState(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
+    expect(readInteractionVisibility(cleared).hiddenBodyIds.get("1/0")).toBeUndefined();
   });
 });
 

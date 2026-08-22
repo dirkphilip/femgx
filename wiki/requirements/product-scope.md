@@ -204,9 +204,9 @@ and exact selected-geometry framing in [issue #438](https://github.com/dirkphili
 Core style opacity uses order-independent weighted transparency for fractional
 alpha while preserving instanced batching and nearest-geometry picking; alpha
 zero is visually absent but remains pickable. Edge overlays inherit that
-resolved opacity, while node annotation membership is controlled by
-part/part-occurrence style flags and Point parts use their primary glyph without a
-duplicate overlay.
+resolved opacity, while node annotation membership is controlled by the
+renderer-owned viewport presentation and Point parts use their primary glyph
+without a duplicate overlay.
 
 Authored Line and Line3 elements use a default 2 CSS-pixel screen-space width.
 Hosts may set `StyleOverride.lineWidthPixels` on part or part-occurrence overrides

@@ -1,4 +1,5 @@
-import { isElementVisible, isTargetSelected, type InteractionState } from "@/entries/interaction";
+import { isTargetSelected, type InteractionState } from "@/entries/interaction";
+import type { ElementRef } from "@/entries/root";
 import { elementTarget, type SelectTarget } from "../selection/pick";
 import type {
   WorkbenchContextMenuSnapshot,
@@ -17,6 +18,7 @@ export interface WorkbenchMenuSelectionOptions {
 export function contextMenuSelectionOptions(
   target: SelectTarget,
   interaction: InteractionState,
+  isElementVisible: (ref: ElementRef) => boolean,
 ): WorkbenchMenuSelectionOptions {
   const element = elementTarget(target);
   return {
@@ -31,7 +33,7 @@ export function contextMenuSelectionOptions(
     elementVisibilityLabel:
       element?.kind !== "element"
         ? undefined
-        : isElementVisible(interaction, element)
+        : isElementVisible(element)
           ? "Hide element"
           : "Show element",
   };

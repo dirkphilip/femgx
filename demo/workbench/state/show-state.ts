@@ -205,7 +205,7 @@ export function createWorkbenchShowState(model: WorkbenchModel): WorkbenchShowSt
   return {
     toggles: createDefaultDisplayToggles(model),
     resultMode: resultModeForModel(model),
-    interaction: createModelInteraction(model, true, true),
+    interaction: createModelInteraction(model),
     continuousEnabled: false,
     deformationScale: model.results?.deformation?.scale ?? 1,
     vectorDisplay: vectorDisplayForModel(model),

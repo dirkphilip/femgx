@@ -5,7 +5,8 @@ import {
   latestSectionPlaneUniform,
   scene,
   setBodyOverride,
-  setBodyVisible,
+  identityScene,
+  setTargetSelected,
   createViewport,
   fakeCanvas,
   fakeGpuDevice,
@@ -13,6 +14,44 @@ import {
 } from "./support";
 
 describe("Viewport", () => {
+  it("makes body and element visibility authoritative on the viewport facade", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: identityScene(true),
+      device: fakeGpuDevice().device,
+    });
+    const body = { partOccurrenceId: "1/keep" as const, bodyId: 1 };
+    const first = { partOccurrenceId: "1/keep" as const, elementId: 10 };
+    const second = { partOccurrenceId: "1/keep" as const, elementId: 11 };
+
+    expect(viewport.visibility.isBodyDirectlyVisible(body)).toBe(true);
+    expect(viewport.visibility.isElementEffectivelyVisible(first)).toBe(true);
+    viewport.visibility.setElementsVisible([first, second], false);
+    expect(viewport.visibility.isElementDirectlyVisible(first)).toBe(false);
+    expect(viewport.visibility.isElementEffectivelyVisible(first)).toBe(false);
+    viewport.visibility.setElementVisible(first, true);
+    viewport.visibility.setPartOccurrenceVisible("1/keep", false);
+    expect(viewport.visibility.isElementDirectlyVisible(first)).toBe(true);
+    expect(viewport.visibility.isElementEffectivelyVisible(first)).toBe(false);
+    viewport.visibility.showAll();
+    expect(viewport.visibility.isElementEffectivelyVisible(first)).toBe(true);
+    expect(viewport.visibility.isElementEffectivelyVisible(second)).toBe(true);
+
+    viewport.interaction.set(
+      setTargetSelected(viewport.interaction.state, { kind: "element", ...first }, true),
+    );
+    viewport.visibility.hideSelectedElements();
+    expect(viewport.visibility.isElementDirectlyVisible(first)).toBe(false);
+    expect(viewport.interaction.state).toBe(viewport.interaction.state);
+    viewport.presentation.setEdgesVisible(false);
+    viewport.presentation.setNodesVisible(false);
+    viewport.presentation.setEdgesVisible(true);
+    viewport.presentation.setNodesVisible(true);
+    viewport.destroy();
+  });
+
   it("validates and updates independent point and node diameters", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -20,7 +59,7 @@ describe("Viewport", () => {
     const onRender = vi.fn();
     const viewport = await createViewport({
       canvas: fakeCanvas(),
-      scene: scene(),
+      scene: identityScene(true),
       device: gpu.device,
       pointSizePixels: 12.5,
       nodeSizePixels: 3.25,
@@ -126,22 +165,17 @@ describe("Viewport", () => {
     const onRender = vi.fn();
     const viewport = await createViewport({
       canvas: fakeCanvas(),
-      scene: scene(),
+      scene: identityScene(true),
       device: fakeGpuDevice().device,
       onRender,
     });
     expect(onRender).toHaveBeenCalledOnce();
 
     const finalInteraction = viewport.batch(() => {
-      let interaction = setBodyVisible(
+      viewport.visibility.setBodyVisible({ partOccurrenceId: "1/keep", bodyId: 1 }, false);
+      const interaction = setBodyOverride(
         viewport.interaction.state,
-        { partOccurrenceId: "1/0", bodyId: 0 },
-        false,
-      );
-      viewport.interaction.set(interaction);
-      interaction = setBodyOverride(
-        interaction,
-        { partOccurrenceId: "1/0", bodyId: 0 },
+        { partOccurrenceId: "1/keep", bodyId: 1 },
         { emissive: 0.5 },
       );
       viewport.interaction.set(interaction);
@@ -154,6 +188,15 @@ describe("Viewport", () => {
     expect(finalInteraction).toBe(viewport.interaction.state);
     expect(viewport.occurrences.visibleCount).toBe(1);
     expect(onRender).toHaveBeenCalledTimes(2);
+
+    viewport.batch(() => {
+      viewport.visibility.setBodyVisible({ partOccurrenceId: "1/keep", bodyId: 1 }, true);
+      expect(onRender).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      viewport.visibility.isBodyDirectlyVisible({ partOccurrenceId: "1/keep", bodyId: 1 }),
+    ).toBe(true);
+    expect(onRender).toHaveBeenCalledTimes(3);
     viewport.destroy();
   });
 

@@ -134,7 +134,7 @@ export function activateWorkbenchModel(options: ActivateWorkbenchModelOptions): 
   state.vectorDisplay = vectorDisplay;
   state.sectionAxis = "off";
   state.sectionOffset = 0;
-  state.interaction = createModelInteraction(model, true, true);
+  state.interaction = createModelInteraction(model);
   setModelScene(options.slots, model);
   for (const slot of options.slots) options.applyState(slot.id);
   resetSlotVisibility(options.slots, model);

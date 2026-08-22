@@ -15,7 +15,7 @@ import {
   uploadPart,
   writeEdgeOrder,
 } from "./support";
-import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { createInteractionState } from "@/interaction/interaction";
 import { setElementVisible } from "@/interaction/elements";
 import { identityMatrix } from "@/math/mat4";
 import {
@@ -108,8 +108,9 @@ describe("visibility-exposed authored edges", () => {
       const attachment = new RendererAttachment();
       attachment.prepareParts(scene.parts, bundle);
       attachment.attach(runtime, bundle);
+      attachment.setOverlayVisibility(true, false, bundle);
       uploadPart(bundle.draw, part);
-      const styled = setPartOverride(createInteractionState(), part.id, { edge: true });
+      const styled = createInteractionState();
       attachment.updateInstances(runtime, styled, [0, 1], bundle);
       let interaction = setElementVisible(
         styled,

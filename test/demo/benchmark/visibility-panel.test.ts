@@ -7,10 +7,10 @@ import {
 } from "@/entries/root";
 import {
   createInteractionState,
-  isBodyVisible,
   isTargetHighlighted,
   isTargetSelected,
 } from "@/entries/interaction";
+import { isBodyVisible } from "@/interaction/bodies";
 import { createSceneOccurrenceSnapshot, type SceneOccurrences } from "@/scene-runtime/occurrences";
 import { createBoltedPlatePreset } from "../../../demo/fixtures/presets";
 import { createExampleModel, type WorkbenchModel } from "../../../demo/workbench/models/model";

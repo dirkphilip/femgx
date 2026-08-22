@@ -135,6 +135,8 @@ function fakeViewport(): FakeViewport {
     setPointSizePixels: vi.fn(),
     setNodeSizePixels: vi.fn(),
     setEdgeDepthTest: vi.fn(),
+    setEdgesVisible: vi.fn(),
+    setNodesVisible: vi.fn(),
   } as Viewport["presentation"];
   const visibility = {
     setPartVisible: vi.fn(),
@@ -142,6 +144,16 @@ function fakeViewport(): FakeViewport {
     setAssemblyOccurrenceVisible: vi.fn(),
     setPartOccurrenceVisible: vi.fn(),
     setPartOccurrences: vi.fn(),
+    setBodyVisible: vi.fn(),
+    setElementVisible: vi.fn(),
+    setBodiesVisible: vi.fn(),
+    setElementsVisible: vi.fn(),
+    hideSelectedElements: vi.fn(),
+    showAll: vi.fn(),
+    isBodyDirectlyVisible: vi.fn(),
+    isElementDirectlyVisible: vi.fn(),
+    isBodyEffectivelyVisible: vi.fn(),
+    isElementEffectivelyVisible: vi.fn(),
   } as Viewport["visibility"];
   return {
     render,

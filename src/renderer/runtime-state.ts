@@ -176,9 +176,11 @@ function assignPartLocals(
 }
 
 /**
- * Returns the visible part-local slots whose resolved style requests node
- * annotations. Point parts are excluded because their primary glyph already
- * represents the authored node.
+ * Returns the visible part-local slots admitted to the node overlay. The
+ * renderer presentation owner may include every slot; the flag path remains
+ * an internal compact-order fallback for staged attachment work. Point parts
+ * are excluded because their primary glyph already represents the authored
+ * node.
  */
 export function buildNodeOrder(options: {
   readonly layout: InstanceLayout;
@@ -186,6 +188,7 @@ export function buildNodeOrder(options: {
   readonly partId: PartId;
   readonly nodeFlags: readonly boolean[];
   readonly parts: ReadonlyMap<PartId, Part>;
+  readonly includeAll?: boolean;
 }): Uint32Array {
   if (isPointOnlyPart(options.parts.get(options.partId))) {
     return new Uint32Array();
@@ -193,7 +196,9 @@ export function buildNodeOrder(options: {
   return buildCompactedOrder(
     options.layout,
     options.partId,
-    (slot) => options.nodeFlags[slot] === true && options.runtime.isInstanceVisible(slot),
+    (slot) =>
+      (options.includeAll === true || options.nodeFlags[slot] === true) &&
+      options.runtime.isInstanceVisible(slot),
   );
 }
 
@@ -207,22 +212,25 @@ export function buildDrawOrder(
 }
 
 /**
- * Returns the visible part-local slots of a part whose resolved style requests
- * the edge overlay, in ascending draw order.
+ * Returns the visible part-local slots admitted to the edge overlay, in
+ * ascending draw order.
  */
-export function buildEdgeOrder(
-  layout: InstanceLayout,
-  runtime: PackedSceneRuntime,
-  partId: PartId,
-  edgeFlags: readonly boolean[],
-  edgeEmphasisFlags: readonly boolean[] = [],
-): Uint32Array {
+export function buildEdgeOrder(options: {
+  readonly layout: InstanceLayout;
+  readonly runtime: PackedSceneRuntime;
+  readonly partId: PartId;
+  readonly edgeFlags: readonly boolean[];
+  readonly edgeEmphasisFlags?: readonly boolean[];
+  readonly includeAll?: boolean;
+}): Uint32Array {
   return buildCompactedOrder(
-    layout,
-    partId,
+    options.layout,
+    options.partId,
     (slot) =>
-      (edgeFlags[slot] === true || edgeEmphasisFlags[slot] === true) &&
-      runtime.isInstanceVisible(slot),
+      (options.includeAll === true ||
+        options.edgeFlags[slot] === true ||
+        options.edgeEmphasisFlags?.[slot] === true) &&
+      options.runtime.isInstanceVisible(slot),
   );
 }
 

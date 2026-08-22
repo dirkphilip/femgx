@@ -15,7 +15,7 @@ import { createInteractionState } from "../../src/interaction/interaction";
 import { setBodyOverride } from "../../src/interaction/bodies";
 import { setElementVisible } from "../../src/interaction/elements";
 import { setTargetHovered, setTargetsSelected } from "../../src/interaction/targets";
-import { readInteractionState } from "../../src/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "../../src/interaction/state";
 import { benchmarkCaseSpecs, createBenchmarkCase } from "../../demo/benchmark/model";
 import { makeScene } from "./fixtures";
 import {
@@ -228,7 +228,7 @@ function sparseElementVisibility(): () => void {
         true,
       );
     }
-    if (readInteractionState(state).hiddenElementIds.size !== 0) {
+    if (readInteractionVisibility(state).hiddenElementIds.size !== 0) {
       throw new Error("Visibility operation did not restore the empty state");
     }
   };

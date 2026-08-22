@@ -86,26 +86,23 @@ format]]) without regressing it. Elements are the unit of FE-feature selection
 
 ## Edge overlay
 
-- `StyleOverride` supports an `edge` flag at the part or instance layer. Body,
-  element, face, and node layers reject it because the GPU has no unambiguous
-  primitive-owned edge representation. When the
-  resolved style of a visible instance requests it, the renderer draws that
+- `ViewportPresentation.setEdgesVisible` owns edge-overlay membership for the
+  whole viewport. `StyleOverride` contains material and emphasis fields only;
+  interaction state cannot silently create a second edge-visibility authority.
+  When the presentation switch is enabled, the renderer draws each visible
   instance's deduplicated mesh edges (`buildMeshEdgeData`) as a line overlay on
-  top of its solid surface pass — so a wireframe look does not hide the solid
-  fill underneath. FE edges are deduplicated by their authored node ids, so
-  tessellation vertices and quadratic mid-edge segments do not create duplicate
-  lines or triangulation diagonals.
+  top of its solid surface pass. FE edges are deduplicated by their authored
+  node ids, so tessellation vertices and quadratic mid-edge segments do not
+  create duplicate lines or triangulation diagonals.
 - The overlay is addressed by a second compacted per-part draw-order list (the
-  **edge order**, `writeEdgeOrder`), a subset of the surface draw order holding
-  only the edge-styled visible slots. `updateInstances` tracks which parts'
-  edge membership flipped (via a CPU edge-flag mirror) and rewrites only those
-  parts' edge orders; visibility deltas rebuild both orders for the affected
-  parts. The edge pass uses a second cached bind group per part that addresses
-  the edge order buffer.
-- Node annotations use the same instance-order mechanism: the resolved
-  `nodes` flag creates a compacted per-part node order and a node draw call.
-  Point parts are excluded because their primary point sprites already draw
-  their authored nodes; node order membership is not a per-element filter.
+  **edge order**, `writeEdgeOrder`). Presentation changes rebuild only the
+  affected overlay orders; visibility deltas rebuild both surface and overlay
+  orders for the affected parts. The edge pass uses a second cached bind group
+  per part that addresses the edge order buffer.
+- Node annotations use the same instance-order mechanism, with membership
+  owned by `ViewportPresentation.setNodesVisible`. Point parts are excluded
+  because their primary point sprites already draw their authored nodes; node
+  order membership is not a per-element filter.
 - The overlay draws with depth writes off and `depthCompare` selected by
   `ViewportPresentation.setEdgeDepthTest`: on (default) uses `less-equal` against
   active-only conservatively resolved visible depth, so coplanar native lines

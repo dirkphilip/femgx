@@ -1,7 +1,11 @@
 import type { Part, PartId } from "../geometry/part";
 import { type InteractionState } from "../interaction/interaction";
 import { diffMapValues, diffNestedSetMembers, diffSetMembers } from "../interaction/mechanics";
-import { readInteractionState, type InteractionStateData } from "../interaction/state";
+import {
+  readInteractionState,
+  readInteractionVisibility,
+  type InteractionStateData,
+} from "../interaction/state";
 import type { InteractionTarget } from "../interaction/target-types";
 import type { PartOccurrenceId } from "../scene/types";
 import type { PackedSceneRuntime } from "../scene-runtime/runtime";
@@ -16,11 +20,7 @@ import type { GpuBundle } from "./recovery";
 import { type InstanceLayout } from "./runtime-state";
 import { forEachInstanceUnderAssemblyTargets } from "../scene-runtime/interaction-hierarchy";
 import { resolveRuntimeInstanceStyle } from "./selection/runtime-instance-style";
-
-const THEME_KEYS = [
-  "highlighted",
-  "selected",
-] as const satisfies readonly (keyof InteractionStateData["theme"])[];
+import { themesEqual } from "./selection/interaction-theme";
 
 export interface TransparencySyncOptions {
   readonly runtime: PackedSceneRuntime;
@@ -95,14 +95,22 @@ export function interactionAffectedSlots(
   };
   diffNestedSetMembers(previousData.selectedBodyIds, nextData.selectedBodyIds, addInstance);
   diffNestedSetMembers(previousData.highlightedBodyIds, nextData.highlightedBodyIds, addInstance);
-  diffNestedSetMembers(previousData.hiddenBodyIds, nextData.hiddenBodyIds, addInstance);
+  diffNestedSetMembers(
+    readInteractionVisibility(previous).hiddenBodyIds,
+    readInteractionVisibility(next).hiddenBodyIds,
+    addInstance,
+  );
   diffNestedSetMembers(previousData.selectedElementIds, nextData.selectedElementIds, addInstance);
   diffNestedSetMembers(
     previousData.highlightedElementIds,
     nextData.highlightedElementIds,
     addInstance,
   );
-  diffNestedSetMembers(previousData.hiddenElementIds, nextData.hiddenElementIds, addInstance);
+  diffNestedSetMembers(
+    readInteractionVisibility(previous).hiddenElementIds,
+    readInteractionVisibility(next).hiddenElementIds,
+    addInstance,
+  );
   diffNestedSetMembers(previousData.selectedNodeIds, nextData.selectedNodeIds, addInstance);
   diffNestedSetMembers(previousData.highlightedNodeIds, nextData.highlightedNodeIds, addInstance);
   diffMapValues(previousData.bodyOverrides, nextData.bodyOverrides, addInstance);
@@ -160,16 +168,6 @@ function collectDirtyParts(options: DirtyPartCollectionOptions): void {
     nextOccurrenceIds: nextData.selectedAssemblyOccurrenceIds,
     parts: selectionParts,
   });
-  diffMapValues(previousData.partOverrides, nextData.partOverrides, (partId) => {
-    addPart(partId, nodeParts);
-  });
-  diffMapValues(
-    previousData.partOccurrenceOverrides,
-    nextData.partOccurrenceOverrides,
-    (instanceId) => {
-      addInstance(instanceId, nodeParts);
-    },
-  );
   diffSetMembers(
     previousData.selectedPartOccurrenceIds,
     nextData.selectedPartOccurrenceIds,
@@ -404,25 +402,4 @@ function addHoveredInstance(
   ) {
     addInstance(target.partOccurrenceId);
   }
-}
-
-function themesEqual(
-  previous: InteractionStateData["theme"],
-  next: InteractionStateData["theme"],
-): boolean {
-  return THEME_KEYS.every((key) => primitiveStylesEqual(previous[key], next[key]));
-}
-
-function primitiveStylesEqual(
-  previous: InteractionStateData["theme"][keyof InteractionStateData["theme"]],
-  next: InteractionStateData["theme"][keyof InteractionStateData["theme"]],
-): boolean {
-  return (
-    previous.emissive === next.emissive &&
-    previous.opacity === next.opacity &&
-    previous.color?.r === next.color?.r &&
-    previous.color?.g === next.color?.g &&
-    previous.color?.b === next.color?.b &&
-    previous.color?.a === next.color?.a
-  );
 }

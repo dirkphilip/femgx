@@ -70,7 +70,7 @@ describe("renderer runtime state", () => {
     ]);
   });
 
-  it("builds node orders from visible node-styled instances and skips points", () => {
+  it("builds node orders from admitted instances and skips points", () => {
     const triangle = part(1);
     const point = createPart(2, {
       geometries: [

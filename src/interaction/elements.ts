@@ -1,5 +1,9 @@
 import type { ElementRef } from "../scene/types";
-import { readInteractionState, updateInteractionState, type InteractionState } from "./state";
+import {
+  readInteractionVisibility,
+  withInteractionVisibility,
+  type InteractionState,
+} from "./state";
 import { updateNestedSet } from "./mechanics";
 
 /**
@@ -11,15 +15,15 @@ export function setElementVisible(
   ref: ElementRef,
   visible: boolean,
 ): InteractionState {
-  const data = readInteractionState(state);
+  const visibility = readInteractionVisibility(state);
   const hiddenElementIds = updateNestedSet(
-    data.hiddenElementIds,
+    visibility.hiddenElementIds,
     ref.partOccurrenceId,
     ref.elementId,
     !visible,
   );
-  if (hiddenElementIds === data.hiddenElementIds) return state;
-  return updateInteractionState(state, { hiddenElementIds });
+  if (hiddenElementIds === visibility.hiddenElementIds) return state;
+  return withInteractionVisibility(state, { ...visibility, hiddenElementIds });
 }
 
 /**
@@ -28,7 +32,8 @@ export function setElementVisible(
  */
 export function isElementVisible(state: InteractionState, ref: ElementRef): boolean {
   return (
-    readInteractionState(state).hiddenElementIds.get(ref.partOccurrenceId)?.has(ref.elementId) !==
-    true
+    readInteractionVisibility(state)
+      .hiddenElementIds.get(ref.partOccurrenceId)
+      ?.has(ref.elementId) !== true
   );
 }

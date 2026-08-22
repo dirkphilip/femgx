@@ -1,5 +1,5 @@
 import { orbitCamera, type Camera } from "../../src/camera/camera";
-import { createInteractionState, setPartOverride } from "../../src/interaction/interaction";
+import { createInteractionState } from "../../src/interaction/interaction";
 import type { WebGpuRenderer } from "../../src/renderer/gpu-renderer";
 import type { createPackedSceneRuntime } from "../../src/scene-runtime/runtime";
 import { calculateRenderLoopStats } from "../workbench/viewport/render-loop";
@@ -88,10 +88,9 @@ export async function measureOverlayInteractiveSamples(
   const { renderer, benchmarkCase, runtime, camera } = options;
   const slots = Array.from({ length: runtime.instanceCount }, (_, slot) => slot);
   const measure = async (edges: boolean, nodes: boolean): Promise<InteractiveSample> => {
-    let interaction = createInteractionState();
-    for (const partId of benchmarkCase.scene.parts.keys()) {
-      interaction = setPartOverride(interaction, partId, { edge: edges, nodes });
-    }
+    renderer.setEdgesVisible(edges);
+    renderer.setNodesVisible(nodes);
+    const interaction = createInteractionState();
     renderer.updateInstances(runtime, interaction, slots);
     renderer.updateElements(runtime, interaction, slots);
     return measureSample(renderer, benchmarkCase, runtime, camera, true);
@@ -103,6 +102,8 @@ export async function measureOverlayInteractiveSamples(
     const edgesAndNodes = await measure(true, true);
     return { surface, nodes, edges, edgesAndNodes };
   } finally {
+    renderer.setEdgesVisible(false);
+    renderer.setNodesVisible(false);
     const interaction = createInteractionState();
     renderer.updateInstances(runtime, interaction, slots);
     renderer.updateElements(runtime, interaction, slots);

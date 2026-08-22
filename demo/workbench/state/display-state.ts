@@ -112,12 +112,11 @@ interface DisplayStateOptions {
 
 /** Applies part overrides, highlight state, and the active display controls. */
 export function applyDisplayState(options: DisplayStateOptions): void {
-  const state = setPartOverrides(
-    options.interaction,
-    modelPartStyleOverrides(options.model, options.toggles.edges, options.toggles.nodes),
-  );
+  const state = setPartOverrides(options.interaction, modelPartStyleOverrides(options.model));
   options.setInteraction(state);
   options.applyDisplayedInteraction();
   options.viewport.presentation.setEdgeDepthTest(true);
+  options.viewport.presentation.setEdgesVisible(options.toggles.edges);
+  options.viewport.presentation.setNodesVisible(options.toggles.nodes);
   options.reflect();
 }

@@ -239,7 +239,9 @@ export class WorkbenchInteraction {
       this.target,
       event.clientX,
       event.clientY,
-      contextMenuSelectionOptions(this.target, this.options.getInteraction()),
+      contextMenuSelectionOptions(this.target, this.options.getInteraction(), (ref) =>
+        this.options.viewport().visibility.isElementEffectivelyVisible(ref),
+      ),
     );
   }
 

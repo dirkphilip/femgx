@@ -9,7 +9,6 @@ import {
   type VisibilityPartMetadata,
 } from "./signature";
 import type { InteractionState } from "../../interaction/interaction";
-import { readInteractionState } from "../../interaction/state";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import { createBuffer } from "../resources/foundation";
 import { writeDrawOrder } from "../resources/instance-storage";
@@ -154,13 +153,12 @@ function groupVisibleSlots(
 ): readonly VisibilityGroup[] {
   const groups: Array<{ signature: VisibilitySignature; locals: number[] }> = [];
   const byHash = new Map<number, Array<{ signature: VisibilitySignature; locals: number[] }>>();
-  const data = readInteractionState(interaction);
   for (const slot of slots) {
     if (!runtime.isInstanceVisible(slot)) continue;
     const instanceId = runtime.getInstanceId(slot);
     const local = layout.slotPartLocal[slot];
     if (instanceId === undefined || local === undefined || local < 0) continue;
-    const signature = visibilitySignature(instanceId, data, metadata);
+    const signature = visibilitySignature(instanceId, interaction, metadata);
     const bucket = byHash.get(signature.hash) ?? [];
     const group = bucket.find((candidate) =>
       visibilitySignaturesEqual(candidate.signature, signature),

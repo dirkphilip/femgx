@@ -1,6 +1,6 @@
 import type { Part, PartId } from "../../geometry/part";
 import { type InteractionState } from "../../interaction/interaction";
-import { readInteractionState, type InteractionStateData } from "../../interaction/state";
+import { readInteractionVisibility } from "../../interaction/state";
 import { diffNestedSetMembers } from "../../interaction/mechanics";
 import type { PackedSceneRuntime } from "../../scene-runtime/runtime";
 import type { PartOccurrenceId } from "../../scene/types";
@@ -39,6 +39,8 @@ export interface AttachmentInteractionState {
   transparentFlags: boolean[];
   edgeFlags: boolean[];
   edgeEmphasisFlags: boolean[];
+  edgesVisible: boolean;
+  nodesVisible: boolean;
   slotByInstanceId: ReadonlyMap<PartOccurrenceId, number>;
   selection: SelectionState;
 }
@@ -119,8 +121,7 @@ export function syncAttachmentInteraction(options: {
   const scope = interactionScope({ ...options, previousInteraction });
   const interactionSlots = scope.slots;
   options.bundle.draw.cost.cpu("instance-scan", interactionSlots.length);
-  const interactionData = readInteractionState(options.interaction);
-  const visibilityChanged = updateHiddenState(state, interactionData);
+  const visibilityChanged = updateHiddenState(state, options.interaction);
   const { transparentChanged, selectionChanged, edgeChanged } = syncBuffers({
     runtime: options.runtime,
     layout: options.layout,
@@ -131,6 +132,7 @@ export function syncAttachmentInteraction(options: {
     affectedParts: scope.affectedParts,
     selectionParts: scope.dirtyParts.selectionParts,
     nodeParts: scope.dirtyParts.nodeParts,
+    nodesVisible: state.nodesVisible,
     fullSync: options.fullSync,
     state,
   });
@@ -228,8 +230,8 @@ function visibilityAffectedParts(options: {
 }): ReadonlySet<PartId> {
   if (options.fullSync) return new Set(options.layout.partOrder);
   const slots = new Set(options.changedSlots);
-  const previous = readInteractionState(options.previousInteraction);
-  const next = readInteractionState(options.interaction);
+  const previous = readInteractionVisibility(options.previousInteraction);
+  const next = readInteractionVisibility(options.interaction);
   const addInstance = (instanceId: string): void => {
     const slot = options.runtime.getInstanceSlot(instanceId);
     if (slot !== undefined) slots.add(slot);
@@ -244,9 +246,13 @@ function visibilityAffectedParts(options: {
     : new Set();
 }
 
-function updateHiddenState(state: AttachmentInteractionState, data: InteractionStateData): boolean {
+function updateHiddenState(
+  state: AttachmentInteractionState,
+  interaction: InteractionState,
+): boolean {
   const previous = state.appliedHiddenIds;
-  const next: HiddenInteractionTuple = [data.hiddenBodyIds, data.hiddenElementIds];
+  const visibility = readInteractionVisibility(interaction);
+  const next: HiddenInteractionTuple = [visibility.hiddenBodyIds, visibility.hiddenElementIds];
   state.appliedHiddenIds = next;
   state.usesExteriorFaceSubsets = !hasHiddenInteractionIds(next);
   return !hiddenIdsEqual(previous[0], next[0]) || !hiddenIdsEqual(previous[1], next[1]);
@@ -276,6 +282,7 @@ function syncBuffers(options: {
   readonly affectedParts: ReadonlySet<PartId>;
   readonly selectionParts: ReadonlySet<PartId>;
   readonly nodeParts: ReadonlySet<PartId>;
+  readonly nodesVisible: boolean;
   readonly fullSync: boolean;
   readonly state: AttachmentInteractionState;
 }): {
@@ -307,6 +314,7 @@ function syncBuffers(options: {
     bundle: options.bundle,
     selectionParts: options.selectionParts,
     nodeParts: options.nodeParts,
+    nodesVisible: options.nodesVisible,
     changedInstanceIds: options.fullSync ? undefined : options.changedSlots,
     denseSelections,
     denseNodeSelections,
@@ -346,6 +354,7 @@ function syncEdgeBuffers(options: {
       parts: edgeChanged,
       flags: options.state.edgeFlags,
       emphasisFlags: options.state.edgeEmphasisFlags,
+      visible: options.state.edgesVisible,
       draw: options.bundle.draw,
     });
   }

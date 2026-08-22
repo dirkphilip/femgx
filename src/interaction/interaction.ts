@@ -9,6 +9,7 @@ import type { BodyId, PartId } from "../geometry/part";
 import {
   createInteractionStateValue,
   readInteractionState,
+  readInteractionVisibility,
   updateInteractionState,
   type InteractionState,
   type InteractionStateData,
@@ -69,10 +70,8 @@ export function createInteractionState(theme: InteractionTheme = defaultTheme): 
     selectedBodyIds: new Map(),
     highlightedBodyIds: new Map(),
     bodyOverrides: new Map(),
-    hiddenBodyIds: new Map(),
     selectedElementIds: new Map(),
     highlightedElementIds: new Map(),
-    hiddenElementIds: new Map(),
     elementOverrides: new Map(),
     partOverrides: new Map(),
     partOccurrenceOverrides: new Map(),
@@ -373,7 +372,7 @@ export function emphasizedElementRefs(state: InteractionState): readonly Element
         for (const elementId of sortedNumbers(overrides.keys()))
           push({ partOccurrenceId, elementId });
       }
-      for (const [partOccurrenceId, ids] of data.hiddenElementIds) {
+      for (const [partOccurrenceId, ids] of readInteractionVisibility(state).hiddenElementIds) {
         for (const elementId of sortedNumbers(ids)) push({ partOccurrenceId, elementId });
       }
     },

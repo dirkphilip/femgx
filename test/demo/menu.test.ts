@@ -100,7 +100,7 @@ describe("workbench context-menu state", () => {
   it("offers exact element selection and visibility actions", () => {
     const target = { kind: "element" as const, partOccurrenceId: "1/0", elementId: 2 };
     const interaction = createInteractionState();
-    const options = contextMenuSelectionOptions(target, interaction);
+    const options = contextMenuSelectionOptions(target, interaction, () => true);
     expect(options).toMatchObject({
       elementSelectionLabel: "Select element",
       elementVisibilityLabel: "Hide element",

@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
-import { createInteractionState, setPartOverride } from "@/interaction/interaction";
+import { createInteractionState } from "@/interaction/interaction";
 import { hideSelectedElements } from "@/interaction/selection-queries";
-import { readInteractionState } from "@/interaction/state";
+import { readInteractionState, readInteractionVisibility } from "@/interaction/state";
 import { setTargetsSelected } from "@/interaction/targets";
 import type { InteractionTarget } from "@/interaction/target-types";
 import { identityMatrix } from "@/math/mat4";
@@ -114,7 +114,7 @@ async function createFixture(): Promise<Fixture> {
     partOccurrenceId,
     elementId,
   }));
-  const base = setPartOverride(createInteractionState(), PART_ID, { edge: true, nodes: true });
+  const base = createInteractionState();
   const selected = setTargetsSelected(base, targets, true);
   const hidden = hideSelectedElements(selected);
   assertState(selected, hidden, partOccurrenceId);
@@ -122,6 +122,7 @@ async function createFixture(): Promise<Fixture> {
   const attachment = new RendererAttachment();
   attachment.prepareParts(scene.parts, bundle);
   attachment.attach(runtime, bundle);
+  attachment.setOverlayVisibility(true, true, bundle);
   apply({ scene, runtime, bundle, attachment }, base);
   return { scene, runtime, bundle, attachment, targets, base, selected, hidden };
 }
@@ -150,7 +151,8 @@ function stateOperation(
       const data = readInteractionState(next);
       expect(data.selectedElementIds.size).toBe(1);
       expect(nestedSize(data.selectedElementIds)).toBe(HALF_COUNT);
-      if (id === "hide") expect(nestedSize(data.hiddenElementIds)).toBe(HALF_COUNT);
+      if (id === "hide")
+        expect(nestedSize(readInteractionVisibility(next).hiddenElementIds)).toBe(HALF_COUNT);
     },
   };
 }
@@ -231,7 +233,7 @@ function assertState(
   if (
     selectedData.selectedElementIds.get(occurrenceId)?.size !== HALF_COUNT ||
     hiddenData.selectedElementIds !== selectedData.selectedElementIds ||
-    hiddenData.hiddenElementIds.get(occurrenceId)?.size !== HALF_COUNT
+    readInteractionVisibility(hidden).hiddenElementIds.get(occurrenceId)?.size !== HALF_COUNT
   ) {
     throw new Error("Hex8 workflow lost selected or hidden half-element membership");
   }

@@ -130,7 +130,7 @@ controller, so camera and interaction behavior is stable
   state. Diagnostics are an opt-in, bounded HUD with `hidden` as its authoritative
   visibility state, and the same action is available from target and empty-scene
   context menus. The `nodes` toggle
-  bulk-applies the part-level node membership flag to eligible non-Point parts;
+  updates the viewport-owned node presentation for eligible non-Point parts;
   Point parts keep their primary glyphs without a duplicate annotation pass. The
   `edges` overlay is a real WebGPU pass with depth testing kept as an implementation
   invariant rather than exposed as a persistent user control. Coplanar overlay
@@ -140,8 +140,8 @@ controller, so camera and interaction behavior is stable
   are two-sided by default, so a genuine 2D FE surface remains visible from
   either side. Every ordinary product story starts with edges and finite-element
   node annotations enabled; startup, preset switches, and Reset use the same
-  inspection-first defaults and reapply per-part edge overrides after replacing
-  the scene
+  inspection-first defaults and reapply the viewport-owned overlay presentation
+  after replacing the scene
   ([[rendering/webgpu-e2e|WebGPU browser e2e lane]]).
 - Body rows expose independent visibility checkboxes and body-name highlight
   buttons; the name button is outside the checkbox label so visibility and

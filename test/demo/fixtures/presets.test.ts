@@ -170,23 +170,21 @@ describe("createTransparencyPreset", () => {
 });
 
 describe("createPresetInteraction", () => {
-  it("can seed the per-part edge override for a new scene", () => {
+  it("keeps overlay membership out of interaction state", () => {
     const preset = createBoltedPlatePreset();
-    const withoutEdges = createPresetInteraction(preset);
-    const withEdges = createPresetInteraction(preset, true);
+    const state = createPresetInteraction(preset);
 
     for (const partId of preset.scene.parts.keys()) {
-      expect(readInteractionState(withoutEdges).partOverrides.get(partId)?.edge).toBeUndefined();
-      expect(readInteractionState(withEdges).partOverrides.get(partId)?.edge).toBe(true);
+      expect(readInteractionState(state).partOverrides.get(partId)).not.toHaveProperty("edge");
     }
   });
 
-  it("enables node overlays for eligible parts but not point glyph parts", () => {
+  it("does not encode node overlay membership in interaction state", () => {
     const preset = createGalleryPreset();
-    const state = createPresetInteraction(preset, false, true);
+    const state = createPresetInteraction(preset);
     const data = readInteractionState(state);
-    expect(data.partOverrides.get(1)?.nodes).toBeUndefined();
-    expect(data.partOverrides.get(8)?.nodes).toBe(true);
+    expect(data.partOverrides.get(1)).not.toHaveProperty("nodes");
+    expect(data.partOverrides.get(8)).not.toHaveProperty("nodes");
   });
 });
 

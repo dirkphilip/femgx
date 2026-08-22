@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { identityMatrix, type Scene, type Viewport } from "@/entries/root";
-import { createInteractionState, setElementVisible } from "@/entries/interaction";
+import { createInteractionState } from "@/entries/interaction";
+import { setElementVisible } from "@/interaction/elements";
 import { createCamera } from "@/entries/camera";
 import { createSceneOccurrenceSnapshot } from "@/scene-runtime/occurrences";
 import { createStructuredFePart } from "../../../demo/benchmark/structured-fe";

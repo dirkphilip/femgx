@@ -2,7 +2,6 @@ import { createViewport } from "../../src/entries/root";
 import { importGlb } from "../../src/entries/io/glb";
 import { createImportedModel } from "../workbench/models/model";
 import { createModelInteraction } from "../workbench/state/preset";
-import { createDefaultDisplayToggles } from "../workbench/types";
 import { makeMechanicalAssemblyGlb } from "./glb-fixture";
 
 const WIDTH = 800;
@@ -60,8 +59,7 @@ export async function runGlbViewportBenchmark(
     results: undefined,
     issues: imported.issues,
   });
-  const toggles = createDefaultDisplayToggles(model);
-  const interaction = createModelInteraction(model, toggles.edges, toggles.nodes);
+  const interaction = createModelInteraction(model);
   const workbenchStateMs = performance.now() - stateStart;
   const deviceStart = performance.now();
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
@@ -89,13 +87,17 @@ export async function runGlbViewportBenchmark(
     const steadyFrameCpuMs = performance.now() - steadyStart;
     await device.queue.onSubmittedWorkDone();
     const steadyFrameQueueMs = performance.now() - steadyStart;
-    const edge = await measureOverlay(viewport, device, createModelInteraction(model, true, false));
+    const edge = await measureOverlay(viewport, device, createModelInteraction(model), true, false);
     const nodes = await measureOverlay(
       viewport,
       device,
-      createModelInteraction(model, false, true),
+      createModelInteraction(model),
+      false,
+      true,
     );
-    viewport.interaction.set(createModelInteraction(model, true, false));
+    viewport.interaction.set(createModelInteraction(model));
+    viewport.presentation.setEdgesVisible(true);
+    viewport.presentation.setNodesVisible(false);
     viewport.render();
     if (holdMilliseconds > 0) {
       await new Promise((resolve) => window.setTimeout(resolve, holdMilliseconds));
@@ -142,9 +144,13 @@ async function measureOverlay(
   viewport: BenchmarkViewport,
   device: GPUDevice,
   interaction: Parameters<BenchmarkViewport["interaction"]["set"]>[0],
+  edges: boolean,
+  nodes: boolean,
 ): Promise<OverlayTimings> {
   const toggleStart = performance.now();
   viewport.interaction.set(interaction);
+  viewport.presentation.setEdgesVisible(edges);
+  viewport.presentation.setNodesVisible(nodes);
   viewport.render();
   const toggleCpuMs = performance.now() - toggleStart;
   const firstStart = performance.now();

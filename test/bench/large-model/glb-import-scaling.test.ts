@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { importGlb } from "@/io/glb/importer";
 import { createImportedModel } from "../../../demo/workbench/models/model";
 import { createModelInteraction } from "../../../demo/workbench/state/preset";
-import { createDefaultDisplayToggles } from "../../../demo/workbench/types";
 import { makeManyPartGlb, makeManyPrimitiveGlb } from "../../../demo/benchmark/glb-fixture";
 
 const PRIMITIVE_COUNTS = [25_000, 50_000, 100_000] as const;
@@ -25,8 +24,7 @@ describe("many-primitive GLB scaling", () => {
         results: undefined,
         issues: imported.issues,
       });
-      const toggles = createDefaultDisplayToggles(model);
-      createModelInteraction(model, toggles.edges, toggles.nodes);
+      createModelInteraction(model);
       measurements.push({ count, milliseconds: performance.now() - start });
       expect(imported.scene.parts).toHaveLength(1);
       expect(imported.scene.parts.get(0)?.geometries[0]?.indices).toHaveLength(count * 3);

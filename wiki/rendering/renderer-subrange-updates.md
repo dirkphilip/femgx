@@ -53,12 +53,12 @@ Pick ids are `global slot + 1`, so they are **stable across visibility changes**
 - `writeDrawOrder(partId, order)` rewrites only the changed u32 subranges of the
   part's compacted draw order. A visibility delta rebuilds the order list only
   for the affected parts (`runtime-state.ts` `buildDrawOrder`).
-- `writeEdgeOrder(partId, order)` rewrites only the affected edge orders: the
-  renderer keeps a CPU edge-flag mirror per slot and rebuilds a part's edge
-  order only when its membership flips or its visibility changes.
+- `writeEdgeOrder(partId, order)` rewrites only the affected edge orders. The
+  viewport presentation owner controls whether the order includes all visible
+  slots or is empty; visibility changes rebuild only affected parts.
 - `writeNodeOrder(partId, order)` applies the same compacted update discipline
-  to resolved part/instance node membership. Point parts receive an empty node
-  order because their primary point draw already represents the node.
+  to the viewport presentation's node membership. Point parts receive an empty
+  node order because their primary point draw already represents the node.
 - Steady-state `render(runtime, camera, parts)` reuses cached buffers and issues
   zero instance writes.
 

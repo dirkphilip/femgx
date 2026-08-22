@@ -80,14 +80,14 @@ oriented element faces are the finest-grained pickable units under
 
 ## Node glyph overlay
 
-- `StyleOverride.nodes` is a part-occurrence-level display flag. A part override
-  enables annotations for every placement of that part; a part-occurrence override
-  wins for one placement. The renderer compacts enabled visible instances into
-  a per-part node order and skips Point parts because their primary point
-  sprite already represents the authored node.
-- The demo's `Show element nodes` control bulk-updates this part/instance style
-  path for every eligible non-Point part. It does not call a renderer-owned
-  global overlay switch. Annotation circles use the independent
+- `ViewportPresentation.setNodesVisible` owns node-annotation membership for
+  the whole viewport. `StyleOverride` has no node-membership field, so
+  interaction state cannot create a competing per-part or per-instance display
+  path. The renderer compacts enabled visible instances into a per-part node
+  order and skips Point parts because their primary point sprite already
+  represents the authored node.
+- The demo's `Show element nodes` control updates that viewport presentation
+  switch. Annotation circles use the independent
   `ViewportOptions.nodeSizePixels` diameter, defaulting to 6 CSS pixels and
   configurable at runtime with `setNodeSizePixels`; point elements use the
   separate `pointSizePixels` setting, defaulting to 8. Both values are scaled
@@ -104,7 +104,8 @@ oriented element faces are the finest-grained pickable units under
   `nodePickId` changes the circle's color/emissive. This keeps node selection
   local and avoids surface z-fighting.
 - Primitive-specific body, element, face, and node interaction layers cannot
-  set `nodes`; node membership is deliberately not a per-primitive filter.
+  control node membership; node membership is deliberately not a
+  per-primitive filter.
 - Default node glyphs are translucent black. The pipeline uses MSAA
   alpha-to-coverage without color blending: uncovered samples preserve the
   surface below, while overlapping glyphs reuse the same coverage mask instead

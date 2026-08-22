@@ -3,7 +3,6 @@ import { createPackedTet4Part } from "../../../demo/benchmark/packed-tet4";
 import { buildDenseTet4Payload } from "../../../demo/benchmark/tet4-transfer";
 import { partSemanticGraph } from "@/geometry/semantic/part-semantic-graph";
 import { setElementVisible } from "@/interaction/elements";
-import { setPartOverride } from "@/interaction/interaction";
 import type { createInteractionState } from "@/interaction/interaction";
 import { destroyGpuBundle } from "@/renderer/recovery";
 import {
@@ -33,7 +32,7 @@ describe("local Tet4 authored-edge residency benchmark", () => {
       coldOff = await visibilityFixture(part, graph.elementIds);
       const geometry = triangleGeometry(fixture.part);
       uploadPart(fixture.bundle.draw, fixture.part);
-      const edgeOn = setPartOverride(fixture.shown, part.id, { edge: true });
+      const edgeOn = fixture.shown;
       fixture.attachment.updateInstances(fixture.runtime, edgeOn, [0], fixture.bundle);
       const oneHidden = setElementVisible(
         edgeOn,
@@ -48,7 +47,7 @@ describe("local Tet4 authored-edge residency benchmark", () => {
           false,
         );
       }
-      const halfHidden = setPartOverride(fixture.hidden, part.id, { edge: true });
+      const halfHidden = fixture.hidden;
       const cases = [
         ["no-hide-compact", edgeOn, false],
         ["one-hidden-full", oneHidden, true],

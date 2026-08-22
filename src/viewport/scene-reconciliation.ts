@@ -3,6 +3,8 @@ import { getPartSemanticIndex, type PartSemanticIndex } from "../geometry/part-s
 import {
   createInteractionStateValue,
   readInteractionState,
+  readInteractionVisibility,
+  withInteractionVisibility,
   type InteractionState,
   type InteractionStateData,
 } from "../interaction/state";
@@ -47,7 +49,11 @@ export function reconcileInteractionState(
     nextHoveredTarget === undefined
       ? nextWithoutHover
       : { ...nextWithoutHover, hoveredTarget: nextHoveredTarget };
-  return sameInteractionData(data, next) ? state : createInteractionStateValue(next);
+  if (sameInteractionData(data, next)) return state;
+  return withInteractionVisibility(
+    createInteractionStateValue(next),
+    readInteractionVisibility(state),
+  );
 }
 
 function reconcilePartState(
@@ -89,10 +95,8 @@ type ReconciledOccurrenceState = Pick<
   | "selectedBodyIds"
   | "highlightedBodyIds"
   | "bodyOverrides"
-  | "hiddenBodyIds"
   | "selectedElementIds"
   | "highlightedElementIds"
-  | "hiddenElementIds"
   | "elementOverrides"
   | "partOccurrenceOverrides"
   | "selectedNodeIds"
@@ -124,10 +128,8 @@ function reconcileOccurrenceState(
     selectedBodyIds: filterNested(data.selectedBodyIds, identityFor, body),
     highlightedBodyIds: filterNested(data.highlightedBodyIds, identityFor, body),
     bodyOverrides: filterNestedMaps(data.bodyOverrides, identityFor, body),
-    hiddenBodyIds: filterNested(data.hiddenBodyIds, identityFor, body),
     selectedElementIds: filterNested(data.selectedElementIds, identityFor, element),
     highlightedElementIds: filterNested(data.highlightedElementIds, identityFor, element),
-    hiddenElementIds: filterNested(data.hiddenElementIds, identityFor, element),
     elementOverrides: filterNestedMaps(data.elementOverrides, identityFor, element),
     partOccurrenceOverrides: filterMap(data.partOccurrenceOverrides, keepInstance),
     selectedNodeIds: filterNested(data.selectedNodeIds, identityFor, node),
@@ -267,10 +269,8 @@ function sameInteractionData(left: InteractionStateData, right: InteractionState
     left.selectedBodyIds === right.selectedBodyIds &&
     left.highlightedBodyIds === right.highlightedBodyIds &&
     left.bodyOverrides === right.bodyOverrides &&
-    left.hiddenBodyIds === right.hiddenBodyIds &&
     left.selectedElementIds === right.selectedElementIds &&
     left.highlightedElementIds === right.highlightedElementIds &&
-    left.hiddenElementIds === right.hiddenElementIds &&
     left.elementOverrides === right.elementOverrides &&
     left.partOverrides === right.partOverrides &&
     left.partOccurrenceOverrides === right.partOccurrenceOverrides &&

@@ -140,6 +140,44 @@ describe("Viewport incremental hierarchy updates", () => {
     viewport.destroy();
   });
 
+  it("retains presentation-owned edge and node overlays through hierarchy updates", async () => {
+    installTestGpuGlobals();
+    installNavigator();
+    const viewport = await createViewport({
+      canvas: fakeCanvas(),
+      scene: hierarchyScene(),
+      device: fakeGpuDevice().device,
+    });
+    const renderer = viewport as unknown as {
+      readonly renderer: {
+        readonly attachment: RendererAttachment;
+      };
+    };
+    viewport.presentation.setEdgesVisible(true);
+    viewport.presentation.setNodesVisible(true);
+    expect(renderer.renderer.attachment.edgeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
+    expect(renderer.renderer.attachment.nodeCalls).toEqual([{ partId: 1, instanceCount: 1 }]);
+
+    viewport.updateScene((update) => {
+      update.addPlacement(1, {
+        kind: "assembly",
+        placementId: "attached",
+        assemblyId: 2,
+        transform: translationMatrix(3, 0, 0),
+      });
+    });
+
+    expect(renderer.renderer.attachment.edgeCalls).toEqual([
+      { partId: 1, instanceCount: 1 },
+      { partId: 2, instanceCount: 1 },
+    ]);
+    expect(renderer.renderer.attachment.nodeCalls).toEqual([
+      { partId: 1, instanceCount: 1 },
+      { partId: 2, instanceCount: 1 },
+    ]);
+    viewport.destroy();
+  });
+
   it("preserves unrelated results and interaction through a hierarchy transaction", async () => {
     installTestGpuGlobals();
     installNavigator();
@@ -272,8 +310,9 @@ function hierarchyScene() {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint32Array([0, 1, 2]),
   };
-  const first = createPart(1, { geometries: [geometry] });
-  const second = createPart(2, { geometries: [geometry] });
+  const nodePositions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  const first = createPart(1, { geometries: [geometry], nodePositions });
+  const second = createPart(2, { geometries: [geometry], nodePositions });
   return createSceneBuilder()
     .addPart(first)
     .addPart(second)

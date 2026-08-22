@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createPart, type Viewport, type Part } from "../../src/entries/root";
-import {
-  createInteractionState,
-  setBodyVisible,
-  setElementVisible,
-} from "../../src/entries/interaction";
+import { createPart, type Viewport, type Part, type ElementRef } from "../../src/entries/root";
+import { createInteractionState } from "../../src/entries/interaction";
+import { setBodyVisible } from "../../src/interaction/bodies";
+import { setElementVisible } from "../../src/interaction/elements";
+import { isBodyVisible } from "../../src/interaction/bodies";
+import { isElementVisible } from "../../src/interaction/elements";
 import { selectAllTargets } from "../../demo/workbench/selection/select-all";
 
 const partOccurrenceId = "root/part";
@@ -68,6 +68,13 @@ function fakeViewport(interaction: Viewport["interaction"]["state"]): Viewport {
     occurrences: {
       visiblePartOccurrenceIds: () => [partOccurrenceId],
       getPartOccurrence: () => ({ partOccurrenceId, partId: part.id }),
+    },
+    visibility: {
+      isElementEffectivelyVisible: ({ partOccurrenceId, elementId }: ElementRef) => {
+        if (!isElementVisible(interaction, { partOccurrenceId, elementId })) return false;
+        const bodyId = part.elements?.get(elementId)?.bodyId;
+        return bodyId === undefined || isBodyVisible(interaction, { partOccurrenceId, bodyId });
+      },
     },
   } as unknown as Viewport;
 }
